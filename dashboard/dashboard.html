@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Recommender - 数据分析</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="dashboard">
+    <header class="dash-header">
+      <h1>🎮 游戏智能推荐 - 数据分析中心</h1>
+      <div class="header-actions">
+        <button id="refreshBtn" class="btn btn-primary">🔄 刷新数据</button>
+        <button id="steamRecBtn" class="btn btn-steam">🎯 Steam推荐</button>
+      </div>
+    </header>
+
+    <!-- 概览统计 -->
+    <section class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">总行为记录</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statGames">0</div>
+        <div class="stat-label">已学习游戏</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statViews">0</div>
+        <div class="stat-label">详情页浏览</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statDownloads">0</div>
+        <div class="stat-label">下载操作</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statRate">0%</div>
+        <div class="stat-label">浏览→下载转化率</div>
+      </div>
+    </section>
+
+    <!-- 标签偏好 -->
+    <section class="section">
+      <h2>📊 Steam标签偏好（学习结果）</h2>
+      <p class="section-desc">基于您下载过的游戏的Steam标签分析得出</p>
+      <div id="tagCloud" class="tag-cloud">
+        <span class="no-data">暂无数据</span>
+      </div>
+    </section>
+
+    <!-- 下载方式统计 -->
+    <section class="section">
+      <h2>📥 下载方式统计</h2>
+      <div id="downloadMethods" class="method-grid">
+        <span class="no-data">暂无数据</span>
+      </div>
+    </section>
+
+    <!-- 游戏记录 -->
+    <section class="section">
+      <h2>🕹️ 游戏学习记录</h2>
+      <div class="table-wrapper">
+        <table id="gameTable" class="data-table">
+          <thead>
+            <tr>
+              <th>游戏名称</th>
+              <th>浏览</th>
+              <th>下载</th>
+              <th>Steam标签</th>
+              <th>Steam评分</th>
+              <th>最后时间</th>
+            </tr>
+          </thead>
+          <tbody id="gameTableBody">
+            <tr><td colspan="6" class="no-data">暂无数据</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Steam推荐 -->
+    <section class="section" id="steamRecSection" style="display:none">
+      <h2>🎯 基于偏好的Steam游戏推荐</h2>
+      <p class="section-desc" id="recBasedOn"></p>
+      <div id="steamRecList" class="rec-grid"></div>
+    </section>
+
+    <!-- 最近行为日志 -->
+    <section class="section">
+      <h2>📋 最近行为日志</h2>
+      <div class="table-wrapper">
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>时间</th>
+              <th>类型</th>
+              <th>游戏</th>
+              <th>方式</th>
+              <th>网站</th>
+            </tr>
+          </thead>
+          <tbody id="logTableBody">
+            <tr><td colspan="5" class="no-data">暂无数据</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- 运行日志 -->
+    <section class="section">
+      <h2>📝 插件运行日志</h2>
+      <div class="section-toolbar">
+        <select id="logLevelFilter" class="log-filter">
+          <option value="all">全部级别</option>
+          <option value="info">INFO</option>
+          <option value="warn">WARN</option>
+          <option value="error">ERROR</option>
+          <option value="debug">DEBUG</option>
+        </select>
+        <button id="exportLogsBtn" class="btn btn-sm">📤 导出日志</button>
+        <button id="clearLogsBtn" class="btn btn-sm btn-danger">🗑️ 清空日志</button>
+      </div>
+      <div id="runtimeLogList" class="runtime-log">
+        <div class="no-data">暂无日志</div>
+      </div>
+    </section>
+
+    <!-- 备份管理 -->
+    <section class="section">
+      <h2>💾 数据备份管理</h2>
+      <div class="section-toolbar">
+        <button id="createBackupBtn" class="btn btn-primary btn-sm">➕ 立即备份</button>
+        <span id="backupStatus" class="backup-status"></span>
+      </div>
+      <div id="backupList" class="backup-list">
+        <div class="no-data">暂无备份</div>
+      </div>
+    </section>
+  </div>
+
+  <script src="dashboard.js"></script>
+</body>
+</html>

@@ -1,0 +1,285 @@
+/* Game Recommender - Dashboard Styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #0f0f1a;
+  color: #e0e0e0;
+  min-height: 100vh;
+  padding: 30px;
+}
+
+.dashboard { max-width: 1100px; margin: 0 auto; }
+
+.dash-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.dash-header h1 { font-size: 22px; color: #fff; }
+
+.header-actions { display: flex; gap: 10px; }
+
+/* 按钮 */
+.btn {
+  padding: 10px 18px;
+  font-size: 14px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-weight: 600;
+}
+
+.btn-primary { background: #66c0f4; color: #1a1a2e; }
+.btn-primary:hover { background: #8dd4f8; transform: translateY(-1px); }
+
+.btn-steam { background: linear-gradient(135deg, #1b2838, #2a475e); color: #66c0f4; border: 1px solid #66c0f4; }
+.btn-steam:hover { background: #2a475e; box-shadow: 0 0 12px rgba(102,192,244,0.3); }
+
+/* 统计卡片 */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 16px;
+  margin-bottom: 30px;
+}
+
+.stat-card {
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.stat-value { font-size: 28px; font-weight: bold; color: #66c0f4; }
+.stat-label { font-size: 12px; color: #888; margin-top: 6px; }
+
+/* 区块 */
+.section {
+  background: #1a1a2e;
+  border: 1px solid #2a2a4a;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+}
+
+.section h2 { font-size: 16px; color: #66c0f4; margin-bottom: 12px; }
+.section-desc { font-size: 13px; color: #888; margin-bottom: 16px; }
+
+/* 标签云 */
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.tag-item {
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: default;
+  transition: transform 0.2s;
+}
+
+.tag-item:hover { transform: scale(1.05); }
+
+.tag-item.high { background: rgba(102, 192, 244, 0.25); color: #66c0f4; border: 1px solid #66c0f4; }
+.tag-item.medium { background: rgba(163, 207, 6, 0.15); color: #a3cf06; border: 1px solid rgba(163, 207, 6, 0.4); }
+.tag-item.low { background: rgba(255, 255, 255, 0.05); color: #aaa; border: 1px solid #444; }
+
+/* 下载方式 */
+.method-grid { display: flex; flex-wrap: wrap; gap: 12px; }
+
+.method-item {
+  background: #16213e;
+  border-radius: 8px;
+  padding: 12px 18px;
+  text-align: center;
+  min-width: 120px;
+}
+
+.method-item .method-count { font-size: 22px; font-weight: bold; color: #a3cf06; }
+.method-item .method-name { font-size: 12px; color: #888; margin-top: 4px; }
+
+/* 表格 */
+.table-wrapper { overflow-x: auto; }
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.data-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: #16213e;
+  color: #66c0f4;
+  font-weight: 600;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.data-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #1e1e3a;
+  color: #ccc;
+}
+
+.data-table tr:hover td { background: rgba(102, 192, 244, 0.05); }
+
+.data-table .tag-small {
+  display: inline-block;
+  padding: 2px 8px;
+  margin: 2px;
+  font-size: 11px;
+  background: #2a2a4a;
+  border-radius: 8px;
+  color: #66c0f4;
+}
+
+.data-table .downloaded { color: #a3cf06; font-weight: bold; }
+
+/* Steam推荐 */
+.rec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.rec-card {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 10px;
+  overflow: hidden;
+  transition: all 0.2s;
+}
+
+.rec-card:hover { border-color: #66c0f4; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+
+.rec-card img { width: 100%; height: 130px; object-fit: cover; }
+
+.rec-card-body { padding: 14px; }
+.rec-card-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 6px; }
+.rec-card-meta { font-size: 12px; color: #888; margin-bottom: 8px; }
+.rec-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
+
+.rec-card-tags span {
+  padding: 2px 8px;
+  font-size: 11px;
+  background: rgba(102, 192, 244, 0.15);
+  color: #66c0f4;
+  border-radius: 8px;
+}
+
+.rec-card a {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 6px 14px;
+  font-size: 12px;
+  color: #66c0f4;
+  text-decoration: none;
+  border: 1px solid #66c0f4;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.rec-card a:hover { background: rgba(102, 192, 244, 0.15); }
+
+.no-data { color: #666; font-size: 14px; padding: 10px; }
+
+/* 事件类型标签 */
+.event-type {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.event-type.view { background: rgba(102, 192, 244, 0.15); color: #66c0f4; }
+.event-type.download { background: rgba(163, 207, 6, 0.15); color: #a3cf06; }
+.event-type.list { background: rgba(255, 255, 255, 0.08); color: #aaa; }
+.event-type.steam { background: rgba(102, 192, 244, 0.2); color: #8dd4f8; }
+
+/* 按钮变体 */
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-danger { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.4); }
+.btn-danger:hover { background: rgba(231, 76, 60, 0.25); }
+
+/* 工具栏 */
+.section-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.log-filter {
+  padding: 6px 10px;
+  background: #16213e;
+  color: #e0e0e0;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+.backup-status { font-size: 13px; color: #a3cf06; }
+
+/* 运行日志 */
+.runtime-log {
+  max-height: 400px;
+  overflow-y: auto;
+  background: #0a0a14;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+  padding: 8px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 12px;
+}
+
+.log-entry {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 4px 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  line-height: 1.5;
+}
+
+.log-time { color: #666; flex-shrink: 0; }
+.log-level { font-weight: bold; flex-shrink: 0; width: 48px; }
+.log-module { color: #67c1f5; flex-shrink: 0; }
+.log-msg { color: #c7d5e0; }
+.log-data { color: #888; font-size: 11px; word-break: break-all; }
+
+.log-info .log-level { color: #66c0f4; }
+.log-warn .log-level { color: #f39c12; }
+.log-error .log-level { color: #e74c3c; }
+.log-error { background: rgba(231, 76, 60, 0.06); }
+.log-debug .log-level { color: #888; }
+
+.runtime-log::-webkit-scrollbar { width: 6px; }
+.runtime-log::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
+
+/* 备份管理 */
+.backup-list { display: flex; flex-direction: column; gap: 8px; }
+
+.backup-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+  border-radius: 6px;
+}
+
+.backup-info { display: flex; align-items: center; gap: 12px; font-size: 13px; }
+.backup-type { color: #67c1f5; }
+.backup-time { color: #c7d5e0; }
+.backup-size { color: #888; font-size: 12px; }
+.backup-actions { display: flex; gap: 8px; }

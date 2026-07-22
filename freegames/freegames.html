@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Recommender - 限免游戏提醒</title>
+  <link rel="stylesheet" href="freegames.css">
+</head>
+<body>
+  <div class="container">
+    <header class="page-header">
+      <h1>🎁 限免游戏提醒</h1>
+      <div class="header-actions">
+        <span id="lastUpdate" class="last-update"></span>
+        <button id="refreshBtn" class="btn btn-primary">🔄 刷新</button>
+      </div>
+    </header>
+
+    <p class="page-desc">每日自动刷新，覆盖 Epic / Steam / GOG 等主流平台（含 GamerPower 聚合渠道）的限免游戏。点击“去领取”后会自动标记已领取并更新角标数量。</p>
+    
+    <!-- 平台筛选 -->
+    <div class="platform-filter">
+      <button class="filter-btn active" data-platform="all">全部</button>
+      <button class="filter-btn" data-platform="epic">Epic Games</button>
+      <button class="filter-btn" data-platform="steam">Steam</button>
+      <button class="filter-btn" data-platform="gog">GOG</button>
+      <button class="filter-btn" data-platform="other">其他</button>
+    </div>
+
+    <!-- 游戏列表 -->
+    <div id="gameList" class="game-grid">
+      <div class="loading">正在加载限免游戏...</div>
+    </div>
+  </div>
+
+  <script src="freegames.js"></script>
+</body>
+</html>

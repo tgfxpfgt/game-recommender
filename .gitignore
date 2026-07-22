@@ -1,0 +1,43 @@
+# ===== 操作系统生成文件 =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ===== 编辑器/IDE =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.qoder/
+
+# ===== 日志与临时文件 =====
+*.log
+*.tmp
+*.temp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== 依赖目录（如后续引入构建工具）=====
+node_modules/
+bower_components/
+
+# ===== 构建产物 =====
+dist/
+build/
+*.zip
+*.crx
+*.pem
+
+# ===== 环境变量与密钥 =====
+.env
+.env.local
+*.key
+secrets.json
+
+# ===== 备份与缓存数据 =====
+*.bak
+backup-*.json

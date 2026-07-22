@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Recommender</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="popup-container">
+    <header class="popup-header">
+      <h1>🎮 游戏智能推荐</h1>
+      <label class="switch">
+        <input type="checkbox" id="enableToggle" checked>
+        <span class="slider"></span>
+      </label>
+    </header>
+
+    <section class="popup-stats">
+      <div class="stat-item">
+        <span class="stat-value" id="statEvents">0</span>
+        <span class="stat-label">行为记录</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="statGames">0</span>
+        <span class="stat-label">已学习游戏</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-value" id="statKeywords">0</span>
+        <span class="stat-label">偏好关键词</span>
+      </div>
+    </section>
+
+    <section class="popup-section">
+      <h3>推荐阈值</h3>
+      <div class="threshold-control">
+        <input type="range" id="thresholdSlider" min="30" max="90" value="60" step="5">
+        <span id="thresholdValue">60%</span>
+      </div>
+      <p class="hint">高于此值的游戏将在列表页标红</p>
+    </section>
+
+    <section class="popup-section">
+      <h3>算法模式</h3>
+      <div class="mode-selector">
+        <label class="radio-item">
+          <input type="radio" name="algoMode" value="builtin" checked>
+          <span>内置算法</span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="algoMode" value="llm">
+          <span>AI 大模型</span>
+        </label>
+      </div>
+      <div id="llmStatus" class="llm-status" style="display:none">
+        <span class="status-dot"></span>
+        <span id="llmStatusText">未配置</span>
+      </div>
+    </section>
+
+    <section class="popup-section">
+      <h3>偏好关键词 TOP5</h3>
+      <div id="topKeywords" class="keyword-tags">
+        <span class="no-data">暂无数据，多浏览游戏即可学习</span>
+      </div>
+    </section>
+
+    <section class="popup-section">
+      <h3>其他</h3>
+      <label class="check-item">
+        <input type="checkbox" id="debugToggle">
+        <span>显示调试窗口</span>
+      </label>
+    </section>
+
+    <footer class="popup-footer">
+      <button id="freeGamesBtn" class="btn btn-sm btn-free">🎁 限免提醒<span id="freeCount" class="free-count" style="display:none"></span></button>
+      <button id="refreshBtn" class="btn btn-sm">🔄 刷新</button>
+      <button id="dashboardBtn" class="btn btn-sm">📊 分析</button>
+      <button id="optionsBtn" class="btn btn-sm">⚙️ 设置</button>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

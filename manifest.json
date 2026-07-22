@@ -1,0 +1,58 @@
+{
+  "manifest_version": 3,
+  "name": "Game Recommender - 游戏智能推荐",
+  "version": "1.0.0",
+  "description": "基于浏览行为学习的游戏资源智能推荐插件，自动预判下载概率并集成Steam评分",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "tabs",
+    "scripting",
+    "alarms"
+  ],
+  "host_permissions": [
+    "https://store.steampowered.com/*",
+    "https://api.steampowered.com/*",
+    "https://steamdb.info/*",
+    "https://steamspy.com/*",
+    "https://store-site-backend-official.ak.epicgames.com/*",
+    "https://www.gog.com/*",
+    "https://www.gamerpower.com/*",
+    "https://xdgame.com/*",
+    "https://www.xianyudanji.gg/*",
+    "https://www.gamer520.com/*",
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js",
+    "type": "module"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content/tracker.js"],
+      "css": ["styles/content.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "options_page": "options/options.html",
+  "web_accessible_resources": [
+    {
+      "resources": ["dashboard/dashboard.html", "freegames/freegames.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

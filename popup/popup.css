@@ -1,0 +1,278 @@
+/* Game Recommender - Popup Styles */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 320px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+.popup-container {
+  padding: 16px;
+}
+
+.popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.popup-header h1 {
+  font-size: 16px;
+  color: #fff;
+}
+
+/* 开关样式 */
+.switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+}
+
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #444;
+  border-radius: 24px;
+  transition: 0.3s;
+}
+
+.slider:before {
+  content: "";
+  position: absolute;
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background: white;
+  border-radius: 50%;
+  transition: 0.3s;
+}
+
+input:checked + .slider {
+  background: #66c0f4;
+}
+
+input:checked + .slider:before {
+  transform: translateX(20px);
+}
+
+/* 统计区域 */
+.popup-stats {
+  display: flex;
+  justify-content: space-around;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #16213e;
+  border-radius: 8px;
+}
+
+.stat-item {
+  text-align: center;
+}
+
+.stat-value {
+  display: block;
+  font-size: 20px;
+  font-weight: bold;
+  color: #66c0f4;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #888;
+}
+
+/* 区块 */
+.popup-section {
+  margin-bottom: 16px;
+}
+
+.popup-section h3 {
+  font-size: 13px;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+/* 阈值滑块 */
+.threshold-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.threshold-control input[type="range"] {
+  flex: 1;
+  height: 4px;
+  -webkit-appearance: none;
+  background: #2a2a4a;
+  border-radius: 2px;
+  outline: none;
+}
+
+.threshold-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  background: #66c0f4;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.threshold-control span {
+  font-size: 14px;
+  font-weight: bold;
+  color: #66c0f4;
+  min-width: 40px;
+}
+
+.hint {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* 模式选择 */
+.mode-selector {
+  display: flex;
+  gap: 16px;
+}
+
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.radio-item input[type="radio"] {
+  accent-color: #66c0f4;
+}
+
+.llm-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: #888;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e74c3c;
+}
+
+.status-dot.connected {
+  background: #2ecc71;
+}
+
+/* 关键词标签 */
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.keyword-tag {
+  padding: 3px 10px;
+  font-size: 12px;
+  background: #2a2a4a;
+  border-radius: 12px;
+  color: #66c0f4;
+}
+
+.no-data {
+  font-size: 12px;
+  color: #666;
+}
+
+/* 复选框项 */
+.check-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.check-item input[type="checkbox"] {
+  accent-color: #66c0f4;
+}
+
+/* 限免按钮 */
+.btn-free {
+  background: rgba(163, 207, 6, 0.15);
+  color: #a3cf06;
+  border: 1px solid rgba(163, 207, 6, 0.4);
+}
+
+.btn-free:hover {
+  background: rgba(163, 207, 6, 0.25);
+}
+
+.free-count {
+  display: inline-block;
+  min-width: 16px;
+  height: 16px;
+  line-height: 16px;
+  text-align: center;
+  margin-left: 4px;
+  padding: 0 4px;
+  font-size: 10px;
+  font-weight: bold;
+  color: #fff;
+  background: #e74c3c;
+  border-radius: 8px;
+}
+
+/* 底部按钮 */
+.popup-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #2a2a4a;
+}
+
+.btn {
+  padding: 8px 12px;
+  font-size: 12px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-sm {
+  background: #2a2a4a;
+  color: #e0e0e0;
+}
+
+.btn-sm:hover {
+  background: #3a3a5a;
+  color: #fff;
+}

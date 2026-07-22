@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>生成插件图标</title>
+  <style>
+    body { font-family: sans-serif; padding: 40px; background: #1a1a2e; color: #fff; }
+    canvas { margin: 10px; border: 1px solid #333; }
+    .icons { display: flex; gap: 20px; align-items: flex-end; margin: 20px 0; }
+    button { padding: 10px 20px; font-size: 16px; cursor: pointer; background: #66c0f4; border: none; border-radius: 6px; }
+    h1 { color: #66c0f4; }
+    p { color: #888; }
+  </style>
+</head>
+<body>
+  <h1>🎮 Game Recommender 图标生成器</h1>
+  <p>点击下方按钮下载图标文件，然后放入 icons/ 目录</p>
+  <div class="icons">
+    <div><canvas id="c16" width="16" height="16"></canvas><br>16x16</div>
+    <div><canvas id="c48" width="48" height="48"></canvas><br>48x48</div>
+    <div><canvas id="c128" width="128" height="128"></canvas><br>128x128</div>
+  </div>
+  <button onclick="downloadAll()">下载所有图标</button>
+
+  <script>
+    function drawIcon(canvas) {
+      const ctx = canvas.getContext('2d');
+      const s = canvas.width;
+      
+      // 背景渐变
+      const grad = ctx.createLinearGradient(0, 0, s, s);
+      grad.addColorStop(0, '#1b2838');
+      grad.addColorStop(1, '#2a475e');
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.roundRect(0, 0, s, s, s * 0.15);
+      ctx.fill();
+      
+      // 游戏手柄图标
+      ctx.fillStyle = '#66c0f4';
+      ctx.font = `${s * 0.5}px serif`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('🎮', s/2, s/2);
+      
+      // 推荐星号
+      ctx.fillStyle = '#e74c3c';
+      ctx.font = `bold ${s * 0.25}px sans-serif`;
+      ctx.fillText('★', s * 0.78, s * 0.22);
+    }
+
+    ['c16', 'c48', 'c128'].forEach(id => {
+      drawIcon(document.getElementById(id));
+    });
+
+    function downloadAll() {
+      ['16', '48', '128'].forEach(size => {
+        const canvas = document.getElementById('c' + size);
+        const link = document.createElement('a');
+        link.download = `icon${size}.png`;
+        link.href = canvas.toDataURL('image/png');
+        link.click();
+      });
+    }
+  </script>
+</body>
+</html>

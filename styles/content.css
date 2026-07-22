@@ -1,0 +1,42 @@
+/* Game Recommender - Content Styles (v2) */
+
+/* 列表页高亮样式 */
+.gr-highlighted {
+  position: relative;
+  border-left: 3px solid #e74c3c !important;
+  background: linear-gradient(90deg, rgba(231, 76, 60, 0.08) 0%, transparent 100%) !important;
+  transition: all 0.3s ease;
+}
+
+.gr-highlighted:hover {
+  background: linear-gradient(90deg, rgba(231, 76, 60, 0.15) 0%, transparent 100%) !important;
+}
+
+.gr-highlighted a {
+  color: #e74c3c !important;
+  font-weight: bold !important;
+}
+
+/* 推荐分数徽章 */
+.gr-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: bold;
+  color: #fff;
+  background: linear-gradient(135deg, #e74c3c, #c0392b);
+  border-radius: 10px;
+  vertical-align: middle;
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* 调试面板滚动条 */
+#gr-debug-panel::-webkit-scrollbar {
+  width: 4px;
+}
+#gr-debug-panel::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 2px;
+}
