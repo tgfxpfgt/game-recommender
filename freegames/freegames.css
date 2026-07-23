@@ -151,6 +151,55 @@ body {
   50% { opacity: 0.7; }
 }
 
+/* 领取方式筛选栏 */
+.claim-filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+.filter-label {
+  font-size: 13px;
+  color: #888;
+}
+.claim-btn-filter {
+  padding: 5px 14px;
+  font-size: 12px;
+  background: #1a1a2e;
+  color: #aaa;
+  border: 1px solid #2a2a4a;
+  border-radius: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.claim-btn-filter:hover { border-color: #66c0f4; color: #66c0f4; }
+.claim-btn-filter.active {
+  background: rgba(102, 192, 244, 0.15);
+  color: #66c0f4;
+  border-color: #66c0f4;
+}
+
+/* 领取方式标识徽章 */
+.claim-type {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: help;
+}
+.claim-type.direct {
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ecc71;
+  border: 1px solid rgba(46, 204, 113, 0.4);
+}
+.claim-type.thirdparty {
+  background: rgba(243, 156, 18, 0.15);
+  color: #f39c12;
+  border: 1px solid rgba(243, 156, 18, 0.4);
+}
+
 .game-platform.epic { background: rgba(47, 47, 47, 0.8); color: #fff; border: 1px solid #666; }
 .game-platform.steam { background: rgba(102, 192, 244, 0.15); color: #66c0f4; }
 .game-platform.gog { background: rgba(134, 82, 168, 0.2); color: #b08bd9; }

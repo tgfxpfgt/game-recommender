@@ -1153,6 +1153,8 @@ async function fetchEpicFreeGames() {
         id: 'epic-' + el.id,
         platform: 'epic',
         platformName: 'Epic Games',
+        claimType: 'direct',
+        source: 'Epic Games Store',
         name: el.title,
         description: el.description || '',
         image: img,
@@ -1184,6 +1186,8 @@ async function fetchGogFreeGames() {
         id: 'gog-' + p.id,
         platform: 'gog',
         platformName: 'GOG',
+        claimType: 'direct',
+        source: 'GOG',
         name: p.title,
         description: '',
         image: p.image ? `https:${p.image}.jpg` : '',
@@ -1215,6 +1219,8 @@ async function fetchSteamFreeGames() {
           id: 'steam-' + item.id,
           platform: 'steam',
           platformName: 'Steam',
+          claimType: 'direct',
+          source: 'Steam',
           name: item.name,
           description: '',
           image: item.large_capsule_image || item.small_capsule_image || '',
@@ -1233,6 +1239,38 @@ async function fetchSteamFreeGames() {
 
 // 从 GamerPower（第三方聚合渠道）获取限免游戏
 // 该平台聚合了 Epic/Steam/GOG/Itch.io 等多平台的限免信息，可靠性高
+// 分类GamerPower限免：官方平台直领（无门槛） vs 第三方平台领取（需额外条件）
+function classifyGamerPowerGiveaway(item) {
+  const title = (item.title || '').toLowerCase();
+  const instructions = (item.instructions || '').toLowerCase();
+  
+  // 第三方特征：
+  // 1. 标题含 "key"（如 "Steam Key"、"Key Giveaway"）——通常是第三方发放平台密钥
+  // 2. 领取说明提及第三方账号/服务（如 Alienware、unlock your key、redeem）
+  const hasKeyInTitle = /\bkey\b/.test(title);
+  const thirdPartySignals = [
+    'alienware', 'unlock your key', 'get your key', 'redeem the key',
+    'redeem your key', 'indiegala', 'humble bundle', 'fanatical',
+    'grabfree', 'key giveaway', 'claim your key', 'your free key'
+  ];
+  const hasThirdPartyInstruction = thirdPartySignals.some(kw => instructions.includes(kw));
+  
+  if (hasKeyInTitle || hasThirdPartyInstruction) {
+    return 'thirdparty';  // 第三方平台领取（需额外条件）
+  }
+  return 'direct';  // 官方平台直接领取（无门槛）
+}
+
+// 从标题提取第三方来源名称（如 Alienware）
+function extractThirdPartySource(item) {
+  const instructions = (item.instructions || '').toLowerCase();
+  if (instructions.includes('alienware')) return 'Alienware Arena';
+  if (instructions.includes('indiegala')) return 'IndieGala';
+  if (instructions.includes('humble')) return 'Humble Bundle';
+  if (instructions.includes('fanatical')) return 'Fanatical';
+  return '第三方平台';
+}
+
 async function fetchGamerPowerFreeGames() {
   const games = [];
   try {
@@ -1256,10 +1294,16 @@ async function fetchGamerPowerFreeGames() {
       // 只保留PC相关平台的限免
       if (platform === 'other') continue;
       
+      // 分类：官方直领 vs 第三方领取
+      const claimType = classifyGamerPowerGiveaway(item);
+      const source = claimType === 'thirdparty' ? extractThirdPartySource(item) : platformName;
+      
       games.push({
         id: 'gp-' + item.id,
         platform: platform,
         platformName: platformName,
+        claimType: claimType,
+        source: source,
         name: item.title || '',
         description: item.description || '',
         image: item.image || '',

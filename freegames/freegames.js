@@ -4,6 +4,7 @@
 
 let allGames = [];
 let currentFilter = 'all';
+let currentClaimFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
   loadFreeGames();
@@ -18,6 +19,16 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.dataset.platform;
+      renderGames();
+    });
+  });
+
+  // 领取方式筛选
+  document.querySelectorAll('.claim-btn-filter').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.claim-btn-filter').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      currentClaimFilter = btn.dataset.claim;
       renderGames();
     });
   });
@@ -56,6 +67,11 @@ function renderGames() {
     filtered = allGames.filter(g => !mainPlatforms.includes(g.platform));
   } else {
     filtered = allGames.filter(g => g.platform === currentFilter);
+  }
+
+  // 领取方式筛选（官方直领 vs 第三方）
+  if (currentClaimFilter !== 'all') {
+    filtered = filtered.filter(g => (g.claimType || 'direct') === currentClaimFilter);
   }
 
   if (filtered.length === 0) {
@@ -103,6 +119,12 @@ function renderGameCard(game) {
     ? `<span class="new-today">🆕 今日新增</span>`
     : '';
 
+  // 领取方式标识：官方直领（无门槛） vs 第三方领取（需条件）
+  const isThirdParty = game.claimType === 'thirdparty';
+  const claimTypeHtml = isThirdParty
+    ? `<span class="claim-type thirdparty" title="需到第三方平台（${escapeHtml(game.source || '第三方')}）领取，可能有额外条件">🟡 第三方·${escapeHtml(game.source || '需条件')}</span>`
+    : `<span class="claim-type direct" title="可直接在 ${escapeHtml(game.platformName)} 平台领取，无门槛">🟢 官方直领</span>`;
+
   // 领取按钮：始终为可点击链接（可重复点击），已领取仅改变样式/文案
   const claimBtn = game.claimed
     ? `<a href="${game.url}" target="_blank" class="claim-btn claimed" data-id="${game.id}">✓ 已领取 · 再次打开</a>`
@@ -114,6 +136,7 @@ function renderGameCard(game) {
       <div class="game-card-body">
         <div class="game-tags-row">
           <span class="game-platform ${platformClass}">${escapeHtml(game.platformName)}</span>
+          ${claimTypeHtml}
           ${newTodayHtml}
         </div>
         <div class="game-title">${escapeHtml(game.name)}</div>
