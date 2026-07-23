@@ -421,16 +421,19 @@ function cleanGameName(name) {
   return candidates[0] || name || '';
 }
 
+// Steam缓存版本号（匹配逻辑变更时递增，使旧缓存自动失效）
+const STEAM_CACHE_VERSION = 2;
+
 async function searchSteamGame(gameName) {
   const settings = await getSettings();
   const searchTerms = parseGameTitle(gameName);
   
-  // 先检查缓存
+  // 先检查缓存（需版本号匹配，避免返回旧逻辑产生的错误结果）
   const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
   const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
   const cacheKey = gameName.toLowerCase().trim();
   
-  if (cache[cacheKey] && (Date.now() - cache[cacheKey].timestamp < 7 * 24 * 3600 * 1000)) {
+  if (cache[cacheKey] && cache[cacheKey].version === STEAM_CACHE_VERSION && (Date.now() - cache[cacheKey].timestamp < 7 * 24 * 3600 * 1000)) {
     return cache[cacheKey].data;
   }
   
@@ -689,7 +692,7 @@ async function searchSteamGame(gameName) {
     };
     
     // 缓存结果
-    cache[cacheKey] = { data: result, timestamp: Date.now() };
+    cache[cacheKey] = { data: result, timestamp: Date.now(), version: STEAM_CACHE_VERSION };
     await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
     
     return result;
@@ -709,7 +712,7 @@ async function getSteamPositiveRate(gameName) {
   const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
   const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
   const cached = cache[cacheKey];
-  if (cached && (Date.now() - cached.timestamp < 7 * 24 * 3600 * 1000)) {
+  if (cached && cached.version === STEAM_CACHE_VERSION && (Date.now() - cached.timestamp < 7 * 24 * 3600 * 1000)) {
     if (cached.data && cached.data.positiveRate !== undefined) {
       return {
         positiveRate: cached.data.positiveRate,
@@ -736,7 +739,7 @@ async function getSteamPositiveRate(gameName) {
     }
     if (!appId) {
       // 缓存“未找到”避免重复搜索
-      cache[cacheKey] = { data: { positiveRate: null, name: gameName }, timestamp: Date.now() };
+      cache[cacheKey] = { data: { positiveRate: null, name: gameName }, timestamp: Date.now(), version: STEAM_CACHE_VERSION };
       await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
       return null;
     }
@@ -761,7 +764,8 @@ async function getSteamPositiveRate(gameName) {
     const existingData = (cached && cached.data) ? cached.data : {};
     cache[cacheKey] = {
       data: { ...existingData, appId, name: foundName, positiveRate, ratingDesc },
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      version: STEAM_CACHE_VERSION
     };
     await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
     
