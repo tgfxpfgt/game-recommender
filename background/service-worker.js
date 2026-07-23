@@ -694,6 +694,79 @@ async function searchSteamGame(gameName) {
   }
 }
 
+// 轻量级Steam好评率查询（用于列表页，复用缓存，仅获取好评率不做完整详情抓取）
+async function getSteamPositiveRate(gameName) {
+  if (!gameName) return null;
+  const searchTerms = parseGameTitle(gameName);
+  const cacheKey = gameName.toLowerCase().trim();
+  
+  // 检查缓存（复用 searchSteamGame 的缓存）
+  const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
+  const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
+  const cached = cache[cacheKey];
+  if (cached && (Date.now() - cached.timestamp < 7 * 24 * 3600 * 1000)) {
+    if (cached.data && cached.data.positiveRate !== undefined) {
+      return {
+        positiveRate: cached.data.positiveRate,
+        ratingDesc: cached.data.ratingDesc || null,
+        appId: cached.data.appId || null,
+        name: cached.data.name || gameName
+      };
+    }
+  }
+  
+  try {
+    // 搜索Steam获取appId
+    let appId = null;
+    let foundName = gameName;
+    for (const term of searchTerms) {
+      const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`;
+      const resp = await fetch(searchUrl);
+      const data = await resp.json();
+      if (data.total > 0 && data.items && data.items[0]) {
+        appId = data.items[0].id;
+        foundName = data.items[0].name || gameName;
+        break;
+      }
+    }
+    if (!appId) {
+      // 缓存“未找到”避免重复搜索
+      cache[cacheKey] = { data: { positiveRate: null, name: gameName }, timestamp: Date.now() };
+      await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
+      return null;
+    }
+    
+    // 获取评价统计（好评率）
+    let positiveRate = null;
+    let ratingDesc = null;
+    try {
+      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
+      const reviewResp = await fetch(reviewUrl);
+      const reviewData = await reviewResp.json();
+      if (reviewData.success === 1 && reviewData.query_summary) {
+        ratingDesc = reviewData.query_summary.review_score_desc || null;
+        const total = reviewData.query_summary.total_reviews;
+        if (total > 0) {
+          positiveRate = Math.round(reviewData.query_summary.total_positive / total * 100);
+        }
+      }
+    } catch (e) {}
+    
+    // 合并缓存（保留可能已有的完整数据）
+    const existingData = (cached && cached.data) ? cached.data : {};
+    cache[cacheKey] = {
+      data: { ...existingData, appId, name: foundName, positiveRate, ratingDesc },
+      timestamp: Date.now()
+    };
+    await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
+    
+    return { positiveRate, ratingDesc, appId, name: foundName };
+  } catch (e) {
+    console.log('获取Steam好评率失败:', e.message);
+    return null;
+  }
+}
+
 // ============ 推荐算法引擎 ============
 
 async function calculateRecommendation(gameInfo, forceBuiltin = false) {
@@ -1345,6 +1418,25 @@ async function handleMessage(message, sender) {
         Logger.warn('Steam', `未找到"${message.gameName}"`);
       }
       return { data: steamResult };
+      
+    case 'GET_STEAM_RATINGS':
+      // 批量查询Steam好评率（列表页用，控制并发避免请求过载）
+      const ratingNames = message.names || [];
+      const ratings = {};
+      const batchSize = 5;
+      for (let i = 0; i < ratingNames.length; i += batchSize) {
+        const batch = ratingNames.slice(i, i + batchSize);
+        const batchResults = await Promise.all(batch.map(async (name) => {
+          try {
+            const r = await getSteamPositiveRate(name);
+            return [name, r];
+          } catch (e) {
+            return [name, null];
+          }
+        }));
+        batchResults.forEach(([name, r]) => { ratings[name] = r; });
+      }
+      return { ratings };
       
     case 'GET_SETTINGS':
       return { settings: await getSettings() };

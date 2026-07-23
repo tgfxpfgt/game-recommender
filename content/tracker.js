@@ -283,6 +283,52 @@
     });
 
     requestRecommendations(items);
+    requestSteamRatings(items);
+  }
+
+  // 列表页：检索每个游戏的Steam好评率并显示在游戏名前
+  async function requestSteamRatings(items) {
+    try {
+      const maxItems = 60;
+      const processItems = items.slice(0, maxItems);
+      // 去重游戏名
+      const uniqueNames = [...new Set(processItems.map(i => i.name).filter(n => n && n.length > 1))];
+      if (uniqueNames.length === 0) return;
+
+      const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names: uniqueNames });
+      if (response && response.ratings) {
+        let shown = 0;
+        processItems.forEach(item => {
+          const rating = response.ratings[item.name];
+          if (rating && rating.positiveRate !== null && rating.positiveRate !== undefined) {
+            prependRatingBadge(item, rating);
+            shown++;
+          }
+        });
+        dbg(`列表页显示 ${shown} 个Steam好评率`);
+      }
+    } catch (e) {
+      dbg('Steam好评率检索失败: ' + e.message);
+    }
+  }
+
+  // 在游戏名前插入好评率徽章
+  function prependRatingBadge(item, rating) {
+    const link = item.link;
+    if (!link || link.querySelector('.gr-rating-badge')) return; // 避免重复插入
+
+    const rate = rating.positiveRate;
+    // 颜色分级：>=80 绿色，>=60 黄绿，<60 橙色
+    const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
+    const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
+
+    const badge = document.createElement('span');
+    badge.className = 'gr-rating-badge';
+    badge.textContent = `${rate}%`;
+    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;`;
+    badge.title = `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}`;
+
+    link.insertBefore(badge, link.firstChild);
   }
 
   async function requestRecommendations(items) {
