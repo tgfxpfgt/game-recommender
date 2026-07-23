@@ -352,20 +352,17 @@ function parseGameTitle(rawName) {
   
   // 去除括号内容
   name = name.replace(/[\(（\[【].*?[\)）\]】]/g, '');
-  
   // 去除《》书名号但保留内容
   name = name.replace(/[《》]/g, '');
   
-  // 去除常见后缀/噪音词
-  const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build\s*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|免安装绿色版|\s+The\s+Game\s*)/gi;
-  name = name.replace(noisePattern, ' ');
+  // 先用分隔符拆分（保留第一段作为游戏名）
+  const rawParts = name.split(/[/|:：、]+|\s+\-\s+/).map(s => s.trim()).filter(s => s.length > 1);
   
-  // 用分隔符拆分（/、|、:、：、 、 - 等，但保留单词内连字符如 Middle-earth）
-  const parts = name.split(/[/|:：、]+|\s+\-\s+/).map(s => s.trim()).filter(s => s.length > 1);
+  // 噪音词模式（Build.23531465 等版本号/通用词）
+  const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|免安装绿色版|\s+The\s+Game\s*)/gi;
   
   const candidates = [];
   const seen = new Set();
-  
   function addCandidate(text) {
     const t = text.trim().replace(/\s+/g, ' ');
     if (t.length >= 2 && !seen.has(t.toLowerCase())) {
@@ -374,40 +371,48 @@ function parseGameTitle(rawName) {
     }
   }
   
-  for (const part of parts) {
-    // 提取纯英文名（Latin字符+数字+常见符号）
-    const englishMatch = part.match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
-    if (englishMatch) {
-      englishMatch.forEach(m => addCandidate(m.trim()));
-    }
-    
-    // 提取纯中文名（中文字符+数字）
-    const chineseMatch = part.match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
-    if (chineseMatch) {
-      chineseMatch.forEach(m => addCandidate(m.trim()));
-    }
-    
-    // 如果part本身就是一个合理的名字（不含太多噪音）
-    if (part.length >= 2 && part.length <= 60) {
-      addCandidate(part);
-    }
+  // 第一段通常是游戏名，优先作为主候选（如 "007 初露锋芒"、"王之凝视"）
+  if (rawParts.length > 0) {
+    const firstCleaned = rawParts[0].replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+    if (firstCleaned.length >= 2) addCandidate(firstCleaned);
+    // 从第一段提取中文/英文子名
+    const firstEn = rawParts[0].match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
+    if (firstEn) firstEn.forEach(m => addCandidate(m.trim()));
+    const firstCn = rawParts[0].match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
+    if (firstCn) firstCn.forEach(m => addCandidate(m.trim()));
+  }
+  
+  // 其余段提取英文名（中文名通常已在第一段），并清理噪音
+  for (let i = 1; i < rawParts.length; i++) {
+    const en = rawParts[i].match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
+    if (en) en.forEach(m => {
+      const cleaned = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+      if (cleaned.length >= 2) addCandidate(cleaned);
+    });
   }
   
   // 如果拆分后没有结果，用整体清理后的名字
   if (candidates.length === 0) {
-    addCandidate(name.replace(/\s+/g, ' ').trim());
+    addCandidate(name.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim());
   }
   
-  // 排序：英文名优先（Steam搜索英文名命中率更高），短名优先
-  candidates.sort((a, b) => {
+  // 过滤纯噪音候选（如 "豪华"、"Build.xxx"、纯数字、版本号）
+  const junkPattern = /^(豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|build[.\s]*\d+|\d+[\d.]*|v[\d.]+)$/i;
+  const filtered = candidates.filter(c => !junkPattern.test(c.trim()));
+  const finalCandidates = filtered.length > 0 ? filtered : candidates;
+  
+  // 排序：保持第一段（游戏名）在首位，其余英文名优先、短名优先
+  const first = finalCandidates[0];
+  const rest = finalCandidates.slice(1);
+  rest.sort((a, b) => {
     const aIsEnglish = /^[A-Za-z]/.test(a);
     const bIsEnglish = /^[A-Za-z]/.test(b);
     if (aIsEnglish && !bIsEnglish) return -1;
     if (!aIsEnglish && bIsEnglish) return 1;
-    return a.length - b.length; // 短名优先（更精确）
+    return a.length - b.length;
   });
   
-  return candidates.slice(0, 5); // 最多5个候选
+  return [first, ...rest].slice(0, 5);
 }
 
 // 兼容旧调用
