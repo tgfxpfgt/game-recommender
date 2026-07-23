@@ -90,10 +90,14 @@ async function loadFreeGamesCount() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force: false });
     if (response && response.data && response.data.games) {
-      const unclaimed = response.data.games.filter(g => !g.claimed).length;
+      // 统计当天新增的限免游戏（与图标角标一致）
+      const todayStart = new Date();
+      todayStart.setHours(0, 0, 0, 0);
+      const todayStartMs = todayStart.getTime();
+      const newToday = response.data.games.filter(g => g.firstSeen && g.firstSeen >= todayStartMs).length;
       const countEl = document.getElementById('freeCount');
-      if (unclaimed > 0) {
-        countEl.textContent = unclaimed;
+      if (newToday > 0) {
+        countEl.textContent = newToday;
         countEl.style.display = 'inline-block';
       }
     }

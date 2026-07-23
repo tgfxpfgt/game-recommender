@@ -68,16 +68,22 @@ function renderGames() {
 
   listEl.innerHTML = sorted.map(game => renderGameCard(game)).join('');
 
-  // 绑定领取按钮
-  listEl.querySelectorAll('.claim-btn:not(.claimed)').forEach(btn => {
+  // 绑定领取按钮（所有按钮均可重复点击）
+  listEl.querySelectorAll('.claim-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
       const gameId = btn.dataset.id;
-      // 标记已领取并更新badge
-      await chrome.runtime.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
-      // 更新本地状态
       const game = allGames.find(g => g.id === gameId);
-      if (game) game.claimed = true;
-      renderGames();
+      // 链接始终会在新标签打开（<a target=_blank> 默认行为）
+      // 若尚未领取，标记已领取并更新角标
+      if (game && !game.claimed) {
+        await chrome.runtime.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
+        game.claimed = true;
+        // 就地更新按钮外观（保持链接可点击，不整体重渲染以免中断跳转）
+        btn.classList.add('claimed');
+        btn.innerHTML = '✓ 已领取 · 再次打开';
+        const card = btn.closest('.game-card');
+        if (card) card.classList.add('claimed');
+      }
     });
   });
 }
@@ -92,15 +98,24 @@ function renderGameCard(game) {
     ? `<span class="game-price"><span class="original">${escapeHtml(game.originalPrice)}</span>免费</span>`
     : `<span class="game-price">免费</span>`;
 
+  // 今日新增标识
+  const newTodayHtml = isToday(game.firstSeen)
+    ? `<span class="new-today">🆕 今日新增</span>`
+    : '';
+
+  // 领取按钮：始终为可点击链接（可重复点击），已领取仅改变样式/文案
   const claimBtn = game.claimed
-    ? `<span class="claim-btn claimed">✓ 已领取</span>`
+    ? `<a href="${game.url}" target="_blank" class="claim-btn claimed" data-id="${game.id}">✓ 已领取 · 再次打开</a>`
     : `<a href="${game.url}" target="_blank" class="claim-btn" data-id="${game.id}">🎁 去领取</a>`;
 
   return `
     <div class="game-card ${game.claimed ? 'claimed' : ''}">
       ${game.image ? `<img src="${game.image}" alt="${escapeHtml(game.name)}" onerror="this.style.display='none'"/>` : ''}
       <div class="game-card-body">
-        <span class="game-platform ${platformClass}">${escapeHtml(game.platformName)}</span>
+        <div class="game-tags-row">
+          <span class="game-platform ${platformClass}">${escapeHtml(game.platformName)}</span>
+          ${newTodayHtml}
+        </div>
         <div class="game-title">${escapeHtml(game.name)}</div>
         <div class="game-desc">${escapeHtml(game.description || '暂无简介')}</div>
         <div class="game-meta">
@@ -113,6 +128,16 @@ function renderGameCard(game) {
       </div>
     </div>
   `;
+}
+
+// 判断时间戳是否为当天
+function isToday(timestamp) {
+  if (!timestamp) return false;
+  const d = new Date(timestamp);
+  const now = new Date();
+  return d.getFullYear() === now.getFullYear() &&
+         d.getMonth() === now.getMonth() &&
+         d.getDate() === now.getDate();
 }
 
 function formatDate(dateStr) {

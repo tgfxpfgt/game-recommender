@@ -1235,27 +1235,41 @@ async function refreshFreeGames(force = false) {
   // 每天刷新一次（除非强制）
   const ONE_DAY = 24 * 3600 * 1000;
   if (!force && existing.lastUpdate && (Date.now() - existing.lastUpdate < ONE_DAY)) {
+    await updateFreeGamesBadge();
     return existing;
   }
   
   const newGames = await fetchAllFreeGames();
-  // 保留已领取标记
-  const claimedIds = new Set(existing.games.filter(g => g.claimed).map(g => g.id));
-  newGames.forEach(g => { if (claimedIds.has(g.id)) g.claimed = true; });
+  // 保留已有游戏的状态（已领取标记 + 首次发现时间）
+  const existingMap = new Map(existing.games.map(g => [g.id, g]));
+  const now = Date.now();
+  newGames.forEach(g => {
+    const old = existingMap.get(g.id);
+    if (old) {
+      g.claimed = old.claimed || false;
+      g.firstSeen = old.firstSeen || now;  // 保留首次发现时间
+    } else {
+      g.firstSeen = now;  // 新游戏，首次发现时间为当前
+    }
+  });
   
-  const result = { lastUpdate: Date.now(), games: newGames };
+  const result = { lastUpdate: now, games: newGames };
   await chrome.storage.local.set({ [DB_KEYS.FREE_GAMES]: result });
   await updateFreeGamesBadge();
   return result;
 }
 
-// 更新扩展图标角标（待领取数量）
+// 更新扩展图标角标（当天新增限免游戏数量）
 async function updateFreeGamesBadge() {
   try {
     const data = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
     const games = data[DB_KEYS.FREE_GAMES]?.games || [];
-    const unclaimed = games.filter(g => !g.claimed).length;
-    chrome.action.setBadgeText({ text: unclaimed > 0 ? String(unclaimed) : '' });
+    // 统计当天（本地零点起）新增的限免游戏
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayStartMs = todayStart.getTime();
+    const newToday = games.filter(g => g.firstSeen && g.firstSeen >= todayStartMs).length;
+    chrome.action.setBadgeText({ text: newToday > 0 ? String(newToday) : '' });
     chrome.action.setBadgeBackgroundColor({ color: '#e74c3c' });
   } catch (e) {
     console.log('更新badge失败:', e.message);
