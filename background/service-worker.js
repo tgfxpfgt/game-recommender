@@ -1,64 +1,99 @@
 /**
  * Game Recommender - Background Service Worker
  * 负责数据管理、Steam API调用、推荐计算协调
+ *
+ * 代码结构：
+ *   1. 常量与配置
+ *   2. 存储管理
+ *   3. Steam 缓存工具
+ *   4. 运行日志
+ *   5. 自动备份
+ *   6. 行为日志与游戏画像
+ *   7. 用户偏好模型
+ *   8. 游戏标题解析
+ *   9. Steam API 子模块（搜索/详情/HTML解析/评测/SteamDB/SteamSpy）
+ *  10. Steam API 编排器（searchSteamGame / getSteamPositiveRate）
+ *  11. 推荐算法引擎
+ *  12. 下载站搜索
+ *  13. 限免游戏
+ *  14. 消息处理（handler map）
+ *  15. 初始化
  */
 
-// ============ 数据存储管理 ============
+// ============ 1. 常量与配置 ============
 
 const DB_KEYS = {
-  BEHAVIOR_LOG: 'behaviorLog',       // 用户行为日志
-  GAME_PROFILES: 'gameProfiles',     // 游戏画像
-  USER_PREFERENCES: 'userPrefs',     // 用户偏好模型
-  SETTINGS: 'settings',             // 插件设置
-  STEAM_CACHE: 'steamCache',        // Steam数据缓存
-  KEYWORD_WEIGHTS: 'keywordWeights', // 关键词权重
-  FREE_GAMES: 'freeGames',          // 限免游戏
-  RUNTIME_LOG: 'runtimeLog',        // 运行日志
-  BACKUPS: 'backups'                // 自动备份
+  BEHAVIOR_LOG: 'behaviorLog',
+  GAME_PROFILES: 'gameProfiles',
+  USER_PREFERENCES: 'userPrefs',
+  SETTINGS: 'settings',
+  STEAM_CACHE: 'steamCache',
+  KEYWORD_WEIGHTS: 'keywordWeights',
+  FREE_GAMES: 'freeGames',
+  RUNTIME_LOG: 'runtimeLog',
+  BACKUPS: 'backups'
 };
 
-// 默认设置
 const DEFAULT_SETTINGS = {
   enabled: true,
-  showDebugPanel: false,          // 调试窗口默认关闭
-  highlightThreshold: 0.6,        // 高亮阈值
-  maxBehaviorLog: 500,            // 最大行为记录数
-  steamApiKey: '',                // Steam API Key（可选）
-  useLLM: false,                  // 是否使用LLM
+  showDebugPanel: false,
+  highlightThreshold: 0.6,
+  maxBehaviorLog: 500,
+  steamApiKey: '',
+  useLLM: false,
   llmConfig: {
-    provider: 'local',            // local | openai | custom
-    endpoint: 'http://localhost:11434/api/generate', // Ollama默认
+    provider: 'local',
+    endpoint: 'http://localhost:11434/api/generate',
     apiKey: '',
     model: 'qwen2.5:7b',
     temperature: 0.3
   },
-  weights: {                      // 推荐算法权重
-    clickRate: 0.2,               // 点击率权重
-    downloadRate: 0.35,           // 下载率权重
-    keywordMatch: 0.25,           // 关键词匹配权重
-    steamRating: 0.2             // Steam评分权重
+  weights: {
+    clickRate: 0.2,
+    downloadRate: 0.35,
+    keywordMatch: 0.25,
+    steamRating: 0.2
   },
-  trackedSites: [                 // 追踪的网站
-    '3dmgame.com',
-    'ali213.net',
-    'gamersky.com',
-    'yystv.cn',
-    'fitgirl-repacks.site',
-    'rutracker.org',
-    'gamer520.com',
-    'xianyudanji.gg',
-    'xdgame.com'
+  trackedSites: [
+    '3dmgame.com', 'ali213.net', 'gamersky.com', 'yystv.cn',
+    'fitgirl-repacks.site', 'rutracker.org',
+    'gamer520.com', 'xianyudanji.gg', 'xdgame.com'
   ],
-  // 日志设置
-  enableLog: true,                  // 是否记录运行日志
-  maxRuntimeLog: 300,               // 最大运行日志条数
-  // 自动备份设置
-  autoBackup: true,                 // 是否自动备份
-  backupIntervalHours: 24,          // 备份间隔（小时）
-  maxBackups: 7                     // 保留的备份数量
+  enableLog: true,
+  maxRuntimeLog: 300,
+  autoBackup: true,
+  backupIntervalHours: 24,
+  maxBackups: 7
 };
 
-// 初始化存储
+const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+
+const BACKUP_DATA_KEYS = [
+  DB_KEYS.BEHAVIOR_LOG,
+  DB_KEYS.GAME_PROFILES,
+  DB_KEYS.USER_PREFERENCES,
+  DB_KEYS.SETTINGS,
+  DB_KEYS.KEYWORD_WEIGHTS,
+  DB_KEYS.FREE_GAMES
+];
+
+// Steam缓存版本号（匹配逻辑变更时递增，使旧缓存自动失效）
+const STEAM_CACHE_VERSION = 2;
+const STEAM_CACHE_TTL = 7 * 24 * 3600 * 1000; // 7天
+
+// 下载站配置
+const DOWNLOAD_SITES = [
+  { key: 'xdgame',      name: 'XDGame',   searchUrl: q => `https://xdgame.com/so/${encodeURIComponent(q)}.html`,     base: 'https://xdgame.com' },
+  { key: 'xianyudanji', name: '咸鱼单机', searchUrl: q => `https://www.xianyudanji.gg/?s=${encodeURIComponent(q)}`,   base: 'https://www.xianyudanji.gg' },
+  { key: 'gamer520',    name: 'Gamer520', searchUrl: q => `https://www.gamer520.com/?s=${encodeURIComponent(q)}`,     base: 'https://www.gamer520.com' }
+];
+
+// ============ 2. 存储管理 ============
+
+let settingsCache = null;
+let settingsCacheTime = 0;
+const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
+
 async function initStorage() {
   const data = await chrome.storage.local.get(DB_KEYS.SETTINGS);
   if (!data[DB_KEYS.SETTINGS]) {
@@ -66,12 +101,6 @@ async function initStorage() {
   }
 }
 
-// 设置内存缓存（减少频繁的存储读取，提升性能）
-let settingsCache = null;
-let settingsCacheTime = 0;
-const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
-
-// 获取设置
 async function getSettings() {
   const now = Date.now();
   if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_TTL)) {
@@ -83,52 +112,61 @@ async function getSettings() {
   return settingsCache;
 }
 
-// 保存设置
 async function saveSettings(settings) {
   await chrome.storage.local.set({ [DB_KEYS.SETTINGS]: settings });
-  // 更新缓存
   settingsCache = { ...DEFAULT_SETTINGS, ...settings };
   settingsCacheTime = Date.now();
 }
 
-// ============ 运行日志系统 ============
+// ============ 3. Steam 缓存工具 ============
 
-const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
+function isSteamCacheValid(entry) {
+  return entry &&
+    entry.version === STEAM_CACHE_VERSION &&
+    (Date.now() - entry.timestamp < STEAM_CACHE_TTL);
+}
 
-// 写入运行日志（异步，不阻塞主流程）
+async function getSteamCacheEntry(cacheKey) {
+  const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
+  const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
+  return cache[cacheKey] || null;
+}
+
+async function setSteamCacheEntry(cacheKey, data) {
+  const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
+  const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
+  cache[cacheKey] = { data, timestamp: Date.now(), version: STEAM_CACHE_VERSION };
+  await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
+}
+
+// ============ 4. 运行日志 ============
+
 async function writeLog(level, module, message, data) {
   try {
     const settings = await getSettings();
     if (!settings.enableLog) return;
-    
-    const entry = {
-      timestamp: Date.now(),
-      level: level,
-      module: module,
-      message: message
-    };
+
+    const entry = { timestamp: Date.now(), level, module, message };
     if (data !== undefined) {
-      // 限制data大小，避免存储过大
       try {
         const s = typeof data === 'string' ? data : JSON.stringify(data);
         entry.data = s.length > 500 ? s.substring(0, 500) + '...' : s;
       } catch (e) { entry.data = String(data); }
     }
-    
+
     const stored = await chrome.storage.local.get(DB_KEYS.RUNTIME_LOG);
     const logs = stored[DB_KEYS.RUNTIME_LOG] || [];
     logs.push(entry);
-    
+
     const max = settings.maxRuntimeLog || 300;
     while (logs.length > max) logs.shift();
-    
+
     await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: logs });
   } catch (e) {
     // 日志写入失败不应影响主流程
   }
 }
 
-// 日志快捷方法
 const Logger = {
   debug: (module, msg, data) => writeLog('debug', module, msg, data),
   info:  (module, msg, data) => writeLog('info', module, msg, data),
@@ -146,19 +184,8 @@ async function clearRuntimeLogs() {
   await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
 }
 
-// ============ 自动备份系统 ============
+// ============ 5. 自动备份 ============
 
-// 需要备份的数据键
-const BACKUP_DATA_KEYS = [
-  DB_KEYS.BEHAVIOR_LOG,
-  DB_KEYS.GAME_PROFILES,
-  DB_KEYS.USER_PREFERENCES,
-  DB_KEYS.SETTINGS,
-  DB_KEYS.KEYWORD_WEIGHTS,
-  DB_KEYS.FREE_GAMES
-];
-
-// 创建备份快照
 async function createBackup(manual = false) {
   try {
     const data = await chrome.storage.local.get(BACKUP_DATA_KEYS);
@@ -166,24 +193,23 @@ async function createBackup(manual = false) {
     for (const key of BACKUP_DATA_KEYS) {
       if (data[key] !== undefined) snapshot[key] = data[key];
     }
-    
+
     const backup = {
       id: Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
       timestamp: Date.now(),
-      manual: manual,
+      manual,
       size: JSON.stringify(snapshot).length,
       data: snapshot
     };
-    
+
     const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
     const backups = stored[DB_KEYS.BACKUPS] || [];
     backups.push(backup);
-    
-    // 轮换：保留最近N个
+
     const settings = await getSettings();
     const max = settings.maxBackups || 7;
     while (backups.length > max) backups.shift();
-    
+
     await chrome.storage.local.set({ [DB_KEYS.BACKUPS]: backups });
     Logger.info('Backup', `创建${manual ? '手动' : '自动'}备份 ${backup.id}`, { size: backup.size, count: backups.length });
     return backup;
@@ -193,19 +219,14 @@ async function createBackup(manual = false) {
   }
 }
 
-// 获取备份列表（不含data主体，减少传输）
 async function getBackupList() {
   const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
   const backups = stored[DB_KEYS.BACKUPS] || [];
   return backups.map(b => ({
-    id: b.id,
-    timestamp: b.timestamp,
-    manual: b.manual,
-    size: b.size
+    id: b.id, timestamp: b.timestamp, manual: b.manual, size: b.size
   })).reverse();
 }
 
-// 恢复备份
 async function restoreBackup(backupId) {
   try {
     const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
@@ -215,11 +236,10 @@ async function restoreBackup(backupId) {
       Logger.warn('Backup', `备份不存在: ${backupId}`);
       return { success: false, error: '备份不存在' };
     }
-    
-    // 恢复前先创建一个当前状态的备份（安全网）
+
+    // 恢复前先创建当前状态的备份（安全网）
     await createBackup(true);
-    
-    // 恢复数据
+
     await chrome.storage.local.set(backup.data);
     Logger.info('Backup', `已恢复备份 ${backupId}`);
     return { success: true };
@@ -229,7 +249,6 @@ async function restoreBackup(backupId) {
   }
 }
 
-// 删除备份
 async function deleteBackup(backupId) {
   const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
   let backups = stored[DB_KEYS.BACKUPS] || [];
@@ -238,21 +257,20 @@ async function deleteBackup(backupId) {
   return { success: true };
 }
 
-// ============ 行为日志管理 ============
+// ============ 6. 行为日志与游戏画像 ============
 
 async function addBehaviorLog(entry) {
   const data = await chrome.storage.local.get(DB_KEYS.BEHAVIOR_LOG);
   const log = data[DB_KEYS.BEHAVIOR_LOG] || [];
-  
+
   entry.timestamp = Date.now();
   log.push(entry);
-  
-  // 限制日志大小
+
   const settings = await getSettings();
   while (log.length > settings.maxBehaviorLog) {
     log.shift();
   }
-  
+
   await chrome.storage.local.set({ [DB_KEYS.BEHAVIOR_LOG]: log });
   return log;
 }
@@ -262,12 +280,10 @@ async function getBehaviorLog() {
   return data[DB_KEYS.BEHAVIOR_LOG] || [];
 }
 
-// ============ 游戏画像管理 ============
-
 async function updateGameProfile(gameInfo) {
   const data = await chrome.storage.local.get(DB_KEYS.GAME_PROFILES);
   const profiles = data[DB_KEYS.GAME_PROFILES] || {};
-  
+
   const key = gameInfo.name.toLowerCase().trim();
   if (!profiles[key]) {
     profiles[key] = {
@@ -280,7 +296,7 @@ async function updateGameProfile(gameInfo) {
       lastSeen: Date.now()
     };
   }
-  
+
   const profile = profiles[key];
   if (gameInfo.event === 'view') profile.views++;
   if (gameInfo.event === 'download') profile.downloads++;
@@ -290,22 +306,21 @@ async function updateGameProfile(gameInfo) {
   if (gameInfo.steamAppId) profile.steamAppId = gameInfo.steamAppId;
   if (gameInfo.steamRating) profile.steamRating = gameInfo.steamRating;
   profile.lastSeen = Date.now();
-  
+
   await chrome.storage.local.set({ [DB_KEYS.GAME_PROFILES]: profiles });
   return profiles;
 }
 
-// ============ 用户偏好模型 ============
+// ============ 7. 用户偏好模型 ============
 
 async function updateUserPreferences() {
   const log = await getBehaviorLog();
   const data = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
   const keywordWeights = data[DB_KEYS.KEYWORD_WEIGHTS] || {};
-  
-  // 统计关键词偏好
+
   const positiveKeywords = {};  // 下载过的游戏的关键词
   const negativeKeywords = {};  // 看过但没下载的关键词
-  
+
   const gameEvents = {};
   log.forEach(entry => {
     if (!gameEvents[entry.gameName]) {
@@ -319,7 +334,7 @@ async function updateUserPreferences() {
       gameEvents[entry.gameName].downloaded = true;
     }
   });
-  
+
   Object.values(gameEvents).forEach(game => {
     game.keywords.forEach(kw => {
       if (game.downloaded) {
@@ -329,38 +344,31 @@ async function updateUserPreferences() {
       }
     });
   });
-  
-  // 计算最终权重
+
   Object.keys(positiveKeywords).forEach(kw => {
     const pos = positiveKeywords[kw] || 0;
     const neg = negativeKeywords[kw] || 0;
     keywordWeights[kw] = pos / (pos + neg + 1);
   });
-  
+
   await chrome.storage.local.set({ [DB_KEYS.KEYWORD_WEIGHTS]: keywordWeights });
   return keywordWeights;
 }
 
-// ============ Steam API 集成 ============
+// ============ 8. 游戏标题解析 ============
 
-// 从游戏详情页标题中提取多个搜索候选词
-// 典型标题格式："艾尔登法环 Elden Ring v1.12.0 中文版" 或 "赛博朋克2077/Cyberpunk 2077 全DLC"
 function parseGameTitle(rawName) {
   if (!rawName) return [];
-  
+
   let name = rawName.trim();
-  
-  // 去除括号内容
-  name = name.replace(/[\(（\[【].*?[\)）\]】]/g, '');
-  // 去除《》书名号但保留内容
+
+  name = name.replace(/[\(\(\[\【].*?[\)\)\]\】]/g, '');
   name = name.replace(/[《》]/g, '');
-  
-  // 先用分隔符拆分（保留第一段作为游戏名）
+
   const rawParts = name.split(/[/|:：、]+|\s+\-\s+/).map(s => s.trim()).filter(s => s.length > 1);
-  
-  // 噪音词模式（Build.23531465 等版本号/通用词）
+
   const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|免安装绿色版|\s+The\s+Game\s*)/gi;
-  
+
   const candidates = [];
   const seen = new Set();
   function addCandidate(text) {
@@ -370,19 +378,16 @@ function parseGameTitle(rawName) {
       candidates.push(t);
     }
   }
-  
-  // 第一段通常是游戏名，优先作为主候选（如 "007 初露锋芒"、"王之凝视"）
+
   if (rawParts.length > 0) {
     const firstCleaned = rawParts[0].replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
     if (firstCleaned.length >= 2) addCandidate(firstCleaned);
-    // 从第一段提取中文/英文子名
     const firstEn = rawParts[0].match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
     if (firstEn) firstEn.forEach(m => addCandidate(m.trim()));
     const firstCn = rawParts[0].match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
     if (firstCn) firstCn.forEach(m => addCandidate(m.trim()));
   }
-  
-  // 其余段提取英文名（中文名通常已在第一段），并清理噪音
+
   for (let i = 1; i < rawParts.length; i++) {
     const en = rawParts[i].match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
     if (en) en.forEach(m => {
@@ -390,18 +395,15 @@ function parseGameTitle(rawName) {
       if (cleaned.length >= 2) addCandidate(cleaned);
     });
   }
-  
-  // 如果拆分后没有结果，用整体清理后的名字
+
   if (candidates.length === 0) {
     addCandidate(name.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim());
   }
-  
-  // 过滤纯噪音候选（如 "豪华"、"Build.xxx"、纯数字、版本号）
+
   const junkPattern = /^(豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|build[.\s]*\d+|\d+[\d.]*|v[\d.]+)$/i;
   const filtered = candidates.filter(c => !junkPattern.test(c.trim()));
   const finalCandidates = filtered.length > 0 ? filtered : candidates;
-  
-  // 排序：保持第一段（游戏名）在首位，其余英文名优先、短名优先
+
   const first = finalCandidates[0];
   const rest = finalCandidates.slice(1);
   rest.sort((a, b) => {
@@ -411,290 +413,337 @@ function parseGameTitle(rawName) {
     if (!aIsEnglish && bIsEnglish) return 1;
     return a.length - b.length;
   });
-  
+
   return [first, ...rest].slice(0, 5);
 }
 
-// 兼容旧调用
 function cleanGameName(name) {
   const candidates = parseGameTitle(name);
   return candidates[0] || name || '';
 }
 
-// Steam缓存版本号（匹配逻辑变更时递增，使旧缓存自动失效）
-const STEAM_CACHE_VERSION = 2;
+// ============ 9. Steam API 子模块 ============
 
-async function searchSteamGame(gameName) {
-  const settings = await getSettings();
-  const searchTerms = parseGameTitle(gameName);
-  
-  // 先检查缓存（需版本号匹配，避免返回旧逻辑产生的错误结果）
-  const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
-  const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
-  const cacheKey = gameName.toLowerCase().trim();
-  
-  if (cache[cacheKey] && cache[cacheKey].version === STEAM_CACHE_VERSION && (Date.now() - cache[cacheKey].timestamp < 7 * 24 * 3600 * 1000)) {
-    return cache[cacheKey].data;
+// --- 搜索 ---
+
+async function searchSteamAppId(searchTerms) {
+  for (const term of searchTerms) {
+    const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`;
+    const response = await fetch(searchUrl);
+    const data = await response.json();
+    if (data.total > 0 && data.items && data.items[0]) {
+      return { appId: data.items[0].id, name: data.items[0].name };
+    }
   }
-  
+  return null;
+}
+
+// --- 应用详情 ---
+
+async function fetchSteamAppDetails(appId) {
+  const detailUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=schinese`;
+  const response = await fetch(detailUrl);
+  const detailData = await response.json();
+  if (!detailData[appId] || !detailData[appId].success) return null;
+  return detailData[appId].data;
+}
+
+// --- 商店页面 HTML ---
+
+async function fetchStorePageHtml(appId) {
   try {
-    let searchData = null;
-    // 按优先级尝试多个搜索词（英文名优先）
-    for (const term of searchTerms) {
-      const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`;
-      const response = await fetch(searchUrl);
-      const data = await response.json();
-      if (data.total > 0) {
-        searchData = data;
-        break;
-      }
-    }
-    
-    if (!searchData || searchData.total === 0) {
-      return null;
-    }
-    
-    const appId = searchData.items[0].id;
-    
-    // 获取游戏详情
-    const detailUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=schinese`;
-    const detailResponse = await fetch(detailUrl);
-    const detailData = await detailResponse.json();
-    
-    if (!detailData[appId] || !detailData[appId].success) {
-      return null;
-    }
-    
-    const gameData = detailData[appId].data;
-    
-    // 获取商店页面HTML（用于解析用户标签+语言支持表）
-    let storeHtml = '';
-    try {
-      const storePageUrl = `https://store.steampowered.com/app/${appId}/?cc=cn&l=schinese`;
-      const storeResp = await fetch(storePageUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
-      storeHtml = await storeResp.text();
-    } catch (e) {
-      console.log('获取商店页面失败:', e);
-    }
-    
-    // 检测中文支持 - 优先从商店页语言表解析（更准确）
-    let chineseSupported = false;
-    let simplifiedChinese = false;
-    let chineseHasAudio = false;
-    let chineseHasSubtitles = false;
-    
-    // 方法1：解析商店页语言支持表 (game_language_options)
-    if (storeHtml) {
-      // 查找包含“简体中文”或“Chinese (Simplified)”的行
-      const langTableMatch = storeHtml.match(/<table[^>]*class="[^"]*game_language_options[^"]*"[\s\S]*?<\/table>/i);
-      if (langTableMatch) {
-        const langTable = langTableMatch[0];
-        // 按行分割，查找中文行
-        const rows = langTable.match(/<tr[\s\S]*?<\/tr>/gi) || [];
-        for (const row of rows) {
-          // 检查该行是否包含简体中文
-          const isSimplifiedRow = /简体中文|Chinese\s*\(Simplified\)/i.test(row);
-          const isChineseRow = /中文|Chinese/i.test(row) && !/繁体|Traditional/i.test(row);
-          if (isSimplifiedRow || isChineseRow) {
-            // 检查是否有勾选标记（✓ 或 class="check"）
-            const hasCheck = /✓|&#10003;|class="[^"]*check/i.test(row);
-            const cells = row.match(/<td[\s\S]*?<\/td>/gi) || [];
-            // 如果有勾选或任何单元格有标记，认为支持
-            if (hasCheck || cells.some(c => /✓|&#10003;|check/i.test(c))) {
-              chineseSupported = true;
-              if (isSimplifiedRow) simplifiedChinese = true;
-              // 检查音频和字幕列
-              if (cells.length >= 3) {
-                chineseHasAudio = /✓|&#10003;|check/i.test(cells[2] || '');
-                chineseHasSubtitles = /✓|&#10003;|check/i.test(cells[3] || '');
-              }
+    const storePageUrl = `https://store.steampowered.com/app/${appId}/?cc=cn&l=schinese`;
+    const resp = await fetch(storePageUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
+    return await resp.text();
+  } catch (e) {
+    console.log('获取商店页面失败:', e);
+    return '';
+  }
+}
+
+// --- 中文语言支持解析 ---
+
+function parseChineseLanguageSupport(storeHtml, gameData) {
+  let chineseSupported = false;
+  let simplifiedChinese = false;
+  let chineseHasAudio = false;
+  let chineseHasSubtitles = false;
+
+  // 方法1：解析商店页语言支持表 (game_language_options)
+  if (storeHtml) {
+    const langTableMatch = storeHtml.match(/<table[^>]*class="[^"]*game_language_options[^"]*"[\s\S]*?<\/table>/i);
+    if (langTableMatch) {
+      const langTable = langTableMatch[0];
+      const rows = langTable.match(/<tr[\s\S]*?<\/tr>/gi) || [];
+      for (const row of rows) {
+        const isSimplifiedRow = /简体中文|Chinese\s*\(Simplified\)/i.test(row);
+        const isChineseRow = /中文|Chinese/i.test(row) && !/繁体|Traditional/i.test(row);
+        if (isSimplifiedRow || isChineseRow) {
+          const hasCheck = /✓|&#10003;|class="[^"]*check/i.test(row);
+          const cells = row.match(/<td[\s\S]*?<\/td>/gi) || [];
+          if (hasCheck || cells.some(c => /✓|&#10003;|check/i.test(c))) {
+            chineseSupported = true;
+            if (isSimplifiedRow) simplifiedChinese = true;
+            if (cells.length >= 3) {
+              chineseHasAudio = /✓|&#10003;|check/i.test(cells[2] || '');
+              chineseHasSubtitles = /✓|&#10003;|check/i.test(cells[3] || '');
             }
           }
         }
       }
     }
-    
-    // 方法2：如果页面解析失败，回退到 supported_languages 字段
-    if (!chineseSupported) {
-      const supportedLangs = gameData.supported_languages || '';
-      // 去除HTML标签后检查
-      const cleanLangs = supportedLangs.replace(/<[^>]+>/g, ' ');
-      chineseSupported = /简体中文|繁体中文|Chinese|中文/i.test(cleanLangs);
-      simplifiedChinese = /简体中文|Simplified\s*Chinese/i.test(cleanLangs);
+  }
+
+  // 方法2：回退到 supported_languages 字段
+  if (!chineseSupported) {
+    const supportedLangs = gameData.supported_languages || '';
+    const cleanLangs = supportedLangs.replace(/<[^>]+>/g, ' ');
+    chineseSupported = /简体中文|繁体中文|Chinese|中文/i.test(cleanLangs);
+    simplifiedChinese = /简体中文|Simplified\s*Chinese/i.test(cleanLangs);
+  }
+
+  return { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles };
+}
+
+// --- 用户标签解析 ---
+
+function parseUserTags(storeHtml) {
+  if (!storeHtml) return [];
+  const tagMatches = storeHtml.match(/<a[^>]*class="[^"]*app_tag[^"]*"[^>]*>[\s\S]*?<\/a>/gi);
+  if (!tagMatches) return [];
+
+  const seenTags = new Set();
+  return tagMatches
+    .map(m => m
+      .replace(/<[^>]+>/g, '')
+      .replace(/&[a-z]+;/gi, ' ')
+      .replace(/\s+/g, ' ')
+      .trim())
+    .filter(t => {
+      if (t.length < 1 || t.length > 30) return false;
+      const lower = t.toLowerCase();
+      if (seenTags.has(lower)) return false;
+      seenTags.add(lower);
+      return true;
+    })
+    .slice(0, 10);
+}
+
+// --- 评测获取 ---
+
+async function fetchReviewSummary(appId) {
+  try {
+    const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
+    const response = await fetch(reviewUrl);
+    const data = await response.json();
+    if (data.success === 1 && data.query_summary) {
+      const qs = data.query_summary;
+      return {
+        total: qs.total_reviews,
+        positive: qs.total_positive,
+        negative: qs.total_negative,
+        score: qs.review_score,
+        desc: qs.review_score_desc
+      };
     }
-    
-    // 获取热门用户自定义标签（从商店页面HTML解析，增强鲁棒性）
-    let userTags = [];
-    if (storeHtml) {
-      // 匹配 app_tag 链接（class可能是"app_tag"或包含其他类）
-      const tagMatches = storeHtml.match(/<a[^>]*class="[^"]*app_tag[^"]*"[^>]*>[\s\S]*?<\/a>/gi);
-      if (tagMatches) {
-        const seenTags = new Set();
-        userTags = tagMatches
-          .map(m => m
-            .replace(/<[^>]+>/g, '')        // 去除HTML标签
-            .replace(/&[a-z]+;/gi, ' ')     // 解码HTML实体
-            .replace(/\s+/g, ' ')           // 压缩空白
-            .trim())
-          .filter(t => {
-            if (t.length < 1 || t.length > 30) return false;
-            const lower = t.toLowerCase();
-            if (seenTags.has(lower)) return false;
-            seenTags.add(lower);
-            return true;
-          })
-          .slice(0, 10);
+  } catch (e) {
+    console.log('获取总体评价失败:', e);
+  }
+  return null;
+}
+
+async function fetchChineseReviews(appId) {
+  let cnReviewSummary = null;
+  let chineseReviews = [];
+  try {
+    const cnReviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
+    const resp = await fetch(cnReviewUrl);
+    const data = await resp.json();
+    if (data.success === 1) {
+      if (data.reviews && data.reviews.length > 0) {
+        chineseReviews = data.reviews.slice(0, 5).map(r => ({
+          recommended: r.voted_up === true,
+          text: r.review.substring(0, 200),
+          author: r.author?.steamid || '匿名',
+          language: 'schinese'
+        }));
       }
-    }
-    
-    // 获取评价（总体 + 简体中文统计）
-    let reviewSummary = null;
-    let cnReviewSummary = null;
-    let chineseReviews = [];
-    try {
-      // 获取中文评价 + 中文统计
-      const cnReviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
-      const cnResp = await fetch(cnReviewUrl);
-      const cnData = await cnResp.json();
-      if (cnData.success === 1) {
-        if (cnData.reviews && cnData.reviews.length > 0) {
-          chineseReviews = cnData.reviews.slice(0, 5).map(r => ({
-            recommended: r.voted_up === true,
-            text: r.review.substring(0, 200),
-            author: r.author?.steamid || '匿名',
-            language: 'schinese'
-          }));
-        }
-        // 中文评价统计
-        if (cnData.query_summary) {
-          cnReviewSummary = {
-            total: cnData.query_summary.total_reviews,
-            positive: cnData.query_summary.total_positive,
-            negative: cnData.query_summary.total_negative,
-            score: cnData.query_summary.review_score,
-            desc: cnData.query_summary.review_score_desc,
-            positiveRate: cnData.query_summary.total_reviews > 0
-              ? Math.round(cnData.query_summary.total_positive / cnData.query_summary.total_reviews * 100)
-              : null
-          };
-        }
-      }
-      
-      // 获取总体评价统计
-      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
-      const reviewResponse = await fetch(reviewUrl);
-      const reviewData = await reviewResponse.json();
-      
-      if (reviewData.success === 1) {
-        reviewSummary = {
-          total: reviewData.query_summary.total_reviews,
-          positive: reviewData.query_summary.total_positive,
-          negative: reviewData.query_summary.total_negative,
-          score: reviewData.query_summary.review_score,
-          desc: reviewData.query_summary.review_score_desc
+      if (data.query_summary) {
+        const qs = data.query_summary;
+        cnReviewSummary = {
+          total: qs.total_reviews,
+          positive: qs.total_positive,
+          negative: qs.total_negative,
+          score: qs.review_score,
+          desc: qs.review_score_desc,
+          positiveRate: qs.total_reviews > 0
+            ? Math.round(qs.total_positive / qs.total_reviews * 100)
+            : null
         };
       }
-    } catch (e) {
-      console.log('获取评价失败:', e);
     }
-    
-    // 尝试获取SteamDB信息（可能被Cloudflare拦截）
-    let steamdbInfo = null;
-    const steamdbUrl = `https://steamdb.info/app/${appId}/`;
-    try {
-      const sdbResp = await fetch(steamdbUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-          'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
-        }
-      });
-      const sdbHtml = await sdbResp.text();
-      // 检测Cloudflare拦截页
-      const isCloudflareBlock = !sdbResp.ok ||
-        /Just a moment|cf-browser-verification|challenge-platform|Checking your browser|Attention Required/i.test(sdbHtml);
-      
-      if (!isCloudflareBlock) {
-        const ratingMatch = sdbHtml.match(/<div[^>]*class="[^"]*header-rating[^"]*"[^>]*>\s*<span[^>]*>([\d.]+)%?<\/span>/i) ||
-                              sdbHtml.match(/([\d.]+)%\s*(?:positive|好评)/i);
-        const playersMatch = sdbHtml.match(/([\d,]+)\s*(?:players|人在玩)/i);
-        const priceMatch = sdbHtml.match(/Lowest Price[\s\S]*?([\d.,]+\s*(?:¥|\$|USD|CNY))/i);
-        const reviewCountMatch = sdbHtml.match(/([\d,]+)\s*(?:reviews|评测|评价)/i);
-        
-        steamdbInfo = {
-          url: steamdbUrl,
-          rating: ratingMatch ? ratingMatch[1] : null,
-          reviewCount: reviewCountMatch ? reviewCountMatch[1] : null,
-          currentPlayers: playersMatch ? playersMatch[1] : null,
-          lowestPrice: priceMatch ? priceMatch[1] : null,
-          available: true,
-          blocked: false
-        };
-      } else {
-        steamdbInfo = { url: steamdbUrl, available: false, blocked: true };
+  } catch (e) {
+    console.log('获取中文评价失败:', e);
+  }
+  return { cnReviewSummary, chineseReviews };
+}
+
+async function fetchSteamReviews(appId) {
+  const [reviewSummary, cnData] = await Promise.all([
+    fetchReviewSummary(appId),
+    fetchChineseReviews(appId)
+  ]);
+  return {
+    reviewSummary,
+    cnReviewSummary: cnData.cnReviewSummary,
+    chineseReviews: cnData.chineseReviews
+  };
+}
+
+// --- SteamDB 信息 ---
+
+async function fetchSteamDbInfo(appId) {
+  const steamdbUrl = `https://steamdb.info/app/${appId}/`;
+  try {
+    const resp = await fetch(steamdbUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
       }
-    } catch (e) {
-      console.log('SteamDB获取失败:', e.message);
-      steamdbInfo = { url: steamdbUrl, available: false, blocked: true };
+    });
+    const html = await resp.text();
+    const isBlocked = !resp.ok ||
+      /Just a moment|cf-browser-verification|challenge-platform|Checking your browser|Attention Required/i.test(html);
+
+    if (isBlocked) {
+      return { url: steamdbUrl, available: false, blocked: true };
     }
-    
-    // SteamDB被拦截时，使用SteamSpy作为第三方数据补充
-    let steamspyInfo = null;
-    if (!steamdbInfo || !steamdbInfo.available) {
-      try {
-        const spyResp = await fetch(`https://steamspy.com/api.php?request=appdetails&appid=${appId}`);
-        if (spyResp.ok) {
-          const spyData = await spyResp.json();
-          if (spyData && spyData.appid) {
-            const total = (spyData.positive || 0) + (spyData.negative || 0);
-            steamspyInfo = {
-              positiveRate: total > 0 ? Math.round(spyData.positive / total * 100) : null,
-              reviewCount: total > 0 ? total.toLocaleString() : null,
-              players2weeks: spyData.players_2weeks ? spyData.players_2weeks.toLocaleString() : null,
-              playersForever: spyData.players_forever ? spyData.players_forever.toLocaleString() : null,
-              averagePlaytime: spyData.average_forever ? Math.round(spyData.average_forever / 60) + '小时' : null
-            };
-          }
-        }
-      } catch (e) {
-        console.log('SteamSpy获取失败:', e.message);
-      }
-    }
-    
-    const result = {
-      appId,
-      name: gameData.name,
-      url: `https://store.steampowered.com/app/${appId}/`,
-      steamdbUrl: steamdbUrl,
-      rating: reviewSummary ? reviewSummary.score : null,
-      ratingDesc: reviewSummary ? reviewSummary.desc : null,
-      totalReviews: reviewSummary ? reviewSummary.total : 0,
-      positiveRate: reviewSummary && reviewSummary.total > 0 
-        ? Math.round(reviewSummary.positive / reviewSummary.total * 100) 
-        : null,
-      // 简体中文评价统计
-      cnRatingDesc: cnReviewSummary ? cnReviewSummary.desc : null,
-      cnPositiveRate: cnReviewSummary ? cnReviewSummary.positiveRate : null,
-      cnTotalReviews: cnReviewSummary ? cnReviewSummary.total : 0,
-      reviews: chineseReviews,
-      genres: (gameData.genres || []).map(g => g.description),
-      userTags: userTags,
-      chineseSupported: chineseSupported,
-      simplifiedChinese: simplifiedChinese,
-      chineseHasAudio: chineseHasAudio,
-      chineseHasSubtitles: chineseHasSubtitles,
-      releaseDate: gameData.release_date?.date || '',
-      developers: gameData.developers || [],
-      description: gameData.short_description || '',
-      headerImage: gameData.header_image || '',
-      steamdb: steamdbInfo,
-      steamspy: steamspyInfo
+
+    const ratingMatch = html.match(/<div[^>]*class="[^"]*header-rating[^"]*"[^>]*>\s*<span[^>]*>([\d.]+)%?<\/span>/i) ||
+                        html.match(/([\d.]+)%\s*(?:positive|好评)/i);
+    const playersMatch = html.match(/([\d,]+)\s*(?:players|人在玩)/i);
+    const priceMatch = html.match(/Lowest Price[\s\S]*?([\d.,]+\s*(?:¥|\$|USD|CNY))/i);
+    const reviewCountMatch = html.match(/([\d,]+)\s*(?:reviews|评测|评价)/i);
+
+    return {
+      url: steamdbUrl,
+      rating: ratingMatch ? ratingMatch[1] : null,
+      reviewCount: reviewCountMatch ? reviewCountMatch[1] : null,
+      currentPlayers: playersMatch ? playersMatch[1] : null,
+      lowestPrice: priceMatch ? priceMatch[1] : null,
+      available: true,
+      blocked: false
     };
-    
-    // 缓存结果
-    cache[cacheKey] = { data: result, timestamp: Date.now(), version: STEAM_CACHE_VERSION };
-    await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
-    
+  } catch (e) {
+    console.log('SteamDB获取失败:', e.message);
+    return { url: steamdbUrl, available: false, blocked: true };
+  }
+}
+
+// --- SteamSpy 信息（SteamDB 被拦截时的补充数据） ---
+
+async function fetchSteamSpyInfo(appId) {
+  try {
+    const resp = await fetch(`https://steamspy.com/api.php?request=appdetails&appid=${appId}`);
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    if (!data || !data.appid) return null;
+
+    const total = (data.positive || 0) + (data.negative || 0);
+    return {
+      positiveRate: total > 0 ? Math.round(data.positive / total * 100) : null,
+      reviewCount: total > 0 ? total.toLocaleString() : null,
+      players2weeks: data.players_2weeks ? data.players_2weeks.toLocaleString() : null,
+      playersForever: data.players_forever ? data.players_forever.toLocaleString() : null,
+      averagePlaytime: data.average_forever ? Math.round(data.average_forever / 60) + '小时' : null
+    };
+  } catch (e) {
+    console.log('SteamSpy获取失败:', e.message);
+    return null;
+  }
+}
+
+// --- 组装最终结果对象 ---
+
+function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo) {
+  const { reviewSummary, cnReviewSummary, chineseReviews } = reviews;
+  const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;
+
+  return {
+    appId,
+    name: gameData.name,
+    url: `https://store.steampowered.com/app/${appId}/`,
+    steamdbUrl: steamdbInfo?.url || `https://steamdb.info/app/${appId}/`,
+    rating: reviewSummary ? reviewSummary.score : null,
+    ratingDesc: reviewSummary ? reviewSummary.desc : null,
+    totalReviews: reviewSummary ? reviewSummary.total : 0,
+    positiveRate: reviewSummary && reviewSummary.total > 0
+      ? Math.round(reviewSummary.positive / reviewSummary.total * 100)
+      : null,
+    cnRatingDesc: cnReviewSummary ? cnReviewSummary.desc : null,
+    cnPositiveRate: cnReviewSummary ? cnReviewSummary.positiveRate : null,
+    cnTotalReviews: cnReviewSummary ? cnReviewSummary.total : 0,
+    reviews: chineseReviews,
+    genres: (gameData.genres || []).map(g => g.description),
+    userTags,
+    chineseSupported,
+    simplifiedChinese,
+    chineseHasAudio,
+    chineseHasSubtitles,
+    releaseDate: gameData.release_date?.date || '',
+    developers: gameData.developers || [],
+    description: gameData.short_description || '',
+    headerImage: gameData.header_image || '',
+    steamdb: steamdbInfo,
+    steamspy: steamspyInfo
+  };
+}
+
+// ============ 10. Steam API 编排器 ============
+
+async function searchSteamGame(gameName) {
+  const cacheKey = gameName.toLowerCase().trim();
+
+  // 1. 检查缓存
+  const cached = await getSteamCacheEntry(cacheKey);
+  if (isSteamCacheValid(cached)) return cached.data;
+
+  try {
+    // 2. 搜索 appId
+    const searchTerms = parseGameTitle(gameName);
+    const searchResult = await searchSteamAppId(searchTerms);
+    if (!searchResult) return null;
+    const { appId } = searchResult;
+
+    // 3. 获取应用详情
+    const gameData = await fetchSteamAppDetails(appId);
+    if (!gameData) return null;
+
+    // 4. 获取商店页 HTML（用于解析语言支持 + 用户标签）
+    const storeHtml = await fetchStorePageHtml(appId);
+
+    // 5. 并行获取：语言支持、用户标签、评测
+    const [langInfo, userTags, reviews] = await Promise.all([
+      Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData)),
+      Promise.resolve(parseUserTags(storeHtml)),
+      fetchSteamReviews(appId)
+    ]);
+
+    // 6. 获取 SteamDB 信息
+    const steamdbInfo = await fetchSteamDbInfo(appId);
+
+    // 7. SteamDB 被拦截时，使用 SteamSpy 补充
+    const steamspyInfo = (!steamdbInfo || !steamdbInfo.available)
+      ? await fetchSteamSpyInfo(appId)
+      : null;
+
+    // 8. 组装结果
+    const result = buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo);
+
+    // 9. 缓存结果
+    await setSteamCacheEntry(cacheKey, result);
+
     return result;
   } catch (error) {
     console.error('Steam API 调用失败:', error);
@@ -702,73 +751,49 @@ async function searchSteamGame(gameName) {
   }
 }
 
-// 轻量级Steam好评率查询（用于列表页，复用缓存，仅获取好评率不做完整详情抓取）
+// 轻量级Steam好评率查询（列表页用，复用缓存，仅获取好评率不做完整详情抓取）
 async function getSteamPositiveRate(gameName) {
   if (!gameName) return null;
-  const searchTerms = parseGameTitle(gameName);
   const cacheKey = gameName.toLowerCase().trim();
-  
+
   // 检查缓存（复用 searchSteamGame 的缓存）
-  const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
-  const cache = cacheData[DB_KEYS.STEAM_CACHE] || {};
-  const cached = cache[cacheKey];
-  if (cached && cached.version === STEAM_CACHE_VERSION && (Date.now() - cached.timestamp < 7 * 24 * 3600 * 1000)) {
-    if (cached.data && cached.data.positiveRate !== undefined) {
-      return {
-        positiveRate: cached.data.positiveRate,
-        ratingDesc: cached.data.ratingDesc || null,
-        appId: cached.data.appId || null,
-        name: cached.data.name || gameName
-      };
-    }
+  const cached = await getSteamCacheEntry(cacheKey);
+  if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) {
+    return {
+      positiveRate: cached.data.positiveRate,
+      ratingDesc: cached.data.ratingDesc || null,
+      appId: cached.data.appId || null,
+      name: cached.data.name || gameName
+    };
   }
-  
+
   try {
-    // 搜索Steam获取appId
-    let appId = null;
-    let foundName = gameName;
-    for (const term of searchTerms) {
-      const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`;
-      const resp = await fetch(searchUrl);
-      const data = await resp.json();
-      if (data.total > 0 && data.items && data.items[0]) {
-        appId = data.items[0].id;
-        foundName = data.items[0].name || gameName;
-        break;
-      }
-    }
-    if (!appId) {
-      // 缓存“未找到”避免重复搜索
-      cache[cacheKey] = { data: { positiveRate: null, name: gameName }, timestamp: Date.now(), version: STEAM_CACHE_VERSION };
-      await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
+    // 搜索 appId
+    const searchResult = await searchSteamAppId(parseGameTitle(gameName));
+    if (!searchResult) {
+      // 缓存"未找到"避免重复搜索
+      await setSteamCacheEntry(cacheKey, { positiveRate: null, name: gameName });
       return null;
     }
-    
+    const { appId, name: foundName } = searchResult;
+
     // 获取评价统计（好评率）
+    const reviewSummary = await fetchReviewSummary(appId);
     let positiveRate = null;
     let ratingDesc = null;
-    try {
-      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
-      const reviewResp = await fetch(reviewUrl);
-      const reviewData = await reviewResp.json();
-      if (reviewData.success === 1 && reviewData.query_summary) {
-        ratingDesc = reviewData.query_summary.review_score_desc || null;
-        const total = reviewData.query_summary.total_reviews;
-        if (total > 0) {
-          positiveRate = Math.round(reviewData.query_summary.total_positive / total * 100);
-        }
+    if (reviewSummary) {
+      ratingDesc = reviewSummary.desc || null;
+      if (reviewSummary.total > 0) {
+        positiveRate = Math.round(reviewSummary.positive / reviewSummary.total * 100);
       }
-    } catch (e) {}
-    
+    }
+
     // 合并缓存（保留可能已有的完整数据）
     const existingData = (cached && cached.data) ? cached.data : {};
-    cache[cacheKey] = {
-      data: { ...existingData, appId, name: foundName, positiveRate, ratingDesc },
-      timestamp: Date.now(),
-      version: STEAM_CACHE_VERSION
-    };
-    await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: cache });
-    
+    await setSteamCacheEntry(cacheKey, {
+      ...existingData, appId, name: foundName, positiveRate, ratingDesc
+    });
+
     return { positiveRate, ratingDesc, appId, name: foundName };
   } catch (e) {
     console.log('获取Steam好评率失败:', e.message);
@@ -776,13 +801,27 @@ async function getSteamPositiveRate(gameName) {
   }
 }
 
-// ============ 推荐算法引擎 ============
+// ============ 11. 推荐算法引擎 ============
+
+// 关键词评分计算（提取为公共方法，消除重复逻辑）
+function calculateKeywordScore(keywords, keywordWeights) {
+  if (!keywords || keywords.length === 0) return null;
+  let matchScore = 0;
+  let matchCount = 0;
+  keywords.forEach(kw => {
+    if (keywordWeights[kw] !== undefined) {
+      matchScore += keywordWeights[kw];
+      matchCount++;
+    }
+  });
+  return matchCount > 0 ? matchScore / matchCount : null;
+}
 
 async function calculateRecommendation(gameInfo, forceBuiltin = false) {
   const settings = await getSettings();
   const weights = settings.weights;
-  
-  // 如果启用LLM且非强制内置，使用LLM计算
+
+  // LLM 模式（非强制内置时）
   if (settings.useLLM && !forceBuiltin) {
     try {
       const llmScore = await calculateWithLLM(gameInfo, settings);
@@ -791,113 +830,81 @@ async function calculateRecommendation(gameInfo, forceBuiltin = false) {
       console.warn('LLM计算失败，回退到内置算法:', e);
     }
   }
-  
+
   // 内置算法
   const data = await chrome.storage.local.get([
-    DB_KEYS.BEHAVIOR_LOG, 
-    DB_KEYS.KEYWORD_WEIGHTS, 
+    DB_KEYS.BEHAVIOR_LOG,
+    DB_KEYS.KEYWORD_WEIGHTS,
     DB_KEYS.GAME_PROFILES
   ]);
-  
+
   const behaviorLog = data[DB_KEYS.BEHAVIOR_LOG] || [];
   const keywordWeights = data[DB_KEYS.KEYWORD_WEIGHTS] || {};
   const profiles = data[DB_KEYS.GAME_PROFILES] || {};
-  
-  // 1. 点击率得分 - 基于同类游戏的历史点击率
-  let clickScore = 0.5; // 默认中等
+
+  // 1. 点击率得分
+  let clickScore = 0.5;
   const totalViews = behaviorLog.filter(e => e.type === 'view_list').length;
   const totalClicks = behaviorLog.filter(e => e.type === 'view_detail').length;
   if (totalViews > 0) {
     clickScore = Math.min(totalClicks / totalViews, 1);
   }
-  
-  // 2. 下载率得分 - 基于关键词匹配的历史下载率
+
+  // 2. 下载率得分
   let downloadScore = 0.3;
   const gameKeywords = gameInfo.keywords || [];
-  if (gameKeywords.length > 0) {
-    let matchScore = 0;
-    let matchCount = 0;
-    gameKeywords.forEach(kw => {
-      if (keywordWeights[kw] !== undefined) {
-        matchScore += keywordWeights[kw];
-        matchCount++;
-      }
-    });
-    if (matchCount > 0) {
-      downloadScore = matchScore / matchCount;
-    }
-  }
-  
+  const kwDownloadScore = calculateKeywordScore(gameKeywords, keywordWeights);
+  if (kwDownloadScore !== null) downloadScore = kwDownloadScore;
+
   // 3. 关键词匹配得分
   let keywordScore = 0.4;
-  if (gameKeywords.length > 0) {
-    let totalWeight = 0;
-    let matchedWeight = 0;
-    gameKeywords.forEach(kw => {
-      const w = keywordWeights[kw];
-      if (w !== undefined) {
-        matchedWeight += w;
-        totalWeight += 1;
-      }
-    });
-    if (totalWeight > 0) {
-      keywordScore = matchedWeight / totalWeight;
-    }
-  }
-  
+  const kwMatchScore = calculateKeywordScore(gameKeywords, keywordWeights);
+  if (kwMatchScore !== null) keywordScore = kwMatchScore;
+
   // 4. Steam评分得分
   let steamScore = 0.5;
   if (gameInfo.steamRating !== null && gameInfo.steamRating !== undefined) {
-    steamScore = gameInfo.steamRating / 10; // Steam评分0-10
+    steamScore = gameInfo.steamRating / 10;
   } else if (gameInfo.positiveRate !== null && gameInfo.positiveRate !== undefined) {
     steamScore = gameInfo.positiveRate / 100;
   }
-  
+
   // 5. 历史画像加成（支持模糊匹配）
   const profileKey = (gameInfo.name || '').toLowerCase().trim();
   const cleanedKey = cleanGameName(gameInfo.name || '').toLowerCase().trim();
   let profileMatch = profiles[profileKey] || profiles[cleanedKey];
-  
-  // 如果精确匹配失败，尝试模糊匹配
+
   if (!profileMatch && cleanedKey.length > 3) {
     for (const [key, profile] of Object.entries(profiles)) {
-      if (key.includes(cleanedKey) || cleanedKey.includes(key) || 
-          (key.length > 4 && cleanedKey.length > 4 && 
+      if (key.includes(cleanedKey) || cleanedKey.includes(key) ||
+          (key.length > 4 && cleanedKey.length > 4 &&
            (key.substring(0, 4) === cleanedKey.substring(0, 4)))) {
         profileMatch = profile;
         break;
       }
     }
   }
-  
+
   if (profileMatch) {
     if (profileMatch.downloads > 0) {
       downloadScore = Math.min(downloadScore + 0.3, 1);
     }
-    // 如果画像有关键词且当前游戏没有，使用画像关键词补充计算
     if (gameKeywords.length === 0 && profileMatch.keywords && profileMatch.keywords.length > 0) {
-      let matchScore = 0;
-      let matchCount = 0;
-      profileMatch.keywords.forEach(kw => {
-        if (keywordWeights[kw] !== undefined) {
-          matchScore += keywordWeights[kw];
-          matchCount++;
-        }
-      });
-      if (matchCount > 0) {
-        keywordScore = matchScore / matchCount;
-        downloadScore = Math.max(downloadScore, matchScore / matchCount);
+      const profileKwScore = calculateKeywordScore(profileMatch.keywords, keywordWeights);
+      if (profileKwScore !== null) {
+        keywordScore = profileKwScore;
+        downloadScore = Math.max(downloadScore, profileKwScore);
       }
     }
   }
-  
+
   // 加权计算最终得分
-  const finalScore = 
+  const finalScore =
     clickScore * weights.clickRate +
     downloadScore * weights.downloadRate +
     keywordScore * weights.keywordMatch +
     steamScore * weights.steamRating;
-  
+
   return {
     score: Math.round(finalScore * 100) / 100,
     breakdown: {
@@ -914,8 +921,7 @@ async function calculateRecommendation(gameInfo, forceBuiltin = false) {
 
 async function calculateWithLLM(gameInfo, settings) {
   const { llmConfig } = settings;
-  
-  // 获取用户偏好关键词
+
   const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
   const keywordWeights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
   const topKeywords = Object.entries(keywordWeights)
@@ -923,9 +929,9 @@ async function calculateWithLLM(gameInfo, settings) {
     .slice(0, 15)
     .map(([kw, w]) => `${kw}(${Math.round(w * 100)}%)`)
     .join('、');
-  
+
   const prompt = buildLLMPrompt(gameInfo, topKeywords);
-  
+
   let response;
   if (llmConfig.provider === 'local') {
     // Ollama 本地模型
@@ -934,7 +940,7 @@ async function calculateWithLLM(gameInfo, settings) {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: llmConfig.model,
-        prompt: prompt,
+        prompt,
         stream: false,
         options: { temperature: llmConfig.temperature }
       })
@@ -942,7 +948,7 @@ async function calculateWithLLM(gameInfo, settings) {
     const data = await response.json();
     return parseLLMResponse(data.response);
   } else {
-    // OpenAI兼容接口（支持各种云端API）
+    // OpenAI兼容接口
     response = await fetch(llmConfig.endpoint, {
       method: 'POST',
       headers: {
@@ -979,7 +985,6 @@ Steam好评率：${gameInfo.positiveRate || '未知'}%
 
 function parseLLMResponse(text) {
   try {
-    // 尝试提取JSON
     const jsonMatch = text.match(/\{[\s\S]*?"score"[\s\S]*?\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
@@ -995,25 +1000,16 @@ function parseLLMResponse(text) {
   return null;
 }
 
-// ============ 功能3：下载站搜索 ============
+// ============ 12. 下载站搜索 ============
 
-// 下载站配置：搜索URL模板 + 详情页URL特征
-const DOWNLOAD_SITES = [
-  { key: 'xdgame',      name: 'XDGame',   searchUrl: q => `https://xdgame.com/so/${encodeURIComponent(q)}.html`,     base: 'https://xdgame.com' },
-  { key: 'xianyudanji', name: '咸鱼单机', searchUrl: q => `https://www.xianyudanji.gg/?s=${encodeURIComponent(q)}`,   base: 'https://www.xianyudanji.gg' },
-  { key: 'gamer520',    name: 'Gamer520', searchUrl: q => `https://www.gamer520.com/?s=${encodeURIComponent(q)}`,     base: 'https://www.gamer520.com' }
-];
-
-// 计算链接文本与游戏名的匹配度（0-100）
 function calcLinkMatchScore(linkText, searchName) {
-  const norm = s => (s || '').toLowerCase().replace(/[\s\-_:：|\/\.'’!！?？\[\]()（）]/g, '');
+  const norm = s => (s || '').toLowerCase().replace(/[\s\-_:：|\/\.''!！?？\[\]()（）]/g, '');
   const nt = norm(linkText);
   const ns = norm(searchName);
   if (!nt || !ns || nt.length < 2 || ns.length < 2) return 0;
   if (nt === ns) return 100;
   if (nt.includes(ns)) return 85;
   if (ns.includes(nt) && nt.length >= 4) return 70;
-  // 按分隔符拆分链接文本（如 "王之凝视|v1.3.2|官方中文|The King is Watching"）
   const segments = linkText.split(/[|\/]/).map(s => norm(s)).filter(s => s.length >= 2);
   for (const seg of segments) {
     if (seg === ns) return 95;
@@ -1023,25 +1019,21 @@ function calcLinkMatchScore(linkText, searchName) {
   return 0;
 }
 
-// 从详情页HTML提取元数据（更新日期/版本/大小）
-// 原则：仅在有明确标签时提取，获取不到正确信息则留空（跳过）
 function extractDetailMeta(html, siteKey) {
   const meta = { updateDate: '', version: '', size: '' };
   if (!html) return meta;
-  
-  // 提取h1标题文本（用于从标题提取版本）
+
   const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
   const h1Text = h1Match ? h1Match[1].replace(/<[^>]+>/g, '').trim() : '';
-  
-  // === 更新日期：仅匹配明确的“更新时间/最近更新/发布日期”标签 ===
+
+  // 更新日期
   const dateLabelMatch = html.match(/(?:更新时间|最近更新|发布日期)[^0-9]{0,15}([0-9]{4}[-\/年][0-9]{1,2}[-\/月][0-9]{1,2})/);
   if (dateLabelMatch) {
     meta.updateDate = dateLabelMatch[1].replace(/[年月]/g, '-').replace(/日$/, '');
   }
-  
-  // === 版本 + 大小：按站点适配 ===
+
+  // 版本 + 大小（按站点适配）
   if (siteKey === 'xdgame') {
-    // xdgame: <h4>版本介绍</h4><p>v1.3.2|容量565MB|官方简体中文|...</p>
     const verIntroMatch = html.match(/版本介绍<\/h[0-9]>\s*<p>([\s\S]*?)<\/p>/i);
     if (verIntroMatch) {
       const verLine = verIntroMatch[1].replace(/<[^>]+>/g, '');
@@ -1051,48 +1043,48 @@ function extractDetailMeta(html, siteKey) {
       if (sizeMatch) meta.size = sizeMatch[1].trim();
     }
   }
-  
-  // 从标题提取版本（xianyudanji/gamer520 标题含版本号，如 v1.3.2 或 Build.24147194）
+
   if (!meta.version && h1Text) {
     const h1Ver = h1Text.match(/\b([Vv]\d+(?:\.\d+)+)\b/) || h1Text.match(/(Build\.?\d+)/i);
     if (h1Ver) meta.version = h1Ver[1];
   }
-  
-  // === 大小：仅匹配明确的“容量/游戏大小/文件大小”标签（避免误取系统需求的内存/存储空间） ===
+
   if (!meta.size) {
     const sizeLabelMatch = html.match(/(?:容量|游戏大小|文件大小|资源大小)[^0-9]{0,10}([0-9.]+\s*(?:GB|MB|TB))/i);
     if (sizeLabelMatch) meta.size = sizeLabelMatch[1].trim();
   }
-  
+
   return meta;
 }
 
 async function searchDownloadSites(gameName, appId) {
   const results = [];
-  // 使用清理后的名称搜索
   const searchName = cleanGameName(gameName) || gameName;
-  
+
   for (const site of DOWNLOAD_SITES) {
-    const result = { key: site.key, name: site.name, found: false, detailUrl: '', searchUrl: site.searchUrl(searchName), updateDate: '', version: '', size: '' };
+    const result = {
+      key: site.key, name: site.name, found: false,
+      detailUrl: '', searchUrl: site.searchUrl(searchName),
+      updateDate: '', version: '', size: ''
+    };
     try {
       const resp = await fetch(site.searchUrl(searchName), {
         headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
       });
       if (!resp.ok) { results.push(result); continue; }
       const html = await resp.text();
-      
-      // 提取所有候选详情链接及其文本（数字.html 或 /game/数字）
+
+      // 提取候选详情链接
       const candidates = [];
       const linkRe = /<a[^>]*href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"[^>]*>([\s\S]*?)<\/a>/gi;
       let lm;
       while ((lm = linkRe.exec(html)) !== null) {
         const href = lm[1];
         const text = lm[2].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
-        // 跳过导航/分页类链接（文本过短且不含中文/游戏名）
         candidates.push({ href, text });
       }
-      
-      // 按文本匹配度排序，选出最符合游戏名的链接
+
+      // 按文本匹配度选出最符合游戏名的链接
       let bestUrl = '';
       let bestScore = 0;
       for (const c of candidates) {
@@ -1102,13 +1094,11 @@ async function searchDownloadSites(gameName, appId) {
           bestUrl = c.href;
         }
       }
-      
-      // 只有文本匹配度足够高才认为找到（避免链接到无关页面）
+
       if (bestUrl && bestScore >= 60) {
         const detailUrl = bestUrl.startsWith('http') ? bestUrl : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
         result.found = true;
         result.detailUrl = detailUrl;
-        // 抓取详情页提取元数据
         try {
           const dResp = await fetch(detailUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
           if (dResp.ok) {
@@ -1128,9 +1118,8 @@ async function searchDownloadSites(gameName, appId) {
   return results;
 }
 
-// ============ 功能2：限免游戏 ============
+// ============ 13. 限免游戏 ============
 
-// 从 Epic 获取限免游戏
 async function fetchEpicFreeGames() {
   const games = [];
   try {
@@ -1139,14 +1128,13 @@ async function fetchEpicFreeGames() {
     const data = await resp.json();
     const elements = data?.data?.Catalog?.searchStore?.elements || [];
     for (const el of elements) {
-      // 只取当前正在限免的
       const promo = el.promotions?.promotionalOffers?.[0]?.promotionalOffers?.[0];
       if (!promo) continue;
       const now = Date.now();
       const start = new Date(promo.startDate).getTime();
       const end = new Date(promo.endDate).getTime();
       if (now < start || now > end) continue;
-      
+
       const img = el.keyImages?.find(i => i.type === 'OfferImageWide')?.url ||
                   el.keyImages?.[0]?.url || '';
       games.push({
@@ -1170,7 +1158,6 @@ async function fetchEpicFreeGames() {
   return games;
 }
 
-// 从 GOG 获取限免游戏
 async function fetchGogFreeGames() {
   const games = [];
   try {
@@ -1181,7 +1168,6 @@ async function fetchGogFreeGames() {
     const data = await resp.json();
     const products = data?.products || [];
     for (const p of products.slice(0, 10)) {
-      // GOG的免费游戏（可能是永久免费或限免）
       games.push({
         id: 'gog-' + p.id,
         platform: 'gog',
@@ -1203,15 +1189,12 @@ async function fetchGogFreeGames() {
   return games;
 }
 
-// 从 Steam 获取限免/免费领取游戏
 async function fetchSteamFreeGames() {
   const games = [];
   try {
-    // 搜索当前免费的游戏
     const resp = await fetch('https://store.steampowered.com/api/featuredcategories/?l=schinese&cc=cn');
     if (!resp.ok) return games;
     const data = await resp.json();
-    // 从特别优惠中寻找免费游戏
     const specials = data?.specials?.items || [];
     for (const item of specials) {
       if (item.final_price === 0 || item.discount_percent === 100) {
@@ -1237,16 +1220,10 @@ async function fetchSteamFreeGames() {
   return games;
 }
 
-// 从 GamerPower（第三方聚合渠道）获取限免游戏
-// 该平台聚合了 Epic/Steam/GOG/Itch.io 等多平台的限免信息，可靠性高
-// 分类GamerPower限免：官方平台直领（无门槛） vs 第三方平台领取（需额外条件）
 function classifyGamerPowerGiveaway(item) {
   const title = (item.title || '').toLowerCase();
   const instructions = (item.instructions || '').toLowerCase();
-  
-  // 第三方特征：
-  // 1. 标题含 "key"（如 "Steam Key"、"Key Giveaway"）——通常是第三方发放平台密钥
-  // 2. 领取说明提及第三方账号/服务（如 Alienware、unlock your key、redeem）
+
   const hasKeyInTitle = /\bkey\b/.test(title);
   const thirdPartySignals = [
     'alienware', 'unlock your key', 'get your key', 'redeem the key',
@@ -1254,14 +1231,11 @@ function classifyGamerPowerGiveaway(item) {
     'grabfree', 'key giveaway', 'claim your key', 'your free key'
   ];
   const hasThirdPartyInstruction = thirdPartySignals.some(kw => instructions.includes(kw));
-  
-  if (hasKeyInTitle || hasThirdPartyInstruction) {
-    return 'thirdparty';  // 第三方平台领取（需额外条件）
-  }
-  return 'direct';  // 官方平台直接领取（无门槛）
+
+  if (hasKeyInTitle || hasThirdPartyInstruction) return 'thirdparty';
+  return 'direct';
 }
 
-// 从标题提取第三方来源名称（如 Alienware）
 function extractThirdPartySource(item) {
   const instructions = (item.instructions || '').toLowerCase();
   if (instructions.includes('alienware')) return 'Alienware Arena';
@@ -1278,11 +1252,9 @@ async function fetchGamerPowerFreeGames() {
     if (!resp.ok) return games;
     const data = await resp.json();
     if (!Array.isArray(data)) return games;
-    
+
     for (const item of data) {
-      // platforms 是逗号分隔字符串，如 "PC, Epic Games Store"
       const platforms = (item.platforms || '').toLowerCase();
-      // 判断所属平台
       let platform = 'other';
       let platformName = '其他';
       if (platforms.includes('epic')) { platform = 'epic'; platformName = 'Epic Games'; }
@@ -1290,20 +1262,18 @@ async function fetchGamerPowerFreeGames() {
       else if (platforms.includes('gog')) { platform = 'gog'; platformName = 'GOG'; }
       else if (platforms.includes('itch')) { platform = 'itch'; platformName = 'Itch.io'; }
       else if (platforms.includes('drm-free') || platforms.includes('pc')) { platform = 'pc'; platformName = 'PC'; }
-      
-      // 只保留PC相关平台的限免
+
       if (platform === 'other') continue;
-      
-      // 分类：官方直领 vs 第三方领取
+
       const claimType = classifyGamerPowerGiveaway(item);
       const source = claimType === 'thirdparty' ? extractThirdPartySource(item) : platformName;
-      
+
       games.push({
         id: 'gp-' + item.id,
-        platform: platform,
-        platformName: platformName,
-        claimType: claimType,
-        source: source,
+        platform,
+        platformName,
+        claimType,
+        source,
         name: item.title || '',
         description: item.description || '',
         image: item.image || '',
@@ -1319,7 +1289,6 @@ async function fetchGamerPowerFreeGames() {
   return games;
 }
 
-// 汇总抓取所有限免游戏（官方渠道 + 第三方聚合渠道，去重）
 async function fetchAllFreeGames() {
   const [epic, gog, steam, gamerpower] = await Promise.all([
     fetchEpicFreeGames(),
@@ -1327,70 +1296,62 @@ async function fetchAllFreeGames() {
     fetchSteamFreeGames(),
     fetchGamerPowerFreeGames()
   ]);
-  
-  // 官方渠道优先，第三方渠道补充
+
   const merged = [...epic, ...gog, ...steam];
   const seenNames = new Set(merged.map(g => normalizeGameName(g.name)));
-  
+
   for (const gp of gamerpower) {
     const norm = normalizeGameName(gp.name);
-    // 如果官方渠道已有同名游戏则跳过
     if (!seenNames.has(norm)) {
       seenNames.add(norm);
       merged.push(gp);
     }
   }
-  
+
   return merged;
 }
 
-// 游戏名标准化（用于去重）
 function normalizeGameName(name) {
   return (name || '').toLowerCase()
-    .replace(/\(.*?\)|\[.*?\]/g, '')       // 去除括号内容（如 (Steam)）
-    .replace(/giveaway|free|限免|领取/gi, '') // 去除限免相关词
-    .replace(/[^a-z0-9\u4e00-\u9fff]/g, '')  // 只保留字母数字中文
+    .replace(/\(.*?\)|\[.*?\]/g, '')
+    .replace(/giveaway|free|限免|领取/gi, '')
+    .replace(/[^a-z0-9\u4e00-\u9fff]/g, '')
     .trim();
 }
 
-// 刷新限免游戏（保留已领取状态）
 async function refreshFreeGames(force = false) {
   const data = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
   const existing = data[DB_KEYS.FREE_GAMES] || { lastUpdate: 0, games: [] };
-  
-  // 每天刷新一次（除非强制）
+
   const ONE_DAY = 24 * 3600 * 1000;
   if (!force && existing.lastUpdate && (Date.now() - existing.lastUpdate < ONE_DAY)) {
     await updateFreeGamesBadge();
     return existing;
   }
-  
+
   const newGames = await fetchAllFreeGames();
-  // 保留已有游戏的状态（已领取标记 + 首次发现时间）
   const existingMap = new Map(existing.games.map(g => [g.id, g]));
   const now = Date.now();
   newGames.forEach(g => {
     const old = existingMap.get(g.id);
     if (old) {
       g.claimed = old.claimed || false;
-      g.firstSeen = old.firstSeen || now;  // 保留首次发现时间
+      g.firstSeen = old.firstSeen || now;
     } else {
-      g.firstSeen = now;  // 新游戏，首次发现时间为当前
+      g.firstSeen = now;
     }
   });
-  
+
   const result = { lastUpdate: now, games: newGames };
   await chrome.storage.local.set({ [DB_KEYS.FREE_GAMES]: result });
   await updateFreeGamesBadge();
   return result;
 }
 
-// 更新扩展图标角标（当天新增限免游戏数量）
 async function updateFreeGamesBadge() {
   try {
     const data = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
     const games = data[DB_KEYS.FREE_GAMES]?.games || [];
-    // 统计当天（本地零点起）新增的限免游戏
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayStartMs = todayStart.getTime();
@@ -1402,7 +1363,247 @@ async function updateFreeGamesBadge() {
   }
 }
 
-// ============ 消息处理 ============
+// ============ 14. 消息处理 ============
+
+// --- 各消息类型的独立 handler ---
+
+async function handleTrackEvent(message) {
+  await addBehaviorLog(message.data);
+
+  if (message.data.type === 'click_download') {
+    await updateGameProfile({
+      name: message.data.gameName,
+      event: 'download',
+      keywords: message.data.keywords
+    });
+    Logger.info('Download', `下载"${message.data.gameName}"`, { method: message.data.method, domain: message.data.domain });
+  }
+  if (message.data.type === 'view_detail') {
+    await updateGameProfile({
+      name: message.data.gameName,
+      event: 'view',
+      keywords: message.data.keywords
+    });
+  }
+  // Steam标签回写
+  if (message.data.type === 'steam_tags_update') {
+    await updateGameProfile({
+      name: message.data.gameName,
+      event: 'view',
+      keywords: message.data.keywords,
+      steamAppId: message.data.steamAppId,
+      steamRating: message.data.steamRating
+    });
+    await updateUserPreferences();
+  }
+  // 定期更新偏好模型
+  if (message.data.type !== 'steam_tags_update') {
+    await updateUserPreferences();
+  }
+  return { success: true };
+}
+
+async function handleGetRecommendations(message) {
+  const games = message.games || [];
+  const useBuiltinOnly = games.length > 1; // 批量时强制内置算法
+  const results = [];
+  for (const game of games) {
+    const score = await calculateRecommendation(game, useBuiltinOnly);
+    results.push({ ...game, recommendation: score });
+  }
+  return { results };
+}
+
+async function handleSearchSteam(message) {
+  const steamResult = await searchSteamGame(message.gameName);
+  if (steamResult) {
+    Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, { appId: steamResult.appId, rating: steamResult.ratingDesc });
+  } else {
+    Logger.warn('Steam', `未找到"${message.gameName}"`);
+  }
+  return { data: steamResult };
+}
+
+async function handleGetSteamRatings(message) {
+  const ratingNames = message.names || [];
+  const ratings = {};
+  const batchSize = 5;
+  for (let i = 0; i < ratingNames.length; i += batchSize) {
+    const batch = ratingNames.slice(i, i + batchSize);
+    const batchResults = await Promise.all(batch.map(async (name) => {
+      try {
+        const r = await getSteamPositiveRate(name);
+        return [name, r];
+      } catch (e) {
+        return [name, null];
+      }
+    }));
+    batchResults.forEach(([name, r]) => { ratings[name] = r; });
+  }
+  return { ratings };
+}
+
+async function handleGetSettings() {
+  return { settings: await getSettings() };
+}
+
+async function handleSaveSettings(message) {
+  await saveSettings(message.settings);
+  return { success: true };
+}
+
+async function handleGetStats() {
+  const log = await getBehaviorLog();
+  const profilesData = await chrome.storage.local.get(DB_KEYS.GAME_PROFILES);
+  const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
+  const profiles = profilesData[DB_KEYS.GAME_PROFILES] || {};
+  const keywordWeights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
+
+  const viewDetailCount = log.filter(e => e.type === 'view_detail').length;
+  const downloadCount = log.filter(e => e.type === 'click_download').length;
+  const listViewCount = log.filter(e => e.type === 'view_list').length;
+
+  const gameList = Object.values(profiles)
+    .sort((a, b) => b.downloads - a.downloads || b.views - a.views)
+    .slice(0, 50);
+
+  const downloadMethods = {};
+  log.filter(e => e.type === 'click_download').forEach(e => {
+    const method = e.method || 'unknown';
+    downloadMethods[method] = (downloadMethods[method] || 0) + 1;
+  });
+
+  return {
+    totalEvents: log.length,
+    totalGames: Object.keys(profiles).length,
+    viewDetailCount,
+    downloadCount,
+    listViewCount,
+    downloadRate: viewDetailCount > 0 ? Math.round(downloadCount / viewDetailCount * 100) : 0,
+    topKeywords: Object.entries(keywordWeights)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 30)
+      .map(([kw, weight]) => ({ keyword: kw, weight })),
+    gameList,
+    downloadMethods,
+    recentLog: log.slice(-30).reverse()
+  };
+}
+
+async function handleGetSteamRecommendations() {
+  const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
+  const weights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
+  const topTags = Object.entries(weights)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([kw]) => kw);
+
+  if (topTags.length === 0) {
+    return { games: [], message: '还没有足够的学习数据，请先浏览一些游戏网站' };
+  }
+
+  try {
+    const recGames = [];
+    for (const tag of topTags.slice(0, 3)) {
+      const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
+      const resp = await fetch(searchUrl);
+      const data = await resp.json();
+
+      if (data.total > 0 && data.items) {
+        for (const item of data.items.slice(0, 4)) {
+          if (recGames.some(g => g.appId === item.id)) continue;
+
+          let detail = null;
+          try {
+            const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
+            const detResp = await fetch(detUrl);
+            const detData = await detResp.json();
+            if (detData[item.id]?.success) {
+              detail = detData[item.id].data;
+            }
+          } catch (e) {}
+
+          recGames.push({
+            appId: item.id,
+            name: detail?.name || item.name,
+            image: detail?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${item.id}/header.jpg`,
+            price: detail?.price_overview ? detail.price_overview.final_formatted : '免费',
+            reviewSummary: '',
+            url: `https://store.steampowered.com/app/${item.id}/`,
+            matchTags: [tag]
+          });
+        }
+      }
+      if (recGames.length >= 9) break;
+    }
+
+    return { games: recGames.slice(0, 9), basedOnTags: topTags };
+  } catch (e) {
+    console.error('Steam推荐失败:', e);
+    return { games: [], error: '获取Steam推荐失败: ' + e.message };
+  }
+}
+
+async function handleClearData() {
+  await chrome.storage.local.remove([
+    DB_KEYS.BEHAVIOR_LOG,
+    DB_KEYS.GAME_PROFILES,
+    DB_KEYS.KEYWORD_WEIGHTS,
+    DB_KEYS.STEAM_CACHE
+  ]);
+  return { success: true };
+}
+
+async function handleSearchDownloadSites(message) {
+  const sites = await searchDownloadSites(message.gameName, message.appId);
+  Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
+  return { sites };
+}
+
+async function handleGetFreeGames(message) {
+  const freeData = await refreshFreeGames(message.force === true);
+  Logger.info('FreeGames', `获取限免游戏`, { count: freeData.games ? freeData.games.length : 0 });
+  return { data: freeData };
+}
+
+async function handleClaimFreeGame(message) {
+  const fgData = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
+  const fg = fgData[DB_KEYS.FREE_GAMES] || { games: [] };
+  const game = fg.games.find(g => g.id === message.gameId);
+  if (game) {
+    game.claimed = true;
+    await chrome.storage.local.set({ [DB_KEYS.FREE_GAMES]: fg });
+    await updateFreeGamesBadge();
+  }
+  return { success: true };
+}
+
+// --- 消息分发映射表 ---
+
+const MESSAGE_HANDLERS = {
+  TRACK_EVENT:            handleTrackEvent,
+  GET_RECOMMENDATIONS:    handleGetRecommendations,
+  SEARCH_STEAM:           handleSearchSteam,
+  GET_STEAM_RATINGS:      handleGetSteamRatings,
+  GET_SETTINGS:           handleGetSettings,
+  SAVE_SETTINGS:          handleSaveSettings,
+  GET_STATS:              handleGetStats,
+  GET_STEAM_RECOMMENDATIONS: handleGetSteamRecommendations,
+  CLEAR_DATA:             handleClearData,
+  SEARCH_DOWNLOAD_SITES:  handleSearchDownloadSites,
+  GET_FREE_GAMES:         handleGetFreeGames,
+  CLAIM_FREE_GAME:        handleClaimFreeGame,
+  GET_RUNTIME_LOGS:       async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
+  CLEAR_RUNTIME_LOGS:     async () => { await clearRuntimeLogs(); return { success: true }; },
+  EXPORT_LOGS:            async () => ({ logs: await getRuntimeLogs() }),
+  CREATE_BACKUP:          async () => {
+    const b = await createBackup(true);
+    return { success: !!b, backup: b ? { id: b.id, timestamp: b.timestamp } : null };
+  },
+  GET_BACKUPS:            async () => ({ backups: await getBackupList() }),
+  RESTORE_BACKUP:         async (msg) => restoreBackup(msg.backupId),
+  DELETE_BACKUP:          async (msg) => deleteBackup(msg.backupId),
+};
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sender).then(sendResponse).catch(err => {
@@ -1413,260 +1614,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 async function handleMessage(message, sender) {
-  switch (message.action) {
-    case 'TRACK_EVENT':
-      // 记录用户行为
-      await addBehaviorLog(message.data);
-      if (message.data.type === 'click_download') {
-        await updateGameProfile({
-          name: message.data.gameName,
-          event: 'download',
-          keywords: message.data.keywords
-        });
-        Logger.info('Download', `下载"${message.data.gameName}"`, { method: message.data.method, domain: message.data.domain });
-      }
-      if (message.data.type === 'view_detail') {
-        await updateGameProfile({
-          name: message.data.gameName,
-          event: 'view',
-          keywords: message.data.keywords
-        });
-      }
-      // Steam标签回写 - 用Steam标签替代页面关键词
-      if (message.data.type === 'steam_tags_update') {
-        await updateGameProfile({
-          name: message.data.gameName,
-          event: 'view',
-          keywords: message.data.keywords,  // Steam genres/tags
-          steamAppId: message.data.steamAppId,
-          steamRating: message.data.steamRating
-        });
-        // 更新关键词权重（使用Steam标签）
-        await updateUserPreferences();
-      }
-      // 定期更新偏好模型
-      if (message.data.type !== 'steam_tags_update') {
-        await updateUserPreferences();
-      }
-      return { success: true };
-      
-    case 'GET_RECOMMENDATIONS':
-      // 批量计算推荐分数
-      // 列表页批量请求始终使用内置算法（避免LLM批量调用过慢）
-      const games = message.games || [];
-      const useBuiltinOnly = games.length > 1; // 批量时强制内置算法
-      const results = [];
-      for (const game of games) {
-        const score = await calculateRecommendation(game, useBuiltinOnly);
-        results.push({ ...game, recommendation: score });
-      }
-      return { results };
-      
-    case 'SEARCH_STEAM':
-      // 搜索Steam游戏
-      const steamResult = await searchSteamGame(message.gameName);
-      if (steamResult) {
-        Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, { appId: steamResult.appId, rating: steamResult.ratingDesc });
-      } else {
-        Logger.warn('Steam', `未找到"${message.gameName}"`);
-      }
-      return { data: steamResult };
-      
-    case 'GET_STEAM_RATINGS':
-      // 批量查询Steam好评率（列表页用，控制并发避免请求过载）
-      const ratingNames = message.names || [];
-      const ratings = {};
-      const batchSize = 5;
-      for (let i = 0; i < ratingNames.length; i += batchSize) {
-        const batch = ratingNames.slice(i, i + batchSize);
-        const batchResults = await Promise.all(batch.map(async (name) => {
-          try {
-            const r = await getSteamPositiveRate(name);
-            return [name, r];
-          } catch (e) {
-            return [name, null];
-          }
-        }));
-        batchResults.forEach(([name, r]) => { ratings[name] = r; });
-      }
-      return { ratings };
-      
-    case 'GET_SETTINGS':
-      return { settings: await getSettings() };
-      
-    case 'SAVE_SETTINGS':
-      await saveSettings(message.settings);
-      return { success: true };
-      
-    case 'GET_STATS':
-      // 获取统计信息
-      const log = await getBehaviorLog();
-      const profilesData = await chrome.storage.local.get(DB_KEYS.GAME_PROFILES);
-      const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
-      const profiles = profilesData[DB_KEYS.GAME_PROFILES] || {};
-      const keywordWeights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
-      
-      // 详细统计
-      const viewDetailCount = log.filter(e => e.type === 'view_detail').length;
-      const downloadCount = log.filter(e => e.type === 'click_download').length;
-      const listViewCount = log.filter(e => e.type === 'view_list').length;
-      
-      // 游戏列表（按下载数排序）
-      const gameList = Object.values(profiles)
-        .sort((a, b) => b.downloads - a.downloads || b.views - a.views)
-        .slice(0, 50);
-      
-      // 下载方式统计
-      const downloadMethods = {};
-      log.filter(e => e.type === 'click_download').forEach(e => {
-        const method = e.method || 'unknown';
-        downloadMethods[method] = (downloadMethods[method] || 0) + 1;
-      });
-      
-      return {
-        totalEvents: log.length,
-        totalGames: Object.keys(profiles).length,
-        viewDetailCount,
-        downloadCount,
-        listViewCount,
-        downloadRate: viewDetailCount > 0 ? Math.round(downloadCount / viewDetailCount * 100) : 0,
-        topKeywords: Object.entries(keywordWeights)
-          .sort((a, b) => b[1] - a[1])
-          .slice(0, 30)
-          .map(([kw, weight]) => ({ keyword: kw, weight })),
-        gameList,
-        downloadMethods,
-        recentLog: log.slice(-30).reverse()
-      };
-      
-    case 'GET_STEAM_RECOMMENDATIONS':
-      // 基于用户偏好推荐Steam游戏
-      const kwDataForRec = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
-      const weightsForRec = kwDataForRec[DB_KEYS.KEYWORD_WEIGHTS] || {};
-      const topTags = Object.entries(weightsForRec)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 5)
-        .map(([kw]) => kw);
-      
-      if (topTags.length === 0) {
-        return { games: [], message: '还没有足够的学习数据，请先浏览一些游戏网站' };
-      }
-      
-      // 使用Steam搜索API根据标签推荐
-      try {
-        const recGames = [];
-        // 用每个顶级标签搜索Steam
-        for (const tag of topTags.slice(0, 3)) {
-          const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
-          const resp = await fetch(searchUrl);
-          const data = await resp.json();
-          
-          if (data.total > 0 && data.items) {
-            for (const item of data.items.slice(0, 4)) {
-              // 避免重复
-              if (recGames.some(g => g.appId === item.id)) continue;
-              
-              // 获取简要信息
-              let detail = null;
-              try {
-                const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
-                const detResp = await fetch(detUrl);
-                const detData = await detResp.json();
-                if (detData[item.id]?.success) {
-                  detail = detData[item.id].data;
-                }
-              } catch (e) {}
-              
-              recGames.push({
-                appId: item.id,
-                name: detail?.name || item.name,
-                image: detail?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${item.id}/header.jpg`,
-                price: detail?.price_overview ? detail.price_overview.final_formatted : '免费',
-                reviewSummary: '',
-                url: `https://store.steampowered.com/app/${item.id}/`,
-                matchTags: [tag]
-              });
-            }
-          }
-          if (recGames.length >= 9) break;
-        }
-        
-        return { games: recGames.slice(0, 9), basedOnTags: topTags };
-      } catch (e) {
-        console.error('Steam推荐失败:', e);
-        return { games: [], error: '获取Steam推荐失败: ' + e.message };
-      }
-      
-    case 'CLEAR_DATA':
-      await chrome.storage.local.remove([
-        DB_KEYS.BEHAVIOR_LOG,
-        DB_KEYS.GAME_PROFILES,
-        DB_KEYS.KEYWORD_WEIGHTS,
-        DB_KEYS.STEAM_CACHE
-      ]);
-      return { success: true };
-      
-    case 'SEARCH_DOWNLOAD_SITES':
-      // 功能3：搜索下载站资源
-      const sites = await searchDownloadSites(message.gameName, message.appId);
-      Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
-      return { sites };
-      
-    case 'GET_FREE_GAMES':
-      // 功能2：获取限免游戏
-      const freeData = await refreshFreeGames(message.force === true);
-      Logger.info('FreeGames', `获取限免游戏`, { count: freeData.games ? freeData.games.length : 0 });
-      return { data: freeData };
-      
-    case 'CLAIM_FREE_GAME':
-      // 功能2：标记游戏已领取
-      const fgData = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
-      const fg = fgData[DB_KEYS.FREE_GAMES] || { games: [] };
-      const game = fg.games.find(g => g.id === message.gameId);
-      if (game) {
-        game.claimed = true;
-        await chrome.storage.local.set({ [DB_KEYS.FREE_GAMES]: fg });
-        await updateFreeGamesBadge();
-      }
-      return { success: true };
-      
-    // ============ 运行日志消息 ============
-    case 'GET_RUNTIME_LOGS':
-      return { logs: await getRuntimeLogs(message.limit) };
-      
-    case 'CLEAR_RUNTIME_LOGS':
-      await clearRuntimeLogs();
-      return { success: true };
-      
-    case 'EXPORT_LOGS':
-      return { logs: await getRuntimeLogs() };
-      
-    // ============ 备份消息 ============
-    case 'CREATE_BACKUP':
-      const newBackup = await createBackup(true);
-      return { success: !!newBackup, backup: newBackup ? { id: newBackup.id, timestamp: newBackup.timestamp } : null };
-      
-    case 'GET_BACKUPS':
-      return { backups: await getBackupList() };
-      
-    case 'RESTORE_BACKUP':
-      return await restoreBackup(message.backupId);
-      
-    case 'DELETE_BACKUP':
-      return await deleteBackup(message.backupId);
-      
-    default:
-      return { error: 'Unknown action: ' + message.action };
-  }
+  const handler = MESSAGE_HANDLERS[message.action];
+  if (handler) return await handler(message, sender);
+  return { error: 'Unknown action: ' + message.action };
 }
 
-// 初始化
+// ============ 15. 初始化 ============
+
 initStorage();
 
-// 功能2：设置每日刷新限免游戏的定时器
+// 每日刷新限免游戏
 chrome.alarms.create('refreshFreeGames', { periodInMinutes: 24 * 60 });
 
-// 自动备份定时器（根据设置间隔）
+// 自动备份定时器
 async function setupBackupAlarm() {
   const settings = await getSettings();
   const intervalMinutes = (settings.backupIntervalHours || 24) * 60;
@@ -1689,5 +1649,4 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 refreshFreeGames(false);
 
 Logger.info('System', 'Service Worker 已启动');
-
 console.log('[Game Recommender] Service Worker 已启动');
