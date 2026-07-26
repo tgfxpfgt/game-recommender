@@ -78,7 +78,8 @@ const BACKUP_DATA_KEYS = [
 ];
 
 // Steam缓存版本号（匹配逻辑变更时递增，使旧缓存自动失效）
-const STEAM_CACHE_VERSION = 2;
+// v3: 修复 parseGameTitle 拆分逻辑导致的误匹配（如 "王国历史：三国志" 被误识别为 "全面战争：三国"）
+const STEAM_CACHE_VERSION = 3;
 const STEAM_CACHE_TTL = 7 * 24 * 3600 * 1000; // 7天
 
 // 下载站配置
@@ -365,9 +366,17 @@ function parseGameTitle(rawName) {
   name = name.replace(/[\(\(\[\【].*?[\)\)\]\】]/g, '');
   name = name.replace(/[《》]/g, '');
 
-  const rawParts = name.split(/[/|:：、]+|\s+\-\s+/).map(s => s.trim()).filter(s => s.length > 1);
+  // 只按 | 和 " - "/" – "/" — " 分段，不再按 : ： / 、 拆分
+  // 避免 "王国历史：三国志"、"History of Kingdoms: Three Kingdoms" 等含冒号的完整名字被误拆
+  const rawParts = name.split(/[|]+|\s+[-–—]\s+/).map(s => s.trim()).filter(s => s.length > 1);
 
   const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|免安装绿色版|\s+The\s+Game\s*)/gi;
+
+  // 判断整段是否仅由噪声词组成（如 "官方中文"、"中文版"、"v1.0"）
+  function isPureNoise(text) {
+    const stripped = text.replace(noisePattern, '').replace(/[\s\|\-:：、]+/g, '');
+    return stripped.length === 0;
+  }
 
   const candidates = [];
   const seen = new Set();
@@ -379,21 +388,24 @@ function parseGameTitle(rawName) {
     }
   }
 
-  if (rawParts.length > 0) {
-    const firstCleaned = rawParts[0].replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
-    if (firstCleaned.length >= 2) addCandidate(firstCleaned);
-    const firstEn = rawParts[0].match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
-    if (firstEn) firstEn.forEach(m => addCandidate(m.trim()));
-    const firstCn = rawParts[0].match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
-    if (firstCn) firstCn.forEach(m => addCandidate(m.trim()));
-  }
+  // 遍历每一段：跳过纯噪声段，对有效段同时保留整段清洗后的主名 + 中英子串作为候选
+  for (const part of rawParts) {
+    if (isPureNoise(part)) continue;
 
-  for (let i = 1; i < rawParts.length; i++) {
-    const en = rawParts[i].match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
+    // 1) 整段清洗后作为候选（保留主名，去掉噪声词）
+    const cleaned = part.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+    if (cleaned.length >= 2) addCandidate(cleaned);
+
+    // 2) 提取英文子串作为补充候选
+    const en = part.match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
     if (en) en.forEach(m => {
-      const cleaned = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
-      if (cleaned.length >= 2) addCandidate(cleaned);
+      const cleanedEn = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+      if (cleanedEn.length >= 2) addCandidate(cleanedEn);
     });
+
+    // 3) 提取中文子串作为补充候选
+    const cn = part.match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
+    if (cn) cn.forEach(m => addCandidate(m.trim()));
   }
 
   if (candidates.length === 0) {
@@ -406,12 +418,13 @@ function parseGameTitle(rawName) {
 
   const first = finalCandidates[0];
   const rest = finalCandidates.slice(1);
+  // 优先英文（更易在Steam搜到），同语言时按长度降序（更具体的名字优先）
   rest.sort((a, b) => {
     const aIsEnglish = /^[A-Za-z]/.test(a);
     const bIsEnglish = /^[A-Za-z]/.test(b);
     if (aIsEnglish && !bIsEnglish) return -1;
     if (!aIsEnglish && bIsEnglish) return 1;
-    return a.length - b.length;
+    return b.length - a.length;
   });
 
   return [first, ...rest].slice(0, 5);
@@ -1010,17 +1023,62 @@ function calcLinkMatchScore(linkText, searchName) {
   if (nt === ns) return 100;
   if (nt.includes(ns)) return 85;
   if (ns.includes(nt) && nt.length >= 4) return 70;
+
+  // 分段比较（按 | 和 / 拆分的每一段）
   const segments = linkText.split(/[|\/]/).map(s => norm(s)).filter(s => s.length >= 2);
   for (const seg of segments) {
     if (seg === ns) return 95;
     if (seg.includes(ns)) return 80;
     if (ns.includes(seg) && seg.length >= 4) return 65;
   }
-  return 0;
+
+  // 跨语言匹配：分别提取中英文，独立比较
+  // 用于处理 "History of Kingdoms: 三国志"(搜索名) vs "王国历史：三国志|...|History of Kingdoms: Three Kingdoms"(链接名)
+  // 这种字符顺序不同但内容对应的情况
+  function splitLang(s) {
+    const en = (s.match(/[a-z][a-z0-9\s']+/gi) || []).map(m => norm(m)).filter(m => m.length >= 2);
+    const cn = (s.match(/[\u4e00-\u9fff\u3400-\u4dbf]+/g) || []).map(m => m).filter(m => m.length >= 2);
+    return { en, cn };
+  }
+
+  const linkLang = splitLang(linkText);
+  const searchLang = splitLang(searchName);
+
+  let enScore = 0;
+  let cnScore = 0;
+
+  if (searchLang.en.length > 0 && linkLang.en.length > 0) {
+    let bestEn = 0;
+    for (const se of searchLang.en) {
+      for (const le of linkLang.en) {
+        if (le === se) { bestEn = Math.max(bestEn, 100); }
+        else if (le.includes(se) && se.length >= 4) { bestEn = Math.max(bestEn, 85); }
+        else if (se.includes(le) && le.length >= 4) { bestEn = Math.max(bestEn, 75); }
+      }
+    }
+    enScore = bestEn;
+  }
+
+  if (searchLang.cn.length > 0 && linkLang.cn.length > 0) {
+    let bestCn = 0;
+    for (const sc of searchLang.cn) {
+      for (const lc of linkLang.cn) {
+        if (lc === sc) { bestCn = Math.max(bestCn, 100); }
+        else if (lc.includes(sc) && sc.length >= 2) { bestCn = Math.max(bestCn, 85); }
+        else if (sc.includes(lc) && lc.length >= 2) { bestCn = Math.max(bestCn, 75); }
+      }
+    }
+    cnScore = bestCn;
+  }
+
+  if (enScore > 0 && cnScore > 0) {
+    return Math.round((enScore + cnScore) / 2);
+  }
+  return Math.max(enScore, cnScore);
 }
 
 function extractDetailMeta(html, siteKey) {
-  const meta = { updateDate: '', version: '', size: '' };
+  const meta = { updateDate: '', version: '', size: '', panUrl: '', panCode: '' };
   if (!html) return meta;
 
   const h1Match = html.match(/<h1[^>]*>([\s\S]*?)<\/h1>/i);
@@ -1054,46 +1112,92 @@ function extractDetailMeta(html, siteKey) {
     if (sizeLabelMatch) meta.size = sizeLabelMatch[1].trim();
   }
 
+  // 提取网盘链接（百度/阿里/115/夸克/微云）
+  // 支持 <a href="..."> 和纯文本两种形式
+  const panUrlPattern = /https?:\/\/(?:pan\.baidu\.com\/(?:s\/[\w-]+|share\/init\?surl=[\w-]+)|aliyundrive\.com\/s\/[\w]+|alipan\.com\/s\/[\w]+|115\.com\/s\/[\w-]+|quark\.cn\/s\/[\w]+|weiyun\.com\/[\w]+)/i;
+  const panUrlMatch = html.match(panUrlPattern);
+  if (panUrlMatch) {
+    meta.panUrl = panUrlMatch[0].replace(/&amp;/g, '&');
+
+    // 在网盘链接附近查找提取码（前后各扩大一段范围）
+    const idx = html.indexOf(panUrlMatch[0]);
+    const nearby = html.substring(Math.max(0, idx - 300), idx + panUrlMatch[0].length + 500);
+    const codeMatch = nearby.match(/(?:提取码|密码|访问码|pwd|access\s*code)[：:\s]*([a-zA-Z0-9]{4,6})/i);
+    if (codeMatch) meta.panCode = codeMatch[1];
+  }
+
   return meta;
 }
 
 async function searchDownloadSites(gameName, appId) {
   const results = [];
-  const searchName = cleanGameName(gameName) || gameName;
+  // 生成多个搜索词，按优先级排序，依次尝试
+  // 1. 清洗后的主名  2. parseGameTitle 的所有候选  3. 原始名
+  const searchTerms = [];
+  const seenTerms = new Set();
+  function addTerm(t) {
+    const key = t.toLowerCase().trim();
+    if (key.length >= 2 && !seenTerms.has(key)) {
+      seenTerms.add(key);
+      searchTerms.push(t);
+    }
+  }
+  addTerm(cleanGameName(gameName) || gameName);
+  parseGameTitle(gameName).forEach(t => addTerm(t));
+  addTerm(gameName);
 
   for (const site of DOWNLOAD_SITES) {
+    const primaryTerm = searchTerms[0];
     const result = {
       key: site.key, name: site.name, found: false,
-      detailUrl: '', searchUrl: site.searchUrl(searchName),
-      updateDate: '', version: '', size: ''
+      detailUrl: '', searchUrl: site.searchUrl(primaryTerm),
+      updateDate: '', version: '', size: '', panUrl: '', panCode: ''
     };
     try {
-      const resp = await fetch(site.searchUrl(searchName), {
-        headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
-      });
-      if (!resp.ok) { results.push(result); continue; }
-      const html = await resp.text();
-
-      // 提取候选详情链接
-      const candidates = [];
-      const linkRe = /<a[^>]*href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"[^>]*>([\s\S]*?)<\/a>/gi;
-      let lm;
-      while ((lm = linkRe.exec(html)) !== null) {
-        const href = lm[1];
-        const text = lm[2].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
-        candidates.push({ href, text });
-      }
-
-      // 按文本匹配度选出最符合游戏名的链接
+      // 依次尝试每个搜索词，找到匹配就停止
       let bestUrl = '';
       let bestScore = 0;
-      for (const c of candidates) {
-        const score = Math.max(calcLinkMatchScore(c.text, searchName), calcLinkMatchScore(c.text, gameName));
-        if (score > bestScore) {
-          bestScore = score;
-          bestUrl = c.href;
+      let usedTerm = primaryTerm;
+
+      for (let termIdx = 0; termIdx < searchTerms.length; termIdx++) {
+        const term = searchTerms[termIdx];
+        const resp = await fetch(site.searchUrl(term), {
+          headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
+        });
+        if (!resp.ok) continue;
+        const html = await resp.text();
+
+        // 提取候选详情链接
+        const candidates = [];
+        const linkRe = /<a[^>]*href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"[^>]*>([\s\S]*?)<\/a>/gi;
+        let lm;
+        while ((lm = linkRe.exec(html)) !== null) {
+          const href = lm[1];
+          const text = lm[2].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+          candidates.push({ href, text });
         }
+
+        // 按文本匹配度选出最符合游戏名的链接
+        for (const c of candidates) {
+          // 用所有搜索词+原始名计算最高分
+          let maxScore = 0;
+          for (const t of searchTerms) {
+            maxScore = Math.max(maxScore, calcLinkMatchScore(c.text, t));
+          }
+          maxScore = Math.max(maxScore, calcLinkMatchScore(c.text, gameName));
+          if (maxScore > bestScore) {
+            bestScore = maxScore;
+            bestUrl = c.href;
+            usedTerm = term;
+          }
+        }
+
+        // 已经找到高分匹配，不再尝试更多搜索词
+        if (bestScore >= 80) break;
       }
+
+      // 更新搜索URL为实际使用的那个
+      result.searchUrl = site.searchUrl(usedTerm);
 
       if (bestUrl && bestScore >= 60) {
         const detailUrl = bestUrl.startsWith('http') ? bestUrl : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
@@ -1107,6 +1211,12 @@ async function searchDownloadSites(gameName, appId) {
             result.updateDate = meta.updateDate;
             result.version = meta.version;
             result.size = meta.size;
+            result.panUrl = meta.panUrl;
+            result.panCode = meta.panCode;
+            // 百度网盘自动拼接提取码
+            if (result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
+              result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
+            }
           }
         } catch (e) {}
       }
@@ -1116,6 +1226,581 @@ async function searchDownloadSites(gameName, appId) {
     results.push(result);
   }
   return results;
+}
+
+// ============ 12.5 网盘链接深度提取（后台标签页方式） ============
+//
+// 由于下载站普遍需要登录、JS 动态加载、多步跳转，
+// 简单 fetch 无法获取真实网盘链接，因此使用 chrome.tabs + chrome.scripting
+// 在后台打开详情页、等待 JS 渲染、提取网盘链接后关闭标签。
+//
+// 每个站点的提取逻辑不同，按站点分别实现。
+
+// 百度网盘链接拼接提取码，支持自动填充
+function buildBaiduPanUrlWithPwd(url, pwd) {
+  if (!url || !pwd) return url;
+  try {
+    const u = new URL(url);
+    // 安全检查：只允许百度网盘域名
+    if (!/pan\.baidu\.com$/i.test(u.hostname)) {
+      console.warn('buildBaiduPanUrlWithPwd: 非百度网盘链接被拒绝:', url);
+      return url;
+    }
+    // 已经有pwd参数则不重复添加
+    if (u.searchParams.has('pwd')) return url;
+    u.searchParams.set('pwd', pwd);
+    return u.toString();
+  } catch (e) {
+    // URL解析失败，简单拼接
+    if (url.includes('?')) {
+      return url + '&pwd=' + encodeURIComponent(pwd);
+    } else {
+      return url + '?pwd=' + encodeURIComponent(pwd);
+    }
+  }
+}
+
+// 验证下载站URL的安全性
+function validateDownloadSiteUrl(url, siteKey) {
+  const allowedDomains = {
+    xianyudanji: ['xianyudanji.gg'],
+    xdgame: ['xdgame.com'],
+    gamer520: ['gamer520.com', 'gamers520.com']
+  };
+  
+  if (!allowedDomains[siteKey]) {
+    console.warn('validateDownloadSiteUrl: 不支持的站点:', siteKey);
+    return false;
+  }
+  
+  try {
+    const u = new URL(url);
+    const domain = u.hostname.toLowerCase();
+    return allowedDomains[siteKey].some(d => domain === d || domain.endsWith('.' + d));
+  } catch (e) {
+    console.warn('validateDownloadSiteUrl: URL解析失败:', url);
+    return false;
+  }
+}
+
+// 验证网盘链接的安全性
+function validatePanUrl(url) {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    const allowedHosts = [
+      'pan.baidu.com',
+      'aliyundrive.com',
+      'alipan.com',
+      '115.com',
+      'quark.cn'
+    ];
+    return allowedHosts.includes(u.hostname.toLowerCase());
+  } catch (e) {
+    return false;
+  }
+}
+
+// 后台标签页提取网盘链接的主入口
+async function extractPanLinkDeep(siteKey, detailUrl) {
+  // 安全验证：验证站点key和URL
+  if (!validateDownloadSiteUrl(detailUrl, siteKey)) {
+    console.warn(`extractPanLinkDeep: 非法URL或站点 - ${siteKey}: ${detailUrl}`);
+    return null;
+  }
+
+  const cacheKey = `pan_deep_${siteKey}_${detailUrl.toLowerCase()}`;
+  const cached = await getSteamCacheEntry(cacheKey);
+  if (cached && cached.data && cached.data.panUrl) {
+    return cached.data;
+  }
+
+  let tabId = null;
+  try {
+    // 在后台静默打开标签页：不激活、静音、放到最后
+    const tab = await chrome.tabs.create({
+      url: detailUrl,
+      active: false,
+      pinned: false,
+      muted: true,
+      index: 9999 // 放到标签栏最后
+    });
+    tabId = tab.id;
+
+    let result = null;
+    // 设置整体超时，防止无限等待
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('提取超时')), 45000)
+    );
+
+    const extractPromise = (async () => {
+      switch (siteKey) {
+        case 'xianyudanji':
+          return await extractXianyuDanji(tabId);
+        case 'xdgame':
+          return await extractXdgame(tabId);
+        case 'gamer520':
+          return await extractGamer520(tabId);
+        default:
+          return await extractGenericPan(tabId);
+      }
+    })();
+
+    result = await Promise.race([extractPromise, timeoutPromise]);
+
+    if (result && result.panUrl) {
+      // 安全验证：只返回合法的网盘链接
+      if (!validatePanUrl(result.panUrl)) {
+        console.warn(`extractPanLinkDeep: 非法网盘链接被过滤: ${result.panUrl}`);
+        result.panUrl = '';
+      } else {
+        // 百度网盘自动拼接提取码
+        if (result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
+          result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
+        }
+        await setSteamCacheEntry(cacheKey, result);
+      }
+    }
+
+    return result;
+  } catch (e) {
+    console.log(`深度提取${siteKey}网盘链接失败:`, e.message);
+    return null;
+  } finally {
+    if (tabId !== null) {
+      try { await chrome.tabs.remove(tabId); } catch (e) {}
+    }
+  }
+}
+
+// 等待页面加载完成的通用函数
+async function waitForTabLoad(tabId, timeout = 15000) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      chrome.tabs.onUpdated.removeListener(onUpdated);
+      reject(new Error('页面加载超时'));
+    }, timeout);
+
+    function onUpdated(updatedTabId, changeInfo, tab) {
+      if (updatedTabId === tabId && changeInfo.status === 'complete') {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        resolve(tab);
+      }
+    }
+
+    chrome.tabs.onUpdated.addListener(onUpdated);
+
+    // 检查是否已经加载完成（带错误处理）
+    chrome.tabs.get(tabId, (tab) => {
+      if (chrome.runtime.lastError) {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        reject(new Error('获取标签页失败: ' + chrome.runtime.lastError.message));
+        return;
+      }
+      if (tab && tab.status === 'complete') {
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(onUpdated);
+        resolve(tab);
+      }
+    });
+  });
+}
+
+// 在指定标签页执行脚本
+async function execScript(tabId, func, ...args) {
+  const results = await chrome.scripting.executeScript({
+    target: { tabId },
+    func,
+    args
+  });
+  return results && results[0] ? results[0].result : null;
+}
+
+// 睡眠辅助
+function sleep(ms) {
+  return new Promise(r => setTimeout(r, ms));
+}
+
+// ========== 咸鱼单机关联提取 ==========
+// 下载按钮是静态链接 /goto?down=xxx，访问后自动跳转到百度网盘
+async function extractXianyuDanji(tabId) {
+  try {
+    await waitForTabLoad(tabId);
+    await sleep(1500);
+
+    // 在页面中查找跳转链接
+    const gotoLinks = await execScript(tabId, () => {
+      const results = [];
+      const selectors = [
+        'a[href*="/goto?down="]',
+        'a[href*="pan.baidu.com"]',
+        'a[href*="aliyundrive.com"]',
+        'a[href*="alipan.com"]',
+        '.download-btn a',
+        '.down-btn a',
+        '[class*="download"] a',
+        '[class*="down"] a[href]'
+      ];
+      for (const sel of selectors) {
+        document.querySelectorAll(sel).forEach(a => {
+          results.push({ href: a.href, text: a.textContent.trim().substring(0, 100) });
+        });
+      }
+      // 去重
+      const seen = new Set();
+      return results.filter(r => {
+        if (seen.has(r.href)) return false;
+        seen.add(r.href);
+        return true;
+      });
+    });
+
+    if (!gotoLinks || gotoLinks.length === 0) {
+      return null;
+    }
+
+    // 优先找 goto?down= 链接
+    const gotoLink = gotoLinks.find(l => l.href.includes('/goto?down='));
+    let panUrl = '';
+    let panCode = '';
+
+    if (gotoLink) {
+      // 用 fetch 跟随跳转获取真实网盘地址
+      try {
+        const resp = await fetch(gotoLink.href, {
+          credentials: 'include',
+          redirect: 'follow'
+        });
+        if (resp.url && (resp.url.includes('pan.baidu.com') || resp.url.includes('aliyundrive.com') || resp.url.includes('alipan.com'))) {
+          panUrl = resp.url;
+        }
+      } catch (e) {
+        // fetch 可能因跨域/CORS 失败，回退到在标签页中跳转
+        if (!panUrl) {
+          try {
+            await chrome.tabs.update(tabId, { url: gotoLink.href });
+            await waitForTabLoad(tabId);
+            await sleep(1500);
+
+            const finalUrl = await execScript(tabId, () => window.location.href);
+            if (finalUrl && (finalUrl.includes('pan.baidu.com') || finalUrl.includes('aliyundrive.com') || finalUrl.includes('alipan.com'))) {
+              panUrl = finalUrl;
+            }
+
+            // 从页面中查找提取码
+            const codeFromPage = await execScript(tabId, () => {
+              // 常见的提取码显示位置
+              const patterns = [
+                /提取码[：:]\s*([a-zA-Z0-9]{4})/i,
+                /密码[：:]\s*([a-zA-Z0-9]{4})/i,
+                /pwd[=:：]\s*([a-zA-Z0-9]{4})/i
+              ];
+              const text = document.body.textContent;
+              for (const p of patterns) {
+                const m = text.match(p);
+                if (m) return m[1];
+              }
+              return '';
+            });
+            if (codeFromPage) panCode = codeFromPage;
+          } catch (e2) {
+            console.log('咸鱼单机跳转提取失败:', e2.message);
+          }
+        }
+      }
+
+      // 从 goto 链接附近的文本提取提取码
+      if (!panCode && gotoLink.text) {
+        const codeMatch = gotoLink.text.match(/(?:提取码|密码|访问码)[：:\s]*([a-zA-Z0-9]{4})/i);
+        if (codeMatch) panCode = codeMatch[1];
+      }
+    }
+
+    // 如果没找到 goto 链接，试试直接找百度网盘链接
+    if (!panUrl) {
+      const baiduLink = gotoLinks.find(l => l.href.includes('pan.baidu.com'));
+      if (baiduLink) {
+        panUrl = baiduLink.href;
+        const codeMatch = baiduLink.text.match(/(?:提取码|密码|访问码)[：:\s]*([a-zA-Z0-9]{4})/i);
+        if (codeMatch) panCode = codeMatch[1];
+      }
+    }
+
+    if (panUrl) {
+      return { panUrl, panCode, source: 'xianyudanji' };
+    }
+    return null;
+  } catch (e) {
+    console.log('咸鱼单机提取失败:', e.message);
+    return null;
+  }
+}
+
+// ========== XDGame 提取 ==========
+// JS 动态加载下载链接，需要等 JS 执行
+async function extractXdgame(tabId) {
+  try {
+    await waitForTabLoad(tabId);
+    // 等待 JS 渲染下载区域
+    await sleep(3000);
+
+    // 尝试在页面中查找网盘链接
+    const panInfo = await execScript(tabId, () => {
+      const result = { panUrl: '', panCode: '' };
+
+      // 所有可能的网盘链接选择器
+      const linkSelectors = [
+        'a[href*="pan.baidu.com"]',
+        'a[href*="aliyundrive.com"]',
+        'a[href*="alipan.com"]',
+        'a[href*="115.com"]',
+        'a[href*="quark.cn"]',
+        '[onclick*="pan.baidu"]',
+        '[onclick*="baidupan"]',
+        '[onclick*="baidu"]',
+        '.download-list a',
+        '.down-list a',
+        '.res-down a',
+        '[class*="download"] a[href]',
+        '[class*="down"] a[href]'
+      ];
+
+      for (const sel of linkSelectors) {
+        const els = document.querySelectorAll(sel);
+        for (const el of els) {
+          let url = '';
+          if (el.href) {
+            url = el.href;
+          } else if (el.onclick) {
+            const oc = el.getAttribute('onclick') || '';
+            const m = oc.match(/https?:\/\/[^\s'")]+/);
+            if (m) url = m[0];
+          }
+          if (url && !result.panUrl &&
+              (url.includes('pan.baidu.com') || url.includes('aliyundrive.com') ||
+               url.includes('alipan.com') || url.includes('115.com') || url.includes('quark.cn'))) {
+            result.panUrl = url;
+            // 从附近文本找提取码
+            const parent = el.closest('li, div, p') || el.parentElement;
+            if (parent) {
+              const txt = parent.textContent;
+              const cm = txt.match(/(?:提取码|密码|访问码|pwd)[：:=\s]*([a-zA-Z0-9]{4})/i);
+              if (cm) result.panCode = cm[1];
+            }
+            break;
+          }
+        }
+        if (result.panUrl) break;
+      }
+
+      // 如果在属性中没找到，从整个页面文本中搜索
+      if (!result.panUrl) {
+        const html = document.body.innerHTML;
+        const urlMatch = html.match(/https?:\/\/pan\.baidu\.com\/s\/[\w-]+/i);
+        if (urlMatch) {
+          result.panUrl = urlMatch[0];
+          const codeArea = html.substring(urlMatch.index, urlMatch.index + 300);
+          const cm = codeArea.match(/(?:提取码|密码|访问码|pwd)[：:=\s]*([a-zA-Z0-9]{4})/i);
+          if (cm) result.panCode = cm[1];
+        }
+      }
+
+      return result;
+    });
+
+    if (panInfo && panInfo.panUrl) {
+      return { panUrl: panInfo.panUrl, panCode: panInfo.panCode || '', source: 'xdgame' };
+    }
+    return null;
+  } catch (e) {
+    console.log('XDGame提取失败:', e.message);
+    return null;
+  }
+}
+
+// ========== Gamer520 提取 ==========
+// 多步：详情页 → 点击获取资源 → 弹窗点击立即下载 → 新页面二维码
+// 先尝试从页面中直接找网盘链接，失败再走二维码路径
+async function extractGamer520(tabId) {
+  try {
+    await waitForTabLoad(tabId);
+    await sleep(2000);
+
+    // 第一步：尝试从详情页直接找网盘链接（可能有缓存或直接显示的情况）
+    const directInfo = await execScript(tabId, () => {
+      const result = { panUrl: '', panCode: '' };
+
+      // 搜索页面上所有的网盘链接
+      const html = document.body.innerHTML;
+      const patterns = [
+        /https?:\/\/pan\.baidu\.com\/s\/[\w-]+/i,
+        /https?:\/\/aliyundrive\.com\/s\/[\w]+/i,
+        /https?:\/\/alipan\.com\/s\/[\w]+/i,
+        /https?:\/\/\d+\.115\.com\/[^"'\s]+/i
+      ];
+      for (const p of patterns) {
+        const m = html.match(p);
+        if (m) {
+          result.panUrl = m[0];
+          const area = html.substring(m.index, m.index + 400);
+          const cm = area.match(/(?:提取码|密码|访问码|pwd)[：:=\s]*([a-zA-Z0-9]{4})/i);
+          if (cm) result.panCode = cm[1];
+          break;
+        }
+      }
+
+      return result;
+    });
+
+    if (directInfo && directInfo.panUrl) {
+      return { panUrl: directInfo.panUrl, panCode: directInfo.panCode || '', source: 'gamer520' };
+    }
+
+    // 第二步：查找"获取资源"按钮并点击
+    const hasGetResourceBtn = await execScript(tabId, () => {
+      const btns = [...document.querySelectorAll('button, a, div[onclick], [class*="get"], [class*="resource"]')];
+      for (const btn of btns) {
+        const text = (btn.textContent || '').trim();
+        if (/获取资源|立即下载|下载资源|点我下载/.test(text)) {
+          btn.click();
+          return true;
+        }
+      }
+      return false;
+    });
+
+    if (hasGetResourceBtn) {
+      await sleep(2000);
+
+      // 第三步：在弹窗中找"立即下载"链接
+      const downloadLink = await execScript(tabId, () => {
+        // 查找弹窗中的下载链接
+        const candidates = [];
+        document.querySelectorAll('a[href]').forEach(a => {
+          const txt = a.textContent.trim();
+          if (/立即下载|百度网盘|阿里云盘|下载地址/.test(txt) ||
+              a.href.includes('/down/') || a.href.includes('/download/') ||
+              a.href.includes('gamer520.com') || a.href.includes('gamers520.com')) {
+            candidates.push({ href: a.href, text: txt });
+          }
+        });
+        // 优先选择非当前页面的链接
+        const current = window.location.href;
+        return candidates.find(c => c.href !== current && c.href.includes('.html')) || candidates[0] || null;
+      });
+
+      if (downloadLink && downloadLink.href) {
+        // 导航到下载页面
+        await chrome.tabs.update(tabId, { url: downloadLink.href });
+        await waitForTabLoad(tabId);
+        await sleep(2000);
+
+        // 第四步：在下载页面找网盘链接或二维码
+        const finalInfo = await execScript(tabId, () => {
+          const result = { panUrl: '', panCode: '', qrImage: '' };
+
+          // 直接找网盘链接
+          const html = document.body.innerHTML;
+          const patterns = [
+            /https?:\/\/pan\.baidu\.com\/s\/[\w-]+/i,
+            /https?:\/\/aliyundrive\.com\/s\/[\w]+/i,
+            /https?:\/\/alipan\.com\/s\/[\w]+/i
+          ];
+          for (const p of patterns) {
+            const m = html.match(p);
+            if (m) {
+              result.panUrl = m[0];
+              const area = html.substring(m.index, m.index + 400);
+              const cm = area.match(/(?:提取码|密码|访问码|pwd)[：:=\s]*([a-zA-Z0-9]{4})/i);
+              if (cm) result.panCode = cm[1];
+              break;
+            }
+          }
+
+          // 如果没找到直接链接，找二维码图片
+          if (!result.panUrl) {
+            const imgSelectors = [
+              'img[src*="qr"]',
+              'img[src*="qrcode"]',
+              'img[alt*="扫码"]',
+              'img[alt*="二维码"]',
+              '[class*="qr"] img',
+              '[class*="qrcode"] img'
+            ];
+            for (const sel of imgSelectors) {
+              const img = document.querySelector(sel);
+              if (img && img.src) {
+                result.qrImage = img.src;
+                break;
+              }
+            }
+            // 如果没找到特殊类名的二维码，找页面上所有图片里最像二维码的
+            if (!result.qrImage) {
+              const imgs = document.querySelectorAll('img');
+              for (const img of imgs) {
+                if (img.width >= 100 && img.width <= 300 &&
+                    img.height >= 100 && img.height <= 300 &&
+                    (img.src.includes('qr') || img.src.includes('code') || img.alt?.includes('码'))) {
+                  result.qrImage = img.src;
+                  break;
+                }
+              }
+            }
+          }
+
+          return result;
+        });
+
+        if (finalInfo && finalInfo.panUrl) {
+          return { panUrl: finalInfo.panUrl, panCode: finalInfo.panCode || '', source: 'gamer520' };
+        }
+
+        if (finalInfo && finalInfo.qrImage) {
+          return {
+            panUrl: '',
+            panCode: '',
+            qrImage: finalInfo.qrImage,
+            downloadPageUrl: downloadLink.href,
+            source: 'gamer520',
+            note: '二维码需要扫码'
+          };
+        }
+      }
+    }
+
+    return null;
+  } catch (e) {
+    console.log('Gamer520提取失败:', e.message);
+    return null;
+  }
+}
+
+// 通用网盘链接提取（兜底）
+async function extractGenericPan(tabId) {
+  try {
+    await waitForTabLoad(tabId);
+    await sleep(2000);
+
+    const info = await execScript(tabId, () => {
+      const result = { panUrl: '', panCode: '' };
+      const html = document.body.innerHTML;
+      const m = html.match(/https?:\/\/(?:pan\.baidu\.com\/s\/[\w-]+|aliyundrive\.com\/s\/[\w]+|alipan\.com\/s\/[\w]+)/i);
+      if (m) {
+        result.panUrl = m[0];
+        const area = html.substring(m.index, m.index + 400);
+        const cm = area.match(/(?:提取码|密码|访问码|pwd)[：:=\s]*([a-zA-Z0-9]{4})/i);
+        if (cm) result.panCode = cm[1];
+      }
+      return result;
+    });
+
+    if (info && info.panUrl) return info;
+    return null;
+  } catch (e) {
+    return null;
+  }
 }
 
 // ============ 13. 限免游戏 ============
@@ -1554,10 +2239,83 @@ async function handleClearData() {
   return { success: true };
 }
 
-async function handleSearchDownloadSites(message) {
+async function handleSearchDownloadSites(message, sender) {
   const sites = await searchDownloadSites(message.gameName, message.appId);
   Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
+
   return { sites };
+}
+
+// 异步触发深度提取，完成后通过消息通知content script更新
+async function triggerDeepExtraction(sites, tabId, gameName) {
+  for (const site of sites) {
+    if (!site.found || !site.detailUrl) continue;
+    if (site.panUrl && site.panUrl.length > 10) continue; // 已有网盘链接则跳过
+
+    try {
+      const deepResult = await extractPanLinkDeep(site.key, site.detailUrl);
+      if (deepResult && deepResult.panUrl) {
+        site.panUrl = deepResult.panUrl;
+        site.panCode = deepResult.panCode || '';
+        site.panSource = deepResult.source;
+        // 通知 content script 更新
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'DOWNLOAD_SITE_UPDATE',
+            siteKey: site.key,
+            panUrl: deepResult.panUrl,
+            panCode: deepResult.panCode || '',
+            gameName
+          });
+        } catch (e) {
+          // 标签页可能已关闭，忽略
+        }
+      } else if (deepResult && deepResult.qrImage) {
+        // 二维码的情况
+        site.qrImage = deepResult.qrImage;
+        site.downloadPageUrl = deepResult.downloadPageUrl;
+        site.panNote = deepResult.note || '';
+        try {
+          await chrome.tabs.sendMessage(tabId, {
+            action: 'DOWNLOAD_SITE_UPDATE',
+            siteKey: site.key,
+            qrImage: deepResult.qrImage,
+            downloadPageUrl: deepResult.downloadPageUrl,
+            panNote: deepResult.note || '',
+            gameName
+          });
+        } catch (e) {}
+      }
+    } catch (e) {
+      console.log(`深度提取${site.name}失败:`, e.message);
+    }
+  }
+}
+
+// 直接调用深度提取的消息处理器
+async function handleExtractPanDeep(message, sender) {
+  const result = await extractPanLinkDeep(message.siteKey, message.detailUrl);
+  // 如果有提取码且是百度网盘，自动拼接到URL中
+  if (result && result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
+    result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
+  }
+  // 如果有tabId，也通知content script更新（用于单站点手动提取）
+  const tabId = sender && sender.tab ? sender.tab.id : message.tabId;
+  if (tabId && result && (result.panUrl || result.qrImage)) {
+    try {
+      await chrome.tabs.sendMessage(tabId, {
+        action: 'DOWNLOAD_SITE_UPDATE',
+        siteKey: message.siteKey,
+        panUrl: result.panUrl || '',
+        panCode: result.panCode || '',
+        qrImage: result.qrImage || '',
+        downloadPageUrl: result.downloadPageUrl || '',
+        panNote: result.note || '',
+        gameName: message.gameName || ''
+      });
+    } catch (e) {}
+  }
+  return { result };
 }
 
 async function handleGetFreeGames(message) {
@@ -1591,6 +2349,7 @@ const MESSAGE_HANDLERS = {
   GET_STEAM_RECOMMENDATIONS: handleGetSteamRecommendations,
   CLEAR_DATA:             handleClearData,
   SEARCH_DOWNLOAD_SITES:  handleSearchDownloadSites,
+  EXTRACT_PAN_DEEP:       handleExtractPanDeep,
   GET_FREE_GAMES:         handleGetFreeGames,
   CLAIM_FREE_GAME:        handleClaimFreeGame,
   GET_RUNTIME_LOGS:       async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),

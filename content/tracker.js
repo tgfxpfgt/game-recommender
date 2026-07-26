@@ -22,6 +22,24 @@
     logs: []
   };
 
+  // 待更新的下载站浮窗面板（用于深度提取完成后异步更新）
+  // 使用 WeakSet 防止内存泄漏，面板移除后自动清理
+  const pendingDownloadSitePanels = [];
+
+  // 清理无效的面板引用（定期调用）
+  function cleanupPendingPanels() {
+    for (let i = pendingDownloadSitePanels.length - 1; i >= 0; i--) {
+      const entry = pendingDownloadSitePanels[i];
+      // 检查面板是否仍在 DOM 中
+      if (!document.body.contains(entry.panel)) {
+        pendingDownloadSitePanels.splice(i, 1);
+      }
+    }
+  }
+
+  // 每30秒清理一次无效面板
+  setInterval(cleanupPendingPanels, 30000);
+
   function dbg(msg) {
     DEBUG.logs.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`);
     if (DEBUG.logs.length > 20) DEBUG.logs.pop();
@@ -527,6 +545,8 @@
         });
         if (resp && resp.sites) {
           renderDownloadSitePanel(panel, resp.sites, gameName);
+          // 注册深度提取更新回调（用于手动提取后的异步更新）
+          pendingDownloadSitePanels.push({ panel, gameName });
         } else {
           panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
           panel.appendChild(closeBtn);
@@ -550,8 +570,9 @@
     for (const site of sites) {
       const name = siteNames[site.key] || site.key;
       if (site.found && site.detailUrl) {
+        const panLabel = getPanLabel(site.panUrl);
         html += `
-          <div style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
+          <div data-site-key="${site.key}" style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <span style="font-size:12px;font-weight:bold;color:#67c1f5;">${name}</span>
               <a href="${site.detailUrl}" target="_blank" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>
@@ -560,8 +581,23 @@
               ${site.updateDate ? `<div>📅 更新: ${escapeHtml(site.updateDate)}</div>` : ''}
               ${site.version ? `<div>🏷️ 版本: ${escapeHtml(site.version)}</div>` : ''}
               ${site.size ? `<div>💾 大小: ${escapeHtml(site.size)}</div>` : ''}
-              ${!site.updateDate && !site.version && !site.size ? '<div style="color:#666;">点击跳转查看详情</div>' : ''}
+              ${!site.updateDate && !site.version && !site.size && !site.panUrl ? '<div style="color:#666;">点击跳转查看详情</div>' : ''}
             </div>
+            ${site.panUrl ? `
+              <div class="gr-pan-section" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
+                <a href="${escapeHtml(site.panUrl)}" target="_blank" style="display:block;text-align:center;padding:7px 0;background:linear-gradient(to right,#06a3ff,#0066cc);color:#fff;border-radius:3px;text-decoration:none;font-size:12px;font-weight:bold;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">💾 ${panLabel}直链 ↗</a>
+                ${site.panCode ? `
+                  <div style="margin-top:5px;font-size:11px;color:#acb2b8;text-align:center;">
+                    提取码: <span class="gr-pan-code" data-code="${escapeHtml(site.panCode)}" style="color:#66c0f4;font-weight:bold;cursor:pointer;background:rgba(102,192,244,0.1);padding:1px 8px;border-radius:2px;border:1px solid rgba(102,192,244,0.3);transition:background 0.2s;">${escapeHtml(site.panCode)} 📋</span>
+                  </div>
+                ` : ''}
+              </div>
+            ` : `
+              <div class="gr-pan-section" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
+                <button class="gr-get-pan-btn" data-site-key="${site.key}" data-detail-url="${escapeHtml(site.detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e67e22,#d35400);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);transition:opacity 0.2s;">🔗 获取百度直链</button>
+                <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">点击后后台提取，需已登录下载站</div>
+              </div>
+            `}
           </div>
         `;
       } else {
@@ -579,6 +615,236 @@
 
     panel.innerHTML = html;
     panel.appendChild(createCloseBtn(panel));
+
+    // 绑定提取码点击复制
+    panel.querySelectorAll('.gr-pan-code').forEach(el => {
+      el.addEventListener('click', () => {
+        const code = el.dataset.code;
+        if (!code) return;
+        navigator.clipboard.writeText(code).then(() => {
+          const original = el.innerHTML;
+          el.innerHTML = '已复制 ✓';
+          el.style.background = 'rgba(88,138,27,0.3)';
+          setTimeout(() => {
+            el.innerHTML = original;
+            el.style.background = 'rgba(102,192,244,0.1)';
+          }, 1500);
+        }).catch(() => {});
+      });
+    });
+
+    // 绑定"获取百度直链"按钮点击事件
+    panel.querySelectorAll('.gr-get-pan-btn').forEach(btn => {
+      btn.addEventListener('click', async () => {
+        const siteKey = btn.dataset.siteKey;
+        const detailUrl = btn.dataset.detailUrl;
+        const gameName = btn.dataset.gameName;
+
+        // 安全验证：只允许已知站点
+        const allowedSites = ['xdgame', 'xianyudanji', 'gamer520'];
+        if (!siteKey || !detailUrl || !allowedSites.includes(siteKey)) {
+          console.warn('gr-get-pan-btn: 非法参数:', siteKey, detailUrl);
+          return;
+        }
+
+        // 安全验证：URL必须是合法的下载站
+        const allowedDomains = {
+          xianyudanji: ['xianyudanji.gg'],
+          xdgame: ['xdgame.com'],
+          gamer520: ['gamer520.com', 'gamers520.com']
+        };
+        try {
+          const u = new URL(detailUrl);
+          const domain = u.hostname.toLowerCase();
+          const isValid = allowedDomains[siteKey].some(d => domain === d || domain.endsWith('.' + d));
+          if (!isValid) {
+            console.warn('gr-get-pan-btn: 非法URL:', detailUrl);
+            return;
+          }
+        } catch (e) {
+          console.warn('gr-get-pan-btn: URL解析失败:', detailUrl);
+          return;
+        }
+
+        // 切换为加载状态
+        const panSection = btn.closest('.gr-pan-section');
+        if (panSection) {
+          panSection.innerHTML = `
+            <div style="text-align:center;font-size:12px;color:#8f98a0;padding:7px 0;">
+              <span style="display:inline-block;animation:gr-spin 1s linear infinite;">⏳</span> 正在提取直链...
+            </div>
+          `;
+        }
+
+        try {
+          const resp = await chrome.runtime.sendMessage({
+            action: 'EXTRACT_PAN_DEEP',
+            siteKey,
+            detailUrl,
+            gameName
+          });
+          // 消息会通过 DOWNLOAD_SITE_UPDATE 推送更新，这里不需要额外处理
+          if (!resp || !resp.result || (!resp.result.panUrl && !resp.result.qrImage)) {
+            // 提取失败，恢复按钮
+            if (panSection) {
+              panSection.innerHTML = `
+                <button class="gr-get-pan-btn" data-site-key="${siteKey}" data-detail-url="${escapeHtml(detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e74c3c,#c0392b);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">⚠️ 提取失败，重试</button>
+                <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
+              `;
+              // 重新绑定点击事件
+              const retryBtn = panSection.querySelector('.gr-get-pan-btn');
+              if (retryBtn) {
+                retryBtn.addEventListener('click', () => btn.click());
+              }
+            }
+          }
+        } catch (e) {
+          if (panSection) {
+            panSection.innerHTML = `
+              <button class="gr-get-pan-btn" data-site-key="${siteKey}" data-detail-url="${escapeHtml(detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e74c3c,#c0392b);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">⚠️ 提取失败，重试</button>
+              <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
+            `;
+            const retryBtn = panSection.querySelector('.gr-get-pan-btn');
+            if (retryBtn) {
+              retryBtn.addEventListener('click', () => btn.click());
+            }
+          }
+        }
+      });
+    });
+  }
+
+  // 根据网盘URL返回对应的网盘名称
+  function getPanLabel(url) {
+    if (!url) return '网盘';
+    if (/pan\.baidu\.com/i.test(url)) return '百度网盘';
+    if (/aliyundrive\.com|alipan\.com/i.test(url)) return '阿里云盘';
+    if (/115\.com/i.test(url)) return '115网盘';
+    if (/quark\.cn/i.test(url)) return '夸克网盘';
+    if (/weiyun\.com/i.test(url)) return '微云';
+    return '网盘';
+  }
+
+  // 验证网盘链接的安全性（前端双重验证）
+  function validatePanUrl(url) {
+    if (!url) return false;
+    try {
+      const u = new URL(url);
+      const allowedHosts = [
+        'pan.baidu.com',
+        'aliyundrive.com',
+        'alipan.com',
+        '115.com',
+        'quark.cn',
+        'weiyun.com'
+      ];
+      return allowedHosts.includes(u.hostname.toLowerCase());
+    } catch (e) {
+      return false;
+    }
+  }
+
+  // 异步更新单个站点的网盘链接（深度提取完成后调用）
+  function updateSitePanelPanLink(panel, message) {
+    const siteKey = message.siteKey;
+    // 安全验证：只处理已知站点
+    const allowedSites = ['xdgame', 'xianyudanji', 'gamer520'];
+    if (!allowedSites.includes(siteKey)) {
+      console.warn('updateSitePanelPanLink: 未知站点:', siteKey);
+      return;
+    }
+
+    // 安全验证：网盘链接必须是合法域名
+    if (message.panUrl && !validatePanUrl(message.panUrl)) {
+      console.warn('updateSitePanelPanLink: 非法网盘链接:', message.panUrl);
+      return;
+    }
+
+    const siteCards = panel.querySelectorAll('[data-site-key]');
+    let targetCard = null;
+
+    // 先尝试通过 data-site-key 定位
+    for (const card of siteCards) {
+      if (card.dataset.siteKey === siteKey) {
+        targetCard = card;
+        break;
+      }
+    }
+
+    // 如果找不到，通过名称匹配
+    if (!targetCard) {
+      const siteNames = { xdgame: 'XDGame', xianyudanji: '咸鱼单机', gamer520: 'Gamer520' };
+      const name = siteNames[siteKey] || siteKey;
+      const cards = panel.querySelectorAll('[style*="margin:0 14px 10px"]');
+      for (const card of cards) {
+        if (card.textContent.includes(name)) {
+          targetCard = card;
+          break;
+        }
+      }
+    }
+
+    if (!targetCard) return;
+
+    // 检查是否已有真实网盘链接区域（非加载状态）
+    const existingPanSection = targetCard.querySelector('.gr-pan-section:not(.gr-pan-loading)');
+    if (existingPanSection) return; // 已有真实链接则不重复添加
+
+    // 移除加载状态区域（如果有）
+    const loadingSection = targetCard.querySelector('.gr-pan-section.gr-pan-loading');
+    if (loadingSection) loadingSection.remove();
+
+    // 构造网盘链接区域
+    let panSection = null;
+    if (message.panUrl) {
+      const panLabel = getPanLabel(message.panUrl);
+      panSection = document.createElement('div');
+      panSection.className = 'gr-pan-section';
+      panSection.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);';
+
+      let panHtml = `
+        <a href="${escapeHtml(message.panUrl)}" target="_blank" style="display:block;text-align:center;padding:7px 0;background:linear-gradient(to right,#06a3ff,#0066cc);color:#fff;border-radius:3px;text-decoration:none;font-size:12px;font-weight:bold;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">💾 ${panLabel}直链 ↗</a>
+      `;
+      // 如果URL中已经有pwd参数（自动拼接过），就不再显示提取码
+      if (message.panCode && !message.panUrl.includes('?pwd=')) {
+        panHtml += `
+          <div style="margin-top:5px;font-size:11px;color:#acb2b8;text-align:center;">
+            提取码: <span class="gr-pan-code" data-code="${escapeHtml(message.panCode)}" style="color:#66c0f4;font-weight:bold;cursor:pointer;background:rgba(102,192,244,0.1);padding:1px 8px;border-radius:2px;border:1px solid rgba(102,192,244,0.3);transition:background 0.2s;">${escapeHtml(message.panCode)} 📋</span>
+          </div>
+        `;
+      }
+      panSection.innerHTML = panHtml;
+
+      // 绑定复制事件
+      panSection.querySelectorAll('.gr-pan-code').forEach(el => {
+        el.addEventListener('click', () => {
+          const code = el.dataset.code;
+          if (!code) return;
+          navigator.clipboard.writeText(code).then(() => {
+            const original = el.innerHTML;
+            el.innerHTML = '已复制 ✓';
+            el.style.background = 'rgba(88,138,27,0.3)';
+            setTimeout(() => {
+              el.innerHTML = original;
+              el.style.background = 'rgba(102,192,244,0.1)';
+            }, 1500);
+          }).catch(() => {});
+        });
+      });
+    } else if (message.qrImage) {
+      // 二维码情况
+      panSection = document.createElement('div');
+      panSection.className = 'gr-pan-section';
+      panSection.style.cssText = 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;';
+      panSection.innerHTML = `
+        <a href="${escapeHtml(message.downloadPageUrl || '#')}" target="_blank" style="display:block;text-align:center;padding:7px 0;background:linear-gradient(to right,#9b59b6,#8e44ad);color:#fff;border-radius:3px;text-decoration:none;font-size:12px;font-weight:bold;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">📱 扫码下载 ↗</a>
+        <div style="margin-top:6px;font-size:10px;color:#8f98a0;">${message.panNote || '打开页面扫码获取'}</div>
+      `;
+    }
+
+    if (panSection) {
+      targetCard.appendChild(panSection);
+    }
   }
 
   function createCloseBtn(panel) {
@@ -941,6 +1207,15 @@
     }
     if (message.action === 'GET_DEBUG_INFO') {
       sendResponse({ debug: DEBUG });
+    }
+    if (message.action === 'DOWNLOAD_SITE_UPDATE') {
+      // 深度提取完成，更新浮窗中的网盘链接
+      for (const entry of pendingDownloadSitePanels) {
+        if (entry.gameName === message.gameName) {
+          updateSitePanelPanLink(entry.panel, message);
+        }
+      }
+      sendResponse({ success: true });
     }
     return true;
   });
