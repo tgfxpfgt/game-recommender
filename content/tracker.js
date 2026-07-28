@@ -487,8 +487,11 @@
           if (rating && rating.positiveRate !== null && rating.positiveRate !== undefined) {
             // 好评率过滤：低于阈值的移除该项（从DOM中删除，使后续元素自动重排）
             if (minRating > 0 && rating.positiveRate < minRating) {
-              if (item.element && item.element.parentNode) {
-                item.element.remove();
+              if (item.element) {
+                // 向上查找Bootstrap栅格列容器（col-*），移除整个列以避免留空
+                const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
+                const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
+                if (toRemove.parentNode) toRemove.remove();
               }
               filtered++;
               return;
