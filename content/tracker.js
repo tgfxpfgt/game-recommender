@@ -57,7 +57,7 @@
           const link = li.querySelector('a[href*="/game/"], a[href*="3dmgame.com"], a');
           const title = li.querySelector('h3, .name, .title, a');
           if (link && title && title.textContent.trim().length > 2) {
-            items.push({ element: li, link, name: title.textContent.trim(), url: link.href });
+            items.push({ element: li, link, name: title.textContent.trim(), url: link.href, titleEl: title });
           }
         });
         return items;
@@ -72,7 +72,7 @@
           const link = li.querySelector('a');
           const title = li.querySelector('.name, h3, a');
           if (link && title) {
-            items.push({ element: li, link, name: title.textContent.trim(), url: link.href });
+            items.push({ element: li, link, name: title.textContent.trim(), url: link.href, titleEl: title });
           }
         });
         return items;
@@ -87,7 +87,7 @@
           const link = li.querySelector('a');
           const title = li.querySelector('.name, h3, .tit, a');
           if (link && title) {
-            items.push({ element: li, link, name: title.textContent.trim(), url: link.href });
+            items.push({ element: li, link, name: title.textContent.trim(), url: link.href, titleEl: title });
           }
         });
         return items;
@@ -96,51 +96,58 @@
     'xdgame.com': {
       name: 'XDGame',
       isListPage: () => {
-        // 搜索页 /so/xxx.html 或 分类页 都视为列表页
         const path = window.location.pathname;
         if (/^\/so\//.test(path)) return true;
         if (/\/page\/\d+/.test(path)) return true;
+        if (/\/list\//i.test(path)) return true;
         if (path === '/' || path === '') return true;
         // 通用判断：页面上有5个以上指向详情页的链接
         let count = 0;
         document.querySelectorAll('a').forEach(a => {
           const href = a.href || '';
-          if (/\/\d+\.html?$/.test(new URL(href, window.location.href).pathname)) count++;
+          const p = new URL(href, window.location.href).pathname;
+          if (/\/\d+\.html?$/.test(p) || /\/game\/\d+/.test(p)) count++;
         });
         return count >= 5;
       },
       getListItems: () => {
         const items = [];
         const seen = new Set();
-        // 优先找文章卡片或列表项
-        const selectors = ['.article-item', '.game-item', '.post-item', '.list-item', 'article', '.item'];
+        // XDGame详情页URL: /game/数字.html
+        const isDetailUrl = (href) => {
+          const p = new URL(href, window.location.href).pathname;
+          return /\/game\/\d+/.test(p) || /\/\d+\.html?$/.test(p);
+        };
+        // 优先找列表项、文章卡片
+        const selectors = ['li', '.article-item', '.game-item', '.post-item', '.list-item', 'article', '.item', '.card'];
         for (const sel of selectors) {
           document.querySelectorAll(sel).forEach(el => {
-            const link = el.querySelector('a[href*=".html"]');
+            const link = el.querySelector('a[href]');
             if (!link) return;
             const href = link.href;
-            const path = new URL(href, window.location.href).pathname;
-            // 只匹配详情页URL：/数字.html
-            if (!/\/\d+\.html?$/.test(path)) return;
+            if (!isDetailUrl(href)) return;
             if (seen.has(href)) return;
             seen.add(href);
-            const text = link.textContent.trim();
-            if (text.length > 2 && text.length < 100) {
-              items.push({ element: el, link, name: text, url: href });
+            // 优先从标题元素提取游戏名
+            const titleEl = el.querySelector('h2, h3, h4, .title, .entry-title, .name, .game-name') || link;
+            let text = titleEl.textContent.trim();
+            // 清理：去掉图片alt等噪声
+            text = text.replace(/\s+/g, ' ').trim();
+            if (text.length > 2 && text.length < 200) {
+              items.push({ element: el, link, name: text, url: href, titleEl });
             }
           });
           if (items.length > 0) return items;
         }
         // 兜底：直接找所有指向详情页的链接
-        document.querySelectorAll('a[href*=".html"]').forEach(a => {
+        document.querySelectorAll('a[href]').forEach(a => {
           const href = a.href;
-          const path = new URL(href, window.location.href).pathname;
-          if (!/\/\d+\.html?$/.test(path)) return;
+          if (!isDetailUrl(href)) return;
           if (seen.has(href)) return;
           seen.add(href);
-          const text = a.textContent.trim();
-          if (text.length > 2 && text.length < 100) {
-            items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href });
+          const text = a.textContent.trim().replace(/\s+/g, ' ');
+          if (text.length > 2 && text.length < 200) {
+            items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href, titleEl: a });
           }
         });
         return items;
@@ -173,7 +180,7 @@
           const title = el.querySelector('h2, h3, .title, .entry-title') || link;
           const text = title.textContent.trim();
           if (text.length > 2 && text.length < 100) {
-            items.push({ element: el, link, name: text, url: href });
+            items.push({ element: el, link, name: text, url: href, titleEl: title });
           }
         });
         if (items.length > 0) return items;
@@ -187,7 +194,7 @@
           seen.add(href);
           const text = a.textContent.trim();
           if (text.length > 2 && text.length < 60) {
-            items.push({ element: a.closest('div, article, li') || a, link: a, name: text, url: href });
+            items.push({ element: a.closest('div, article, li') || a, link: a, name: text, url: href, titleEl: a });
           }
         });
         return items;
@@ -217,7 +224,7 @@
           const title = el.querySelector('h2, h3, .title') || link;
           const text = title.textContent.trim();
           if (text.length > 2 && text.length < 100) {
-            items.push({ element: el, link, name: text, url: href });
+            items.push({ element: el, link, name: text, url: href, titleEl: title });
           }
         });
         return items;
@@ -240,7 +247,9 @@
             seen.add(a.href);
             const text = a.textContent.trim();
             if (text.length > 2 && text.length < 100) {
-              items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: a.href });
+              const container = a.closest('li, div, article') || a;
+              const title = container.querySelector('h2, h3, h4, .title, .entry-title, .name') || a;
+              items.push({ element: container, link: a, name: text, url: a.href, titleEl: title });
             }
           }
         });
@@ -408,12 +417,13 @@
       const seen = new Set();
       document.querySelectorAll('a').forEach(a => {
         const href = a.href || '';
-        // 匹配详情页URL特征
-        if (/\/\d+\.html?$/.test(new URL(href, window.location.href).pathname) || /\/game\/\d+/.test(href)) {
-          const text = a.textContent.trim();
-          if (text.length > 2 && text.length < 100 && !seen.has(href)) {
+        const p = new URL(href, window.location.href).pathname;
+        // 匹配详情页URL特征：/数字.html 或 /game/数字
+        if (/\/\d+\.html?$/.test(p) || /\/game\/\d+/.test(p)) {
+          const text = a.textContent.trim().replace(/\s+/g, ' ');
+          if (text.length > 2 && text.length < 200 && !seen.has(href)) {
             seen.add(href);
-            items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href });
+            items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href, titleEl: a });
           }
         }
       });
@@ -480,10 +490,10 @@
     }
   }
 
-  // 在游戏名前插入好评率徽章
+  // 在游戏标题前插入好评率徽章
   function prependRatingBadge(item, rating) {
     const link = item.link;
-    if (!link || link.querySelector('.gr-rating-badge')) return; // 避免重复插入
+    if (!link) return;
 
     const rate = rating.positiveRate;
     // 颜色分级：>=80 绿色，>=60 黄绿，<60 橙色
@@ -496,7 +506,29 @@
     badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;`;
     badge.title = `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}`;
 
-    link.insertBefore(badge, link.firstChild);
+    // 查找标题元素，将徽章插入到标题文本前面（而非图片前面）
+    // 策略：优先用 item.titleEl，其次在 item.element 中查找标题，最后回退到 link 的第一个文本节点
+    let targetEl = item.titleEl || null;
+
+    if (!targetEl && item.element) {
+      targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
+    }
+
+    if (targetEl && !targetEl.querySelector('.gr-rating-badge')) {
+      // 标题元素存在，插入到标题文本前面
+      targetEl.insertBefore(badge, targetEl.firstChild);
+    } else if (!link.querySelector('.gr-rating-badge')) {
+      // 回退：找到 link 中的第一个文本节点，在它前面插入
+      const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
+      const firstTextNode = walker.nextNode();
+      if (firstTextNode && firstTextNode.textContent.trim().length > 1) {
+        // 在第一个有意义的文本节点前插入
+        link.insertBefore(badge, firstTextNode);
+      } else {
+        // 最终回退：插入到 link 最前面
+        link.insertBefore(badge, link.firstChild);
+      }
+    }
   }
 
   async function requestRecommendations(items) {
