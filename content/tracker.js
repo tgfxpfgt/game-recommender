@@ -119,35 +119,49 @@
           const p = new URL(href, window.location.href).pathname;
           return /\/game\/\d+\.html?$/i.test(p) || /\/\d+\.html?$/.test(p);
         };
-        // 优先找列表项、文章卡片
-        const selectors = ['li', '.article-item', '.game-item', '.post-item', '.list-item', 'article', '.item', '.card'];
-        for (const sel of selectors) {
-          document.querySelectorAll(sel).forEach(el => {
-            const link = el.querySelector('a[href]');
-            if (!link) return;
-            const href = link.href;
-            if (!isDetailUrl(href)) return;
-            if (seen.has(href)) return;
+
+        // XDGame列表结构：ul.game-list > li > a.tit（标题文本链接）
+        // 优先用 a.tit 作为标题和链接来源
+        document.querySelectorAll('.game-list li, .list li, ul li').forEach(li => {
+          const titleLink = li.querySelector('a.tit');
+          if (titleLink) {
+            const href = titleLink.href;
+            if (!isDetailUrl(href) || seen.has(href)) return;
             seen.add(href);
-            // 优先从标题元素提取游戏名
-            const titleEl = el.querySelector('h2, h3, h4, .title, .entry-title, .name, .game-name') || link;
-            let text = titleEl.textContent.trim();
-            // 清理：去掉图片alt等噪声
-            text = text.replace(/\s+/g, ' ').trim();
+            const text = titleLink.textContent.trim().replace(/\s+/g, ' ');
             if (text.length > 2 && text.length < 200) {
-              items.push({ element: el, link, name: text, url: href, titleEl });
+              items.push({ element: li, link: titleLink, name: text, url: href, titleEl: titleLink });
             }
-          });
-          if (items.length > 0) return items;
-        }
-        // 兜底：直接找所有指向详情页的链接
+          }
+        });
+        if (items.length > 0) return items;
+
+        // 回退1：找li中带文本的详情页链接（跳过纯图片链接）
+        document.querySelectorAll('li').forEach(li => {
+          const links = li.querySelectorAll('a[href]');
+          for (const a of links) {
+            const href = a.href;
+            if (!isDetailUrl(href) || seen.has(href)) continue;
+            // 跳过 .grid-cover 和 .link（图片/查看按钮），只要有文本的链接
+            if (a.classList.contains('grid-cover') || a.classList.contains('link')) continue;
+            const text = a.textContent.trim().replace(/\s+/g, ' ');
+            if (text.length > 2 && text.length < 200) {
+              seen.add(href);
+              items.push({ element: li, link: a, name: text, url: href, titleEl: a });
+              break; // 每个li只取第一个有文本的链接
+            }
+          }
+        });
+        if (items.length > 0) return items;
+
+        // 回退2：直接找所有指向详情页且有文本的链接
         document.querySelectorAll('a[href]').forEach(a => {
           const href = a.href;
-          if (!isDetailUrl(href)) return;
-          if (seen.has(href)) return;
-          seen.add(href);
+          if (!isDetailUrl(href) || seen.has(href)) return;
+          if (a.classList.contains('grid-cover') || a.classList.contains('link')) return;
           const text = a.textContent.trim().replace(/\s+/g, ' ');
           if (text.length > 2 && text.length < 200) {
+            seen.add(href);
             items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href, titleEl: a });
           }
         });
