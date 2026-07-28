@@ -106,17 +106,18 @@
         document.querySelectorAll('a').forEach(a => {
           const href = a.href || '';
           const p = new URL(href, window.location.href).pathname;
-          if (/\/\d+\.html?$/.test(p) || /\/game\/\d+/.test(p)) count++;
+          // 只匹配 /game/数字.html（详情页），排除 /game/数字/（分类页）
+          if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) count++;
         });
         return count >= 5;
       },
       getListItems: () => {
         const items = [];
         const seen = new Set();
-        // XDGame详情页URL: /game/数字.html
+        // XDGame详情页URL: /game/数字.html（必须带.html后缀，排除/game/数字/分类页）
         const isDetailUrl = (href) => {
           const p = new URL(href, window.location.href).pathname;
-          return /\/game\/\d+/.test(p) || /\/\d+\.html?$/.test(p);
+          return /\/game\/\d+\.html?$/i.test(p) || /\/\d+\.html?$/.test(p);
         };
         // 优先找列表项、文章卡片
         const selectors = ['li', '.article-item', '.game-item', '.post-item', '.list-item', 'article', '.item', '.card'];
@@ -306,12 +307,13 @@
   }
 
   // ============ 页面类型检测（URL优先，最可靠） ============
-  // 详情页URL特征：以 数字.html 结尾，或 /game/数字 形式
+  // 详情页URL特征：以 数字.html 结尾，或 /game/数字.html 形式
   // 例：/99697.html, /game/15027.html, /11469.html
+  // 注意：/game/数字/ 是分类页，不是详情页
   function isDetailPageByUrl() {
     const path = window.location.pathname;
     return /\/\d+\.html?$/.test(path) ||      // /99697.html 或 /11469.html
-           /\/game\/\d+/.test(path) ||         // /game/15027.html
+           /\/game\/\d+\.html?$/i.test(path) || // /game/15027.html（必须带.html）
            /\/\d+\.s?html?$/i.test(path);
   }
 
@@ -418,8 +420,8 @@
       document.querySelectorAll('a').forEach(a => {
         const href = a.href || '';
         const p = new URL(href, window.location.href).pathname;
-        // 匹配详情页URL特征：/数字.html 或 /game/数字
-        if (/\/\d+\.html?$/.test(p) || /\/game\/\d+/.test(p)) {
+        // 匹配详情页URL特征：/数字.html 或 /game/数字.html（排除/game/数字/分类页）
+        if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) {
           const text = a.textContent.trim().replace(/\s+/g, ' ');
           if (text.length > 2 && text.length < 200 && !seen.has(href)) {
             seen.add(href);
