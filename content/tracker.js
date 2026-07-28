@@ -594,8 +594,8 @@
               </div>
             ` : `
               <div class="gr-pan-section" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
-                <button class="gr-get-pan-btn" data-site-key="${site.key}" data-detail-url="${escapeHtml(site.detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e67e22,#d35400);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);transition:opacity 0.2s;">🔗 获取百度直链</button>
-                <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">点击后后台提取，需已登录下载站</div>
+                <button class="gr-get-pan-btn" data-site-key="${site.key}" data-detail-url="${escapeHtml(site.detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e67e22,#d35400);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);transition:opacity 0.2s;">🔗 一键获取并打开</button>
+                <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">点击后自动提取并跳转百度网盘</div>
               </div>
             `}
           </div>
@@ -671,7 +671,7 @@
         if (panSection) {
           panSection.innerHTML = `
             <div style="text-align:center;font-size:12px;color:#8f98a0;padding:7px 0;">
-              <span style="display:inline-block;animation:gr-spin 1s linear infinite;">⏳</span> 正在提取直链...
+              <span style="display:inline-block;animation:gr-spin 1s linear infinite;">⏳</span> 正在提取并跳转...
             </div>
           `;
         }
@@ -683,19 +683,55 @@
             detailUrl,
             gameName
           });
-          // 消息会通过 DOWNLOAD_SITE_UPDATE 推送更新，这里不需要额外处理
-          if (!resp || !resp.result || (!resp.result.panUrl && !resp.result.qrImage)) {
+
+          if (resp && resp.result && resp.result.panUrl) {
+            // 安全验证：确认是合法的网盘链接
+            if (validatePanUrl(resp.result.panUrl)) {
+              // 直接在新标签页打开百度网盘链接
+              window.open(resp.result.panUrl, '_blank');
+              // 更新浮窗显示为已打开状态
+              if (panSection) {
+                const panLabel = getPanLabel(resp.result.panUrl);
+                panSection.innerHTML = `
+                  <div class="gr-pan-section" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);">
+                    <a href="${escapeHtml(resp.result.panUrl)}" target="_blank" style="display:block;text-align:center;padding:7px 0;background:linear-gradient(to right,#06a3ff,#0066cc);color:#fff;border-radius:3px;text-decoration:none;font-size:12px;font-weight:bold;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">✅ ${panLabel}已打开 ↗</a>
+                    <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">如未自动打开，请点击上方链接</div>
+                  </div>
+                `;
+              }
+            } else {
+              console.warn('gr-get-pan-btn: 非法网盘链接:', resp.result.panUrl);
+              if (panSection) {
+                panSection.innerHTML = `
+                  <button class="gr-get-pan-btn" data-site-key="${siteKey}" data-detail-url="${escapeHtml(detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e74c3c,#c0392b);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">⚠️ 提取失败，重试</button>
+                  <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
+                `;
+                const retryBtn = panSection.querySelector('.gr-get-pan-btn');
+                if (retryBtn) retryBtn.addEventListener('click', () => btn.click());
+              }
+            }
+          } else if (resp && resp.result && resp.result.qrImage) {
+            // 二维码情况：打开下载页让用户扫码
+            if (resp.result.downloadPageUrl) {
+              window.open(resp.result.downloadPageUrl, '_blank');
+            }
+            if (panSection) {
+              panSection.innerHTML = `
+                <div class="gr-pan-section" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
+                  <a href="${escapeHtml(resp.result.downloadPageUrl || '#')}" target="_blank" style="display:block;text-align:center;padding:7px 0;background:linear-gradient(to right,#9b59b6,#8e44ad);color:#fff;border-radius:3px;text-decoration:none;font-size:12px;font-weight:bold;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">📱 已打开扫码页 ↗</a>
+                  <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">${resp.result.note || '请在新页面扫码获取'}</div>
+                </div>
+              `;
+            }
+          } else {
             // 提取失败，恢复按钮
             if (panSection) {
               panSection.innerHTML = `
                 <button class="gr-get-pan-btn" data-site-key="${siteKey}" data-detail-url="${escapeHtml(detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e74c3c,#c0392b);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">⚠️ 提取失败，重试</button>
                 <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
               `;
-              // 重新绑定点击事件
               const retryBtn = panSection.querySelector('.gr-get-pan-btn');
-              if (retryBtn) {
-                retryBtn.addEventListener('click', () => btn.click());
-              }
+              if (retryBtn) retryBtn.addEventListener('click', () => btn.click());
             }
           }
         } catch (e) {
@@ -705,9 +741,7 @@
               <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
             `;
             const retryBtn = panSection.querySelector('.gr-get-pan-btn');
-            if (retryBtn) {
-              retryBtn.addEventListener('click', () => btn.click());
-            }
+            if (retryBtn) retryBtn.addEventListener('click', () => btn.click());
           }
         }
       });
@@ -1050,13 +1084,13 @@
         </div>
 
         <!-- 跳转Steam按钮 - 置顶 -->
-        <a href="${data.url}" target="_blank" style="
+        ${data.url ? `<a href="${escapeHtml(data.url)}" target="_blank" style="
           display:block;margin-bottom:12px;padding:9px 0;text-align:center;
           background:linear-gradient(to right,#75b022,#588a1b);
           color:#d2efa9;border-radius:3px;text-decoration:none;
           font-size:13px;font-weight:bold;
           text-shadow:1px 1px 0 rgba(0,0,0,0.3);
-        ">在 Steam 上查看</a>
+        ">在 Steam 上查看</a>` : ''}
 
         <!-- 评分区域 - 三重评价（Steam总体/简体中文/SteamDB） -->
         <div style="background:${ratingBg};border-radius:3px;padding:10px;margin-bottom:12px;">

@@ -718,9 +718,11 @@ function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbI
 async function searchSteamGame(gameName) {
   const cacheKey = gameName.toLowerCase().trim();
 
-  // 1. 检查缓存
+  // 1. 检查缓存（仅使用完整数据：必须包含url和appId）
   const cached = await getSteamCacheEntry(cacheKey);
-  if (isSteamCacheValid(cached)) return cached.data;
+  if (isSteamCacheValid(cached) && cached.data && cached.data.url && cached.data.appId) {
+    return cached.data;
+  }
 
   try {
     // 2. 搜索 appId
