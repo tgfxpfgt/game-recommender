@@ -41,6 +41,19 @@
     </section>
 
     <section class="popup-section">
+      <h3>Steam好评率过滤</h3>
+      <label class="check-item">
+        <input type="checkbox" id="ratingFilterToggle">
+        <span>启用好评率过滤</span>
+      </label>
+      <div class="threshold-control" id="ratingFilterControl" style="display:none;margin-top:8px;">
+        <input type="range" id="ratingFilterSlider" min="0" max="95" value="0" step="5">
+        <span id="ratingFilterValue">0%</span>
+      </div>
+      <p class="hint">列表页隐藏低于此好评率的游戏</p>
+    </section>
+
+    <section class="popup-section">
       <h3>算法模式</h3>
       <div class="mode-selector">
         <label class="radio-item">

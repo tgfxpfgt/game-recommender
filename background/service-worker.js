@@ -31,7 +31,8 @@ const DB_KEYS = {
   KEYWORD_WEIGHTS: 'keywordWeights',
   FREE_GAMES: 'freeGames',
   RUNTIME_LOG: 'runtimeLog',
-  BACKUPS: 'backups'
+  BACKUPS: 'backups',
+  DOWNLOAD_HISTORY: 'downloadHistory'
 };
 
 const DEFAULT_SETTINGS = {
@@ -63,7 +64,9 @@ const DEFAULT_SETTINGS = {
   maxRuntimeLog: 300,
   autoBackup: true,
   backupIntervalHours: 24,
-  maxBackups: 7
+  maxBackups: 7,
+  minSteamRatingFilter: 0, // 列表页最低Steam好评率过滤（0-100，0表示不过滤）
+  enableRatingFilter: false // 是否启用好评率过滤
 };
 
 const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
@@ -2052,6 +2055,66 @@ async function updateFreeGamesBadge() {
 
 // ============ 14. 消息处理 ============
 
+// --- 下载历史管理 ---
+async function getDownloadHistory() {
+  const data = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_HISTORY);
+  return data[DB_KEYS.DOWNLOAD_HISTORY] || {};
+}
+
+async function saveDownloadHistory(history) {
+  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_HISTORY]: history });
+}
+
+// 从domain推断站点key和名称
+function inferSiteFromDomain(domain) {
+  if (!domain) return { key: 'unknown', name: '未知站点' };
+  if (domain.includes('xdgame')) return { key: 'xdgame', name: 'XDGame' };
+  if (domain.includes('xianyudanji')) return { key: 'xianyudanji', name: '咸鱼单机' };
+  if (domain.includes('gamer520') || domain.includes('gamers520')) return { key: 'gamer520', name: 'Gamer520' };
+  return { key: 'unknown', name: domain };
+}
+
+async function recordDownloadHistory(data) {
+  if (!data.gameName) return;
+  const gameName = data.gameName.trim();
+  if (gameName.length < 2) return;
+
+  const history = await getDownloadHistory();
+  const existing = history[gameName] || { totalDownloads: 0 };
+  const siteInfo = inferSiteFromDomain(data.domain);
+
+  history[gameName] = {
+    ...existing,
+    lastDownloadTime: Date.now(),
+    lastDownloadSite: data.siteKey || siteInfo.key,
+    lastDownloadSiteName: data.siteName || siteInfo.name,
+    lastDownloadUrl: data.detailUrl || data.url || '',
+    lastPanUrl: data.downloadUrl || '',
+    totalDownloads: (existing.totalDownloads || 0) + 1
+  };
+
+  // 限制历史记录数量（最多保留200条）
+  const keys = Object.keys(history);
+  if (keys.length > 200) {
+    const sorted = keys.sort((a, b) =>
+      (history[b].lastDownloadTime || 0) - (history[a].lastDownloadTime || 0)
+    );
+    for (let i = 200; i < sorted.length; i++) {
+      delete history[sorted[i]];
+    }
+  }
+
+  await saveDownloadHistory(history);
+}
+
+async function handleGetDownloadHistory(message) {
+  const history = await getDownloadHistory();
+  if (message.gameName) {
+    return { record: history[message.gameName] || null };
+  }
+  return { history };
+}
+
 // --- 各消息类型的独立 handler ---
 
 async function handleTrackEvent(message) {
@@ -2063,6 +2126,8 @@ async function handleTrackEvent(message) {
       event: 'download',
       keywords: message.data.keywords
     });
+    // 记录下载历史
+    await recordDownloadHistory(message.data);
     Logger.info('Download', `下载"${message.data.gameName}"`, { method: message.data.method, domain: message.data.domain });
   }
   if (message.data.type === 'view_detail') {
@@ -2301,6 +2366,50 @@ async function handleExtractPanDeep(message, sender) {
   if (result && result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
     result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
   }
+
+  // 自动打开提取到的网盘链接（通过后台打开，避免前端弹窗拦截）
+  if (result && result.panUrl && message.autoOpen) {
+    try {
+      await chrome.tabs.create({ url: result.panUrl, active: true });
+      result.opened = true;
+      // 记录下载历史
+      if (message.gameName) {
+        const siteNames = { xdgame: 'XDGame', xianyudanji: '咸鱼单机', gamer520: 'Gamer520' };
+        await recordDownloadHistory({
+          gameName: message.gameName,
+          siteKey: message.siteKey,
+          siteName: siteNames[message.siteKey] || message.siteKey,
+          domain: message.siteKey,
+          detailUrl: message.detailUrl,
+          downloadUrl: result.panUrl
+        });
+      }
+    } catch (e) {
+      console.warn('自动打开网盘链接失败:', e.message);
+    }
+  }
+  // 二维码情况也自动打开扫码页
+  if (result && result.qrImage && result.downloadPageUrl && message.autoOpen) {
+    try {
+      await chrome.tabs.create({ url: result.downloadPageUrl, active: true });
+      result.opened = true;
+      // 记录下载历史
+      if (message.gameName) {
+        const siteNames = { xdgame: 'XDGame', xianyudanji: '咸鱼单机', gamer520: 'Gamer520' };
+        await recordDownloadHistory({
+          gameName: message.gameName,
+          siteKey: message.siteKey,
+          siteName: siteNames[message.siteKey] || message.siteKey,
+          domain: message.siteKey,
+          detailUrl: message.detailUrl,
+          downloadUrl: result.downloadPageUrl
+        });
+      }
+    } catch (e) {
+      console.warn('自动打开扫码页失败:', e.message);
+    }
+  }
+
   // 如果有tabId，也通知content script更新（用于单站点手动提取）
   const tabId = sender && sender.tab ? sender.tab.id : message.tabId;
   if (tabId && result && (result.panUrl || result.qrImage)) {
@@ -2354,6 +2463,7 @@ const MESSAGE_HANDLERS = {
   EXTRACT_PAN_DEEP:       handleExtractPanDeep,
   GET_FREE_GAMES:         handleGetFreeGames,
   CLAIM_FREE_GAME:        handleClaimFreeGame,
+  GET_DOWNLOAD_HISTORY:   handleGetDownloadHistory,
   GET_RUNTIME_LOGS:       async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
   CLEAR_RUNTIME_LOGS:     async () => { await clearRuntimeLogs(); return { success: true }; },
   EXPORT_LOGS:            async () => ({ logs: await getRuntimeLogs() }),

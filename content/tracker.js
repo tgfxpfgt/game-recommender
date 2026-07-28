@@ -93,6 +93,136 @@
         return items;
       }
     },
+    'xdgame.com': {
+      name: 'XDGame',
+      isListPage: () => {
+        // 搜索页 /so/xxx.html 或 分类页 都视为列表页
+        const path = window.location.pathname;
+        if (/^\/so\//.test(path)) return true;
+        if (/\/page\/\d+/.test(path)) return true;
+        if (path === '/' || path === '') return true;
+        // 通用判断：页面上有5个以上指向详情页的链接
+        let count = 0;
+        document.querySelectorAll('a').forEach(a => {
+          const href = a.href || '';
+          if (/\/\d+\.html?$/.test(new URL(href, window.location.href).pathname)) count++;
+        });
+        return count >= 5;
+      },
+      getListItems: () => {
+        const items = [];
+        const seen = new Set();
+        // 优先找文章卡片或列表项
+        const selectors = ['.article-item', '.game-item', '.post-item', '.list-item', 'article', '.item'];
+        for (const sel of selectors) {
+          document.querySelectorAll(sel).forEach(el => {
+            const link = el.querySelector('a[href*=".html"]');
+            if (!link) return;
+            const href = link.href;
+            const path = new URL(href, window.location.href).pathname;
+            // 只匹配详情页URL：/数字.html
+            if (!/\/\d+\.html?$/.test(path)) return;
+            if (seen.has(href)) return;
+            seen.add(href);
+            const text = link.textContent.trim();
+            if (text.length > 2 && text.length < 100) {
+              items.push({ element: el, link, name: text, url: href });
+            }
+          });
+          if (items.length > 0) return items;
+        }
+        // 兜底：直接找所有指向详情页的链接
+        document.querySelectorAll('a[href*=".html"]').forEach(a => {
+          const href = a.href;
+          const path = new URL(href, window.location.href).pathname;
+          if (!/\/\d+\.html?$/.test(path)) return;
+          if (seen.has(href)) return;
+          seen.add(href);
+          const text = a.textContent.trim();
+          if (text.length > 2 && text.length < 100) {
+            items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href });
+          }
+        });
+        return items;
+      }
+    },
+    'xianyudanji.gg': {
+      name: '咸鱼单机',
+      isListPage: () => {
+        const path = window.location.pathname;
+        if (path === '/' || path === '') return true;
+        if (/\/page\/\d+/.test(path)) return true;
+        if (/\/category\//.test(path)) return true;
+        if (/\/tag\//.test(path)) return true;
+        if (/\/\?s=/.test(window.location.search)) return true;
+        return false;
+      },
+      getListItems: () => {
+        const items = [];
+        const seen = new Set();
+        // 优先找文章卡片
+        document.querySelectorAll('.post, .article, .entry, .item, article').forEach(el => {
+          const link = el.querySelector('a[href]');
+          if (!link) return;
+          const href = link.href;
+          if (seen.has(href)) return;
+          const path = new URL(href, window.location.href).pathname;
+          // 咸鱼单机详情页通常是 /xxx/ 或 /xxx.html 形式
+          if (!/\//.test(path) || path === '/') return;
+          seen.add(href);
+          const title = el.querySelector('h2, h3, .title, .entry-title') || link;
+          const text = title.textContent.trim();
+          if (text.length > 2 && text.length < 100) {
+            items.push({ element: el, link, name: text, url: href });
+          }
+        });
+        if (items.length > 0) return items;
+        // 兜底
+        document.querySelectorAll('a').forEach(a => {
+          const href = a.href;
+          const path = new URL(href, window.location.href).pathname;
+          if (path === '/' || !path) return;
+          if (!/\/[^\/]+\/?$/.test(path)) return; // 至少一级路径
+          if (seen.has(href)) return;
+          seen.add(href);
+          const text = a.textContent.trim();
+          if (text.length > 2 && text.length < 60) {
+            items.push({ element: a.closest('div, article, li') || a, link: a, name: text, url: href });
+          }
+        });
+        return items;
+      }
+    },
+    'gamer520.com': {
+      name: 'Gamer520',
+      isListPage: () => {
+        const path = window.location.pathname;
+        if (path === '/' || path === '') return true;
+        if (/\/page\/\d+/.test(path)) return true;
+        if (/\/category\//.test(path)) return true;
+        if (/\/\?s=/.test(window.location.search)) return true;
+        return false;
+      },
+      getListItems: () => {
+        const items = [];
+        const seen = new Set();
+        document.querySelectorAll('.post-item, .article-item, .game-item, .item, article').forEach(el => {
+          const link = el.querySelector('a[href]');
+          if (!link) return;
+          const href = link.href;
+          if (seen.has(href)) return;
+          const path = new URL(href, window.location.href).pathname;
+          if (!/\/\d+\.html?$/.test(path) && !/\/[^\/]+\/?$/.test(path)) return;
+          seen.add(href);
+          const title = el.querySelector('h2, h3, .title') || link;
+          const text = title.textContent.trim();
+          if (text.length > 2 && text.length < 100) {
+            items.push({ element: el, link, name: text, url: href });
+          }
+        });
+        return items;
+      }
+    },
     '_default': {
       name: '通用',
       isListPage: () => {
@@ -249,7 +379,7 @@
     // === 2. 始终设置下载追踪 ===
     setupDownloadTracking();
 
-    // === 3. 详情页：注入Steam浮窗 ===
+    // === 3. 详情页：注入Steam浮窗和下载历史浮窗 ===
     const isDetail = detailByUrl || (!isList && !!document.querySelector('h1'));
     if (isDetail) {
       DEBUG.pageType = '详情页';
@@ -259,6 +389,7 @@
         dbg(`详情页游戏名: ${gameName}`);
         trackEvent('view_detail', { gameName: gameName, keywords: [], description: '' });
         injectSteamButton(gameName);
+        injectDownloadHistoryPanel(gameName);
       } else {
         dbg('⚠️ 详情页未检测到游戏名称');
       }
@@ -307,6 +438,13 @@
   // 列表页：检索每个游戏的Steam好评率并显示在游戏名前
   async function requestSteamRatings(items) {
     try {
+      // 先获取设置中的过滤阈值
+      let settings = null;
+      try {
+        const settingsResp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        settings = settingsResp?.settings;
+      } catch (e) { /* 获取设置失败不影响主流程 */ }
+
       const maxItems = 60;
       const processItems = items.slice(0, maxItems);
       // 去重游戏名
@@ -316,14 +454,26 @@
       const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names: uniqueNames });
       if (response && response.ratings) {
         let shown = 0;
+        let filtered = 0;
+        const minRating = settings?.enableRatingFilter ? (settings.minSteamRatingFilter || 0) : 0;
         processItems.forEach(item => {
           const rating = response.ratings[item.name];
           if (rating && rating.positiveRate !== null && rating.positiveRate !== undefined) {
+            // 好评率过滤：低于阈值的隐藏该项
+            if (minRating > 0 && rating.positiveRate < minRating) {
+              if (item.element && item.element.style) {
+                item.element.style.display = 'none';
+              }
+              filtered++;
+              return;
+            }
             prependRatingBadge(item, rating);
             shown++;
+          } else if (minRating > 0) {
+            // 启用了过滤但没有Steam数据的项，暂时保留不隐藏
           }
         });
-        dbg(`列表页显示 ${shown} 个Steam好评率`);
+        dbg(`列表页显示 ${shown} 个Steam好评率${minRating > 0 ? `，过滤 ${filtered} 个低于${minRating}%的游戏` : ''}`);
       }
     } catch (e) {
       dbg('Steam好评率检索失败: ' + e.message);
@@ -681,15 +831,14 @@
             action: 'EXTRACT_PAN_DEEP',
             siteKey,
             detailUrl,
-            gameName
+            gameName,
+            autoOpen: true // 由后台自动打开，避免前端弹窗拦截
           });
 
           if (resp && resp.result && resp.result.panUrl) {
             // 安全验证：确认是合法的网盘链接
             if (validatePanUrl(resp.result.panUrl)) {
-              // 直接在新标签页打开百度网盘链接
-              window.open(resp.result.panUrl, '_blank');
-              // 更新浮窗显示为已打开状态
+              // 后台已自动打开，这里只更新UI状态
               if (panSection) {
                 const panLabel = getPanLabel(resp.result.panUrl);
                 panSection.innerHTML = `
@@ -711,10 +860,7 @@
               }
             }
           } else if (resp && resp.result && resp.result.qrImage) {
-            // 二维码情况：打开下载页让用户扫码
-            if (resp.result.downloadPageUrl) {
-              window.open(resp.result.downloadPageUrl, '_blank');
-            }
+            // 二维码情况：后台已打开扫码页，更新UI
             if (panSection) {
               panSection.innerHTML = `
                 <div class="gr-pan-section" style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);text-align:center;">
@@ -724,11 +870,11 @@
               `;
             }
           } else {
-            // 提取失败，恢复按钮
+            // 提取失败，恢复按钮，并提供"打开详情页手动获取"备选
             if (panSection) {
               panSection.innerHTML = `
                 <button class="gr-get-pan-btn" data-site-key="${siteKey}" data-detail-url="${escapeHtml(detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e74c3c,#c0392b);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">⚠️ 提取失败，重试</button>
-                <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
+                <a href="${escapeHtml(detailUrl)}" target="_blank" style="display:block;margin-top:6px;text-align:center;padding:5px 0;background:rgba(255,255,255,0.06);color:#67c1f5;border-radius:3px;text-decoration:none;font-size:11px;">📂 打开详情页手动获取 ↗</a>
               `;
               const retryBtn = panSection.querySelector('.gr-get-pan-btn');
               if (retryBtn) retryBtn.addEventListener('click', () => btn.click());
@@ -738,7 +884,7 @@
           if (panSection) {
             panSection.innerHTML = `
               <button class="gr-get-pan-btn" data-site-key="${siteKey}" data-detail-url="${escapeHtml(detailUrl)}" data-game-name="${escapeHtml(gameName)}" style="width:100%;padding:7px 0;background:linear-gradient(to right,#e74c3c,#c0392b);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:bold;cursor:pointer;text-shadow:1px 1px 0 rgba(0,0,0,0.3);">⚠️ 提取失败，重试</button>
-              <div style="margin-top:4px;font-size:10px;color:#666;text-align:center;">请确保已登录对应下载站</div>
+              <a href="${escapeHtml(detailUrl)}" target="_blank" style="display:block;margin-top:6px;text-align:center;padding:5px 0;background:rgba(255,255,255,0.06);color:#67c1f5;border-radius:3px;text-decoration:none;font-size:11px;">📂 打开详情页手动获取 ↗</a>
             `;
             const retryBtn = panSection.querySelector('.gr-get-pan-btn');
             if (retryBtn) retryBtn.addEventListener('click', () => btn.click());
@@ -887,6 +1033,107 @@
     btn.style.cssText = 'position:absolute;top:6px;right:10px;cursor:pointer;color:#666;font-size:14px;';
     btn.onclick = () => { panel.style.display = 'none'; };
     return btn;
+  }
+
+  // ============ 下载历史浮窗（详情页显示上次下载记录） ============
+  function injectDownloadHistoryPanel(gameName) {
+    if (!gameName) return;
+
+    // 注入CSS动画（仅一次）
+    if (!document.getElementById('gr-dl-history-style')) {
+      const style = document.createElement('style');
+      style.id = 'gr-dl-history-style';
+      style.textContent = `
+        @keyframes gr-slide-in-left {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes gr-spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // 先查询是否有下载历史
+    chrome.runtime.sendMessage({
+      action: 'GET_DOWNLOAD_HISTORY',
+      gameName: gameName
+    }).then(resp => {
+      if (!resp || !resp.record) return; // 没有历史记录就不显示
+
+      const record = resp.record;
+      dbg(`下载历史: ${record.lastDownloadSiteName}, ${new Date(record.lastDownloadTime).toLocaleString()}`);
+
+      // 格式化时间
+      function formatTime(timestamp) {
+        if (!timestamp) return '未知';
+        const date = new Date(timestamp);
+        const now = new Date();
+        const diff = now - date;
+        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+        if (days === 0) {
+          const hours = Math.floor(diff / (1000 * 60 * 60));
+          if (hours === 0) {
+            const mins = Math.floor(diff / (1000 * 60));
+            return mins <= 1 ? '刚刚' : `${mins}分钟前`;
+          }
+          return `${hours}小时前`;
+        }
+        if (days === 1) return '昨天';
+        if (days < 7) return `${days}天前`;
+        return date.toLocaleDateString('zh-CN');
+      }
+
+      // 创建浮窗
+      const panel = document.createElement('div');
+      panel.id = 'gr-download-history-float';
+      panel.style.cssText = `
+        position:fixed;bottom:20px;left:16px;z-index:2147483647;
+        width:280px;
+        background:linear-gradient(135deg,#2a475e,#1b2838);
+        border:1px solid #3a6a8e;
+        border-radius:6px;
+        font-family:Arial,Helvetica,sans-serif;
+        color:#c7d5e0;font-size:12px;line-height:1.5;
+        box-shadow:0 4px 16px rgba(0,0,0,0.5);
+        padding:12px 14px;
+        animation:gr-slide-in-left 0.3s ease-out;
+      `;
+
+      const timeStr = formatTime(record.lastDownloadTime);
+      const siteName = record.lastDownloadSiteName || '未知站点';
+
+      panel.innerHTML = `
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:16px;">📥</span>
+          <span style="font-weight:bold;color:#66c0f4;font-size:13px;">下载记录</span>
+          <span style="margin-left:auto;cursor:pointer;color:#666;font-size:14px;line-height:1;" id="gr-dl-history-close">✕</span>
+        </div>
+        <div style="color:#8f98a0;margin-bottom:4px;">
+          上次下载：<span style="color:#d2efa9;">${timeStr}</span>
+        </div>
+        <div style="color:#8f98a0;">
+          下载站点：<span style="color:#66c0f4;">${escapeHtml(siteName)}</span>
+        </div>
+        ${record.totalDownloads && record.totalDownloads > 1 ? `<div style="color:#666;margin-top:6px;font-size:11px;">共下载 ${record.totalDownloads} 次</div>` : ''}
+        ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${escapeHtml(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
+      `;
+
+      document.body.appendChild(panel);
+
+      // 关闭按钮
+      const closeBtn = panel.querySelector('#gr-dl-history-close');
+      if (closeBtn) {
+        closeBtn.addEventListener('click', () => {
+          panel.style.transition = 'opacity 0.2s, transform 0.2s';
+          panel.style.opacity = '0';
+          panel.style.transform = 'translateX(-20px)';
+          setTimeout(() => panel.remove(), 200);
+        });
+      }
+    }).catch(() => {});
   }
 
   // ============ Steam详情浮窗（直接显示，仿Steam右侧信息栏） ============

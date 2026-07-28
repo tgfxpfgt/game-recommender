@@ -12,6 +12,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('thresholdSlider').value = settings.highlightThreshold * 100;
   document.getElementById('thresholdValue').textContent = `${settings.highlightThreshold * 100}%`;
   document.getElementById('debugToggle').checked = settings.showDebugPanel || false;
+
+  // 好评率过滤
+  document.getElementById('ratingFilterToggle').checked = settings.enableRatingFilter || false;
+  document.getElementById('ratingFilterSlider').value = settings.minSteamRatingFilter || 0;
+  document.getElementById('ratingFilterValue').textContent = `${settings.minSteamRatingFilter || 0}%`;
+  document.getElementById('ratingFilterControl').style.display = settings.enableRatingFilter ? 'flex' : 'none';
   
   // 算法模式
   const algoMode = settings.useLLM ? 'llm' : 'builtin';
@@ -77,6 +83,23 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 调试窗口开关
   document.getElementById('debugToggle').addEventListener('change', async (e) => {
     settings.showDebugPanel = e.target.checked;
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+  });
+
+  // 好评率过滤开关
+  document.getElementById('ratingFilterToggle').addEventListener('change', async (e) => {
+    settings.enableRatingFilter = e.target.checked;
+    document.getElementById('ratingFilterControl').style.display = e.target.checked ? 'flex' : 'none';
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+  });
+
+  // 好评率过滤阈值
+  document.getElementById('ratingFilterSlider').addEventListener('input', (e) => {
+    document.getElementById('ratingFilterValue').textContent = `${e.target.value}%`;
+  });
+
+  document.getElementById('ratingFilterSlider').addEventListener('change', async (e) => {
+    settings.minSteamRatingFilter = parseInt(e.target.value);
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
