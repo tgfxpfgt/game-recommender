@@ -485,10 +485,10 @@
         processItems.forEach(item => {
           const rating = response.ratings[item.name];
           if (rating && rating.positiveRate !== null && rating.positiveRate !== undefined) {
-            // 好评率过滤：低于阈值的隐藏该项
+            // 好评率过滤：低于阈值的移除该项（从DOM中删除，使后续元素自动重排）
             if (minRating > 0 && rating.positiveRate < minRating) {
-              if (item.element && item.element.style) {
-                item.element.style.display = 'none';
+              if (item.element && item.element.parentNode) {
+                item.element.remove();
               }
               filtered++;
               return;
