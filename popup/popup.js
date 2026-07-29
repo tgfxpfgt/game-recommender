@@ -1,44 +1,55 @@
 /**
  * Game Recommender - Popup Script
+ * 弹窗逻辑 / Popup logic
+ *
+ * Features:
+ * - Real-time setting synchronization (saves on every change)
+ * - Statistics display (events, games, keywords)
+ * - Quick access to dashboard, free games, and options
+ *
+ * 功能：
+ * - 实时同步设置（每次修改即保存）
+ * - 统计数据展示（行为记录、游戏数、关键词数）
+ * - 快速访问仪表盘、限免游戏和设置页
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // 加载设置
+  // Load settings / 加载设置
   const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
   const settings = response.settings;
 
-  // 初始化UI状态
+  // Initialize UI state / 初始化 UI 状态
   document.getElementById('enableToggle').checked = settings.enabled;
   document.getElementById('thresholdSlider').value = settings.highlightThreshold * 100;
   document.getElementById('thresholdValue').textContent = `${settings.highlightThreshold * 100}%`;
   document.getElementById('debugToggle').checked = settings.showDebugPanel || false;
 
-  // 好评率过滤
+  // Steam rating filter / 好评率过滤
   document.getElementById('ratingFilterToggle').checked = settings.enableRatingFilter || false;
   document.getElementById('ratingFilterSlider').value = settings.minSteamRatingFilter || 0;
   document.getElementById('ratingFilterValue').textContent = `${settings.minSteamRatingFilter || 0}%`;
   document.getElementById('ratingFilterControl').style.display = settings.enableRatingFilter ? 'flex' : 'none';
-  
-  // 算法模式
+
+  // Algorithm mode / 算法模式
   const algoMode = settings.useLLM ? 'llm' : 'builtin';
   document.querySelector(`input[name="algoMode"][value="${algoMode}"]`).checked = true;
   updateLLMStatus(settings);
 
-  // 加载统计数据
+  // Load statistics / 加载统计数据
   loadStats();
 
-  // 加载限免游戏数量
+  // Load free games count / 加载限免游戏数量
   loadFreeGamesCount();
 
-  // ============ 事件绑定 ============
+  // ============ Event Binding / 事件绑定 ============
 
-  // 启用/禁用
+  // Enable/Disable toggle / 启用/禁用开关
   document.getElementById('enableToggle').addEventListener('change', async (e) => {
     settings.enabled = e.target.checked;
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
-  // 阈值调整
+  // Threshold slider / 阈值滑块
   document.getElementById('thresholdSlider').addEventListener('input', (e) => {
     const value = e.target.value;
     document.getElementById('thresholdValue').textContent = `${value}%`;
@@ -49,7 +60,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
-  // 算法模式切换
+  // Algorithm mode switch / 算法模式切换
   document.querySelectorAll('input[name="algoMode"]').forEach(radio => {
     radio.addEventListener('change', async (e) => {
       settings.useLLM = e.target.value === 'llm';
@@ -58,42 +69,42 @@ document.addEventListener('DOMContentLoaded', async () => {
     });
   });
 
-  // 刷新推荐
+  // Refresh recommendations / 刷新推荐
   document.getElementById('refreshBtn').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
       chrome.tabs.sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' });
     }
-    // 按钮反馈
+    // Button feedback / 按钮反馈
     const btn = document.getElementById('refreshBtn');
     btn.textContent = '✅ 已刷新';
-    setTimeout(() => { btn.textContent = '🔄 刷新推荐'; }, 1500);
+    setTimeout(() => { btn.textContent = '🔄 刷新'; }, 1500);
   });
 
-  // 打开设置页
+  // Open options page / 打开设置页
   document.getElementById('optionsBtn').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();
   });
 
-  // 打开数据分析页
+  // Open dashboard / 打开数据分析页
   document.getElementById('dashboardBtn').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
   });
 
-  // 调试窗口开关
+  // Debug panel toggle / 调试窗口开关
   document.getElementById('debugToggle').addEventListener('change', async (e) => {
     settings.showDebugPanel = e.target.checked;
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
-  // 好评率过滤开关
+  // Rating filter toggle / 好评率过滤开关
   document.getElementById('ratingFilterToggle').addEventListener('change', async (e) => {
     settings.enableRatingFilter = e.target.checked;
     document.getElementById('ratingFilterControl').style.display = e.target.checked ? 'flex' : 'none';
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
-  // 好评率过滤阈值
+  // Rating filter threshold / 好评率过滤阈值
   document.getElementById('ratingFilterSlider').addEventListener('input', (e) => {
     document.getElementById('ratingFilterValue').textContent = `${e.target.value}%`;
   });
@@ -103,17 +114,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
-  // 打开限免提醒页
+  // Open free games page / 打开限免提醒页
   document.getElementById('freeGamesBtn').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('freegames/freegames.html') });
   });
 });
 
+// ============ Load Free Games Count / 加载限免游戏数量 ============
 async function loadFreeGamesCount() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force: false });
     if (response && response.data && response.data.games) {
-      // 统计当天新增的限免游戏（与图标角标一致）
+      // Count new free games added today / 统计当天新增的限免游戏
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
@@ -129,15 +141,16 @@ async function loadFreeGamesCount() {
   }
 }
 
+// ============ Load Statistics / 加载统计数据 ============
 async function loadStats() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
-    
+
     document.getElementById('statEvents').textContent = response.totalEvents;
     document.getElementById('statGames').textContent = response.totalGames;
     document.getElementById('statKeywords').textContent = response.topKeywords.length;
 
-    // 显示TOP关键词
+    // Display top 5 keywords / 显示 TOP5 关键词
     const container = document.getElementById('topKeywords');
     if (response.topKeywords.length > 0) {
       container.innerHTML = response.topKeywords
@@ -150,6 +163,7 @@ async function loadStats() {
   }
 }
 
+// ============ Update LLM Status / 更新大模型状态 ============
 function updateLLMStatus(settings) {
   const statusDiv = document.getElementById('llmStatus');
   const statusText = document.getElementById('llmStatusText');

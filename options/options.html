@@ -7,140 +7,298 @@
   <link rel="stylesheet" href="options.css">
 </head>
 <body>
-  <div class="options-container">
-    <h1>🎮 游戏智能推荐 - 设置</h1>
+  <!-- 页面头部 / Page Header -->
+  <header class="page-header">
+    <div class="header-inner">
+      <span class="header-logo">🎮</span>
+      <div class="header-text">
+        <h1>游戏智能推荐</h1>
+        <p class="header-subtitle">Game Recommender · Settings</p>
+        <p class="header-hint">设置自动保存 · Auto-save enabled</p>
+      </div>
+      <div class="header-glow"></div>
+    </div>
+  </header>
 
-    <!-- 基本设置 -->
+  <main class="options-container">
+    <!-- 基本设置 / Basic Settings -->
     <section class="settings-section">
-      <h2>基本设置</h2>
-      <div class="setting-row">
-        <label>启用插件</label>
-        <label class="switch">
-          <input type="checkbox" id="enabled">
-          <span class="slider"></span>
-        </label>
-      </div>
-      <div class="setting-row">
-        <label>推荐高亮阈值</label>
-        <div class="range-group">
-          <input type="range" id="threshold" min="30" max="90" step="5">
-          <span id="thresholdVal">60%</span>
+      <div class="section-header">
+        <span class="section-icon">⚙️</span>
+        <div class="section-title">
+          <h2>基本设置</h2>
+          <span class="section-subtitle">Basic Settings</span>
         </div>
       </div>
-      <div class="setting-row">
-        <label>最大行为记录数</label>
-        <input type="number" id="maxLog" min="100" max="5000" step="100" value="500">
-      </div>
-    </section>
-
-    <!-- 算法权重设置 -->
-    <section class="settings-section">
-      <h2>推荐算法权重</h2>
-      <p class="section-desc">调整各因素在推荐计算中的权重比例（总和建议为1.0）</p>
-      <div class="setting-row">
-        <label>点击率权重</label>
-        <div class="range-group">
-          <input type="range" id="weightClick" min="0" max="50" step="5">
-          <span id="weightClickVal">0.20</span>
-        </div>
-      </div>
-      <div class="setting-row">
-        <label>下载率权重</label>
-        <div class="range-group">
-          <input type="range" id="weightDownload" min="0" max="50" step="5">
-          <span id="weightDownloadVal">0.35</span>
-        </div>
-      </div>
-      <div class="setting-row">
-        <label>关键词匹配权重</label>
-        <div class="range-group">
-          <input type="range" id="weightKeyword" min="0" max="50" step="5">
-          <span id="weightKeywordVal">0.25</span>
-        </div>
-      </div>
-      <div class="setting-row">
-        <label>Steam评分权重</label>
-        <div class="range-group">
-          <input type="range" id="weightSteam" min="0" max="50" step="5">
-          <span id="weightSteamVal">0.20</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- LLM 设置 -->
-    <section class="settings-section">
-      <h2>AI 大模型设置</h2>
-      <p class="section-desc">接入本地或云端大模型进行更智能的推荐计算</p>
-      
-      <div class="setting-row">
-        <label>启用大模型推荐</label>
-        <label class="switch">
-          <input type="checkbox" id="useLLM">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div id="llmSettings" class="llm-settings">
+      <div class="section-body">
+        <!-- 启用开关 / Enable toggle -->
         <div class="setting-row">
-          <label>模型提供商</label>
-          <select id="llmProvider">
-            <option value="local">本地模型 (Ollama)</option>
-            <option value="openai">OpenAI 兼容接口</option>
-            <option value="custom">自定义接口</option>
-          </select>
+          <div class="setting-label">
+            <span class="label-text">启用插件</span>
+            <span class="label-desc">Enable Extension</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="enabled">
+            <span class="slider"></span>
+          </label>
         </div>
+        <!-- 推荐高亮阈值 / Highlight threshold -->
         <div class="setting-row">
-          <label>API 地址</label>
-          <input type="text" id="llmEndpoint" placeholder="http://localhost:11434/api/generate">
-        </div>
-        <div class="setting-row" id="apiKeyRow">
-          <label>API Key</label>
-          <input type="password" id="llmApiKey" placeholder="sk-...">
-        </div>
-        <div class="setting-row">
-          <label>模型名称</label>
-          <input type="text" id="llmModel" placeholder="qwen2.5:7b">
-        </div>
-        <div class="setting-row">
-          <label>Temperature</label>
+          <div class="setting-label">
+            <span class="label-text">推荐高亮阈值</span>
+            <span class="label-desc">Highlight Threshold</span>
+          </div>
           <div class="range-group">
-            <input type="range" id="llmTemp" min="0" max="100" step="5">
-            <span id="llmTempVal">0.3</span>
+            <input type="range" id="threshold" min="30" max="90" step="5">
+            <span id="thresholdVal" class="range-value">60%</span>
           </div>
         </div>
+        <!-- 最大行为记录数 / Max behavior log -->
         <div class="setting-row">
-          <button id="testLLM" class="btn btn-primary">测试连接</button>
-          <span id="llmTestResult" class="test-result"></span>
+          <div class="setting-label">
+            <span class="label-text">最大行为记录数</span>
+            <span class="label-desc">Max Behavior Log</span>
+          </div>
+          <input type="number" id="maxLog" min="100" max="5000" step="100" value="500" class="text-input">
         </div>
       </div>
     </section>
 
-    <!-- 网站管理 -->
+    <!-- Steam好评率过滤 / Steam Rating Filter -->
     <section class="settings-section">
-      <h2>追踪网站管理</h2>
-      <p class="section-desc">配置需要追踪行为的游戏资源网站</p>
-      <div id="siteList" class="site-list"></div>
-      <div class="add-site-row">
-        <input type="text" id="newSite" placeholder="输入域名，如 example.com">
-        <button id="addSite" class="btn btn-sm">添加</button>
+      <div class="section-header">
+        <span class="section-icon">🎯</span>
+        <div class="section-title">
+          <h2>Steam 好评率过滤</h2>
+          <span class="section-subtitle">Steam Rating Filter</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <!-- 启用好评率过滤 / Enable rating filter -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">启用好评率过滤</span>
+            <span class="label-desc">Enable Rating Filter</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="ratingFilterEnabled">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <!-- 最低好评率阈值 / Minimum positive rating -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">最低好评率阈值</span>
+            <span class="label-desc">Minimum Positive Rating</span>
+          </div>
+          <div class="range-group">
+            <input type="range" id="minRating" min="0" max="95" step="5">
+            <span id="minRatingVal" class="range-value">70%</span>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- 数据管理 -->
+    <!-- 推荐算法权重 / Algorithm Weights -->
     <section class="settings-section">
-      <h2>数据管理</h2>
-      <div class="data-actions">
-        <button id="exportData" class="btn">📤 导出数据</button>
-        <button id="importData" class="btn">📥 导入数据</button>
-        <button id="clearData" class="btn btn-danger">🗑️ 清除所有学习数据</button>
+      <div class="section-header">
+        <span class="section-icon">⚖️</span>
+        <div class="section-title">
+          <h2>推荐算法权重</h2>
+          <span class="section-subtitle">Algorithm Weights</span>
+        </div>
       </div>
-      <input type="file" id="importFile" accept=".json" style="display:none">
+      <div class="section-body">
+        <p class="section-note">调整各因素在推荐计算中的权重比例（总和建议为 1.0）<br><em>Adjust weight factors (suggested sum ≈ 1.0)</em></p>
+        <!-- 点击率权重 / Click rate weight -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">点击率权重</span>
+            <span class="label-desc">Click Rate</span>
+          </div>
+          <div class="range-group">
+            <input type="range" id="weightClick" min="0" max="50" step="5">
+            <span id="weightClickVal" class="range-value">0.20</span>
+          </div>
+        </div>
+        <!-- 下载率权重 / Download rate weight -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">下载率权重</span>
+            <span class="label-desc">Download Rate</span>
+          </div>
+          <div class="range-group">
+            <input type="range" id="weightDownload" min="0" max="50" step="5">
+            <span id="weightDownloadVal" class="range-value">0.35</span>
+          </div>
+        </div>
+        <!-- 关键词匹配权重 / Keyword match weight -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">关键词匹配权重</span>
+            <span class="label-desc">Keyword Match</span>
+          </div>
+          <div class="range-group">
+            <input type="range" id="weightKeyword" min="0" max="50" step="5">
+            <span id="weightKeywordVal" class="range-value">0.25</span>
+          </div>
+        </div>
+        <!-- Steam评分权重 / Steam rating weight -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">Steam 评分权重</span>
+            <span class="label-desc">Steam Rating</span>
+          </div>
+          <div class="range-group">
+            <input type="range" id="weightSteam" min="0" max="50" step="5">
+            <span id="weightSteamVal" class="range-value">0.20</span>
+          </div>
+        </div>
+      </div>
     </section>
 
-    <!-- 保存按钮 -->
-    <div class="save-bar">
-      <button id="saveBtn" class="btn btn-primary btn-lg">💾 保存设置</button>
+    <!-- AI大模型设置 / AI Model Settings -->
+    <section class="settings-section">
+      <div class="section-header">
+        <span class="section-icon">🤖</span>
+        <div class="section-title">
+          <h2>AI 大模型设置</h2>
+          <span class="section-subtitle">AI Model Settings</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-note">接入本地或云端大模型进行更智能的推荐计算<br><em>Connect a local or cloud LLM for smarter recommendations</em></p>
+        <!-- 启用大模型 / Enable LLM -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">启用大模型推荐</span>
+            <span class="label-desc">Enable LLM</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="useLLM">
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <!-- LLM 配置区（由 JS 切换显示）/ LLM config (toggled by JS) -->
+        <div id="llmSettings" class="llm-settings">
+          <!-- 模型提供商 / Provider -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="label-text">模型提供商</span>
+              <span class="label-desc">Provider</span>
+            </div>
+            <select id="llmProvider" class="text-input">
+              <option value="local">本地模型 (Ollama)</option>
+              <option value="openai">OpenAI 兼容接口</option>
+              <option value="custom">自定义接口</option>
+            </select>
+          </div>
+          <!-- API 地址 / Endpoint -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="label-text">API 地址</span>
+              <span class="label-desc">Endpoint</span>
+            </div>
+            <input type="text" id="llmEndpoint" class="text-input" placeholder="http://localhost:11434/api/generate">
+          </div>
+          <!-- API Key（由 JS 切换显示）/ API Key (toggled by JS, must be flex) -->
+          <div class="setting-row" id="apiKeyRow">
+            <div class="setting-label">
+              <span class="label-text">API Key</span>
+              <span class="label-desc">API Key</span>
+            </div>
+            <input type="password" id="llmApiKey" class="text-input" placeholder="sk-...">
+          </div>
+          <!-- 模型名称 / Model name -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="label-text">模型名称</span>
+              <span class="label-desc">Model Name</span>
+            </div>
+            <input type="text" id="llmModel" class="text-input" placeholder="qwen2.5:7b">
+          </div>
+          <!-- Temperature -->
+          <div class="setting-row">
+            <div class="setting-label">
+              <span class="label-text">Temperature</span>
+              <span class="label-desc">Sampling Temperature</span>
+            </div>
+            <div class="range-group">
+              <input type="range" id="llmTemp" min="0" max="100" step="5">
+              <span id="llmTempVal" class="range-value">0.3</span>
+            </div>
+          </div>
+          <!-- 测试连接 / Test connection -->
+          <div class="setting-row llm-test-row">
+            <button id="testLLM" class="btn btn-primary">⚡ 测试连接</button>
+            <span id="llmTestResult" class="test-result"></span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- 追踪网站管理 / Tracked Sites -->
+    <section class="settings-section">
+      <div class="section-header">
+        <span class="section-icon">🌐</span>
+        <div class="section-title">
+          <h2>追踪网站管理</h2>
+          <span class="section-subtitle">Tracked Sites</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-note">配置需要追踪行为的游戏资源网站<br><em>Configure sites to track browsing behavior</em></p>
+        <!-- 网站列表（由 JS 动态填充）/ Site list (dynamically rendered by JS) -->
+        <div id="siteList" class="site-list"></div>
+        <!-- 添加网站 / Add site -->
+        <div class="add-site-row">
+          <input type="text" id="newSite" class="text-input" placeholder="输入域名，如 example.com">
+          <button id="addSite" class="btn btn-primary btn-sm">添加</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- 数据管理 / Data Management -->
+    <section class="settings-section">
+      <div class="section-header">
+        <span class="section-icon">💾</span>
+        <div class="section-title">
+          <h2>数据管理</h2>
+          <span class="section-subtitle">Data Management</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-note">备份、恢复或清除插件数据<br><em>Backup, restore, or clear extension data</em></p>
+        <!-- 备份管理按钮组 / Backup management actions -->
+        <div class="data-actions">
+          <button id="exportData" class="btn data-btn">
+            <span class="btn-icon">📤</span>
+            <span>导出数据</span>
+          </button>
+          <button id="importData" class="btn data-btn">
+            <span class="btn-icon">📥</span>
+            <span>导入数据</span>
+          </button>
+          <button id="clearData" class="btn btn-danger">
+            <span class="btn-icon">🗑️</span>
+            <span>清除所有数据</span>
+          </button>
+        </div>
+        <!-- 隐藏的文件输入 / Hidden file input -->
+        <input type="file" id="importFile" accept=".json" class="hidden-file">
+      </div>
+    </section>
+  </main>
+
+  <!-- 固定底部保存栏 / Fixed bottom save bar (auto-save active) -->
+  <div class="save-bar-fixed">
+    <div class="save-bar-inner">
       <span id="saveStatus" class="save-status"></span>
+      <button id="saveBtn" class="btn btn-primary btn-lg">
+        <span class="btn-icon">💾</span>
+        <span>立即保存</span>
+      </button>
     </div>
   </div>
 

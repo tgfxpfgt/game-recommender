@@ -8,90 +8,146 @@
 </head>
 <body>
   <div class="popup-container">
+
+    <!-- ===== 顶部 Header / Top Header ===== -->
     <header class="popup-header">
-      <h1>🎮 游戏智能推荐</h1>
-      <label class="switch">
+      <div class="header-brand">
+        <span class="header-logo">🎮</span>
+        <div class="header-text">
+          <h1>游戏智能推荐</h1>
+          <span class="header-subtitle">Game Recommender</span>
+        </div>
+      </div>
+      <label class="switch" title="启用/禁用 · Enable/Disable">
         <input type="checkbox" id="enableToggle" checked>
         <span class="slider"></span>
       </label>
     </header>
 
+    <!-- ===== 统计卡片 / Statistics Cards ===== -->
     <section class="popup-stats">
-      <div class="stat-item">
+      <div class="stat-card">
         <span class="stat-value" id="statEvents">0</span>
         <span class="stat-label">行为记录</span>
+        <span class="stat-sublabel">Events</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-divider"></div>
+      <div class="stat-card">
         <span class="stat-value" id="statGames">0</span>
         <span class="stat-label">已学习游戏</span>
+        <span class="stat-sublabel">Games</span>
       </div>
-      <div class="stat-item">
+      <div class="stat-divider"></div>
+      <div class="stat-card">
         <span class="stat-value" id="statKeywords">0</span>
         <span class="stat-label">偏好关键词</span>
+        <span class="stat-sublabel">Keywords</span>
       </div>
     </section>
 
-    <section class="popup-section">
-      <h3>推荐阈值</h3>
-      <div class="threshold-control">
-        <input type="range" id="thresholdSlider" min="30" max="90" value="60" step="5">
-        <span id="thresholdValue">60%</span>
-      </div>
-      <p class="hint">高于此值的游戏将在列表页标红</p>
-    </section>
+    <!-- ===== 设置区域 / Settings Area ===== -->
+    <div class="settings-area">
 
-    <section class="popup-section">
-      <h3>Steam好评率过滤</h3>
-      <label class="check-item">
-        <input type="checkbox" id="ratingFilterToggle">
-        <span>启用好评率过滤</span>
-      </label>
-      <div class="threshold-control" id="ratingFilterControl" style="display:none;margin-top:8px;">
-        <input type="range" id="ratingFilterSlider" min="0" max="95" value="0" step="5">
-        <span id="ratingFilterValue">0%</span>
-      </div>
-      <p class="hint">列表页隐藏低于此好评率的游戏</p>
-    </section>
+      <!-- 推荐阈值 / Recommendation Threshold -->
+      <details class="popup-section" open>
+        <summary class="section-summary">
+          <span class="section-icon">🎯</span>
+          <span class="section-title">推荐阈值<span class="section-title-en">Threshold</span></span>
+          <span class="section-arrow">▾</span>
+        </summary>
+        <div class="section-body">
+          <div class="threshold-control">
+            <input type="range" id="thresholdSlider" min="30" max="90" value="60" step="5">
+            <span id="thresholdValue" class="threshold-value">60%</span>
+          </div>
+          <p class="hint">高于此值的游戏将在列表页标红</p>
+        </div>
+      </details>
 
-    <section class="popup-section">
-      <h3>算法模式</h3>
-      <div class="mode-selector">
-        <label class="radio-item">
-          <input type="radio" name="algoMode" value="builtin" checked>
-          <span>内置算法</span>
-        </label>
-        <label class="radio-item">
-          <input type="radio" name="algoMode" value="llm">
-          <span>AI 大模型</span>
-        </label>
-      </div>
-      <div id="llmStatus" class="llm-status" style="display:none">
-        <span class="status-dot"></span>
-        <span id="llmStatusText">未配置</span>
-      </div>
-    </section>
+      <!-- Steam好评率过滤 / Steam Rating Filter -->
+      <details class="popup-section">
+        <summary class="section-summary">
+          <span class="section-icon">⭐</span>
+          <span class="section-title">好评率过滤<span class="section-title-en">Rating Filter</span></span>
+          <span class="section-arrow">▾</span>
+        </summary>
+        <div class="section-body">
+          <label class="check-item">
+            <input type="checkbox" id="ratingFilterToggle">
+            <span>启用好评率过滤</span>
+          </label>
+          <div class="threshold-control" id="ratingFilterControl" style="display:none;">
+            <input type="range" id="ratingFilterSlider" min="0" max="95" value="0" step="5">
+            <span id="ratingFilterValue" class="threshold-value">0%</span>
+          </div>
+          <p class="hint">隐藏低于此好评率的游戏</p>
+        </div>
+      </details>
 
-    <section class="popup-section">
-      <h3>偏好关键词 TOP5</h3>
-      <div id="topKeywords" class="keyword-tags">
-        <span class="no-data">暂无数据，多浏览游戏即可学习</span>
-      </div>
-    </section>
+      <!-- 算法模式 / Algorithm Mode -->
+      <details class="popup-section">
+        <summary class="section-summary">
+          <span class="section-icon">🧠</span>
+          <span class="section-title">算法模式<span class="section-title-en">Algorithm</span></span>
+          <span class="section-arrow">▾</span>
+        </summary>
+        <div class="section-body">
+          <div class="mode-selector">
+            <label class="radio-item">
+              <input type="radio" name="algoMode" value="builtin" checked>
+              <span>内置算法</span>
+            </label>
+            <label class="radio-item">
+              <input type="radio" name="algoMode" value="llm">
+              <span>AI 大模型</span>
+            </label>
+          </div>
+          <div id="llmStatus" class="llm-status" style="display:none">
+            <span class="status-dot"></span>
+            <span id="llmStatusText">未配置</span>
+          </div>
+        </div>
+      </details>
 
-    <section class="popup-section">
-      <h3>其他</h3>
-      <label class="check-item">
-        <input type="checkbox" id="debugToggle">
-        <span>显示调试窗口</span>
-      </label>
-    </section>
+      <!-- 偏好关键词 TOP5 / Top Keywords -->
+      <details class="popup-section">
+        <summary class="section-summary">
+          <span class="section-icon">🏷️</span>
+          <span class="section-title">偏好关键词 TOP5<span class="section-title-en">Keywords</span></span>
+          <span class="section-arrow">▾</span>
+        </summary>
+        <div class="section-body">
+          <div id="topKeywords" class="keyword-tags">
+            <span class="no-data">暂无数据，多浏览游戏即可学习</span>
+          </div>
+        </div>
+      </details>
 
+      <!-- 调试窗口 / Debug Panel -->
+      <details class="popup-section">
+        <summary class="section-summary">
+          <span class="section-icon">🔧</span>
+          <span class="section-title">调试窗口<span class="section-title-en">Debug</span></span>
+          <span class="section-arrow">▾</span>
+        </summary>
+        <div class="section-body">
+          <label class="check-item">
+            <input type="checkbox" id="debugToggle">
+            <span>显示调试窗口</span>
+          </label>
+        </div>
+      </details>
+
+    </div>
+
+    <!-- ===== 底部按钮栏 / Bottom Button Bar ===== -->
     <footer class="popup-footer">
-      <button id="freeGamesBtn" class="btn btn-sm btn-free">🎁 限免提醒<span id="freeCount" class="free-count" style="display:none"></span></button>
-      <button id="refreshBtn" class="btn btn-sm">🔄 刷新</button>
-      <button id="dashboardBtn" class="btn btn-sm">📊 分析</button>
-      <button id="optionsBtn" class="btn btn-sm">⚙️ 设置</button>
+      <button id="freeGamesBtn" class="btn btn-free">🎁 限免<span id="freeCount" class="free-count" style="display:none"></span></button>
+      <button id="refreshBtn" class="btn">🔄 刷新</button>
+      <button id="dashboardBtn" class="btn">📊 分析</button>
+      <button id="optionsBtn" class="btn">⚙️ 设置</button>
     </footer>
+
   </div>
 
   <script src="popup.js"></script>

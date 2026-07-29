@@ -1,5 +1,10 @@
-/* Game Recommender - Popup Styles */
+/* ============================================================
+   Game Recommender - Popup Styles
+   游戏智能推荐 - 弹窗样式
+   Steam-inspired Dark Blue Theme / Steam 风格深蓝主题
+   ============================================================ */
 
+/* ===== Reset & Base / 重置与基础 ===== */
 * {
   margin: 0;
   padding: 0;
@@ -7,35 +12,89 @@
 }
 
 body {
-  width: 320px;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #1a1a2e;
-  color: #e0e0e0;
+  width: 360px;
+  max-height: 600px;
+  overflow-y: auto;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+  background: #1b2838;
+  color: #c7d5e0;
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
 }
 
+/* ===== Custom Scrollbar / 自定义滚动条 ===== */
+/* 滚动条样式 / Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #2a475e;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a5a72;
+}
+
+/* ===== Container / 容器 ===== */
 .popup-container {
-  padding: 16px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
+/* ============================================================
+   Header / 顶部栏
+   ============================================================ */
 .popup-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 16px;
-  padding-bottom: 12px;
-  border-bottom: 1px solid #2a2a4a;
+  padding: 12px 14px;
+  background: linear-gradient(135deg, #2a475e 0%, #1b2838 100%);
+  border-radius: 10px;
+  border: 1px solid rgba(102, 192, 244, 0.15);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
 }
 
-.popup-header h1 {
-  font-size: 16px;
-  color: #fff;
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
-/* 开关样式 */
+.header-logo {
+  font-size: 22px;
+  line-height: 1;
+}
+
+.header-text h1 {
+  font-size: 15px;
+  font-weight: 700;
+  color: #ffffff;
+  line-height: 1.2;
+}
+
+.header-subtitle {
+  font-size: 10px;
+  color: #66c0f4;
+  letter-spacing: 0.5px;
+}
+
+/* ============================================================
+   Switch Toggle / 启用开关
+   ============================================================ */
 .switch {
   position: relative;
-  width: 44px;
-  height: 24px;
+  width: 42px;
+  height: 22px;
+  flex-shrink: 0;
 }
 
 .switch input {
@@ -44,6 +103,7 @@ body {
   height: 0;
 }
 
+/* 开关轨道 / Switch track */
 .slider {
   position: absolute;
   cursor: pointer;
@@ -51,228 +111,518 @@ body {
   left: 0;
   right: 0;
   bottom: 0;
-  background: #444;
-  border-radius: 24px;
-  transition: 0.3s;
+  background: #3a5a72;
+  border-radius: 22px;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 }
 
-.slider:before {
+/* 开关滑块 / Switch thumb */
+.slider::before {
   content: "";
   position: absolute;
-  height: 18px;
-  width: 18px;
+  height: 16px;
+  width: 16px;
   left: 3px;
   bottom: 3px;
-  background: white;
+  background: #c7d5e0;
   border-radius: 50%;
-  transition: 0.3s;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), background 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 }
 
+/* 启用状态 / Checked state */
 input:checked + .slider {
   background: #66c0f4;
+  box-shadow: 0 0 8px rgba(102, 192, 244, 0.4);
 }
 
-input:checked + .slider:before {
+input:checked + .slider::before {
   transform: translateX(20px);
+  background: #ffffff;
 }
 
-/* 统计区域 */
+/* ============================================================
+   Statistics Cards / 统计卡片
+   ============================================================ */
 .popup-stats {
   display: flex;
-  justify-content: space-around;
-  margin-bottom: 16px;
-  padding: 12px;
-  background: #16213e;
-  border-radius: 8px;
+  align-items: center;
+  padding: 12px 8px;
+  background: #2a475e;
+  border-radius: 10px;
+  border: 1px solid rgba(102, 192, 244, 0.1);
 }
 
-.stat-item {
+.stat-card {
+  flex: 1;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
 }
 
+/* 统计数值 / Stat value */
 .stat-value {
-  display: block;
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 22px;
+  font-weight: 700;
   color: #66c0f4;
+  line-height: 1.2;
+  text-shadow: 0 0 12px rgba(102, 192, 244, 0.3);
 }
 
 .stat-label {
   font-size: 11px;
-  color: #888;
+  color: #c7d5e0;
+  font-weight: 500;
 }
 
-/* 区块 */
+.stat-sublabel {
+  font-size: 9px;
+  color: #6a7a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 卡片分隔线 / Card divider */
+.stat-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(102, 192, 244, 0.15);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Settings Area / 设置区域
+   ============================================================ */
+.settings-area {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* ===== Collapsible Section / 可折叠区块 ===== */
+/* 使用 details/summary 实现原生折叠 / Native collapse with details */
 .popup-section {
-  margin-bottom: 16px;
+  background: #2a475e;
+  border-radius: 8px;
+  border: 1px solid rgba(102, 192, 244, 0.08);
+  overflow: hidden;
+  transition: border-color 0.2s ease;
 }
 
-.popup-section h3 {
+.popup-section:hover {
+  border-color: rgba(102, 192, 244, 0.2);
+}
+
+.popup-section[open] {
+  border-color: rgba(102, 192, 244, 0.2);
+}
+
+/* 区块标题行 / Section summary row */
+.section-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  user-select: none;
+  list-style: none;
+  transition: background 0.2s ease;
+}
+
+/* 隐藏默认三角标记 / Hide default marker */
+.section-summary::-webkit-details-marker {
+  display: none;
+}
+
+.section-summary:hover {
+  background: rgba(102, 192, 244, 0.06);
+}
+
+.section-icon {
+  font-size: 14px;
+  flex-shrink: 0;
+}
+
+.section-title {
   font-size: 13px;
-  color: #aaa;
-  margin-bottom: 8px;
+  font-weight: 600;
+  color: #c7d5e0;
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
 }
 
-/* 阈值滑块 */
+/* 英文副标题 / English subtitle */
+.section-title-en {
+  font-size: 9px;
+  font-weight: 400;
+  color: #6a7a8a;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* 折叠箭头 / Collapse arrow */
+.section-arrow {
+  margin-left: auto;
+  font-size: 12px;
+  color: #66c0f4;
+  transition: transform 0.25s ease;
+}
+
+/* 展开时箭头旋转 / Rotate arrow when open */
+.popup-section[open] .section-arrow {
+  transform: rotate(180deg);
+}
+
+/* 区块内容 / Section body */
+.section-body {
+  padding: 0 12px 12px;
+  animation: fadeInDown 0.25s ease-out;
+}
+
+/* 展开动画 / Expand animation */
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Range Slider / 阈值滑块
+   ============================================================ */
 .threshold-control {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-top: 8px;
 }
 
+/* 滑块轨道 / Slider track */
 .threshold-control input[type="range"] {
   flex: 1;
-  height: 4px;
+  height: 6px;
   -webkit-appearance: none;
-  background: #2a2a4a;
-  border-radius: 2px;
+  appearance: none;
+  background: #1b2838;
+  border-radius: 3px;
   outline: none;
+  cursor: pointer;
 }
 
+/* 滑块滑块 (WebKit) / Slider thumb (WebKit) */
 .threshold-control input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
+  appearance: none;
   width: 16px;
   height: 16px;
   background: #66c0f4;
   border-radius: 50%;
   cursor: pointer;
+  border: 2px solid #2a475e;
+  box-shadow: 0 0 6px rgba(102, 192, 244, 0.5);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-.threshold-control span {
-  font-size: 14px;
-  font-weight: bold;
-  color: #66c0f4;
-  min-width: 40px;
+.threshold-control input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  box-shadow: 0 0 10px rgba(102, 192, 244, 0.7);
 }
 
-.hint {
-  font-size: 11px;
-  color: #666;
-  margin-top: 4px;
-}
-
-/* 模式选择 */
-.mode-selector {
-  display: flex;
-  gap: 16px;
-}
-
-.radio-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  cursor: pointer;
-  font-size: 13px;
-}
-
-.radio-item input[type="radio"] {
-  accent-color: #66c0f4;
-}
-
-.llm-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: #888;
-}
-
-.status-dot {
-  width: 8px;
-  height: 8px;
+/* 滑块滑块 (Firefox) / Slider thumb (Firefox) */
+.threshold-control input[type="range"]::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  background: #66c0f4;
   border-radius: 50%;
-  background: #e74c3c;
+  cursor: pointer;
+  border: 2px solid #2a475e;
+  box-shadow: 0 0 6px rgba(102, 192, 244, 0.5);
 }
 
-.status-dot.connected {
-  background: #2ecc71;
-}
-
-/* 关键词标签 */
-.keyword-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.keyword-tag {
-  padding: 3px 10px;
+/* 数值标签 / Value badge */
+.threshold-value {
   font-size: 12px;
-  background: #2a2a4a;
-  border-radius: 12px;
-  color: #66c0f4;
+  font-weight: 700;
+  color: #1b2838;
+  background: #66c0f4;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 42px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
-.no-data {
-  font-size: 12px;
-  color: #666;
+/* ===== Hint Text / 提示文字 ===== */
+.hint {
+  font-size: 10px;
+  color: #6a7a8a;
+  margin-top: 6px;
+  line-height: 1.4;
 }
 
-/* 复选框项 */
+/* ============================================================
+   Checkbox / 复选框
+   ============================================================ */
 .check-item {
   display: flex;
   align-items: center;
   gap: 8px;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12px;
+  color: #c7d5e0;
+  padding: 4px 0;
 }
 
+/* 自定义复选框样式 / Custom checkbox style */
 .check-item input[type="checkbox"] {
-  accent-color: #66c0f4;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #66c0f4;
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  flex-shrink: 0;
 }
 
-/* 限免按钮 */
+/* 选中状态 / Checked state */
+.check-item input[type="checkbox"]:checked {
+  background: #66c0f4;
+  border-color: #66c0f4;
+}
+
+/* 选中勾号 / Checkmark */
+.check-item input[type="checkbox"]:checked::after {
+  content: "✓";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #1b2838;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ============================================================
+   Mode Selector / 算法模式选择
+   ============================================================ */
+.mode-selector {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+/* 单选项卡片 / Radio option card */
+.radio-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #c7d5e0;
+  padding: 6px 10px;
+  background: rgba(27, 40, 56, 0.5);
+  border-radius: 6px;
+  border: 1px solid transparent;
+  transition: all 0.2s ease;
+  flex: 1;
+  justify-content: center;
+}
+
+.radio-item:hover {
+  background: rgba(102, 192, 244, 0.08);
+}
+
+/* 自定义单选按钮 / Custom radio button */
+.radio-item input[type="radio"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #6a7a8a;
+  border-radius: 50%;
+  cursor: pointer;
+  position: relative;
+  transition: border-color 0.2s ease;
+  flex-shrink: 0;
+}
+
+.radio-item input[type="radio"]:checked {
+  border-color: #66c0f4;
+}
+
+/* 选中内圆 / Inner dot when checked */
+.radio-item input[type="radio"]:checked::after {
+  content: "";
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  background: #66c0f4;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* 选中时文字高亮 / Highlight text when checked */
+.radio-item input:checked + span {
+  color: #66c0f4;
+}
+
+/* 选中时卡片高亮 / Highlight card when checked */
+.radio-item:has(input:checked) {
+  background: rgba(102, 192, 244, 0.12);
+  border-color: rgba(102, 192, 244, 0.3);
+}
+
+/* ============================================================
+   LLM Status / 大模型状态
+   ============================================================ */
+.llm-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 6px 10px;
+  background: rgba(27, 40, 56, 0.5);
+  border-radius: 6px;
+  font-size: 11px;
+  color: #8f98a0;
+}
+
+/* 状态指示灯 / Status dot */
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #e74c3c;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(231, 76, 60, 0.5);
+}
+
+/* 已连接状态 / Connected state */
+.status-dot.connected {
+  background: #2ecc71;
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
+}
+
+/* ============================================================
+   Keyword Tags / 偏好关键词标签
+   ============================================================ */
+.keyword-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 4px;
+}
+
+/* 关键词标签 / Keyword tag */
+.keyword-tag {
+  padding: 3px 10px;
+  font-size: 11px;
+  background: rgba(102, 192, 244, 0.12);
+  border: 1px solid rgba(102, 192, 244, 0.25);
+  border-radius: 12px;
+  color: #66c0f4;
+  transition: all 0.2s ease;
+}
+
+.keyword-tag:hover {
+  background: rgba(102, 192, 244, 0.2);
+  transform: translateY(-1px);
+}
+
+/* 无数据提示 / No data hint */
+.no-data {
+  font-size: 11px;
+  color: #6a7a8a;
+  font-style: italic;
+}
+
+/* ============================================================
+   Footer / 底部按钮栏
+   ============================================================ */
+.popup-footer {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding-top: 4px;
+}
+
+/* 通用按钮 / Base button */
+.btn {
+  padding: 8px 4px;
+  font-size: 11px;
+  border: 1px solid rgba(102, 192, 244, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  background: #2a475e;
+  color: #c7d5e0;
+  transition: all 0.2s ease;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.btn:hover {
+  background: #3a5a72;
+  color: #ffffff;
+  border-color: rgba(102, 192, 244, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+.btn:active {
+  transform: translateY(0);
+}
+
+/* 限免按钮特殊样式 / Free games button */
 .btn-free {
-  background: rgba(163, 207, 6, 0.15);
+  background: rgba(163, 207, 6, 0.12);
   color: #a3cf06;
-  border: 1px solid rgba(163, 207, 6, 0.4);
+  border-color: rgba(163, 207, 6, 0.3);
 }
 
 .btn-free:hover {
-  background: rgba(163, 207, 6, 0.25);
+  background: rgba(163, 207, 6, 0.2);
+  color: #c7e84d;
+  border-color: rgba(163, 207, 6, 0.5);
 }
 
+/* 限免数量徽章 / Free count badge */
 .free-count {
   display: inline-block;
   min-width: 16px;
   height: 16px;
   line-height: 16px;
   text-align: center;
-  margin-left: 4px;
+  margin-left: 3px;
   padding: 0 4px;
   font-size: 10px;
-  font-weight: bold;
+  font-weight: 700;
   color: #fff;
   background: #e74c3c;
   border-radius: 8px;
+  vertical-align: middle;
+  animation: pulse 2s ease infinite;
 }
 
-/* 底部按钮 */
-.popup-footer {
-  display: flex;
-  justify-content: space-between;
-  gap: 6px;
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid #2a2a4a;
-}
-
-.btn {
-  padding: 8px 12px;
-  font-size: 12px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.btn-sm {
-  background: #2a2a4a;
-  color: #e0e0e0;
-}
-
-.btn-sm:hover {
-  background: #3a3a5a;
-  color: #fff;
+/* 徽章脉冲动画 / Badge pulse animation */
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(231, 76, 60, 0.5);
+  }
+  50% {
+    box-shadow: 0 0 0 4px rgba(231, 76, 60, 0);
+  }
 }
