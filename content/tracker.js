@@ -383,18 +383,18 @@
     return null;
   }
 
-  // 从 Steam 图片 URL 提取 appId
+  // 从 Steam 图片 URL 提取 appId（scope 可选：限定在某个元素内，如列表项封面）
   // gamer520 等站点的图片引用 Steam CDN，URL 格式为
   //   https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/{appId}/...
   // 这是比标题提取更可靠的 appId 来源，可直接绕过 Steam 搜索。
-  // Extract appId from Steam image URLs.
-  // Sites like gamer520 reference Steam CDN images with URLs like
+  // Extract appId from Steam image URLs (optional scope: restrict to an element,
+  // e.g. a list-item cover). Sites like gamer520 reference Steam CDN images with
   //   https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/{appId}/...
   // This is more reliable than title extraction and bypasses Steam search.
-  function extractSteamAppIdFromImages() {
-    const imgs = document.querySelectorAll('img');
+  function extractSteamAppIdFromImages(scope) {
+    const imgs = (scope || document).querySelectorAll('img');
     for (const img of imgs) {
-      const src = img.src || img.getAttribute('data-src') || '';
+      const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
       // 匹配 /steam/apps/{数字}/ 路径 / Match /steam/apps/{digits}/ path
       const match = src.match(/\/steam\/apps\/(\d+)\//i);
       if (match) return match[1];
@@ -641,9 +641,9 @@
         if (!response.ok) { dbg(`预载：HTTP ${response.status}`); return; }
         const html = await response.text();
 
-        // 3. 解析 HTML，提取游戏名 / Parse HTML and extract game names
+        // 3. 解析 HTML，提取游戏名与封面图 appId / Parse HTML and extract names + cover appIds
         const doc = new DOMParser().parseFromString(html, 'text/html');
-        const gameNames = extractGameNamesFromDoc(doc);
+        const { names: gameNames, appIds } = extractGameNamesFromDoc(doc);
         if (gameNames.length === 0) { dbg('预载：未提取到游戏名'); return; }
 
         dbg(`预载：提取到 ${gameNames.length} 个游戏名，开始预热 Steam 缓存`);
@@ -651,7 +651,8 @@
         // 4. 预热 Steam 缓存（fire-and-forget）/ Warm up Steam cache (fire-and-forget)
         chrome.runtime.sendMessage({
           action: 'PREFETCH_STEAM_RATINGS',
-          names: gameNames
+          names: gameNames,
+          appIds
         }).then(() => {
           dbg(`✅ 预载完成：已预热 ${gameNames.length} 个游戏的 Steam 缓存`);
         }).catch(() => {});
@@ -690,12 +691,13 @@
     return null;
   }
 
-  // 从解析后的文档中提取游戏名（简化版，不依赖完整适配器，仅提取文本）
+  // 从解析后的文档中提取游戏名与封面图 appId（简化版，不依赖完整适配器）
   // 选择器优先使用规则文件（adapters/sites.js）中的容器/标题配置
-  // Extract game names from a parsed document (simplified; text only).
+  // Extract game names and cover-appIds from a parsed document (simplified).
   // Selectors come from the rules file (adapters/sites.js) when available.
   function extractGameNamesFromDoc(doc) {
     const names = new Set();
+    const appIds = {};
     const domain = window.location.hostname;
 
     // 规则驱动提取：容器 + 标题链接/标题元素选择器
@@ -714,41 +716,68 @@
           const t = titleLink ? el.querySelector(titleLink) : el.querySelector(titleEls.join(','));
           if (t) {
             const text = (t.textContent || '').trim().replace(/\s+/g, ' ');
-            if (text.length > minLen && text.length < maxLen) names.add(text);
+            if (text.length > minLen && text.length < maxLen) {
+              names.add(text);
+              // 提取封面图 appId（gamer520 等 queniuqe CDN 封面）供预载直接使用
+              // Extract the cover appId so prefetch can bypass title search
+              if (!appIds[text]) {
+                const img = el.querySelector('img');
+                if (img) {
+                  const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+                  const m = src.match(/\/steam\/apps\/(\d+)\//i);
+                  if (m) appIds[text] = m[1];
+                }
+              }
+            }
           }
         });
-        if (names.size > 0) return [...names];
+        if (names.size > 0) break;
       }
     }
 
     // 通用回退：指向详情页且有文本的链接（用 getAttribute 避免 DOMParser 无 base URL 问题）
     // Generic fallback: links to detail pages with text (use getAttribute to avoid DOMParser base-URL issue)
-    const baseUrl = window.location.href;
-    doc.querySelectorAll('a[href]').forEach(a => {
-      const href = a.getAttribute('href') || '';
-      if (!href) return;
-      try {
-        const p = new URL(href, baseUrl).pathname;
-        if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) {
-          const text = (a.textContent || '').trim().replace(/\s+/g, ' ');
-          if (text.length > 2 && text.length < 200) names.add(text);
-        }
-      } catch (e) {}
-    });
+    if (names.size === 0) {
+      const baseUrl = window.location.href;
+      doc.querySelectorAll('a[href]').forEach(a => {
+        const href = a.getAttribute('href') || '';
+        if (!href) return;
+        try {
+          const p = new URL(href, baseUrl).pathname;
+          if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) {
+            const text = (a.textContent || '').trim().replace(/\s+/g, ' ');
+            if (text.length > 2 && text.length < 200) names.add(text);
+          }
+        } catch (e) {}
+      });
+    }
 
-    return [...names];
+    return { names: [...names], appIds };
   }
 
   // 列表页：检索每个游戏的Steam好评率并显示在游戏名前
   async function requestSteamRatings(items, settings) {
     const maxItems = 60;
     const processItems = items.slice(0, maxItems);
-    // 去重游戏名
-    const uniqueNames = [...new Set(processItems.map(i => i.name).filter(n => n && n.length > 1))];
+    // 去重游戏名，同时收集每个名称对应的封面图 appId（gamer520 等站点的
+    // queniuqe CDN 封面含 /steam/apps/{appId}/，可绕过标题搜索直接取好评率）
+    // Dedupe names and collect each name's cover-appId (gamer520 covers embed
+    // /steam/apps/{appId}/, letting ratings bypass title search entirely)
+    const nameToAppId = {};
+    processItems.forEach(item => {
+      if (item.name && !nameToAppId[item.name]) {
+        nameToAppId[item.name] = extractSteamAppIdFromImages(item.element) || null;
+      }
+    });
+    const uniqueNames = Object.keys(nameToAppId).filter(n => n && n.length > 1);
     if (uniqueNames.length === 0) return;
     try {
 
-      const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names: uniqueNames });
+      const response = await chrome.runtime.sendMessage({
+        action: 'GET_STEAM_RATINGS',
+        names: uniqueNames,
+        appIds: nameToAppId
+      });
       if (response && response.ratings) {
         let shown = 0;
         let filtered = 0;

@@ -1556,9 +1556,14 @@ async function searchSteamGame(gameName) {
 async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
-  // 1. 通过名称索引查找 appId（O(1)）
-  //    Lookup appId via name index (O(1))
-  const appId = await lookupAppIdByName(gameName);
+  // 0. appId 优先（列表页封面图提取，如 gamer520 的 queniuqe CDN），
+  //    绕过标题搜索；否则用名称索引查找 appId。
+  //    Prefer an image-extracted appId (list-page covers, e.g. gamer520's
+  //    queniuqe CDN), bypassing title search; otherwise use the name index.
+  let appId = options.appId ? String(options.appId) : null;
+  if (!appId) {
+    appId = await lookupAppIdByName(gameName);
+  }
 
   // 2. 若有 appId，检查 Steam 动态缓存（以 appId 为键）
   //    If appId known, check Steam dynamic cache (appId-keyed)
@@ -2677,6 +2682,7 @@ async function handleSearchSteamCandidates(message) {
 
 async function handleGetSteamRatings(message) {
   const ratingNames = message.names || [];
+  const appIds = message.appIds || {};
   const ratings = {};
   const batchSize = 5;
   try {
@@ -2684,9 +2690,11 @@ async function handleGetSteamRatings(message) {
       const batch = ratingNames.slice(i, i + batchSize);
       const batchResults = await Promise.all(batch.map(async (name) => {
         try {
-          // 列表页批量：忽略负缓存，用户主动浏览的游戏值得重试
-          // List-page batches ignore the negative cache: user-browsed games deserve a retry
-          const r = await getSteamPositiveRate(name, { ignoreNegativeCache: true });
+          // 列表页批量：忽略负缓存，用户主动浏览的游戏值得重试；
+          // 封面图 appId 优先（绕过标题搜索）
+          // List-page batches ignore the negative cache (user-browsed games
+          // deserve a retry); cover-appIds bypass title search
+          const r = await getSteamPositiveRate(name, { ignoreNegativeCache: true, appId: appIds[name] || null });
           return [name, r];
         } catch (e) {
           return [name, null];
@@ -2722,6 +2730,7 @@ async function handleGetSteamRatings(message) {
 // (nearly all hits after flipping to the next page).
 async function handlePrefetchSteamRatings(message) {
   const ratingNames = message.names || [];
+  const appIds = message.appIds || {};
   if (ratingNames.length === 0) return { success: true };
 
   // 过滤：跳过已有有效缓存 / 负缓存期内的名称
@@ -2749,7 +2758,7 @@ async function handlePrefetchSteamRatings(message) {
   for (let i = 0; i < needsPrefetch.length; i += batchSize) {
     const batch = needsPrefetch.slice(i, i + batchSize);
     await Promise.all(batch.map(async (name) => {
-      try { await getSteamPositiveRate(name, { ignoreNegativeCache: true }); } catch (e) {}
+      try { await getSteamPositiveRate(name, { ignoreNegativeCache: true, appId: appIds[name] || null }); } catch (e) {}
     }));
   }
   // 预载结束，强制写入缓存 / Force flush after prefetch to persist
