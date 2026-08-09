@@ -106,7 +106,10 @@
         body.style.display = folded ? '' : 'none';
         foldBtn.textContent = folded ? '▾' : '▸';
       });
-      closeBtn.addEventListener('click', () => remove(id));
+      closeBtn.addEventListener('click', () => {
+        remove(id);
+        if (typeof opts.onClose === 'function') opts.onClose();
+      });
     }
 
     document.body.appendChild(root);

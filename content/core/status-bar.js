@@ -91,26 +91,27 @@
     }, 3000);
   }
 
-  // 渲染诊断视图（调试模式常驻，✕ 关闭）
-  // Render the debug view (persistent in debug mode; ✕ dismisses)
+  // 渲染诊断视图：经 GR.float 统一管理（chrome 标题栏，✕ 关闭后不再自动复活）。
+  // Render the debug view (managed by GR.float; once dismissed it stays closed).
+  let debugDismissed = false;
   function showDebugView(html) {
-    const el = ensureEl();
-    el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:bold;font-size:12px;">
-        <span>🔧</span><span>Game Recommender 调试</span>
-        <span id="gr-status-close" style="margin-left:auto;cursor:pointer;color:#666;font-size:14px;">✕</span>
-      </div>
-      ${html}
-    `;
-    const close = el.querySelector('#gr-status-close');
-    if (close) close.addEventListener('click', hide);
+    if (debugDismissed) return; // 用户已关闭：不自动复活 / user dismissed: keep closed
+    statusEl = GR.float.create(GR.float.ZONE.BOTTOM_RIGHT, 'gr-status-bar', {
+      chrome: true,
+      width: 380,
+      title: '🔧 Game Recommender 调试',
+      onClose: () => { debugDismissed = true; statusEl = null; }
+    });
+    statusEl.innerHTML = html;
     clearTimeout(hideTimer); // 诊断视图常驻 / persistent
   }
 
-  // 调试模式开关（由设置 showDebugPanel 控制）
-  // Debug-mode switch (controlled by settings.showDebugPanel)
+  // 调试模式开关（由设置 showDebugPanel 控制；重新开启时允许调试视图再次显示）
+  // Debug-mode switch (controlled by settings.showDebugPanel; re-enabling lifts
+  // the dismissal so the debug view can show again)
   function setDebugMode(v) {
     debugMode = !!v;
+    if (debugMode) debugDismissed = false;
     if (debugMode && GR.debug) GR.debug.refreshInBar();
   }
 

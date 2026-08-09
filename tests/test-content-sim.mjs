@@ -46,6 +46,7 @@ class FakeEl {
   _removeChildFrom(c) { this.children = this.children.filter(x => x !== c); }
   insertBefore(c, ref) { if (c.parentNode) c.parentNode._removeChildFrom(c); c.parentNode = this; this.children.push(c); return c; }
   remove() { if (this.parentNode) { this.parentNode._removeChildFrom(this); this.parentNode = null; } }
+  removeChild(c) { this._removeChildFrom(c); c.parentNode = null; return c; }
   closest() { return this; }
   // 简化的选择器支持：a.tit / img / 标签名
   querySelector(sel) {
@@ -57,7 +58,14 @@ class FakeEl {
     if (sel === 'img') return [];
     return [];
   }
-  addEventListener() {}
+  addEventListener(type, cb) {
+    (this._listeners = this._listeners || {})[type] = this._listeners[type] || [];
+    this._listeners[type].push(cb);
+  }
+  click() {
+    const cbs = (this._listeners && this._listeners['click']) || [];
+    cbs.forEach(cb => cb({ preventDefault() {}, stopPropagation() {} }));
+  }
 }
 
 // document 模拟：querySelectorAll 可插桩（列表页场景）/ stubbable querySelectorAll
@@ -222,6 +230,25 @@ setTimeout(() => { queryAllStub = (sel) => sel === 'li.game-item' ? allItems.map
 setTimeout(() => { if (MutationObserver.instances.length) MutationObserver.instances[MutationObserver.instances.length - 1].cb(); }, 260);
 const waitedItems = await waitPromise;
 check('等待到列表项出现', waitedItems.length, 3);
+
+// ============ 4. 调试视图关闭后不自动复活 / Debug view dismissal ============
+console.log('4. 调试视图关闭后不自动复活');
+GR.status.setDebugMode(true);
+GR.status.showDebugView('<div>test debug</div>');
+const dbgRoot = documentMock.body.children.find(c => c.id === 'gr-status-bar');
+check('调试视图已创建（chrome 标题栏）', !!dbgRoot && !!dbgRoot.children[0], true);
+// 模拟用户点击标题栏 ✕ 关闭
+dbgRoot.children[0].children[2].click();
+check('点击关闭后浮窗已移除', documentMock.body.children.some(c => c.id === 'gr-status-bar'), false);
+// 关闭后 dbg 日志触发防抖刷新，不应复活浮窗
+GR.debug.dbg('关闭后的测试日志');
+await new Promise(r => setTimeout(r, 350));
+check('关闭后日志不再复活调试视图', documentMock.body.children.some(c => c.id === 'gr-status-bar'), false);
+// 重新开启调试模式 → 允许再次显示
+GR.status.setDebugMode(true);
+GR.status.showDebugView('<div>again</div>');
+check('重新开启后调试视图可显示', documentMock.body.children.some(c => c.id === 'gr-status-bar'), true);
+GR.float.closeAll();
 
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

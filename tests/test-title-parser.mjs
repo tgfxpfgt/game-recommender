@@ -44,6 +44,11 @@ check('clean 主名', cleanGameName('米塞里亚 Miseria|官方中文'), '米�
 check('pickRegistryEnName 标题英文优先', pickRegistryEnName('奉魔|Worship Demon', 'WORSHIP DEMON'), 'Worship Demon');
 check('pickRegistryEnName 回退 Steam 名', pickRegistryEnName('奉魔', 'WORSHIP DEMON'), 'WORSHIP DEMON');
 
+console.log('7. 抢先试玩噪声（v3.1.1 修复场景：gamer520 119668 幻世录 重制版）');
+const huanshi = parseGameTitle('幻世录 重制版 抢先试玩|Build.24428366-诸界残歌-苍炎史诗|解压即撸');
+check('首候选为纯净游戏名', huanshi[0], '幻世录');
+check('候选不含抢先试玩', huanshi.some(t => t.includes('抢先') || t.includes('试玩')), false);
+
 console.log('\n===== 标题解析测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 
