@@ -819,10 +819,20 @@
     const badge = document.createElement('span');
     badge.className = 'gr-rating-badge';
     badge.textContent = text;
-    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;`;
+    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:pointer;text-decoration:none;`;
     badge.title = (rate === null || rate === undefined)
-      ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测`
-      : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}`;
+      ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
+      : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
+    // 点击徽章跳转 Steam 详情页（span+click 而非 <a>，避免插入标题链接内部时产生嵌套链接）
+    // Clicking the badge opens the Steam store page (span+click instead of <a>
+    // to avoid nested links when inserted inside the title link)
+    if (rating.appId) {
+      badge.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.open(`https://store.steampowered.com/app/${rating.appId}/`, '_blank', 'noopener');
+      });
+    }
 
     // 查找标题元素，将徽章插入到标题文本前面（而非图片前面）
     // 策略：优先用 item.titleEl，其次在 item.element 中查找标题，最后回退到 link 的第一个文本节点

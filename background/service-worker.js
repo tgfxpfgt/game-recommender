@@ -235,7 +235,12 @@ let steamCacheMemory = null;        // Map: appId -> entry
 let steamCacheMemoryLoaded = false;
 let steamCacheWriteTimer = null;
 const STEAM_CACHE_WRITE_DEBOUNCE = 2000;  // 2秒防抖写入 / 2s debounced write
-const STEAM_CACHE_MAX_ENTRIES = 2000;     // 最大条目数，超过时按 LRU 清理 / Max entries; LRU purge when exceeded
+// 最大条目数，超过时按 LRU 清理。容量下调以控制 storage 配额占用：
+// 完整详情条目约 2-5KB，5MB 配额下 2000 条必然超限。
+// Max entries; LRU purge when exceeded. Capped lower to stay within the 5MB
+// storage quota: full detail entries are ~2-5KB, so 2000 would exceed it.
+const STEAM_CACHE_MAX_ENTRIES = 1200;
+const STEAM_CACHE_MAX_ENTRIES_AGGRESSIVE = 600; // 配额超限时的激进上限 / aggressive cap on quota errors
 
 function isSteamCacheValid(entry) {
   return entry &&
@@ -271,7 +276,12 @@ function scheduleSteamCacheWrite() {
 }
 
 // 强制立即写入：在批量查询结束时调用，确保 SW 休眠前数据不丢失
-// Force flush: call after batch queries to persist before SW may go dormant
+// 写入失败（如 storage 配额超限）仅记录日志，绝不中断主流程——此前 flush 抛错
+// 会导致整个 GET_STEAM_RATINGS 批量查询失败，列表页所有游戏无徽章且无提示。
+// Force flush: call after batch queries to persist before SW may go dormant.
+// A write failure (e.g. storage quota exceeded) is logged but NEVER aborts the
+// main flow — previously a flush error rejected the whole GET_STEAM_RATINGS
+// batch, leaving every list-page badge missing without any feedback.
 async function flushSteamCache() {
   if (steamCacheWriteTimer) {
     clearTimeout(steamCacheWriteTimer);
@@ -279,12 +289,25 @@ async function flushSteamCache() {
   }
   if (!steamCacheMemory) return;
   cleanupSteamCacheMemory(); // 写入前清理过期和超量条目 / Purge before persisting
-  await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: Object.fromEntries(steamCacheMemory) });
+  try {
+    await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: Object.fromEntries(steamCacheMemory) });
+  } catch (e) {
+    // 配额超限：激进清理后重试一次 / Quota exceeded: aggressive purge then one retry
+    console.error('Steam缓存写入失败(可能配额超限):', e.message);
+    try {
+      cleanupSteamCacheMemory(true);
+      await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: Object.fromEntries(steamCacheMemory) });
+    } catch (e2) {
+      console.error('Steam缓存写入重试仍失败:', e2.message);
+    }
+  }
 }
 
 // 内存缓存清理：移除过期条目和超量最旧条目（LRU）
-// In-memory cleanup: remove expired entries and oldest entries when over limit (LRU)
-function cleanupSteamCacheMemory() {
+// aggressive=true 时使用更小的上限（配额超限后的激进清理）
+// In-memory cleanup: remove expired entries and oldest entries when over limit
+// (LRU). aggressive=true uses a smaller cap (used after a quota error).
+function cleanupSteamCacheMemory(aggressive = false) {
   if (!steamCacheMemory) return;
   const now = Date.now();
   // 1. 清理过期条目 / Remove expired entries
@@ -292,9 +315,10 @@ function cleanupSteamCacheMemory() {
     if (!isSteamCacheValid(entry)) steamCacheMemory.delete(key);
   }
   // 2. 超量时删除最旧条目 / Remove oldest entries if over limit
-  if (steamCacheMemory.size > STEAM_CACHE_MAX_ENTRIES) {
+  const max = aggressive ? STEAM_CACHE_MAX_ENTRIES_AGGRESSIVE : STEAM_CACHE_MAX_ENTRIES;
+  if (steamCacheMemory.size > max) {
     const entries = [...steamCacheMemory.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    const toRemove = steamCacheMemory.size - STEAM_CACHE_MAX_ENTRIES;
+    const toRemove = steamCacheMemory.size - max;
     for (let i = 0; i < toRemove; i++) {
       steamCacheMemory.delete(entries[i][0]);
     }
@@ -398,7 +422,12 @@ function scheduleRegistryWrite() {
 async function flushRegistry() {
   if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
   if (!registryMemory) return;
-  await chrome.storage.local.set({ [DB_KEYS.GAME_REGISTRY]: registryMemory });
+  try {
+    await chrome.storage.local.set({ [DB_KEYS.GAME_REGISTRY]: registryMemory });
+  } catch (e) {
+    // 写入失败（配额超限）仅记录，不中断主流程 / Log only; never abort the main flow
+    console.error('注册表写入失败(可能配额超限):', e.message);
+  }
 }
 
 // ============ 3.6 名称索引 / Name Index (name → appId reverse lookup) ============
@@ -438,7 +467,11 @@ function cleanupExpiredNegativeEntries() {
     if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
     nameIndexWriteTimer = setTimeout(async () => {
       nameIndexWriteTimer = null;
-      await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+      try {
+        await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+      } catch (e) {
+        console.error('名称索引清理写入失败(可能配额超限):', e.message);
+      }
     }, NAME_INDEX_WRITE_DEBOUNCE);
   }
 }
@@ -501,7 +534,12 @@ async function recordNameIndex(gameName, appId) {
   if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
   nameIndexWriteTimer = setTimeout(async () => {
     nameIndexWriteTimer = null;
-    await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+    try {
+      await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+    } catch (e) {
+      // 写入失败（配额超限）仅记录，下次写入时重试 / Log only; retried on next write
+      console.error('名称索引防抖写入失败(可能配额超限):', e.message);
+    }
   }, NAME_INDEX_WRITE_DEBOUNCE);
 }
 
@@ -509,7 +547,12 @@ async function recordNameIndex(gameName, appId) {
 async function flushNameIndex() {
   if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
   if (!nameIndexMemory) return;
-  await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+  try {
+    await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+  } catch (e) {
+    // 写入失败（配额超限）仅记录，不中断主流程 / Log only; never abort the main flow
+    console.error('名称索引写入失败(可能配额超限):', e.message);
+  }
 }
 
 // ============ 3.7 下载站详情页网址缓存 / Download URL Cache (Layer 3: 30-day TTL) ============
@@ -2636,26 +2679,34 @@ async function handleGetSteamRatings(message) {
   const ratingNames = message.names || [];
   const ratings = {};
   const batchSize = 5;
-  for (let i = 0; i < ratingNames.length; i += batchSize) {
-    const batch = ratingNames.slice(i, i + batchSize);
-    const batchResults = await Promise.all(batch.map(async (name) => {
-      try {
-        // 列表页批量：忽略负缓存，用户主动浏览的游戏值得重试
-        // List-page batches ignore the negative cache: user-browsed games deserve a retry
-        const r = await getSteamPositiveRate(name, { ignoreNegativeCache: true });
-        return [name, r];
-      } catch (e) {
-        return [name, null];
-      }
-    }));
-    batchResults.forEach(([name, r]) => { ratings[name] = r; });
-    // 每批完成后立即落盘：列表页批量查询耗时长，若 Service Worker 在中途被
-    // 终止（MV3 超时/休眠），已完成批次的数据也不丢失。
-    // Flush after every batch: list-page batch queries take a while; if the SW
-    // is terminated mid-way (MV3 timeout/dormancy), finished batches persist.
-    await flushSteamCache();
-    await flushNameIndex();
-    await flushRegistry();
+  try {
+    for (let i = 0; i < ratingNames.length; i += batchSize) {
+      const batch = ratingNames.slice(i, i + batchSize);
+      const batchResults = await Promise.all(batch.map(async (name) => {
+        try {
+          // 列表页批量：忽略负缓存，用户主动浏览的游戏值得重试
+          // List-page batches ignore the negative cache: user-browsed games deserve a retry
+          const r = await getSteamPositiveRate(name, { ignoreNegativeCache: true });
+          return [name, r];
+        } catch (e) {
+          return [name, null];
+        }
+      }));
+      batchResults.forEach(([name, r]) => { ratings[name] = r; });
+      // 每批完成后立即落盘：列表页批量查询耗时长，若 Service Worker 在中途被
+      // 终止（MV3 超时/休眠），已完成批次的数据也不丢失。
+      // Flush after every batch: list-page batch queries take a while; if the SW
+      // is terminated mid-way (MV3 timeout/dormancy), finished batches persist.
+      // （flush 内部已安全化，写入失败不再中断批量查询）
+      // (flushes are hardened — write failures no longer abort the batch)
+      await flushSteamCache();
+      await flushNameIndex();
+      await flushRegistry();
+    }
+  } catch (e) {
+    // 防御：异常时返回已收集的部分结果，列表页仍能显示已完成游戏的徽章
+    // Defensive: return partial results so finished games still render badges
+    Logger.warn('Steam', '批量好评率查询部分失败', e.message);
   }
   return { ratings };
 }
