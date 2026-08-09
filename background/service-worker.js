@@ -417,6 +417,30 @@ async function loadNameIndexToMemory() {
   const data = await chrome.storage.local.get(DB_KEYS.NAME_INDEX);
   nameIndexMemory = new Map(Object.entries(data[DB_KEYS.NAME_INDEX] || {}));
   nameIndexMemoryLoaded = true;
+  cleanupExpiredNegativeEntries(); // 顺手清理过期负缓存 / Purge expired negative entries
+}
+
+// 清理过期的负缓存条目（内存中删除并防抖写回），避免名称索引无限增长
+// Purge expired negative-cache entries from memory (debounced write-back) so the
+// name index never grows unboundedly
+function cleanupExpiredNegativeEntries() {
+  if (!nameIndexMemory) return;
+  const now = Date.now();
+  let removed = 0;
+  for (const [key, entry] of nameIndexMemory) {
+    if ((entry.appId === null || entry.appId === undefined) &&
+        entry.lastSearched && (now - entry.lastSearched >= NAME_NEGATIVE_CACHE_TTL)) {
+      nameIndexMemory.delete(key);
+      removed++;
+    }
+  }
+  if (removed > 0) {
+    if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
+    nameIndexWriteTimer = setTimeout(async () => {
+      nameIndexWriteTimer = null;
+      await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+    }, NAME_INDEX_WRITE_DEBOUNCE);
+  }
 }
 
 // 查询游戏名对应的 appId（null 表示未找到或在负缓存期内）
@@ -1445,7 +1469,15 @@ async function searchSteamGame(gameName) {
 }
 
 // 轻量级Steam好评率查询（列表页用，复用缓存，仅获取好评率不做完整详情抓取）
-async function getSteamPositiveRate(gameName) {
+// options.ignoreNegativeCache = true 时跳过负缓存检查：列表页是用户主动浏览
+// 场景，某个游戏"曾失败一次"不应导致一直不显示——重试一次的成本可控，
+// 搜索失败时会刷新负缓存时间戳，不会放大请求量。
+// Lightweight Steam rating lookup for list pages (cache-first, no full details).
+// With options.ignoreNegativeCache = true the negative-cache check is skipped:
+// list pages are user-driven browsing, so a one-time failure must not hide a
+// game forever — a retry is cheap and a failed search refreshes the negative
+// cache timestamp instead of amplifying requests.
+async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
   // 1. 通过名称索引查找 appId（O(1)）
@@ -1479,9 +1511,11 @@ async function getSteamPositiveRate(gameName) {
       // (querying the Demo directly only yields zero reviews → a wrong "N/A")
       usableAppId = null;
     }
-  } else {
-    // 3. 无 appId 时，检查 24h 负缓存 / No appId: check 24h negative cache
+  } else if (!options.ignoreNegativeCache) {
+    // 3. 无 appId 时，检查负缓存（列表页批量场景可忽略，见函数注释）
+    //    No appId: check negative cache (list-page batches may ignore it)
     if (await isRecentlySearchedNotFound(gameName)) {
+      Logger.debug('Steam', `负缓存命中，跳过: ${gameName}`);
       return null;
     }
   }
@@ -1496,6 +1530,7 @@ async function getSteamPositiveRate(gameName) {
       searchResult = await searchSteamAppId(parseGameTitle(gameName));
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
+        Logger.warn('Steam', `列表页搜索未找到: ${gameName}`);
         await recordNameIndex(gameName, null);
         return null;
       }
@@ -1569,6 +1604,7 @@ async function getSteamPositiveRate(gameName) {
 
     return { positiveRate, ratingDesc, appId: foundAppId, name: foundName };
   } catch (e) {
+    Logger.warn('Steam', `获取好评率异常: ${gameName}`, e.message);
     console.log('获取Steam好评率失败:', e.message);
     return null;
   }
@@ -2569,7 +2605,9 @@ async function handleGetSteamRatings(message) {
     const batch = ratingNames.slice(i, i + batchSize);
     const batchResults = await Promise.all(batch.map(async (name) => {
       try {
-        const r = await getSteamPositiveRate(name);
+        // 列表页批量：忽略负缓存，用户主动浏览的游戏值得重试
+        // List-page batches ignore the negative cache: user-browsed games deserve a retry
+        const r = await getSteamPositiveRate(name, { ignoreNegativeCache: true });
         return [name, r];
       } catch (e) {
         return [name, null];
@@ -2601,7 +2639,9 @@ async function handlePrefetchSteamRatings(message) {
   if (ratingNames.length === 0) return { success: true };
 
   // 过滤：跳过已有有效缓存 / 负缓存期内的名称
-  // Filter: skip names already cached or inside the negative-cache window
+  // 预载同样忽略负缓存：目标是"翻页时全命中"，重试一次值得
+  // Filter: skip names already cached; also ignore the negative cache so the
+  // next page can hit the cache fully (a retry is worth it here)
   const needsPrefetch = [];
   for (const name of ratingNames) {
     try {
@@ -2610,8 +2650,6 @@ async function handlePrefetchSteamRatings(message) {
         const cached = await getSteamCacheEntry(appId);
         if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) continue;
         needsPrefetch.push(name); // 有 appId 但缓存过期/缺失 → 仍需预载
-      } else if (await isRecentlySearchedNotFound(name)) {
-        continue; // 负缓存期内，跳过 / within negative-cache window, skip
       } else {
         needsPrefetch.push(name);
       }
@@ -2625,7 +2663,7 @@ async function handlePrefetchSteamRatings(message) {
   for (let i = 0; i < needsPrefetch.length; i += batchSize) {
     const batch = needsPrefetch.slice(i, i + batchSize);
     await Promise.all(batch.map(async (name) => {
-      try { await getSteamPositiveRate(name); } catch (e) {}
+      try { await getSteamPositiveRate(name, { ignoreNegativeCache: true }); } catch (e) {}
     }));
   }
   // 预载结束，强制写入缓存 / Force flush after prefetch to persist
