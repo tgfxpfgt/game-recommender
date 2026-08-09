@@ -160,21 +160,25 @@ async function getSiteRules() {
 
 // 数据模块注册表：所有可备份/导入/导出的数据按模块组织，支持自定义勾选。
 // 导出格式为单 JSON 文件（含 format/version/exportedAt/modules）。
+// storageKey 使用字符串字面量而非 DB_KEYS 引用，彻底免疫顶层初始化顺序
+// 依赖（TDZ 防御）。
 // Data-module registry: all backup/import/export-able data is organized into
 // selectable modules; exports are single JSON files (format/version/exportedAt/modules).
+// storageKey uses string literals instead of DB_KEYS references, making top-level
+// initialization order-independent (TDZ-proof).
 const DATA_MODULES = [
-  { key: 'settings',        name: '扩展配置',      desc: 'Settings',        storageKey: DB_KEYS.SETTINGS },
-  { key: 'behaviorLog',     name: '浏览记录',      desc: 'Behavior Log',    storageKey: DB_KEYS.BEHAVIOR_LOG },
-  { key: 'gameProfiles',    name: '游戏画像',      desc: 'Game Profiles',   storageKey: DB_KEYS.GAME_PROFILES },
-  { key: 'keywordWeights',  name: '推荐模型',      desc: 'Keyword Weights', storageKey: DB_KEYS.KEYWORD_WEIGHTS },
-  { key: 'steamCache',      name: 'Steam 缓存',    desc: 'Steam Cache',     storageKey: DB_KEYS.STEAM_CACHE },
-  { key: 'gameRegistry',    name: '游戏注册表',    desc: 'Game Registry',   storageKey: DB_KEYS.GAME_REGISTRY },
-  { key: 'nameIndex',       name: '名称索引',      desc: 'Name Index',      storageKey: DB_KEYS.NAME_INDEX },
-  { key: 'downloadUrls',    name: '下载站网址缓存', desc: 'Download URLs',  storageKey: DB_KEYS.DOWNLOAD_URLS },
-  { key: 'freeGames',       name: '限免游戏',      desc: 'Free Games',      storageKey: DB_KEYS.FREE_GAMES },
-  { key: 'runtimeLog',      name: '运行日志',      desc: 'Runtime Logs',    storageKey: DB_KEYS.RUNTIME_LOG },
-  { key: 'downloadHistory', name: '下载历史',      desc: 'Download History', storageKey: DB_KEYS.DOWNLOAD_HISTORY },
-  { key: 'adapterRules',    name: '适配规则',      desc: 'Adapter Rules',   storageKey: DB_KEYS.ADAPTER_RULES }
+  { key: 'settings',        name: '扩展配置',      desc: 'Settings',        storageKey: 'settings' },
+  { key: 'behaviorLog',     name: '浏览记录',      desc: 'Behavior Log',    storageKey: 'behaviorLog' },
+  { key: 'gameProfiles',    name: '游戏画像',      desc: 'Game Profiles',   storageKey: 'gameProfiles' },
+  { key: 'keywordWeights',  name: '推荐模型',      desc: 'Keyword Weights', storageKey: 'keywordWeights' },
+  { key: 'steamCache',      name: 'Steam 缓存',    desc: 'Steam Cache',     storageKey: 'steamCache' },
+  { key: 'gameRegistry',    name: '游戏注册表',    desc: 'Game Registry',   storageKey: 'gameRegistry' },
+  { key: 'nameIndex',       name: '名称索引',      desc: 'Name Index',      storageKey: 'nameIndex' },
+  { key: 'downloadUrls',    name: '下载站网址缓存', desc: 'Download URLs',  storageKey: 'downloadUrls' },
+  { key: 'freeGames',       name: '限免游戏',      desc: 'Free Games',      storageKey: 'freeGames' },
+  { key: 'runtimeLog',      name: '运行日志',      desc: 'Runtime Logs',    storageKey: 'runtimeLog' },
+  { key: 'downloadHistory', name: '下载历史',      desc: 'Download History', storageKey: 'downloadHistory' },
+  { key: 'adapterRules',    name: '适配规则',      desc: 'Adapter Rules',   storageKey: 'adapterRules' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

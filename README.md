@@ -186,6 +186,11 @@ node --check options/options.js
 
 ## 更新日志
 
+### v1.11.2
+- TDZ 防御加固：DATA_MODULES 的 storageKey 改为字符串字面量（不再引用前向标识符），彻底免疫顶层初始化顺序依赖
+- 新增 TDZ 静态扫描脚本验证：全部 JS 文件无顶层后向引用
+- 注：v1.11.1 已修复根因（DB_KEYS 前移）；若仍报错请确保 chrome://extensions 中点击"重新加载"且浏览器加载的是最新文件
+
 ### v1.11.1
 - **修复扩展加载报错（Critical）**：Service Worker 顶层 `DATA_MODULES` 常量在 `DB_KEYS` 声明前初始化，触发 TDZ（Temporal Dead Zone）ReferenceError，导致整个后台加载失败
   - `DB_KEYS` 移至文件最前（import 之后立即声明），消除所有顶层常量初始化顺序依赖
