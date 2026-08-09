@@ -338,11 +338,12 @@ function needsReconfirm(entry) {
 }
 
 // 记录/更新游戏到注册表
-// appId: Steam appId
-// cnName: 中文名（来自下载站页面标题）
-// enName: 英文名（来自 Steam）
-// gameName: 触发本次记录的原始游戏名（加入 names 变体列表）
+// cnName/enName 以 Steam 官方名为准（下载站名称可能有偏差）；
+// 下载站标题等触发名加入 names 变体列表，用于跨站名称匹配兼容。
 // Record/update a game in the registry.
+// cnName/enName follow the Steam official names (download-site names may deviate);
+// triggering names (download-site titles) are kept in the names variants list
+// for cross-site matching compatibility.
 async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '' }) {
   if (!appId) return;
   await loadRegistryToMemory();
@@ -403,12 +404,22 @@ async function loadNameIndexToMemory() {
 }
 
 // 查询游戏名对应的 appId（null 表示未找到或在负缓存期内）
-// Lookup appId by game name (null = not found or in negative-cache window)
+// 精确名未命中时，回退用清理后的规范名再查一次，兼容不同下载站的
+// 名称变体（如"铁巢重炮|完整版"与"铁巢重炮|官方中文"都命中同一 appId）。
+// Lookup appId by game name (null = not found or in negative-cache window).
+// Falls back to the cleaned canonical name, so name variants across sites
+// (e.g. "铁巢重炮|完整版" vs "铁巢重炮|官方中文") hit the same appId.
 async function lookupAppIdByName(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return null;
   await loadNameIndexToMemory();
-  const entry = nameIndexMemory.get(name);
+  let entry = nameIndexMemory.get(name);
+  if (!entry) {
+    const cleaned = cleanGameName(gameName).toLowerCase().trim();
+    if (cleaned && cleaned !== name) {
+      entry = nameIndexMemory.get(cleaned);
+    }
+  }
   if (!entry) return null;
   return entry.appId || null;
 }
@@ -427,12 +438,25 @@ async function isRecentlySearchedNotFound(gameName) {
 }
 
 // 记录"游戏名→appId"映射（appId 为 null 表示"搜索过但未找到"）
-// Record a name→appId mapping (appId=null means "searched, not found")
+// 正向映射（appId 非 null）同时记录清理后的规范名，提升跨站变体命中率；
+// 负缓存（appId null）不记录规范名——避免某个变体搜索失败误伤其他站点
+// 的同名变体（如"铁巢重炮|完整版"失败不应挡住"铁巢重炮|官方中文"）。
+// Record a name→appId mapping (appId=null means "searched, not found").
+// Positive mappings also index the cleaned canonical name for cross-site hits;
+// negative entries do NOT share the canonical name, so one variant failing to
+// search never blocks other sites' variants of the same game.
 async function recordNameIndex(gameName, appId) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return;
   await loadNameIndexToMemory();
-  nameIndexMemory.set(name, { appId: appId || null, lastSearched: Date.now() });
+  const timestamp = Date.now();
+  nameIndexMemory.set(name, { appId: appId || null, lastSearched: timestamp });
+  if (appId) {
+    const cleaned = cleanGameName(gameName).toLowerCase().trim();
+    if (cleaned && cleaned !== name) {
+      nameIndexMemory.set(cleaned, { appId, lastSearched: timestamp });
+    }
+  }
   // 防抖写入 / Debounced write
   if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
   nameIndexWriteTimer = setTimeout(async () => {
@@ -508,7 +532,9 @@ async function getDownloadUrlForSite(appId, siteKey) {
 // If the URL differs from the stored one, replace it and record lastRefreshed;
 // if same, only update lastAccessed.
 async function recordDownloadUrl(appId, siteKey, siteName, url) {
-  if (!appId || !siteKey || !url) return;
+  // 仅接受 http/https 且非内网地址（SSRF 纵深防御）
+  // Only http/https, non-private URLs are accepted (SSRF defense in depth)
+  if (!appId || !siteKey || !isSafeFetchUrl(url)) return;
   const store = await readDownloadUrlsStore();
   const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
   const key = String(appId);
@@ -532,7 +558,37 @@ async function recordDownloadUrl(appId, siteKey, siteName, url) {
   await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
 }
 
-// ============ 4. 运行日志 / Runtime Logger ============
+// 批量记录/更新某站点下多个 appId 的详情页地址（列表页调用）。
+// 一次读取、一次写入 storage，避免逐条读写造成 I/O 放大。
+// Batch-record detail-page URLs for many appIds at one site (list-page call).
+// Single read + single write, avoiding per-entry storage I/O.
+async function recordDownloadUrlsBatch(siteKey, siteName, entries) {
+  if (!siteKey || !entries || entries.length === 0) return;
+  const store = await readDownloadUrlsStore();
+  const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
+  const now = Date.now();
+  for (const entry of entries) {
+    const appId = entry && entry.appId;
+    const url = entry && entry.url;
+    // 仅接受 http/https 且非内网地址（安全校验，防止缓存的内网地址被后续请求利用）
+    // Only http/https, non-private URLs are accepted (SSRF defense in depth)
+    if (!appId || !isSafeFetchUrl(url)) continue;
+    const key = String(appId);
+    const existing = bucket[key];
+    if (existing && existing.url === url) {
+      existing.lastAccessed = now; // 网址未变，仅更新调用时间 / URL unchanged
+    } else {
+      bucket[key] = {
+        url: String(url),
+        siteName: siteName || siteKey,
+        firstSeen: existing ? existing.firstSeen : now,
+        lastRefreshed: now,
+        lastAccessed: now
+      };
+    }
+  }
+  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
+}
 // 内存缓冲 + 防抖批量写入：高频日志（如批量好评率查询）不逐条写 storage，
 // 而是累积到内存缓冲区，2 秒后一次性合并写入，大幅降低 I/O。
 // In-memory buffer + debounced batch write: high-frequency logs (e.g. batch rating
@@ -1245,11 +1301,16 @@ async function searchSteamGame(gameName) {
   //    Lookup appId via name index (O(1), in-memory cached)
   let appId = await lookupAppIdByName(gameName);
 
-  // 2. 若已有 appId，检查 Steam 动态缓存（24h 有效，以 appId 为键）
-  //    If appId known, check Steam dynamic cache (24h TTL, appId-keyed)
+  // 2. 若已有 appId，检查 Steam 动态缓存（24h 有效，以 appId 为键）。
+  //    命中条件为 appId+name 即可——列表页写入的部分缓存（好评率等）也能被
+  //    详情页复用，避免重复调用 Steam API（渲染端对缺失字段已容错）。
+  //    If appId known, check Steam dynamic cache (24h TTL, appId-keyed).
+  //    appId+name is enough to hit: partial entries written by the list page
+  //    (ratings etc.) are reusable by detail pages, avoiding Steam API calls
+  //    (the renderer tolerates missing fields).
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
-    if (isSteamCacheValid(cached) && cached.data && cached.data.url && cached.data.appId) {
+    if (isSteamCacheValid(cached) && cached.data && cached.data.appId && cached.data.name) {
       // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
       // Self-heal: Demo cache entry without rating → ignore cache, re-search the full version
       if (isDemoCacheWithoutRating(cached.data)) {
@@ -1284,11 +1345,13 @@ async function searchSteamGame(gameName) {
     if (!result) return null;
 
     // 6. 写入三层缓存：Steam 动态缓存(24h) + 游戏注册表(永久) + 名称索引
-    //    Write to all 3 cache layers: Steam dynamic (24h) + registry (permanent) + name index
+    //    注册表以 Steam 官方中英文名为准，下载站标题入 names 变体
+    //    Write to all 3 cache layers; registry uses Steam official CN/EN names,
+    //    the download-site title goes into the names variants list
     await setSteamCacheEntry(appId, result);
     await recordGameInRegistry(appId, {
-      cnName: gameName,
-      enName: pickRegistryEnName(gameName, result.englishName),
+      cnName: result.name,
+      enName: result.englishName || result.name,
       gameName
     });
     await recordNameIndex(gameName, appId);
@@ -1368,8 +1431,13 @@ async function getSteamPositiveRate(gameName) {
     const mergedData = { ...existing, appId: foundAppId, name: foundName, positiveRate, ratingDesc };
     await setSteamCacheEntry(foundAppId, mergedData);
 
-    // 7. 同步更新游戏注册表和名称索引 / Sync registry and name index
-    await recordGameInRegistry(foundAppId, { cnName: gameName, enName: foundName, gameName });
+    // 7. 同步更新游戏注册表和名称索引（列表页轻量路径：cnName 用 Steam 搜索名）
+    //    Sync registry and name index (lightweight list-page path: cnName from Steam search)
+    await recordGameInRegistry(foundAppId, {
+      cnName: foundName,
+      enName: pickRegistryEnName(gameName, foundName),
+      gameName
+    });
     await recordNameIndex(gameName, foundAppId);
 
     return { positiveRate, ratingDesc, appId: foundAppId, name: foundName };
@@ -2164,6 +2232,16 @@ async function handleTrackDownloadSiteVisit(message) {
   return { success: true };
 }
 
+// 列表页批量记录：一条消息写入多个 appId 的下载页地址（含站点推断）
+// List-page batch record: write many appId → detail-page URL mappings in one message
+async function handleRecordDownloadUrlsBatch(message) {
+  const data = message.data || {};
+  const siteInfo = inferSiteFromDomain(data.domain || '');
+  if (siteInfo.key === 'unknown') return { success: false };
+  await recordDownloadUrlsBatch(siteInfo.key, siteInfo.name, data.entries || []);
+  return { success: true };
+}
+
 // --- 各消息类型的独立 handler / Individual message handlers ---
 
 async function handleTrackEvent(message) {
@@ -2277,11 +2355,12 @@ async function handleGetSteamByAppId(message) {
     if (!result) return { data: null, cachedAt: null };
 
     // 3. 写入三层缓存：Steam 动态缓存 + 游戏注册表 + 名称索引
-    //    Write to all 3 cache layers
+    //    注册表以 Steam 官方中英文名为准
+    //    Write to all 3 cache layers; registry uses Steam official CN/EN names
     await setSteamCacheEntry(appId, result);
     await recordGameInRegistry(appId, {
-      cnName: gameName,
-      enName: pickRegistryEnName(gameName, result.englishName),
+      cnName: result.name,
+      enName: result.englishName || result.name,
       gameName
     });
     if (gameName) await recordNameIndex(gameName, appId);
@@ -2375,14 +2454,41 @@ async function handleGetSteamRatings(message) {
 
 // 预热Steam缓存：与 GET_STEAM_RATINGS 相同的查询逻辑，但以更小批次、更低优先级
 // 运行，仅填充缓存不返回数据，供列表页预载下一页使用。
+// 效率优化：先过滤掉已有有效缓存或处于负缓存期的名称，只对真正需要的名称发请求，
+// 大幅减少翻页时的 API 调用（翻页后几乎全部命中缓存）。
 // Prefetch Steam cache: same query logic as GET_STEAM_RATINGS but with smaller
-// batch size and lower priority; only fills cache without returning data.
+// batches and lower priority; only fills cache without returning data.
+// Efficiency: names with a valid cache entry or inside the negative-cache window
+// are filtered out first, so only genuinely missing data triggers API calls
+// (nearly all hits after flipping to the next page).
 async function handlePrefetchSteamRatings(message) {
   const ratingNames = message.names || [];
   if (ratingNames.length === 0) return { success: true };
-  const batchSize = 3; // 更小批次，降低对网络和 SW 的影响 / Smaller batch to reduce impact
-  for (let i = 0; i < ratingNames.length; i += batchSize) {
-    const batch = ratingNames.slice(i, i + batchSize);
+
+  // 过滤：跳过已有有效缓存 / 负缓存期内的名称
+  // Filter: skip names already cached or inside the negative-cache window
+  const needsPrefetch = [];
+  for (const name of ratingNames) {
+    try {
+      const appId = await lookupAppIdByName(name);
+      if (appId) {
+        const cached = await getSteamCacheEntry(appId);
+        if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) continue;
+        needsPrefetch.push(name); // 有 appId 但缓存过期/缺失 → 仍需预载
+      } else if (await isRecentlySearchedNotFound(name)) {
+        continue; // 负缓存期内，跳过 / within negative-cache window, skip
+      } else {
+        needsPrefetch.push(name);
+      }
+    } catch (e) {
+      needsPrefetch.push(name);
+    }
+  }
+  if (needsPrefetch.length === 0) return { success: true };
+
+  const batchSize = 6; // 并发批次：平衡网络与 SW 压力 / batch size balancing network and SW load
+  for (let i = 0; i < needsPrefetch.length; i += batchSize) {
+    const batch = needsPrefetch.slice(i, i + batchSize);
     await Promise.all(batch.map(async (name) => {
       try { await getSteamPositiveRate(name); } catch (e) {}
     }));
@@ -2712,6 +2818,7 @@ const MESSAGE_HANDLERS = {
   CLAIM_FREE_GAME:        handleClaimFreeGame,
   GET_DOWNLOAD_HISTORY:   handleGetDownloadHistory,
   TRACK_DOWNLOAD_SITE_VISIT: handleTrackDownloadSiteVisit,
+  RECORD_DOWNLOAD_URLS_BATCH: handleRecordDownloadUrlsBatch,
   // 游戏缓存管理 / Game cache management
   GET_GAME_CACHE_LIST:    handleGetGameCacheList,
   DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,

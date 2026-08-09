@@ -208,6 +208,16 @@
     return SITE_ADAPTERS['_default'];
   }
 
+  // 当前站点的适配器 key（用于上报下载站网址缓存）
+  // The current site's adapter key (for reporting download-URL cache entries)
+  function getAdapterKey() {
+    const domain = getCurrentDomain();
+    for (const key of Object.keys(SITE_ADAPTERS)) {
+      if (key !== '_default' && domain.includes(key)) return key;
+    }
+    return '';
+  }
+
   function trackEvent(type, data) {
     chrome.runtime.sendMessage({
       action: 'TRACK_EVENT',
@@ -575,8 +585,10 @@
     if (preloadedNextPage) return; // 已预载过则跳过 / Skip if already preloaded
     preloadedNextPage = true;
 
-    // 延迟 3 秒执行，确保当前页渲染和 API 请求优先完成
-    // Delay 3s so current page rendering and API calls take priority
+    // 延迟 2 秒执行，确保当前页渲染和 API 请求优先完成；
+    // 后台预载已过滤已缓存名称，翻页时几乎全部命中缓存。
+    // Delay 2s so current-page rendering/API calls take priority; the background
+    // prefetch skips cached names, so the next page hits the cache almost fully.
     setTimeout(async () => {
       try {
         // 1. 查找下一页 URL / Find next page URL
@@ -608,7 +620,7 @@
       } catch (e) {
         dbg('预载下一页失败: ' + e.message);
       }
-    }, 3000);
+    }, 2000);
   }
 
   // 查找下一页 URL：按优先级匹配常见分页模式
@@ -702,6 +714,11 @@
       if (response && response.ratings) {
         let shown = 0;
         let filtered = 0;
+        // 列表页批量记录：把每个游戏的 appId → 当前列表项下载页地址写入
+        // 下载站网址缓存（一次消息批量更新，供缓存管理页与后续检索复用）。
+        // Batch-record appId → detail-page URL on the list page into the
+        // download-URL cache (single message; powers the cache page and reuse).
+        const urlEntries = [];
         const minRating = settings?.enableRatingFilter ? (settings.minSteamRatingFilter || 0) : 0;
         processItems.forEach(item => {
           const rating = response.ratings[item.name];
@@ -709,6 +726,7 @@
           // Show a badge whenever an appId is matched: the positive rate if reviews
           // exist, or "暂无" (N/A) for games with zero reviews.
           if (rating && rating.appId) {
+            if (item.url) urlEntries.push({ appId: rating.appId, url: item.url });
             if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
               // 好评率过滤：低于阈值的移除该项（从DOM中删除，使后续元素自动重排）
               if (minRating > 0 && rating.positiveRate < minRating) {
@@ -728,6 +746,15 @@
             // 启用了过滤但没有Steam数据的项，暂时保留不隐藏
           }
         });
+        // 批量写入下载站网址缓存（fire-and-forget，不阻塞徽章渲染）
+        // Batch-write download-URL cache (fire-and-forget, no blocking)
+        const siteKey = getAdapterKey();
+        if (siteKey && urlEntries.length > 0) {
+          chrome.runtime.sendMessage({
+            action: 'RECORD_DOWNLOAD_URLS_BATCH',
+            data: { siteKey, siteName: getAdapter().name, domain: getCurrentDomain(), entries: urlEntries }
+          }).catch(() => {});
+        }
         dbg(`列表页显示 ${shown} 个Steam好评率${minRating > 0 ? `，过滤 ${filtered} 个低于${minRating}%的游戏` : ''}`);
       }
     } catch (e) {
