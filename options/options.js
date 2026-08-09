@@ -35,6 +35,7 @@
       bindEvents();
       bindTabEvents();   // 侧边栏分类切换
       OPTS.bindCacheEvents(); // 游戏缓存管理
+      OPTS.bindRulesEvents(); // 规则管理（v3.0.0）
       OPTS.populateCacheSiteFilter(); // 缓存页下载站筛选
       OPTS.loadDataModules(); // 数据模块清单（勾选 UI）
       OPTS.loadBackupsSelect(); // 备份列表（恢复下拉）
@@ -57,6 +58,10 @@
         // 切换到缓存面板时自动加载数据
         if (panelId === 'cache') {
           OPTS.loadGameCache();
+        }
+        // 切换到规则面板时加载规则
+        if (panelId === 'rules') {
+          OPTS.loadRules();
         }
       });
     });

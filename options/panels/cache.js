@@ -52,8 +52,35 @@
     });
     // 刷新按钮
     document.getElementById('cacheRefreshBtn').addEventListener('click', () => loadGameCache());
+    // 清理过期缓存（v3.0.0）
+    document.getElementById('cacheCleanExpiredBtn').addEventListener('click', cleanExpiredCache);
     // 清空全部
     document.getElementById('cacheClearAllBtn').addEventListener('click', clearAllCache);
+  }
+
+  // 一键清理过期缓存：Steam 动态缓存 / 名称负缓存 / 下载站网址（按 TTL）
+  // One-click expired-cache cleanup (Steam / name negative / download URLs)
+  async function cleanExpiredCache() {
+    const btn = document.getElementById('cacheCleanExpiredBtn');
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '🧹 清理中...';
+    try {
+      const resp = await chrome.runtime.sendMessage({ action: 'CLEAN_EXPIRED_CACHE' });
+      const statsEl = document.getElementById('cacheStats');
+      if (resp && resp.total >= 0) {
+        statsEl.innerHTML = `✅ 清理完成：Steam 缓存 <b>${resp.steamCache}</b> · 名称负缓存 <b>${resp.nameIndex}</b> · 下载站网址 <b>${resp.downloadUrls}</b>，共 <b>${resp.total}</b> 条过期条目`;
+        await loadGameCache(); // 刷新列表
+      } else {
+        statsEl.textContent = '清理失败，请查看运行日志';
+      }
+    } catch (e) {
+      const statsEl = document.getElementById('cacheStats');
+      statsEl.textContent = '清理失败: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
   }
 
   // 生成缓存页下载站筛选选项（来自规则文件）

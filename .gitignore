@@ -1,47 +1,50 @@
-# ===== æ“ä½œç³»ç»Ÿç”Ÿæˆæ–‡ä»¶ =====
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-
-# ===== ç¼–è¾‘å™¨/IDE =====
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.qoder/
-
-# ===== æ—¥å¿—ä¸ä¸´æ—¶æ–‡ä»¶ =====
-*.log
-*.tmp
-*.temp
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# ===== ä¾èµ–ç›®å½•ï¼ˆå¦‚åç»­å¼•å…¥æ„å»ºå·¥å…·ï¼‰=====
-node_modules/
-bower_components/
-
-# ===== æ„å»ºäº§ç‰© =====
-dist/
-build/
-*.zip
-*.crx
-*.pem
-
-# ===== ç¯å¢ƒå˜é‡ä¸å¯†é’¥ =====
-.env
-.env.local
-*.key
-secrets.json
-
-# ===== AI åŠ©æ‰‹å·¥ä½œç›®å½• =====
-.workbuddy/
-.mimosa/
-
-# ===== å¤‡ä»½ä¸ç¼“å­˜æ•°æ® =====
-*.bak
-backup-*.json
+# ===== ²Ù×÷ÏµÍ³Éú³ÉÎÄ¼ş ===== 
+.DS_Store 
+Thumbs.db 
+ehthumbs.db 
+Desktop.ini 
+$RECYCLE.BIN/ 
+ 
+# ===== ±à¼­Æ÷/IDE ===== 
+.vscode/ 
+.idea/ 
+*.swp 
+*.swo 
+*~ 
+.qoder/ 
+ 
+# ===== ÈÕÖ¾ÓëÁÙÊ±ÎÄ¼ş ===== 
+*.log 
+*.tmp 
+*.temp 
+npm-debug.log* 
+yarn-debug.log* 
+yarn-error.log* 
+ 
+# ===== ÒÀÀµÄ¿Â¼ ===== 
+node_modules/ 
+bower_components/ 
+ 
+# ===== ¹¹½¨²úÎï ===== 
+dist/ 
+build/ 
+*.zip 
+*.crx 
+*.pem 
+ 
+# ===== »·¾³±äÁ¿ÓëÃÜÔ¿ ===== 
+.env 
+.env.local 
+*.key 
+secrets.json 
+ 
+# ===== AI ÖúÊÖ¹¤×÷Ä¿Â¼ ===== 
+.workbuddy/ 
+.mimosa/ 
+ 
+# ===== ±¸·İÓë»º´æÊı¾İ ===== 
+*.bak 
+backup-*.json 
+ 
+# ===== AI ÖúÊÖ»á»°/¼Æ»®ÎÄ¼ş ===== 
+.zcode/

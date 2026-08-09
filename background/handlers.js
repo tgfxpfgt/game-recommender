@@ -5,11 +5,12 @@
  * All message handlers and the dispatch map (stateless; delegates to modules).
  */
 import { dataStore } from '../data/data-store.js';
-import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS } from './core/constants.js';
+import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS, resolveTtlMs } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
 import { resetInMemoryCaches } from './core/reset.js';
-import { getDownloadSites } from './core/rules.js';
+import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
+import { collectExpiredSteamCache, collectExpiredNegativeNames, collectExpiredDownloadUrls } from './storage/cleanup.js';
 import {
   flushSteamCache, getSteamCacheEntry, setSteamCacheEntry,
   deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory
@@ -421,6 +422,58 @@ async function handleClearData() {
   return { success: true };
 }
 
+// --- 适配规则管理（v3.0.0 规则编辑器支撑）---
+async function handleGetAdapterRules() {
+  // 编辑器渲染：内置 / 已导入 / 生效合并规则
+  return await getAllRules();
+}
+
+async function handleSaveAdapterRules(message) {
+  // 后台二次校验：仅接受纯数据 JSON（白名单字段/拒绝函数/规模上限）
+  const result = await saveAdapterRules(message && message.rules);
+  if (result.ok) {
+    Logger.info('Rules', `保存适配规则: ${result.rules.sites.length} 个站点`);
+  } else {
+    Logger.warn('Rules', `保存适配规则失败: ${result.error}`);
+  }
+  return result;
+}
+
+async function handleDeleteAdapterRules() {
+  // 删除用户导入规则，恢复内置规则
+  await deleteAdapterRules();
+  Logger.info('Rules', '删除导入规则，恢复内置规则');
+  return { ok: true };
+}
+
+// --- 缓存过期清理（v3.0.0）---
+async function handleCleanExpiredCache() {
+  const settings = await getSettings();
+  const ttl = settings.cacheTtls || {};
+  const steamTtl = resolveTtlMs('steamDynamic', ttl.steamDynamic);
+  const negTtl = resolveTtlMs('negativeCache', ttl.negativeCache);
+  const urlTtl = resolveTtlMs('downloadUrls', ttl.downloadUrls);
+
+  const [steamData, nameData, urlStore] = await Promise.all([
+    dataStore.readModule(DB_KEYS.STEAM_CACHE),
+    dataStore.readModule(DB_KEYS.NAME_INDEX),
+    readDownloadUrlsStore()
+  ]);
+  const steam = collectExpiredSteamCache(steamData || {}, steamTtl);
+  const names = collectExpiredNegativeNames(nameData || {}, negTtl);
+  const urls = collectExpiredDownloadUrls(urlStore, urlTtl);
+
+  await Promise.all([
+    dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steam.map)),
+    dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(names.map)),
+    dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, urls.store)
+  ]);
+  resetInMemoryCaches();
+  const total = steam.removed + names.removed + urls.removed;
+  Logger.info('Cache', `清理过期缓存: Steam ${steam.removed} / 负缓存 ${names.removed} / 网址 ${urls.removed}`);
+  return { steamCache: steam.removed, nameIndex: names.removed, downloadUrls: urls.removed, total };
+}
+
 // --- 下载站搜索（Steam 页浮窗）---
 async function handleSearchDownloadSites(message) {
   const settings = await getSettings();
@@ -740,7 +793,11 @@ export const MESSAGE_HANDLERS = {
   },
   GET_BACKUPS:            async () => ({ backups: await getBackupList() }),
   RESTORE_BACKUP:         async (msg) => restoreBackup(msg.backupId, msg.moduleKeys),
-  DELETE_BACKUP:          async (msg) => deleteBackup(msg.backupId)
+  DELETE_BACKUP:          async (msg) => deleteBackup(msg.backupId),
+  GET_ADAPTER_RULES:      handleGetAdapterRules,
+  SAVE_ADAPTER_RULES:     handleSaveAdapterRules,
+  DELETE_ADAPTER_RULES:   handleDeleteAdapterRules,
+  CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache
 };
 
 // 消息统一入口 / Message entry

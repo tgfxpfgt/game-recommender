@@ -119,6 +119,7 @@ export function resolveTtlMs(key, value) {
 export const steamCacheTtlMs = () => resolveTtlMs('steamDynamic', TTL_CONFIG.steamDynamic);
 export const registryConfirmTtlMs = () => resolveTtlMs('registryConfirm', TTL_CONFIG.registryConfirm);
 export const nameNegativeCacheTtlMs = () => resolveTtlMs('negativeCache', TTL_CONFIG.negativeCache);
+export const downloadUrlsTtlMs = () => resolveTtlMs('downloadUrls', TTL_CONFIG.downloadUrls);
 
 // Steam 缓存写参数 / Steam cache write parameters
 export const STEAM_CACHE_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounced write

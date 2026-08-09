@@ -44,6 +44,9 @@
         <button class="nav-item" data-panel="sites">
           <span class="nav-icon">🌐</span><span>网站</span>
         </button>
+        <button class="nav-item" data-panel="rules">
+          <span class="nav-icon">🧩</span><span>规则管理</span>
+        </button>
         <button class="nav-item" data-panel="cache">
           <span class="nav-icon">🗄️</span><span>缓存与数据</span>
         </button>
@@ -357,6 +360,77 @@
         </div>
       </section>
 
+      <!-- ============ 面板：规则管理 / Panel: Rules ============ -->
+      <section class="settings-panel" id="panel-rules">
+        <div class="panel-header">
+          <h2>规则管理</h2>
+          <p>Adapter Rules</p>
+        </div>
+        <div class="panel-body">
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-icon">🧩</span>
+              <div class="section-title">
+                <h3>下载站适配规则</h3>
+                <span class="section-subtitle">Download-site Adapter Rules</span>
+              </div>
+            </div>
+            <div class="section-body">
+              <p class="section-note">
+                查看与编辑下载站适配规则（新增站点只需复制现有规则项修改）。
+                保存的规则覆盖内置规则，可独立导出/导入；保存后刷新已打开的下载站页面生效<br>
+                <em>View &amp; edit download-site adapter rules (copy an existing item to add a site).
+                Saved rules override the built-ins and can be exported/imported;
+                refresh open download-site pages after saving.</em>
+              </p>
+              <div class="rule-toolbar">
+                <span id="ruleSource" class="rule-source"></span>
+                <button id="ruleResetBuiltin" class="btn btn-sm" title="删除用户导入规则，恢复内置规则">♻️ 恢复内置</button>
+                <button id="ruleExport" class="btn btn-sm">📤 导出规则 JSON</button>
+                <button id="ruleImport" class="btn btn-sm">📥 导入规则 JSON</button>
+                <input type="file" id="ruleImportFile" accept=".json" class="hidden-file">
+              </div>
+              <div id="ruleList" class="rule-list"></div>
+              <details class="rule-field-help">
+                <summary>字段说明 <small>Field reference</small></summary>
+                <table class="rule-field-table">
+                  <tr><th>字段 / Field</th><th>说明 / Description</th></tr>
+                  <tr><td>key</td><td>站点唯一标识（小写字母/数字/-/_，后台搜索与缓存分桶使用）</td></tr>
+                  <tr><td>name</td><td>显示名</td></tr>
+                  <tr><td>domains</td><td>域名匹配数组（内容脚本按域名选适配器）</td></tr>
+                  <tr><td>base</td><td>站点根地址</td></tr>
+                  <tr><td>searchUrl</td><td>站内搜索 URL 模板，{q} 为编码后的搜索词（有此字段才可被 Steam 页检索）</td></tr>
+                  <tr><td>detailUrlPatterns</td><td>详情页 URL 特征正则数组（pathname）</td></tr>
+                  <tr><td>imageAppId</td><td>封面图 Steam appId 直取开关（true/false）</td></tr>
+                  <tr><td>listPage.urlPatterns</td><td>列表页 URL 特征正则数组</td></tr>
+                  <tr><td>listPage.minDetailLinks</td><td>通用判断：详情链接数达到该值视为列表页</td></tr>
+                  <tr><td>listPage.selectors</td><td>列表页 DOM 选择器（任一存在即列表页）</td></tr>
+                  <tr><td>listItem.containers</td><td>列表容器选择器数组（按优先级）</td></tr>
+                  <tr><td>listItem.titleLink</td><td>标题链接选择器（策略 1 优先，如 a.tit）</td></tr>
+                  <tr><td>listItem.titleEls</td><td>标题元素选择器数组（策略 2 回退）</td></tr>
+                  <tr><td>listItem.excludeClasses</td><td>跳过的链接类（纯图片/按钮）</td></tr>
+                  <tr><td>listItem.minLen / maxLen</td><td>标题长度范围（minLen 建议 2，支持两字游戏名）</td></tr>
+                  <tr><td>listItem.fallbackLinks</td><td>容器策略失败时回退全页面链接提取（true/false）</td></tr>
+                </table>
+              </details>
+              <div class="rule-editor">
+                <div class="rule-editor-header">
+                  <span>规则 JSON 编辑 <small>Rules JSON</small></span>
+                  <button id="ruleFormat" class="btn btn-sm">✨ 格式化</button>
+                </div>
+                <textarea id="ruleEditor" class="rule-editor-area" spellcheck="false"
+                  placeholder="{ &quot;version&quot;: 1, &quot;sites&quot;: [...] }"></textarea>
+                <div class="rule-editor-actions">
+                  <button id="ruleValidate" class="btn btn-sm">🔍 校验</button>
+                  <button id="ruleSave" class="btn btn-primary btn-sm">💾 保存规则</button>
+                  <span id="ruleStatus" class="rule-status"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- ============ 面板：缓存与数据 / Panel: Cache & Data ============ -->
       <section class="settings-panel" id="panel-cache">
         <div class="panel-header">
@@ -463,6 +537,7 @@
                 </select>
                 <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
                 <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
+                <button id="cacheCleanExpiredBtn" class="btn btn-sm" title="清理过期缓存条目（Steam 缓存/名称负缓存/下载站网址）">🧹 清理过期缓存</button>
                 <button id="cacheClearAllBtn" class="btn btn-danger btn-sm">清空全部</button>
               </div>
               <div id="cacheStats" class="cache-stats"></div>
@@ -591,6 +666,7 @@
   <script src="panels/settings.js"></script>
   <script src="panels/cache.js"></script>
   <script src="panels/data-manage.js"></script>
+  <script src="panels/rules.js"></script>
   <script src="options.js"></script>
 </body>
 </html>
