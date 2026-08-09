@@ -44,20 +44,22 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 });
 
-// ============ 标签页切换 / Tab Switching ============
+// ============ 侧边栏分类切换 / Sidebar Category Switching ============
+// Chrome 设置页风格：左侧分类导航 + 右侧内容面板
+// Chrome-settings style: left category nav + right content panels
 function bindTabEvents() {
-  document.querySelectorAll('.tab-btn').forEach(btn => {
+  document.querySelectorAll('.nav-item').forEach(btn => {
     btn.addEventListener('click', () => {
-      const tabId = btn.dataset.tab;
+      const panelId = btn.dataset.panel;
       // 切换按钮激活态 / Toggle button active state
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       // 切换面板显示 / Toggle panel visibility
-      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-      const panel = document.getElementById('tab-' + tabId);
+      document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+      const panel = document.getElementById('panel-' + panelId);
       if (panel) panel.classList.add('active');
-      // 切换到缓存标签时自动加载数据 / Auto-load data when switching to cache tab
-      if (tabId === 'cache') {
+      // 切换到缓存面板时自动加载数据 / Auto-load data when switching to the cache panel
+      if (panelId === 'cache') {
         loadGameCache();
       }
     });
@@ -108,6 +110,19 @@ function renderSettings(settings) {
   // 下载站与追踪管理（合并展示：追踪行为 + Steam 检索范围）
   // Sites & tracking management (merged: track behavior + Steam-search scope)
   renderSiteManagement(settings);
+
+  // 缓存有效期 / Cache TTLs
+  const ttls = settings.cacheTtls || {};
+  document.getElementById('ttlSteamDynamic').value = ttls.steamDynamic ?? 24;
+  document.getElementById('ttlRegistryConfirm').value = ttls.registryConfirm ?? 30;
+  document.getElementById('ttlDownloadUrls').value = ttls.downloadUrls ?? 30;
+  document.getElementById('ttlNegativeCache').value = ttls.negativeCache ?? 2;
+
+  // 日志配置 / Logging config
+  document.getElementById('logEnabled').checked = settings.enableLog !== false;
+  document.getElementById('logLevel').value = settings.logLevel || 'info';
+  document.getElementById('logRetentionDays').value = settings.logRetentionDays ?? 7;
+  document.getElementById('logStorage').value = settings.logStorage || 'ndjson';
 }
 
 // ============ 下载站与追踪管理渲染 / Sites & Tracking Management ============
@@ -308,6 +323,20 @@ function bindEvents() {
     if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
     saveSettings();
   });
+
+  // 缓存有效期输入（变更即自动保存）/ Cache TTL inputs (auto-save on change)
+  ['ttlSteamDynamic', 'ttlRegistryConfirm', 'ttlDownloadUrls', 'ttlNegativeCache'].forEach(id => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.addEventListener('change', () => scheduleAutoSave());
+    el.addEventListener('input', () => scheduleAutoSave());
+  });
+
+  // 日志配置（变更即自动保存）/ Logging config (auto-save on change)
+  document.getElementById('logEnabled').addEventListener('change', () => scheduleAutoSave());
+  document.getElementById('logLevel').addEventListener('change', () => scheduleAutoSave());
+  document.getElementById('logRetentionDays').addEventListener('change', () => scheduleAutoSave());
+  document.getElementById('logStorage').addEventListener('change', () => scheduleAutoSave());
 }
 
 // ============ Auto-Save with Debounce / 防抖自动保存 ============
@@ -354,6 +383,20 @@ async function saveSettings() {
   currentSettings.trackedSites = [...new Set([...customSites, ...ruleTracked])];
   currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')]
     .map(cb => cb.dataset.site);
+
+  // 缓存有效期 / Cache TTLs
+  currentSettings.cacheTtls = {
+    steamDynamic: parseInt(document.getElementById('ttlSteamDynamic').value) || 24,
+    registryConfirm: parseInt(document.getElementById('ttlRegistryConfirm').value) || 30,
+    downloadUrls: parseInt(document.getElementById('ttlDownloadUrls').value) || 30,
+    negativeCache: parseInt(document.getElementById('ttlNegativeCache').value) || 2
+  };
+
+  // 日志配置 / Logging config
+  currentSettings.enableLog = document.getElementById('logEnabled').checked;
+  currentSettings.logLevel = document.getElementById('logLevel').value;
+  currentSettings.logRetentionDays = parseInt(document.getElementById('logRetentionDays').value) || 0;
+  currentSettings.logStorage = document.getElementById('logStorage').value;
 
   // 权重 / Weights
   currentSettings.weights = {

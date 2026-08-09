@@ -213,7 +213,18 @@ const DEFAULT_SETTINGS = {
   enableRatingFilter: false, // 是否启用好评率过滤
   enableVmFilter: false, // 是否启用虚拟机标题过滤（隐藏标题含"虚拟机板""虚拟机"的游戏）
   vmFilterKeywords: ['虚拟机板', '虚拟机'], // 虚拟机过滤关键词列表（标题命中任一即过滤）
-  steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'] // Steam详情页检索的下载站（可自定义勾选）
+  steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站（可自定义勾选）
+  // 各类缓存有效期（可在设置页自定义）/ Cache TTLs (customizable in settings)
+  cacheTtls: {
+    steamDynamic: 24,    // Steam 动态缓存（小时，好评率/评论等）/ hours
+    registryConfirm: 30, // 游戏注册表重确认（天）/ days
+    downloadUrls: 30,    // 下载站网址缓存（天）/ days
+    negativeCache: 2     // 名称搜索负缓存（小时）/ hours
+  },
+  // 日志配置 / Logging configuration
+  logLevel: 'info',       // 记录级别：debug|info|warn|error
+  logRetentionDays: 7,    // 日志保留天数（0 = 不清理）/ retention days (0 = keep all)
+  logStorage: 'ndjson'    // 存储形式：ndjson(OPFS 文件) | local(storage.local)
 };
 
 const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
@@ -235,31 +246,41 @@ const BACKUP_DATA_KEYS = [
 // v5: 缓存键从"游戏名小写"改为"appId"，统一以 appId 为唯一标识；
 //     新增 GAME_REGISTRY（永久，30天重确认）和 DOWNLOAD_URLS（30天有效）两层缓存
 const STEAM_CACHE_VERSION = 5;
-// Steam 缓存有效期：24 小时（好评率、评论等动态信息）。
+// 缓存 TTL 配置（随设置动态更新，可在设置页自定义各类缓存有效期）
+// Cache TTL config, updated dynamically from settings (per-cache-type TTLs)
+let TTL_CONFIG = { steamDynamic: 24, registryConfirm: 30, downloadUrls: 30, negativeCache: 2 };
+async function loadTtlConfig() {
+  try {
+    const s = await getSettings();
+    TTL_CONFIG = { ...TTL_CONFIG, ...(s.cacheTtls || {}) };
+  } catch (e) { /* 使用默认值 */ }
+}
+const steamCacheTtlMs = () => (TTL_CONFIG.steamDynamic || 24) * 3600 * 1000;
+const registryConfirmTtlMs = () => (TTL_CONFIG.registryConfirm || 30) * 24 * 3600 * 1000;
+const nameNegativeCacheTtlMs = () => (TTL_CONFIG.negativeCache || 2) * 3600 * 1000;
+
+// Steam 缓存有效期：由设置中的 cacheTtls.steamDynamic 控制（默认 24 小时）。
 // 缓存键为 appId，在不同下载站之间共用，减少对 Steam API 的调用。
-// TTL: 24h for dynamic Steam info (ratings, reviews). Keyed by appId,
-// shared across download sites to reduce Steam API calls.
-const STEAM_CACHE_TTL = 24 * 3600 * 1000; // 24小时
+// Steam cache TTL, controlled by settings.cacheTtls.steamDynamic (default 24h).
+// Keyed by appId, shared across download sites to reduce Steam API calls.
 
 // 名称负缓存有效期：搜索失败后 N 小时内不重复搜索（防 Steam API 限流）。
-// 保持较短（2 小时）：列表页高频场景下，临时失败的游戏很快可以重试，
-// 避免"曾失败一次就整天不显示"的体验问题。
-// Negative-cache TTL: a failed search is not retried within this window
-// (API rate-limit protection). Kept short (2h) so temporarily failed games on
-// list pages can retry soon, avoiding "failed once → hidden all day".
-const NAME_NEGATIVE_CACHE_TTL = 2 * 3600 * 1000; // 2小时
+// 由设置中的 cacheTtls.negativeCache 控制（默认 2 小时），列表页可忽略重试。
+// Name negative-cache TTL (settings.cacheTtls.negativeCache, default 2h):
+// a failed search is not retried within this window; list pages may ignore it.
 
-// 游戏注册表重确认周期：30 天。基础信息（中英文名）永久保留，
-// 但超过 30 天会重新从 Steam 获取确认，确保名称未变更。
-// Game registry re-confirm period: 30 days. Base info (CN/EN names) is kept
-// permanently, but after 30 days it's re-fetched from Steam to confirm.
-const REGISTRY_CONFIRM_TTL = 30 * 24 * 3600 * 1000; // 30天
+// 游戏注册表重确认周期（默认 30 天，可在设置页自定义）。基础信息（中英文名）
+// 永久保留，但超过周期会重新从 Steam 获取确认，确保名称未变更。
+// Game registry re-confirm period (default 30 days, customizable in settings).
+// Base info (CN/EN names) is kept permanently, but after the period it's
+// re-fetched from Steam to confirm.
+// （有效期由 settings.cacheTtls.registryConfirm 控制）/ (TTL via settings.cacheTtls.registryConfirm)
 
-// 下载站详情页网址有效期：30 天。超过后重新搜索确认。
+// 下载站详情页网址有效期：30 天（可在设置页自定义）。超过后重新搜索确认。
 // 若发现同 appId 的新详情页网址，替代旧网址并记录刷新时间。
-// Download-site detail URL TTL: 30 days. Re-search after expiry.
-// If a new URL for the same appId is found, replace the old one and record refresh time.
-const DOWNLOAD_URL_TTL = 30 * 24 * 3600 * 1000; // 30天
+// Download-site detail URL TTL: 30 days (customizable in settings). Re-search after expiry.
+// If a new URL for the same appId is found, replaces the old one and records refresh time.
+// （有效期由 settings.cacheTtls.downloadUrls 控制）/ (TTL via settings.cacheTtls.downloadUrls)
 
 // ============ 2. 存储管理 / Storage Management ============
 
@@ -273,6 +294,7 @@ async function initStorage() {
   if (!settings) {
     await dataStore.writeModule(DB_KEYS.SETTINGS, DEFAULT_SETTINGS);
   }
+  await loadTtlConfig(); // 加载缓存 TTL 配置 / Load cache TTL config
 }
 
 async function getSettings() {
@@ -290,6 +312,7 @@ async function saveSettings(settings) {
   await dataStore.writeModule(DB_KEYS.SETTINGS, settings);
   settingsCache = { ...DEFAULT_SETTINGS, ...settings };
   settingsCacheTime = Date.now();
+  await loadTtlConfig(); // 设置变更后立即刷新 TTL 配置 / Refresh TTL config immediately
 }
 
 // ============ 3. Steam 缓存工具 / Steam Cache Utils ============
@@ -315,7 +338,7 @@ const STEAM_CACHE_MAX_ENTRIES_AGGRESSIVE = 600; // 配额超限时的激进上�
 function isSteamCacheValid(entry) {
   return entry &&
     entry.version === STEAM_CACHE_VERSION &&
-    (Date.now() - entry.timestamp < STEAM_CACHE_TTL);
+    (Date.now() - entry.timestamp < steamCacheTtlMs());
 }
 
 // 加载缓存到内存（仅首次调用时从 storage 读取，后续直接命中内存）
@@ -431,7 +454,7 @@ async function getGameRegistryEntry(appId) {
 // Check if a registry entry needs re-confirmation (older than 30 days)
 function needsReconfirm(entry) {
   if (!entry || !entry.lastConfirmed) return true;
-  return (Date.now() - entry.lastConfirmed) >= REGISTRY_CONFIRM_TTL;
+  return (Date.now() - entry.lastConfirmed) >= registryConfirmTtlMs();
 }
 
 // 记录/更新游戏到注册表
@@ -530,7 +553,7 @@ function cleanupExpiredNegativeEntries() {
   let removed = 0;
   for (const [key, entry] of nameIndexMemory) {
     if ((entry.appId === null || entry.appId === undefined) &&
-        entry.lastSearched && (now - entry.lastSearched >= NAME_NEGATIVE_CACHE_TTL)) {
+        entry.lastSearched && (now - entry.lastSearched >= nameNegativeCacheTtlMs())) {
       nameIndexMemory.delete(key);
       removed++;
     }
@@ -579,7 +602,7 @@ async function isRecentlySearchedNotFound(gameName) {
   return !!entry &&
     (entry.appId === null || entry.appId === undefined) &&
     entry.lastSearched &&
-    (Date.now() - entry.lastSearched < NAME_NEGATIVE_CACHE_TTL);
+    (Date.now() - entry.lastSearched < nameNegativeCacheTtlMs());
 }
 
 // 记录"游戏名→appId"映射（appId 为 null 表示"搜索过但未找到"）
@@ -768,10 +791,23 @@ async function flushLogBuffer() {
     let logs = stored || [];
     logs.push(...pending);
 
+    // 按保留天数清理过期日志（0 = 不清理）/ Purge logs older than retention days (0 = keep all)
+    const retentionMs = (settings.logRetentionDays || 0) * 24 * 3600 * 1000;
+    if (retentionMs > 0) {
+      const cutoff = Date.now() - retentionMs;
+      logs = logs.filter(l => l && l.timestamp >= cutoff);
+    }
+
     const max = settings.maxRuntimeLog || 300;
     while (logs.length > max) logs.shift();
 
-    await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
+    // 按设置的存储形式落盘：ndjson（OPFS 文件）或 local（storage.local）
+    // Persist per the configured storage: ndjson (OPFS file) or local (storage.local)
+    if (settings.logStorage === 'local') {
+      await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: logs });
+    } else {
+      await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
+    }
   } catch (e) {
     // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
     // 尽力回填缓冲，避免日志丢失 / Best-effort refill to avoid losing logs
@@ -781,11 +817,18 @@ async function flushLogBuffer() {
 
 async function writeLog(level, module, message, data) {
   try {
+    // 按配置的记录级别过滤（logLevel: debug|info|warn|error）
+    // Filter by the configured minimum level
+    const settings = await getSettings();
+    if (!settings.enableLog) return;
+    const minLevel = LOG_LEVELS[settings.logLevel] !== undefined ? LOG_LEVELS[settings.logLevel] : LOG_LEVELS.info;
+    if (LOG_LEVELS[level] < minLevel) return;
+
     const entry = { timestamp: Date.now(), level, module, message };
     if (data !== undefined) {
       try {
         const s = typeof data === 'string' ? data : JSON.stringify(data);
-        entry.data = s.length > 500 ? s.substring(0, 500) + '...' : s;
+        entry.data = s.length > 1000 ? s.substring(0, 1000) + '...' : s;
       } catch (e) { entry.data = String(data); }
     }
 
@@ -806,7 +849,15 @@ const Logger = {
 
 async function getRuntimeLogs(limit) {
   await flushLogBuffer(); // 先落盘缓冲中的日志，保证返回完整数据 / Flush buffer first for complete data
-  const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+  // 按设置的存储形式读取 / Read per the configured storage
+  const settings = await getSettings();
+  let stored;
+  if (settings.logStorage === 'local') {
+    const data = await chrome.storage.local.get(DB_KEYS.RUNTIME_LOG);
+    stored = data[DB_KEYS.RUNTIME_LOG];
+  } else {
+    stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+  }
   const logs = stored || [];
   return limit ? logs.slice(-limit) : logs;
 }
@@ -814,7 +865,12 @@ async function getRuntimeLogs(limit) {
 async function clearRuntimeLogs() {
   logBuffer = []; // 清空内存缓冲 / Clear in-memory buffer
   if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
-  await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, []);
+  const settings = await getSettings();
+  if (settings.logStorage === 'local') {
+    await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
+  } else {
+    await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, []);
+  }
 }
 
 // 重置所有内存缓存（备份恢复/导入/清除数据后调用，避免命中旧数据）
