@@ -202,6 +202,7 @@
     // 从 UI 收集所有值
     OPTS.currentSettings.enabled = document.getElementById('enabled').checked;
     OPTS.currentSettings.showStatusBar = document.getElementById('showStatusBar').checked;
+    OPTS.currentSettings.showDebugPanel = document.getElementById('showDebugPanel').checked;
     OPTS.currentSettings.highlightThreshold = document.getElementById('threshold').value / 100;
     OPTS.currentSettings.maxBehaviorLog = parseInt(document.getElementById('maxLog').value);
 

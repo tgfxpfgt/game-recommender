@@ -197,12 +197,16 @@
     return '';
   }
 
-  // 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）
-  // Extract appId and cover URL from Steam images (optional element scope)
+  // 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）。
+  // lazyload 站点（如 gamer520）src 是占位图、真实图在 data-src/data-lazy-src，
+  // 故优先读取 data-* 属性，最后才回退 src。
+  // Extract appId and cover URL from Steam images (optional element scope).
+  // Lazyload sites (e.g. gamer520) put a placeholder in src and the real image
+  // in data-src/data-lazy-src, so data-* attributes are checked first.
   function extractSteamImageInfo(scope) {
     const imgs = (scope || document).querySelectorAll('img');
     for (const img of imgs) {
-      const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
+      const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.src || '';
       const match = src.match(/\/steam\/apps\/(\d+)\//i);
       if (match) return { appId: match[1], cover: src };
     }

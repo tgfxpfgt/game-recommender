@@ -65,6 +65,11 @@ check('成功词为整段时无候选', extractNoiseCandidates('幻世录', '幻
 check('无子串关系时无候选', extractNoiseCandidates('地城英雄', '战痕之印'), []);
 check('段内非相邻词不提取', extractNoiseCandidates('地城英雄×龙与地下城 战痕之印', '地城英雄'), []);
 
+console.log('10. 修改器噪声（v3.2.1 修复场景：gamer520 114933 哥特王朝）');
+const gothic = parseGameTitle('哥特王朝 重制版|豪华中文|Build.24539464+预购特典+全DLC+修改器|解压即撸|');
+check('首候选为纯净游戏名', gothic[0], '哥特王朝');
+check('候选不含修改器', gothic.some(t => t.includes('修改器')), false);
+
 console.log('\n===== 标题解析测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 

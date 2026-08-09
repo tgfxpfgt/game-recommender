@@ -42,6 +42,8 @@ class FakeEl {
   setAttribute(n, v) { this._attrs[n] = String(v); }
   get href() { return this._attrs['href']; }
   set href(v) { this._attrs['href'] = String(v); }
+  get src() { return this._attrs['src']; }
+  set src(v) { this._attrs['src'] = String(v); }
   appendChild(c) { if (c.parentNode) c.parentNode._removeChildFrom(c); c.parentNode = this; this.children.push(c); return c; }
   _removeChildFrom(c) { this.children = this.children.filter(x => x !== c); }
   insertBefore(c, ref) { if (c.parentNode) c.parentNode._removeChildFrom(c); c.parentNode = this; this.children.push(c); return c; }
@@ -55,7 +57,7 @@ class FakeEl {
     return this.children.find(c => c.tagName === sel.toUpperCase()) || null;
   }
   querySelectorAll(sel) {
-    if (sel === 'img') return [];
+    if (sel === 'img') return this._imgs || [];
     return [];
   }
   addEventListener(type, cb) {
@@ -249,6 +251,24 @@ GR.status.setDebugMode(true);
 GR.status.showDebugView('<div>again</div>');
 check('重新开启后调试视图可显示', documentMock.body.children.some(c => c.id === 'gr-status-bar'), true);
 GR.float.closeAll();
+
+// ============ 5. lazyload 封面 appId 直取（v3.2.1：gamer520 114933） ============
+console.log('5. lazyload 封面 appId 直取（data-src 优先）');
+const lazyScope = new FakeEl('div');
+const lazyImg = new FakeEl('img');
+lazyImg._attrs['src'] = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='; // 占位图
+lazyImg._attrs['data-src'] = 'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/1297900/c68d4/capsule_616x353.jpg';
+lazyScope._imgs = [lazyImg];
+const lazyInfo = GR.builder.extractSteamImageInfo(lazyScope);
+check('占位 src 时从 data-src 提取 appId', lazyInfo ? lazyInfo.appId : null, '1297900');
+check('返回真实封面 URL', lazyInfo ? lazyInfo.cover.includes('1297900') : false, true);
+// 无 data-src 时回退 src
+const plainImg = new FakeEl('img');
+plainImg._attrs['src'] = 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg';
+const plainScope = new FakeEl('div');
+plainScope._imgs = [plainImg];
+const plainInfo = GR.builder.extractSteamImageInfo(plainScope);
+check('无 data-src 时回退 src', plainInfo ? plainInfo.appId : null, '111');
 
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

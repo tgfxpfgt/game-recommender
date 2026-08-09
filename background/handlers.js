@@ -19,7 +19,7 @@ import { flushRegistry, getGameRegistry, getGameRegistryEntry, recordGameInRegis
 import {
   flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntries
 } from './storage/name-index.js';
-import { readDownloadUrlsStore, recordDownloadUrl, recordDownloadUrlsBatch } from './storage/download-urls.js';
+import { readDownloadUrlsStore, recordDownloadUrl, recordDownloadUrlsBatch, getDownloadUrls } from './storage/download-urls.js';
 import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorLog } from './storage/behavior.js';
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from './storage/backups.js';
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
@@ -27,7 +27,7 @@ import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } f
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
 import { calculateRecommendation } from './recommend/engine.js';
-import { searchDownloadSites } from './sites/search.js';
+import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { fetchWithTimeout } from './core/utils.js';
 
@@ -495,15 +495,43 @@ async function handleSearchDownloadSites(message) {
   const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
   const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
 
-  // 兜底：全部未命中且提供了 appId 时，用注册表中的官方中英文名重新搜索。
-  // 处理 gameName 带站点前缀（如"Steam 上的"）或与下载站译名不同的情况。
-  // Fallback: when nothing matches and an appId exists, retry with the registry's
-  // official CN/EN names (handles site-prefixed names or title mismatches).
+  // 兜底 1：缓存优先。全部未命中且提供 appId 时，优先使用下载站网址缓存
+  // （列表页/详情页访问时已记录 appId → 下载页地址）。解决英文官方名与中文站
+  // 标题跨语言不匹配导致的漏检（如 Gothic 1 Remake → 哥特王朝 重制版）。
+  // Fallback 1: the download-URL cache (recorded from list/detail visits) — it
+  // bridges cross-language mismatches between EN official names and CN titles.
+  if (sites.every(s => !s.found) && message.appId) {
+    const cached = await getDownloadUrls(message.appId);
+    for (const s of sites) {
+      const entry = cached[s.key];
+      if (entry && entry.url) {
+        s.found = true;
+        s.detailUrl = entry.url;
+        // 顺带刷新详情页元信息（失败不影响结果）
+        try {
+          const dResp = await fetchWithTimeout(entry.url, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
+          if (dResp.ok) {
+            const meta = extractDetailMeta(await dResp.text(), s.key);
+            Object.assign(s, { updateDate: meta.updateDate, version: meta.version, size: meta.size, panUrl: meta.panUrl, panCode: meta.panCode });
+          }
+        } catch (e) { /* 元信息失败忽略 */ }
+      }
+    }
+    if (sites.some(s => s.found)) {
+      Logger.info('DownloadSites', `缓存命中: "${message.gameName}" (appId ${message.appId}) 下载站网址缓存直接返回`);
+    }
+  }
+
+  // 兜底 2：全部未命中且提供了 appId 时，用注册表中的官方中英文名与
+  // 下载站标题变体重新搜索（跨语言桥接）。
+  // Fallback 2: retry with the registry's official CN/EN names AND download-site
+  // title variants (cross-language bridge).
   if (sites.every(s => !s.found) && message.appId) {
     const entry = await getGameRegistryEntry(message.appId);
-    const officialNames = [entry && entry.cnName, entry && entry.enName].filter(Boolean);
-    const distinct = [...new Set(officialNames)].filter(n => n && n !== message.gameName);
-    for (const name of distinct) {
+    const officialNames = [...new Set([
+      entry && entry.cnName, entry && entry.enName, ...(entry && entry.names || [])
+    ].filter(Boolean))].filter(n => n && n !== message.gameName);
+    for (const name of officialNames) {
       const retry = await searchDownloadSites(name, message.appId, enabledKeys);
       retry.forEach(r => {
         const target = sites.find(s => s.key === r.key);

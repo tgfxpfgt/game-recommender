@@ -16,6 +16,7 @@
     // 基本设置 / Basic settings
     document.getElementById('enabled').checked = settings.enabled;
     document.getElementById('showStatusBar').checked = settings.showStatusBar !== false;
+    document.getElementById('showDebugPanel').checked = settings.showDebugPanel === true;
     document.getElementById('threshold').value = settings.highlightThreshold * 100;
     document.getElementById('thresholdVal').textContent = `${settings.highlightThreshold * 100}%`;
     document.getElementById('maxLog').value = settings.maxBehaviorLog;

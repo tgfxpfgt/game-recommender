@@ -20,6 +20,19 @@ export async function readDownloadUrlsStore() {
   return store;
 }
 
+// 获取某 appId 的所有下载站网址（合并各站点桶；Steam 页检索缓存优先用）
+// Get all download-site URLs for an appId (merged across buckets)
+export async function getDownloadUrls(appId) {
+  if (!appId) return {};
+  const store = await readDownloadUrlsStore();
+  const key = String(appId);
+  const result = {};
+  for (const [siteKey, bucket] of Object.entries(store.sites)) {
+    if (bucket[key]) result[siteKey] = bucket[key];
+  }
+  return result;
+}
+
 // 记录/更新某 appId 在指定站点的详情页网址（仅操作该站点桶）
 // Record/update a detail-page URL for appId at a site (site-bucket only)
 export async function recordDownloadUrl(appId, siteKey, siteName, url) {
