@@ -186,6 +186,16 @@ node --check options/options.js
 
 ## 更新日志
 
+### v1.12.0
+- **service-worker.js 按功能拆分模块化**（约 3400 行 → 22 个模块文件）：
+  - `background/core/`：constants（常量/默认设置/TTL 配置）、utils（安全 fetch/正则工具）、settings、rules（适配规则读取）、reset（内存缓存聚合重置）
+  - `background/storage/`：logger、steam-cache、registry、name-index、download-urls、behavior、backups、history（各数据模块独立文件）
+  - `background/steam/`：title-parser、api、orchestrator（标题解析/Steam API/编排器）
+  - `background/recommend/engine.js`、`background/sites/search.js`、`background/freegames/manager.js`
+  - `background/handlers.js`（消息处理与分发映射）、`service-worker.js`（仅入口：导入/监听/定时/初始化）
+  - 依赖方向单向（core → storage → 业务层 → handlers → 入口），无循环依赖
+- 模块链验证：全部 39 个 JS 语法通过、TDZ 扫描无后向引用、import 路径全部存在、SW 模拟加载执行无错误
+
 ### v1.11.2
 - TDZ 防御加固：DATA_MODULES 的 storageKey 改为字符串字面量（不再引用前向标识符），彻底免疫顶层初始化顺序依赖
 - 新增 TDZ 静态扫描脚本验证：全部 JS 文件无顶层后向引用
