@@ -72,30 +72,34 @@
 ```
 game-recommender/
 ├── manifest.json              # 扩展配置文件（Manifest V3）
-├── adapters/
-│   └── sites.js               # 下载站适配规则文件（可分享、可移植，添加新站只需新增规则项）
+├── adapters/                  # 适配规则（可分享、可移植）
+│   ├── default.js             # 基础共用规则（默认选择器/标题长度/详情页特征）
+│   ├── index.js               # 聚合入口（合并默认+站点规则，暴露平台规则）
+│   ├── platforms/             # 平台独立配置
+│   │   ├── steam.js           # Steam：搜索/详情/评测 API、缓存 TTL、SteamDB/Spy
+│   │   ├── epic.js            # Epic：限免 API
+│   │   └── gog.js             # GOG：限免 API
+│   └── sites/                 # 每个下载站一个独立配置文件（含字段说明）
+│       ├── xdgame.js
+│       ├── xianyudanji.js
+│       ├── gamer520.js
+│       ├── 3dmgame.js
+│       ├── ali213.js
+│       └── gamersky.js
+├── data/
+│   └── data-store.js          # OPFS 数据存储层（分文件、ND-JSON/JSON、降级+迁移）
+├── lib/
+│   └── ndjson.js              # ND-JSON 编解码库
 ├── background/
 │   └── service-worker.js      # 后台服务工作者（核心逻辑）
 ├── content/
 │   └── tracker.js             # 内容脚本（页面注入与浮窗渲染）
 ├── styles/
 │   └── content.css            # 内容样式
-├── popup/
-│   ├── popup.html             # 工具栏弹窗
-│   ├── popup.css              # 弹窗样式（Steam 风格深蓝主题）
-│   └── popup.js               # 弹窗逻辑
-├── options/
-│   ├── options.html           # 设置页面
-│   ├── options.css            # 设置样式（Steam 风格深蓝主题）
-│   └── options.js             # 设置逻辑（自动保存）
-├── dashboard/
-│   ├── dashboard.html         # 推荐仪表盘
-│   ├── dashboard.css          # 仪表盘样式
-│   └── dashboard.js           # 仪表盘逻辑
-├── freegames/
-│   ├── freegames.html         # 限免游戏页面
-│   ├── freegames.css          # 限免页面样式
-│   └── freegames.js           # 限免页面逻辑
+├── popup/                     # 工具栏弹窗
+├── options/                   # 设置页面
+├── dashboard/                 # 推荐仪表盘
+├── freegames/                 # 限免游戏页面
 └── icons/                     # 扩展图标资源
 ```
 
@@ -181,6 +185,16 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v1.10.0
+- **OPFS 数据存储层**：基于 Origin Private File System 的分文件存储，突破 chrome.storage.local 5MB 配额（OPFS 配额为磁盘级）
+  - 每个数据模块一个文件：日志类（浏览记录/运行日志）→ **ND-JSON**（追加写入高效），其余 → **JSON**
+  - OPFS 不可用（隐私模式等）自动降级 chrome.storage.local；首次启动自动迁移旧数据
+- 适配规则目录化重构：
+  - `adapters/default.js` 基础共用规则（所有站点/平台合并的默认配置）
+  - `adapters/platforms/` 平台独立配置（steam 检索 API/缓存 TTL、epic/gog 限免 API）
+  - `adapters/sites/` 每个下载站独立文件（xdgame/xianyudanji/gamer520/3dmgame/ali213/gamersky），每个文件含字段详细说明
+  - `adapters/index.js` 聚合入口（合并默认规则，暴露平台规则）
 
 ### v1.9.0
 - 数据模块化：所有数据按模块组织（扩展配置/浏览记录/游戏画像/推荐模型/Steam 缓存/游戏注册表/名称索引/下载站网址缓存/限免游戏/运行日志/下载历史/适配规则），支持**自定义勾选**参与备份、恢复、导入、导出

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Game Recommender - 游戏智能推荐",
-  "version": "1.9.0",
+  "version": "1.10.0",
   "description": "基于浏览行为学习的游戏资源智能推荐插件，自动预判下载概率并集成Steam评分",
   "permissions": [
     "storage",
@@ -29,7 +29,20 @@
   "content_scripts": [
     {
       "matches": ["<all_urls>"],
-      "js": ["adapters/sites.js", "content/tracker.js"],
+      "js": [
+        "adapters/default.js",
+        "adapters/platforms/steam.js",
+        "adapters/platforms/epic.js",
+        "adapters/platforms/gog.js",
+        "adapters/sites/xdgame.js",
+        "adapters/sites/xianyudanji.js",
+        "adapters/sites/gamer520.js",
+        "adapters/sites/3dmgame.js",
+        "adapters/sites/ali213.js",
+        "adapters/sites/gamersky.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
       "css": ["styles/content.css"],
       "run_at": "document_idle"
     }

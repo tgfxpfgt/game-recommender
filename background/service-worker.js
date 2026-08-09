@@ -22,12 +22,30 @@
 
 // ============ 1. 常量与配置 / Constants & Config ============
 
-// 下载站适配规则来自 adapters/sites.js（规则文件化，便于分享和移植）。
-// 副作用导入：执行后规则可通过 globalThis.__GAME_RECOMMENDER_SITES__ 读取。
-// Download-site adapter rules come from adapters/sites.js (rules-as-files for
-// easy sharing and porting). Side-effect import: rules are then available via
-// globalThis.__GAME_RECOMMENDER_SITES__.
-import '../adapters/sites.js';
+// 下载站适配规则来自 adapters/ 目录（default 基础 + platforms 平台 + sites 各站，
+// 规则文件化，便于分享和移植）。副作用导入：执行后规则可通过
+// globalThis.__GAME_RECOMMENDER_SITES__ / __GAME_RECOMMENDER_PLATFORMS__ 读取。
+// Download-site adapter rules come from adapters/ (default + platforms + sites,
+// rules-as-files for sharing and porting). Side-effect imports expose the rules
+// via globalThis.__GAME_RECOMMENDER_SITES__ / __GAME_RECOMMENDER_PLATFORMS__.
+import '../adapters/default.js';
+import '../adapters/platforms/steam.js';
+import '../adapters/platforms/epic.js';
+import '../adapters/platforms/gog.js';
+import '../adapters/sites/xdgame.js';
+import '../adapters/sites/xianyudanji.js';
+import '../adapters/sites/gamer520.js';
+import '../adapters/sites/3dmgame.js';
+import '../adapters/sites/ali213.js';
+import '../adapters/sites/gamersky.js';
+import '../adapters/index.js';
+
+// 数据存储层：OPFS 分文件存储（突破 5MB 配额），日志 ND-JSON、其余 JSON，
+// 不可用时降级 chrome.storage.local，首次启动自动迁移旧数据。
+// Data store layer: OPFS per-module files (beyond the 5MB quota), ND-JSON for
+// logs and JSON otherwise, falling back to chrome.storage.local and migrating
+// legacy data on first run.
+import { dataStore } from '../data/data-store.js';
 
 // 请求目标校验：仅允许 http/https，且拒绝 localhost、环回、私有与保留地址。
 // 防止外部数据（下载站链接、用户配置）诱导扩展请求内网资源（SSRF 防护）。
@@ -109,8 +127,7 @@ let siteRulesCache = null;
 async function getSiteRules() {
   if (siteRulesCache) return siteRulesCache;
   try {
-    const data = await chrome.storage.local.get(DB_KEYS.ADAPTER_RULES);
-    const imported = data[DB_KEYS.ADAPTER_RULES];
+    const imported = await dataStore.readModule(DB_KEYS.ADAPTER_RULES);
     siteRulesCache = (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0)
       ? imported
       : (globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] });
@@ -251,9 +268,10 @@ let settingsCacheTime = 0;
 const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
 
 async function initStorage() {
-  const data = await chrome.storage.local.get(DB_KEYS.SETTINGS);
-  if (!data[DB_KEYS.SETTINGS]) {
-    await chrome.storage.local.set({ [DB_KEYS.SETTINGS]: DEFAULT_SETTINGS });
+  await dataStore.init();
+  const settings = await dataStore.readModule(DB_KEYS.SETTINGS);
+  if (!settings) {
+    await dataStore.writeModule(DB_KEYS.SETTINGS, DEFAULT_SETTINGS);
   }
 }
 
@@ -262,14 +280,14 @@ async function getSettings() {
   if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_TTL)) {
     return settingsCache;
   }
-  const data = await chrome.storage.local.get(DB_KEYS.SETTINGS);
-  settingsCache = { ...DEFAULT_SETTINGS, ...(data[DB_KEYS.SETTINGS] || {}) };
+  const stored = await dataStore.readModule(DB_KEYS.SETTINGS);
+  settingsCache = { ...DEFAULT_SETTINGS, ...(stored || {}) };
   settingsCacheTime = now;
   return settingsCache;
 }
 
 async function saveSettings(settings) {
-  await chrome.storage.local.set({ [DB_KEYS.SETTINGS]: settings });
+  await dataStore.writeModule(DB_KEYS.SETTINGS, settings);
   settingsCache = { ...DEFAULT_SETTINGS, ...settings };
   settingsCacheTime = Date.now();
 }
@@ -304,8 +322,8 @@ function isSteamCacheValid(entry) {
 // Load cache into memory (reads from storage only once, then serves from memory)
 async function loadSteamCacheToMemory() {
   if (steamCacheMemoryLoaded) return;
-  const cacheData = await chrome.storage.local.get(DB_KEYS.STEAM_CACHE);
-  steamCacheMemory = new Map(Object.entries(cacheData[DB_KEYS.STEAM_CACHE] || {}));
+  const stored = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
+  steamCacheMemory = new Map(Object.entries(stored || {}));
   steamCacheMemoryLoaded = true;
 }
 
@@ -342,16 +360,10 @@ async function flushSteamCache() {
   if (!steamCacheMemory) return;
   cleanupSteamCacheMemory(); // 写入前清理过期和超量条目 / Purge before persisting
   try {
-    await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: Object.fromEntries(steamCacheMemory) });
+    await dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steamCacheMemory));
   } catch (e) {
-    // 配额超限：激进清理后重试一次 / Quota exceeded: aggressive purge then one retry
-    console.error('Steam缓存写入失败(可能配额超限):', e.message);
-    try {
-      cleanupSteamCacheMemory(true);
-      await chrome.storage.local.set({ [DB_KEYS.STEAM_CACHE]: Object.fromEntries(steamCacheMemory) });
-    } catch (e2) {
-      console.error('Steam缓存写入重试仍失败:', e2.message);
-    }
+    // 写入失败（如配额超限）记录日志，下次 flush 重试 / Log and retry on next flush
+    console.error('Steam缓存写入失败:', e.message);
   }
 }
 
@@ -397,8 +409,8 @@ const REGISTRY_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounced write
 // Load registry into memory (reads from storage only once)
 async function loadRegistryToMemory() {
   if (registryMemoryLoaded) return;
-  const data = await chrome.storage.local.get(DB_KEYS.GAME_REGISTRY);
-  registryMemory = data[DB_KEYS.GAME_REGISTRY] || {};
+  const stored = await dataStore.readModule(DB_KEYS.GAME_REGISTRY);
+  registryMemory = stored || {};
   registryMemoryLoaded = true;
 }
 
@@ -483,10 +495,10 @@ async function flushRegistry() {
   if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
   if (!registryMemory) return;
   try {
-    await chrome.storage.local.set({ [DB_KEYS.GAME_REGISTRY]: registryMemory });
+    await dataStore.writeModule(DB_KEYS.GAME_REGISTRY, registryMemory);
   } catch (e) {
-    // 写入失败（配额超限）仅记录，不中断主流程 / Log only; never abort the main flow
-    console.error('注册表写入失败(可能配额超限):', e.message);
+    // 写入失败仅记录，不中断主流程 / Log only; never abort the main flow
+    console.error('注册表写入失败:', e.message);
   }
 }
 
@@ -503,8 +515,8 @@ const NAME_INDEX_WRITE_DEBOUNCE = 2000;
 
 async function loadNameIndexToMemory() {
   if (nameIndexMemoryLoaded) return;
-  const data = await chrome.storage.local.get(DB_KEYS.NAME_INDEX);
-  nameIndexMemory = new Map(Object.entries(data[DB_KEYS.NAME_INDEX] || {}));
+  const stored = await dataStore.readModule(DB_KEYS.NAME_INDEX);
+  nameIndexMemory = new Map(Object.entries(stored || {}));
   nameIndexMemoryLoaded = true;
   cleanupExpiredNegativeEntries(); // 顺手清理过期负缓存 / Purge expired negative entries
 }
@@ -528,9 +540,9 @@ function cleanupExpiredNegativeEntries() {
     nameIndexWriteTimer = setTimeout(async () => {
       nameIndexWriteTimer = null;
       try {
-        await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+        await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
       } catch (e) {
-        console.error('名称索引清理写入失败(可能配额超限):', e.message);
+        console.error('名称索引清理写入失败:', e.message);
       }
     }, NAME_INDEX_WRITE_DEBOUNCE);
   }
@@ -595,10 +607,10 @@ async function recordNameIndex(gameName, appId) {
   nameIndexWriteTimer = setTimeout(async () => {
     nameIndexWriteTimer = null;
     try {
-      await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+      await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
     } catch (e) {
-      // 写入失败（配额超限）仅记录，下次写入时重试 / Log only; retried on next write
-      console.error('名称索引防抖写入失败(可能配额超限):', e.message);
+      // 写入失败仅记录，下次写入时重试 / Log only; retried on next write
+      console.error('名称索引防抖写入失败:', e.message);
     }
   }, NAME_INDEX_WRITE_DEBOUNCE);
 }
@@ -608,10 +620,10 @@ async function flushNameIndex() {
   if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
   if (!nameIndexMemory) return;
   try {
-    await chrome.storage.local.set({ [DB_KEYS.NAME_INDEX]: Object.fromEntries(nameIndexMemory) });
+    await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
   } catch (e) {
-    // 写入失败（配额超限）仅记录，不中断主流程 / Log only; never abort the main flow
-    console.error('名称索引写入失败(可能配额超限):', e.message);
+    // 写入失败仅记录，不中断主流程 / Log only; never abort the main flow
+    console.error('名称索引写入失败:', e.message);
   }
 }
 
@@ -632,8 +644,7 @@ const DOWNLOAD_URLS_VERSION = 2;
 // 读取整个存储结构（含版本校验，版本不符视为空）
 // Read the whole store (with version check; mismatched versions are treated as empty)
 async function readDownloadUrlsStore() {
-  const data = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_URLS);
-  const store = data[DB_KEYS.DOWNLOAD_URLS];
+  const store = await dataStore.readModule(DB_KEYS.DOWNLOAD_URLS);
   if (!store || store.v !== DOWNLOAD_URLS_VERSION || !store.sites) {
     return { v: DOWNLOAD_URLS_VERSION, sites: {} };
   }
@@ -663,7 +674,7 @@ async function getDownloadUrlForSite(appId, siteKey) {
   if (!entry) return null;
   // 更新上次调用缓存时间 / Update last accessed time
   entry.lastAccessed = Date.now();
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
+  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
   return entry;
 }
 
@@ -698,7 +709,7 @@ async function recordDownloadUrl(appId, siteKey, siteName, url) {
       lastAccessed: now
     };
   }
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
+  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
 }
 
 // 批量记录/更新某站点下多个 appId 的详情页地址（列表页调用）。
@@ -730,7 +741,7 @@ async function recordDownloadUrlsBatch(siteKey, siteName, entries) {
       };
     }
   }
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
+  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
 }
 // 内存缓冲 + 防抖批量写入：高频日志（如批量好评率查询）不逐条写 storage，
 // 而是累积到内存缓冲区，2 秒后一次性合并写入，大幅降低 I/O。
@@ -753,14 +764,14 @@ async function flushLogBuffer() {
     const settings = await getSettings();
     if (!settings.enableLog) return; // 日志开关已关闭，丢弃缓冲 / Logging disabled; drop buffer
 
-    const stored = await chrome.storage.local.get(DB_KEYS.RUNTIME_LOG);
-    let logs = stored[DB_KEYS.RUNTIME_LOG] || [];
+    const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+    let logs = stored || [];
     logs.push(...pending);
 
     const max = settings.maxRuntimeLog || 300;
     while (logs.length > max) logs.shift();
 
-    await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: logs });
+    await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
   } catch (e) {
     // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
     // 尽力回填缓冲，避免日志丢失 / Best-effort refill to avoid losing logs
@@ -795,15 +806,15 @@ const Logger = {
 
 async function getRuntimeLogs(limit) {
   await flushLogBuffer(); // 先落盘缓冲中的日志，保证返回完整数据 / Flush buffer first for complete data
-  const stored = await chrome.storage.local.get(DB_KEYS.RUNTIME_LOG);
-  const logs = stored[DB_KEYS.RUNTIME_LOG] || [];
+  const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+  const logs = stored || [];
   return limit ? logs.slice(-limit) : logs;
 }
 
 async function clearRuntimeLogs() {
   logBuffer = []; // 清空内存缓冲 / Clear in-memory buffer
   if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
-  await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
+  await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, []);
 }
 
 // 重置所有内存缓存（备份恢复/导入/清除数据后调用，避免命中旧数据）
@@ -834,10 +845,10 @@ async function createBackup(manual = false, moduleKeys = null) {
       ? DATA_MODULES.filter(m => moduleKeys.includes(m.key))
       : DATA_MODULES;
     const storageKeys = modules.map(m => m.storageKey);
-    const data = await chrome.storage.local.get(storageKeys);
     const snapshot = {};
     for (const key of storageKeys) {
-      if (data[key] !== undefined) snapshot[key] = data[key];
+      const value = await dataStore.readModule(key);
+      if (value !== undefined) snapshot[key] = value;
     }
 
     const backup = {
@@ -849,15 +860,15 @@ async function createBackup(manual = false, moduleKeys = null) {
       data: snapshot
     };
 
-    const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
-    const backups = stored[DB_KEYS.BACKUPS] || [];
+    const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+    const backups = stored || [];
     backups.push(backup);
 
     const settings = await getSettings();
     const max = settings.maxBackups || 7;
     while (backups.length > max) backups.shift();
 
-    await chrome.storage.local.set({ [DB_KEYS.BACKUPS]: backups });
+    await dataStore.writeModule(DB_KEYS.BACKUPS, backups);
     Logger.info('Backup', `创建${manual ? '手动' : '自动'}备份 ${backup.id}`, { size: backup.size, modules: backup.modules.length, count: backups.length });
     return backup;
   } catch (e) {
@@ -867,8 +878,8 @@ async function createBackup(manual = false, moduleKeys = null) {
 }
 
 async function getBackupList() {
-  const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
-  const backups = stored[DB_KEYS.BACKUPS] || [];
+  const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+  const backups = stored || [];
   return backups.map(b => ({
     id: b.id, timestamp: b.timestamp, manual: b.manual, size: b.size,
     modules: b.modules || null // 旧备份无 modules 字段视为全量 / legacy backups = all modules
@@ -880,8 +891,8 @@ async function getBackupList() {
 // defaults to all)
 async function restoreBackup(backupId, moduleKeys = null) {
   try {
-    const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
-    const backups = stored[DB_KEYS.BACKUPS] || [];
+    const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+    const backups = stored || [];
     const backup = backups.find(b => b.id === backupId);
     if (!backup || !backup.data) {
       Logger.warn('Backup', `备份不存在: ${backupId}`);
@@ -900,7 +911,9 @@ async function restoreBackup(backupId, moduleKeys = null) {
       const key = mod.storageKey;
       if (backup.data[key] !== undefined) snapshot[key] = backup.data[key];
     }
-    await chrome.storage.local.set(snapshot);
+    for (const [key, value] of Object.entries(snapshot)) {
+      await dataStore.writeModule(key, value);
+    }
     // 备份数据可能包含旧的 settings 及各层缓存，必须使所有内存缓存失效
     // The backup may contain old settings and cache layers; invalidate ALL
     // in-memory caches so stale pre-restore data is never served afterwards
@@ -914,39 +927,38 @@ async function restoreBackup(backupId, moduleKeys = null) {
 }
 
 async function deleteBackup(backupId) {
-  const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
-  let backups = stored[DB_KEYS.BACKUPS] || [];
+  const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+  let backups = stored || [];
   backups = backups.filter(b => b.id !== backupId);
-  await chrome.storage.local.set({ [DB_KEYS.BACKUPS]: backups });
+  await dataStore.writeModule(DB_KEYS.BACKUPS, backups);
   return { success: true };
 }
 
 // ============ 6. 行为日志与游戏画像 / Behavior Log & Game Profiles ============
 
 async function addBehaviorLog(entry) {
-  const data = await chrome.storage.local.get(DB_KEYS.BEHAVIOR_LOG);
-  const log = data[DB_KEYS.BEHAVIOR_LOG] || [];
-
   entry.timestamp = Date.now();
-  log.push(entry);
+  // ND-JSON 追加写入（OPFS 文件尾部追加，无需重写整个文件）
+  // ND-JSON append (appends to the OPFS file without rewriting it)
+  await dataStore.appendModule(DB_KEYS.BEHAVIOR_LOG, entry);
 
+  // 仅当超出上限时裁剪重写 / Trim only when over the limit
   const settings = await getSettings();
-  while (log.length > settings.maxBehaviorLog) {
-    log.shift();
+  const log = await getBehaviorLog();
+  if (log.length > settings.maxBehaviorLog) {
+    await dataStore.writeModule(DB_KEYS.BEHAVIOR_LOG, log.slice(-settings.maxBehaviorLog));
   }
-
-  await chrome.storage.local.set({ [DB_KEYS.BEHAVIOR_LOG]: log });
   return log;
 }
 
 async function getBehaviorLog() {
-  const data = await chrome.storage.local.get(DB_KEYS.BEHAVIOR_LOG);
-  return data[DB_KEYS.BEHAVIOR_LOG] || [];
+  const stored = await dataStore.readModule(DB_KEYS.BEHAVIOR_LOG);
+  return stored || [];
 }
 
 async function updateGameProfile(gameInfo) {
-  const data = await chrome.storage.local.get(DB_KEYS.GAME_PROFILES);
-  const profiles = data[DB_KEYS.GAME_PROFILES] || {};
+  const stored = await dataStore.readModule(DB_KEYS.GAME_PROFILES);
+  const profiles = stored || {};
 
   const key = gameInfo.name.toLowerCase().trim();
   if (!profiles[key]) {
@@ -971,7 +983,7 @@ async function updateGameProfile(gameInfo) {
   if (gameInfo.steamRating) profile.steamRating = gameInfo.steamRating;
   profile.lastSeen = Date.now();
 
-  await chrome.storage.local.set({ [DB_KEYS.GAME_PROFILES]: profiles });
+  await dataStore.writeModule(DB_KEYS.GAME_PROFILES, profiles);
   return profiles;
 }
 
@@ -992,8 +1004,8 @@ async function maybeUpdatePreferences(force = false) {
 
 async function updateUserPreferences() {
   const log = await getBehaviorLog();
-  const data = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
-  const keywordWeights = data[DB_KEYS.KEYWORD_WEIGHTS] || {};
+  const stored = await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS);
+  const keywordWeights = stored || {};
 
   const positiveKeywords = {};  // 下载过的游戏的关键词
   const negativeKeywords = {};  // 看过但没下载的关键词
@@ -1035,7 +1047,7 @@ async function updateUserPreferences() {
     keywordWeights[kw] = pos / (pos + neg + 1);
   });
 
-  await chrome.storage.local.set({ [DB_KEYS.KEYWORD_WEIGHTS]: keywordWeights });
+  await dataStore.writeModule(DB_KEYS.KEYWORD_WEIGHTS, keywordWeights);
   return keywordWeights;
 }
 
@@ -1813,15 +1825,11 @@ async function calculateRecommendation(gameInfo, forceBuiltin = false) {
   }
 
   // 内置算法
-  const data = await chrome.storage.local.get([
-    DB_KEYS.BEHAVIOR_LOG,
-    DB_KEYS.KEYWORD_WEIGHTS,
-    DB_KEYS.GAME_PROFILES
+  const [behaviorLog, keywordWeights, profiles] = await Promise.all([
+    getBehaviorLog(),
+    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {}),
+    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {})
   ]);
-
-  const behaviorLog = data[DB_KEYS.BEHAVIOR_LOG] || [];
-  const keywordWeights = data[DB_KEYS.KEYWORD_WEIGHTS] || {};
-  const profiles = data[DB_KEYS.GAME_PROFILES] || {};
 
   // 1. 点击率得分
   let clickScore = 0.5;
@@ -1903,8 +1911,8 @@ async function calculateRecommendation(gameInfo, forceBuiltin = false) {
 async function calculateWithLLM(gameInfo, settings) {
   const { llmConfig } = settings;
 
-  const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
-  const keywordWeights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
+  const kwData = await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS);
+  const keywordWeights = kwData || {};
   const topKeywords = Object.entries(keywordWeights)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15)
@@ -2450,8 +2458,8 @@ function normalizeGameName(name) {
 }
 
 async function refreshFreeGames(force = false) {
-  const data = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
-  const existing = data[DB_KEYS.FREE_GAMES] || { lastUpdate: 0, games: [] };
+  const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
+  const existing = stored || { lastUpdate: 0, games: [] };
 
   const ONE_DAY = 24 * 3600 * 1000;
   if (!force && existing.lastUpdate && (Date.now() - existing.lastUpdate < ONE_DAY)) {
@@ -2473,15 +2481,15 @@ async function refreshFreeGames(force = false) {
   });
 
   const result = { lastUpdate: now, games: newGames };
-  await chrome.storage.local.set({ [DB_KEYS.FREE_GAMES]: result });
+  await dataStore.writeModule(DB_KEYS.FREE_GAMES, result);
   await updateFreeGamesBadge();
   return result;
 }
 
 async function updateFreeGamesBadge() {
   try {
-    const data = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
-    const games = data[DB_KEYS.FREE_GAMES]?.games || [];
+    const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
+    const games = (stored && stored.games) || [];
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayStartMs = todayStart.getTime();
@@ -2497,12 +2505,12 @@ async function updateFreeGamesBadge() {
 
 // --- 下载历史管理 / Download History Management ---
 async function getDownloadHistory() {
-  const data = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_HISTORY);
-  return data[DB_KEYS.DOWNLOAD_HISTORY] || {};
+  const stored = await dataStore.readModule(DB_KEYS.DOWNLOAD_HISTORY);
+  return stored || {};
 }
 
 async function saveDownloadHistory(history) {
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_HISTORY]: history });
+  await dataStore.writeModule(DB_KEYS.DOWNLOAD_HISTORY, history);
 }
 
 // 从domain推断站点key和名称
@@ -2896,10 +2904,10 @@ async function handleResetSettings() {
 
 async function handleGetStats() {
   const log = await getBehaviorLog();
-  const profilesData = await chrome.storage.local.get(DB_KEYS.GAME_PROFILES);
-  const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
-  const profiles = profilesData[DB_KEYS.GAME_PROFILES] || {};
-  const keywordWeights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
+  const [profiles, keywordWeights] = await Promise.all([
+    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
+    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
+  ]);
 
   const viewDetailCount = log.filter(e => e.type === 'view_detail').length;
   const downloadCount = log.filter(e => e.type === 'click_download').length;
@@ -2933,8 +2941,8 @@ async function handleGetStats() {
 }
 
 async function handleGetSteamRecommendations() {
-  const kwData = await chrome.storage.local.get(DB_KEYS.KEYWORD_WEIGHTS);
-  const weights = kwData[DB_KEYS.KEYWORD_WEIGHTS] || {};
+  const kwData = await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS);
+  const weights = kwData || {};
   const topTags = Object.entries(weights)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
@@ -2989,16 +2997,16 @@ async function handleGetSteamRecommendations() {
 }
 
 async function handleClearData() {
-  await chrome.storage.local.remove([
-    DB_KEYS.BEHAVIOR_LOG,
-    DB_KEYS.GAME_PROFILES,
-    DB_KEYS.KEYWORD_WEIGHTS,
-    DB_KEYS.STEAM_CACHE,
-    DB_KEYS.GAME_REGISTRY,
-    DB_KEYS.NAME_INDEX,
-    DB_KEYS.DOWNLOAD_URLS,
-    DB_KEYS.MANUAL_MAPPINGS
+  await Promise.all([
+    dataStore.removeModule(DB_KEYS.BEHAVIOR_LOG),
+    dataStore.removeModule(DB_KEYS.GAME_PROFILES),
+    dataStore.removeModule(DB_KEYS.KEYWORD_WEIGHTS),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE),
+    dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
+    dataStore.removeModule(DB_KEYS.NAME_INDEX),
+    dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS)
   ]);
+  await chrome.storage.local.remove(DB_KEYS.MANUAL_MAPPINGS);
   // 重置所有内存缓存，避免清除后仍命中旧数据 / Reset all in-memory caches
   resetInMemoryCaches();
   return { success: true };
@@ -3023,12 +3031,11 @@ async function handleGetFreeGames(message) {
 }
 
 async function handleClaimFreeGame(message) {
-  const fgData = await chrome.storage.local.get(DB_KEYS.FREE_GAMES);
-  const fg = fgData[DB_KEYS.FREE_GAMES] || { games: [] };
+  const fg = await dataStore.readModule(DB_KEYS.FREE_GAMES) || { games: [] };
   const game = fg.games.find(g => g.id === message.gameId);
   if (game) {
     game.claimed = true;
-    await chrome.storage.local.set({ [DB_KEYS.FREE_GAMES]: fg });
+    await dataStore.writeModule(DB_KEYS.FREE_GAMES, fg);
     await updateFreeGamesBadge();
   }
   return { success: true };
@@ -3165,7 +3172,7 @@ async function handleDeleteGameCacheEntry(message) {
   for (const bucket of Object.values(urlStore.sites)) {
     delete bucket[appId];
   }
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: urlStore });
+  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, urlStore);
 
   // 5. 清理名称索引中的相关条目 / Clean name index entries
   await loadNameIndexToMemory();
@@ -3184,13 +3191,13 @@ async function handleDeleteGameCacheEntry(message) {
 // 清空全部游戏缓存（注册表 + Steam缓存 + 下载站网址 + 名称索引）
 // Clear all game cache (registry + Steam cache + download URLs + name index)
 async function handleClearGameCache() {
-  await chrome.storage.local.remove([
-    DB_KEYS.GAME_REGISTRY,
-    DB_KEYS.STEAM_CACHE,
-    DB_KEYS.DOWNLOAD_URLS,
-    DB_KEYS.NAME_INDEX,
-    DB_KEYS.MANUAL_MAPPINGS
+  await Promise.all([
+    dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE),
+    dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
+    dataStore.removeModule(DB_KEYS.NAME_INDEX)
   ]);
+  await chrome.storage.local.remove(DB_KEYS.MANUAL_MAPPINGS);
   resetInMemoryCaches();
   Logger.info('Cache', '清空全部游戏缓存');
   return { success: true };
@@ -3263,14 +3270,11 @@ function countModuleItems(value) {
 
 // 返回模块清单（含条目数）/ Return the module list with entry counts
 async function handleGetDataModules() {
-  const keys = DATA_MODULES.map(m => m.storageKey);
-  const data = await chrome.storage.local.get(keys);
-  const modules = DATA_MODULES.map(m => ({
-    key: m.key,
-    name: m.name,
-    desc: m.desc,
-    count: countModuleItems(data[m.storageKey])
-  }));
+  const modules = [];
+  for (const m of DATA_MODULES) {
+    const value = await dataStore.readModule(m.storageKey);
+    modules.push({ key: m.key, name: m.name, desc: m.desc, count: countModuleItems(value) });
+  }
   return { modules };
 }
 
@@ -3279,12 +3283,11 @@ async function handleExportData(message) {
   const moduleKeys = (message.moduleKeys && message.moduleKeys.length > 0)
     ? message.moduleKeys
     : DATA_MODULES.map(m => m.key);
-  const keys = DATA_MODULES.filter(m => moduleKeys.includes(m.key)).map(m => m.storageKey);
-  const data = await chrome.storage.local.get(keys);
   const modules = {};
   for (const mod of DATA_MODULES) {
     if (!moduleKeys.includes(mod.key)) continue;
-    if (data[mod.storageKey] !== undefined) modules[mod.key] = data[mod.storageKey];
+    const value = await dataStore.readModule(mod.storageKey);
+    if (value !== undefined) modules[mod.key] = value;
   }
   // 适配规则无用户导入时导出内置规则，保证迁移完整性
   // Export the built-in rules when no user-imported rules exist (migration completeness)
@@ -3298,8 +3301,8 @@ async function handleExportData(message) {
   };
 }
 
-// 导入数据（校验格式/版本，按所选模块写入 storage）
-// Import data (validate format/version, write selected modules into storage)
+// 导入数据（校验格式/版本，按所选模块写入数据层）
+// Import data (validate format/version, write selected modules into the data store)
 async function handleImportData(message) {
   const payload = message.data;
   if (!payload || typeof payload !== 'object') return { success: false, error: '数据格式不正确' };
@@ -3317,7 +3320,7 @@ async function handleImportData(message) {
       if (!mod) continue;
       const value = payload.modules[key];
       if (value === undefined) continue;
-      await chrome.storage.local.set({ [mod.storageKey]: value });
+      await dataStore.writeModule(mod.storageKey, value);
       imported.push(key);
     }
     // 导入后重置所有内存缓存，避免命中旧数据
