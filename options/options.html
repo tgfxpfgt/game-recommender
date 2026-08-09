@@ -332,16 +332,36 @@
         </div>
       </div>
       <div class="section-body">
-        <p class="section-note">备份、恢复或清除插件数据<br><em>Backup, restore, or clear extension data</em></p>
-        <!-- 备份管理按钮组 / Backup management actions -->
+        <p class="section-note">备份、恢复或导入导出插件数据（可自定义勾选数据类型）<br><em>Backup, restore, import or export data with per-type selection</em></p>
+
+        <!-- 数据模块勾选（由 JS 从后台模块清单生成）/ Module checkboxes (from the background module list) -->
+        <div class="module-check-header">
+          <span class="module-check-title">数据类型 <small>Data types</small></span>
+          <button id="moduleCheckAll" class="btn btn-sm">全选</button>
+          <button id="moduleCheckNone" class="btn btn-sm">全不选</button>
+        </div>
+        <div id="moduleCheckList" class="module-check-list"></div>
+
+        <!-- 备份管理按钮组 / Backup & transfer actions -->
         <div class="data-actions">
           <button id="exportData" class="btn data-btn">
             <span class="btn-icon">📤</span>
-            <span>导出数据</span>
+            <span>导出所选</span>
           </button>
           <button id="importData" class="btn data-btn">
             <span class="btn-icon">📥</span>
-            <span>导入数据</span>
+            <span>导入</span>
+          </button>
+          <button id="createBackupBtn" class="btn data-btn">
+            <span class="btn-icon">➕</span>
+            <span>备份所选</span>
+          </button>
+          <select id="restoreBackupSelect" class="text-input restore-select" title="选择要恢复的备份">
+            <option value="">选择备份...</option>
+          </select>
+          <button id="restoreBackupBtn" class="btn data-btn" disabled>
+            <span class="btn-icon">♻️</span>
+            <span>恢复所选</span>
           </button>
           <button id="resetDefaults" class="btn data-btn">
             <span class="btn-icon">♻️</span>
@@ -354,6 +374,7 @@
         </div>
         <!-- 隐藏的文件输入 / Hidden file input -->
         <input type="file" id="importFile" accept=".json" class="hidden-file">
+        <div id="dataOpStatus" class="data-op-status"></div>
       </div>
     </section>
   </main>

@@ -37,6 +37,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     bindTabEvents();   // 绑定标签页切换事件 / Bind tab switching events
     bindCacheEvents(); // 绑定游戏缓存管理事件 / Bind game cache management events
     populateCacheSiteFilter(); // 生成缓存页下载站筛选选项 / Build cache-page site filter options
+    loadDataModules(); // 加载数据模块清单（勾选 UI）/ Load data-module list (checkbox UI)
+    loadBackupsSelect(); // 加载备份列表（恢复下拉）/ Load backup list (restore dropdown)
   } catch (e) {
     console.error('[Game Recommender] 设置页加载失败:', e);
   }
@@ -289,6 +291,17 @@ function bindEvents() {
   document.getElementById('importFile').addEventListener('change', importData);
   document.getElementById('clearData').addEventListener('click', clearData);
   document.getElementById('resetDefaults').addEventListener('click', resetDefaults);
+  // 数据模块备份/恢复/全选 / Module backup/restore/select-all
+  document.getElementById('createBackupBtn').addEventListener('click', createDataBackup);
+  document.getElementById('restoreBackupBtn').addEventListener('click', restoreDataBackup);
+  document.getElementById('moduleCheckAll').addEventListener('click', () => {
+    selectedModules = new Set(dataModules.map(m => m.key));
+    renderModuleChecks();
+  });
+  document.getElementById('moduleCheckNone').addEventListener('click', () => {
+    selectedModules.clear();
+    renderModuleChecks();
+  });
 
   // 手动保存（立即保存）/ Manual save (immediate)
   document.getElementById('saveBtn').addEventListener('click', () => {
@@ -438,40 +451,170 @@ async function testLLMConnection() {
   }
 }
 
+// ============ 数据模块管理 / Data Module Management ============
+// 所有可备份/导入/导出的数据按模块组织（扩展配置/浏览记录/推荐模型/缓存/适配规则等），
+// 支持自定义勾选参与备份、恢复、导入、导出。
+// All backup/import/export-able data is organized into modules (settings/behavior/
+// model/caches/adapter-rules…), with per-module selection for every operation.
+let dataModules = [];
+let selectedModules = new Set();
+
+// 加载模块清单（含条目数）并渲染勾选 UI / Load the module list and render checkboxes
+async function loadDataModules() {
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_DATA_MODULES' });
+    dataModules = (resp && resp.modules) || [];
+    // 默认全选 / Default: select all
+    selectedModules = new Set(dataModules.map(m => m.key));
+    renderModuleChecks();
+  } catch (e) {
+    console.error('加载数据模块失败:', e);
+  }
+}
+
+// 渲染模块勾选列表 / Render the module checkbox list
+function renderModuleChecks() {
+  const container = document.getElementById('moduleCheckList');
+  if (!container) return;
+  container.innerHTML = dataModules.map(m => `
+    <label class="module-check-item">
+      <input type="checkbox" class="module-check" data-module="${escapeAttr(m.key)}" ${selectedModules.has(m.key) ? 'checked' : ''}>
+      <span class="module-check-name">${escapeHtml(m.name)}</span>
+      <small class="module-check-desc">${escapeHtml(m.desc)}${m.count ? ` · ${m.count} 条` : ''}</small>
+    </label>
+  `).join('');
+  container.querySelectorAll('.module-check').forEach(cb => {
+    cb.addEventListener('change', () => {
+      if (cb.checked) selectedModules.add(cb.dataset.module);
+      else selectedModules.delete(cb.dataset.module);
+    });
+  });
+}
+
+// 获取当前勾选的模块键 / Get the currently selected module keys
+function getSelectedModuleKeys() {
+  return [...selectedModules];
+}
+
+// 显示操作状态 / Show operation status
+function showDataOpStatus(text, isError = false) {
+  const el = document.getElementById('dataOpStatus');
+  if (!el) return;
+  el.textContent = text;
+  el.className = 'data-op-status ' + (isError ? 'error' : 'ok');
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
 // ============ Data Management / 数据管理 ============
 async function exportData() {
-  const data = await chrome.storage.local.get(null);
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `game-recommender-backup-${new Date().toISOString().slice(0, 10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const keys = getSelectedModuleKeys();
+  if (keys.length === 0) { alert('请先勾选要导出的数据类型'); return; }
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'EXPORT_DATA', moduleKeys: keys });
+    if (!resp || !resp.success || !resp.data) { showDataOpStatus('导出失败', true); return; }
+    const blob = new Blob([JSON.stringify(resp.data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `game-recommender-data-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showDataOpStatus(`✅ 已导出 ${keys.length} 个模块`);
+  } catch (e) {
+    showDataOpStatus('导出失败: ' + e.message, true);
+  }
 }
 
 async function importData(e) {
   const file = e.target.files[0];
   if (!file) return;
-
   try {
     const text = await file.text();
-    const data = JSON.parse(text);
-    // 防御：校验导入数据为非空对象 / Guard: imported data must be a non-null object
-    if (!data || typeof data !== 'object' || Array.isArray(data)) {
-      throw new Error('文件格式不正确，应为扩展数据 JSON');
+    const payload = JSON.parse(text);
+    // 校验导出文件格式 / Validate the export file format
+    if (!payload || payload.format !== 'game-recommender-backup') {
+      throw new Error('不是有效的 Game Recommender 导出文件');
     }
-    await chrome.storage.local.set(data);
-    // 重新加载设置 / Reload settings
-    const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-    if (!response || !response.settings) throw new Error('导入后设置加载失败');
-    currentSettings = response.settings;
-    renderSettings(currentSettings);
-    alert('数据导入成功！');
+    const keys = getSelectedModuleKeys();
+    const resp = await chrome.runtime.sendMessage({
+      action: 'IMPORT_DATA',
+      data: payload,
+      moduleKeys: keys
+    });
+    if (resp && resp.success) {
+      // 重新加载设置与模块数据 / Reload settings and module data
+      const sr = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      if (sr && sr.settings) {
+        currentSettings = sr.settings;
+        renderSettings(currentSettings);
+      }
+      loadDataModules();
+      loadBackupsSelect();
+      showDataOpStatus(`✅ 已导入 ${(resp.imported || []).length} 个模块，请重新加载相关页面生效`);
+    } else {
+      showDataOpStatus('导入失败: ' + (resp ? resp.error : '未知错误'), true);
+    }
   } catch (err) {
-    alert('导入失败: ' + err.message);
+    showDataOpStatus('导入失败: ' + err.message, true);
   }
   e.target.value = '';
+}
+
+// 创建备份（所选模块）/ Create a backup of the selected modules
+async function createDataBackup() {
+  const keys = getSelectedModuleKeys();
+  if (keys.length === 0) { alert('请先勾选要备份的数据类型'); return; }
+  const resp = await chrome.runtime.sendMessage({ action: 'CREATE_BACKUP', moduleKeys: keys });
+  if (resp && resp.success) {
+    showDataOpStatus('✅ 备份成功 (' + keys.length + ' 个模块)');
+    loadBackupsSelect();
+  } else {
+    showDataOpStatus('备份失败', true);
+  }
+}
+
+// 加载备份列表到恢复下拉框 / Load backups into the restore dropdown
+async function loadBackupsSelect() {
+  const select = document.getElementById('restoreBackupSelect');
+  const btn = document.getElementById('restoreBackupBtn');
+  if (!select) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_BACKUPS' });
+    const backups = (resp && resp.backups) || [];
+    select.innerHTML = '<option value="">选择备份...</option>' + backups.map(b => {
+      const time = new Date(b.timestamp).toLocaleString('zh-CN');
+      const modCount = b.modules ? b.modules.length : '全部';
+      return `<option value="${escapeAttr(b.id)}">${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)</option>`;
+    }).join('');
+    btn.disabled = backups.length === 0;
+  } catch (e) {
+    select.innerHTML = '<option value="">备份加载失败</option>';
+  }
+}
+
+// 恢复所选模块 / Restore the selected modules from a backup
+async function restoreDataBackup() {
+  const backupId = document.getElementById('restoreBackupSelect').value;
+  if (!backupId) { alert('请先选择要恢复的备份'); return; }
+  const keys = getSelectedModuleKeys();
+  if (keys.length === 0) { alert('请先勾选要恢复的数据类型'); return; }
+  if (!confirm('恢复将覆盖当前所选模块的数据（系统会先自动备份当前状态）。确定继续？')) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'RESTORE_BACKUP', backupId, moduleKeys: keys });
+    if (resp && resp.success) {
+      const sr = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      if (sr && sr.settings) {
+        currentSettings = sr.settings;
+        renderSettings(currentSettings);
+      }
+      loadDataModules();
+      showDataOpStatus('✅ 恢复成功，请重新加载相关页面生效');
+    } else {
+      showDataOpStatus('恢复失败: ' + (resp ? resp.error : '未知错误'), true);
+    }
+  } catch (e) {
+    showDataOpStatus('恢复失败: ' + e.message, true);
+  }
 }
 
 async function clearData() {

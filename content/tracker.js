@@ -83,11 +83,35 @@
   }
 
   // ============ 网站适配器（仅用于列表页） ============
-  // 适配规则来自 adapters/sites.js（下载站规则文件，便于分享与移植）：
-  // 添加新站点只需在规则文件里加一项，无需修改业务代码。
-  // Adapters are built from adapters/sites.js (the download-site rules file,
-  // shared and portable): adding a site only requires a new rules entry.
-  const SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+  // 适配规则来源：优先用户导入的 storage.adapterRules（可自定义/迁移），
+  // 否则内置 adapters/sites.js（规则文件，便于分享与移植）。
+  // Adapters are built from rules: user-imported storage.adapterRules wins,
+  // otherwise the built-in adapters/sites.js (shared and portable).
+  let SITE_RULES = null;
+
+  // 异步加载适配规则（内容脚本可访问 storage）/ Load rules async (storage-aware)
+  async function loadSiteRules() {
+    if (SITE_RULES) return SITE_RULES;
+    try {
+      const data = await chrome.storage.local.get('adapterRules');
+      const imported = data.adapterRules;
+      SITE_RULES = (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0)
+        ? imported.sites
+        : ((globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || []);
+    } catch (e) {
+      SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    }
+    return SITE_RULES;
+  }
+
+  // 当前站点是否启用图片 appId 直取（规则文件可配置，默认启用）
+  // Whether the current site enables image-appId lookup (configurable in the
+  // rules file; enabled by default)
+  function isImageAppIdEnabled() {
+    const domain = getCurrentDomain();
+    const rule = (SITE_RULES || []).find(r => r.domains.some(d => domain.includes(d)));
+    return rule ? rule.imageAppId !== false : true;
+  }
 
   // 根据规则构建站点适配器 / Build a site adapter from its rules
   function buildAdapter(rule) {
@@ -195,13 +219,8 @@
     };
   }
 
-  // 构建站点适配器表（key → adapter），通用适配器作为兜底
-  // Build the adapter table (key → adapter), with a generic adapter as fallback
-  const SITE_ADAPTERS = {};
-  for (const rule of SITE_RULES) {
-    SITE_ADAPTERS[rule.key] = buildAdapter(rule);
-  }
-  SITE_ADAPTERS['_default'] = {
+  // 通用适配器（所有站点兜底）/ Generic adapter (fallback for every site)
+  const DEFAULT_ADAPTER = {
     name: '通用',
     isListPage: () => {
       let gameLinks = 0;
@@ -227,6 +246,18 @@
       return items;
     }
   };
+
+  // 站点适配器表（init 时根据加载的规则构建；规则导入/更新后重建）
+  // Adapter table (built at init from the loaded rules; rebuilt after import)
+  let SITE_ADAPTERS = { '_default': DEFAULT_ADAPTER };
+  function buildSiteAdapters(rules) {
+    const adapters = {};
+    for (const rule of (rules || [])) {
+      adapters[rule.key] = buildAdapter(rule);
+    }
+    adapters['_default'] = DEFAULT_ADAPTER;
+    SITE_ADAPTERS = adapters;
+  }
 
   // ============ 工具函数 ============
   function getCurrentDomain() { return window.location.hostname; }
@@ -410,15 +441,6 @@
     return info ? info.appId : null;
   }
 
-  // 当前站点是否启用图片 appId 直取（规则文件可配置，默认启用）
-  // Whether the current site enables image-appId lookup (configurable in the
-  // rules file; enabled by default)
-  function isImageAppIdEnabled() {
-    const domain = getCurrentDomain();
-    const rule = SITE_RULES.find(r => r.domains.some(d => domain.includes(d)));
-    return rule ? rule.imageAppId !== false : true;
-  }
-
   // ============ 页面类型检测（URL优先，最可靠） ============
   // 详情页URL特征：以 数字.html 结尾，或 /game/数字.html 形式
   // 例：/99697.html, /game/15027.html, /11469.html
@@ -454,6 +476,11 @@
     }
 
     if (!settings || !settings.enabled) return;
+
+    // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
+    // Load adapter rules (user-imported storage.adapterRules wins) and build adapters
+    await loadSiteRules();
+    buildSiteAdapters(SITE_RULES);
 
     const domain = getCurrentDomain();
     const trackedSites = settings.trackedSites || [];
@@ -722,8 +749,7 @@
 
     // 规则驱动提取：容器 + 标题链接/标题元素选择器
     // Rule-driven extraction: containers + title-link/title-element selectors
-    const rule = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites
-      ?.find(r => r.domains.some(d => domain.includes(d)));
+    const rule = (SITE_RULES || []).find(r => r.domains.some(d => domain.includes(d)));
     if (rule) {
       const cfg = rule.listItem || {};
       const containers = cfg.containers || [];

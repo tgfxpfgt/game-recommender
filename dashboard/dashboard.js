@@ -325,11 +325,12 @@ async function loadBackups() {
     container.innerHTML = backups.map(b => {
       const time = new Date(b.timestamp).toLocaleString('zh-CN');
       const sizeKb = (b.size / 1024).toFixed(1);
+      const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
       return `<div class="backup-item">
         <div class="backup-info">
           <span class="backup-type">${b.manual ? '🔧 手动' : '⏰ 自动'}</span>
           <span class="backup-time">${time}</span>
-          <span class="backup-size">${sizeKb} KB</span>
+          <span class="backup-size">${sizeKb} KB${modInfo}</span>
         </div>
         <div class="backup-actions">
           <button class="btn btn-sm backup-restore-btn" data-id="${escapeAttr(b.id)}">♻️ 恢复</button>

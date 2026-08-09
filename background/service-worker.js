@@ -81,16 +81,67 @@ function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIMEOUT) {
     .finally(() => clearTimeout(timer));
 }
 
-// 下载站配置：从规则文件构建，仅包含配置了站内搜索的站点
-// Download-site config: built from the rules file; only sites with in-site search
-const DOWNLOAD_SITES = (globalThis.__GAME_RECOMMENDER_SITES__?.sites || [])
-  .filter(s => s.searchUrl)
-  .map(s => ({
-    key: s.key,
-    name: s.name,
-    searchUrl: q => s.searchUrl.replace('{q}', encodeURIComponent(q)),
-    base: s.base
-  }));
+// 下载站配置：从规则文件构建，仅包含配置了站内搜索的站点。
+// 规则来源：优先用户导入的 storage.adapterRules（可迁移/自定义），否则内置 sites.js。
+// Download-site config built from the rules: user-imported storage.adapterRules
+// takes precedence over the built-in sites.js (portable/customizable).
+let downloadSitesCache = null;
+async function getDownloadSites() {
+  if (downloadSitesCache) return downloadSitesCache;
+  const rules = await getSiteRules();
+  downloadSitesCache = (rules.sites || [])
+    .filter(s => s.searchUrl)
+    .map(s => ({
+      key: s.key,
+      name: s.name,
+      searchUrl: q => s.searchUrl.replace('{q}', encodeURIComponent(q)),
+      base: s.base
+    }));
+  return downloadSitesCache;
+}
+
+// 读取下载站适配规则：storage.adapterRules（用户导入）优先，否则内置 sites.js。
+// 内置文件通过副作用 import 挂到 globalThis.__GAME_RECOMMENDER_SITES__。
+// Read download-site adapter rules: user-imported storage.adapterRules wins,
+// otherwise the built-in sites.js (side-effect imported to
+// globalThis.__GAME_RECOMMENDER_SITES__).
+let siteRulesCache = null;
+async function getSiteRules() {
+  if (siteRulesCache) return siteRulesCache;
+  try {
+    const data = await chrome.storage.local.get(DB_KEYS.ADAPTER_RULES);
+    const imported = data[DB_KEYS.ADAPTER_RULES];
+    siteRulesCache = (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0)
+      ? imported
+      : (globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] });
+  } catch (e) {
+    siteRulesCache = globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] };
+  }
+  return siteRulesCache;
+}
+
+// 数据模块注册表：所有可备份/导入/导出的数据按模块组织，支持自定义勾选。
+// 导出格式为单 JSON 文件（含 format/version/exportedAt/modules）。
+// Data-module registry: all backup/import/export-able data is organized into
+// selectable modules; exports are single JSON files (format/version/exportedAt/modules).
+const DATA_MODULES = [
+  { key: 'settings',        name: '扩展配置',      desc: 'Settings',        storageKey: DB_KEYS.SETTINGS },
+  { key: 'behaviorLog',     name: '浏览记录',      desc: 'Behavior Log',    storageKey: DB_KEYS.BEHAVIOR_LOG },
+  { key: 'gameProfiles',    name: '游戏画像',      desc: 'Game Profiles',   storageKey: DB_KEYS.GAME_PROFILES },
+  { key: 'keywordWeights',  name: '推荐模型',      desc: 'Keyword Weights', storageKey: DB_KEYS.KEYWORD_WEIGHTS },
+  { key: 'steamCache',      name: 'Steam 缓存',    desc: 'Steam Cache',     storageKey: DB_KEYS.STEAM_CACHE },
+  { key: 'gameRegistry',    name: '游戏注册表',    desc: 'Game Registry',   storageKey: DB_KEYS.GAME_REGISTRY },
+  { key: 'nameIndex',       name: '名称索引',      desc: 'Name Index',      storageKey: DB_KEYS.NAME_INDEX },
+  { key: 'downloadUrls',    name: '下载站网址缓存', desc: 'Download URLs',  storageKey: DB_KEYS.DOWNLOAD_URLS },
+  { key: 'freeGames',       name: '限免游戏',      desc: 'Free Games',      storageKey: DB_KEYS.FREE_GAMES },
+  { key: 'runtimeLog',      name: '运行日志',      desc: 'Runtime Logs',    storageKey: DB_KEYS.RUNTIME_LOG },
+  { key: 'downloadHistory', name: '下载历史',      desc: 'Download History', storageKey: DB_KEYS.DOWNLOAD_HISTORY },
+  { key: 'adapterRules',    name: '适配规则',      desc: 'Adapter Rules',   storageKey: DB_KEYS.ADAPTER_RULES }
+];
+
+// 导出文件格式标识与版本 / Export file format id and version
+const EXPORT_FORMAT = 'game-recommender-backup';
+const EXPORT_VERSION = 1;
 
 const DB_KEYS = {
   BEHAVIOR_LOG: 'behaviorLog',
@@ -107,7 +158,8 @@ const DB_KEYS = {
   // === 新三层缓存（v5：以 appId 为唯一标识）/ New 3-layer cache (v5: appId-keyed) ===
   GAME_REGISTRY: 'gameRegistry', // appId → {cnName, enName, names[], firstSeen, lastConfirmed} 永久，30天重确认
   NAME_INDEX: 'nameIndex',       // name_lower → {appId, lastSearched} 名称反查 appId 的索引
-  DOWNLOAD_URLS: 'downloadUrls'  // appId → {siteKey → {url, siteName, firstSeen, lastRefreshed, lastAccessed}} 30天有效
+  DOWNLOAD_URLS: 'downloadUrls', // appId → {siteKey → {url, siteName, firstSeen, lastRefreshed, lastAccessed}} 30天有效
+  ADAPTER_RULES: 'adapterRules'  // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
 };
 
 const DEFAULT_SETTINGS = {
@@ -754,20 +806,45 @@ async function clearRuntimeLogs() {
   await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
 }
 
+// 重置所有内存缓存（备份恢复/导入/清除数据后调用，避免命中旧数据）
+// Reset all in-memory caches (after backup restore/import/clear, so stale
+// pre-change data is never served)
+function resetInMemoryCaches() {
+  settingsCache = null;
+  registryMemory = null; registryMemoryLoaded = false;
+  if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
+  nameIndexMemory = null; nameIndexMemoryLoaded = false;
+  if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
+  steamCacheMemory = null; steamCacheMemoryLoaded = false;
+  if (steamCacheWriteTimer) { clearTimeout(steamCacheWriteTimer); steamCacheWriteTimer = null; }
+  logBuffer = [];
+  if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
+  siteRulesCache = null;
+  downloadSitesCache = null;
+}
+
 // ============ 5. 自动备份 / Auto Backup ============
 
-async function createBackup(manual = false) {
+// 创建备份（moduleKeys 可选：自定义勾选要备份的数据模块，默认全部）
+// Create a backup (moduleKeys optional: select which data modules to back up;
+// defaults to all)
+async function createBackup(manual = false, moduleKeys = null) {
   try {
-    const data = await chrome.storage.local.get(BACKUP_DATA_KEYS);
+    const modules = moduleKeys
+      ? DATA_MODULES.filter(m => moduleKeys.includes(m.key))
+      : DATA_MODULES;
+    const storageKeys = modules.map(m => m.storageKey);
+    const data = await chrome.storage.local.get(storageKeys);
     const snapshot = {};
-    for (const key of BACKUP_DATA_KEYS) {
+    for (const key of storageKeys) {
       if (data[key] !== undefined) snapshot[key] = data[key];
     }
 
     const backup = {
-      id: Date.now().toString(36) + Math.random().toString(36).substring(2, 6),
+      id: (crypto.randomUUID ? crypto.randomUUID().substring(0, 8) : Date.now().toString(36)) + Date.now().toString(36),
       timestamp: Date.now(),
       manual,
+      modules: modules.map(m => m.key), // 记录本次备份包含的模块 / modules included
       size: JSON.stringify(snapshot).length,
       data: snapshot
     };
@@ -781,7 +858,7 @@ async function createBackup(manual = false) {
     while (backups.length > max) backups.shift();
 
     await chrome.storage.local.set({ [DB_KEYS.BACKUPS]: backups });
-    Logger.info('Backup', `创建${manual ? '手动' : '自动'}备份 ${backup.id}`, { size: backup.size, count: backups.length });
+    Logger.info('Backup', `创建${manual ? '手动' : '自动'}备份 ${backup.id}`, { size: backup.size, modules: backup.modules.length, count: backups.length });
     return backup;
   } catch (e) {
     Logger.error('Backup', '创建备份失败', e.message);
@@ -793,11 +870,15 @@ async function getBackupList() {
   const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
   const backups = stored[DB_KEYS.BACKUPS] || [];
   return backups.map(b => ({
-    id: b.id, timestamp: b.timestamp, manual: b.manual, size: b.size
+    id: b.id, timestamp: b.timestamp, manual: b.manual, size: b.size,
+    modules: b.modules || null // 旧备份无 modules 字段视为全量 / legacy backups = all modules
   })).reverse();
 }
 
-async function restoreBackup(backupId) {
+// 恢复备份（moduleKeys 可选：自定义勾选要恢复的模块，默认全部）
+// Restore a backup (moduleKeys optional: select which modules to restore;
+// defaults to all)
+async function restoreBackup(backupId, moduleKeys = null) {
   try {
     const stored = await chrome.storage.local.get(DB_KEYS.BACKUPS);
     const backups = stored[DB_KEYS.BACKUPS] || [];
@@ -811,21 +892,20 @@ async function restoreBackup(backupId) {
     // Create a safety-net backup of the current state before restoring
     await createBackup(true);
 
-    await chrome.storage.local.set(backup.data);
-    // 备份数据可能包含旧的 settings 及各层缓存，必须使所有内存缓存失效，
-    // 避免恢复后仍命中恢复前的旧数据。
-    // The backup may contain old settings and cache layers; invalidate ALL in-memory
-    // caches so stale pre-restore data is never served afterwards.
-    settingsCache = null;
-    registryMemory = null; registryMemoryLoaded = false;
-    if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
-    nameIndexMemory = null; nameIndexMemoryLoaded = false;
-    if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
-    steamCacheMemory = null; steamCacheMemoryLoaded = false;
-    if (steamCacheWriteTimer) { clearTimeout(steamCacheWriteTimer); steamCacheWriteTimer = null; }
-    logBuffer = [];
-    if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
-    Logger.info('Backup', `已恢复备份 ${backupId}`);
+    const modules = moduleKeys
+      ? DATA_MODULES.filter(m => moduleKeys.includes(m.key))
+      : DATA_MODULES;
+    const snapshot = {};
+    for (const mod of modules) {
+      const key = mod.storageKey;
+      if (backup.data[key] !== undefined) snapshot[key] = backup.data[key];
+    }
+    await chrome.storage.local.set(snapshot);
+    // 备份数据可能包含旧的 settings 及各层缓存，必须使所有内存缓存失效
+    // The backup may contain old settings and cache layers; invalidate ALL
+    // in-memory caches so stale pre-restore data is never served afterwards
+    resetInMemoryCaches();
+    Logger.info('Backup', `已恢复备份 ${backupId}`, { modules: modules.map(m => m.key).length });
     return { success: true };
   } catch (e) {
     Logger.error('Backup', '恢复备份失败', e.message);
@@ -2028,9 +2108,10 @@ async function searchDownloadSites(gameName, appId, siteKeys = null) {
   const results = [];
   // 仅检索指定的站点（siteKeys 为 null 时检索全部启用的下载站）
   // Only search the given sites (siteKeys = null → all configured sites)
+  const allSites = await getDownloadSites();
   const sitesToSearch = siteKeys
-    ? DOWNLOAD_SITES.filter(s => siteKeys.includes(s.key))
-    : DOWNLOAD_SITES;
+    ? allSites.filter(s => siteKeys.includes(s.key))
+    : allSites;
   // 生成多个搜索词，按优先级排序，依次尝试
   // 1. 清洗后的主名  2. parseGameTitle 的所有候选  3. 原始名
   const searchTerms = [];
@@ -2919,15 +3000,7 @@ async function handleClearData() {
     DB_KEYS.MANUAL_MAPPINGS
   ]);
   // 重置所有内存缓存，避免清除后仍命中旧数据 / Reset all in-memory caches
-  steamCacheMemory = null;
-  steamCacheMemoryLoaded = false;
-  if (steamCacheWriteTimer) { clearTimeout(steamCacheWriteTimer); steamCacheWriteTimer = null; }
-  nameIndexMemory = null;
-  nameIndexMemoryLoaded = false;
-  if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
-  registryMemory = null;
-  registryMemoryLoaded = false;
-  if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
+  resetInMemoryCaches();
   return { success: true };
 }
 
@@ -2935,7 +3008,8 @@ async function handleSearchDownloadSites(message, sender) {
   // 仅检索设置中勾选的下载站（Steam 详情页资源检索范围可自定义）
   // Only search the sites enabled in settings (customizable Steam-page scope)
   const settings = await getSettings();
-  const enabledKeys = settings.steamSiteSearch || DOWNLOAD_SITES.map(s => s.key);
+  const allSites = await getDownloadSites();
+  const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
   const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
   Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
 
@@ -3117,15 +3191,7 @@ async function handleClearGameCache() {
     DB_KEYS.NAME_INDEX,
     DB_KEYS.MANUAL_MAPPINGS
   ]);
-  steamCacheMemory = null;
-  steamCacheMemoryLoaded = false;
-  if (steamCacheWriteTimer) { clearTimeout(steamCacheWriteTimer); steamCacheWriteTimer = null; }
-  nameIndexMemory = null;
-  nameIndexMemoryLoaded = false;
-  if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
-  registryMemory = null;
-  registryMemoryLoaded = false;
-  if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
+  resetInMemoryCaches();
   Logger.info('Cache', '清空全部游戏缓存');
   return { success: true };
 }
@@ -3157,7 +3223,8 @@ async function handleRefreshGameCacheEntry(message) {
     // 3. 按设置中启用的下载站重新检索详情页网址（更新网址缓存）
     //    Re-search detail-page URLs across the sites enabled in settings
     const settings = await getSettings();
-    const enabledKeys = settings.steamSiteSearch || DOWNLOAD_SITES.map(s => s.key);
+    const allSites = await getDownloadSites();
+    const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
     const sites = await searchDownloadSites(result.name, appId, enabledKeys);
 
     // 4. 强制落盘，防止 SW 休眠丢失 / Force-flush to persist before dormancy
@@ -3175,6 +3242,91 @@ async function handleRefreshGameCacheEntry(message) {
     };
   } catch (e) {
     Logger.error('Cache', `手动刷新缓存条目失败: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
+// ============ 15.6 数据模块：导出/导入/清单 / Data Modules: Export/Import/List ============
+// 所有数据按 DATA_MODULES 模块组织，支持自定义勾选导出/导入/备份/恢复。
+// 导出为单 JSON 文件（format/version/exportedAt/modules），导入时校验格式与版本。
+// All data is organized into DATA_MODULES with per-module selection for
+// export/import/backup/restore. Exports are single JSON files with
+// format/version/exportedAt/modules; imports validate format and version.
+
+// 统计模块条目数（用于 UI 展示）/ Count a module's entries (for the UI)
+function countModuleItems(value) {
+  if (value === undefined || value === null) return 0;
+  if (Array.isArray(value)) return value.length;
+  if (typeof value === 'object') return Object.keys(value).length;
+  return 1;
+}
+
+// 返回模块清单（含条目数）/ Return the module list with entry counts
+async function handleGetDataModules() {
+  const keys = DATA_MODULES.map(m => m.storageKey);
+  const data = await chrome.storage.local.get(keys);
+  const modules = DATA_MODULES.map(m => ({
+    key: m.key,
+    name: m.name,
+    desc: m.desc,
+    count: countModuleItems(data[m.storageKey])
+  }));
+  return { modules };
+}
+
+// 导出所选模块为 JSON 数据 / Export selected modules as JSON data
+async function handleExportData(message) {
+  const moduleKeys = (message.moduleKeys && message.moduleKeys.length > 0)
+    ? message.moduleKeys
+    : DATA_MODULES.map(m => m.key);
+  const keys = DATA_MODULES.filter(m => moduleKeys.includes(m.key)).map(m => m.storageKey);
+  const data = await chrome.storage.local.get(keys);
+  const modules = {};
+  for (const mod of DATA_MODULES) {
+    if (!moduleKeys.includes(mod.key)) continue;
+    if (data[mod.storageKey] !== undefined) modules[mod.key] = data[mod.storageKey];
+  }
+  // 适配规则无用户导入时导出内置规则，保证迁移完整性
+  // Export the built-in rules when no user-imported rules exist (migration completeness)
+  if (moduleKeys.includes('adapterRules') && modules.adapterRules === undefined) {
+    modules.adapterRules = globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] };
+  }
+  Logger.info('Export', `导出数据模块: ${moduleKeys.join(', ')}`);
+  return {
+    success: true,
+    data: { format: EXPORT_FORMAT, version: EXPORT_VERSION, exportedAt: Date.now(), modules }
+  };
+}
+
+// 导入数据（校验格式/版本，按所选模块写入 storage）
+// Import data (validate format/version, write selected modules into storage)
+async function handleImportData(message) {
+  const payload = message.data;
+  if (!payload || typeof payload !== 'object') return { success: false, error: '数据格式不正确' };
+  if (payload.format !== EXPORT_FORMAT) return { success: false, error: '不是有效的 Game Recommender 导出文件' };
+  if (payload.version !== EXPORT_VERSION) return { success: false, error: '导出文件版本不兼容: ' + payload.version };
+  if (!payload.modules || typeof payload.modules !== 'object') return { success: false, error: '导出文件缺少模块数据' };
+
+  const moduleKeys = (message.moduleKeys && message.moduleKeys.length > 0)
+    ? message.moduleKeys
+    : Object.keys(payload.modules);
+  try {
+    const imported = [];
+    for (const key of moduleKeys) {
+      const mod = DATA_MODULES.find(m => m.key === key);
+      if (!mod) continue;
+      const value = payload.modules[key];
+      if (value === undefined) continue;
+      await chrome.storage.local.set({ [mod.storageKey]: value });
+      imported.push(key);
+    }
+    // 导入后重置所有内存缓存，避免命中旧数据
+    // Reset all in-memory caches so stale pre-import data is never served
+    resetInMemoryCaches();
+    Logger.info('Import', `导入数据模块: ${imported.join(', ')}`);
+    return { success: true, imported };
+  } catch (e) {
+    Logger.error('Import', '导入失败', e.message);
     return { success: false, error: e.message };
   }
 }
@@ -3211,12 +3363,16 @@ const MESSAGE_HANDLERS = {
   GET_RUNTIME_LOGS:       async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
   CLEAR_RUNTIME_LOGS:     async () => { await clearRuntimeLogs(); return { success: true }; },
   EXPORT_LOGS:            async () => ({ logs: await getRuntimeLogs() }),
-  CREATE_BACKUP:          async () => {
-    const b = await createBackup(true);
-    return { success: !!b, backup: b ? { id: b.id, timestamp: b.timestamp } : null };
+  // 数据模块：清单/导出/导入 / Data modules: list/export/import
+  GET_DATA_MODULES:       handleGetDataModules,
+  EXPORT_DATA:            handleExportData,
+  IMPORT_DATA:            handleImportData,
+  CREATE_BACKUP:          async (msg) => {
+    const b = await createBackup(true, msg && msg.moduleKeys);
+    return { success: !!b, backup: b ? { id: b.id, timestamp: b.timestamp, modules: b.modules } : null };
   },
   GET_BACKUPS:            async () => ({ backups: await getBackupList() }),
-  RESTORE_BACKUP:         async (msg) => restoreBackup(msg.backupId),
+  RESTORE_BACKUP:         async (msg) => restoreBackup(msg.backupId, msg.moduleKeys),
   DELETE_BACKUP:          async (msg) => deleteBackup(msg.backupId),
 };
 
