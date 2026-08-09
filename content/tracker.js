@@ -52,231 +52,148 @@
   }
 
   // ============ 网站适配器（仅用于列表页） ============
-  const SITE_ADAPTERS = {
-    '3dmgame.com': {
-      name: '3DM',
-      isListPage: () => !!document.querySelector('.lis, .game-list, .content li a[href*="/game/"], .Mid2L_con li'),
-      getListItems: () => {
-        const items = [];
-        document.querySelectorAll('.lis li, .game-list li, .content li, .Mid2L_con li').forEach(li => {
-          const link = li.querySelector('a[href*="/game/"], a[href*="3dmgame.com"], a');
-          const title = li.querySelector('h3, .name, .title, a');
-          if (link && title && title.textContent.trim().length > 2) {
-            items.push({ element: li, link, name: title.textContent.trim(), url: link.href, titleEl: title });
-          }
-        });
-        return items;
+  // 适配规则来自 adapters/sites.js（下载站规则文件，便于分享与移植）：
+  // 添加新站点只需在规则文件里加一项，无需修改业务代码。
+  // Adapters are built from adapters/sites.js (the download-site rules file,
+  // shared and portable): adding a site only requires a new rules entry.
+  const SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+
+  // 根据规则构建站点适配器 / Build a site adapter from its rules
+  function buildAdapter(rule) {
+    const detailPatterns = (rule.detailUrlPatterns || []).map(p => new RegExp(p, 'i'));
+    // 判断链接是否指向详情页（未配置规则时不限制）/ Is a link a detail page? (unrestricted when no patterns)
+    const isDetailHref = (href) => {
+      if (detailPatterns.length === 0) return true;
+      try {
+        const p = new URL(href, window.location.href).pathname;
+        return detailPatterns.some(re => re.test(p));
+      } catch (e) { return false; }
+    };
+    const cfg = rule.listItem || {};
+    const containers = cfg.containers || [];
+    const titleEls = cfg.titleEls || ['h2', 'h3', '.title', '.entry-title'];
+    const excludeClasses = cfg.excludeClasses || [];
+    const minLen = cfg.minLen ?? 3;
+    const maxLen = cfg.maxLen ?? 200;
+    const isExcluded = (el) => excludeClasses.some(c => el.classList.contains(c));
+    // 在元素内查找标题元素（优先标题链接选择器） / Find the title element inside a container
+    const findTitleEl = (root, fallback) => {
+      if (cfg.titleLink) {
+        const tl = root.querySelector(cfg.titleLink);
+        if (tl) return tl;
       }
-    },
-    'ali213.net': {
-      name: '游侠网',
-      isListPage: () => !!document.querySelector('.n_lone, .game_list, .downlist'),
-      getListItems: () => {
-        const items = [];
-        document.querySelectorAll('.n_lone li, .game_list li, .downlist li').forEach(li => {
-          const link = li.querySelector('a');
-          const title = li.querySelector('.name, h3, a');
-          if (link && title) {
-            items.push({ element: li, link, name: title.textContent.trim(), url: link.href, titleEl: title });
-          }
-        });
-        return items;
-      }
-    },
-    'gamersky.com': {
-      name: '游民星空',
-      isListPage: () => !!document.querySelector('.game-list, .Mid2L_con, .pictxt'),
-      getListItems: () => {
-        const items = [];
-        document.querySelectorAll('.game-list li, .Mid2L_con li, .pictxt li').forEach(li => {
-          const link = li.querySelector('a');
-          const title = li.querySelector('.name, h3, .tit, a');
-          if (link && title) {
-            items.push({ element: li, link, name: title.textContent.trim(), url: link.href, titleEl: title });
-          }
-        });
-        return items;
-      }
-    },
-    'xdgame.com': {
-      name: 'XDGame',
+      return root.querySelector(titleEls.join(',')) || fallback;
+    };
+
+    return {
+      name: rule.name,
       isListPage: () => {
         const path = window.location.pathname;
-        if (/^\/so\//.test(path)) return true;
-        if (/\/page\/\d+/.test(path)) return true;
-        if (/\/list\//i.test(path)) return true;
-        if (path === '/' || path === '') return true;
-        // 通用判断：页面上有5个以上指向详情页的链接
-        let count = 0;
-        document.querySelectorAll('a').forEach(a => {
-          const href = a.href || '';
-          const p = new URL(href, window.location.href).pathname;
-          // 只匹配 /game/数字.html（详情页），排除 /game/数字/（分类页）
-          if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) count++;
-        });
-        return count >= 5;
+        // 1. URL 特征 / URL patterns
+        if ((rule.listPage?.urlPatterns || []).some(p => new RegExp(p, 'i').test(path))) return true;
+        // 2. DOM 选择器 / DOM selectors
+        if ((rule.listPage?.selectors || []).some(sel => document.querySelector(sel))) return true;
+        // 3. 通用判断：页面详情链接数量达到阈值（XDGame 首页/未知分类页）
+        //    Generic: enough detail links on the page (XDGame home/unknown category pages)
+        const minLinks = rule.listPage?.minDetailLinks || 0;
+        if (minLinks > 0) {
+          let count = 0;
+          document.querySelectorAll('a').forEach(a => {
+            if (isDetailHref(a.href || '')) count++;
+          });
+          if (count >= minLinks) return true;
+        }
+        return false;
       },
       getListItems: () => {
         const items = [];
         const seen = new Set();
-        // XDGame详情页URL: /game/数字.html（必须带.html后缀，排除/game/数字/分类页）
-        const isDetailUrl = (href) => {
-          const p = new URL(href, window.location.href).pathname;
-          return /\/game\/\d+\.html?$/i.test(p) || /\/\d+\.html?$/.test(p);
+        const addItem = (element, link, nameEl) => {
+          const href = link.href;
+          if (seen.has(href)) return;
+          const text = (nameEl.textContent || '').trim().replace(/\s+/g, ' ');
+          if (text.length < minLen || text.length > maxLen) return;
+          if (!isDetailHref(href)) return;
+          seen.add(href);
+          items.push({ element, link, name: text, url: href, titleEl: nameEl });
         };
 
-        // XDGame列表结构：ul.game-list > li > a.tit（标题文本链接）
-        // 优先用 a.tit 作为标题和链接来源
-        document.querySelectorAll('.game-list li, .list li, ul li').forEach(li => {
-          const titleLink = li.querySelector('a.tit');
-          if (titleLink) {
-            const href = titleLink.href;
-            if (!isDetailUrl(href) || seen.has(href)) return;
-            seen.add(href);
-            const text = titleLink.textContent.trim().replace(/\s+/g, ' ');
-            if (text.length > 2 && text.length < 200) {
-              items.push({ element: li, link: titleLink, name: text, url: href, titleEl: titleLink });
-            }
-          }
-        });
-        if (items.length > 0) return items;
+        // 策略1：容器 + 标题链接选择器（XDGame 的 a.tit 优先）
+        // Strategy 1: containers + title-link selector (e.g. XDGame a.tit)
+        for (const sel of containers) {
+          document.querySelectorAll(sel).forEach(li => {
+            const tl = li.querySelector(cfg.titleLink);
+            if (tl) addItem(li, tl, tl);
+          });
+          if (items.length > 0) return items;
+        }
 
-        // 回退1：找li中带文本的详情页链接（跳过纯图片链接）
-        document.querySelectorAll('li').forEach(li => {
-          const links = li.querySelectorAll('a[href]');
-          for (const a of links) {
-            const href = a.href;
-            if (!isDetailUrl(href) || seen.has(href)) continue;
-            // 跳过 .grid-cover 和 .link（图片/查看按钮），只要有文本的链接
-            if (a.classList.contains('grid-cover') || a.classList.contains('link')) continue;
-            const text = a.textContent.trim().replace(/\s+/g, ' ');
-            if (text.length > 2 && text.length < 200) {
-              seen.add(href);
-              items.push({ element: li, link: a, name: text, url: href, titleEl: a });
-              break; // 每个li只取第一个有文本的链接
+        // 策略2：容器内找有文本的详情页链接（跳过纯图片/按钮类链接）
+        // Strategy 2: detail links with text inside containers (skip image/button-only links)
+        for (const sel of containers) {
+          document.querySelectorAll(sel).forEach(li => {
+            if (items.some(it => it.element === li)) return; // 策略1已处理 / handled by strategy 1
+            const links = li.querySelectorAll('a[href]');
+            for (const a of links) {
+              if (isExcluded(a)) continue;
+              const text = (a.textContent || '').trim();
+              if (text.length < minLen) continue;
+              const titleEl = findTitleEl(li, a);
+              addItem(li, a, titleEl);
+              if (items.some(it => it.element === li)) break; // 每个 li 只取第一个链接 / one link per li
             }
-          }
-        });
-        if (items.length > 0) return items;
+          });
+          if (items.length > 0) return items;
+        }
 
-        // 回退2：直接找所有指向详情页且有文本的链接
-        document.querySelectorAll('a[href]').forEach(a => {
-          const href = a.href;
-          if (!isDetailUrl(href) || seen.has(href)) return;
-          if (a.classList.contains('grid-cover') || a.classList.contains('link')) return;
-          const text = a.textContent.trim().replace(/\s+/g, ' ');
-          if (text.length > 2 && text.length < 200) {
-            seen.add(href);
-            items.push({ element: a.closest('li, div, article') || a, link: a, name: text, url: href, titleEl: a });
-          }
-        });
+        // 策略3：回退——全页面范围内提取详情页链接（XDGame / 咸鱼单机兜底）
+        // Strategy 3: fallback — extract detail links across the whole page
+        if (cfg.fallbackLinks) {
+          document.querySelectorAll('a[href]').forEach(a => {
+            if (isExcluded(a)) return;
+            const text = (a.textContent || '').trim();
+            if (text.length < minLen) return;
+            const element = a.closest('li, div, article') || a;
+            const titleEl = findTitleEl(element, a);
+            addItem(element, a, titleEl);
+          });
+        }
+
         return items;
       }
+    };
+  }
+
+  // 构建站点适配器表（key → adapter），通用适配器作为兜底
+  // Build the adapter table (key → adapter), with a generic adapter as fallback
+  const SITE_ADAPTERS = {};
+  for (const rule of SITE_RULES) {
+    SITE_ADAPTERS[rule.key] = buildAdapter(rule);
+  }
+  SITE_ADAPTERS['_default'] = {
+    name: '通用',
+    isListPage: () => {
+      let gameLinks = 0;
+      document.querySelectorAll('a').forEach(a => {
+        if (a.href && (a.href.includes('/game/') || a.href.includes('/down/') || a.href.includes('/soft/'))) gameLinks++;
+      });
+      return gameLinks >= 5;
     },
-    'xianyudanji.gg': {
-      name: '咸鱼单机',
-      isListPage: () => {
-        const path = window.location.pathname;
-        if (path === '/' || path === '') return true;
-        if (/\/page\/\d+/.test(path)) return true;
-        if (/\/category\//.test(path)) return true;
-        if (/\/tag\//.test(path)) return true;
-        // 搜索结果页 ?s=xxx / Search results page
-        if (/^[?&]s=/.test(window.location.search)) return true;
-        return false;
-      },
-      getListItems: () => {
-        const items = [];
-        const seen = new Set();
-        // 优先找文章卡片
-        document.querySelectorAll('.post, .article, .entry, .item, article').forEach(el => {
-          const link = el.querySelector('a[href]');
-          if (!link) return;
-          const href = link.href;
-          if (seen.has(href)) return;
-          const path = new URL(href, window.location.href).pathname;
-          // 咸鱼单机详情页通常是 /xxx/ 或 /xxx.html 形式
-          if (!/\//.test(path) || path === '/') return;
-          seen.add(href);
-          const title = el.querySelector('h2, h3, .title, .entry-title') || link;
-          const text = title.textContent.trim();
-          if (text.length > 2 && text.length < 100) {
-            items.push({ element: el, link, name: text, url: href, titleEl: title });
-          }
-        });
-        if (items.length > 0) return items;
-        // 兜底
-        document.querySelectorAll('a').forEach(a => {
-          const href = a.href;
-          const path = new URL(href, window.location.href).pathname;
-          if (path === '/' || !path) return;
-          if (!/\/[^\/]+\/?$/.test(path)) return; // 至少一级路径
-          if (seen.has(href)) return;
-          seen.add(href);
+    getListItems: () => {
+      const items = [];
+      const seen = new Set();
+      document.querySelectorAll('a').forEach(a => {
+        if (a.href && (a.href.includes('/game/') || a.href.includes('/down/') || a.href.includes('/soft/')) && !seen.has(a.href)) {
+          seen.add(a.href);
           const text = a.textContent.trim();
-          if (text.length > 2 && text.length < 60) {
-            items.push({ element: a.closest('div, article, li') || a, link: a, name: text, url: href, titleEl: a });
-          }
-        });
-        return items;
-      }
-    },
-    'gamer520.com': {
-      name: 'Gamer520',
-      isListPage: () => {
-        const path = window.location.pathname;
-        if (path === '/' || path === '') return true;
-        if (/\/page\/\d+/.test(path)) return true;
-        if (/\/category\//.test(path)) return true;
-        // 搜索结果页 ?s=xxx / Search results page
-        if (/^[?&]s=/.test(window.location.search)) return true;
-        return false;
-      },
-      getListItems: () => {
-        const items = [];
-        const seen = new Set();
-        document.querySelectorAll('.post-item, .article-item, .game-item, .item, article').forEach(el => {
-          const link = el.querySelector('a[href]');
-          if (!link) return;
-          const href = link.href;
-          if (seen.has(href)) return;
-          const path = new URL(href, window.location.href).pathname;
-          if (!/\/\d+\.html?$/.test(path) && !/\/[^\/]+\/?$/.test(path)) return;
-          seen.add(href);
-          const title = el.querySelector('h2, h3, .title') || link;
-          const text = title.textContent.trim();
           if (text.length > 2 && text.length < 100) {
-            items.push({ element: el, link, name: text, url: href, titleEl: title });
+            const container = a.closest('li, div, article') || a;
+            const title = container.querySelector('h2, h3, h4, .title, .entry-title, .name') || a;
+            items.push({ element: container, link: a, name: text, url: a.href, titleEl: title });
           }
-        });
-        return items;
-      }
-    },
-    '_default': {
-      name: '通用',
-      isListPage: () => {
-        let gameLinks = 0;
-        document.querySelectorAll('a').forEach(a => {
-          if (a.href && (a.href.includes('/game/') || a.href.includes('/down/') || a.href.includes('/soft/'))) gameLinks++;
-        });
-        return gameLinks >= 5;
-      },
-      getListItems: () => {
-        const items = [];
-        const seen = new Set();
-        document.querySelectorAll('a').forEach(a => {
-          if (a.href && (a.href.includes('/game/') || a.href.includes('/down/') || a.href.includes('/soft/')) && !seen.has(a.href)) {
-            seen.add(a.href);
-            const text = a.textContent.trim();
-            if (text.length > 2 && text.length < 100) {
-              const container = a.closest('li, div, article') || a;
-              const title = container.querySelector('h2, h3, h4, .title, .entry-title, .name') || a;
-              items.push({ element: container, link: a, name: text, url: a.href, titleEl: title });
-            }
-          }
-        });
-        return items;
-      }
+        }
+      });
+      return items;
     }
   };
 
@@ -689,31 +606,34 @@
   }
 
   // 从解析后的文档中提取游戏名（简化版，不依赖完整适配器，仅提取文本）
-  // Extract game names from a parsed document (simplified; text only, no full adapter)
+  // 选择器优先使用规则文件（adapters/sites.js）中的容器/标题配置
+  // Extract game names from a parsed document (simplified; text only).
+  // Selectors come from the rules file (adapters/sites.js) when available.
   function extractGameNamesFromDoc(doc) {
     const names = new Set();
     const domain = window.location.hostname;
 
-    // XDGame: a.tit 文本链接 / XDGame: a.tit text links
-    if (domain.includes('xdgame.com')) {
-      doc.querySelectorAll('a.tit').forEach(a => {
-        const text = (a.textContent || '').trim().replace(/\s+/g, ' ');
-        if (text.length > 2 && text.length < 200) names.add(text);
-      });
-      if (names.size > 0) return [...names];
-    }
-
-    // WordPress 类（咸鱼单机/Gamer520）：文章卡片标题
-    // WordPress-style (xianyudanji/Gamer520): article card titles
-    if (domain.includes('xianyudanji.gg') || domain.includes('gamer520.com')) {
-      doc.querySelectorAll('.post, .article, .entry, .item, article').forEach(el => {
-        const title = el.querySelector('h2, h3, .title, .entry-title');
-        if (title) {
-          const text = title.textContent.trim().replace(/\s+/g, ' ');
-          if (text.length > 2 && text.length < 100) names.add(text);
-        }
-      });
-      if (names.size > 0) return [...names];
+    // 规则驱动提取：容器 + 标题链接/标题元素选择器
+    // Rule-driven extraction: containers + title-link/title-element selectors
+    const rule = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites
+      ?.find(r => r.domains.some(d => domain.includes(d)));
+    if (rule) {
+      const cfg = rule.listItem || {};
+      const containers = cfg.containers || [];
+      const titleLink = cfg.titleLink;
+      const titleEls = cfg.titleEls || ['h2', 'h3', '.title', '.entry-title'];
+      const minLen = cfg.minLen ?? 3;
+      const maxLen = cfg.maxLen ?? 200;
+      for (const sel of containers) {
+        doc.querySelectorAll(sel).forEach(el => {
+          const t = titleLink ? el.querySelector(titleLink) : el.querySelector(titleEls.join(','));
+          if (t) {
+            const text = (t.textContent || '').trim().replace(/\s+/g, ' ');
+            if (text.length > minLen && text.length < maxLen) names.add(text);
+          }
+        });
+        if (names.size > 0) return [...names];
+      }
     }
 
     // 通用回退：指向详情页且有文本的链接（用 getAttribute 避免 DOMParser 无 base URL 问题）
@@ -750,17 +670,22 @@
         const minRating = settings?.enableRatingFilter ? (settings.minSteamRatingFilter || 0) : 0;
         processItems.forEach(item => {
           const rating = response.ratings[item.name];
-          if (rating && rating.positiveRate !== null && rating.positiveRate !== undefined) {
-            // 好评率过滤：低于阈值的移除该项（从DOM中删除，使后续元素自动重排）
-            if (minRating > 0 && rating.positiveRate < minRating) {
-              if (item.element) {
-                // 向上查找Bootstrap栅格列容器（col-*），移除整个列以避免留空
-                const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
-                const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
-                if (toRemove.parentNode) toRemove.remove();
+          // 匹配到 appId 即显示徽章：有评测显示好评率，无评测（0条）显示"暂无"
+          // Show a badge whenever an appId is matched: the positive rate if reviews
+          // exist, or "暂无" (N/A) for games with zero reviews.
+          if (rating && rating.appId) {
+            if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
+              // 好评率过滤：低于阈值的移除该项（从DOM中删除，使后续元素自动重排）
+              if (minRating > 0 && rating.positiveRate < minRating) {
+                if (item.element) {
+                  // 向上查找Bootstrap栅格列容器（col-*），移除整个列以避免留空
+                  const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
+                  const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
+                  if (toRemove.parentNode) toRemove.remove();
+                }
+                filtered++;
+                return;
               }
-              filtered++;
-              return;
             }
             prependRatingBadge(item, rating);
             shown++;
@@ -781,15 +706,26 @@
     if (!link) return;
 
     const rate = rating.positiveRate;
-    // 颜色分级：>=80 绿色，>=60 黄绿，<60 橙色
-    const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
-    const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
+    // 颜色分级：>=80 绿色，>=60 黄绿，<60 橙色；无评测（0条）显示灰色"暂无"
+    // Color grading: >=80 blue, >=60 yellow-green, <60 orange; no reviews → grey "暂无"
+    let color, bg, text;
+    if (rate === null || rate === undefined) {
+      color = '#8f98a0';
+      bg = 'rgba(143,152,160,0.15)';
+      text = '暂无';
+    } else {
+      color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
+      bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
+      text = `${rate}%`;
+    }
 
     const badge = document.createElement('span');
     badge.className = 'gr-rating-badge';
-    badge.textContent = `${rate}%`;
+    badge.textContent = text;
     badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;`;
-    badge.title = `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}`;
+    badge.title = (rate === null || rate === undefined)
+      ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测`
+      : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}`;
 
     // 查找标题元素，将徽章插入到标题文本前面（而非图片前面）
     // 策略：优先用 item.titleEl，其次在 item.element 中查找标题，最后回退到 link 的第一个文本节点

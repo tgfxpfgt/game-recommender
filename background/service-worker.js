@@ -22,6 +22,76 @@
 
 // ============ 1. 常量与配置 / Constants & Config ============
 
+// 下载站适配规则来自 adapters/sites.js（规则文件化，便于分享和移植）。
+// 副作用导入：执行后规则可通过 globalThis.__GAME_RECOMMENDER_SITES__ 读取。
+// Download-site adapter rules come from adapters/sites.js (rules-as-files for
+// easy sharing and porting). Side-effect import: rules are then available via
+// globalThis.__GAME_RECOMMENDER_SITES__.
+import '../adapters/sites.js';
+
+// 请求目标校验：仅允许 http/https，且拒绝 localhost、环回、私有与保留地址。
+// 防止外部数据（下载站链接、用户配置）诱导扩展请求内网资源（SSRF 防护）。
+// Request-target validation: only http/https, rejecting localhost, loopback,
+// private and reserved addresses, so external data can never make the extension
+// probe internal networks (SSRF protection).
+function isSafeFetchUrl(url) {
+  if (typeof url !== 'string') return false;
+  let parsed;
+  try { parsed = new URL(url); } catch (e) { return false; }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+  const host = parsed.hostname.toLowerCase();
+  if (host === 'localhost' || host.endsWith('.localhost')) return false;
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host)) {
+    // IPv4：排除环回/私有/保留段 / IPv4: exclude loopback/private/reserved ranges
+    const octets = host.split('.').map(Number);
+    const a = octets[0];
+    if (a === 0 || a === 10 || a === 127) return false;
+    if (a === 100 && octets[1] >= 64 && octets[1] <= 127) return false; // CGNAT
+    if (a === 169 && octets[1] === 254) return false; // link-local
+    if (a === 172 && octets[1] >= 16 && octets[1] <= 31) return false;
+    if (a === 192 && octets[1] === 168) return false;
+    if (a === 198 && (octets[1] === 18 || octets[1] === 19)) return false;
+    if (a >= 224) return false; // 组播/保留 / multicast/reserved
+  } else if (host === '::1' || host.startsWith('::ffff:')) {
+    return false;
+  }
+  return true;
+}
+
+// 带超时且经过安全校验的 fetch：
+// - options.allowPrivateHosts = true 时跳过私有地址校验（仅用于用户显式配置的
+//   本地 LLM 端点，如 Ollama 的 http://localhost:11434）
+// 防止 Steam/SteamDB 等外部 API 挂起拖垮 Service Worker。
+// Fetch with timeout + safety validation:
+// - options.allowPrivateHosts = true skips the private-address check (used only
+//   for user-configured local LLM endpoints such as Ollama on localhost:11434)
+// Prevents external APIs (Steam/SteamDB) from hanging the SW.
+const FETCH_DEFAULT_TIMEOUT = 15000; // 15s
+function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIMEOUT) {
+  // 私有/环回地址校验（默认拒绝）；allowPrivateHosts 例外仅限 http(s) 协议
+  // Private/loopback check (rejected by default); the allowPrivateHosts exception
+  // still requires an http(s) scheme
+  const allowPrivate = !!(options && options.allowPrivateHosts === true && /^https?:\/\//i.test(String(url)));
+  if (!isSafeFetchUrl(url) && !allowPrivate) {
+    return Promise.reject(new Error('blocked-url: ' + String(url).substring(0, 80)));
+  }
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeout);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(timer));
+}
+
+// 下载站配置：从规则文件构建，仅包含配置了站内搜索的站点
+// Download-site config: built from the rules file; only sites with in-site search
+const DOWNLOAD_SITES = (globalThis.__GAME_RECOMMENDER_SITES__?.sites || [])
+  .filter(s => s.searchUrl)
+  .map(s => ({
+    key: s.key,
+    name: s.name,
+    searchUrl: q => s.searchUrl.replace('{q}', encodeURIComponent(q)),
+    base: s.base
+  }));
+
 const DB_KEYS = {
   BEHAVIOR_LOG: 'behaviorLog',
   GAME_PROFILES: 'gameProfiles',
@@ -112,23 +182,6 @@ const REGISTRY_CONFIRM_TTL = 30 * 24 * 3600 * 1000; // 30天
 // Download-site detail URL TTL: 30 days. Re-search after expiry.
 // If a new URL for the same appId is found, replace the old one and record refresh time.
 const DOWNLOAD_URL_TTL = 30 * 24 * 3600 * 1000; // 30天
-
-// 下载站配置
-const DOWNLOAD_SITES = [
-  { key: 'xdgame',      name: 'XDGame',   searchUrl: q => `https://xdgame.com/so/${encodeURIComponent(q)}.html`,     base: 'https://xdgame.com' },
-  { key: 'xianyudanji', name: '咸鱼单机', searchUrl: q => `https://www.xianyudanji.gg/?s=${encodeURIComponent(q)}`,   base: 'https://www.xianyudanji.gg' },
-  { key: 'gamer520',    name: 'Gamer520', searchUrl: q => `https://www.gamer520.com/?s=${encodeURIComponent(q)}`,     base: 'https://www.gamer520.com' }
-];
-
-// 带超时的 fetch：防止 Steam/SteamDB 等外部 API 挂起拖垮 Service Worker。
-// Fetch with timeout: prevents external APIs (Steam/SteamDB) from hanging the SW.
-const FETCH_DEFAULT_TIMEOUT = 15000; // 15s
-function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIMEOUT) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeout);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(timer));
-}
 
 // ============ 2. 存储管理 / Storage Management ============
 
@@ -398,48 +451,68 @@ async function flushNameIndex() {
 // ============ 3.7 下载站详情页网址缓存 / Download URL Cache (Layer 3: 30-day TTL) ============
 // 记录每个 appId 在各下载站的详情页网址，30 天有效。
 // 若发现同 appId 的新网址，替代旧网址并记录刷新时间。
+// 存储结构按站点分桶（v2）：{ v: 版本, sites: { siteKey: { appId: entry } } }。
+// 更新某个站点时只读写该站点的桶，互不影响，也便于按站点单独清理。
 // Records each appId's detail-page URL per download site, 30-day TTL.
 // If a new URL for the same appId is found, replaces the old one and records refresh time.
+// Storage is bucketed per site (v2): { v: version, sites: { siteKey: { appId: entry } } }.
+// Updating one site touches only its own bucket; sites never interfere with each other.
 
-// 获取某 appId 的所有下载站网址 / Get all download-site URLs for an appId
+// 结构版本：v2 起按站点分桶；旧版（appId → 站点映射）结构的数据自动失效重建。
+// Structure version: bucketed per site since v2; legacy (appId-keyed) data is discarded.
+const DOWNLOAD_URLS_VERSION = 2;
+
+// 读取整个存储结构（含版本校验，版本不符视为空）
+// Read the whole store (with version check; mismatched versions are treated as empty)
+async function readDownloadUrlsStore() {
+  const data = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_URLS);
+  const store = data[DB_KEYS.DOWNLOAD_URLS];
+  if (!store || store.v !== DOWNLOAD_URLS_VERSION || !store.sites) {
+    return { v: DOWNLOAD_URLS_VERSION, sites: {} };
+  }
+  return store;
+}
+
+// 获取某 appId 的所有下载站网址（合并各站点桶）
+// Get all download-site URLs for an appId (merged across site buckets)
 async function getDownloadUrls(appId) {
   if (!appId) return {};
-  const data = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_URLS);
-  const all = data[DB_KEYS.DOWNLOAD_URLS] || {};
-  return all[String(appId)] || {};
+  const store = await readDownloadUrlsStore();
+  const key = String(appId);
+  const result = {};
+  for (const [siteKey, bucket] of Object.entries(store.sites)) {
+    if (bucket[key]) result[siteKey] = bucket[key];
+  }
+  return result;
 }
 
 // 获取某 appId 在指定站点的网址（同时更新 lastAccessed）
 // Get a specific site's URL for an appId (also updates lastAccessed)
 async function getDownloadUrlForSite(appId, siteKey) {
   if (!appId || !siteKey) return null;
-  const urls = await getDownloadUrls(appId);
-  const entry = urls[siteKey];
+  const store = await readDownloadUrlsStore();
+  const bucket = store.sites[siteKey];
+  const entry = bucket ? bucket[String(appId)] : null;
   if (!entry) return null;
   // 更新上次调用缓存时间 / Update last accessed time
   entry.lastAccessed = Date.now();
-  await recordDownloadUrls(appId, urls);
+  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
   return entry;
 }
 
-// 内部：写入某 appId 的完整网址集合 / Internal: write full URL set for an appId
-async function recordDownloadUrls(appId, urls) {
-  if (!appId) return;
-  const data = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_URLS);
-  const all = data[DB_KEYS.DOWNLOAD_URLS] || {};
-  all[String(appId)] = urls;
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: all });
-}
-
 // 记录/更新某 appId 在指定站点的详情页网址
+// 仅操作该站点自己的桶：读取站点桶 → 更新 → 写回，不触碰其他站点数据。
 // 若网址与已有不同，替代并记录 lastRefreshed；若相同，仅更新 lastAccessed。
 // Record/update a detail-page URL for appId at a specific site.
+// Touches only that site's bucket: read → update → write back, leaving other sites untouched.
 // If the URL differs from the stored one, replace it and record lastRefreshed;
 // if same, only update lastAccessed.
 async function recordDownloadUrl(appId, siteKey, siteName, url) {
   if (!appId || !siteKey || !url) return;
-  const urls = await getDownloadUrls(appId);
-  const existing = urls[siteKey];
+  const store = await readDownloadUrlsStore();
+  const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
+  const key = String(appId);
+  const existing = bucket[key];
   const now = Date.now();
 
   if (existing && existing.url === url) {
@@ -448,7 +521,7 @@ async function recordDownloadUrl(appId, siteKey, siteName, url) {
   } else {
     // 新网址或网址变更，替代并记录刷新时间
     // New or changed URL: replace and record refresh time
-    urls[siteKey] = {
+    bucket[key] = {
       url,
       siteName: siteName || siteKey,
       firstSeen: existing ? existing.firstSeen : now,
@@ -456,7 +529,7 @@ async function recordDownloadUrl(appId, siteKey, siteName, url) {
       lastAccessed: now
     };
   }
-  await recordDownloadUrls(appId, urls);
+  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: store });
 }
 
 // ============ 4. 运行日志 / Runtime Logger ============
@@ -823,13 +896,27 @@ function cleanGameName(name) {
 
 // --- 搜索 ---
 
+// 在搜索结果中挑选目标游戏：
+// Demo/试玩版没有完整评测数据，且常以较高相关性抢占完整版的位置
+//（如"奉魔 Demo"排在"奉魔"前面），导致好评率永远查不到。
+// 因此优先返回非 Demo 结果，仅在没有其他结果时回退到 Demo。
+// Pick the target game from search results:
+// Demo/trial editions have no full review data and often rank ahead of the
+// full version (e.g. "奉魔 Demo" before "奉魔"), so ratings never resolve.
+// Prefer non-Demo results; fall back to a Demo only when nothing else matches.
+function pickSearchItem(items) {
+  const nonDemo = items.find(i => !/demo|试玩|trial/i.test(i.name || ''));
+  return nonDemo || items[0];
+}
+
 async function searchSteamAppId(searchTerms) {
   for (const term of searchTerms) {
     const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`;
     const response = await fetchWithTimeout(searchUrl);
     const data = await response.json();
     if (data.total > 0 && data.items && data.items[0]) {
-      return { appId: data.items[0].id, name: data.items[0].name };
+      const picked = pickSearchItem(data.items);
+      return { appId: picked.id, name: picked.name };
     }
   }
   return null;
@@ -1121,6 +1208,17 @@ async function fetchSteamFullDetailsByAppId(appId) {
 
 // ============ 10. Steam API 编排器 / Steam API Orchestrator ============
 
+// 判断缓存条目是否为"Demo 版且无评测"——这种条目表示历史匹配到了试玩版，
+// 评分永远为 null，需要清除并重新搜索完整版（自愈）。
+// Whether a cached entry is a "Demo edition without reviews" — it means a trial
+// version was matched historically, the rating is permanently null, and a re-search
+// for the full version is needed (self-heal).
+function isDemoCacheWithoutRating(cachedData) {
+  if (!cachedData) return false;
+  if (cachedData.positiveRate !== null && cachedData.positiveRate !== undefined) return false;
+  return /demo|试玩|trial/i.test(cachedData.name || '');
+}
+
 async function searchSteamGame(gameName) {
   // 1. 通过名称索引查找 appId（O(1)，带内存缓存）
   //    Lookup appId via name index (O(1), in-memory cached)
@@ -1131,7 +1229,13 @@ async function searchSteamGame(gameName) {
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
     if (isSteamCacheValid(cached) && cached.data && cached.data.url && cached.data.appId) {
-      return cached.data;
+      // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
+      // Self-heal: Demo cache entry without rating → ignore cache, re-search the full version
+      if (isDemoCacheWithoutRating(cached.data)) {
+        appId = null;
+      } else {
+        return cached.data;
+      }
     }
   } else {
     // 3. 无 appId 时，检查是否在 24h 负缓存期内（近期搜索过但未找到）
@@ -1181,15 +1285,21 @@ async function getSteamPositiveRate(gameName) {
 
   // 2. 若有 appId，检查 Steam 动态缓存（以 appId 为键）
   //    If appId known, check Steam dynamic cache (appId-keyed)
+  let usableAppId = appId;
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
     if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) {
-      return {
-        positiveRate: cached.data.positiveRate,
-        ratingDesc: cached.data.ratingDesc || null,
-        appId: cached.data.appId || appId,
-        name: cached.data.name || gameName
-      };
+      // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
+      // Self-heal: Demo cache entry without rating → treat as invalid, re-search full version
+      if (!isDemoCacheWithoutRating(cached.data)) {
+        return {
+          positiveRate: cached.data.positiveRate,
+          ratingDesc: cached.data.ratingDesc || null,
+          appId: cached.data.appId || appId,
+          name: cached.data.name || gameName
+        };
+      }
+      usableAppId = null;
     }
   } else {
     // 3. 无 appId 时，检查 24h 负缓存 / No appId: check 24h negative cache
@@ -1201,7 +1311,7 @@ async function getSteamPositiveRate(gameName) {
   try {
     // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取评价）
     //    Search appId (skip if already known, just re-fetch review summary)
-    let foundAppId = appId;
+    let foundAppId = usableAppId;
     let foundName = gameName;
     if (!foundAppId) {
       const searchResult = await searchSteamAppId(parseGameTitle(gameName));
@@ -1226,8 +1336,10 @@ async function getSteamPositiveRate(gameName) {
     }
 
     // 6. 合并写入 Steam 动态缓存（以 appId 为键，保留可能已有的完整数据）
-    //    Merge into Steam dynamic cache (appId-keyed, preserve any existing full data)
-    const existing = appId ? ((await getSteamCacheEntry(appId)) || {}).data || {} : {};
+    //    自愈场景（usableAppId 为 null）时不留存旧 Demo 数据，直接整体覆盖。
+    //    Merge into Steam dynamic cache (appId-keyed, preserve any existing full data).
+    //    In the self-heal case (usableAppId null) the old Demo entry is not kept.
+    const existing = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || {}).data || {} : {};
     const mergedData = { ...existing, appId: foundAppId, name: foundName, positiveRate, ratingDesc };
     await setSteamCacheEntry(foundAppId, mergedData);
 
@@ -1374,14 +1486,17 @@ async function calculateWithLLM(gameInfo, settings) {
   const prompt = buildLLMPrompt(gameInfo, topKeywords);
 
   let response;
-  // LLM 生成较慢，使用更长的超时时间（30s）避免请求挂起
-  // LLM generation is slow; use a longer timeout (30s) to avoid hanging
+  // LLM 生成较慢，使用更长的超时时间（30s）避免请求挂起；
+  // 端点为用户显式配置（可能是本地 Ollama），允许私有地址。
+  // LLM generation is slow; use a longer timeout (30s) to avoid hanging.
+  // The endpoint is user-configured (possibly a local Ollama), so private hosts are allowed.
   const LLM_FETCH_TIMEOUT = 30000;
   if (llmConfig.provider === 'local') {
     // Ollama 本地模型
     response = await fetchWithTimeout(llmConfig.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      allowPrivateHosts: true,
       body: JSON.stringify({
         model: llmConfig.model,
         prompt,
@@ -1399,6 +1514,7 @@ async function calculateWithLLM(gameInfo, settings) {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${llmConfig.apiKey}`
       },
+      allowPrivateHosts: true,
       body: JSON.stringify({
         model: llmConfig.model,
         messages: [
@@ -2406,13 +2522,15 @@ async function handleGetGameCacheList(message) {
   const pageSize = Math.max(1, Math.min(100, message.pageSize || 20));
 
   const registry = await getGameRegistry();
-  const downloadUrlsData = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_URLS);
-  const allDownloadUrls = downloadUrlsData[DB_KEYS.DOWNLOAD_URLS] || {};
+  const urlStore = await readDownloadUrlsStore();
 
-  // 将注册表转为数组并合并下载站网址信息
-  // Convert registry to array and merge download-site URL info
+  // 将注册表转为数组并合并下载站网址信息（合并所有站点桶）
+  // Convert registry to array and merge download-site URL info (merged across site buckets)
   let games = Object.entries(registry).map(([appId, entry]) => {
-    const urls = allDownloadUrls[appId] || {};
+    const urls = {};
+    for (const [siteKey, bucket] of Object.entries(urlStore.sites)) {
+      if (bucket[appId]) urls[siteKey] = bucket[appId];
+    }
     // 取第一个有效下载站网址作为主展示 / Pick first valid download URL for display
     const primaryUrl = Object.values(urls).find(u => u && u.url) || null;
     return {
@@ -2479,11 +2597,13 @@ async function handleDeleteGameCacheEntry(message) {
   steamCacheMemory.delete(appId);
   await flushSteamCache();
 
-  // 4. 删除下载站网址 / Delete download URLs
-  const downloadUrlsData = await chrome.storage.local.get(DB_KEYS.DOWNLOAD_URLS);
-  const allDownloadUrls = downloadUrlsData[DB_KEYS.DOWNLOAD_URLS] || {};
-  delete allDownloadUrls[appId];
-  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: allDownloadUrls });
+  // 4. 删除下载站网址（从所有站点桶中移除该 appId）
+  //    Delete download URLs (remove appId from every site bucket)
+  const urlStore = await readDownloadUrlsStore();
+  for (const bucket of Object.values(urlStore.sites)) {
+    delete bucket[appId];
+  }
+  await chrome.storage.local.set({ [DB_KEYS.DOWNLOAD_URLS]: urlStore });
 
   // 5. 清理名称索引中的相关条目 / Clean name index entries
   await loadNameIndexToMemory();
