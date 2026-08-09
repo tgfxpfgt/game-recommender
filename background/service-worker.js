@@ -827,7 +827,7 @@ function parseGameTitle(rawName) {
   // 避免 "王国历史：三国志"、"History of Kingdoms: Three Kingdoms" 等含冒号的完整名字被误拆
   const rawParts = name.split(/[|]+|\s+[-–—]\s+/).map(s => s.trim()).filter(s => s.length > 1);
 
-  const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|免安装绿色版|\s+The\s+Game\s*)/gi;
+  const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|\s+The\s+Game\s*)/gi;
 
   // 判断整段是否仅由噪声词组成（如 "官方中文"、"中文版"、"v1.0"）
   function isPureNoise(text) {
@@ -924,8 +924,10 @@ async function searchSteamAppId(searchTerms) {
 
 // --- 应用详情 ---
 
-async function fetchSteamAppDetails(appId) {
-  const detailUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=schinese`;
+// 获取应用详情（language: schinese/english 等，返回对应语言的 name 字段）
+// Fetch app details (language: schinese/english etc.; `name` follows the locale)
+async function fetchSteamAppDetails(appId, language = 'schinese') {
+  const detailUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=${language}`;
   const response = await fetchWithTimeout(detailUrl);
   const detailData = await response.json();
   if (!detailData[appId] || !detailData[appId].success) return null;
@@ -1150,13 +1152,16 @@ async function fetchSteamSpyInfo(appId) {
 
 // --- 组装最终结果对象 ---
 
-function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo) {
+function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData) {
   const { reviewSummary, cnReviewSummary, chineseReviews } = reviews;
   const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;
 
   return {
     appId,
     name: gameData.name,
+    // 英文名：来自 english 语言的详情（注册表/缓存管理页使用；中文站点仍以中文名显示）
+    // English name from the english-locale details (used by the registry/cache page)
+    englishName: (enGameData && enGameData.name) || gameData.name,
     url: `https://store.steampowered.com/app/${appId}/`,
     steamdbUrl: steamdbInfo?.url || `https://steamdb.info/app/${appId}/`,
     rating: reviewSummary ? reviewSummary.score : null,
@@ -1189,7 +1194,12 @@ function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbI
 // Get full Steam details by appId (assembles details/language/tags/reviews/SteamDB/SteamSpy).
 // Extracted as a shared helper for searchSteamGame and handleGetSteamByAppId to avoid duplication.
 async function fetchSteamFullDetailsByAppId(appId) {
-  const gameData = await fetchSteamAppDetails(appId);
+  // 并行获取中英文详情：中文用于页面显示，英文名写入游戏注册表
+  // Fetch CN and EN details in parallel: CN for display, EN name for the registry
+  const [gameData, enGameData] = await Promise.all([
+    fetchSteamAppDetails(appId, 'schinese'),
+    fetchSteamAppDetails(appId, 'english')
+  ]);
   if (!gameData) return null;
 
   const storeHtml = await fetchStorePageHtml(appId);
@@ -1203,7 +1213,7 @@ async function fetchSteamFullDetailsByAppId(appId) {
     ? await fetchSteamSpyInfo(appId)
     : null;
 
-  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo);
+  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData);
 }
 
 // ============ 10. Steam API 编排器 / Steam API Orchestrator ============
@@ -1217,6 +1227,17 @@ function isDemoCacheWithoutRating(cachedData) {
   if (!cachedData) return false;
   if (cachedData.positiveRate !== null && cachedData.positiveRate !== undefined) return false;
   return /demo|试玩|trial/i.test(cachedData.name || '');
+}
+
+// 选择注册表英文名：优先取下载站标题中嵌入的英文名（与站点标题一致，
+// 如"铁巢重炮|Iron Nest Heavy Turret Simulator"），
+// 回退到 Steam 官方英文名（可能为全大写形式）。
+// Pick the registry EN name: prefer the EN name embedded in the download-site
+// title (e.g. "铁巢重炮|Iron Nest Heavy Turret Simulator"), falling back to the
+// Steam official EN name (which may be ALL-CAPS).
+function pickRegistryEnName(gameName, steamEnName) {
+  const enFromTitle = parseGameTitle(gameName || '').find(t => /^[A-Za-z]/.test(t));
+  return enFromTitle || steamEnName || '';
 }
 
 async function searchSteamGame(gameName) {
@@ -1265,7 +1286,11 @@ async function searchSteamGame(gameName) {
     // 6. 写入三层缓存：Steam 动态缓存(24h) + 游戏注册表(永久) + 名称索引
     //    Write to all 3 cache layers: Steam dynamic (24h) + registry (permanent) + name index
     await setSteamCacheEntry(appId, result);
-    await recordGameInRegistry(appId, { cnName: gameName, enName: result.name, gameName });
+    await recordGameInRegistry(appId, {
+      cnName: gameName,
+      enName: pickRegistryEnName(gameName, result.englishName),
+      gameName
+    });
     await recordNameIndex(gameName, appId);
 
     return result;
@@ -2121,6 +2146,24 @@ async function handleGetDownloadHistory(message) {
   return { history };
 }
 
+// 详情页访问记录：把当前详情页网址记录到该 appId 的下载站网址缓存，
+// 并更新 lastAccessed，供游戏缓存管理页展示"上次调用"。
+// 此前详情页访问不会写 downloadUrls 缓存，导致管理页调用记录为空。
+// Record a detail-page visit: save the current page URL into the appId's
+// download-URL cache and refresh lastAccessed, powering the "last accessed"
+// column in the game-cache page. Previously detail-page visits never wrote
+// the downloadUrls cache, so the cache page showed no access records.
+async function handleTrackDownloadSiteVisit(message) {
+  const data = message.data || {};
+  const appId = data.appId;
+  const url = data.url || '';
+  if (!appId || !url) return { success: false };
+  const siteInfo = inferSiteFromDomain(data.domain || '');
+  if (siteInfo.key === 'unknown') return { success: false };
+  await recordDownloadUrl(String(appId), siteInfo.key, siteInfo.name, url);
+  return { success: true };
+}
+
 // --- 各消息类型的独立 handler / Individual message handlers ---
 
 async function handleTrackEvent(message) {
@@ -2236,7 +2279,11 @@ async function handleGetSteamByAppId(message) {
     // 3. 写入三层缓存：Steam 动态缓存 + 游戏注册表 + 名称索引
     //    Write to all 3 cache layers
     await setSteamCacheEntry(appId, result);
-    await recordGameInRegistry(appId, { cnName: gameName, enName: result.name, gameName });
+    await recordGameInRegistry(appId, {
+      cnName: gameName,
+      enName: pickRegistryEnName(gameName, result.englishName),
+      gameName
+    });
     if (gameName) await recordNameIndex(gameName, appId);
 
     await flushSteamCache();
@@ -2664,6 +2711,7 @@ const MESSAGE_HANDLERS = {
   GET_FREE_GAMES:         handleGetFreeGames,
   CLAIM_FREE_GAME:        handleClaimFreeGame,
   GET_DOWNLOAD_HISTORY:   handleGetDownloadHistory,
+  TRACK_DOWNLOAD_SITE_VISIT: handleTrackDownloadSiteVisit,
   // 游戏缓存管理 / Game cache management
   GET_GAME_CACHE_LIST:    handleGetGameCacheList,
   DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,

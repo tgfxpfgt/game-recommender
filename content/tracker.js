@@ -215,6 +215,23 @@
     }).catch(() => {});
   }
 
+  // 记录下载站详情页访问：把当前页面网址写入该 appId 的下载站网址缓存，
+  // 更新 lastAccessed，供游戏缓存管理页展示"上次调用"。
+  // Record a download-site detail-page visit: save the current URL into the
+  // appId's download-URL cache and refresh lastAccessed for the cache page.
+  function trackDownloadSiteVisit(appId, gameName) {
+    if (!appId) return;
+    chrome.runtime.sendMessage({
+      action: 'TRACK_DOWNLOAD_SITE_VISIT',
+      data: {
+        appId: String(appId),
+        gameName: gameName || '',
+        url: window.location.href,
+        domain: getCurrentDomain()
+      }
+    }).catch(() => {});
+  }
+
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
@@ -232,6 +249,11 @@
     // 优先从 h1 获取
     const h1 = document.querySelector('h1');
     if (h1) {
+      // 移除徽章/角标元素（如咸鱼单机的"新游发布" span），避免其文本污染标题
+      // Strip badge elements (e.g. xianyudanji's "新游发布" span) so their text
+      // never pollutes the extracted title
+      h1.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach(b => b.remove());
+
       // 策略1：优先从 h1 子元素中提取纯英文标题
       // 部分下载站的 h1 结构为"中文标题|噪声|英文标题"，英文标题在子元素中。
       // 直接取 textContent 会被噪声正则误删英文部分。
@@ -245,14 +267,24 @@
         }
       }
 
-      // 策略2：取 textContent 并清理常见后缀
-      // 正则说明：匹配分隔符 | - – — : ：后跟（可含"官方/绿色/学习"等修饰词的）
-      // "中文/汉化/破解/下载"等噪声关键词及其后所有内容
-      // Strategy 2: take textContent and clean common suffixes.
-      // Regex: match a separator followed by (optionally prefixed with "官方/绿色/学习"
-      // etc.) noise keywords "中文/汉化/破解/下载" and everything after.
+      // 策略2：取 textContent，按分隔符分段，移除纯噪声段（中英文名段都保留）
+      // 旧实现用"|噪声词及之后全部删除"的正则，会误删噪声段之后的英文名
+      //（如"铁巢重炮|官方中文|Iron Nest Heavy Turret Simulator"被删成只剩中文），
+      // 且未移除徽章文本导致标题被"新游发布"污染、Steam 搜索失败。
+      // 现在仅删除噪声段本身，完整的中英文名交由后台 parseGameTitle 生成搜索候选。
+      // Strategy 2: split textContent by separators and drop pure-noise segments,
+      // keeping BOTH CN and EN name segments. The old regex deleted everything
+      // after a noise keyword, wrongly removing the EN name that follows it,
+      // and badge text polluted the title so Steam search failed.
+      const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|下载|游戏下载|免费下载|支持手柄|手柄|支持|新游发布|免安装绿色版)/gi;
       let text = h1.textContent.trim();
-      text = text.replace(/[\|\-–—:：]\s*(?:[^\|\-–—:：]{0,8})?(?:下载|游戏下载|免费下载|破解|汉化|中文|英文|繁体|简体|Build|v\d|DLC|整合|硬盘|绿色|学习|未加密|完整版|豪华版|终极版|数字版|典藏版|年度版|重制版|复刻版|增强版|正式版|官方版|解压即撸|预购|特典).*$/i, '').trim();
+      const parts = text.split(/[|]+|\s+[-–—]\s+/).map(s => s.trim()).filter(s => s.length > 1);
+      const keptParts = parts.filter(p => {
+        const stripped = p.replace(noisePattern, '').replace(/[\s\|\-:：、]+/g, '');
+        return stripped.length > 0;
+      });
+      if (keptParts.length > 0) text = keptParts.join('|');
+
       // 清理可能残留的尾部空分隔符 / Clean trailing empty separators
       text = text.replace(/[\|\-–—:：\s]+$/, '').trim();
       if (text.length > 1 && text.length < 200) {
@@ -424,6 +456,9 @@
       // break detectGameName, but their Steam CDN image URLs contain the appId,
       // which fetches details directly, bypassing name search.
       const appIdFromImg = extractSteamAppIdFromImages();
+      // 页面图片含 appId 时立即记录下载站访问（即使名称提取失败也能关联）
+      // Record the visit right away when an appId is found in page images
+      if (appIdFromImg) trackDownloadSiteVisit(appIdFromImg, gameName || '');
       if (gameName && gameName.length > 1) {
         DEBUG.gameName = gameName;
         dbg(`详情页游戏名: ${gameName}`);
@@ -1164,6 +1199,10 @@
       dbg(`Steam: ${data.name} - ${data.ratingDesc} ${data.positiveRate}%`);
       renderSteamSidebar(panel, data, hidePanel, cachedAt, makeOnRefresh(name));
       showPanel();
+
+      // 记录下载站详情页访问（Steam 匹配成功后也补充记录，覆盖无图片 appId 的页面）
+      // Record the visit once Steam matching succeeds (covers pages without an image appId)
+      trackDownloadSiteVisit(data.appId, name);
 
       // 回写Steam标签
       if (data.genres && data.genres.length > 0) {
