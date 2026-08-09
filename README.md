@@ -182,6 +182,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v1.8.5
+- 图片 appId 直取规则化：各下载站规则显式配置 `imageAppId`（默认启用，可关闭），列表页优先从封面图提取 Steam appId 直取好评率，无法直取（本地图站点如 xdgame/xianyudanji）自动回退标题检索
+- 封面图缓存：列表页提取封面图 URL 写入游戏注册表（coverImage），缓存管理页新增"封面"缩略图列
+- 下一页预载同步提取封面 appId 与封面图
+- 消息格式升级为 imageData（{appId, cover}），兼容旧 appIds 格式
+
 ### v1.8.4
 - 列表页 Steam 信息检索优化（对齐详情页规则）：列表页为每个游戏提取封面图 Steam appId（gamer520 等站点的 queniuqe CDN 封面含 /steam/apps/{appId}/），后台直接以 appId 查询好评率，绕过标题搜索
   - 大量中文译名游戏（Steam 无中文名，如"地城英雄×龙与地下城 战痕之印"→ appId 3124340）此前列表页搜索失败，现在可直接显示好评率

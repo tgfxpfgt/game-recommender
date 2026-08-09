@@ -30,6 +30,13 @@
  *     selectors        DOM 选择器，任一存在即列表页 / DOM selectors; any hit → list page
  *     minDetailLinks   页面上详情链接达到该数量即视为列表页（XDGame 通用判断）/
  *                      list page if detail links ≥ N (XDGame generic check)
+ *   imageAppId         是否从图片 URL 提取 Steam appId（列表页优先 appId 直取）。
+ *                      封面图引用 Steam CDN（如 queniuqe 的 /steam/apps/{id}/）的
+ *                      站点应启用；本地图站点靠标题搜索兜底。
+ *                      Whether to extract Steam appIds from cover images on list
+ *                      pages (appId-first lookup). Enable when covers reference
+ *                      the Steam CDN (/steam/apps/{id}/, e.g. queniuqe); sites
+ *                      with local covers fall back to title search.
  *   listItem           列表项提取规则 / list-item extraction:
  *     containers       列表容器选择器（按优先级尝试）/
  *                      list container selectors (tried in order)
@@ -58,6 +65,7 @@
         base: 'https://xdgame.com',
         searchUrl: 'https://xdgame.com/so/{q}.html',
         detailUrlPatterns: ['/game/\\d+\\.html?$', '/\\d+\\.html?$'],
+        imageAppId: true, // 列表页优先图片 appId 直取（封面无 Steam CDN 时自动回退标题搜索）/ appId-first on list pages, falling back to title search
         listPage: {
           urlPatterns: ['^/so/', '/page/\\d+', '/list/', '^(/|$)'],
           minDetailLinks: 5
@@ -79,6 +87,7 @@
         base: 'https://www.xianyudanji.gg',
         searchUrl: 'https://www.xianyudanji.gg/?s={q}',
         detailUrlPatterns: ['/\\d+\\.html?$', '/[^/]+/?$'],
+        imageAppId: true, // 列表页优先图片 appId 直取（封面无 Steam CDN 时自动回退标题搜索）/ appId-first on list pages, falling back to title search
         listPage: {
           urlPatterns: ['^(/|$)', '/page/\\d+', '/category/', '/tag/', '\\bs=']
         },
@@ -97,6 +106,7 @@
         base: 'https://www.gamer520.com',
         searchUrl: 'https://www.gamer520.com/?s={q}',
         detailUrlPatterns: ['/\\d+\\.html?$', '/[^/]+/?$'],
+        imageAppId: true, // 列表页优先图片 appId 直取（封面无 Steam CDN 时自动回退标题搜索）/ appId-first on list pages, falling back to title search
         listPage: {
           urlPatterns: ['^(/|$)', '/page/\\d+', '/category/', '\\bs=']
         },
@@ -114,6 +124,7 @@
         base: '',
         searchUrl: '',
         detailUrlPatterns: [],
+        imageAppId: true, // 列表页优先图片 appId 直取（封面无 Steam CDN 时自动回退标题搜索）/ appId-first on list pages, falling back to title search
         listPage: {
           selectors: ['.lis', '.game-list', '.content li a[href*="/game/"]', '.Mid2L_con li']
         },
@@ -131,6 +142,7 @@
         base: '',
         searchUrl: '',
         detailUrlPatterns: [],
+        imageAppId: true, // 列表页优先图片 appId 直取（封面无 Steam CDN 时自动回退标题搜索）/ appId-first on list pages, falling back to title search
         listPage: {
           selectors: ['.n_lone', '.game_list', '.downlist']
         },
@@ -148,6 +160,7 @@
         base: '',
         searchUrl: '',
         detailUrlPatterns: [],
+        imageAppId: true, // 列表页优先图片 appId 直取（封面无 Steam CDN 时自动回退标题搜索）/ appId-first on list pages, falling back to title search
         listPage: {
           selectors: ['.game-list', '.Mid2L_con', '.pictxt']
         },

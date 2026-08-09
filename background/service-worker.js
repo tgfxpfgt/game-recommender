@@ -373,12 +373,15 @@ function needsReconfirm(entry) {
 // 记录/更新游戏到注册表
 // cnName/enName 以 Steam 官方名为准（下载站名称可能有偏差）；
 // 下载站标题等触发名加入 names 变体列表，用于跨站名称匹配兼容；
-// tags 为 Steam 官方类型标签（genres），供缓存管理页多条件检索。
+// tags 为 Steam 官方类型标签（genres），供缓存管理页多条件检索；
+// coverImage 为下载站封面图 URL（含 Steam CDN appId 的封面），供缓存管理页展示。
 // Record/update a game in the registry.
 // cnName/enName follow the Steam official names (download-site names may deviate);
 // triggering names (download-site titles) are kept in the names variants list
-// for cross-site matching compatibility; tags are Steam genres for cache-page filters.
-async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '', tags = null }) {
+// for cross-site matching compatibility; tags are Steam genres for cache-page
+// filters; coverImage is the download-site cover URL (with Steam CDN appId) for
+// the cache-management page.
+async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '', tags = null, coverImage = null }) {
   if (!appId) return;
   await loadRegistryToMemory();
   const key = String(appId);
@@ -388,6 +391,11 @@ async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName 
   // Update CN/EN names only when new values are provided
   if (cnName) existing.cnName = cnName;
   if (enName) existing.enName = enName;
+
+  // 更新封面图 URL（仅 http/https，安全校验）/ Update the cover URL (http/https only)
+  if (coverImage && /^https?:\/\//i.test(coverImage)) {
+    existing.coverImage = coverImage;
+  }
 
   // 更新 Steam 官方类型标签（去重合并，最多 20 个）
   // Merge Steam official genre tags (deduplicated, capped at 20)
@@ -1675,13 +1683,14 @@ async function getSteamPositiveRate(gameName, options = {}) {
     await setSteamCacheEntry(foundAppId, mergedData);
 
     // 7. 同步更新游戏注册表和名称索引：cnName/enName 以 Steam 官方名为准，
-    //    下载站标题入名称变体（兼容匹配）。
+    //    下载站标题入名称变体（兼容匹配），封面图一并缓存。
     //    Sync registry and name index: official CN/EN names, download-site title
-    //    goes into the name variants (compatible matching).
+    //    goes into the name variants, cover image is cached too.
     await recordGameInRegistry(foundAppId, {
       cnName: officialCn,
       enName: officialEn,
-      gameName
+      gameName,
+      coverImage: options.cover || ''
     });
     await recordNameIndex(gameName, foundAppId);
 
@@ -2682,6 +2691,9 @@ async function handleSearchSteamCandidates(message) {
 
 async function handleGetSteamRatings(message) {
   const ratingNames = message.names || [];
+  // imageData: {name: {appId, cover} | null}；兼容旧格式 appIds: {name: appId}
+  // imageData carries {appId, cover} per name; legacy appIds {name: appId} still supported
+  const imageData = message.imageData || {};
   const appIds = message.appIds || {};
   const ratings = {};
   const batchSize = 5;
@@ -2691,10 +2703,15 @@ async function handleGetSteamRatings(message) {
       const batchResults = await Promise.all(batch.map(async (name) => {
         try {
           // 列表页批量：忽略负缓存，用户主动浏览的游戏值得重试；
-          // 封面图 appId 优先（绕过标题搜索）
+          // 封面 appId 优先（绕过标题搜索），封面图一并缓存
           // List-page batches ignore the negative cache (user-browsed games
-          // deserve a retry); cover-appIds bypass title search
-          const r = await getSteamPositiveRate(name, { ignoreNegativeCache: true, appId: appIds[name] || null });
+          // deserve a retry); cover-appIds bypass title search, covers cached
+          const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
+          const r = await getSteamPositiveRate(name, {
+            ignoreNegativeCache: true,
+            appId: img ? img.appId : null,
+            cover: img ? img.cover : null
+          });
           return [name, r];
         } catch (e) {
           return [name, null];
@@ -2730,7 +2747,12 @@ async function handleGetSteamRatings(message) {
 // (nearly all hits after flipping to the next page).
 async function handlePrefetchSteamRatings(message) {
   const ratingNames = message.names || [];
+  // imageData/appIds/covers 透传：预载同样优先封面 appId 并缓存封面图
+  // imageData/appIds/covers passthrough: prefetch also prefers cover appIds
+  // and caches the covers
+  const imageData = message.imageData || {};
   const appIds = message.appIds || {};
+  const covers = message.covers || {};
   if (ratingNames.length === 0) return { success: true };
 
   // 过滤：跳过已有有效缓存 / 负缓存期内的名称
@@ -2758,7 +2780,14 @@ async function handlePrefetchSteamRatings(message) {
   for (let i = 0; i < needsPrefetch.length; i += batchSize) {
     const batch = needsPrefetch.slice(i, i + batchSize);
     await Promise.all(batch.map(async (name) => {
-      try { await getSteamPositiveRate(name, { ignoreNegativeCache: true, appId: appIds[name] || null }); } catch (e) {}
+      try {
+        const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
+        await getSteamPositiveRate(name, {
+          ignoreNegativeCache: true,
+          appId: img ? img.appId : null,
+          cover: img ? img.cover : null
+        });
+      } catch (e) {}
     }));
   }
   // 预载结束，强制写入缓存 / Force flush after prefetch to persist
@@ -2977,6 +3006,7 @@ async function handleGetGameCacheList(message) {
       enName: entry.enName || '',
       names: entry.names || [],
       tags: entry.tags || [],
+      coverImage: entry.coverImage || null,
       firstSeen: entry.firstSeen || null,
       lastConfirmed: entry.lastConfirmed || null,
       positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,

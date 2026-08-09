@@ -573,7 +573,7 @@ async function loadGameCache() {
   const statsEl = document.getElementById('cacheStats');
 
   // 显示加载中 / Show loading state
-  tbody.innerHTML = '<tr><td colspan="7" class="cache-empty">加载中...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="8" class="cache-empty">加载中...</td></tr>';
   statsEl.textContent = '';
 
   try {
@@ -588,7 +588,7 @@ async function loadGameCache() {
     });
 
     if (!resp || !resp.games) {
-      tbody.innerHTML = '<tr><td colspan="7" class="cache-empty">加载失败，请重试</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="cache-empty">加载失败，请重试</td></tr>';
       return;
     }
 
@@ -596,15 +596,20 @@ async function loadGameCache() {
     statsEl.textContent = `共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页`;
 
     if (resp.games.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="7" class="cache-empty">暂无缓存数据</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="8" class="cache-empty">暂无缓存数据</td></tr>';
       renderPagination(0, 1);
       return;
     }
 
-    // 渲染表格行（好评率徽章 + 可点击 appId + 手动更新按钮）
-    // Render table rows (rating badge + clickable appId + refresh button)
+    // 渲染表格行（封面缩略图 + 好评率徽章 + 可点击 appId + 手动更新按钮）
+    // Render table rows (cover thumbnail + rating badge + clickable appId + refresh button)
     tbody.innerHTML = resp.games.map(g => `
       <tr>
+        <td class="col-cover">
+          ${g.coverImage
+            ? `<img src="${escapeAttr(g.coverImage)}" class="cache-cover" loading="lazy" alt="" title="${escapeAttr(g.cnName || g.appId)}">`
+            : '—'}
+        </td>
         <td class="col-appid">
           ${formatRatingBadge(g.positiveRate)}
           <a href="https://store.steampowered.com/app/${escapeAttr(g.appId)}" target="_blank" rel="noopener" title="打开 Steam 详情页">${escapeHtml(g.appId)}</a>
@@ -632,7 +637,7 @@ async function loadGameCache() {
     // 渲染分页 / Render pagination
     renderPagination(resp.total, resp.totalPages);
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="7" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
+    tbody.innerHTML = `<tr><td colspan="8" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
   }
 }
 
