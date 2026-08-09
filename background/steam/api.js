@@ -10,7 +10,7 @@
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
-import { getGameRegistryEntry, recordGameInRegistry } from '../storage/registry.js';
+import { getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
 import { parseGameTitle } from './title-parser.js';
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
@@ -38,11 +38,19 @@ export function validateSteamNames(cnName, enName) {
   return { valid: issues.length === 0, issues };
 }
 
+// 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
+// Cover URL: keep the provided cover, else build the Steam CDN header URL
+export function coverImageFor(appId, fallback) {
+  if (fallback && /^https?:\/\//i.test(fallback)) return fallback;
+  if (appId) return `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`;
+  return '';
+}
+
 // --- 搜索 ---
 
-// 并行获取中英文搜索结果（英文名用于注册表记录；中文失败重试一次防抖动）
-// Parallel CN/EN searches; EN names feed the registry; one CN retry on flakiness
-export async function searchSteamAppId(searchTerms) {
+// 单次搜索实现（网络全挂时抛错供外层重试；无结果返回 null 表示"确实未找到"）
+// One search pass (throws on total network failure for outer retry; null = not found)
+async function searchSteamAppIdOnce(searchTerms) {
   for (const term of searchTerms) {
     let cnData = null;
     let enData = null;
@@ -55,6 +63,9 @@ export async function searchSteamAppId(searchTerms) {
       enData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`)).json();
     } catch (e) { /* 英文搜索失败回退中文名 */ }
 
+    // 网络整体失败（中英文均未返回）：抛错 → 外层重试一次（抗瞬时抖动）
+    if (!cnData && !enData) throw new Error('Steam 搜索网络失败');
+
     const cnItems = (cnData && cnData.items) || [];
     if (cnItems.length > 0) {
       const picked = pickSearchItem(cnItems);
@@ -66,6 +77,20 @@ export async function searchSteamAppId(searchTerms) {
         englishName: pickedEn ? pickedEn.name : picked.name
       };
     }
+  }
+  return null;
+}
+
+// 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）
+// Parallel CN/EN searches; EN names feed the registry; one whole-pass retry on
+// network flakiness (but not on a genuine "not found" result)
+export async function searchSteamAppId(searchTerms) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const result = await searchSteamAppIdOnce(searchTerms);
+      if (result) return result;
+      break; // 网络正常但未找到：不重试
+    } catch (e) { /* 网络失败：重试一次 */ }
   }
   return null;
 }
@@ -371,65 +396,86 @@ export async function isDemoAppId(appId) {
   return DEMO_NAME_PATTERN.test(text);
 }
 
-// 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名
-// Idempotent registry fill when serving from cache
-export async function ensureRegistryEntry(appId, cnName, enName, gameName) {
+// 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名（含封面）
+// Idempotent registry fill when serving from cache (cover included)
+export async function ensureRegistryEntry(appId, cnName, enName, gameName, coverImage) {
   if (!appId) return;
   const existing = await getGameRegistryEntry(appId);
-  if (existing && (existing.cnName || existing.enName)) return;
+  if (existing && (existing.cnName || existing.enName)) {
+    // 条目已存在：仅补缺失的封面 / fill the missing cover only
+    if (coverImage && !existing.coverImage && /^https?:\/\//i.test(coverImage)) {
+      await recordGameInRegistry(appId, { coverImage });
+    }
+    return;
+  }
   await recordGameInRegistry(appId, {
     cnName: cnName || '',
     enName: enName || cnName || '',
-    gameName: gameName || ''
+    gameName: gameName || '',
+    coverImage: coverImage || ''
   });
 }
 
-// 英文名异常自愈：注册表英文名须含英文字母（旧数据可能存在中文占位）。
-// 发现异常时按 appId 重新获取 Steam 英文名并更新注册表。
-// Self-heal the registry EN name: it must contain English letters (legacy data
-// may hold Chinese placeholders). Re-fetches the official EN name by appId.
-export async function ensureValidEnglishName(appId, enName, cnName, gameName) {
-  if (!appId) return;
-  if (enName && /[A-Za-z]{2,}/.test(enName)) return; // 正常，无需修复
+// 按 appId 修复注册表中异常的中英文名（并行获取官方名，一次修复两个字段）。
+// 中文名异常时仅当 Steam 官方确实有中文名才覆盖（Steam 无中文名的游戏保持原值）。
+// Self-heal abnormal CN/EN names by appId (parallel fetch, one pass). The CN
+// name is overwritten only when Steam itself provides a Chinese name.
+export async function healRegistryNames(appId, { cnName, enName, gameName }) {
+  if (!appId) return false;
+  const cnOk = cnName && /[\u4e00-\u9fff]/.test(cnName);
+  const enOk = enName && /[A-Za-z]{2,}/.test(enName);
+  if (cnOk && enOk) return false; // 正常，无需修复 / healthy
   try {
-    const enData = await fetchSteamAppDetails(appId, 'english');
+    const [cnData, enData] = await Promise.all([
+      fetchSteamAppDetails(appId, 'schinese').catch(() => null),
+      fetchSteamAppDetails(appId, 'english').catch(() => null)
+    ]);
+    const officialCn = (cnData && cnData.name) || '';
     const officialEn = (enData && enData.name) || '';
-    if (officialEn && /[A-Za-z]{2,}/.test(officialEn)) {
+    const newCn = (!cnOk && officialCn && /[\u4e00-\u9fff]/.test(officialCn)) ? officialCn : cnName;
+    const newEn = (!enOk && officialEn && /[A-Za-z]{2,}/.test(officialEn)) ? officialEn : (enName || cnName);
+    if (newCn !== cnName || newEn !== enName) {
       await recordGameInRegistry(appId, {
-        cnName: cnName || '',
-        enName: officialEn,
+        cnName: newCn || '',
+        enName: newEn || '',
         gameName: gameName || ''
       });
-      Logger.warn('Steam', `英文名异常自愈: appId ${appId} "${enName || '空'}" → "${officialEn}"`);
+      Logger.warn('Steam', `名称异常自愈: appId ${appId} cn "${cnName || '空'}"→"${newCn || '空'}" en "${enName || '空'}"→"${newEn || '空'}"`);
+      return true;
     }
   } catch (e) {
     // 获取失败，下次访问时重试 / retry on the next visit
   }
+  return false;
 }
 
-// 中文名异常自愈：注册表中文名须含中文字符（旧数据可能缺失/被英文占位）。
-// 发现异常时按 appId 重新获取 Steam 中文名并更新；
-// 若 Steam 本身无中文名（如 Demeo），保持原值不覆盖。
-// Self-heal the registry CN name: it should contain Chinese characters.
-// Re-fetches the official CN name by appId; keeps the old value when Steam
-// itself has no Chinese name (e.g. Demeo).
-export async function ensureValidChineseName(appId, cnName, enName, gameName) {
-  if (!appId) return;
-  if (cnName && /[\u4e00-\u9fff]/.test(cnName)) return; // 正常，无需修复
-  try {
-    const cnData = await fetchSteamAppDetails(appId, 'schinese');
-    const officialCn = (cnData && cnData.name) || '';
-    if (officialCn && /[\u4e00-\u9fff]/.test(officialCn)) {
-      await recordGameInRegistry(appId, {
-        cnName: officialCn,
-        enName: enName || '',
-        gameName: gameName || ''
-      });
-      Logger.warn('Steam', `中文名异常自愈: appId ${appId} "${cnName || '空'}" → "${officialCn}"`);
-    }
-  } catch (e) {
-    // 获取失败，下次访问时重试 / retry on the next visit
+// 缓存命中路径的名称自愈入口（兼容旧调用语义）
+// Self-heal entry for cache-hit paths (keeps the old call shape)
+export async function ensureValidRegistryNames(appId, cnName, enName, gameName) {
+  await healRegistryNames(appId, { cnName, enName, gameName });
+}
+
+// 批量自愈：扫描注册表中名称异常（中文名无中文/英文名无英文）的条目，分批修复
+// Batch self-heal: scan the registry for abnormal names and fix them in batches
+export async function scanAndHealRegistry(limit = 20) {
+  const registry = await getGameRegistry();
+  const abnormal = Object.entries(registry).filter(([, e]) => {
+    const cnBad = !e.cnName || !/[\u4e00-\u9fff]/.test(e.cnName);
+    const enBad = !e.enName || !/[A-Za-z]{2,}/.test(e.enName);
+    return cnBad || enBad;
+  });
+  const targets = abnormal.slice(0, limit);
+  let healed = 0;
+  for (let i = 0; i < targets.length; i += 3) {
+    const batch = targets.slice(i, i + 3);
+    await Promise.all(batch.map(async ([appId, e]) => {
+      try {
+        if (await healRegistryNames(appId, { cnName: e.cnName, enName: e.enName, gameName: '' })) healed++;
+      } catch (err) { /* 单条失败不阻断 */ }
+    }));
   }
+  if (healed > 0) await flushRegistry();
+  return { scanned: targets.length, healed, remaining: abnormal.length - targets.length };
 }
 
 // 选择注册表英文名：优先下载站标题中的英文段，回退 Steam 官方英文名

@@ -280,11 +280,12 @@
   }
 
   // 应用一波查询结果。mode='first'：未命中的跳过（等待推送），不插"未找到"徽章；
-  // mode='final'：仍未命中的按"未找到"处理并收尾。
-  // Apply one wave of results. 'first': misses wait for the push; 'final': misses
-  // resolve as "not found".
+  // mode='final'：波内仍未命中的按"未找到"处理。
+  // 收尾后到达的迟到推送仍会应用徽章（只补徽章，不重复统计）。
+  // Apply one wave of results. 'first': misses wait for the push; 'final':
+  // misses in this wave resolve as "not found". Late pushes still apply badges.
   function applyRatingsResponse(ratings, mode) {
-    if (!ratingsJob || ratingsJob.finished) return false;
+    if (!ratingsJob) return false;
     const job = ratingsJob;
     const minRating = job.settings?.enableRatingFilter ? (job.settings.minSteamRatingFilter || 0) : 0;
     let changed = false;
@@ -305,8 +306,9 @@
         }
         prependRatingBadge(item, rating);
         job.shown++;
-      } else if (mode !== 'first') {
-        // 最终波仍未命中：显示"未找到"徽章
+      } else if (mode !== 'first' && Object.prototype.hasOwnProperty.call(ratings, item.name)) {
+        // 最终波：仅对**波内包含**的名字判定"未找到"（波外名字继续等待后续波）
+        // 'final': only names present in this wave resolve as "not found"
         job.processed.add(item.name);
         job.notFoundNames.push(item.name);
         changed = true;
@@ -316,12 +318,14 @@
     return changed;
   }
 
-  // 完成统计：批量写下载站网址缓存 + 统一浮窗显示统计
+  // 完成统计：批量写下载站网址缓存 + 统一浮窗显示统计。
+  // 收尾后保留 ratingsJob（迟到推送仍可补徽章），不再置 null。
   function finishRatings() {
     if (!ratingsJob || ratingsJob.finished) return;
     ratingsJob.finished = true;
     clearTimeout(ratingsJob.forceTimer);
     const job = ratingsJob;
+    const unresolved = job.processItems.filter(i => !job.processed.has(i.name)).length;
     // 批量写入下载站网址缓存（fire-and-forget）
     const siteKey = GR.builder.getAdapterKey();
     if (siteKey && job.urlEntries.length > 0) {
@@ -331,51 +335,44 @@
       }).catch(() => {});
     }
     dbg(`列表页: 显示 ${job.shown} 个好评率, 过滤 ${job.filtered} 个, 未找到 ${job.notFoundNames.length} 个` +
-        (job.notFoundNames.length > 0 ? ` [${job.notFoundNames.slice(0, 5).join('、')}]` : ''));
+        (job.notFoundNames.length > 0 ? ` [${job.notFoundNames.slice(0, 5).join('、')}]` : '') +
+        (unresolved > 0 ? `, 未返回 ${unresolved} 个` : ''));
     GR.status.showStats({
       title: 'Steam 好评率获取完成',
-      summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}`,
+      summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（刷新页面可重试）` : ''}`,
       rows: [
         `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
         job.notFoundNames.length > 0 ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}` : ''
       ].filter(Boolean)
     });
-    ratingsJob = null;
   }
 
-  // 兜底：推送失败/滞后时的重查与强制收尾
+  // 兜底：45 秒强制收尾。未返回的游戏保持空白（后台已逐批落盘缓存，
+  // 刷新页面第一波即命中），**不误标"未找到"**；收尾后迟到的推送仍会应用徽章。
   function scheduleFallbacks(nameToImage) {
     const job = ratingsJob;
     if (!job) return;
-    // 兜底1：3 秒后 cacheOnly 重查（后台可能已写入缓存；未命中继续等推送）
-    setTimeout(async () => {
-      if (!ratingsJob || ratingsJob.finished) return;
-      const remaining = ratingsJob.processItems
-        .filter(i => !ratingsJob.processed.has(i.name))
-        .map(i => i.name);
-      if (remaining.length === 0) return;
-      try {
-        const resp = await chrome.runtime.sendMessage({
-          action: 'GET_STEAM_RATINGS',
-          names: remaining,
-          imageData: nameToImage,
-          cacheOnly: true
-        });
-        if (resp && resp.ratings) applyRatingsResponse(resp.ratings, 'first');
-      } catch (e) { /* 保持等待 */ }
-    }, 3000);
-    // 兜底2：15 秒强制收尾（推送彻底失败时按"未找到"处理）
     job.forceTimer = setTimeout(() => {
       if (!ratingsJob || ratingsJob.finished) return;
-      applyRatingsResponse({}, 'final');
       finishRatings();
-    }, 15000);
+    }, 45000);
   }
 
-  // 后台推送的未命中结果（STEAM_RATINGS_UPDATE）：最终波，应用后收尾
-  function applySteamRatingsUpdate(ratings) {
+  // 后台推送的结果（STEAM_RATINGS_UPDATE）：多波增量，波内 null 判定"未找到"；
+  // done 标记或全部处理后收尾。
+  function applySteamRatingsUpdate(ratings, done) {
+    if (!ratingsJob) return false;
+    // 后台全部批次完成标记 / background completion marker
+    if (ratings === null && done) {
+      if (!ratingsJob.finished) finishRatings();
+      return true;
+    }
     applyRatingsResponse(ratings || {}, 'final');
-    if (ratingsJob && !ratingsJob.finished) finishRatings();
+    // 所有游戏已出结果 → 收尾 / all resolved → finish
+    if (!ratingsJob.finished &&
+        ratingsJob.processItems.every(i => ratingsJob.processed.has(i.name))) {
+      finishRatings();
+    }
     return true;
   }
 

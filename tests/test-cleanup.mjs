@@ -18,6 +18,14 @@ function check(name, actual, expected) {
 // 加载真实模块（带查询串绕缓存）
 const rulesMod = await import('file:///F:/data/browser%20extension/game-recommender/background/core/rules.js?t=' + Date.now());
 const cleanupMod = await import('file:///F:/data/browser%20extension/game-recommender/background/storage/cleanup.js?t=' + Date.now());
+const apiMod = await import('file:///F:/data/browser%20extension/game-recommender/background/steam/api.js?t=' + Date.now());
+
+// ============ 0. 封面 URL 构造（v3.1.0）/ coverImageFor ============
+console.log('0. 封面 URL 构造 coverImageFor');
+check('已有 http 封面保留', apiMod.coverImageFor('111', 'https://xdgame.com/img/a.jpg'), 'https://xdgame.com/img/a.jpg');
+check('按 appId 构造 CDN header 图', apiMod.coverImageFor('111', null), 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg');
+check('非 http 封面回退构造', apiMod.coverImageFor('111', 'data:image/png;base64,xx'), 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg');
+check('无 appId 返回空', apiMod.coverImageFor('', ''), '');
 
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');

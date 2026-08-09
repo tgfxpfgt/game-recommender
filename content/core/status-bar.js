@@ -30,20 +30,14 @@
     return secs + 's';
   }
 
-  // 创建浮窗元素（右下角）/ Create the bar (bottom-right)
+  // 创建浮窗元素（右下角，经 GR.float 统一管理）
+  // Create the bar (bottom-right, managed by GR.float)
   function ensureEl() {
     if (statusEl && statusEl.parentNode) return statusEl;
-    statusEl = document.createElement('div');
-    statusEl.id = 'gr-status-bar';
-    statusEl.style.cssText = `
-      position:fixed;right:12px;bottom:12px;z-index:2147483647;
-      min-width:220px;max-width:380px;
-      background:rgba(15,15,26,0.95);border:1px solid #2a475e;border-radius:6px;
-      padding:10px 12px;font:12px/1.6 sans-serif;color:#c7d5e0;
-      box-shadow:0 4px 16px rgba(0,0,0,0.5);
-      transition:opacity 0.3s;
-    `;
-    document.body.appendChild(statusEl);
+    statusEl = GR.float.create(GR.float.ZONE.BOTTOM_RIGHT, 'gr-status-bar', {
+      chrome: false,
+      width: 380
+    });
     return statusEl;
   }
 
@@ -120,12 +114,10 @@
     if (debugMode && GR.debug) GR.debug.refreshInBar();
   }
 
-  // 隐藏浮窗 / Hide the bar
+  // 隐藏浮窗（经 GR.float 移除）/ Hide the bar (removed via GR.float)
   function hide() {
-    if (statusEl && statusEl.parentNode) {
-      statusEl.style.opacity = '0';
-      setTimeout(() => { if (statusEl && statusEl.parentNode) statusEl.remove(); }, 300);
-    }
+    statusEl = null;
+    GR.float.remove('gr-status-bar');
   }
 
   // 重新显示最近统计（弹窗显式调用，忽略总开关）

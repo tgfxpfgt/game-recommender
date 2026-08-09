@@ -54,8 +54,36 @@
     document.getElementById('cacheRefreshBtn').addEventListener('click', () => loadGameCache());
     // 清理过期缓存（v3.0.0）
     document.getElementById('cacheCleanExpiredBtn').addEventListener('click', cleanExpiredCache);
+    // 名称批量自愈（v3.1.0）
+    document.getElementById('cacheHealNamesBtn').addEventListener('click', healRegistryNames);
     // 清空全部
     document.getElementById('cacheClearAllBtn').addEventListener('click', clearAllCache);
+  }
+
+  // 批量自愈：扫描并修复注册表中名称异常（中文名无中文/英文名无英文）的条目
+  // Batch self-heal: scan & fix abnormal registry names (CN without Chinese / EN
+  // without English)
+  async function healRegistryNames() {
+    const btn = document.getElementById('cacheHealNamesBtn');
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = '🩹 修复中...';
+    try {
+      const resp = await chrome.runtime.sendMessage({ action: 'HEAL_REGISTRY_NAMES' });
+      const statsEl = document.getElementById('cacheStats');
+      if (resp) {
+        statsEl.innerHTML = `✅ 名称自愈：扫描 <b>${resp.scanned}</b> 条异常 · 修复 <b>${resp.healed}</b> 条${resp.remaining > 0 ? ` · 剩余 <b>${resp.remaining}</b> 条（可再次点击）` : ''}`;
+        await loadGameCache(); // 刷新列表
+      } else {
+        statsEl.textContent = '自愈失败，请查看运行日志';
+      }
+    } catch (e) {
+      const statsEl = document.getElementById('cacheStats');
+      statsEl.textContent = '自愈失败: ' + e.message;
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
   }
 
   // 一键清理过期缓存：Steam 动态缓存 / 名称负缓存 / 下载站网址（按 TTL）
@@ -157,6 +185,11 @@
       // 绑定删除按钮事件
       tbody.querySelectorAll('.cache-delete-btn').forEach(btn => {
         btn.addEventListener('click', () => deleteCacheEntry(btn.dataset.appid));
+      });
+
+      // 封面图加载失败时隐藏（MV3 CSP 合规：addEventListener 而非内联 onerror）
+      tbody.querySelectorAll('.cache-cover').forEach(img => {
+        img.addEventListener('error', () => { img.style.display = 'none'; });
       });
 
       // 绑定手动更新按钮事件

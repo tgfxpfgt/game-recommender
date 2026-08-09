@@ -3,6 +3,8 @@
  *
  * 模块化架构（经典脚本顺序加载，经 globalThis.__GR__ 共享）：
  *   core/common.js      通用工具（转义/消息/站点）
+ *   core/floats.js      统一浮窗管理器（v3.1.0）
+ *   core/status-bar.js  工作状态/诊断统一浮窗
  *   core/debug.js       调试状态/面板/诊断条
  *   adapters/builder.js 适配规则加载与适配器构建
  *   list/list-page.js   列表页功能（徽章/过滤/预载）
@@ -192,9 +194,9 @@
       sendResponse({ success: true });
     }
     if (message.action === 'STEAM_RATINGS_UPDATE') {
-      // 后台推送：缓存未命中的游戏已从 Steam 拉取完成，应用结果并收尾
-      // Background push: cache misses fetched from Steam are ready — apply & finish
-      if (GR.list) GR.list.applySteamRatingsUpdate(message.ratings);
+      // 后台推送：缓存未命中的游戏已从 Steam 拉取完成（多波增量，done 标记收尾）
+      // Background push: cache misses fetched from Steam (incremental waves + done)
+      if (GR.list) GR.list.applySteamRatingsUpdate(message.ratings, message.done === true);
       sendResponse({ success: true });
     }
     return true;

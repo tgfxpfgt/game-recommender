@@ -134,6 +134,7 @@ globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: SITE_RULES };
 // ============ 按 manifest 顺序加载内容脚本 / Load content scripts in order ============
 const SCRIPT_FILES = [
   'content/core/common.js',
+  'content/core/floats.js',
   'content/core/status-bar.js',
   'content/core/debug.js',
   'content/adapters/builder.js',
@@ -156,13 +157,13 @@ try {
 check('内容脚本链加载无异常（含 warmup 顶层执行）', loadError ? loadError.message : null, null);
 
 const GR = globalThis.__GR__;
-check('GR 命名空间完整', ['common', 'status', 'debug', 'builder', 'list', 'detail', 'tracking']
-  .filter(k => GR && GR[k]).length, 7);
+check('GR 命名空间完整', ['common', 'status', 'debug', 'builder', 'list', 'detail', 'tracking', 'float']
+  .filter(k => GR && GR[k]).length, 8);
 
 // ============ 2. 列表页两波流程 / Two-wave rating flow ============
 console.log('2. 列表页两波好评率流程');
 
-// 构建列表页 DOM：2 个游戏项 / build a 2-item list page
+// 构建列表页 DOM：3 个游戏项 / build a 3-item list page
 function makeItem(name, id) {
   const li = new FakeEl('li');
   li._attrs['class'] = 'game-item';
@@ -175,17 +176,18 @@ function makeItem(name, id) {
 }
 const itemA = makeItem('游戏A', 1);
 const itemB = makeItem('游戏B', 2);
-const allItems = [itemA, itemB];
+const itemC = makeItem('游戏C', 3);
+const allItems = [itemA, itemB, itemC];
 queryAllStub = (sel) => {
   if (sel === 'li.game-item') return allItems.map(x => x.li);
   return [];
 };
 queryOneStub = () => null;
 
-// 第一波：游戏A 缓存命中，游戏B 未命中（后台拉取中）
+// 第一波：游戏A 缓存命中，B/C 未命中（后台分批拉取中）
 presets['GET_STEAM_RATINGS'] = (msg) => {
   if (msg.cacheOnly) return { ratings: {}, pending: 0 }; // 兜底重查：无新命中
-  return { ratings: { '游戏A': { appId: '111', positiveRate: 95, ratingDesc: '特别好评' } }, pending: 1 };
+  return { ratings: { '游戏A': { appId: '111', positiveRate: 95, ratingDesc: '特别好评' } }, pending: 2 };
 };
 
 // 触发 DOMContentLoaded → init（warmup 已 resolve）
@@ -193,12 +195,19 @@ docReadyCallbacks.forEach(cb => cb());
 await new Promise(r => setTimeout(r, 30));
 
 check('第一波：缓存命中游戏A 徽章已插入', itemA.a.children.length, 1);
-check('第一波：未命中游戏B 暂不显示徽章', itemB.a.children.length, 0);
+check('第一波：未命中游戏B/C 暂不显示徽章', itemB.a.children.length + itemC.a.children.length, 0);
 
-// 后台推送：游戏B 拉取完成 / background push for game B
+// 后台推送第 1 波增量：游戏B 拉取完成 / background push wave 1: game B ready
 await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏B': { appId: '222', positiveRate: 60, ratingDesc: '多半好评' } } }, {}, () => {});
 
-check('第二波：推送后游戏B 徽章已插入', itemB.a.children.length, 1);
+check('第二波（增量1）：游戏B 徽章已插入', itemB.a.children.length, 1);
+check('第二波（增量1）：游戏C 仍未处理', itemC.a.children.length, 0);
+
+// 后台推送第 2 波增量：游戏C 确认为未找到 + done 收尾 / wave 2: C not found + done
+await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏C': null }, done: true }, {}, () => {});
+
+check('第二波（增量2）：游戏C 显示未找到徽章', itemC.a.children.length, 1);
+check('未找到徽章样式正确', itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-not-found') : false, true);
 const barEl = documentMock.body.children.find(c => c.id === 'gr-status-bar');
 check('完成统计浮窗已显示', barEl ? (barEl.innerHTML.includes('Steam 好评率获取完成') && barEl.innerHTML.includes('2 个好评率')) : false, true);
 const batchMsg = sentMessages.find(m => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
@@ -212,7 +221,7 @@ const waitPromise = GR.list.waitForListItems(GR.builder.getAdapter(), 4000);
 setTimeout(() => { queryAllStub = (sel) => sel === 'li.game-item' ? allItems.map(x => x.li) : []; }, 250);
 setTimeout(() => { if (MutationObserver.instances.length) MutationObserver.instances[MutationObserver.instances.length - 1].cb(); }, 260);
 const waitedItems = await waitPromise;
-check('等待到列表项出现', waitedItems.length, 2);
+check('等待到列表项出现', waitedItems.length, 3);
 
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

@@ -11,6 +11,7 @@ import { resetInMemoryCaches } from './core/reset.js';
 import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
 import { collectExpiredSteamCache, collectExpiredNegativeNames, collectExpiredDownloadUrls } from './storage/cleanup.js';
+import { scanAndHealRegistry } from './steam/api.js';
 import {
   flushSteamCache, getSteamCacheEntry, setSteamCacheEntry,
   deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory
@@ -210,37 +211,44 @@ async function handleGetSteamRatings(message, sender) {
     pending.push(...ratingNames.filter(n => !ratings[n]));
   }
 
-  // 阶段2：未命中 → 后台继续从 Steam 拉取（忽略负缓存），完成后推送给页面
-  // Phase 2: fetch misses from Steam in the background, then push to the page
+  // 阶段2：未命中 → 后台继续从 Steam 拉取（忽略负缓存），**每批完成后立即落盘并
+  // 推送增量**（防 SW 休眠导致整批结果丢失）；全部完成后推送 done 标记供内容脚本收尾。
+  // Phase 2: fetch misses from Steam in the background; each batch is persisted
+  // and pushed immediately (survives SW suspension); a done marker closes the flow.
   if (!cacheOnly && pending.length > 0) {
     const tabId = sender && sender.tab ? sender.tab.id : null;
     const names = pending.slice();
     (async () => {
       try {
         const batchSize = 5;
+        const push = (payload) => {
+          if (tabId !== null && tabId !== undefined) {
+            chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});
+          }
+        };
         for (let i = 0; i < names.length; i += batchSize) {
           const batch = names.slice(i, i + batchSize);
+          const wave = {};
           await Promise.all(batch.map(async (name) => {
             try {
               const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
-              ratings[name] = await getSteamPositiveRate(name, {
+              wave[name] = await getSteamPositiveRate(name, {
                 ignoreNegativeCache: true,
                 appId: img ? img.appId : null,
                 cover: img ? img.cover : null
               });
             } catch (e) {
-              ratings[name] = null;
+              wave[name] = null;
             }
           }));
+          // 每批完成后立即落盘（flush 已安全化）+ 推送增量
+          await flushSteamCache();
+          await flushNameIndex();
+          await flushRegistry();
+          push({ ratings: wave });
         }
-        // 落盘（flush 已安全化）/ Persist (flush is failure-safe)
-        await flushSteamCache();
-        await flushNameIndex();
-        await flushRegistry();
-        // 推送结果到内容脚本（页面关闭时静默失败）/ Push results to the page
-        if (tabId !== null && tabId !== undefined) {
-          chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ratings }).catch(() => {});
-        }
+        // 全部完成：done 标记（内容脚本据此收尾并显示统计）
+        push({ ratings: null, done: true });
       } catch (e) {
         Logger.warn('Steam', '后台补拉好评率失败', e.message);
       }
@@ -472,6 +480,13 @@ async function handleCleanExpiredCache() {
   const total = steam.removed + names.removed + urls.removed;
   Logger.info('Cache', `清理过期缓存: Steam ${steam.removed} / 负缓存 ${names.removed} / 网址 ${urls.removed}`);
   return { steamCache: steam.removed, nameIndex: names.removed, downloadUrls: urls.removed, total };
+}
+
+// --- 名称批量自愈（v3.1.0）---
+async function handleHealRegistryNames(message) {
+  const result = await scanAndHealRegistry(Math.min(50, message && message.limit || 20));
+  Logger.info('Steam', `名称批量自愈: 扫描 ${result.scanned} 条, 修复 ${result.healed} 条, 剩余 ${result.remaining} 条`);
+  return result;
 }
 
 // --- 下载站搜索（Steam 页浮窗）---
@@ -797,7 +812,8 @@ export const MESSAGE_HANDLERS = {
   GET_ADAPTER_RULES:      handleGetAdapterRules,
   SAVE_ADAPTER_RULES:     handleSaveAdapterRules,
   DELETE_ADAPTER_RULES:   handleDeleteAdapterRules,
-  CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache
+  CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache,
+  HEAL_REGISTRY_NAMES:    handleHealRegistryNames
 };
 
 // 消息统一入口 / Message entry

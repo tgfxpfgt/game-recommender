@@ -105,21 +105,13 @@
     // 工作状态浮窗：开始搜索 / Work status bar: searching
     GR.status.showStatus('正在搜索下载站资源', null, null, `${gameName}`);
 
-    const panel = document.createElement('div');
-    panel.id = 'gr-download-site-panel';
-    panel.style.cssText = `
-      position:fixed;bottom:80px;left:16px;z-index:2147483647;
-      width:320px;max-height:calc(100vh - 120px);overflow-y:auto;
-      background:#1b2838;border:1px solid #2a475e;border-radius:4px;
-      font-family:Arial,Helvetica,sans-serif;
-      color:#c7d5e0;font-size:13px;line-height:1.5;
-      box-shadow:0 0 12px rgba(0,0,0,0.6);
-    `;
+    // 浮窗容器经 GR.float 统一管理（左下区域）
+    const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-site-panel', {
+      chrome: true,
+      width: 320,
+      title: '📥 下载站资源'
+    });
     panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">正在搜索下载站资源...</div>`;
-    document.body.appendChild(panel);
-
-    const closeBtn = createCloseBtn(panel);
-    panel.appendChild(closeBtn);
 
     (async () => {
       try {
@@ -139,12 +131,10 @@
           });
         } else {
           panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
-          panel.appendChild(createCloseBtn(panel));
           GR.status.showStats({ title: '下载站资源检索完成', summary: '未找到匹配资源' });
         }
       } catch (e) {
         panel.innerHTML = `<div style="padding:14px;text-align:center;color:#e74c3c;">搜索失败</div>`;
-        panel.appendChild(createCloseBtn(panel));
       }
     })();
   }
@@ -190,15 +180,6 @@
     }
 
     panel.innerHTML = html;
-    panel.appendChild(createCloseBtn(panel));
-  }
-
-  function createCloseBtn(panel) {
-    const btn = document.createElement('div');
-    btn.textContent = '✕';
-    btn.style.cssText = 'position:absolute;top:6px;right:10px;cursor:pointer;color:#666;font-size:14px;';
-    btn.onclick = () => { panel.style.display = 'none'; };
-    return btn;
   }
 
   // ============ 下载历史浮窗（详情页显示上次下载记录） ============
@@ -251,24 +232,17 @@
         return date.toLocaleDateString('zh-CN');
       }
 
-      const panel = document.createElement('div');
-      panel.id = 'gr-download-history-float';
-      panel.style.cssText = `
-        position:fixed;bottom:20px;left:16px;z-index:2147483647;
-        width:280px;
-        background:linear-gradient(135deg,#2a475e,#1b2838);
-        border:1px solid #3a6a8e;
-        border-radius:6px;
-        font-family:Arial,Helvetica,sans-serif;
-        color:#c7d5e0;font-size:12px;line-height:1.5;
-        box-shadow:0 4px 16px rgba(0,0,0,0.5);
-        padding:12px 14px;
-        animation:gr-slide-in-left 0.3s ease-out;
-      `;
+      // 浮窗容器经 GR.float 统一管理（左下区域）
+      const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-history-float', {
+        chrome: true,
+        width: 280,
+        title: '📥 下载记录'
+      });
 
       const timeStr = formatTime(record.lastDownloadTime);
       const siteName = record.lastDownloadSiteName || '未知站点';
 
+      panel.style.padding = '12px 14px';
       panel.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <span style="font-size:16px;">📥</span>
@@ -290,51 +264,31 @@
       const closeBtn = panel.querySelector('#gr-dl-history-close');
       if (closeBtn) {
         closeBtn.addEventListener('click', () => {
-          panel.style.transition = 'opacity 0.2s, transform 0.2s';
-          panel.style.opacity = '0';
-          panel.style.transform = 'translateX(-20px)';
-          setTimeout(() => panel.remove(), 200);
+          // 统一经 GR.float 移除 / removed through GR.float
+          GR.float.remove('gr-download-history-float');
         });
       }
     }).catch(() => {});
   }
 
   // ============ Steam详情浮窗（仿Steam右侧信息栏） ============
+  // 容器经 GR.float 统一管理（右上区域，chrome 标题栏含折叠/关闭）
   function injectSteamButton(gameName) {
     dbg('注入Steam浮窗...');
 
-    const panel = document.createElement('div');
-    panel.id = 'gr-steam-float';
-    panel.style.cssText = `
-      position:fixed;top:80px;right:16px;z-index:2147483647;
-      width:320px;max-height:calc(100vh - 120px);overflow-y:auto;
-      background:#1b2838;border-radius:4px;
-      font-family:"Motiva Sans",Arial,Helvetica,sans-serif;
-      color:#c7d5e0;font-size:13px;line-height:1.5;
-      box-shadow:0 0 12px rgba(0,0,0,0.6);
-      transition:opacity 0.3s,transform 0.3s;
-      opacity:0;transform:translateX(20px);pointer-events:none;
-    `;
+    const panel = GR.float.create(GR.float.ZONE.TOP_RIGHT, 'gr-steam-float', {
+      chrome: true,
+      width: 320,
+      title: '🎮 Steam 信息'
+    });
+    // 初始隐藏，数据就绪后滑入显示（保留原动画语义）
+    panel.style.cssText += 'opacity:0;transform:translateX(20px);pointer-events:none;transition:opacity 0.3s,transform 0.3s;';
     panel.innerHTML = `
       <div style="padding:16px;text-align:center;color:#8f98a0;">
         <div style="font-size:24px;margin-bottom:8px;">🎮</div>
         正在查询 Steam 信息...
       </div>
     `;
-    document.body.appendChild(panel);
-
-    // 关闭/展开按钮
-    const toggleBtn = document.createElement('div');
-    toggleBtn.style.cssText = `
-      position:fixed;top:80px;right:16px;z-index:2147483647;
-      width:28px;height:28px;line-height:28px;text-align:center;
-      background:#2a475e;border-radius:4px 0 0 4px;cursor:pointer;
-      color:#66c0f4;font-size:14px;display:none;
-      box-shadow:0 2px 8px rgba(0,0,0,0.4);
-    `;
-    toggleBtn.textContent = '✕';
-    toggleBtn.title = '关闭Steam信息';
-    document.body.appendChild(toggleBtn);
 
     let panelVisible = false;
     let steamData = null;
@@ -343,19 +297,14 @@
       panel.style.opacity = '1';
       panel.style.transform = 'translateX(0)';
       panel.style.pointerEvents = 'auto';
-      toggleBtn.style.display = 'block';
       panelVisible = true;
     }
 
     function hidePanel() {
-      panel.style.opacity = '0';
-      panel.style.transform = 'translateX(20px)';
-      panel.style.pointerEvents = 'none';
-      toggleBtn.style.display = 'none';
+      // 折叠内容区（chrome 标题栏保留）/ fold the body (header stays)
+      panel.style.display = 'none';
       panelVisible = false;
     }
-
-    toggleBtn.addEventListener('click', hidePanel);
 
     // 手动更新缓存回调（成功获取数据后复用渲染逻辑）
     function makeOnRefresh(name) {
