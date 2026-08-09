@@ -919,9 +919,13 @@ function parseGameTitle(rawName) {
   name = name.replace(/[\(\[\【].*?[\)\]\】]/g, '');
   name = name.replace(/[《》]/g, '');
 
-  // 只按 | 和 " - "/" – "/" — " 分段，不再按 : ： / 、 拆分
-  // 避免 "王国历史：三国志"、"History of Kingdoms: Three Kingdoms" 等含冒号的完整名字被误拆
-  const rawParts = name.split(/[|]+|\s+[-–—]\s+/).map(s => s.trim()).filter(s => s.length > 1);
+  // 只按 |、" - "/" – "/" — " 及中文分隔符 ×•· 分段，不再按 : ： / 、 拆分。
+  // × 常见于游戏译名（如"地城英雄×龙与地下城 战痕之印"），不分割会导致
+  // Steam 搜索词包含 × 而无法命中（Steam 官方名往往不含该符号）。
+  // Split by |, spaced dashes, and the CN separators ×•·; never by : / 、,
+  // so translated titles like "地城英雄×龙与地下城 战痕之印" yield usable
+  // search terms (Steam's official names usually omit those symbols).
+  const rawParts = name.split(/[|]+|\s+[-–—]\s+|[×•·]/).map(s => s.trim()).filter(s => s.length > 1);
 
   const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|\s+The\s+Game\s*)/gi;
 
@@ -993,16 +997,42 @@ function cleanGameName(name) {
 // --- 搜索 ---
 
 // 在搜索结果中挑选目标游戏：
-// Demo/试玩版没有完整评测数据，且常以较高相关性抢占完整版的位置
-//（如"奉魔 Demo"排在"奉魔"前面），导致好评率永远查不到。
-// 因此优先返回非 Demo 结果，仅在没有其他结果时回退到 Demo。
+// 1. Demo/试玩版没有完整评测数据，且常以较高相关性抢占完整版的位置
+//    （如"奉魔 Demo"排在"奉魔"前面），导致好评率永远查不到。
+// 2. 附属内容（原声带/美术集/DLC/OST/壁纸等）会以相似名称抢占本体位置，
+//    匹配到它们会得到明显错误的中英文名。
+// 因此优先返回既非 Demo 也非附属内容的游戏本体，仅在没有其他结果时回退。
 // Pick the target game from search results:
-// Demo/trial editions have no full review data and often rank ahead of the
-// full version (e.g. "奉魔 Demo" before "奉魔"), so ratings never resolve.
-// Prefer non-Demo results; fall back to a Demo only when nothing else matches.
+// 1. Demo/trial editions have no full review data and often rank ahead of the
+//    full version (e.g. "奉魔 Demo" before "奉魔"), so ratings never resolve.
+// 2. Add-on content (soundtrack/artbook/DLC/OST/wallpapers) can rank ahead of
+//    the base game and yields obviously wrong CN/EN names.
+// Prefer the base game (neither Demo nor add-on); fall back only when nothing else matches.
+// 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post 等含 ost、trials 等含 trial 的合法游戏名）
+// Add-on / non-base-game keywords (with \b boundaries so real game names like
+// "Ghost of Tsushima" or "Trials" are never misjudged)
+const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|soundtrack|\bost\b|artbook|\bdlc\b|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版/i;
+// Demo/试玩版（单独用于 isDemo 标识）
+// Demo/trial edition (used for the isDemo badge)
+const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 function pickSearchItem(items) {
-  const nonDemo = items.find(i => !/demo|试玩|trial/i.test(i.name || ''));
-  return nonDemo || items[0];
+  const good = items.find(i => !ADDON_NAME_PATTERN.test(i.name || ''));
+  return good || items[0];
+}
+
+// 名称校验：中文名应含中文字符，英文名应含英文字母，且不命中附属内容关键词。
+// 用于 0 评测验证与注册表写入前，防止"原声带/美术集/DLC"等明显错误入库。
+// Name validation: the CN name should contain Chinese, the EN name should
+// contain English letters, and neither should hit add-on keywords. Used during
+// zero-review verification and before registry writes.
+function validateSteamNames(cnName, enName) {
+  const cn = cnName || '';
+  const en = enName || '';
+  const issues = [];
+  if (cn && !/[\u4e00-\u9fff]/.test(cn)) issues.push('中文名不含中文');
+  if (en && !/[A-Za-z]{2,}/.test(en)) issues.push('英文名不含英文');
+  if (ADDON_NAME_PATTERN.test(cn) || ADDON_NAME_PATTERN.test(en)) issues.push('疑似附属内容');
+  return { valid: issues.length === 0, issues };
 }
 
 async function searchSteamAppId(searchTerms) {
@@ -1280,6 +1310,9 @@ function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbI
     // 英文名：来自 english 语言的详情（注册表/缓存管理页使用；中文站点仍以中文名显示）
     // English name from the english-locale details (used by the registry/cache page)
     englishName: (enGameData && enGameData.name) || gameData.name,
+    // 是否为 Demo/试玩版（详情页浮窗显示标识用）
+    // Whether this is a Demo/trial edition (shown as a badge on the detail panel)
+    isDemo: DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
     url: `https://store.steampowered.com/app/${appId}/`,
     steamdbUrl: steamdbInfo?.url || `https://steamdb.info/app/${appId}/`,
     rating: reviewSummary ? reviewSummary.score : null,
@@ -1344,7 +1377,7 @@ async function fetchSteamFullDetailsByAppId(appId) {
 function isDemoCacheWithoutRating(cachedData) {
   if (!cachedData) return false;
   if (cachedData.positiveRate !== null && cachedData.positiveRate !== undefined) return false;
-  return /demo|试玩|trial/i.test(cachedData.name || '');
+  return DEMO_NAME_PATTERN.test(cachedData.name || '');
 }
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）：
@@ -1359,7 +1392,7 @@ async function isDemoAppId(appId) {
   const entry = await getGameRegistryEntry(appId);
   if (!entry) return false;
   const text = [entry.cnName, entry.enName, ...(entry.names || [])].filter(Boolean).join(' ');
-  return /demo|试玩|trial/i.test(text);
+  return DEMO_NAME_PATTERN.test(text);
 }
 
 // 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名。
@@ -1564,10 +1597,12 @@ async function getSteamPositiveRate(gameName, options = {}) {
       ]);
       officialCn = (cnData && cnData.name) || officialCn;
       officialEn = (enData && enData.name) || officialCn;
-      const isDemo = /demo|试玩|trial/i.test(officialCn + ' ' + officialEn);
-      if (isDemo) {
-        // Demo 版：重新搜索完整版（搜索已排除 Demo）
-        // Demo edition: re-search the full version (search already skips Demos)
+      // 名称校验：Demo/试玩或附属内容（原声带/美术集/DLC 等）→ 视为无效匹配，重搜本体
+      // Name validation: Demo/trial or add-on content (soundtrack/artbook/DLC…)
+      // → treat as an invalid match and re-search for the base game
+      const nameCheck = validateSteamNames(officialCn, officialEn);
+      if (!nameCheck.valid || DEMO_NAME_PATTERN.test(officialCn + ' ' + officialEn)) {
+        Logger.warn('Steam', `0评测匹配无效(${nameCheck.issues.join('/')}): ${foundAppId} ${officialCn}，重搜`);
         const reSearch = await searchSteamAppId(parseGameTitle(gameName));
         if (reSearch) {
           foundAppId = reSearch.appId;

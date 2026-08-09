@@ -288,7 +288,9 @@
       // and badge text polluted the title so Steam search failed.
       const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|下载|游戏下载|免费下载|支持手柄|手柄|支持|新游发布|免安装绿色版)/gi;
       let text = h1.textContent.trim();
-      const parts = text.split(/[|]+|\s+[-–—]\s+/).map(s => s.trim()).filter(s => s.length > 1);
+      // 按 |、" -" 及中文分隔符 ×•· 分段（× 常见于译名如"地城英雄×龙与地下城 战痕之印"）
+      // Split by |, spaced dashes and CN separators ×•· (common in translated titles)
+      const parts = text.split(/[|]+|\s+[-–—]\s+|[×•·]/).map(s => s.trim()).filter(s => s.length > 1);
       const keptParts = parts.filter(p => {
         const stripped = p.replace(noisePattern, '').replace(/[\s\|\-:：、]+/g, '');
         return stripped.length > 0;
@@ -1573,8 +1575,13 @@
       ` : ''}
 
       <div style="padding:14px;">
-        <!-- 游戏名 -->
-        <div style="font-size:17px;font-weight:bold;color:#fff;margin-bottom:8px;">${escapeHtml(data.name)}</div>
+        <!-- 游戏名 + Demo/试玩版标识 -->
+        <div style="font-size:17px;font-weight:bold;color:#fff;margin-bottom:8px;">
+          ${(data.isDemo || /demo|试玩|trial/i.test((data.name || '') + ' ' + (data.englishName || '')))
+            ? `<span style="display:inline-block;padding:2px 8px;margin-right:6px;font-size:11px;font-weight:bold;color:#ff7b00;background:rgba(255,123,0,0.15);border:1px solid #ff7b00;border-radius:3px;vertical-align:middle;">试玩版 / Demo</span>`
+            : ''}
+          ${escapeHtml(data.name)}
+        </div>
 
         <!-- 中文支持 + 发行信息 -->
         <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;font-size:11px;">
