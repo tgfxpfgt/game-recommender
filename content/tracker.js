@@ -20,6 +20,37 @@
   if (window.__gameRecommenderTracker) return;
   window.__gameRecommenderTracker = true;
 
+  // ============ 列表页诊断条 / List-Page Diagnostic Strip ============
+  // 列表页处理完成后在右下角短暂显示统计浮条（提取/查询/徽章/未找到/错误），
+  // 8 秒后自动消失或点击 ✕ 关闭。用于排查"徽章未显示"问题：
+  // 提取=0 说明适配器没抓到游戏；错误非空说明后台请求失败（可暴露配额等）；
+  // 未找到名单显示具体哪些游戏后台返回了空。
+  // A transient stats strip at the bottom-right of list pages (extraction/query/
+  // badges/not-found/error), auto-dismissed after 8s or on ✕ click. Helps locate
+  // why badges are missing: extracted=0 → adapter found nothing; error set →
+  // background request failed (e.g. quota); the not-found list names the games
+  // the background returned null for.
+  let diagStripTimer = null;
+  function showDiagStrip({ extracted, queried, shown, notFound, notFoundNames, error }) {
+    try {
+      if (document.getElementById('gr-diag-strip')) return;
+      const strip = document.createElement('div');
+      strip.id = 'gr-diag-strip';
+      strip.style.cssText = 'position:fixed;right:12px;bottom:12px;z-index:2147483647;max-width:380px;background:rgba(15,15,26,0.95);border:1px solid #2a475e;border-radius:6px;padding:10px 12px;font:12px/1.6 monospace;color:#c7d5e0;box-shadow:0 4px 16px rgba(0,0,0,0.5);';
+      strip.innerHTML = `
+        <div style="font-weight:bold;color:#66c0f4;margin-bottom:4px;">🎮 列表页诊断 <span id="gr-diag-close" style="cursor:pointer;float:right;color:#666;">✕</span></div>
+        <div>提取: <b>${extracted}</b> 游戏 | 查询: <b>${queried}</b> | 徽章: <b>${shown}</b> | 未找到: <b>${notFound}</b></div>
+        ${error ? `<div style="color:#e74c3c;">错误: ${escapeHtml(error)}</div>` : ''}
+        ${notFoundNames && notFoundNames.length ? `<div style="color:#f39c12;margin-top:2px;">未找到: ${escapeHtml(notFoundNames.slice(0, 5).join('、'))}${notFoundNames.length > 5 ? '...' : ''}</div>` : ''}
+      `;
+      document.body.appendChild(strip);
+      const close = strip.querySelector('#gr-diag-close');
+      if (close) close.addEventListener('click', () => { if (strip.parentNode) strip.remove(); });
+      if (diagStripTimer) clearTimeout(diagStripTimer);
+      diagStripTimer = setTimeout(() => { if (strip.parentNode) strip.remove(); }, 8000);
+    } catch (e) { /* 诊断条渲染失败不影响主流程 */ }
+  }
+
   // ============ Debug State / 调试状态 ============
   const DEBUG = {
     enabled: true,
@@ -449,6 +480,11 @@
       if (items.length > 0) {
         dbg(`找到 ${items.length} 个游戏项`);
         trackListView(adapter, items, settings);
+      } else {
+        // 适配器未提取到游戏：诊断条提示（页面结构可能已变化）
+        // Adapter extracted nothing: show a diagnostic hint (page structure may have changed)
+        dbg('⚠️ 适配器未提取到游戏项');
+        showDiagStrip({ extracted: 0, queried: 0, shown: 0, notFound: 0, error: '适配器未提取到游戏项（页面结构可能已变化）' });
       }
     }
 
@@ -705,12 +741,12 @@
 
   // 列表页：检索每个游戏的Steam好评率并显示在游戏名前
   async function requestSteamRatings(items, settings) {
+    const maxItems = 60;
+    const processItems = items.slice(0, maxItems);
+    // 去重游戏名
+    const uniqueNames = [...new Set(processItems.map(i => i.name).filter(n => n && n.length > 1))];
+    if (uniqueNames.length === 0) return;
     try {
-      const maxItems = 60;
-      const processItems = items.slice(0, maxItems);
-      // 去重游戏名
-      const uniqueNames = [...new Set(processItems.map(i => i.name).filter(n => n && n.length > 1))];
-      if (uniqueNames.length === 0) return;
 
       const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names: uniqueNames });
       if (response && response.ratings) {
@@ -766,6 +802,17 @@
         dbg(`列表页: 显示 ${shown} 个好评率, 过滤 ${filtered} 个, 未找到 ${notFoundNames.length} 个` +
             (notFoundNames.length > 0 ? ` [${notFoundNames.slice(0, 5).join('、')}]` : ''));
 
+        // 显示诊断条（提取/查询/徽章/未找到/后台错误，8 秒后自动消失）
+        // Show the diagnostic strip with per-stage counts (auto-dismiss after 8s)
+        showDiagStrip({
+          extracted: processItems.length,
+          queried: uniqueNames.length,
+          shown,
+          notFound: notFoundNames.length,
+          notFoundNames,
+          error: response.error || null
+        });
+
         // 未匹配的游戏 3 秒后重试一次（网络抖动/瞬时失败兜底），成功后补插徽章
         // Retry unmatched games once after 3s (transient-error fallback)
         if (notFoundNames.length > 0) {
@@ -794,6 +841,15 @@
       }
     } catch (e) {
       dbg('Steam好评率检索失败: ' + e.message);
+      // 请求失败也显示诊断条，暴露后台错误（如配额超限/内部异常）
+      // Show the strip on failure too, exposing background errors (quota, exceptions)
+      showDiagStrip({
+        extracted: processItems.length,
+        queried: uniqueNames.length,
+        shown: 0,
+        notFound: 0,
+        error: e.message
+      });
     }
   }
 
