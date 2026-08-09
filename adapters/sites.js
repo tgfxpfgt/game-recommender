@@ -39,7 +39,8 @@
  *                      title-element selectors (fallback in strategy 2)
  *     excludeClasses   需要跳过的链接类（如纯图片链接）/
  *                      link classes to skip (e.g. pure image links)
- *     minLen/maxLen    标题长度范围 / title length range
+ *     minLen/maxLen    标题长度范围（minLen=2 以支持两字游戏名，如"奉魔"）/
+ *                      title length range (minLen=2 supports 2-char names like "奉魔")
  *     fallbackLinks    容器策略失败后是否回退到全页面链接提取 /
  *                      fall back to extracting all detail links when container
  *                      strategies find nothing
@@ -66,7 +67,7 @@
           titleLink: 'a.tit',
           titleEls: ['h2', 'h3', '.title', '.entry-title', '.name', '.game-name', '.game-title'],
           excludeClasses: ['grid-cover', 'link'],
-          minLen: 3,
+          minLen: 2,
           maxLen: 200,
           fallbackLinks: true
         }
@@ -84,7 +85,7 @@
         listItem: {
           containers: ['.post', '.article', '.entry', '.item', 'article'],
           titleEls: ['h2', 'h3', '.title', '.entry-title'],
-          minLen: 3,
+          minLen: 2,
           maxLen: 100,
           fallbackLinks: true
         }
@@ -102,7 +103,7 @@
         listItem: {
           containers: ['.post-item', '.article-item', '.game-item', '.item', 'article'],
           titleEls: ['h2', 'h3', '.title'],
-          minLen: 3,
+          minLen: 2,
           maxLen: 100
         }
       },
@@ -119,7 +120,7 @@
         listItem: {
           containers: ['.lis li', '.game-list li', '.content li', '.Mid2L_con li'],
           titleEls: ['h3', '.name', '.title', 'a'],
-          minLen: 3,
+          minLen: 2,
           maxLen: 200
         }
       },
@@ -136,7 +137,7 @@
         listItem: {
           containers: ['.n_lone li', '.game_list li', '.downlist li'],
           titleEls: ['.name', 'h3', 'a'],
-          minLen: 3,
+          minLen: 2,
           maxLen: 200
         }
       },
@@ -153,7 +154,7 @@
         listItem: {
           containers: ['.game-list li', '.Mid2L_con li', '.pictxt li'],
           titleEls: ['.name', 'h3', '.tit', 'a'],
-          minLen: 3,
+          minLen: 2,
           maxLen: 200
         }
       }

@@ -104,7 +104,7 @@
     const containers = cfg.containers || [];
     const titleEls = cfg.titleEls || ['h2', 'h3', '.title', '.entry-title'];
     const excludeClasses = cfg.excludeClasses || [];
-    const minLen = cfg.minLen ?? 3;
+    const minLen = cfg.minLen ?? 2; // 默认 2：支持两字游戏名（如"奉魔"）/ default 2: support 2-char names
     const maxLen = cfg.maxLen ?? 200;
     const isExcluded = (el) => excludeClasses.some(c => el.classList.contains(c));
     // 在元素内查找标题元素（优先标题链接选择器） / Find the title element inside a container
@@ -707,7 +707,7 @@
       const containers = cfg.containers || [];
       const titleLink = cfg.titleLink;
       const titleEls = cfg.titleEls || ['h2', 'h3', '.title', '.entry-title'];
-      const minLen = cfg.minLen ?? 3;
+      const minLen = cfg.minLen ?? 2; // 默认 2：支持两字游戏名 / default 2: support 2-char names
       const maxLen = cfg.maxLen ?? 200;
       for (const sel of containers) {
         doc.querySelectorAll(sel).forEach(el => {
