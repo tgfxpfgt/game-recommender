@@ -10,7 +10,6 @@
 
   const GR = (global.__GR__ = global.__GR__ || {});
   const dbg = (...a) => GR.debug.dbg(...a);
-  const showDiagStrip = (...a) => GR.debug.showDiagStrip(...a);
 
   // ============ 页面类型检测（URL优先，最可靠） ============
   // 详情页URL特征：以 数字.html 结尾，或 /game/数字.html 形式
@@ -291,23 +290,13 @@
         dbg(`列表页: 显示 ${shown} 个好评率, 过滤 ${filtered} 个, 未找到 ${notFoundNames.length} 个` +
             (notFoundNames.length > 0 ? ` [${notFoundNames.slice(0, 5).join('、')}]` : ''));
 
-        // 显示诊断条（提取/查询/徽章/未找到/后台错误，8 秒后自动消失）
-        showDiagStrip({
-          extracted: processItems.length,
-          queried: uniqueNames.length,
-          shown,
-          notFound: notFoundNames.length,
-          notFoundNames,
-          error: response.error || null
-        });
-
-        // 工作状态浮窗：完成统计（3 秒后自动消失）
-        // Work status bar: completion stats (auto-dismiss in 3s)
+        // 统一浮窗：完成统计（含诊断信息，3 秒后自动消失或切换调试视图）
+        // Unified bar: completion stats (auto-dismiss or switch to the debug view)
         GR.status.showStats({
           title: 'Steam 好评率获取完成',
-          summary: `${shown} 个好评率${filtered > 0 ? ` · ${filtered} 个已过滤` : ''}${notFoundNames.length > 0 ? ` · ${notFoundNames.length} 个未找到` : ''}`,
+          summary: `${shown} 个好评率${filtered > 0 ? ` · ${filtered} 个已过滤` : ''}${notFoundNames.length > 0 ? ` · ${notFoundNames.length} 个未找到` : ''}${response.error ? ` · 后台错误: ${response.error}` : ''}`,
           rows: [
-            `查询 ${uniqueNames.length} 个游戏 · 用时完成`,
+            `查询 ${uniqueNames.length} 个游戏 · 提取 ${processItems.length} 个`,
             notFoundNames.length > 0 ? `未找到: ${notFoundNames.slice(0, 3).join('、')}${notFoundNames.length > 3 ? '...' : ''}` : ''
           ].filter(Boolean)
         });
@@ -338,15 +327,7 @@
       }
     } catch (e) {
       dbg('Steam好评率检索失败: ' + e.message);
-      // 请求失败也显示诊断条，暴露后台错误
-      showDiagStrip({
-        extracted: processItems.length,
-        queried: uniqueNames.length,
-        shown: 0,
-        notFound: 0,
-        error: e.message
-      });
-      GR.status.showStats({ title: 'Steam 好评率获取失败', summary: e.message });
+      GR.status.showStats({ title: 'Steam 好评率获取失败', summary: e.message, rows: [`提取 ${processItems.length} 个游戏 · 查询 ${uniqueNames.length} 个`] });
     }
   }
 

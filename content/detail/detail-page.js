@@ -89,7 +89,16 @@
     const appIdMatch = window.location.pathname.match(/\/app\/(\d+)/);
     const appId = appIdMatch ? appIdMatch[1] : '';
     const gameNameEl = document.querySelector('.apphub_AppName, .page_title');
-    const gameName = gameNameEl ? gameNameEl.textContent.trim() : document.title.replace(/ on Steam.*$/, '').trim();
+    // 回退 title 时清理站点前缀/后缀：
+    // 中文站 title 为"Steam 上的 X"（需去掉前缀），英文站为"X on Steam"（去后缀）
+    // When falling back to the title, strip the site prefix/suffix:
+    // CN store titles are "Steam 上的 X", EN store titles are "X on Steam".
+    const gameName = gameNameEl
+      ? gameNameEl.textContent.trim()
+      : document.title
+          .replace(/^Steam\s*上的\s*/, '')
+          .replace(/ on Steam.*$/, '')
+          .trim();
 
     if (!gameName) return;
     dbg(`Steam游戏: ${gameName} (appId=${appId})`);

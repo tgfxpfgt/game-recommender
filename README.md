@@ -190,6 +190,11 @@ node --check options/options.js
 
 ## 更新日志
 
+### v2.1.2
+- 工作状态浮窗与诊断浮窗合并为同一浮窗（右下角，先后关系）：先显示工作状态与进度条 → 完成后显示统计数据与计时（⏱ xx.xs）→ 3 秒后若调试模式开启自动切换为诊断视图，否则自动隐藏；诊断视图可 ✕ 固定关闭；弹窗"🔧 调试"区新增"📊 显示最近统计"按钮可随时重新显示统计
+- 修复 Steam 中文站标题前缀 bug：`store.steampowered.com/app/2239710/` 等页面标题形如"Steam 上的 勇闯死人谷：暗黑之日"时，下载站检索回退名称被前缀污染导致搜不到资源（如 xdgame.com/game/10157.html）；现自动清理"Steam 上的/ on Steam"前缀，且检索全部失败时回退使用注册表中的官方中英文名重试
+- 调试面板渲染移入状态浮窗（content/core/debug.js 不再维护独立 DOM，统一经 GR.status.showDebugView 渲染）
+
 ### v2.1.1
 - 修复游戏缓存管理页封面不显示：详情页（SEARCH_STEAM/GET_STEAM_BY_APPID）与手动更新路径补写封面图（result.headerImage）
 - 中文名异常自愈：注册表中文名须含中文字符，发现缺失/被英文占位时自动按 appId 重新获取 Steam 中文名（Steam 本身无中文名时保持原值不覆盖）

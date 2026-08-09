@@ -14,7 +14,7 @@ import {
   flushSteamCache, getSteamCacheEntry, setSteamCacheEntry,
   deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory
 } from './storage/steam-cache.js';
-import { flushRegistry, getGameRegistry, recordGameInRegistry } from './storage/registry.js';
+import { flushRegistry, getGameRegistry, getGameRegistryEntry, recordGameInRegistry } from './storage/registry.js';
 import {
   flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntries
 } from './storage/name-index.js';
@@ -392,6 +392,28 @@ async function handleSearchDownloadSites(message) {
   const allSites = await getDownloadSites();
   const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
   const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
+
+  // 兜底：全部未命中且提供了 appId 时，用注册表中的官方中英文名重新搜索。
+  // 处理 gameName 带站点前缀（如"Steam 上的"）或与下载站译名不同的情况。
+  // Fallback: when nothing matches and an appId exists, retry with the registry's
+  // official CN/EN names (handles site-prefixed names or title mismatches).
+  if (sites.every(s => !s.found) && message.appId) {
+    const entry = await getGameRegistryEntry(message.appId);
+    const officialNames = [entry && entry.cnName, entry && entry.enName].filter(Boolean);
+    const distinct = [...new Set(officialNames)].filter(n => n && n !== message.gameName);
+    for (const name of distinct) {
+      const retry = await searchDownloadSites(name, message.appId, enabledKeys);
+      retry.forEach(r => {
+        const target = sites.find(s => s.key === r.key);
+        if (r.found && target && !target.found) Object.assign(target, r);
+      });
+      if (sites.some(s => s.found)) break;
+    }
+    if (sites.some(s => s.found)) {
+      Logger.info('DownloadSites', `兜底重试命中: "${message.gameName}" → 注册表名重搜`);
+    }
+  }
+
   Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
   return { sites };
 }

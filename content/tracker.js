@@ -53,11 +53,10 @@
     const isTracked = trackedSites.length === 0 || trackedSites.some(s => domain.includes(s));
     const isSteamPage = domain.includes('store.steampowered.com');
 
-    // 调试面板：仅在设置开启时显示（追踪站或Steam页）
+    // 调试模式：开启时统一浮窗在统计显示 3 秒后切换为诊断视图
+    // Debug mode: with it on, the unified bar switches to the debug view after stats
     debug.DEBUG.siteTracked = isTracked;
-    if (settings.showDebugPanel && (isTracked || isSteamPage)) {
-      debug.initDebugPanel();
-    }
+    if (GR.status) GR.status.setDebugMode(settings.showDebugPanel && (isTracked || isSteamPage));
 
     // === 功能4：非追踪网站且非Steam页 → 尽早退出，节省资源 ===
     if (!isTracked && !isSteamPage) {
@@ -91,9 +90,9 @@
         dbg(`找到 ${items.length} 个游戏项`);
         list.trackListView(adapter, items, settings);
       } else {
-        // 适配器未提取到游戏：诊断条提示（页面结构可能已变化）
+        // 适配器未提取到游戏：统一浮窗提示（页面结构可能已变化）
         dbg('⚠️ 适配器未提取到游戏项');
-        debug.showDiagStrip({ extracted: 0, queried: 0, shown: 0, notFound: 0, error: '适配器未提取到游戏项（页面结构可能已变化）' });
+        GR.status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
       }
     }
 
