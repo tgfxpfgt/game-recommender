@@ -76,5 +76,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
 // 启动时刷新限免游戏并更新 badge / Refresh free games on startup
 refreshFreeGames(false);
 
-Logger.info('System', 'Service Worker 已启动');
-console.log('[Game Recommender] Service Worker 已启动');
+// 启动日志（含版本号，便于确认浏览器加载的是否为最新版本）
+// Startup log with the version, to verify the browser loaded the latest build
+const MANIFEST_VERSION = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || 'unknown';
+Logger.info('System', `Service Worker 已启动 v${MANIFEST_VERSION}`);
+console.log(`[Game Recommender] Service Worker 已启动 v${MANIFEST_VERSION}`);
