@@ -186,6 +186,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v1.11.1
+- **修复扩展加载报错（Critical）**：Service Worker 顶层 `DATA_MODULES` 常量在 `DB_KEYS` 声明前初始化，触发 TDZ（Temporal Dead Zone）ReferenceError，导致整个后台加载失败
+  - `DB_KEYS` 移至文件最前（import 之后立即声明），消除所有顶层常量初始化顺序依赖
+  - 通过 Node 模拟 SW 环境验证：顶层代码执行无错误、OPFS 降级正常、异步无未处理异常
+- 全面静态审计：manifest 引用 24 个文件全部存在、19 个 JS 语法全部通过、5 个 HTML 引用全部存在
+
 ### v1.11.0
 - 缓存有效期自定义：设置页新增"缓存有效期"（Steam 动态缓存小时数、注册表重确认天数、下载站网址天数、名称负缓存小时数），后台 TTL 动态生效
 - 设置页重构为 Chrome 设置页风格：左侧分类导航（常规/过滤/推荐算法/网站/缓存与数据/日志）+ 右侧内容面板，响应式适配窄屏

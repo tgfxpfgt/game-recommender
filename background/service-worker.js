@@ -22,6 +22,27 @@
 
 // ============ 1. 常量与配置 / Constants & Config ============
 
+// 存储键定义（必须最先声明：DATA_MODULES 等顶层常量初始化时引用）
+// Storage keys (declared first: top-level constants like DATA_MODULES read them)
+const DB_KEYS = {
+  BEHAVIOR_LOG: 'behaviorLog',
+  GAME_PROFILES: 'gameProfiles',
+  USER_PREFERENCES: 'userPrefs',
+  SETTINGS: 'settings',
+  STEAM_CACHE: 'steamCache',
+  KEYWORD_WEIGHTS: 'keywordWeights',
+  FREE_GAMES: 'freeGames',
+  RUNTIME_LOG: 'runtimeLog',
+  BACKUPS: 'backups',
+  DOWNLOAD_HISTORY: 'downloadHistory',
+  MANUAL_MAPPINGS: 'manualMappings', // 旧版手动映射（兼容保留，新逻辑改用 NAME_INDEX）
+  // === 新三层缓存（v5：以 appId 为唯一标识）/ New 3-layer cache (v5: appId-keyed) ===
+  GAME_REGISTRY: 'gameRegistry', // appId → {cnName, enName, names[], firstSeen, lastConfirmed} 永久，30天重确认
+  NAME_INDEX: 'nameIndex',       // name_lower → {appId, lastSearched} 名称反查 appId 的索引
+  DOWNLOAD_URLS: 'downloadUrls', // appId → {siteKey → {url, siteName, firstSeen, lastRefreshed, lastAccessed}} 30天有效
+  ADAPTER_RULES: 'adapterRules'  // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
+};
+
 // 下载站适配规则来自 adapters/ 目录（default 基础 + platforms 平台 + sites 各站，
 // 规则文件化，便于分享和移植）。副作用导入：执行后规则可通过
 // globalThis.__GAME_RECOMMENDER_SITES__ / __GAME_RECOMMENDER_PLATFORMS__ 读取。
@@ -159,25 +180,6 @@ const DATA_MODULES = [
 // 导出文件格式标识与版本 / Export file format id and version
 const EXPORT_FORMAT = 'game-recommender-backup';
 const EXPORT_VERSION = 1;
-
-const DB_KEYS = {
-  BEHAVIOR_LOG: 'behaviorLog',
-  GAME_PROFILES: 'gameProfiles',
-  USER_PREFERENCES: 'userPrefs',
-  SETTINGS: 'settings',
-  STEAM_CACHE: 'steamCache',
-  KEYWORD_WEIGHTS: 'keywordWeights',
-  FREE_GAMES: 'freeGames',
-  RUNTIME_LOG: 'runtimeLog',
-  BACKUPS: 'backups',
-  DOWNLOAD_HISTORY: 'downloadHistory',
-  MANUAL_MAPPINGS: 'manualMappings', // 旧版手动映射（兼容保留，新逻辑改用 NAME_INDEX）
-  // === 新三层缓存（v5：以 appId 为唯一标识）/ New 3-layer cache (v5: appId-keyed) ===
-  GAME_REGISTRY: 'gameRegistry', // appId → {cnName, enName, names[], firstSeen, lastConfirmed} 永久，30天重确认
-  NAME_INDEX: 'nameIndex',       // name_lower → {appId, lastSearched} 名称反查 appId 的索引
-  DOWNLOAD_URLS: 'downloadUrls', // appId → {siteKey → {url, siteName, firstSeen, lastRefreshed, lastAccessed}} 30天有效
-  ADAPTER_RULES: 'adapterRules'  // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
-};
 
 const DEFAULT_SETTINGS = {
   enabled: true,
