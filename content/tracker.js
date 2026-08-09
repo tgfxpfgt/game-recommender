@@ -41,6 +41,9 @@
 
     if (!settings || !settings.enabled) return;
 
+    // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
+    if (GR.status) GR.status.setEnabled(settings.showStatusBar !== false);
+
     // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
     await builder.loadSiteRules();
     builder.buildSiteAdapters(builder.getSITE_RULES());

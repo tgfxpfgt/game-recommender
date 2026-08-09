@@ -407,6 +407,31 @@ export async function ensureValidEnglishName(appId, enName, cnName, gameName) {
   }
 }
 
+// 中文名异常自愈：注册表中文名须含中文字符（旧数据可能缺失/被英文占位）。
+// 发现异常时按 appId 重新获取 Steam 中文名并更新；
+// 若 Steam 本身无中文名（如 Demeo），保持原值不覆盖。
+// Self-heal the registry CN name: it should contain Chinese characters.
+// Re-fetches the official CN name by appId; keeps the old value when Steam
+// itself has no Chinese name (e.g. Demeo).
+export async function ensureValidChineseName(appId, cnName, enName, gameName) {
+  if (!appId) return;
+  if (cnName && /[\u4e00-\u9fff]/.test(cnName)) return; // 正常，无需修复
+  try {
+    const cnData = await fetchSteamAppDetails(appId, 'schinese');
+    const officialCn = (cnData && cnData.name) || '';
+    if (officialCn && /[\u4e00-\u9fff]/.test(officialCn)) {
+      await recordGameInRegistry(appId, {
+        cnName: officialCn,
+        enName: enName || '',
+        gameName: gameName || ''
+      });
+      Logger.warn('Steam', `中文名异常自愈: appId ${appId} "${cnName || '空'}" → "${officialCn}"`);
+    }
+  } catch (e) {
+    // 获取失败，下次访问时重试 / retry on the next visit
+  }
+}
+
 // 选择注册表英文名：优先下载站标题中的英文段，回退 Steam 官方英文名
 // Pick the registry EN name (title EN segment first, Steam official fallback)
 export function pickRegistryEnName(gameName, steamEnName) {

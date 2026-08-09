@@ -15,6 +15,15 @@
   let statusEl = null;
   let hideTimer = null;
   let lastStats = null; // 最近一次统计（供 popup 重新显示）/ latest stats
+  let startTime = 0;    // 本次任务开始时间（计时器）/ task start time (timer)
+  let enabled = true;   // 总开关（由设置控制）/ master switch (from settings)
+
+  // 格式化耗时 / Format elapsed time
+  function formatElapsed() {
+    if (!startTime) return '';
+    const secs = ((Date.now() - startTime) / 1000).toFixed(1);
+    return secs + 's';
+  }
 
   // 创建浮窗元素（右下角）/ Create the status bar element (bottom-right)
   function ensureEl() {
@@ -36,6 +45,8 @@
   // 显示进行中状态（title 标题, current/total 进度, detail 附加信息）
   // Show an in-progress status (title, progress, optional detail)
   function showStatus(title, current, total, detail) {
+    if (!enabled) return;
+    if (!startTime) startTime = Date.now(); // 记录任务开始时间 / record task start
     const el = ensureEl();
     const pct = total > 0 ? Math.round(current / total * 100) : null;
     const progressHtml = pct === null
@@ -59,9 +70,12 @@
     clearTimeout(hideTimer);
   }
 
-  // 显示完成统计（3 秒后自动消失）/ Show completion stats (auto-dismiss in 3s)
+  // 显示完成统计（含耗时，3 秒后自动消失）/ Show completion stats with elapsed (3s)
   function showStats(stats) {
     lastStats = stats || null;
+    const elapsed = formatElapsed();
+    startTime = 0; // 重置计时器 / reset the timer
+    if (!enabled) return;
     const el = ensureEl();
     const rows = (stats && stats.rows && stats.rows.length > 0)
       ? stats.rows.map(r => `<div style="font-size:11px;color:#8f98a0;">${GR.common.escapeHtml(r)}</div>`).join('')
@@ -69,6 +83,7 @@
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:bold;font-size:12px;">
         <span>✅</span><span>${GR.common.escapeHtml(stats ? (stats.title || '完成') : '完成')}</span>
+        ${elapsed ? `<span style="margin-left:auto;font-size:10px;color:#8f98a0;">⏱ ${GR.common.escapeHtml(elapsed)}</span>` : ''}
       </div>
       ${stats && stats.summary ? `<div style="font-size:12px;color:#66c0f4;margin-top:4px;">${GR.common.escapeHtml(stats.summary)}</div>` : ''}
       ${rows}
@@ -85,10 +100,14 @@
     }
   }
 
-  // 重新显示最近统计（弹窗调用）/ Re-show the latest stats (called by the popup)
+  // 重新显示最近统计（弹窗显式调用，忽略总开关）/ Re-show stats (popup, ignores the switch)
   function showLastStats() {
-    if (lastStats) showStats(lastStats);
+    if (!lastStats) return;
+    const wasEnabled = enabled;
+    enabled = true;
+    showStats(lastStats);
+    enabled = wasEnabled;
   }
 
-  GR.status = { showStatus, showStats, showLastStats, hide };
+  GR.status = { showStatus, showStats, showLastStats, hide, setEnabled: (v) => { enabled = !!v; } };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

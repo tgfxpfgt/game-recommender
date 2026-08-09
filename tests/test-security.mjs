@@ -97,7 +97,7 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '2.1.0');
+check('manifest 版本', manifest.version, '2.1.1');
 
 // 6. 缓存 TTL 单位解析（加载真实 constants 模块）
 console.log('6. 缓存 TTL 单位解析');
@@ -111,12 +111,16 @@ check('旧数字格式兼容（steamDynamic=小时）', constants.resolveTtlMs('
 check('旧数字格式兼容（registryConfirm=天）', constants.resolveTtlMs('registryConfirm', 30), 30 * 86400e3);
 check('缺省值', constants.resolveTtlMs('steamDynamic', null), 24 * 3600e3);
 
-// 7. 英文名异常检测（ensureValidEnglishName 的校验逻辑）
-console.log('7. 英文名异常检测');
+// 7. 中英文名异常检测（ensureValidChineseName / ensureValidEnglishName 的校验逻辑）
+console.log('7. 中英文名异常检测');
 const validEn = (enName) => !enName || !/[A-Za-z]{2,}/.test(enName) === false;
+const validCn = (cnName) => !cnName || !/[\u4e00-\u9fff]/.test(cnName) === false;
 check('正常英文名', validEn('Worship Demon'), true);
-check('中文名异常', validEn('奉魔'), false);
+check('英文名中文占位异常', validEn('奉魔'), false);
 check('混合名含英文', validEn('Demeo x Dungeons'), true);
+check('正常中文名', validCn('奉魔'), true);
+check('中文名英文占位异常', validCn('Worship Demon'), false);
+check('中文名空值', validCn(''), true);
 
 console.log('\n===== 安全与存储测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

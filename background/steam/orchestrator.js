@@ -9,7 +9,7 @@
 import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
   fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ensureRegistryEntry,
-  ensureValidEnglishName
+  ensureValidEnglishName, ensureValidChineseName
 } from './api.js';
 import { isSteamCacheValid, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -44,9 +44,10 @@ export async function searchSteamGame(gameName) {
         appId = null;
       } else {
         // 缓存命中：幂等补写注册表，防止缓存管理页缺失条目；
-        // 英文名异常（中文占位等）时自动按 appId 重新获取（自愈）
+        // 中英文名异常（占位/缺失）时自动按 appId 重新获取（自愈）
         await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         await ensureValidEnglishName(cached.data.appId || appId, cached.data.englishName, cached.data.name, gameName);
+        await ensureValidChineseName(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         return cached.data;
       }
     } else if (await isDemoAppId(appId)) {
@@ -75,13 +76,14 @@ export async function searchSteamGame(gameName) {
     if (!result) return null;
 
     // 6. 写入三层缓存：Steam 动态缓存(24h) + 游戏注册表(永久) + 名称索引
-    //    注册表以 Steam 官方中英文名为准，下载站标题入 names 变体
+    //    注册表以 Steam 官方中英文名为准，下载站标题入 names 变体，封面一并缓存
     await setSteamCacheEntry(appId, result);
     await recordGameInRegistry(appId, {
       cnName: result.name,
       enName: result.englishName || result.name,
       gameName,
-      tags: result.genres
+      tags: result.genres,
+      coverImage: result.headerImage || ''
     });
     await recordNameIndex(gameName, appId);
 
@@ -113,9 +115,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(cached.data)) {
-        // 缓存命中：幂等补写注册表（用缓存中的名称）；英文名异常时自愈
+        // 缓存命中：幂等补写注册表（用缓存中的名称）；中英文名异常时自愈
         await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         await ensureValidEnglishName(cached.data.appId || appId, cached.data.englishName, cached.data.name, gameName);
+        await ensureValidChineseName(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         return {
           positiveRate: cached.data.positiveRate,
           ratingDesc: cached.data.ratingDesc || null,

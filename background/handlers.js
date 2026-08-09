@@ -128,7 +128,8 @@ async function handleGetSteamByAppId(message) {
       cnName: result.name,
       enName: result.englishName || result.name,
       gameName,
-      tags: result.genres
+      tags: result.genres,
+      coverImage: result.headerImage || ''
     });
     if (gameName) await recordNameIndex(gameName, appId);
 
@@ -549,7 +550,8 @@ async function handleRefreshGameCacheEntry(message) {
     await recordGameInRegistry(appId, {
       cnName: result.name,
       enName: result.englishName || result.name,
-      tags: result.genres
+      tags: result.genres,
+      coverImage: result.headerImage || ''
     });
 
     const settings = await getSettings();
