@@ -714,6 +714,7 @@
       if (response && response.ratings) {
         let shown = 0;
         let filtered = 0;
+        const notFoundNames = [];
         // 列表页批量记录：把每个游戏的 appId → 当前列表项下载页地址写入
         // 下载站网址缓存（一次消息批量更新，供缓存管理页与后续检索复用）。
         // Batch-record appId → detail-page URL on the list page into the
@@ -722,9 +723,9 @@
         const minRating = settings?.enableRatingFilter ? (settings.minSteamRatingFilter || 0) : 0;
         processItems.forEach(item => {
           const rating = response.ratings[item.name];
-          // 匹配到 appId 即显示徽章：有评测显示好评率，无评测（0条）显示"暂无"
+          // 匹配到 appId 即显示徽章：有评测显示好评率，无评测（0条/Demo）显示 AppID
           // Show a badge whenever an appId is matched: the positive rate if reviews
-          // exist, or "暂无" (N/A) for games with zero reviews.
+          // exist, or the AppID for zero-review games (incl. Demos).
           if (rating && rating.appId) {
             if (item.url) urlEntries.push({ appId: rating.appId, url: item.url });
             if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
@@ -742,8 +743,13 @@
             }
             prependRatingBadge(item, rating);
             shown++;
-          } else if (minRating > 0) {
-            // 启用了过滤但没有Steam数据的项，暂时保留不隐藏
+          } else {
+            // 未匹配（搜索失败/负缓存/异常）：显示"未找到"徽章，
+            // 让每个游戏都有可见状态，便于调试与如实反馈
+            // Unmatched (search failed/negative cache/error): show a "not found"
+            // badge so every game has a visible status instead of silence
+            notFoundNames.push(item.name);
+            prependNotFoundBadge(item);
           }
         });
         // 批量写入下载站网址缓存（fire-and-forget，不阻塞徽章渲染）
@@ -755,7 +761,34 @@
             data: { siteKey, siteName: getAdapter().name, domain: getCurrentDomain(), entries: urlEntries }
           }).catch(() => {});
         }
-        dbg(`列表页显示 ${shown} 个Steam好评率${minRating > 0 ? `，过滤 ${filtered} 个低于${minRating}%的游戏` : ''}`);
+        dbg(`列表页: 显示 ${shown} 个好评率, 过滤 ${filtered} 个, 未找到 ${notFoundNames.length} 个` +
+            (notFoundNames.length > 0 ? ` [${notFoundNames.slice(0, 5).join('、')}]` : ''));
+
+        // 未匹配的游戏 3 秒后重试一次（网络抖动/瞬时失败兜底），成功后补插徽章
+        // Retry unmatched games once after 3s (transient-error fallback)
+        if (notFoundNames.length > 0) {
+          setTimeout(async () => {
+            try {
+              const retryResp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names: notFoundNames });
+              if (retryResp && retryResp.ratings) {
+                processItems.forEach(item => {
+                  const r = retryResp.ratings[item.name];
+                  if (r && r.appId) {
+                    // 移除已有的"未找到"徽章后插入好评率徽章
+                    const holder = item.titleEl || (item.element ? item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title') : null);
+                    if (holder) {
+                      const old = holder.querySelector('.gr-rating-badge, .gr-not-found');
+                      if (old) old.remove();
+                    }
+                    const oldInLink = item.link.querySelector('.gr-not-found');
+                    if (oldInLink) oldInLink.remove();
+                    prependRatingBadge(item, r);
+                  }
+                });
+              }
+            } catch (e) { /* 重试失败保持"未找到"徽章 */ }
+          }, 3000);
+        }
       }
     } catch (e) {
       dbg('Steam好评率检索失败: ' + e.message);
@@ -768,13 +801,13 @@
     if (!link) return;
 
     const rate = rating.positiveRate;
-    // 颜色分级：>=80 绿色，>=60 黄绿，<60 橙色；无评测（0条）显示灰色"暂无"
-    // Color grading: >=80 blue, >=60 yellow-green, <60 orange; no reviews → grey "暂无"
+    // 颜色分级：>=80 绿色，>=60 黄绿，<60 橙色；无评测（0条/Demo）显示灰色 AppID
+    // Color grading: >=80 blue, >=60 yellow-green, <60 orange; zero reviews → grey AppID
     let color, bg, text;
     if (rate === null || rate === undefined) {
       color = '#8f98a0';
       bg = 'rgba(143,152,160,0.15)';
-      text = '暂无';
+      text = rating.appId ? `#${rating.appId}` : '暂无';
     } else {
       color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
       bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
@@ -797,10 +830,10 @@
       targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
     }
 
-    if (targetEl && !targetEl.querySelector('.gr-rating-badge')) {
+    if (targetEl && !targetEl.querySelector('.gr-rating-badge, .gr-not-found')) {
       // 标题元素存在，插入到标题文本前面
       targetEl.insertBefore(badge, targetEl.firstChild);
-    } else if (!link.querySelector('.gr-rating-badge')) {
+    } else if (!link.querySelector('.gr-rating-badge, .gr-not-found')) {
       // 回退：找到 link 中的第一个文本节点，在它前面插入
       const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
       const firstTextNode = walker.nextNode();
@@ -809,6 +842,38 @@
         link.insertBefore(badge, firstTextNode);
       } else {
         // 最终回退：插入到 link 最前面
+        link.insertBefore(badge, link.firstChild);
+      }
+    }
+  }
+
+  // 未在 Steam 找到（搜索无结果或查询失败）的游戏：显示"未找到"徽章，
+  // 让列表页每个游戏都有可见状态，便于调试与如实反馈。
+  // Games not found on Steam (no search result or query failure): show a
+  // "not found" badge so every list item has a visible status.
+  function prependNotFoundBadge(item) {
+    const link = item.link;
+    if (!link) return;
+
+    const badge = document.createElement('span');
+    badge.className = 'gr-rating-badge gr-not-found';
+    badge.textContent = '未找到';
+    badge.title = '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）';
+    badge.style.cssText = 'display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:#666;background:rgba(102,102,102,0.08);border:1px dashed #666;border-radius:3px;vertical-align:middle;';
+
+    let targetEl = item.titleEl || null;
+    if (!targetEl && item.element) {
+      targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
+    }
+
+    if (targetEl && !targetEl.querySelector('.gr-rating-badge, .gr-not-found')) {
+      targetEl.insertBefore(badge, targetEl.firstChild);
+    } else if (!link.querySelector('.gr-rating-badge, .gr-not-found')) {
+      const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
+      const firstTextNode = walker.nextNode();
+      if (firstTextNode && firstTextNode.textContent.trim().length > 1) {
+        link.insertBefore(badge, firstTextNode);
+      } else {
         link.insertBefore(badge, link.firstChild);
       }
     }
