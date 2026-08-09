@@ -14,6 +14,13 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // 显示扩展版本号（便于确认加载的是否为最新版本）
+  // Show the extension version (helps confirm the loaded version)
+  const versionEl = document.getElementById('extVersion');
+  if (versionEl && chrome.runtime && chrome.runtime.getManifest) {
+    versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
+  }
+
   // Load settings / 加载设置（后台未就绪时给出降级处理）
   let settings;
   try {
