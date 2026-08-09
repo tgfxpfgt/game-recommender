@@ -20,32 +20,6 @@ export async function readDownloadUrlsStore() {
   return store;
 }
 
-// 获取某 appId 的所有下载站网址（合并各站点桶）
-// Get all download-site URLs for an appId (merged across buckets)
-export async function getDownloadUrls(appId) {
-  if (!appId) return {};
-  const store = await readDownloadUrlsStore();
-  const key = String(appId);
-  const result = {};
-  for (const [siteKey, bucket] of Object.entries(store.sites)) {
-    if (bucket[key]) result[siteKey] = bucket[key];
-  }
-  return result;
-}
-
-// 获取某 appId 在指定站点的网址（更新 lastAccessed）
-// Get a specific site's URL for an appId (updates lastAccessed)
-export async function getDownloadUrlForSite(appId, siteKey) {
-  if (!appId || !siteKey) return null;
-  const store = await readDownloadUrlsStore();
-  const bucket = store.sites[siteKey];
-  const entry = bucket ? bucket[String(appId)] : null;
-  if (!entry) return null;
-  entry.lastAccessed = Date.now();
-  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
-  return entry;
-}
-
 // 记录/更新某 appId 在指定站点的详情页网址（仅操作该站点桶）
 // Record/update a detail-page URL for appId at a site (site-bucket only)
 export async function recordDownloadUrl(appId, siteKey, siteName, url) {

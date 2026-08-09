@@ -1,25 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Game Recommender - 游戏智能推荐",
-  "version": "3.1.2",
+  "version": "3.2.0",
   "description": "基于浏览行为学习的游戏资源智能推荐插件，自动预判下载概率并集成Steam评分",
   "permissions": [
     "storage",
-    "activeTab",
-    "tabs",
     "alarms"
   ],
   "host_permissions": [
-    "https://store.steampowered.com/*",
-    "https://api.steampowered.com/*",
-    "https://steamdb.info/*",
-    "https://steamspy.com/*",
-    "https://store-site-backend-official.ak.epicgames.com/*",
-    "https://www.gog.com/*",
-    "https://www.gamerpower.com/*",
-    "https://xdgame.com/*",
-    "https://www.xianyudanji.gg/*",
-    "https://www.gamer520.com/*",
     "<all_urls>"
   ],
   "background": {
@@ -33,9 +21,6 @@
       ],
       "js": [
         "adapters/default.js",
-        "adapters/platforms/steam.js",
-        "adapters/platforms/epic.js",
-        "adapters/platforms/gog.js",
         "adapters/sites/xdgame.js",
         "adapters/sites/xianyudanji.js",
         "adapters/sites/gamer520.js",
@@ -68,17 +53,6 @@
     }
   },
   "options_page": "options/options.html",
-  "web_accessible_resources": [
-    {
-      "resources": [
-        "dashboard/dashboard.html",
-        "freegames/freegames.html"
-      ],
-      "matches": [
-        "<all_urls>"
-      ]
-    }
-  ],
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",

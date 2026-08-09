@@ -11,7 +11,6 @@ import { resetInMemoryCaches } from './core/reset.js';
 import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
 import { collectExpiredSteamCache, collectExpiredNegativeNames, collectExpiredDownloadUrls } from './storage/cleanup.js';
-import { scanAndHealRegistry } from './steam/api.js';
 import {
   flushSteamCache, getSteamCacheEntry, setSteamCacheEntry,
   deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory
@@ -25,7 +24,7 @@ import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorL
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from './storage/backups.js';
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
 import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
-import { searchSteamAppId, fetchSteamFullDetailsByAppId } from './steam/api.js';
+import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
 import { calculateRecommendation } from './recommend/engine.js';
 import { searchDownloadSites } from './sites/search.js';

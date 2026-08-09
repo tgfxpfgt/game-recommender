@@ -8,7 +8,7 @@
  * Permanent, re-confirmed after the TTL; in-memory cache + debounced writes.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE, registryConfirmTtlMs } from '../core/constants.js';
+import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
 
 let registryMemory = null;
 let registryMemoryLoaded = false;
@@ -33,13 +33,6 @@ export async function getGameRegistryEntry(appId) {
   if (!appId) return null;
   const registry = await getGameRegistry();
   return registry[String(appId)] || null;
-}
-
-// 判断注册条目是否需要重新确认（超过重确认周期）
-// Does a registry entry need re-confirmation?
-export function needsReconfirm(entry) {
-  if (!entry || !entry.lastConfirmed) return true;
-  return (Date.now() - entry.lastConfirmed) >= registryConfirmTtlMs();
 }
 
 // 记录/更新游戏到注册表 / Record/update a game in the registry

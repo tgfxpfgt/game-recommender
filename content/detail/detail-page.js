@@ -212,26 +212,6 @@
       const record = resp.record;
       dbg(`下载历史: ${record.lastDownloadSiteName}, ${new Date(record.lastDownloadTime).toLocaleString()}`);
 
-      // 格式化相对时间
-      function formatTime(timestamp) {
-        if (!timestamp) return '未知';
-        const date = new Date(timestamp);
-        const now = new Date();
-        const diff = now - date;
-        const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-        if (days === 0) {
-          const hours = Math.floor(diff / (1000 * 60 * 60));
-          if (hours === 0) {
-            const mins = Math.floor(diff / (1000 * 60));
-            return mins <= 1 ? '刚刚' : `${mins}分钟前`;
-          }
-          return `${hours}小时前`;
-        }
-        if (days === 1) return '昨天';
-        if (days < 7) return `${days}天前`;
-        return date.toLocaleDateString('zh-CN');
-      }
-
       // 浮窗容器经 GR.float 统一管理（左下区域）
       const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-history-float', {
         chrome: true,
@@ -239,7 +219,7 @@
         title: '📥 下载记录'
       });
 
-      const timeStr = formatTime(record.lastDownloadTime);
+      const timeStr = GR.common.formatRelativeTime(record.lastDownloadTime);
       const siteName = record.lastDownloadSiteName || '未知站点';
 
       panel.style.padding = '12px 14px';
@@ -247,7 +227,6 @@
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <span style="font-size:16px;">📥</span>
           <span style="font-weight:bold;color:#66c0f4;font-size:13px;">下载记录</span>
-          <span style="margin-left:auto;cursor:pointer;color:#666;font-size:14px;line-height:1;" id="gr-dl-history-close">✕</span>
         </div>
         <div style="color:#8f98a0;margin-bottom:4px;">
           上次下载：<span style="color:#d2efa9;">${timeStr}</span>
@@ -258,16 +237,6 @@
         ${record.totalDownloads && record.totalDownloads > 1 ? `<div style="color:#666;margin-top:6px;font-size:11px;">共下载 ${record.totalDownloads} 次</div>` : ''}
         ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${esc(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
       `;
-
-      document.body.appendChild(panel);
-
-      const closeBtn = panel.querySelector('#gr-dl-history-close');
-      if (closeBtn) {
-        closeBtn.addEventListener('click', () => {
-          // 统一经 GR.float 移除 / removed through GR.float
-          GR.float.remove('gr-download-history-float');
-        });
-      }
     }).catch(() => {});
   }
 
@@ -290,20 +259,17 @@
       </div>
     `;
 
-    let panelVisible = false;
     let steamData = null;
 
     function showPanel() {
       panel.style.opacity = '1';
       panel.style.transform = 'translateX(0)';
       panel.style.pointerEvents = 'auto';
-      panelVisible = true;
     }
 
     function hidePanel() {
       // 折叠内容区（chrome 标题栏保留）/ fold the body (header stays)
       panel.style.display = 'none';
-      panelVisible = false;
     }
 
     // 手动更新缓存回调（成功获取数据后复用渲染逻辑）
@@ -514,16 +480,7 @@
     const ratingColor = (data.positiveRate || 0) >= 80 ? '#66c0f4' : (data.positiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00';
     const ratingBg = (data.positiveRate || 0) >= 80 ? 'rgba(102,192,244,0.1)' : (data.positiveRate || 0) >= 60 ? 'rgba(163,207,6,0.1)' : 'rgba(255,123,0,0.1)';
 
-    // 格式化缓存时间
-    function formatCacheAge(ts) {
-      if (!ts) return '未知';
-      const diff = Date.now() - ts;
-      if (diff < 60000) return '刚刚';
-      if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
-      if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
-      return Math.floor(diff / 86400000) + ' 天前';
-    }
-    const cacheAgeText = formatCacheAge(cachedAt);
+    const cacheAgeText = GR.common.formatRelativeTime(cachedAt);
 
     // 中文评测
     let reviewsHtml = '';

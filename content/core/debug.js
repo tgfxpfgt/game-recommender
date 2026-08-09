@@ -13,14 +13,12 @@
 
   // ============ Debug State / 调试状态 ============
   const DEBUG = {
-    enabled: true,
     pageType: '未检测',
     adapter: '无',
     siteTracked: false,
     steamStatus: '未查询',
     downloadEvents: 0,
     gameName: '',
-    errors: [],
     logs: []
   };
 

@@ -11,7 +11,7 @@
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
 import { getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
-import { parseGameTitle, generateSearchVariants, extractNoiseCandidates } from './title-parser.js';
+import { generateSearchVariants, extractNoiseCandidates } from './title-parser.js';
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
@@ -516,13 +516,5 @@ export async function scanAndHealRegistry(limit = 20) {
 }
 
 // 选择注册表英文名：优先下载站标题中的英文段，回退 Steam 官方英文名
-// Pick the registry EN name (title EN segment first, Steam official fallback)
-export function pickRegistryEnName(gameName, steamEnName) {
-  const enFromTitle = parseGameTitle(gameName || '').find(t => /^[A-Za-z]/.test(t));
-  return enFromTitle || steamEnName || '';
-}
-
-// 记录 Steam 相关日志（统一出口）/ Log helper
-export function logSteam(level, message, data) {
-  Logger[level]('Steam', message, data);
-}
+// （实现在 title-parser.js，此处不重复定义）
+// (EN-name picking lives in title-parser.js; not duplicated here)

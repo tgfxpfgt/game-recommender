@@ -51,7 +51,8 @@
 
     // 2. 全局点击委托（capture 阶段，覆盖静态与动态链接）
     document.addEventListener('click', (e) => {
-      const target = e.target.closest('a, button, [onclick], [data-href], [class*="down"], [class*="baidu"], [class*="pan"], [id*="down"], [class*="netdisk"]');
+      // 防护：点击空白处等非 Element 目标时 closest 会抛错
+      const target = (e.target instanceof Element) ? e.target.closest('a, button, [onclick], [data-href], [class*="down"], [class*="baidu"], [class*="pan"], [id*="down"], [class*="netdisk"]') : null;
       if (!target) return;
 
       const text = (target.textContent || '').trim();

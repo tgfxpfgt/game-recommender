@@ -142,10 +142,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(cached.data)) {
-        // 缓存命中：幂等补写注册表（用缓存中的名称）；中英文名异常时自愈
-        await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
-        await ensureValidEnglishName(cached.data.appId || appId, cached.data.englishName, cached.data.name, gameName);
-        await ensureValidChineseName(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+        // 缓存命中：幂等补写注册表（含封面）；中英文名异常时自愈
+        await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName, cached.data.headerImage || '');
+        await ensureValidRegistryNames(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         return {
           positiveRate: cached.data.positiveRate,
           ratingDesc: cached.data.ratingDesc || null,

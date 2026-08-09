@@ -10,7 +10,7 @@
 import { dataStore } from '../../data/data-store.js';
 import {
   DB_KEYS, STEAM_CACHE_VERSION, STEAM_CACHE_WRITE_DEBOUNCE,
-  STEAM_CACHE_MAX_ENTRIES, STEAM_CACHE_MAX_ENTRIES_AGGRESSIVE, steamCacheTtlMs
+  STEAM_CACHE_MAX_ENTRIES, steamCacheTtlMs
 } from '../core/constants.js';
 
 let steamCacheMemory = null;        // Map: appId -> entry
@@ -66,17 +66,16 @@ export async function flushSteamCache() {
   }
 }
 
-// 内存清理（LRU；aggressive 用于配额超限）/ In-memory cleanup (LRU)
-export function cleanupSteamCacheMemory(aggressive = false) {
+// 内存清理（LRU，写入前执行）/ In-memory cleanup (LRU, before persisting)
+function cleanupSteamCacheMemory() {
   if (!steamCacheMemory) return;
   const now = Date.now();
   for (const [key, entry] of steamCacheMemory) {
     if (!isSteamCacheValid(entry)) steamCacheMemory.delete(key);
   }
-  const max = aggressive ? STEAM_CACHE_MAX_ENTRIES_AGGRESSIVE : STEAM_CACHE_MAX_ENTRIES;
-  if (steamCacheMemory.size > max) {
+  if (steamCacheMemory.size > STEAM_CACHE_MAX_ENTRIES) {
     const entries = [...steamCacheMemory.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    const toRemove = steamCacheMemory.size - max;
+    const toRemove = steamCacheMemory.size - STEAM_CACHE_MAX_ENTRIES;
     for (let i = 0; i < toRemove; i++) {
       steamCacheMemory.delete(entries[i][0]);
     }

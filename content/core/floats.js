@@ -153,26 +153,10 @@
     for (const id of Object.keys(floats)) remove(id);
   }
 
-  // 折叠全部（保留标题栏）/ Fold all (headers remain)
-  function foldAll() {
-    for (const item of Object.values(floats)) {
-      const body = item.body;
-      if (body && body.style.display !== 'none') {
-        body.style.display = 'none';
-        const header = item.root.querySelector(':scope > div');
-        if (header) {
-          const foldBtn = header.children[header.children.length - 2];
-          if (foldBtn) foldBtn.textContent = '▸';
-        }
-      }
-    }
-  }
-
   GR.float = {
     ZONE,
     create,
     remove,
-    closeAll,
-    foldAll
+    closeAll
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

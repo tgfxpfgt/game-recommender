@@ -2,10 +2,12 @@
 
 基于浏览行为学习的 Chrome 浏览器扩展，自动预判游戏下载概率、集成 Steam 评分系统，并支持多下载站资源智能检索。
 
+[![GitHub](https://img.shields.io/badge/GitHub-tgfxpfgt%2Fgame--recommender-181717?logo=github)](https://github.com/tgfxpfgt/game-recommender)
+
 ## 核心功能
 
 ### 1. 浏览行为追踪与智能推荐
-- 自动追踪用户在下载站（XDGame、咸鱼单机、Gamer520）的浏览行为
+- 自动追踪用户在下载站（XDGame、咸鱼单机、Gamer520、3DM、游侠、游民星空等）的浏览行为
 - 基于浏览历史学习用户偏好，智能推荐相关游戏
 - 在列表页实时显示推荐分数徽章
 
@@ -28,9 +30,9 @@
 - 过滤在请求 Steam 数据之前执行，同时节省 API 调用
 
 ### 4. 下载站资源检索
-- 在 Steam 游戏详情页自动搜索三大下载站的对应资源（检索范围可在设置中自定义勾选）
+- 在 Steam 游戏详情页自动搜索三大下载站（XDGame/咸鱼单机/Gamer520）的对应资源（检索范围可在设置中自定义勾选）
 - 显示资源更新日期、版本、文件大小等元信息
-- 支持跨语言标题匹配（中英文独立匹配算法）
+- 支持跨语言标题匹配（中英文独立匹配算法 + 自适应检索）
 - 提供下载站详情页跳转链接，用户可在详情页手动获取资源
 
 ### 5. 下载历史记录
@@ -46,9 +48,24 @@
 ### 7. 数据管理
 - 支持数据备份与恢复（JSON 格式）
 - 设置页面支持自动保存（800ms 防抖，无需手动点击保存）
-- 游戏缓存管理页：按 AppID/中英文名/好评率/Steam 标签/下载站多条件组合检索、分页查看、单个删除或清空全部缓存；AppID 可点击跳转 Steam、支持单条手动更新（Steam 中英文名/标签 + 下载站地址）
+- 游戏缓存管理页：按 AppID/中英文名/好评率/Steam 标签/下载站多条件组合检索、分页查看、单个删除或清空全部缓存；AppID 可点击跳转 Steam、支持单条手动更新（Steam 中英文名/标签 + 下载站地址）；一键清理过期缓存、一键修复异常中英文名
 - 可配置的日志记录系统（内存缓冲防抖写入）
 - 调试面板（开发模式）
+
+### 8. 适配规则管理（v3.0）
+- 设置页"规则管理"面板：查看/编辑下载站适配规则（JSON 编辑器 + 校验 + 字段说明表）
+- 保存的规则覆盖内置规则，可独立导出/导入分享，一键恢复内置
+- 后台安全校验：纯数据白名单、拒绝函数注入、规模上限
+
+### 9. 统一浮窗体系（v3.1）
+- 所有浮窗（工作状态/诊断调试、Steam 信息、下载站资源、下载历史）统一管理
+- 分区定位、防重叠堆叠、统一折叠/关闭
+- 工作状态浮窗：任务进度 → 完成统计（计时）→ 3 秒后自动消失或切换诊断视图
+
+### 10. 自适应检索（v3.1.2）
+- 游戏名检索失败时自动尝试删词组合搜索（尾部/头部逐词删除 + 已学噪声词清洗）
+- 成功后自动学习被跳过的噪声词（计数确认 ≥3 次生效，防误学副标题）
+- 检索规则随使用自动改进，新站点标题修饰词无需手动维护
 
 ## 安装方式
 
@@ -63,33 +80,31 @@
 | 权限 | 用途 |
 |------|------|
 | `storage` | 存储用户偏好、浏览记录、缓存数据 |
-| `activeTab` | 访问当前标签页内容 |
-| `tabs` | 查询活动标签页、打开仪表盘和限免页面 |
-| `alarms` | 定时刷新限免游戏 |
+| `alarms` | 定时刷新限免游戏与自动备份 |
+| `<all_urls>` | 内容脚本注入与跨域请求（下载站/Steam/限免 API/用户自定义 LLM 端点） |
 
 ## 项目结构
 
 ```
 game-recommender/
 ├── manifest.json              # 扩展配置文件（Manifest V3）
-├── adapters/                  # 适配规则（default 基础 + platforms 平台 + sites 各站）
+├── adapters/                  # 适配规则（default 基础 + sites 各站）
 │   ├── default.js / index.js
-│   ├── platforms/             # steam / epic / gog 平台配置
 │   └── sites/                 # 6 个下载站独立配置
 ├── shared/
-│   └── escape.js              # 共享 HTML 转义工具（所有页面与内容脚本）
+│   └── escape.js              # 共享 HTML 转义工具（popup/options/dashboard/freegames）
 ├── background/                # 后台（模块化）
 │   ├── service-worker.js      # 入口（导入/监听/定时/初始化）
 │   ├── handlers.js            # 消息处理与分发映射
 │   ├── core/                  # 常量/工具/设置/规则/重置
-│   ├── storage/               # 数据模块（缓存/注册表/索引/日志/备份...）
+│   ├── storage/               # 数据模块（缓存/注册表/索引/日志/备份/噪声词...）
 │   ├── steam/                 # 标题解析/API/编排器
 │   ├── recommend/engine.js    # 推荐算法
 │   ├── sites/search.js        # 下载站搜索
 │   └── freegames/manager.js   # 限免管理
 ├── content/                   # 内容脚本（模块化）
-│   ├── tracker.js             # 入口（init/启动/监听）
-│   ├── core/                  # common 工具 / debug 调试
+│   ├── tracker.js             # 入口（预热/init/启动/监听）
+│   ├── core/                  # common 工具 / floats 统一浮窗 / status-bar 状态栏 / debug 调试
 │   ├── adapters/builder.js    # 适配器构建
 │   ├── list/list-page.js      # 列表页功能
 │   ├── detail/detail-page.js  # 详情页功能
@@ -101,7 +116,7 @@ game-recommender/
 ├── tests/                     # 自动化测试套件（node tests/run-tests.js）
 ├── styles/content.css
 ├── popup/                     # 工具栏弹窗
-├── options/                   # 设置页（入口 + panels/ 三面板）
+├── options/                   # 设置页（入口 + panels/ 四面板）
 ├── dashboard/                 # 数据分析
 ├── freegames/                 # 限免页面
 └── icons/
@@ -110,26 +125,28 @@ game-recommender/
 ## 技术架构
 
 ### 后台服务工作者 (service-worker.js)
-- **Steam API 编排器**：搜索游戏 → 获取详情 → 解析语言支持 → 获取评测 → SteamDB/SteamSpy 数据
+- **Steam API 编排器**：搜索游戏 → 获取详情 → 解析语言支持 → 获取评测 → SteamDB/SteamSpy 数据；自适应检索（删词组合 + 噪声词自动学习）
 - **下载站搜索引擎**：多搜索词策略 + 跨语言匹配算法 + 链接匹配度评分，站点配置来自规则文件
 - **三层缓存系统（v5，以 appId 为唯一标识）**：
-  - `gameRegistry` 游戏注册表：中英文名以 Steam 官方为准 + 下载站标题名称变体，永久保留、30 天重确认
-  - `nameIndex` 名称索引：游戏名 → appId O(1) 反查（含规范化名键，跨站变体命中同一 appId），24h 负缓存
+  - `gameRegistry` 游戏注册表：中英文名以 Steam 官方为准 + 下载站标题名称变体 + 封面图，永久保留、30 天重确认
+  - `nameIndex` 名称索引：游戏名 → appId O(1) 反查（含规范化名键，跨站变体命中同一 appId），2h 负缓存
   - `downloadUrls` 下载站网址缓存：30 天有效，按站点分桶存储（v2），列表页批量写入 + 详情页访问更新
   - 三层均带内存缓存与防抖批量写入，减少 storage I/O；Steam 好评率等缓存跨站共享，检索优先命中缓存
+  - 中英文名异常自动自愈（并行获取官方名）；一键清理过期缓存（三类按 TTL）
 - **消息分发**：统一的 handler 映射表，支持行为追踪、推荐计算、设置管理等
 - **SSRF 防护**：所有外部请求经 host 校验（仅 http/https，拒绝私有/环回地址），本地 LLM 端点除外
 
 ### 内容脚本 (tracker.js)
-- **规则驱动的页面适配**：适配规则来自 `adapters/sites.js`（域名、列表页识别、列表项提取选择器），添加新下载站只需在规则文件中新增一项
-- **浮窗 UI**：仿 Steam 风格的信息浮窗，支持展开/收起、手动更新缓存、手动选择游戏
-- **好评率徽章**：在列表页游戏标题前显示 Steam 好评率；0 评测游戏显示灰色"暂无"
+- **规则驱动的页面适配**：适配规则来自 `adapters/sites/` 目录（域名、列表页识别、列表项提取选择器），添加新下载站只需在规则文件中新增一项
+- **document_start 注入 + 预热**：脚本加载即并行唤醒后台/加载规则，DOM 就绪立即开始工作（零延迟）
+- **两波好评率流程**：第一波仅查缓存（命中徽章即时显示），未命中的后台从 Steam 拉取、每批完成后增量推送
+- **统一浮窗体系（GR.float）**：状态/诊断/Steam 信息/下载站资源/下载历史全部统一管理，分区定位、防重叠、可折叠关闭
+- **好评率徽章**：在列表页游戏标题前显示 Steam 好评率；0 评测游戏显示灰色 AppID，未匹配显示"未找到"
 - **好评率过滤**：根据阈值自动移除低评分游戏并重排列表
-- **预载下一页**：延迟 3s 自动预热下一页 Steam 缓存，翻页后好评率过滤秒开
+- **预载下一页**：延迟 2s 自动预热下一页 Steam 缓存，翻页后好评率过滤秒开
 - **appId 直取**：从页面 Steam 图片 URL 提取 appId 直接获取详情，绕过标题搜索
 - **异步消息通信**：与后台服务工作者通过 Chrome Messaging API 通信
-- **性能优化**：调试面板防抖刷新（250ms），下载追踪使用事件委托无需 MutationObserver
-- **内存管理**：定期清理无效的 DOM 引用，防止内存泄漏
+- **性能优化**：调试面板防抖刷新（250ms），下载追踪使用事件委托，全页扫描设上限（500 链接）
 
 ### 设置页面 (options.js)
 - **自动保存**：所有设置修改后 800ms 自动保存，无需手动点击
@@ -143,11 +160,14 @@ game-recommender/
 
 ## 支持的下载站
 
-| 站点 | 域名 | 说明 |
-|------|------|------|
-| XDGame | xdgame.com | 详情页 URL 匹配 `/game/数字.html` |
-| 咸鱼单机 | xianyudanji.gg | Bootstrap 栅格布局，col-* 容器 |
-| Gamer520 | gamer520.com | Bootstrap 栅格布局，col-* 容器 |
+| 站点 | 域名 | 支持功能 |
+|------|------|----------|
+| XDGame | xdgame.com | 列表/详情 + Steam 资源检索 |
+| 咸鱼单机 | xianyudanji.gg | 列表/详情 + Steam 资源检索 |
+| Gamer520 | gamer520.com | 列表/详情 + Steam 资源检索 |
+| 3DM游戏 | 3dmgame.com | 列表/详情/行为追踪（无站内检索） |
+| 游侠网 | ali213.net | 列表/详情/行为追踪（无站内检索） |
+| 游民星空 | gamersky.com | 列表/详情/行为追踪（无站内检索） |
 
 ## 数据源
 
@@ -156,18 +176,22 @@ game-recommender/
 - **SteamSpy**：SteamDB 被拦截时的补充数据
 - **Epic Games API**：限免游戏信息
 - **GOG API**：限免游戏信息
+- **GamerPower API**：限免游戏聚合
 
 ## 配置与设置
 
 在扩展设置页面（右键扩展图标 → 选项）可配置：
-- 启用/禁用插件
+- 启用/禁用插件、工作状态浮窗开关
 - 推荐高亮阈值（30%-90%）
 - Steam 好评率过滤（开关 + 0%-95% 阈值）
+- 虚拟机版过滤（关键词自定义）
 - 推荐算法权重（点击率、下载率、关键词匹配、Steam 评分）
 - AI 大模型推荐（支持 Ollama 本地模型 / OpenAI 兼容接口）
-- 追踪网站管理
-- 数据备份与恢复
-- 自动备份开关与备份间隔
+- 缓存有效期（小时/天/月/年，0=长期有效）
+- 追踪网站管理与 Steam 检索范围
+- 适配规则管理（编辑/导入导出/恢复内置）
+- 日志配置（级别/保留天数/存储形式）
+- 数据备份与恢复、自动备份开关与间隔
 
 **所有设置自动保存**，修改后 800ms 自动同步，也可点击底部"立即保存"按钮强制保存。
 
@@ -189,6 +213,19 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v3.2.0
+- **全面审查与优化**（三代理并行审计 + 逐项修复）：
+  - **修复重大 bug**：列表页轻量路径缓存命中分支调用已删除的旧函数（ReferenceError，v3.1.0 重构遗漏），缓存命中即时报错回源——现已恢复自愈与封面补写，命中路径真正生效
+  - **修复推荐算法**：下载率得分与关键词匹配得分调用同一函数导致两个权重加权同一值（double-count）——下载率改为关键词信号 + 历史下载占比信号
+  - **健壮性**：SW 冷启动失败时 init 重试一次；列表页提取对畸形 href 加 try/catch（此前会中断整页初始化）；下载追踪点击委托加 Element 防护；freegames 非法日期回退原文；popup/dashboard 旧设置字段缺失兜底
+  - **性能**：HTML 转义复用缓存 div；列表页识别全页链接扫描设上限并达标提前返回；相对时间格式化统一为 `GR.common.formatRelativeTime`（消除 3 处重复实现）；好评率/未找到徽章插入合并为单一实现；VM 过滤与好评率过滤共用 DOM 移除逻辑；封面 appId 提取复用 builder 统一实现
+  - **清理死代码**：8 处无引用导出（logSteam/needsReconfirm/getDownloadUrls/getDownloadUrlForSite/sleep 等）、永不触发的 aggressive 缓存清理分支、未使用 import、重复 import、调试面板遗留样式/字段、floats foldAll 脆弱实现等
+  - **移除 platforms 规则链**：adapters/platforms/（steam/epic/gog 3 文件）为无消费方的死配置（API 均硬编码），连同 manifest/options/SW 引用一并删除，每个页面少加载 3 个脚本
+  - **精简权限**：`permissions` 缩减为 storage+alarms（移除未使用的 activeTab/tabs），host_permissions 移除被 `<all_urls>` 覆盖的 11 条冗余域名与未使用的 api.steampowered.com，移除冗余 web_accessible_resources
+  - **删除未引用文件**：icons/generate-icons.html、icons/gen-icons.ps1、git-setup.ps1、push-to-github.bat
+- **GitHub 信息更新**：README 全面更新（6 站支持表、10 项核心功能、结构树、权限表、数据源、配置列表）；新增 `.github/workflows/ci.yml`（push/PR 自动跑测试套件）；仓库描述更新
+- 测试：全套 **104 项**全部通过
 
 ### v3.1.2
 - **游戏名检索自动改进机制（自适应检索）**：

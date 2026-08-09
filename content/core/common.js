@@ -14,17 +14,30 @@
   // 当前站点域名 / Current site domain
   function getCurrentDomain() { return window.location.hostname; }
 
-  // HTML 转义（动态内容安全）/ HTML escape (safe dynamic content)
+  // HTML 转义（动态内容安全）。复用同一个 div 提升性能（高频渲染场景）
+  // HTML escape (safe dynamic content); a cached div avoids per-call allocation
+  const escapeDiv = document.createElement('div');
   function escapeHtml(text) {
-    const div = document.createElement('div');
-    div.textContent = text || '';
-    return div.innerHTML;
+    escapeDiv.textContent = text || '';
+    return escapeDiv.innerHTML;
   }
 
   // HTML 属性值转义（href 等属性，防止引号逃逸）
   // Attribute-value escape (prevents quotes breaking out of attributes)
   function escapeAttr(text) {
     return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  // 相对时间格式化（内容脚本统一实现，替代各浮窗独立实现）
+  // Relative-time formatting (shared by all content floats)
+  function formatRelativeTime(timestamp) {
+    if (!timestamp) return '未知';
+    const diff = Date.now() - timestamp;
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';
+    if (diff < 7 * 86400000) return Math.floor(diff / 86400000) + ' 天前';
+    return new Date(timestamp).toLocaleDateString('zh-CN');
   }
 
   // 发送行为追踪消息 / Send a behavior-tracking message
@@ -54,6 +67,7 @@
     getCurrentDomain,
     escapeHtml,
     escapeAttr,
+    formatRelativeTime,
     trackEvent,
     trackDownloadSiteVisit
   };

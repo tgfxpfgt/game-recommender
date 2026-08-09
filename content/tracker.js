@@ -52,7 +52,15 @@
   // ============ 核心初始化（URL检测页面类型） ============
   async function init() {
     // 复用预热结果（通常已就绪，立即返回；否则等待剩余时间）
-    const settings = await warmupPromise;
+    let settings = await warmupPromise;
+    // SW 冷启动失败兜底：重试一次获取设置，避免整页功能静默失效
+    // Fallback when the warm-up failed (e.g. SW cold start): retry once
+    if (!settings) {
+      try {
+        const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        settings = resp?.settings;
+      } catch (e) { /* 仍失败则放弃本页 */ }
+    }
     if (!settings || !settings.enabled) return;
 
     // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
@@ -184,9 +192,6 @@
         }
       })();
       return true; // 异步响应 / Async response
-    }
-    if (message.action === 'GET_DEBUG_INFO') {
-      sendResponse({ debug: debug.DEBUG });
     }
     if (message.action === 'SHOW_LAST_STATS') {
       // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats

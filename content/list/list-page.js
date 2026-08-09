@@ -39,7 +39,12 @@
       const seen = new Set();
       document.querySelectorAll('a').forEach(a => {
         const href = a.href || '';
-        const p = new URL(href, window.location.href).pathname;
+        let p;
+        try {
+          p = new URL(href, window.location.href).pathname;
+        } catch (e) {
+          return; // 畸形 href 跳过，不中断整页提取 / skip malformed hrefs
+        }
         if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) {
           const text = a.textContent.trim().replace(/\s+/g, ' ');
           if (text.length > 2 && text.length < 200 && !seen.has(href)) {
@@ -115,12 +120,8 @@
       const name = (item.name || '').toLowerCase();
       const hit = kws.some(kw => kw && name.includes(kw.toLowerCase()));
       if (hit) {
-        // 从 DOM 移除：优先移除栅格列容器以避免留空
-        if (item.element) {
-          const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
-          const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
-          if (toRemove && toRemove.parentNode) toRemove.remove();
-        }
+        // 从 DOM 移除（优先移除栅格列容器以避免留空，与好评率过滤共用逻辑）
+        removeItemFromDom(item);
         removed++;
       } else {
         kept.push(item);
@@ -219,14 +220,11 @@
             if (text.length > minLen && text.length < maxLen) {
               names.add(text);
               if (!appIds[text]) {
-                const img = el.querySelector('img');
-                if (img) {
-                  const src = img.src || img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || '';
-                  const m = src.match(/\/steam\/apps\/(\d+)\//i);
-                  if (m) {
-                    appIds[text] = m[1];
-                    covers[text] = src;
-                  }
+                // 复用 builder 的封面 appId 提取（统一正则实现）
+                const info = GR.builder.extractSteamImageInfo(el);
+                if (info) {
+                  appIds[text] = info.appId;
+                  covers[text] = info.cover;
                 }
               }
             }
@@ -304,7 +302,7 @@
             return;
           }
         }
-        prependRatingBadge(item, rating);
+        prependBadge(item, rating);
         job.shown++;
       } else if (mode !== 'first' && Object.prototype.hasOwnProperty.call(ratings, item.name)) {
         // 最终波：仅对**波内包含**的名字判定"未找到"（波外名字继续等待后续波）
@@ -312,7 +310,7 @@
         job.processed.add(item.name);
         job.notFoundNames.push(item.name);
         changed = true;
-        prependNotFoundBadge(item);
+        prependBadge(item, null);
       }
     });
     return changed;
@@ -421,33 +419,44 @@
     }
   }
 
-  // 在游戏标题前插入好评率徽章（点击跳转 Steam）
-  function prependRatingBadge(item, rating) {
+  // 在游戏标题前插入徽章（好评率/AppID/未找到 统一实现，rating 为空时显示"未找到"）
+  // Insert a badge before the game title (rating / AppID / not-found, unified)
+  function prependBadge(item, rating) {
     const link = item.link;
     if (!link) return;
 
-    const rate = rating.positiveRate;
-    // 颜色分级：>=80 蓝色，>=60 黄绿，<60 橙色；无评测（0条/Demo）灰色 AppID
-    let color, bg, text;
-    if (rate === null || rate === undefined) {
+    const isNotFound = !rating || !rating.appId;
+    const rate = rating ? rating.positiveRate : null;
+    // 颜色分级：>=80 蓝色，>=60 黄绿，<60 橙色；无评测（0条/Demo）灰色 AppID；未找到灰色虚线
+    let color, bg, text, cls;
+    if (isNotFound) {
+      color = '#666';
+      bg = 'rgba(102,102,102,0.08)';
+      text = '未找到';
+      cls = 'gr-rating-badge gr-not-found';
+    } else if (rate === null || rate === undefined) {
       color = '#8f98a0';
       bg = 'rgba(143,152,160,0.15)';
       text = rating.appId ? `#${rating.appId}` : '暂无';
+      cls = 'gr-rating-badge';
     } else {
       color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
       bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
       text = `${rate}%`;
+      cls = 'gr-rating-badge';
     }
 
     const badge = document.createElement('span');
-    badge.className = 'gr-rating-badge';
+    badge.className = cls;
     badge.textContent = text;
-    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:pointer;text-decoration:none;`;
-    badge.title = (rate === null || rate === undefined)
-      ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
-      : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
+    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px ${isNotFound ? 'dashed' : 'solid'} ${color};border-radius:3px;vertical-align:middle;${isNotFound ? '' : 'cursor:pointer;text-decoration:none;'}`;
+    badge.title = isNotFound
+      ? '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）'
+      : (rate === null || rate === undefined)
+        ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
+        : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
     // 点击徽章跳转 Steam 详情页（span+click 避免嵌套链接）
-    if (rating.appId) {
+    if (!isNotFound && rating.appId) {
       badge.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -456,35 +465,6 @@
     }
 
     // 查找标题元素插入徽章（titleEl 优先 → 元素内标题 → 链接文本节点）
-    let targetEl = item.titleEl || null;
-    if (!targetEl && item.element) {
-      targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
-    }
-
-    if (targetEl && !targetEl.querySelector('.gr-rating-badge, .gr-not-found')) {
-      targetEl.insertBefore(badge, targetEl.firstChild);
-    } else if (!link.querySelector('.gr-rating-badge, .gr-not-found')) {
-      const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
-      const firstTextNode = walker.nextNode();
-      if (firstTextNode && firstTextNode.textContent.trim().length > 1) {
-        link.insertBefore(badge, firstTextNode);
-      } else {
-        link.insertBefore(badge, link.firstChild);
-      }
-    }
-  }
-
-  // 未在 Steam 找到的游戏：显示"未找到"徽章
-  function prependNotFoundBadge(item) {
-    const link = item.link;
-    if (!link) return;
-
-    const badge = document.createElement('span');
-    badge.className = 'gr-rating-badge gr-not-found';
-    badge.textContent = '未找到';
-    badge.title = '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）';
-    badge.style.cssText = 'display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:#666;background:rgba(102,102,102,0.08);border:1px dashed #666;border-radius:3px;vertical-align:middle;';
-
     let targetEl = item.titleEl || null;
     if (!targetEl && item.element) {
       targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');

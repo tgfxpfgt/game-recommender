@@ -51,9 +51,6 @@ export function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIME
     .finally(() => clearTimeout(timer));
 }
 
-// 简单延迟 / Simple sleep helper
-export const sleep = (ms) => new Promise(r => setTimeout(r, ms));
-
 // 正则提取封装：通过 Symbol.match 计算属性调用，功能与 RegExp.prototype.match
 // 完全等价（规避静态扫描对 .match/.exec 方法名的误判；二者均为纯正则匹配，
 // 不涉及任何系统命令执行）。

@@ -40,12 +40,12 @@ async function loadStats() {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
     if (!response) return;
 
-    // 概览统计 / Overview stats
-    document.getElementById('statTotal').textContent = response.totalEvents;
-    document.getElementById('statGames').textContent = response.totalGames;
-    document.getElementById('statViews').textContent = response.viewDetailCount;
-    document.getElementById('statDownloads').textContent = response.downloadCount;
-    document.getElementById('statRate').textContent = response.downloadRate + '%';
+    // 概览统计 / Overview stats（旧字段缺失时兜底 0）
+    document.getElementById('statTotal').textContent = response.totalEvents ?? 0;
+    document.getElementById('statGames').textContent = response.totalGames ?? 0;
+    document.getElementById('statViews').textContent = response.viewDetailCount ?? 0;
+    document.getElementById('statDownloads').textContent = response.downloadCount ?? 0;
+    document.getElementById('statRate').textContent = (response.downloadRate ?? 0) + '%';
 
     // 标签偏好 / Tag preference cloud
     renderTagCloud(response.topKeywords);
@@ -315,7 +315,7 @@ async function loadBackups() {
     
     container.innerHTML = backups.map(b => {
       const time = new Date(b.timestamp).toLocaleString('zh-CN');
-      const sizeKb = (b.size / 1024).toFixed(1);
+      const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
       const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
       return `<div class="backup-item">
         <div class="backup-info">

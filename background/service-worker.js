@@ -16,13 +16,10 @@
  * This entry only wires imports, the message listener, alarms and startup.
  */
 
-// 下载站适配规则（default 基础 + platforms 平台 + sites 各站，副作用导入：
-// 执行后规则可通过 globalThis.__GAME_RECOMMENDER_SITES__ / __PLATFORMS__ 读取）
+// 下载站适配规则（default 基础 + sites 各站，副作用导入：
+// 执行后规则可通过 globalThis.__GAME_RECOMMENDER_SITES__ 读取）
 // Download-site adapter rules (side-effect imports expose the rules globally)
 import '../adapters/default.js';
-import '../adapters/platforms/steam.js';
-import '../adapters/platforms/epic.js';
-import '../adapters/platforms/gog.js';
 import '../adapters/sites/xdgame.js';
 import '../adapters/sites/xianyudanji.js';
 import '../adapters/sites/gamer520.js';
@@ -34,7 +31,7 @@ import '../adapters/index.js';
 // 数据存储层：OPFS 分文件存储（突破 5MB 配额），不可用时降级 storage.local
 // Data store layer (OPFS per-module files; falls back to storage.local)
 import { initStorage, getSettings } from './core/settings.js';
-import { Logger, flushLogBuffer } from './storage/logger.js';
+import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
 import { refreshFreeGames } from './freegames/manager.js';
 import { createBackup } from './storage/backups.js';

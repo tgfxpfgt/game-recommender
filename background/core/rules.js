@@ -26,11 +26,6 @@ export async function getSiteRules() {
   return siteRulesCache;
 }
 
-// 读取平台规则（steam/epic/gog） / Read platform rules
-export function getPlatformRules() {
-  return globalThis.__GAME_RECOMMENDER_PLATFORMS__ || {};
-}
-
 // 下载站配置（含站内搜索的站点，从规则构建）/ Download-site config (searchable sites)
 export async function getDownloadSites() {
   if (downloadSitesCache) return downloadSitesCache;

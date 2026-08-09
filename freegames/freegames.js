@@ -187,14 +187,11 @@ function isToday(timestamp) {
          d.getDate() === now.getDate();
 }
 
-// 格式化截止日期（如 "8月15日"）/ Format end date (e.g. "Aug 15")
+// 格式化截止日期（如 "8月15日"）；非法日期回退原文 / Format end date; invalid dates fall back
 function formatDate(dateStr) {
-  try {
-    const d = new Date(dateStr);
-    return `${d.getMonth() + 1}月${d.getDate()}日`;
-  } catch (e) {
-    return dateStr;
-  }
+  const d = new Date(dateStr);
+  if (isNaN(d.getTime())) return dateStr; // new Date 对非法串不抛错，返回 Invalid Date
+  return `${d.getMonth() + 1}月${d.getDate()}日`;
 }
 // （escapeHtml/escapeAttr 由 shared/escape.js 提供全局实现）
 // (escapeHtml/escapeAttr come from shared/escape.js)

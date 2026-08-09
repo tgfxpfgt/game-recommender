@@ -70,14 +70,17 @@
         if ((rule.listPage?.urlPatterns || []).some(p => new RegExp(p, 'i').test(path))) return true;
         // 2. DOM 选择器 / DOM selectors
         if ((rule.listPage?.selectors || []).some(sel => document.querySelector(sel))) return true;
-        // 3. 通用判断：详情链接数量达到阈值（XDGame 首页等）
+        // 3. 通用判断：详情链接数量达到阈值（XDGame 首页等）。
+        //    大列表页数千链接时限制扫描量，达到阈值即提前返回
         const minLinks = rule.listPage?.minDetailLinks || 0;
         if (minLinks > 0) {
           let count = 0;
-          document.querySelectorAll('a').forEach(a => {
-            if (isDetailHref(a.href || '')) count++;
-          });
-          if (count >= minLinks) return true;
+          const anchors = document.querySelectorAll('a');
+          const scanLimit = Math.min(anchors.length, 500);
+          for (let i = 0; i < scanLimit; i++) {
+            if (isDetailHref(anchors[i].href || '')) count++;
+            if (count >= minLinks) return true;
+          }
         }
         return false;
       },
@@ -213,7 +216,6 @@
   }
 
   GR.builder = {
-    SITE_RULES,
     loadSiteRules,
     isImageAppIdEnabled,
     buildSiteAdapters,

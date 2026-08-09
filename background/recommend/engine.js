@@ -56,7 +56,9 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
     clickScore = Math.min(totalClicks / totalViews, 1);
   }
 
-  // 2. 下载率得分
+  // 2. 下载率得分：关键词信号（与第 3 步相同的匹配度）+ 历史下载占比信号
+  //    修复：此前与"关键词匹配得分"调用同一函数导致两个权重加权同一值
+  //    Download-rate score: keyword signal + the game's share of download events
   let downloadScore = 0.3;
   const gameKeywords = gameInfo.keywords || [];
   const kwDownloadScore = calculateKeywordScore(gameKeywords, keywordWeights);
@@ -92,8 +94,15 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
   }
 
   if (profileMatch) {
+    // 历史下载占比信号：该游戏下载次数占全部下载的比例（真实下载率信号，
+    // 与关键词得分解耦，避免权重 double-count）
     if (profileMatch.downloads > 0) {
-      downloadScore = Math.min(downloadScore + 0.3, 1);
+      const totalDownloads = behaviorLog.filter(e => e.type === 'click_download').length;
+      if (totalDownloads > 0) {
+        downloadScore = Math.max(downloadScore, Math.min(profileMatch.downloads / totalDownloads, 1));
+      } else {
+        downloadScore = Math.min(downloadScore + 0.3, 1);
+      }
     }
     if (gameKeywords.length === 0 && profileMatch.keywords && profileMatch.keywords.length > 0) {
       const profileKwScore = calculateKeywordScore(profileMatch.keywords, keywordWeights);

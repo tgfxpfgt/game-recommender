@@ -7,7 +7,7 @@
  * (Steam dynamic / name negative / download URLs); handlers persist the result.
  * A TTL of 0 (Infinity) keeps everything.
  */
-import { STEAM_CACHE_VERSION } from '../core/constants.js';
+import { STEAM_CACHE_VERSION, DOWNLOAD_URLS_VERSION } from '../core/constants.js';
 
 // 清理 Steam 动态缓存：过期条目（版本不符或超 TTL）收集并移除，返回统计
 // Purge expired Steam-cache entries (bad version or beyond TTL)
@@ -59,6 +59,6 @@ export function collectExpiredDownloadUrls(store, ttlMs) {
     }
     if (Object.keys(kept).length > 0) sites[siteKey] = kept;
   }
-  const version = (store && store.v) || 2;
+  const version = (store && store.v) || DOWNLOAD_URLS_VERSION;
   return { removed, store: { v: version, sites } };
 }

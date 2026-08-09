@@ -37,8 +37,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Initialize UI state / 初始化 UI 状态
   document.getElementById('enableToggle').checked = settings.enabled;
-  document.getElementById('thresholdSlider').value = settings.highlightThreshold * 100;
-  document.getElementById('thresholdValue').textContent = `${settings.highlightThreshold * 100}%`;
+  const threshold = (settings.highlightThreshold ?? 0.6) * 100; // 旧设置缺字段时兜底
+  document.getElementById('thresholdSlider').value = threshold;
+  document.getElementById('thresholdValue').textContent = `${threshold}%`;
   document.getElementById('debugToggle').checked = settings.showDebugPanel || false;
 
   // Steam rating filter / 好评率过滤

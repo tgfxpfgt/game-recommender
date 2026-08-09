@@ -39,15 +39,6 @@
   cursor: help;
 }
 
-/* 调试面板滚动条 / Debug panel scrollbar */
-#gr-debug-panel::-webkit-scrollbar {
-  width: 4px;
-}
-#gr-debug-panel::-webkit-scrollbar-thumb {
-  background: #444;
-  border-radius: 2px;
-}
-
 /* 加载动画 / Loading spinner */
 @keyframes gr-spin {
   from { transform: rotate(0deg); }
