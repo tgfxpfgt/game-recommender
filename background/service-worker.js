@@ -143,7 +143,8 @@ const DEFAULT_SETTINGS = {
   minSteamRatingFilter: 0, // 列表页最低Steam好评率过滤（0-100，0表示不过滤）
   enableRatingFilter: false, // 是否启用好评率过滤
   enableVmFilter: false, // 是否启用虚拟机标题过滤（隐藏标题含"虚拟机板""虚拟机"的游戏）
-  vmFilterKeywords: ['虚拟机板', '虚拟机'] // 虚拟机过滤关键词列表（标题命中任一即过滤）
+  vmFilterKeywords: ['虚拟机板', '虚拟机'], // 虚拟机过滤关键词列表（标题命中任一即过滤）
+  steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'] // Steam详情页检索的下载站（可自定义勾选）
 };
 
 const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
@@ -170,6 +171,13 @@ const STEAM_CACHE_VERSION = 5;
 // TTL: 24h for dynamic Steam info (ratings, reviews). Keyed by appId,
 // shared across download sites to reduce Steam API calls.
 const STEAM_CACHE_TTL = 24 * 3600 * 1000; // 24小时
+
+// 名称负缓存有效期：搜索失败后 N 小时内不重复搜索（防 Steam API 限流）。
+// 保持较短（6 小时），避免某名称临时失败（如新游戏刚上架）后长时间无法重试。
+// Negative-cache TTL: a failed search is not retried within this window
+// (API rate-limit protection). Kept short (6h) so temporary failures
+// (e.g. brand-new games) don't block retries for a whole day.
+const NAME_NEGATIVE_CACHE_TTL = 6 * 3600 * 1000; // 6小时
 
 // 游戏注册表重确认周期：30 天。基础信息（中英文名）永久保留，
 // 但超过 30 天会重新从 Steam 获取确认，确保名称未变更。
@@ -339,12 +347,13 @@ function needsReconfirm(entry) {
 
 // 记录/更新游戏到注册表
 // cnName/enName 以 Steam 官方名为准（下载站名称可能有偏差）；
-// 下载站标题等触发名加入 names 变体列表，用于跨站名称匹配兼容。
+// 下载站标题等触发名加入 names 变体列表，用于跨站名称匹配兼容；
+// tags 为 Steam 官方类型标签（genres），供缓存管理页多条件检索。
 // Record/update a game in the registry.
 // cnName/enName follow the Steam official names (download-site names may deviate);
 // triggering names (download-site titles) are kept in the names variants list
-// for cross-site matching compatibility.
-async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '' }) {
+// for cross-site matching compatibility; tags are Steam genres for cache-page filters.
+async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '', tags = null }) {
   if (!appId) return;
   await loadRegistryToMemory();
   const key = String(appId);
@@ -354,6 +363,12 @@ async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName 
   // Update CN/EN names only when new values are provided
   if (cnName) existing.cnName = cnName;
   if (enName) existing.enName = enName;
+
+  // 更新 Steam 官方类型标签（去重合并，最多 20 个）
+  // Merge Steam official genre tags (deduplicated, capped at 20)
+  if (tags && Array.isArray(tags) && tags.length > 0) {
+    existing.tags = [...new Set([...(existing.tags || []), ...tags])].slice(0, 20);
+  }
 
   // 将触发名加入已知名称变体（去重）
   // Add the triggering name to known variants (deduplicated)
@@ -424,8 +439,8 @@ async function lookupAppIdByName(gameName) {
   return entry.appId || null;
 }
 
-// 检查某游戏名是否在 24h 负缓存期内（近期搜索过但未找到）
-// Check if a name is in the 24h negative-cache window (searched recently, not found)
+// 检查某游戏名是否在负缓存期内（近期搜索过但未找到）
+// Check if a name is in the negative-cache window (searched recently, not found)
 async function isRecentlySearchedNotFound(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return false;
@@ -434,7 +449,7 @@ async function isRecentlySearchedNotFound(gameName) {
   return !!entry &&
     (entry.appId === null || entry.appId === undefined) &&
     entry.lastSearched &&
-    (Date.now() - entry.lastSearched < STEAM_CACHE_TTL);
+    (Date.now() - entry.lastSearched < NAME_NEGATIVE_CACHE_TTL);
 }
 
 // 记录"游戏名→appId"映射（appId 为 null 表示"搜索过但未找到"）
@@ -1285,6 +1300,21 @@ function isDemoCacheWithoutRating(cachedData) {
   return /demo|试玩|trial/i.test(cachedData.name || '');
 }
 
+// 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）：
+// 名称索引可能固化过 Demo 版映射（如"奉魔"→"奉魔 Demo"），缓存缺失时直接
+// 用该 appId 查询只会得到 0 评测。注册表里的官方名/变体含 Demo 即判定为重搜。
+// Determine from the registry whether an appId is a Demo/trial edition (used for
+// self-healing when the cache entry is missing): the name index may hold a stale
+// Demo mapping (e.g. "奉魔" → "奉魔 Demo"), and querying that appId directly
+// yields zero reviews. A Demo marker in the registry names triggers a re-search.
+async function isDemoAppId(appId) {
+  if (!appId) return false;
+  const entry = await getGameRegistryEntry(appId);
+  if (!entry) return false;
+  const text = [entry.cnName, entry.enName, ...(entry.names || [])].filter(Boolean).join(' ');
+  return /demo|试玩|trial/i.test(text);
+}
+
 // 选择注册表英文名：优先取下载站标题中嵌入的英文名（与站点标题一致，
 // 如"铁巢重炮|Iron Nest Heavy Turret Simulator"），
 // 回退到 Steam 官方英文名（可能为全大写形式）。
@@ -1318,6 +1348,10 @@ async function searchSteamGame(gameName) {
       } else {
         return cached.data;
       }
+    } else if (await isDemoAppId(appId)) {
+      // 缓存缺失/过期且该 appId 是 Demo 版 → 重新搜索完整版
+      // Cache missing/expired and the appId is a Demo edition → re-search the full version
+      appId = null;
     }
   } else {
     // 3. 无 appId 时，检查是否在 24h 负缓存期内（近期搜索过但未找到）
@@ -1352,7 +1386,8 @@ async function searchSteamGame(gameName) {
     await recordGameInRegistry(appId, {
       cnName: result.name,
       enName: result.englishName || result.name,
-      gameName
+      gameName,
+      tags: result.genres
     });
     await recordNameIndex(gameName, appId);
 
@@ -1387,6 +1422,12 @@ async function getSteamPositiveRate(gameName) {
           name: cached.data.name || gameName
         };
       }
+      usableAppId = null;
+    } else if (await isDemoAppId(appId)) {
+      // 缓存缺失/过期且该 appId 是 Demo 版 → 重新搜索完整版
+      //（直接查询 Demo 版只会得到 0 评测，显示错误的"暂无"）
+      // Cache missing/expired and the appId is a Demo → re-search the full version
+      // (querying the Demo directly only yields zero reviews → a wrong "N/A")
       usableAppId = null;
     }
   } else {
@@ -1769,8 +1810,13 @@ function extractDetailMeta(html, siteKey) {
   return meta;
 }
 
-async function searchDownloadSites(gameName, appId) {
+async function searchDownloadSites(gameName, appId, siteKeys = null) {
   const results = [];
+  // 仅检索指定的站点（siteKeys 为 null 时检索全部启用的下载站）
+  // Only search the given sites (siteKeys = null → all configured sites)
+  const sitesToSearch = siteKeys
+    ? DOWNLOAD_SITES.filter(s => siteKeys.includes(s.key))
+    : DOWNLOAD_SITES;
   // 生成多个搜索词，按优先级排序，依次尝试
   // 1. 清洗后的主名  2. parseGameTitle 的所有候选  3. 原始名
   const searchTerms = [];
@@ -1786,7 +1832,7 @@ async function searchDownloadSites(gameName, appId) {
   parseGameTitle(gameName).forEach(t => addTerm(t));
   addTerm(gameName);
 
-  for (const site of DOWNLOAD_SITES) {
+  for (const site of sitesToSearch) {
     const primaryTerm = searchTerms[0];
     const result = {
       key: site.key, name: site.name, found: false,
@@ -2361,7 +2407,8 @@ async function handleGetSteamByAppId(message) {
     await recordGameInRegistry(appId, {
       cnName: result.name,
       enName: result.englishName || result.name,
-      gameName
+      gameName,
+      tags: result.genres
     });
     if (gameName) await recordNameIndex(gameName, appId);
 
@@ -2635,7 +2682,11 @@ async function handleClearData() {
 }
 
 async function handleSearchDownloadSites(message, sender) {
-  const sites = await searchDownloadSites(message.gameName, message.appId);
+  // 仅检索设置中勾选的下载站（Steam 详情页资源检索范围可自定义）
+  // Only search the sites enabled in settings (customizable Steam-page scope)
+  const settings = await getSettings();
+  const enabledKeys = settings.steamSiteSearch || DOWNLOAD_SITES.map(s => s.key);
+  const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
   Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
 
   return { sites };
@@ -2663,22 +2714,31 @@ async function handleClaimFreeGame(message) {
 // 供设置页"游戏缓存"标签页调用，支持检索、分页、删除已记录的游戏信息。
 // Powers the "Game Cache" tab in the options page: search, paginate, delete.
 
-// 获取已记录游戏列表（支持关键词检索和分页）
-// 参数：keyword（可选搜索词，匹配 appId/中文名/英文名/名称变体）
+// 获取已记录游戏列表（支持关键词、好评率、标签、下载站多条件检索和分页）
+// 参数：keyword（匹配 appId/中文名/英文名/名称变体）
+//      minRating（最低好评率 0-100，0 表示不限）、tag（Steam 标签包含）
+//      siteKey（仅显示有该下载站网址的条目）
 //      page（页码，从1开始）、pageSize（每页条数，默认20）
-// Get recorded games list (supports keyword search + pagination).
-// Args: keyword (optional, matches appId/CN name/EN name/variants),
-//       page (1-based), pageSize (default 20)
+// Get recorded games list (multi-condition: keyword/rating/tag/site + pagination).
+// Args: keyword (matches appId/CN name/EN name/variants),
+//       minRating (0-100, 0 = any), tag (Steam tag containment),
+//       siteKey (only entries having that site's URL), page (1-based), pageSize.
 async function handleGetGameCacheList(message) {
   const keyword = (message.keyword || '').toLowerCase().trim();
+  const minRating = Number(message.minRating) > 0 ? Number(message.minRating) : 0;
+  const tag = (message.tag || '').trim().toLowerCase();
+  const siteKey = (message.siteKey || '').trim().toLowerCase();
   const page = Math.max(1, message.page || 1);
   const pageSize = Math.max(1, Math.min(100, message.pageSize || 20));
 
   const registry = await getGameRegistry();
   const urlStore = await readDownloadUrlsStore();
+  // 加载 Steam 缓存到内存，批量读取好评率（内存命中，开销小）
+  // Load the Steam cache into memory for batched rating reads (cheap)
+  await loadSteamCacheToMemory();
 
-  // 将注册表转为数组并合并下载站网址信息（合并所有站点桶）
-  // Convert registry to array and merge download-site URL info (merged across site buckets)
+  // 将注册表转为数组并合并下载站网址信息（合并所有站点桶）与好评率
+  // Convert registry to array, merging download-site URLs (across buckets) and ratings
   let games = Object.entries(registry).map(([appId, entry]) => {
     const urls = {};
     for (const [siteKey, bucket] of Object.entries(urlStore.sites)) {
@@ -2686,13 +2746,19 @@ async function handleGetGameCacheList(message) {
     }
     // 取第一个有效下载站网址作为主展示 / Pick first valid download URL for display
     const primaryUrl = Object.values(urls).find(u => u && u.url) || null;
+    // 从 Steam 动态缓存读取好评率（缓存缺失时为 null）
+    // Read the positive rate from the Steam dynamic cache (null when absent)
+    const cachedEntry = steamCacheMemory.get(String(appId)) || null;
+    const cachedData = cachedEntry ? cachedEntry.data : null;
     return {
       appId,
       cnName: entry.cnName || '',
       enName: entry.enName || '',
       names: entry.names || [],
+      tags: entry.tags || [],
       firstSeen: entry.firstSeen || null,
       lastConfirmed: entry.lastConfirmed || null,
+      positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
       downloadUrls: Object.entries(urls).map(([siteKey, u]) => ({
         siteKey,
         siteName: u.siteName || siteKey,
@@ -2716,6 +2782,24 @@ async function handleGetGameCacheList(message) {
       (g.enName && g.enName.toLowerCase().includes(keyword)) ||
       g.names.some(n => n.includes(keyword))
     );
+  }
+
+  // 好评率过滤：至少达到 minRating（未命中条件或缓存无评分数据时排除）
+  // Rating filter: positive rate >= minRating (no-rating entries are excluded)
+  if (minRating > 0) {
+    games = games.filter(g => g.positiveRate !== null && g.positiveRate !== undefined && g.positiveRate >= minRating);
+  }
+
+  // 标签过滤：Steam 官方标签包含关键词（忽略大小写）
+  // Tag filter: any Steam official tag contains the keyword (case-insensitive)
+  if (tag) {
+    games = games.filter(g => (g.tags || []).some(t => t.toLowerCase().includes(tag)));
+  }
+
+  // 下载站过滤：存在该站点的有效网址
+  // Site filter: has a valid URL at the given site
+  if (siteKey) {
+    games = games.filter(g => g.downloadUrls.some(u => u.siteKey === siteKey && u.url));
   }
 
   // 按上次确认时间降序排序 / Sort by lastConfirmed descending
@@ -2795,6 +2879,55 @@ async function handleClearGameCache() {
   return { success: true };
 }
 
+// 手动刷新单个游戏的缓存条目：重新获取 Steam 官方中英文名与标签，
+// 并按设置中启用的下载站范围重新检索下载页地址。
+// 供缓存管理页"手动更新"按钮调用。
+// Manually refresh one cache entry: re-fetch Steam official CN/EN names and tags,
+// then re-search detail-page URLs across the sites enabled in settings.
+// Invoked by the cache page's "refresh" button.
+async function handleRefreshGameCacheEntry(message) {
+  const appId = String(message.appId || '');
+  if (!appId) return { success: false, error: 'appId required' };
+  try {
+    // 1. 重新获取 Steam 完整详情（中英文名以官方为准）
+    //    Re-fetch full Steam details (official CN/EN names)
+    const result = await fetchSteamFullDetailsByAppId(appId);
+    if (!result) return { success: false, error: '获取 Steam 信息失败' };
+
+    // 2. 更新 Steam 动态缓存与注册表（含标签）
+    //    Update the Steam dynamic cache and the registry (incl. tags)
+    await setSteamCacheEntry(appId, result);
+    await recordGameInRegistry(appId, {
+      cnName: result.name,
+      enName: result.englishName || result.name,
+      tags: result.genres
+    });
+
+    // 3. 按设置中启用的下载站重新检索详情页网址（更新网址缓存）
+    //    Re-search detail-page URLs across the sites enabled in settings
+    const settings = await getSettings();
+    const enabledKeys = settings.steamSiteSearch || DOWNLOAD_SITES.map(s => s.key);
+    const sites = await searchDownloadSites(result.name, appId, enabledKeys);
+
+    // 4. 强制落盘，防止 SW 休眠丢失 / Force-flush to persist before dormancy
+    await flushSteamCache();
+    await flushNameIndex();
+    await flushRegistry();
+
+    Logger.info('Cache', `手动刷新缓存条目: appId ${appId} → ${result.name}`);
+    return {
+      success: true,
+      name: result.name,
+      englishName: result.englishName || '',
+      positiveRate: result.positiveRate,
+      sites: sites.map(s => ({ key: s.key, found: s.found, detailUrl: s.detailUrl }))
+    };
+  } catch (e) {
+    Logger.error('Cache', `手动刷新缓存条目失败: ${e.message}`);
+    return { success: false, error: e.message };
+  }
+}
+
 // --- 消息分发映射表 / Message dispatch map ---
 
 const MESSAGE_HANDLERS = {
@@ -2823,6 +2956,7 @@ const MESSAGE_HANDLERS = {
   GET_GAME_CACHE_LIST:    handleGetGameCacheList,
   DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,
   CLEAR_GAME_CACHE:       handleClearGameCache,
+  REFRESH_GAME_CACHE_ENTRY: handleRefreshGameCacheEntry,
   GET_RUNTIME_LOGS:       async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
   CLEAR_RUNTIME_LOGS:     async () => { await clearRuntimeLogs(); return { success: true }; },
   EXPORT_LOGS:            async () => ({ logs: await getRuntimeLogs() }),

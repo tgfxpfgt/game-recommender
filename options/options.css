@@ -898,6 +898,67 @@ input[type="number"]::-webkit-outer-spin-button {
   border-color: var(--steam-red);
 }
 
+/* 好评率徽章（AppID 前）/ Rating badge (before the AppID) */
+.rating-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  border: 1px solid;
+  border-radius: 3px;
+  vertical-align: middle;
+}
+
+/* 手动更新按钮（AppID 后）/ Manual refresh button (after the AppID) */
+.cache-refresh-btn {
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  background: rgba(102, 192, 244, 0.12);
+  border: 1px solid rgba(102, 192, 244, 0.35);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.cache-refresh-btn:hover {
+  background: rgba(102, 192, 244, 0.3);
+}
+
+.cache-refresh-btn:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* 缓存页筛选控件 / Cache-page filter controls */
+.cache-filter-input {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+.cache-filter-select {
+  width: 110px;
+  flex-shrink: 0;
+}
+
+/* Steam 详情页检索站点勾选 / Steam-page site search checkboxes */
+.site-check-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 18px;
+}
+
+.site-check-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--steam-text);
+}
+
 /* 分页 / Pagination */
 .cache-pagination {
   display: flex;

@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Game Recommender - 设置</title>
   <link rel="stylesheet" href="options.css">
+  <!-- 下载站适配规则（用于渲染站点勾选/筛选选项）-->
+  <!-- Download-site adapter rules (drives site checkbox/filter options) -->
+  <script src="../adapters/sites.js"></script>
 </head>
 <body>
   <!-- 页面头部 / Page Header -->
@@ -312,6 +315,22 @@
       </div>
     </section>
 
+    <!-- Steam 详情页资源检索范围 / Steam Page Site Search Scope -->
+    <section class="settings-section">
+      <div class="section-header">
+        <span class="section-icon">🔍</span>
+        <div class="section-title">
+          <h2>Steam 详情页资源检索</h2>
+          <span class="section-subtitle">Steam Page Site Search</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-note">自定义在 Steam 游戏详情页检索哪些下载站的资源（也用于缓存管理页的下载站地址更新）<br><em>Choose which download sites are searched on Steam game pages (also used by the cache page's URL refresh)</em></p>
+        <!-- 下载站勾选（由 JS 从规则文件生成）/ Site checkboxes (generated from the rules file) -->
+        <div id="steamSiteSearchList" class="site-check-list"></div>
+      </div>
+    </section>
+
     <!-- 数据管理 / Data Management -->
     <section class="settings-section">
       <div class="section-header">
@@ -364,10 +383,17 @@
           <em>View recorded game info (keyed by Steam AppID)</em>
         </p>
 
-        <!-- 搜索栏 / Search bar -->
+        <!-- 搜索栏 + 多条件筛选 / Search bar + multi-condition filters -->
         <div class="cache-toolbar">
           <input type="text" id="cacheSearchInput" class="text-input" placeholder="搜索 AppID / 中文名 / 英文名..."
-            style="flex:1;min-width:200px;">
+            style="flex:1;min-width:160px;">
+          <input type="number" id="cacheMinRating" class="text-input cache-filter-input" min="0" max="100" step="5"
+            placeholder="好评率≥%" title="最低好评率（0-100）">
+          <input type="text" id="cacheTagInput" class="text-input cache-filter-input" placeholder="标签（如 动作）"
+            title="Steam 官方标签包含">
+          <select id="cacheSiteFilter" class="text-input cache-filter-select" title="按下载站筛选">
+            <option value="">全部站点</option>
+          </select>
           <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
           <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
           <button id="cacheClearAllBtn" class="btn btn-danger btn-sm">清空全部</button>
