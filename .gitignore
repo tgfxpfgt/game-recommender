@@ -40,6 +40,7 @@ secrets.json
 
 # ===== AI 助手工作目录 =====
 .workbuddy/
+.mimosa/
 
 # ===== 备份与缓存数据 =====
 *.bak

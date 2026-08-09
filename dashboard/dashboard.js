@@ -1,52 +1,69 @@
 /**
  * Game Recommender - Dashboard Script
+ * 数据分析仪表盘逻辑 / Dashboard (analytics) logic
+ *
+ * Features:
+ * - Overview statistics (events, games, views, downloads, rate)
+ * - Tag preference cloud, download-method breakdown, per-game table
+ * - Steam tag-based recommendations
+ * - Runtime log viewer (filter / export / clear)
+ * - Backup management (create / restore / delete)
+ *
+ * 功能：
+ * - 概览统计（行为数、游戏数、查看数、下载数、下载率）
+ * - 标签偏好云、下载方式分布、游戏明细表
+ * - 基于 Steam 标签的推荐
+ * - 运行日志查看（筛选 / 导出 / 清空）
+ * - 备份管理（创建 / 恢复 / 删除）
  */
 
 document.addEventListener('DOMContentLoaded', () => {
   loadStats();
   loadRuntimeLogs();
   loadBackups();
-  
+
   document.getElementById('refreshBtn').addEventListener('click', loadStats);
   document.getElementById('steamRecBtn').addEventListener('click', loadSteamRecommendations);
-  
-  // 运行日志
+
+  // 运行日志 / Runtime logs
   document.getElementById('logLevelFilter').addEventListener('change', loadRuntimeLogs);
   document.getElementById('exportLogsBtn').addEventListener('click', exportLogs);
   document.getElementById('clearLogsBtn').addEventListener('click', clearLogs);
-  
-  // 备份
+
+  // 备份 / Backups
   document.getElementById('createBackupBtn').addEventListener('click', createBackup);
 });
 
+// ============ 概览统计 / Overview Statistics ============
 async function loadStats() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
     if (!response) return;
 
-    // 概览统计
+    // 概览统计 / Overview stats
     document.getElementById('statTotal').textContent = response.totalEvents;
     document.getElementById('statGames').textContent = response.totalGames;
     document.getElementById('statViews').textContent = response.viewDetailCount;
     document.getElementById('statDownloads').textContent = response.downloadCount;
     document.getElementById('statRate').textContent = response.downloadRate + '%';
 
-    // 标签偏好
+    // 标签偏好 / Tag preference cloud
     renderTagCloud(response.topKeywords);
 
-    // 下载方式
+    // 下载方式 / Download methods
     renderDownloadMethods(response.downloadMethods);
 
-    // 游戏列表
+    // 游戏列表 / Game table
     renderGameTable(response.gameList);
 
-    // 行为日志
+    // 行为日志 / Behavior log
     renderLogTable(response.recentLog);
   } catch (e) {
     console.error('加载数据失败:', e);
   }
 }
 
+// 标签偏好云：按权重分级着色与字号 / Tag cloud: color/size graded by weight
 function renderTagCloud(keywords) {
   const container = document.getElementById('tagCloud');
   if (!keywords || keywords.length === 0) {
@@ -63,6 +80,7 @@ function renderTagCloud(keywords) {
   }).join('');
 }
 
+// 下载方式分布 / Download-method breakdown
 function renderDownloadMethods(methods) {
   const container = document.getElementById('downloadMethods');
   if (!methods || Object.keys(methods).length === 0) {
@@ -89,6 +107,7 @@ function renderDownloadMethods(methods) {
     `).join('');
 }
 
+// 游戏明细表（按下载数/查看数降序） / Per-game table (sorted by downloads/views)
 function renderGameTable(games) {
   const tbody = document.getElementById('gameTableBody');
   if (!games || games.length === 0) {
@@ -114,6 +133,7 @@ function renderGameTable(games) {
   }).join('');
 }
 
+// 最近行为日志表 / Recent behavior log table
 function renderLogTable(logs) {
   const tbody = document.getElementById('logTableBody');
   if (!logs || logs.length === 0) {
@@ -146,6 +166,8 @@ function renderLogTable(logs) {
   }).join('');
 }
 
+// 基于用户偏好标签向 Steam 搜索推荐游戏
+// Recommend games on Steam based on the user's preferred tags
 async function loadSteamRecommendations() {
   const section = document.getElementById('steamRecSection');
   const listEl = document.getElementById('steamRecList');
@@ -179,25 +201,31 @@ async function loadSteamRecommendations() {
 
     listEl.innerHTML = response.games.map(game => `
       <div class="rec-card">
-        ${game.image ? `<img src="${game.image}" alt="${escapeHtml(game.name)}" onerror="this.style.display='none'"/>` : ''}
+        ${game.image ? `<img class="rec-card-img" src="${escapeAttr(game.image)}" alt="${escapeHtml(game.name)}"/>` : ''}
         <div class="rec-card-body">
           <div class="rec-card-title">${escapeHtml(game.name)}</div>
           <div class="rec-card-meta">
-            ${game.price ? `💰 ${game.price}` : ''}
+            ${game.price ? `💰 ${escapeHtml(game.price)}` : ''}
             ${game.reviewSummary ? ` | ${game.reviewSummary}` : ''}
           </div>
           <div class="rec-card-tags">
             ${(game.matchTags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('')}
           </div>
-          <a href="${game.url}" target="_blank">🔗 在Steam查看</a>
+          <a href="${escapeAttr(game.url)}" target="_blank">🔗 在Steam查看</a>
         </div>
       </div>
     `).join('');
 
+    // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
+    // Hide images that fail to load (addEventListener instead of inline onerror for CSP)
+    listEl.querySelectorAll('.rec-card-img').forEach(img => {
+      img.addEventListener('error', () => { img.style.display = 'none'; });
+    });
+
     // 滚动到推荐区域
     section.scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${e.message}</span>`;
+    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(e.message)}</span>`;
   }
 }
 
@@ -207,9 +235,15 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
-// ============ 运行日志 ============
+// HTML 属性值转义（用于 href/src 等属性）/ Attribute-value escape (for href/src attributes)
+function escapeAttr(text) {
+  return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// ============ 运行日志 / Runtime Logs ============
 let cachedLogs = [];
 
+// 从后台加载运行日志（最多 200 条）/ Load runtime logs from background (max 200)
 async function loadRuntimeLogs() {
   const container = document.getElementById('runtimeLogList');
   try {
@@ -217,10 +251,11 @@ async function loadRuntimeLogs() {
     cachedLogs = (response && response.logs) || [];
     renderRuntimeLogs();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载日志失败: ${e.message}</div>`;
+    container.innerHTML = `<div class="no-data">加载日志失败: ${escapeHtml(e.message)}</div>`;
   }
 }
 
+// 渲染日志列表（按级别筛选，最新在前）/ Render logs (level-filtered, newest first)
 function renderRuntimeLogs() {
   const container = document.getElementById('runtimeLogList');
   const filter = document.getElementById('logLevelFilter').value;
@@ -250,6 +285,7 @@ function renderRuntimeLogs() {
   }).join('');
 }
 
+// 导出日志为 JSON 文件 / Export logs as a JSON file
 async function exportLogs() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'EXPORT_LOGS' });
@@ -266,13 +302,15 @@ async function exportLogs() {
   }
 }
 
+// 清空运行日志 / Clear runtime logs
 async function clearLogs() {
   if (!confirm('确定要清空所有运行日志吗？')) return;
   await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
   loadRuntimeLogs();
 }
 
-// ============ 备份管理 ============
+// ============ 备份管理 / Backup Management ============
+// 加载备份列表并渲染 / Load and render the backup list
 async function loadBackups() {
   const container = document.getElementById('backupList');
   try {
@@ -294,16 +332,26 @@ async function loadBackups() {
           <span class="backup-size">${sizeKb} KB</span>
         </div>
         <div class="backup-actions">
-          <button class="btn btn-sm" onclick="restoreBackup('${b.id}')">♻️ 恢复</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteBackup('${b.id}')">删除</button>
+          <button class="btn btn-sm backup-restore-btn" data-id="${escapeAttr(b.id)}">♻️ 恢复</button>
+          <button class="btn btn-sm btn-danger backup-delete-btn" data-id="${escapeAttr(b.id)}">删除</button>
         </div>
       </div>`;
     }).join('');
+
+    // 绑定恢复/删除按钮（内联 onclick 在 MV3 扩展页被 CSP 禁止，必须用 addEventListener）
+    // Bind restore/delete buttons (inline onclick is blocked by MV3 extension-page CSP)
+    container.querySelectorAll('.backup-restore-btn').forEach(btn => {
+      btn.addEventListener('click', () => restoreBackup(btn.dataset.id));
+    });
+    container.querySelectorAll('.backup-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteBackup(btn.dataset.id));
+    });
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载备份失败: ${e.message}</div>`;
+    container.innerHTML = `<div class="no-data">加载备份失败: ${escapeHtml(e.message)}</div>`;
   }
 }
 
+// 创建备份 / Create a backup
 async function createBackup() {
   const statusEl = document.getElementById('backupStatus');
   statusEl.textContent = '备份中...';
@@ -321,6 +369,8 @@ async function createBackup() {
   setTimeout(() => { statusEl.textContent = ''; }, 3000);
 }
 
+// 恢复备份（后台会先自动备份当前状态作为安全网）
+// Restore a backup (background creates a safety-net backup of the current state first)
 async function restoreBackup(id) {
   if (!confirm('恢复备份将覆盖当前数据（系统会先自动备份当前状态）。确定继续？')) return;
   try {
@@ -336,6 +386,7 @@ async function restoreBackup(id) {
   }
 }
 
+// 删除备份 / Delete a backup
 async function deleteBackup(id) {
   if (!confirm('确定删除该备份？')) return;
   await chrome.runtime.sendMessage({ action: 'DELETE_BACKUP', backupId: id });

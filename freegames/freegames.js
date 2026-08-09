@@ -1,5 +1,18 @@
 /**
  * Game Recommender - Free Games Script
+ * 限免游戏页面逻辑 / Free-games page logic
+ *
+ * Features:
+ * - Load free games from background (Epic/Steam/GOG/GamerPower)
+ * - Platform filter (all / epic / steam / gog / other)
+ * - Claim-type filter (official direct vs third-party)
+ * - Claim buttons stay clickable after claiming (re-open allowed)
+ *
+ * 功能：
+ * - 从后台加载限免游戏（Epic/Steam/GOG/GamerPower）
+ * - 平台筛选（全部 / Epic / Steam / GOG / 其他）
+ * - 领取方式筛选（官方直领 vs 第三方）
+ * - 领取后按钮仍可点击（支持再次打开）
  */
 
 let allGames = [];
@@ -13,7 +26,7 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFreeGames(true);
   });
 
-  // 平台筛选
+  // 平台筛选 / Platform filter
   document.querySelectorAll('.filter-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
@@ -23,7 +36,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // 领取方式筛选
+  // 领取方式筛选 / Claim-type filter
   document.querySelectorAll('.claim-btn-filter').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.claim-btn-filter').forEach(b => b.classList.remove('active'));
@@ -34,6 +47,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// 加载限免游戏（force=true 强制刷新数据源）/ Load free games (force=true re-fetches sources)
 async function loadFreeGames(force = false) {
   const listEl = document.getElementById('gameList');
   listEl.innerHTML = '<div class="loading">正在加载限免游戏...</div>';
@@ -52,10 +66,12 @@ async function loadFreeGames(force = false) {
       listEl.innerHTML = '<div class="empty">加载失败，请重试</div>';
     }
   } catch (e) {
-    listEl.innerHTML = `<div class="empty">加载失败: ${e.message}</div>`;
+    listEl.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
   }
 }
 
+// 渲染游戏列表（应用平台/领取方式筛选，未领取的排前）
+// Render the game list (apply platform/claim filters; unclaimed first)
 function renderGames() {
   const listEl = document.getElementById('gameList');
 
@@ -84,6 +100,12 @@ function renderGames() {
 
   listEl.innerHTML = sorted.map(game => renderGameCard(game)).join('');
 
+  // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
+  // Hide failed images (addEventListener instead of inline onerror for extension-page CSP)
+  listEl.querySelectorAll('.game-card-img').forEach(img => {
+    img.addEventListener('error', () => { img.style.display = 'none'; });
+  });
+
   // 绑定领取按钮（所有按钮均可重复点击）
   listEl.querySelectorAll('.claim-btn').forEach(btn => {
     btn.addEventListener('click', async (e) => {
@@ -104,6 +126,7 @@ function renderGames() {
   });
 }
 
+// 渲染单个游戏卡片 / Render a single game card
 function renderGameCard(game) {
   const platformClass = game.platform;
   const endTimeHtml = game.endTime
@@ -127,12 +150,12 @@ function renderGameCard(game) {
 
   // 领取按钮：始终为可点击链接（可重复点击），已领取仅改变样式/文案
   const claimBtn = game.claimed
-    ? `<a href="${game.url}" target="_blank" class="claim-btn claimed" data-id="${game.id}">✓ 已领取 · 再次打开</a>`
-    : `<a href="${game.url}" target="_blank" class="claim-btn" data-id="${game.id}">🎁 去领取</a>`;
+    ? `<a href="${escapeAttr(game.url)}" target="_blank" class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 再次打开</a>`
+    : `<a href="${escapeAttr(game.url)}" target="_blank" class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</a>`;
 
   return `
     <div class="game-card ${game.claimed ? 'claimed' : ''}">
-      ${game.image ? `<img src="${game.image}" alt="${escapeHtml(game.name)}" onerror="this.style.display='none'"/>` : ''}
+      ${game.image ? `<img class="game-card-img" src="${escapeAttr(game.image)}" alt="${escapeHtml(game.name)}"/>` : ''}
       <div class="game-card-body">
         <div class="game-tags-row">
           <span class="game-platform ${platformClass}">${escapeHtml(game.platformName)}</span>
@@ -153,7 +176,8 @@ function renderGameCard(game) {
   `;
 }
 
-// 判断时间戳是否为当天
+// 判断时间戳是否为当天（用于"今日新增"标识）
+// Check whether a timestamp is today (for the "new today" badge)
 function isToday(timestamp) {
   if (!timestamp) return false;
   const d = new Date(timestamp);
@@ -163,6 +187,7 @@ function isToday(timestamp) {
          d.getDate() === now.getDate();
 }
 
+// 格式化截止日期（如 "8月15日"）/ Format end date (e.g. "Aug 15")
 function formatDate(dateStr) {
   try {
     const d = new Date(dateStr);
@@ -176,4 +201,9 @@ function escapeHtml(text) {
   const div = document.createElement('div');
   div.textContent = text || '';
   return div.innerHTML;
+}
+
+// HTML 属性值转义（用于 href/src 等属性）/ Attribute-value escape (for href/src attributes)
+function escapeAttr(text) {
+  return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

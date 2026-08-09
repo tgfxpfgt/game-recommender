@@ -16,12 +16,50 @@
 let currentSettings = null;
 let saveTimer = null; // Auto-save debounce timer / 防抖定时器
 
+// 游戏缓存管理状态 / Game cache management state
+let cacheCurrentPage = 1;
+const CACHE_PAGE_SIZE = 20;
+let cacheSearchTimer = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
-  const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-  currentSettings = response.settings;
-  renderSettings(currentSettings);
-  bindEvents();
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    // 防御：后台未就绪时 response 可能为 undefined
+    // Guard: response may be undefined if the service worker is not ready yet
+    if (!response || !response.settings) {
+      document.body.insertAdjacentHTML('afterbegin',
+        '<div style="padding:16px;margin:16px auto;max-width:760px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;">⚠️ 无法加载设置，请刷新页面或重新启用扩展。</div>');
+      return;
+    }
+    currentSettings = response.settings;
+    renderSettings(currentSettings);
+    bindEvents();
+    bindTabEvents();   // 绑定标签页切换事件 / Bind tab switching events
+    bindCacheEvents(); // 绑定游戏缓存管理事件 / Bind game cache management events
+  } catch (e) {
+    console.error('[Game Recommender] 设置页加载失败:', e);
+  }
 });
+
+// ============ 标签页切换 / Tab Switching ============
+function bindTabEvents() {
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const tabId = btn.dataset.tab;
+      // 切换按钮激活态 / Toggle button active state
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      // 切换面板显示 / Toggle panel visibility
+      document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+      const panel = document.getElementById('tab-' + tabId);
+      if (panel) panel.classList.add('active');
+      // 切换到缓存标签时自动加载数据 / Auto-load data when switching to cache tab
+      if (tabId === 'cache') {
+        loadGameCache();
+      }
+    });
+  });
+}
 
 // ============ Render Settings / 渲染设置 ============
 function renderSettings(settings) {
@@ -36,6 +74,10 @@ function renderSettings(settings) {
   document.getElementById('minRating').value = settings.minSteamRatingFilter || 0;
   document.getElementById('minRatingVal').textContent = `${settings.minSteamRatingFilter || 0}%`;
 
+  // 虚拟机标题过滤 / VM title filter
+  document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
+  document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');
+
   // 权重设置 / Algorithm weights
   document.getElementById('weightClick').value = settings.weights.clickRate * 100;
   document.getElementById('weightClickVal').textContent = settings.weights.clickRate.toFixed(2);
@@ -45,6 +87,7 @@ function renderSettings(settings) {
   document.getElementById('weightKeywordVal').textContent = settings.weights.keywordMatch.toFixed(2);
   document.getElementById('weightSteam').value = settings.weights.steamRating * 100;
   document.getElementById('weightSteamVal').textContent = settings.weights.steamRating.toFixed(2);
+  updateWeightSum();
 
   // LLM 设置 / LLM settings
   document.getElementById('useLLM').checked = settings.useLLM;
@@ -93,6 +136,21 @@ function toggleApiKeyRow() {
   document.getElementById('apiKeyRow').style.display = provider === 'local' ? 'none' : 'flex';
 }
 
+// ============ Weight Sum Indicator / 权重总和指示器 ============
+// 实时计算四个权重之和并按接近 1.0 的程度切换颜色：绿（≈1.0）→ 橙（偏离 0.05+）→ 红（偏离 0.15+）。
+// Computes the sum of the four weights live and switches color by closeness to 1.0.
+function updateWeightSum() {
+  const ids = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam'];
+  const sum = ids.reduce((acc, id) => acc + (parseInt(document.getElementById(id).value, 10) || 0), 0) / 100;
+  const el = document.getElementById('weightSum');
+  if (!el) return;
+  el.textContent = sum.toFixed(2);
+  const dev = Math.abs(sum - 1);
+  el.classList.remove('warn', 'bad');
+  if (dev >= 0.15) el.classList.add('bad');
+  else if (dev >= 0.05) el.classList.add('warn');
+}
+
 // ============ Event Binding / 事件绑定 ============
 function bindEvents() {
   // 阈值滑块 / Threshold slider
@@ -110,11 +168,16 @@ function bindEvents() {
     scheduleAutoSave();
   });
 
+  // 虚拟机过滤 / VM filter
+  document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
+  document.getElementById('vmFilterKeywords').addEventListener('input', () => scheduleAutoSave());
+
   // 权重滑块 / Weight sliders
   const weightIds = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam'];
   weightIds.forEach(id => {
     document.getElementById(id).addEventListener('input', (e) => {
       document.getElementById(`${id}Val`).textContent = (e.target.value / 100).toFixed(2);
+      updateWeightSum();
       scheduleAutoSave();
     });
   });
@@ -181,6 +244,7 @@ function bindEvents() {
   });
   document.getElementById('importFile').addEventListener('change', importData);
   document.getElementById('clearData').addEventListener('click', clearData);
+  document.getElementById('resetDefaults').addEventListener('click', resetDefaults);
 
   // 手动保存（立即保存）/ Manual save (immediate)
   document.getElementById('saveBtn').addEventListener('click', () => {
@@ -211,6 +275,15 @@ async function saveSettings() {
   // 好评率过滤 / Rating filter
   currentSettings.enableRatingFilter = document.getElementById('ratingFilterEnabled').checked;
   currentSettings.minSteamRatingFilter = parseInt(document.getElementById('minRating').value);
+
+  // 虚拟机过滤 / VM filter
+  currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
+  // 解析关键词输入：按逗号分隔，去空格和空项 / Parse keywords: split by comma, trim, drop empties
+  const vmKeywordsRaw = document.getElementById('vmFilterKeywords').value
+    .split(/[,，]/)
+    .map(s => s.trim())
+    .filter(Boolean);
+  currentSettings.vmFilterKeywords = vmKeywordsRaw.length > 0 ? vmKeywordsRaw : ['虚拟机板', '虚拟机'];
 
   // 权重 / Weights
   currentSettings.weights = {
@@ -327,9 +400,14 @@ async function importData(e) {
   try {
     const text = await file.text();
     const data = JSON.parse(text);
+    // 防御：校验导入数据为非空对象 / Guard: imported data must be a non-null object
+    if (!data || typeof data !== 'object' || Array.isArray(data)) {
+      throw new Error('文件格式不正确，应为扩展数据 JSON');
+    }
     await chrome.storage.local.set(data);
     // 重新加载设置 / Reload settings
     const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    if (!response || !response.settings) throw new Error('导入后设置加载失败');
     currentSettings = response.settings;
     renderSettings(currentSettings);
     alert('数据导入成功！');
@@ -344,4 +422,239 @@ async function clearData() {
     await chrome.runtime.sendMessage({ action: 'CLEAR_DATA' });
     alert('学习数据已清除');
   }
+}
+
+// ============ Reset to Defaults / 恢复默认设置 ============
+// 仅重置设置项，不影响浏览历史/画像等运行时数据。
+// Resets settings only; runtime data (history/profiles) is preserved.
+async function resetDefaults() {
+  if (!confirm('确定要将所有设置恢复为默认值吗？\n（浏览历史和游戏画像等数据不会被清除）')) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'RESET_SETTINGS' });
+    if (resp && resp.settings) {
+      currentSettings = resp.settings;
+      renderSettings(currentSettings);
+      showSaveStatus('saved');
+    } else {
+      alert('恢复默认设置失败，请重试。');
+    }
+  } catch (e) {
+    alert('恢复默认设置失败: ' + e.message);
+  }
+}
+
+// ============ 游戏缓存管理 / Game Cache Management ============
+// 查看、检索、删除已记录的游戏信息（以 Steam AppID 为唯一标识）。
+// View, search, and delete recorded game info (keyed by Steam AppID).
+
+// 绑定缓存管理事件 / Bind cache management events
+function bindCacheEvents() {
+  // 搜索按钮 / Search button
+  document.getElementById('cacheSearchBtn').addEventListener('click', () => {
+    cacheCurrentPage = 1;
+    loadGameCache();
+  });
+  // 搜索框回车 / Enter key in search input
+  document.getElementById('cacheSearchInput').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      cacheCurrentPage = 1;
+      loadGameCache();
+    }
+  });
+  // 搜索框防抖（300ms）/ Debounced search (300ms)
+  document.getElementById('cacheSearchInput').addEventListener('input', () => {
+    if (cacheSearchTimer) clearTimeout(cacheSearchTimer);
+    cacheSearchTimer = setTimeout(() => {
+      cacheCurrentPage = 1;
+      loadGameCache();
+    }, 300);
+  });
+  // 刷新按钮 / Refresh button
+  document.getElementById('cacheRefreshBtn').addEventListener('click', () => loadGameCache());
+  // 清空全部 / Clear all
+  document.getElementById('cacheClearAllBtn').addEventListener('click', clearAllCache);
+}
+
+// 加载游戏缓存列表 / Load game cache list
+async function loadGameCache() {
+  const keyword = document.getElementById('cacheSearchInput').value.trim();
+  const tbody = document.getElementById('cacheTableBody');
+  const statsEl = document.getElementById('cacheStats');
+
+  // 显示加载中 / Show loading state
+  tbody.innerHTML = '<tr><td colspan="7" class="cache-empty">加载中...</td></tr>';
+  statsEl.textContent = '';
+
+  try {
+    const resp = await chrome.runtime.sendMessage({
+      action: 'GET_GAME_CACHE_LIST',
+      keyword,
+      page: cacheCurrentPage,
+      pageSize: CACHE_PAGE_SIZE
+    });
+
+    if (!resp || !resp.games) {
+      tbody.innerHTML = '<tr><td colspan="7" class="cache-empty">加载失败，请重试</td></tr>';
+      return;
+    }
+
+    // 渲染统计信息 / Render stats
+    statsEl.textContent = `共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页`;
+
+    if (resp.games.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" class="cache-empty">暂无缓存数据</td></tr>';
+      renderPagination(0, 1);
+      return;
+    }
+
+    // 渲染表格行 / Render table rows
+    tbody.innerHTML = resp.games.map(g => `
+      <tr>
+        <td class="col-appid">${g.appId}</td>
+        <td class="col-name" title="${escapeAttr(g.cnName)}">${escapeHtml(g.cnName || '—')}</td>
+        <td class="col-name" title="${escapeAttr(g.enName)}">${escapeHtml(g.enName || '—')}</td>
+        <td class="col-time">${formatTime(g.lastConfirmed)}</td>
+        <td class="col-url">${formatDownloadUrls(g.downloadUrls, g.primaryDownloadUrl)}</td>
+        <td class="col-time">${formatTime(g.lastAccessed)}</td>
+        <td><button class="cache-delete-btn" data-appid="${g.appId}">删除</button></td>
+      </tr>
+    `).join('');
+
+    // 绑定删除按钮事件 / Bind delete button events
+    tbody.querySelectorAll('.cache-delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => deleteCacheEntry(btn.dataset.appid));
+    });
+
+    // 渲染分页 / Render pagination
+    renderPagination(resp.total, resp.totalPages);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="7" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
+  }
+}
+
+// 渲染分页控件 / Render pagination controls
+function renderPagination(total, totalPages) {
+  const container = document.getElementById('cachePagination');
+  if (total === 0 || totalPages <= 1) {
+    container.innerHTML = '';
+    return;
+  }
+
+  let html = '';
+  // 上一页 / Previous page
+  html += `<button ${cacheCurrentPage <= 1 ? 'disabled' : ''} data-page="${cacheCurrentPage - 1}">‹ 上一页</button>`;
+
+  // 页码按钮（最多显示7个）/ Page number buttons (max 7)
+  const maxButtons = 7;
+  let start = Math.max(1, cacheCurrentPage - 3);
+  let end = Math.min(totalPages, start + maxButtons - 1);
+  start = Math.max(1, end - maxButtons + 1);
+
+  if (start > 1) {
+    html += `<button data-page="1">1</button>`;
+    if (start > 2) html += `<span class="page-info">...</span>`;
+  }
+  for (let i = start; i <= end; i++) {
+    html += `<button class="${i === cacheCurrentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+  }
+  if (end < totalPages) {
+    if (end < totalPages - 1) html += `<span class="page-info">...</span>`;
+    html += `<button data-page="${totalPages}">${totalPages}</button>`;
+  }
+
+  // 下一页 / Next page
+  html += `<button ${cacheCurrentPage >= totalPages ? 'disabled' : ''} data-page="${cacheCurrentPage + 1}">下一页 ›</button>`;
+  html += `<span class="page-info">共 ${total} 条</span>`;
+
+  container.innerHTML = html;
+
+  // 绑定分页按钮事件 / Bind pagination button events
+  container.querySelectorAll('button[data-page]').forEach(btn => {
+    if (btn.disabled) return;
+    btn.addEventListener('click', () => {
+      cacheCurrentPage = parseInt(btn.dataset.page);
+      loadGameCache();
+    });
+  });
+}
+
+// 删除单个游戏缓存 / Delete a single game's cache
+async function deleteCacheEntry(appId) {
+  if (!confirm(`确定要删除 AppID ${appId} 的缓存吗？`)) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'DELETE_GAME_CACHE_ENTRY', appId });
+    if (resp && resp.success) {
+      loadGameCache(); // 刷新列表 / Refresh list
+    } else {
+      alert('删除失败: ' + (resp ? resp.error : '未知错误'));
+    }
+  } catch (e) {
+    alert('删除失败: ' + e.message);
+  }
+}
+
+// 清空全部游戏缓存 / Clear all game cache
+async function clearAllCache() {
+  if (!confirm('确定要清空全部游戏缓存吗？此操作不可恢复。\n\n将清除：\n· 游戏注册表（中英文名映射）\n· Steam 动态缓存（好评率/评论）\n· 下载站详情页网址缓存\n· 名称索引')) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'CLEAR_GAME_CACHE' });
+    if (resp && resp.success) {
+      cacheCurrentPage = 1;
+      loadGameCache();
+    } else {
+      alert('清空失败，请重试');
+    }
+  } catch (e) {
+    alert('清空失败: ' + e.message);
+  }
+}
+
+// ============ 缓存页面工具函数 / Cache Page Utility Functions ============
+
+// HTML 转义 / HTML escape
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
+// 属性转义（用于 title 属性）/ Attribute escape (for title attribute)
+function escapeAttr(text) {
+  return (text || '').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+// 格式化时间戳为可读字符串 / Format timestamp to readable string
+function formatTime(ts) {
+  if (!ts) return '—';
+  const d = new Date(ts);
+  const now = Date.now();
+  const diff = now - ts;
+  // 1小时内显示"xx分钟前" / Within 1h: "xx minutes ago"
+  if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;
+  // 24小时内显示"xx小时前" / Within 24h: "xx hours ago"
+  if (diff < 86400000) return `${Math.floor(diff / 3600000)}小时前`;
+  // 30天内显示"xx天前" / Within 30d: "xx days ago"
+  if (diff < 2592000000) return `${Math.floor(diff / 86400000)}天前`;
+  // 超过30天显示日期 / Over 30d: show date
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// 格式化下载站网址（主网址 + 展开链接）/ Format download URLs (primary + expandable)
+function formatDownloadUrls(downloadUrls, primaryUrl) {
+  if (!downloadUrls || downloadUrls.length === 0) {
+    return primaryUrl ? `<a href="${escapeAttr(primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(primaryUrl))}</a>` : '—';
+  }
+  // 显示所有站点的网址 / Show all site URLs
+  return downloadUrls.map(u => `
+    <div style="margin-bottom:2px;">
+      <span style="color:#8f98a0;font-size:10px;">${escapeHtml(u.siteName)}:</span>
+      <a href="${escapeAttr(u.url)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(u.url))}</a>
+    </div>
+  `).join('');
+}
+
+// 截断过长 URL / Truncate long URL
+function truncateUrl(url, maxLen = 40) {
+  if (!url) return '';
+  if (url.length <= maxLen) return url;
+  return url.substring(0, maxLen) + '...';
 }

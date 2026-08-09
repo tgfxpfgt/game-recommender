@@ -14,9 +14,19 @@
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
-  // Load settings / 加载设置
-  const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-  const settings = response.settings;
+  // Load settings / 加载设置（后台未就绪时给出降级处理）
+  let settings;
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    settings = response?.settings;
+  } catch (e) {
+    console.warn('[Game Recommender] 加载设置失败:', e);
+  }
+  if (!settings) {
+    document.body.insertAdjacentHTML('afterbegin',
+      '<div style="padding:12px;margin:12px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;font-size:13px;">⚠️ 扩展后台未就绪，请稍后重试。</div>');
+    return;
+  }
 
   // Initialize UI state / 初始化 UI 状态
   document.getElementById('enableToggle').checked = settings.enabled;
@@ -30,9 +40,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ratingFilterValue').textContent = `${settings.minSteamRatingFilter || 0}%`;
   document.getElementById('ratingFilterControl').style.display = settings.enableRatingFilter ? 'flex' : 'none';
 
+  // VM edition filter / 虚拟机版过滤
+  document.getElementById('vmFilterToggle').checked = settings.enableVmFilter || false;
+
   // Algorithm mode / 算法模式
   const algoMode = settings.useLLM ? 'llm' : 'builtin';
-  document.querySelector(`input[name="algoMode"][value="${algoMode}"]`).checked = true;
+  const algoRadio = document.querySelector(`input[name="algoMode"][value="${algoMode}"]`);
+  if (algoRadio) algoRadio.checked = true;
   updateLLMStatus(settings);
 
   // Load statistics / 加载统计数据
@@ -114,6 +128,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
+  // VM filter toggle / 虚拟机过滤开关
+  document.getElementById('vmFilterToggle').addEventListener('change', async (e) => {
+    settings.enableVmFilter = e.target.checked;
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+  });
+
   // Open free games page / 打开限免提醒页
   document.getElementById('freeGamesBtn').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('freegames/freegames.html') });
@@ -145,17 +165,23 @@ async function loadFreeGamesCount() {
 async function loadStats() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
+    // 防御：后台未就绪或返回异常时跳过渲染 / Guard: skip if SW not ready or malformed response
+    if (!response) return;
+    const totalEvents = response.totalEvents || 0;
+    const totalGames = response.totalGames || 0;
+    const topKeywords = response.topKeywords || [];
 
-    document.getElementById('statEvents').textContent = response.totalEvents;
-    document.getElementById('statGames').textContent = response.totalGames;
-    document.getElementById('statKeywords').textContent = response.topKeywords.length;
+    document.getElementById('statEvents').textContent = totalEvents;
+    document.getElementById('statGames').textContent = totalGames;
+    document.getElementById('statKeywords').textContent = topKeywords.length;
 
     // Display top 5 keywords / 显示 TOP5 关键词
     const container = document.getElementById('topKeywords');
-    if (response.topKeywords.length > 0) {
-      container.innerHTML = response.topKeywords
+    if (topKeywords.length > 0) {
+      // 关键词来自用户浏览记录，需转义防 XSS / Keywords come from browsing data; escape to prevent XSS
+      container.innerHTML = topKeywords
         .slice(0, 5)
-        .map(kw => `<span class="keyword-tag">${kw.keyword}</span>`)
+        .map(kw => `<span class="keyword-tag">${escapeHtml(kw.keyword)}</span>`)
         .join('');
     }
   } catch (e) {
@@ -164,6 +190,13 @@ async function loadStats() {
 }
 
 // ============ Update LLM Status / 更新大模型状态 ============
+// HTML 转义（用于渲染用户关键词等不可信文本）/ HTML escape (for untrusted text like user keywords)
+function escapeHtml(text) {
+  const div = document.createElement('div');
+  div.textContent = text || '';
+  return div.innerHTML;
+}
+
 function updateLLMStatus(settings) {
   const statusDiv = document.getElementById('llmStatus');
   const statusText = document.getElementById('llmStatusText');

@@ -1,6 +1,11 @@
-/* Game Recommender - Content Styles (v2) */
+/* ============================================================
+   Game Recommender - Content Styles (v2)
+   内容脚本样式 / Content-script styles
+   Injected into download-site pages by content/tracker.js.
+   由 content/tracker.js 注入到下载站页面。
+   ============================================================ */
 
-/* 列表页高亮样式 */
+/* 列表页高亮样式 / List-page recommendation highlight */
 .gr-highlighted {
   position: relative;
   border-left: 3px solid #e74c3c !important;
@@ -8,16 +13,18 @@
   transition: all 0.3s ease;
 }
 
+/* 悬停时加深高亮 / Deepen highlight on hover */
 .gr-highlighted:hover {
   background: linear-gradient(90deg, rgba(231, 76, 60, 0.15) 0%, transparent 100%) !important;
 }
 
+/* 高亮项内的链接着色 / Link color inside highlighted items */
 .gr-highlighted a {
   color: #e74c3c !important;
   font-weight: bold !important;
 }
 
-/* 推荐分数徽章 */
+/* 推荐分数徽章 / Recommendation-score badge */
 .gr-badge {
   display: inline-block;
   margin-left: 8px;
@@ -32,7 +39,7 @@
   cursor: help;
 }
 
-/* 调试面板滚动条 */
+/* 调试面板滚动条 / Debug panel scrollbar */
 #gr-debug-panel::-webkit-scrollbar {
   width: 4px;
 }
@@ -41,7 +48,7 @@
   border-radius: 2px;
 }
 
-/* 加载动画 */
+/* 加载动画 / Loading spinner */
 @keyframes gr-spin {
   from { transform: rotate(0deg); }
   to { transform: rotate(360deg); }

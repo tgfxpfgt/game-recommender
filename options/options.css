@@ -456,6 +456,50 @@ input[type="number"]::-webkit-outer-spin-button {
   font-variant-numeric: tabular-nums;
 }
 
+/* ==================== 权重总和指示器 / Weight Sum Indicator ==================== */
+.weight-sum-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+  padding: 12px 16px;
+  background: linear-gradient(90deg, rgba(102, 192, 244, 0.08), rgba(102, 192, 244, 0.02));
+  border: 1px solid rgba(102, 192, 244, 0.15);
+  border-radius: 10px;
+  transition: border-color var(--transition), background var(--transition);
+}
+
+.weight-sum-label {
+  font-size: 13px;
+  color: var(--steam-text-muted);
+  letter-spacing: 0.4px;
+}
+
+.weight-sum-value {
+  font-size: 15px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  padding: 4px 14px;
+  border-radius: 8px;
+  color: #6ec34a;
+  background: rgba(110, 195, 74, 0.12);
+  border: 1px solid rgba(110, 195, 74, 0.3);
+  transition: color var(--transition), background var(--transition), border-color var(--transition);
+}
+
+/* 总和偏离 1.0 时的警示样式 / Warning style when sum deviates from 1.0 */
+.weight-sum-value.warn {
+  color: #ff7b00;
+  background: rgba(255, 123, 0, 0.12);
+  border-color: rgba(255, 123, 0, 0.35);
+}
+
+.weight-sum-value.bad {
+  color: #ff6b5a;
+  background: rgba(255, 107, 90, 0.12);
+  border-color: rgba(255, 107, 90, 0.35);
+}
+
 /* ==================== LLM 配置区 / LLM Settings ==================== */
 .llm-settings {
   margin-top: 8px;
@@ -686,6 +730,217 @@ input[type="number"]::-webkit-outer-spin-button {
 
 .save-status:empty {
   margin-right: 0;
+}
+
+/* ==================== 标签页导航 / Tab Navigation ==================== */
+.tab-nav {
+  max-width: 800px;
+  margin: 0 auto 20px;
+  display: flex;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 16px;
+  background: var(--steam-dark);
+  border: 1px solid rgba(102, 192, 244, 0.1);
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+  color: var(--steam-text-muted);
+  cursor: pointer;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.tab-btn:hover {
+  background: var(--steam-medium);
+  color: var(--steam-text);
+  border-color: rgba(102, 192, 244, 0.3);
+}
+
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--steam-medium) 0%, var(--steam-dark) 100%);
+  color: var(--steam-blue);
+  border-color: var(--steam-blue);
+  border-bottom-color: transparent;
+}
+
+.tab-icon {
+  font-size: 20px;
+}
+
+.tab-en {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* 标签页面板 / Tab panels */
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+}
+
+/* ==================== 游戏缓存管理 / Game Cache Management ==================== */
+.cache-toolbar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cache-stats {
+  font-size: 13px;
+  color: var(--steam-text-muted);
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  border: 1px solid rgba(102, 192, 244, 0.1);
+}
+
+.cache-table-wrap {
+  overflow-x: auto;
+  border-radius: 8px;
+  border: 1px solid rgba(102, 192, 244, 0.15);
+}
+
+.cache-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+.cache-table thead {
+  background: var(--steam-medium);
+}
+
+.cache-table th {
+  padding: 10px 8px;
+  text-align: left;
+  color: var(--steam-blue);
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.cache-table td {
+  padding: 8px;
+  border-top: 1px solid rgba(102, 192, 244, 0.08);
+  color: var(--steam-text);
+  vertical-align: top;
+}
+
+.cache-table tbody tr:hover {
+  background: rgba(102, 192, 244, 0.05);
+}
+
+.cache-table .col-appid {
+  color: var(--steam-blue);
+  font-weight: 600;
+  font-family: 'Consolas', monospace;
+  white-space: nowrap;
+}
+
+.cache-table .col-name {
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cache-table .col-url a {
+  color: var(--steam-blue);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.cache-table .col-url a:hover {
+  text-decoration: underline;
+}
+
+.cache-table .col-time {
+  font-size: 11px;
+  color: var(--steam-text-muted);
+  white-space: nowrap;
+}
+
+.cache-table .cache-empty {
+  text-align: center;
+  color: var(--steam-text-muted);
+  padding: 32px 16px;
+}
+
+.cache-delete-btn {
+  background: rgba(217, 65, 38, 0.15);
+  border: 1px solid rgba(217, 65, 38, 0.3);
+  color: var(--steam-red);
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 11px;
+  transition: var(--transition);
+  font-family: inherit;
+}
+
+.cache-delete-btn:hover {
+  background: rgba(217, 65, 38, 0.3);
+  border-color: var(--steam-red);
+}
+
+/* 分页 / Pagination */
+.cache-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  flex-wrap: wrap;
+}
+
+.cache-pagination button {
+  padding: 6px 12px;
+  background: var(--steam-medium);
+  border: 1px solid rgba(102, 192, 244, 0.15);
+  border-radius: 4px;
+  color: var(--steam-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-family: inherit;
+  transition: var(--transition);
+}
+
+.cache-pagination button:hover:not(:disabled) {
+  background: var(--steam-medium-2);
+  border-color: var(--steam-blue);
+}
+
+.cache-pagination button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.cache-pagination button.active {
+  background: var(--steam-blue);
+  color: var(--steam-darkest);
+  border-color: var(--steam-blue);
+  font-weight: 600;
+}
+
+.cache-pagination .page-info {
+  color: var(--steam-text-muted);
+  font-size: 12px;
+  padding: 0 8px;
 }
 
 /* ==================== 响应式 / Responsive ==================== */

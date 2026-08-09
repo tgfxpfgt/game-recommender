@@ -20,7 +20,22 @@
     </div>
   </header>
 
-  <main class="options-container">
+  <!-- 标签页导航 / Tab Navigation -->
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="settings">
+      <span class="tab-icon">⚙️</span>
+      <span>设置</span>
+      <span class="tab-en">Settings</span>
+    </button>
+    <button class="tab-btn" data-tab="cache">
+      <span class="tab-icon">🗄️</span>
+      <span>游戏缓存</span>
+      <span class="tab-en">Game Cache</span>
+    </button>
+  </nav>
+
+  <!-- 标签页：设置 / Tab: Settings -->
+  <main class="options-container tab-panel active" id="tab-settings">
     <!-- 基本设置 / Basic Settings -->
     <section class="settings-section">
       <div class="section-header">
@@ -99,6 +114,39 @@
       </div>
     </section>
 
+    <!-- 虚拟机标题过滤 / VM Title Filter -->
+    <section class="settings-section">
+      <div class="section-header">
+        <span class="section-icon">🚫</span>
+        <div class="section-title">
+          <h2>虚拟机版过滤</h2>
+          <span class="section-subtitle">VM Edition Filter</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-note">在下载站列表页隐藏标题包含"虚拟机板""虚拟机"的游戏，保留非虚拟机版本<br><em>Hide games with "虚拟机板/虚拟机" in titles on list pages</em></p>
+        <!-- 启用虚拟机过滤 / Enable VM filter -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">启用虚拟机过滤</span>
+            <span class="label-desc">Enable VM Filter</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="vmFilterEnabled">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <!-- 过滤关键词（只读展示）/ Filter keywords (read-only display) -->
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">过滤关键词</span>
+            <span class="label-desc">Filter Keywords</span>
+          </div>
+          <input type="text" id="vmFilterKeywords" class="text-input" placeholder="虚拟机板, 虚拟机">
+        </div>
+      </div>
+    </section>
+
     <!-- 推荐算法权重 / Algorithm Weights -->
     <section class="settings-section">
       <div class="section-header">
@@ -153,6 +201,11 @@
             <input type="range" id="weightSteam" min="0" max="50" step="5">
             <span id="weightSteamVal" class="range-value">0.20</span>
           </div>
+        </div>
+        <!-- 权重总和指示器 / Weight sum indicator -->
+        <div class="weight-sum-row">
+          <span class="weight-sum-label">权重总和 / Weight Sum</span>
+          <span id="weightSum" class="weight-sum-value">1.00</span>
         </div>
       </div>
     </section>
@@ -280,6 +333,10 @@
             <span class="btn-icon">📥</span>
             <span>导入数据</span>
           </button>
+          <button id="resetDefaults" class="btn data-btn">
+            <span class="btn-icon">♻️</span>
+            <span>恢复默认设置</span>
+          </button>
           <button id="clearData" class="btn btn-danger">
             <span class="btn-icon">🗑️</span>
             <span>清除所有数据</span>
@@ -287,6 +344,60 @@
         </div>
         <!-- 隐藏的文件输入 / Hidden file input -->
         <input type="file" id="importFile" accept=".json" class="hidden-file">
+      </div>
+    </section>
+  </main>
+
+  <!-- 标签页：游戏缓存 / Tab: Game Cache -->
+  <main class="options-container tab-panel" id="tab-cache">
+    <section class="settings-section">
+      <div class="section-header">
+        <span class="section-icon">🗄️</span>
+        <div class="section-title">
+          <h2>游戏缓存管理</h2>
+          <span class="section-subtitle">Game Cache Management</span>
+        </div>
+      </div>
+      <div class="section-body">
+        <p class="section-note">
+          查看已记录的游戏信息（以 Steam AppID 为唯一标识）<br>
+          <em>View recorded game info (keyed by Steam AppID)</em>
+        </p>
+
+        <!-- 搜索栏 / Search bar -->
+        <div class="cache-toolbar">
+          <input type="text" id="cacheSearchInput" class="text-input" placeholder="搜索 AppID / 中文名 / 英文名..."
+            style="flex:1;min-width:200px;">
+          <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
+          <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
+          <button id="cacheClearAllBtn" class="btn btn-danger btn-sm">清空全部</button>
+        </div>
+
+        <!-- 缓存统计 / Cache stats -->
+        <div id="cacheStats" class="cache-stats"></div>
+
+        <!-- 游戏列表表格 / Game list table -->
+        <div class="cache-table-wrap">
+          <table class="cache-table" id="cacheTable">
+            <thead>
+              <tr>
+                <th>AppID</th>
+                <th>中文名</th>
+                <th>英文名</th>
+                <th>上次刷新</th>
+                <th>下载站网址</th>
+                <th>上次调用</th>
+                <th>操作</th>
+              </tr>
+            </thead>
+            <tbody id="cacheTableBody">
+              <tr><td colspan="7" class="cache-empty">点击"刷新"加载缓存数据</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- 分页 / Pagination -->
+        <div class="cache-pagination" id="cachePagination"></div>
       </div>
     </section>
   </main>

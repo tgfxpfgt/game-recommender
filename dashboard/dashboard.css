@@ -1,4 +1,7 @@
-/* Game Recommender - Dashboard Styles */
+/* ============================================================
+   Game Recommender - Dashboard Styles
+   数据分析仪表盘样式 / Dashboard (analytics) styles
+   ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -24,7 +27,7 @@ body {
 
 .header-actions { display: flex; gap: 10px; }
 
-/* 按钮 */
+/* 按钮 / Buttons */
 .btn {
   padding: 10px 18px;
   font-size: 14px;
@@ -41,7 +44,7 @@ body {
 .btn-steam { background: linear-gradient(135deg, #1b2838, #2a475e); color: #66c0f4; border: 1px solid #66c0f4; }
 .btn-steam:hover { background: #2a475e; box-shadow: 0 0 12px rgba(102,192,244,0.3); }
 
-/* 统计卡片 */
+/* 统计卡片 / Statistics cards */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
@@ -60,7 +63,7 @@ body {
 .stat-value { font-size: 28px; font-weight: bold; color: #66c0f4; }
 .stat-label { font-size: 12px; color: #888; margin-top: 6px; }
 
-/* 区块 */
+/* 区块 / Sections */
 .section {
   background: #1a1a2e;
   border: 1px solid #2a2a4a;
@@ -72,7 +75,7 @@ body {
 .section h2 { font-size: 16px; color: #66c0f4; margin-bottom: 12px; }
 .section-desc { font-size: 13px; color: #888; margin-bottom: 16px; }
 
-/* 标签云 */
+/* 标签云 / Tag cloud */
 .tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .tag-item {
@@ -90,7 +93,7 @@ body {
 .tag-item.medium { background: rgba(163, 207, 6, 0.15); color: #a3cf06; border: 1px solid rgba(163, 207, 6, 0.4); }
 .tag-item.low { background: rgba(255, 255, 255, 0.05); color: #aaa; border: 1px solid #444; }
 
-/* 下载方式 */
+/* 下载方式 / Download methods */
 .method-grid { display: flex; flex-wrap: wrap; gap: 12px; }
 
 .method-item {
@@ -104,7 +107,7 @@ body {
 .method-item .method-count { font-size: 22px; font-weight: bold; color: #a3cf06; }
 .method-item .method-name { font-size: 12px; color: #888; margin-top: 4px; }
 
-/* 表格 */
+/* 表格 / Data tables */
 .table-wrapper { overflow-x: auto; }
 
 .data-table {
@@ -142,7 +145,7 @@ body {
 
 .data-table .downloaded { color: #a3cf06; font-weight: bold; }
 
-/* Steam推荐 */
+/* Steam推荐 / Steam recommendations */
 .rec-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -190,7 +193,7 @@ body {
 
 .no-data { color: #666; font-size: 14px; padding: 10px; }
 
-/* 事件类型标签 */
+/* 事件类型标签 / Event-type labels */
 .event-type {
   display: inline-block;
   padding: 2px 8px;
@@ -204,12 +207,12 @@ body {
 .event-type.list { background: rgba(255, 255, 255, 0.08); color: #aaa; }
 .event-type.steam { background: rgba(102, 192, 244, 0.2); color: #8dd4f8; }
 
-/* 按钮变体 */
+/* 按钮变体 / Button variants */
 .btn-sm { padding: 6px 12px; font-size: 12px; }
 .btn-danger { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.4); }
 .btn-danger:hover { background: rgba(231, 76, 60, 0.25); }
 
-/* 工具栏 */
+/* 工具栏 / Section toolbars */
 .section-toolbar {
   display: flex;
   align-items: center;
@@ -229,7 +232,7 @@ body {
 
 .backup-status { font-size: 13px; color: #a3cf06; }
 
-/* 运行日志 */
+/* 运行日志 / Runtime logs */
 .runtime-log {
   max-height: 400px;
   overflow-y: auto;
@@ -265,7 +268,7 @@ body {
 .runtime-log::-webkit-scrollbar { width: 6px; }
 .runtime-log::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
 
-/* 备份管理 */
+/* 备份管理 / Backup management */
 .backup-list { display: flex; flex-direction: column; gap: 8px; }
 
 .backup-item {

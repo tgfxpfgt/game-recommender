@@ -1,4 +1,7 @@
-/* Game Recommender - Free Games Styles */
+/* ============================================================
+   Game Recommender - Free Games Styles
+   限免游戏页面样式 / Free-games page styles
+   ============================================================ */
 * { margin: 0; padding: 0; box-sizing: border-box; }
 
 body {
@@ -41,7 +44,7 @@ body {
 
 .page-desc { font-size: 13px; color: #888; margin-bottom: 20px; }
 
-/* 平台筛选 */
+/* 平台筛选 / Platform filter */
 .platform-filter {
   display: flex;
   gap: 8px;
@@ -68,7 +71,7 @@ body {
   border-color: #66c0f4;
 }
 
-/* 游戏网格 */
+/* 游戏网格 / Game grid */
 .game-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
@@ -83,7 +86,7 @@ body {
   font-size: 14px;
 }
 
-/* 游戏卡片 */
+/* 游戏卡片 / Game cards */
 .game-card {
   background: #1a1a2e;
   border: 1px solid #2a2a4a;
@@ -125,7 +128,7 @@ body {
   width: fit-content;
 }
 
-/* 平台标签 + 今日新增 同行 */
+/* 平台标签 + 今日新增 同行 / Platform tag + "new today" badge in one row */
 .game-tags-row {
   display: flex;
   align-items: center;
@@ -135,7 +138,7 @@ body {
 }
 .game-tags-row .game-platform { margin-bottom: 0; }
 
-/* 今日新增标识 */
+/* 今日新增标识 / "New today" badge */
 .new-today {
   display: inline-block;
   padding: 2px 8px;
@@ -151,7 +154,7 @@ body {
   50% { opacity: 0.7; }
 }
 
-/* 领取方式筛选栏 */
+/* 领取方式筛选栏 / Claim-type filter bar */
 .claim-filter {
   display: flex;
   align-items: center;
@@ -180,7 +183,7 @@ body {
   border-color: #66c0f4;
 }
 
-/* 领取方式标识徽章 */
+/* 领取方式标识徽章 / Claim-type badges (direct vs third-party) */
 .claim-type {
   display: inline-block;
   padding: 2px 8px;
