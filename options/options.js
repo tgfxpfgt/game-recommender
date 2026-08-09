@@ -103,44 +103,67 @@ function renderSettings(settings) {
   toggleApiKeyRow();
 
   // 网站列表 / Tracked sites
-  renderSiteList(settings.trackedSites);
-
-  // Steam 详情页资源检索站点 / Steam-page site search scope
-  renderSteamSiteSearch(settings.steamSiteSearch);
+  // 下载站与追踪管理（合并展示：追踪行为 + Steam 检索范围）
+  // Sites & tracking management (merged: track behavior + Steam-search scope)
+  renderSiteManagement(settings);
 }
 
-// ============ Steam 详情页资源检索站点 / Steam-Page Site Search Scope ============
-// 从规则文件（adapters/sites.js）生成可勾选的下载站列表（仅含配置了站内搜索的站点）
-// Checkboxes generated from the rules file (only sites with an in-site search)
-function renderSteamSiteSearch(enabledKeys) {
-  const container = document.getElementById('steamSiteSearchList');
+// ============ 下载站与追踪管理渲染 / Sites & Tracking Management ============
+// 规则站点行（追踪行为 / Steam 检索双开关）+ 自定义追踪站点标签列表。
+// 追踪 = 行为学习；Steam 检索 = Steam 详情页与缓存更新的资源检索范围。
+// Rule-site rows (track / Steam-search toggles) + custom tracked-site tags.
+// Track = behavior learning; Steam search = the resource-search scope for
+// Steam pages and cache refreshes.
+function renderSiteManagement(settings) {
+  const container = document.getElementById('siteManageList');
   if (!container) return;
   const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
-  const searchable = rules.filter(s => s.searchUrl);
-  const enabled = enabledKeys || searchable.map(s => s.key);
-  container.innerHTML = searchable.map(s => `
-    <label class="check-item site-check-item">
-      <input type="checkbox" class="steam-site-check" data-site="${escapeAttr(s.key)}" ${enabled.includes(s.key) ? 'checked' : ''}>
-      <span>${escapeHtml(s.name)} <small style="color:#8f98a0;">(${escapeHtml(s.domains[0])})</small></span>
-    </label>
-  `).join('');
+  const tracked = settings.trackedSites || [];
+  const steamSearch = settings.steamSiteSearch || [];
+
+  container.innerHTML = rules.map(s => {
+    const isTracked = s.domains.some(d => tracked.includes(d));
+    const canSearch = !!s.searchUrl;
+    return `
+      <div class="site-manage-row">
+        <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0])}</small></span>
+        <label class="check-item" title="追踪该站点的浏览行为">
+          <input type="checkbox" class="track-site-check" data-domain="${escapeAttr(s.domains[0])}" ${isTracked ? 'checked' : ''}>
+          <span>追踪行为</span>
+        </label>
+        ${canSearch ? `
+          <label class="check-item" title="在 Steam 详情页与缓存更新中检索该站点资源">
+            <input type="checkbox" class="steam-site-check" data-site="${escapeAttr(s.key)}" ${steamSearch.includes(s.key) ? 'checked' : ''}>
+            <span>Steam 检索</span>
+          </label>
+        ` : '<span class="no-search-hint">无站内搜索</span>'}
+      </div>
+    `;
+  }).join('');
+
+  // 自定义追踪站点（不在规则中的域名）/ Custom tracked sites (outside the rules)
+  renderCustomSiteList(tracked, rules);
 }
 
-// ============ Site List Rendering / 网站列表渲染 ============
-function renderSiteList(sites) {
+// 渲染自定义追踪站点标签（可删除）/ Render custom tracked-site tags (removable)
+function renderCustomSiteList(tracked, rules) {
   const container = document.getElementById('siteList');
-  container.innerHTML = sites.map((site, i) => `
+  if (!container) return;
+  const isRuleDomain = (d) => rules.some(s => s.domains.some(x => d === x || d.includes(x)));
+  const custom = tracked.filter(d => !isRuleDomain(d));
+  container.innerHTML = custom.map(site => `
     <div class="site-item">
-      <span>${site}</span>
-      <button class="remove-site" data-index="${i}">✕</button>
+      <span>${escapeHtml(site)}</span>
+      <button class="remove-site" data-domain="${escapeAttr(site)}">✕</button>
     </div>
   `).join('');
 
+  // 绑定删除事件：按域名精确删除 / Bind removal by exact domain
   container.querySelectorAll('.remove-site').forEach(btn => {
     btn.addEventListener('click', () => {
-      const index = parseInt(btn.dataset.index);
-      currentSettings.trackedSites.splice(index, 1);
-      renderSiteList(currentSettings.trackedSites);
+      const domain = btn.dataset.domain;
+      currentSettings.trackedSites = (currentSettings.trackedSites || []).filter(d => d !== domain);
+      renderSiteManagement(currentSettings);
       scheduleAutoSave(); // Auto-save after removal / 删除后自动保存
     });
   });
@@ -248,7 +271,7 @@ function bindEvents() {
     const site = input.value.trim().toLowerCase();
     if (site && !currentSettings.trackedSites.includes(site)) {
       currentSettings.trackedSites.push(site);
-      renderSiteList(currentSettings.trackedSites);
+      renderSiteManagement(currentSettings);
       input.value = '';
       scheduleAutoSave();
     }
@@ -307,6 +330,15 @@ async function saveSettings() {
   currentSettings.vmFilterKeywords = vmKeywordsRaw.length > 0 ? vmKeywordsRaw : ['虚拟机板', '虚拟机'];
 
   // Steam 详情页资源检索站点（勾选的下载站）/ Steam-page site search scope
+  // 下载站与追踪管理：规则站点勾选的域名 + 保留的自定义域名 → trackedSites；
+  // Steam 检索勾选 → steamSiteSearch（合并后的统一配置入口）
+  const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+  const customSites = (currentSettings.trackedSites || []).filter(d =>
+    !rules.some(s => s.domains.some(x => d === x || d.includes(x)))
+  );
+  const ruleTracked = [...document.querySelectorAll('.track-site-check:checked')]
+    .map(cb => cb.dataset.domain);
+  currentSettings.trackedSites = [...new Set([...customSites, ...ruleTracked])];
   currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')]
     .map(cb => cb.dataset.site);
 

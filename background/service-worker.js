@@ -982,12 +982,30 @@ function pickSearchItem(items) {
 
 async function searchSteamAppId(searchTerms) {
   for (const term of searchTerms) {
-    const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`;
-    const response = await fetchWithTimeout(searchUrl);
-    const data = await response.json();
-    if (data.total > 0 && data.items && data.items[0]) {
-      const picked = pickSearchItem(data.items);
-      return { appId: picked.id, name: picked.name };
+    // 并行请求中英文搜索结果：中文名用于匹配与显示，英文名用于注册表记录
+    //（l=english 时 name 为 Steam 官方英文名，弥补列表页轻量路径的英文名缺失）
+    // Parallel CN/EN searches: the CN name drives matching/display, the EN name
+    // feeds the registry (l=english returns the official EN name, fixing the
+    // missing-EN-name issue on the lightweight list-page path).
+    let cnData = null;
+    let enData = null;
+    try {
+      cnData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
+    } catch (e) { /* 中文搜索失败不阻断流程 */ }
+    try {
+      enData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`)).json();
+    } catch (e) { /* 英文搜索失败回退中文名 */ }
+
+    const cnItems = (cnData && cnData.items) || [];
+    if (cnItems.length > 0) {
+      const picked = pickSearchItem(cnItems);
+      const enItems = (enData && enData.items) || [];
+      const pickedEn = enItems.find(i => i.id === picked.id) || enItems[0];
+      return {
+        appId: picked.id,
+        name: picked.name,
+        englishName: pickedEn ? pickedEn.name : picked.name
+      };
     }
   }
   return null;
@@ -1442,8 +1460,9 @@ async function getSteamPositiveRate(gameName) {
     //    Search appId (skip if already known, just re-fetch review summary)
     let foundAppId = usableAppId;
     let foundName = gameName;
+    let searchResult = null;
     if (!foundAppId) {
-      const searchResult = await searchSteamAppId(parseGameTitle(gameName));
+      searchResult = await searchSteamAppId(parseGameTitle(gameName));
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
         await recordNameIndex(gameName, null);
@@ -1464,6 +1483,40 @@ async function getSteamPositiveRate(gameName) {
       }
     }
 
+    // 5.5 官方中英文名：搜索路径直接用搜索结果自带的英文名（零额外请求）；
+    //     名称索引路径（无搜索）或 0 评测时，轻量获取官方名——同时用于
+    //     Demo 验证（Demo 无完整评测会误报"暂无"）与注册表补全。
+    //     Official CN/EN names: the search path reuses the search result's EN name
+    //     (no extra requests); the index path (no search) or zero-review games fetch
+    //     the official names lightly — used for both Demo detection and registry fill.
+    let officialCn = foundName;
+    let officialEn = searchResult ? (searchResult.englishName || foundName) : pickRegistryEnName(gameName, foundName);
+    if (positiveRate === null) {
+      const [cnData, enData] = await Promise.all([
+        fetchSteamAppDetails(foundAppId, 'schinese').catch(() => null),
+        fetchSteamAppDetails(foundAppId, 'english').catch(() => null)
+      ]);
+      officialCn = (cnData && cnData.name) || officialCn;
+      officialEn = (enData && enData.name) || officialCn;
+      const isDemo = /demo|试玩|trial/i.test(officialCn + ' ' + officialEn);
+      if (isDemo) {
+        // Demo 版：重新搜索完整版（搜索已排除 Demo）
+        // Demo edition: re-search the full version (search already skips Demos)
+        const reSearch = await searchSteamAppId(parseGameTitle(gameName));
+        if (reSearch) {
+          foundAppId = reSearch.appId;
+          foundName = reSearch.name;
+          officialCn = reSearch.name;
+          officialEn = reSearch.englishName || officialCn;
+          const rs2 = await fetchReviewSummary(foundAppId);
+          if (rs2) {
+            ratingDesc = rs2.desc || null;
+            if (rs2.total > 0) positiveRate = Math.round(rs2.positive / rs2.total * 100);
+          }
+        }
+      }
+    }
+
     // 6. 合并写入 Steam 动态缓存（以 appId 为键，保留可能已有的完整数据）
     //    自愈场景（usableAppId 为 null）时不留存旧 Demo 数据，直接整体覆盖。
     //    Merge into Steam dynamic cache (appId-keyed, preserve any existing full data).
@@ -1472,11 +1525,13 @@ async function getSteamPositiveRate(gameName) {
     const mergedData = { ...existing, appId: foundAppId, name: foundName, positiveRate, ratingDesc };
     await setSteamCacheEntry(foundAppId, mergedData);
 
-    // 7. 同步更新游戏注册表和名称索引（列表页轻量路径：cnName 用 Steam 搜索名）
-    //    Sync registry and name index (lightweight list-page path: cnName from Steam search)
+    // 7. 同步更新游戏注册表和名称索引：cnName/enName 以 Steam 官方名为准，
+    //    下载站标题入名称变体（兼容匹配）。
+    //    Sync registry and name index: official CN/EN names, download-site title
+    //    goes into the name variants (compatible matching).
     await recordGameInRegistry(foundAppId, {
-      cnName: foundName,
-      enName: pickRegistryEnName(gameName, foundName),
+      cnName: officialCn,
+      enName: officialEn,
       gameName
     });
     await recordNameIndex(gameName, foundAppId);
