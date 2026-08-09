@@ -10,7 +10,8 @@
 
 const tests = [
   { name: '标题解析 Title Parser', file: './test-title-parser.mjs' },
-  { name: '安全与存储 Security & Storage', file: './test-security.mjs' }
+  { name: '安全与存储 Security & Storage', file: './test-security.mjs' },
+  { name: '内容脚本模拟 Content Script Sim', file: './test-content-sim.mjs' }
 ];
 
 let allPass = true;

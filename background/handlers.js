@@ -22,7 +22,7 @@ import { readDownloadUrlsStore, recordDownloadUrl, recordDownloadUrlsBatch } fro
 import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorLog } from './storage/behavior.js';
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from './storage/backups.js';
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
-import { searchSteamGame, getSteamPositiveRate } from './steam/orchestrator.js';
+import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
 import { calculateRecommendation } from './recommend/engine.js';
@@ -179,39 +179,74 @@ async function handleSearchSteamCandidates(message) {
   return { candidates: candidates.slice(0, 10) };
 }
 
-// 列表页批量好评率查询（忽略负缓存 + 封面 appId 直取）
-async function handleGetSteamRatings(message) {
+// 列表页批量好评率查询（两阶段：缓存命中即时返回，未命中后台拉取后推送）
+// Two-phase list-page rating lookup: cached hits return immediately; misses are
+// fetched from Steam in the background and pushed back via STEAM_RATINGS_UPDATE.
+async function handleGetSteamRatings(message, sender) {
   const ratingNames = message.names || [];
   const imageData = message.imageData || {};
   const appIds = message.appIds || {};
+  const cacheOnly = message.cacheOnly === true; // 兜底重试：只查缓存，不触发后台拉取
   const ratings = {};
-  const batchSize = 5;
+  const pending = [];
+
+  // 阶段1：仅查缓存（无网络），命中即时返回 / Phase 1: cache-only, instant hits
   try {
-    for (let i = 0; i < ratingNames.length; i += batchSize) {
-      const batch = ratingNames.slice(i, i + batchSize);
-      const batchResults = await Promise.all(batch.map(async (name) => {
-        try {
-          const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
-          const r = await getSteamPositiveRate(name, {
-            ignoreNegativeCache: true,
-            appId: img ? img.appId : null,
-            cover: img ? img.cover : null
-          });
-          return [name, r];
-        } catch (e) {
-          return [name, null];
-        }
-      }));
-      batchResults.forEach(([name, r]) => { ratings[name] = r; });
-      // 每批完成后立即落盘（flush 已安全化，失败不中断）
-      await flushSteamCache();
-      await flushNameIndex();
-      await flushRegistry();
-    }
+    await Promise.all(ratingNames.map(async (name) => {
+      try {
+        const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
+        const r = await getSteamRatingsFromCacheOnly(name, {
+          appId: img ? img.appId : null,
+          cover: img ? img.cover : null
+        });
+        if (r) ratings[name] = r;
+        else pending.push(name);
+      } catch (e) {
+        pending.push(name);
+      }
+    }));
   } catch (e) {
-    Logger.warn('Steam', '批量好评率查询部分失败', e.message);
+    pending.push(...ratingNames.filter(n => !ratings[n]));
   }
-  return { ratings };
+
+  // 阶段2：未命中 → 后台继续从 Steam 拉取（忽略负缓存），完成后推送给页面
+  // Phase 2: fetch misses from Steam in the background, then push to the page
+  if (!cacheOnly && pending.length > 0) {
+    const tabId = sender && sender.tab ? sender.tab.id : null;
+    const names = pending.slice();
+    (async () => {
+      try {
+        const batchSize = 5;
+        for (let i = 0; i < names.length; i += batchSize) {
+          const batch = names.slice(i, i + batchSize);
+          await Promise.all(batch.map(async (name) => {
+            try {
+              const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
+              ratings[name] = await getSteamPositiveRate(name, {
+                ignoreNegativeCache: true,
+                appId: img ? img.appId : null,
+                cover: img ? img.cover : null
+              });
+            } catch (e) {
+              ratings[name] = null;
+            }
+          }));
+        }
+        // 落盘（flush 已安全化）/ Persist (flush is failure-safe)
+        await flushSteamCache();
+        await flushNameIndex();
+        await flushRegistry();
+        // 推送结果到内容脚本（页面关闭时静默失败）/ Push results to the page
+        if (tabId !== null && tabId !== undefined) {
+          chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ratings }).catch(() => {});
+        }
+      } catch (e) {
+        Logger.warn('Steam', '后台补拉好评率失败', e.message);
+      }
+    })();
+  }
+
+  return { ratings, pending: pending.length };
 }
 
 // 预热下一页 Steam 缓存（仅填充缓存不返回数据）

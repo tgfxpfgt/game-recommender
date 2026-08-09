@@ -52,6 +52,37 @@
     return items;
   }
 
+  // 等待列表项出现（AJAX 延迟渲染页面）：容器一出现即提取，超时返回当前结果
+  // Wait for list items on AJAX-rendered pages; resolve on the first non-empty
+  // extraction (with debounce) or after the timeout.
+  function waitForListItems(adapter, timeoutMs) {
+    const limit = timeoutMs || 4000;
+    return new Promise((resolve) => {
+      let timer = null;
+      let observer = null;
+      let debounceTimer = null;
+      let lastItems = [];
+      const finish = (its) => {
+        if (observer) observer.disconnect();
+        if (timer) clearTimeout(timer);
+        if (debounceTimer) clearTimeout(debounceTimer);
+        resolve(its);
+      };
+      const check = () => {
+        const its = getListItemsSmart(adapter);
+        if (its.length > 0) { finish(its); return; }
+        lastItems = its;
+      };
+      observer = new MutationObserver(() => {
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(check, 200);
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      timer = setTimeout(() => finish(lastItems), limit);
+      check(); // 立即先查一次（列表可能已渲染完）
+    });
+  }
+
   // ============ 列表页功能 ============
   function trackListView(adapter, items, settings) {
     GR.common.trackEvent('view_list', { itemCount: items.length, page: window.location.href });
@@ -224,12 +255,136 @@
     return { names: [...names], appIds, covers };
   }
 
+  // ============ 列表页 Steam 好评率（两波：缓存命中即时显示 + 后台推送更新） ============
+  // Two-wave rating flow: cached hits render instantly; misses are fetched in
+  // the background and pushed back via STEAM_RATINGS_UPDATE.
+  let ratingsJob = null; // 当前批次的处理状态 / current batch job state
+
+  function createRatingsJob(processItems, settings, uniqueNames) {
+    ratingsJob = {
+      processItems, settings, uniqueNames,
+      processed: new Set(), // 已出结果的游戏名（徽章已显示）/ names already resolved
+      shown: 0, filtered: 0, notFoundNames: [],
+      urlEntries: [], // appId → 下载页地址批量写入 / download-URL batch entries
+      finished: false,
+      forceTimer: null // 强制收尾定时器 / force-finish timer
+    };
+  }
+
+  // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
+  function removeItemFromDom(item) {
+    if (!item.element || !item.element.parentNode) return;
+    const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
+    const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
+    if (toRemove.parentNode) toRemove.remove();
+  }
+
+  // 应用一波查询结果。mode='first'：未命中的跳过（等待推送），不插"未找到"徽章；
+  // mode='final'：仍未命中的按"未找到"处理并收尾。
+  // Apply one wave of results. 'first': misses wait for the push; 'final': misses
+  // resolve as "not found".
+  function applyRatingsResponse(ratings, mode) {
+    if (!ratingsJob || ratingsJob.finished) return false;
+    const job = ratingsJob;
+    const minRating = job.settings?.enableRatingFilter ? (job.settings.minSteamRatingFilter || 0) : 0;
+    let changed = false;
+    job.processItems.forEach(item => {
+      if (job.processed.has(item.name)) return;
+      const rating = ratings[item.name];
+      if (rating && rating.appId) {
+        job.processed.add(item.name);
+        changed = true;
+        if (item.url) job.urlEntries.push({ appId: rating.appId, url: item.url });
+        // 好评率过滤：低于阈值的从 DOM 移除（剩余元素自动重排）
+        if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
+          if (minRating > 0 && rating.positiveRate < minRating) {
+            removeItemFromDom(item);
+            job.filtered++;
+            return;
+          }
+        }
+        prependRatingBadge(item, rating);
+        job.shown++;
+      } else if (mode !== 'first') {
+        // 最终波仍未命中：显示"未找到"徽章
+        job.processed.add(item.name);
+        job.notFoundNames.push(item.name);
+        changed = true;
+        prependNotFoundBadge(item);
+      }
+    });
+    return changed;
+  }
+
+  // 完成统计：批量写下载站网址缓存 + 统一浮窗显示统计
+  function finishRatings() {
+    if (!ratingsJob || ratingsJob.finished) return;
+    ratingsJob.finished = true;
+    clearTimeout(ratingsJob.forceTimer);
+    const job = ratingsJob;
+    // 批量写入下载站网址缓存（fire-and-forget）
+    const siteKey = GR.builder.getAdapterKey();
+    if (siteKey && job.urlEntries.length > 0) {
+      chrome.runtime.sendMessage({
+        action: 'RECORD_DOWNLOAD_URLS_BATCH',
+        data: { siteKey, siteName: GR.builder.getAdapter().name, domain: window.location.hostname, entries: job.urlEntries }
+      }).catch(() => {});
+    }
+    dbg(`列表页: 显示 ${job.shown} 个好评率, 过滤 ${job.filtered} 个, 未找到 ${job.notFoundNames.length} 个` +
+        (job.notFoundNames.length > 0 ? ` [${job.notFoundNames.slice(0, 5).join('、')}]` : ''));
+    GR.status.showStats({
+      title: 'Steam 好评率获取完成',
+      summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}`,
+      rows: [
+        `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
+        job.notFoundNames.length > 0 ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}` : ''
+      ].filter(Boolean)
+    });
+    ratingsJob = null;
+  }
+
+  // 兜底：推送失败/滞后时的重查与强制收尾
+  function scheduleFallbacks(nameToImage) {
+    const job = ratingsJob;
+    if (!job) return;
+    // 兜底1：3 秒后 cacheOnly 重查（后台可能已写入缓存；未命中继续等推送）
+    setTimeout(async () => {
+      if (!ratingsJob || ratingsJob.finished) return;
+      const remaining = ratingsJob.processItems
+        .filter(i => !ratingsJob.processed.has(i.name))
+        .map(i => i.name);
+      if (remaining.length === 0) return;
+      try {
+        const resp = await chrome.runtime.sendMessage({
+          action: 'GET_STEAM_RATINGS',
+          names: remaining,
+          imageData: nameToImage,
+          cacheOnly: true
+        });
+        if (resp && resp.ratings) applyRatingsResponse(resp.ratings, 'first');
+      } catch (e) { /* 保持等待 */ }
+    }, 3000);
+    // 兜底2：15 秒强制收尾（推送彻底失败时按"未找到"处理）
+    job.forceTimer = setTimeout(() => {
+      if (!ratingsJob || ratingsJob.finished) return;
+      applyRatingsResponse({}, 'final');
+      finishRatings();
+    }, 15000);
+  }
+
+  // 后台推送的未命中结果（STEAM_RATINGS_UPDATE）：最终波，应用后收尾
+  function applySteamRatingsUpdate(ratings) {
+    applyRatingsResponse(ratings || {}, 'final');
+    if (ratingsJob && !ratingsJob.finished) finishRatings();
+    return true;
+  }
+
   // 列表页：检索每个游戏的Steam好评率并显示在游戏名前
   async function requestSteamRatings(items, settings) {
     const maxItems = 60;
     const processItems = items.slice(0, maxItems);
     // 工作状态浮窗：开始查询 / Show the in-progress status bar
-    GR.status.showStatus('正在获取 Steam 好评率', 0, processItems.length, '后台批量查询中...');
+    GR.status.showStatus('正在获取 Steam 好评率', 0, processItems.length, '缓存优先检索中...');
     // 去重游戏名，同时收集每个名称对应的封面 appId 与封面图 URL
     const imageAppIdEnabled = GR.builder.isImageAppIdEnabled();
     const nameToImage = {};
@@ -240,90 +395,28 @@
     });
     const uniqueNames = Object.keys(nameToImage).filter(n => n && n.length > 1);
     if (uniqueNames.length === 0) return;
-    try {
 
+    createRatingsJob(processItems, settings, uniqueNames);
+
+    try {
       const response = await chrome.runtime.sendMessage({
         action: 'GET_STEAM_RATINGS',
         names: uniqueNames,
         imageData: nameToImage // {name: {appId, cover} | null}
       });
-      if (response && response.ratings) {
-        let shown = 0;
-        let filtered = 0;
-        const notFoundNames = [];
-        // 列表页批量记录：appId → 下载页地址写入下载站网址缓存
-        const urlEntries = [];
-        const minRating = settings?.enableRatingFilter ? (settings.minSteamRatingFilter || 0) : 0;
-        processItems.forEach(item => {
-          const rating = response.ratings[item.name];
-          // 匹配到 appId 即显示徽章：有评测显示好评率，无评测（0条/Demo）显示 AppID
-          if (rating && rating.appId) {
-            if (item.url) urlEntries.push({ appId: rating.appId, url: item.url });
-            if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
-              // 好评率过滤：低于阈值的移除该项（从DOM中删除，使后续元素自动重排）
-              if (minRating > 0 && rating.positiveRate < minRating) {
-                if (item.element) {
-                  const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
-                  const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
-                  if (toRemove.parentNode) toRemove.remove();
-                }
-                filtered++;
-                return;
-              }
-            }
-            prependRatingBadge(item, rating);
-            shown++;
-          } else {
-            // 未匹配（搜索失败/负缓存/异常）：显示"未找到"徽章
-            notFoundNames.push(item.name);
-            prependNotFoundBadge(item);
-          }
-        });
-        // 批量写入下载站网址缓存（fire-and-forget）
-        const siteKey = GR.builder.getAdapterKey();
-        if (siteKey && urlEntries.length > 0) {
-          chrome.runtime.sendMessage({
-            action: 'RECORD_DOWNLOAD_URLS_BATCH',
-            data: { siteKey, siteName: GR.builder.getAdapter().name, domain: window.location.hostname, entries: urlEntries }
-          }).catch(() => {});
-        }
-        dbg(`列表页: 显示 ${shown} 个好评率, 过滤 ${filtered} 个, 未找到 ${notFoundNames.length} 个` +
-            (notFoundNames.length > 0 ? ` [${notFoundNames.slice(0, 5).join('、')}]` : ''));
-
-        // 统一浮窗：完成统计（含诊断信息，3 秒后自动消失或切换调试视图）
-        // Unified bar: completion stats (auto-dismiss or switch to the debug view)
-        GR.status.showStats({
-          title: 'Steam 好评率获取完成',
-          summary: `${shown} 个好评率${filtered > 0 ? ` · ${filtered} 个已过滤` : ''}${notFoundNames.length > 0 ? ` · ${notFoundNames.length} 个未找到` : ''}${response.error ? ` · 后台错误: ${response.error}` : ''}`,
-          rows: [
-            `查询 ${uniqueNames.length} 个游戏 · 提取 ${processItems.length} 个`,
-            notFoundNames.length > 0 ? `未找到: ${notFoundNames.slice(0, 3).join('、')}${notFoundNames.length > 3 ? '...' : ''}` : ''
-          ].filter(Boolean)
-        });
-
-        // 未匹配的游戏 3 秒后重试一次（瞬时错误兜底）
-        if (notFoundNames.length > 0) {
-          setTimeout(async () => {
-            try {
-              const retryResp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names: notFoundNames });
-              if (retryResp && retryResp.ratings) {
-                processItems.forEach(item => {
-                  const r = retryResp.ratings[item.name];
-                  if (r && r.appId) {
-                    const holder = item.titleEl || (item.element ? item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title') : null);
-                    if (holder) {
-                      const old = holder.querySelector('.gr-rating-badge, .gr-not-found');
-                      if (old) old.remove();
-                    }
-                    const oldInLink = item.link.querySelector('.gr-not-found');
-                    if (oldInLink) oldInLink.remove();
-                    prependRatingBadge(item, r);
-                  }
-                });
-              }
-            } catch (e) { /* 重试失败保持"未找到"徽章 */ }
-          }, 3000);
-        }
+      const ratings = (response && response.ratings) || {};
+      const pendingCount = (response && response.pending) || 0;
+      // 第一波：缓存命中即时显示徽章
+      applyRatingsResponse(ratings, 'first');
+      const job = ratingsJob;
+      if (!job || job.finished) return;
+      const doneCount = job.processed.size;
+      if (pendingCount > 0 && doneCount < processItems.length) {
+        // 后台正在从 Steam 拉取未命中项：进度条更新为"已命中 X / 总数"，等待推送
+        GR.status.showStatus('正在从 Steam 更新缓存', doneCount, processItems.length, `${pendingCount} 个未命中缓存，后台拉取中...`);
+        scheduleFallbacks(nameToImage);
+      } else {
+        finishRatings();
       }
     } catch (e) {
       dbg('Steam好评率检索失败: ' + e.message);
@@ -455,6 +548,8 @@
     trackListView,
     applyVmFilter,
     requestSteamRatings,
-    requestRecommendations
+    requestRecommendations,
+    waitForListItems,
+    applySteamRatingsUpdate
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

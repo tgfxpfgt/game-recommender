@@ -9,8 +9,9 @@
  *   detail/detail-page.js 详情页功能（Steam 浮窗/历史/手动选择）
  *   tracking/download-tracking.js 下载追踪
  *
- * 本文件仅负责：主流程（init）、启动与消息监听。
- * This entry only wires the main flow (init), startup and message listening.
+ * 本文件仅负责：预热（并行唤醒后台/加载规则）、主流程（init）、启动与消息监听。
+ * This entry only wires warm-up (parallel SW wake-up & rule loading), the main
+ * flow (init), startup and message listening.
  */
 (function () {
   'use strict';
@@ -29,16 +30,27 @@
 
   const dbg = (...a) => debug.dbg(...a);
 
-  // ============ 核心初始化（URL检测页面类型） ============
-  async function init() {
-    let settings;
+  // ============ 预热（document_start 立即执行，与页面加载并行） ============
+  // Warm-up: run immediately at document_start, in parallel with page loading.
+  // 1) 唤醒后台 Service Worker（MV3 冷启动需数秒，提前唤醒可隐藏该延迟）；
+  // 2) 并行加载设置与适配规则。init 直接复用本结果，DOM 就绪时立即开始工作。
+  const warmupPromise = (async () => {
+    let settings = null;
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       settings = resp?.settings;
-    } catch (e) {
-      return;
-    }
+    } catch (e) { /* 后台不可达时 init 会自行重试 */ }
+    try {
+      await builder.loadSiteRules();
+      builder.buildSiteAdapters(builder.getSITE_RULES());
+    } catch (e) { /* 规则加载失败时回退内置规则 */ }
+    return settings;
+  })();
 
+  // ============ 核心初始化（URL检测页面类型） ============
+  async function init() {
+    // 复用预热结果（通常已就绪，立即返回；否则等待剩余时间）
+    const settings = await warmupPromise;
     if (!settings || !settings.enabled) return;
 
     // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
@@ -85,7 +97,12 @@
     if (isList) {
       debug.DEBUG.pageType = '列表页';
       dbg('✅ 检测到列表页');
-      const items = list.getListItemsSmart(adapter);
+      // 页面数据渲染完成即开始（AJAX 延迟渲染页面：等待列表容器出现，最多 4 秒）
+      let items = list.getListItemsSmart(adapter);
+      if (items.length === 0) {
+        dbg('列表项为空，等待页面数据渲染...');
+        items = await list.waitForListItems(adapter, 4000);
+      }
       if (items.length > 0) {
         dbg(`找到 ${items.length} 个游戏项`);
         list.trackListView(adapter, items, settings);
@@ -132,10 +149,13 @@
   }
 
   // ============ Startup / 启动 ============
+  // document_start 注入：预热已在顶层并行执行，DOM 就绪立即 init（无额外延迟）
+  // Injected at document_start: warm-up already runs in parallel; init fires as
+  // soon as the DOM is ready (no extra delay).
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    setTimeout(init, 300);
+    void init();
   } else {
-    window.addEventListener('DOMContentLoaded', () => setTimeout(init, 300));
+    window.addEventListener('DOMContentLoaded', () => void init(), { once: true });
   }
 
   // Message listener / 消息监听
@@ -169,6 +189,12 @@
     if (message.action === 'SHOW_LAST_STATS') {
       // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats
       if (GR.status) GR.status.showLastStats();
+      sendResponse({ success: true });
+    }
+    if (message.action === 'STEAM_RATINGS_UPDATE') {
+      // 后台推送：缓存未命中的游戏已从 Steam 拉取完成，应用结果并收尾
+      // Background push: cache misses fetched from Steam are ready — apply & finish
+      if (GR.list) GR.list.applySteamRatingsUpdate(message.ratings);
       sendResponse({ success: true });
     }
     return true;

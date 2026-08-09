@@ -95,6 +95,36 @@ export async function searchSteamGame(gameName) {
 }
 
 /**
+ * 仅缓存命中查询（列表页第一波，无网络请求）。
+ * 缓存命中（含 Demo 自愈跳过）即返回，否则返回 null → 调用方转入 Steam 拉取。
+ * Cache-only lookup (first wave on list pages, zero network). Returns the
+ * cached rating when valid (demo-without-rating self-heals to a miss).
+ */
+export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
+  if (!gameName) return null;
+  let appId = options.appId ? String(options.appId) : null;
+  if (!appId) {
+    appId = await lookupAppIdByName(gameName);
+  }
+  if (!appId) return null;
+
+  const cached = await getSteamCacheEntry(appId);
+  if (!isSteamCacheValid(cached) || !cached.data || cached.data.positiveRate === undefined) return null;
+  if (isDemoCacheWithoutRating(cached.data)) return null;
+
+  // 与完整路径一致：幂等补写注册表 + 中英文名异常自愈（缓存命中时同步）
+  await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+  await ensureValidEnglishName(cached.data.appId || appId, cached.data.englishName, cached.data.name, gameName);
+  await ensureValidChineseName(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+  return {
+    positiveRate: cached.data.positiveRate,
+    ratingDesc: cached.data.ratingDesc || null,
+    appId: cached.data.appId || appId,
+    name: cached.data.name || gameName
+  };
+}
+
+/**
  * 轻量级 Steam 好评率查询（列表页用，缓存优先，仅获取好评率）
  * options.ignoreNegativeCache：列表页批量场景跳过负缓存（用户主动浏览值得重试）。
  * Lightweight rating lookup for list pages (cache-first).
