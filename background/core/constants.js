@@ -62,12 +62,13 @@ export const DEFAULT_SETTINGS = {
   enableVmFilter: false, // 是否启用虚拟机标题过滤
   vmFilterKeywords: ['虚拟机板', '虚拟机'], // 虚拟机过滤关键词列表
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
-  // 各类缓存有效期（可在设置页自定义）/ Cache TTLs (customizable in settings)
+  // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
+  // Cache TTLs (customizable in settings; value 0 = keep forever)
   cacheTtls: {
-    steamDynamic: 24,    // Steam 动态缓存（小时）/ hours
-    registryConfirm: 30, // 游戏注册表重确认（天）/ days
-    downloadUrls: 30,    // 下载站网址缓存（天）/ days
-    negativeCache: 2     // 名称搜索负缓存（小时）/ hours
+    steamDynamic: { value: 24, unit: 'hours' },    // Steam 动态缓存 / hours
+    registryConfirm: { value: 30, unit: 'days' },  // 游戏注册表重确认 / days
+    downloadUrls: { value: 30, unit: 'days' },     // 下载站网址缓存 / days
+    negativeCache: { value: 2, unit: 'hours' }     // 名称搜索负缓存 / hours
   },
   // 日志配置 / Logging configuration
   logLevel: 'info',       // 记录级别：debug|info|warn|error
@@ -80,17 +81,43 @@ export const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 
 // 缓存 TTL 配置（随设置动态更新，可在设置页自定义各类缓存有效期）
 // Cache TTL config, updated dynamically from settings
-let TTL_CONFIG = { steamDynamic: 24, registryConfirm: 30, downloadUrls: 30, negativeCache: 2 };
+let TTL_CONFIG = {
+  steamDynamic: { value: 24, unit: 'hours' },
+  registryConfirm: { value: 30, unit: 'days' },
+  downloadUrls: { value: 30, unit: 'days' },
+  negativeCache: { value: 2, unit: 'hours' }
+};
 
 // 更新 TTL 配置（由 settings 模块调用）/ Update TTL config (called by settings)
 export function setTtlConfig(ttls) {
   TTL_CONFIG = { ...TTL_CONFIG, ...(ttls || {}) };
 }
 
-// 各缓存类型的有效期（毫秒）/ Per-cache-type TTLs (ms)
-export const steamCacheTtlMs = () => (TTL_CONFIG.steamDynamic || 24) * 3600 * 1000;
-export const registryConfirmTtlMs = () => (TTL_CONFIG.registryConfirm || 30) * 24 * 3600 * 1000;
-export const nameNegativeCacheTtlMs = () => (TTL_CONFIG.negativeCache || 2) * 3600 * 1000;
+// TTL 单位换算（小时/天/月/年）/ Unit-to-ms conversion
+const UNIT_MS = { hours: 3600e3, days: 86400e3, months: 30 * 86400e3, years: 365 * 86400e3 };
+// 默认值与默认单位（旧格式数字兼容）/ Defaults and default units (legacy-number compatible)
+const TTL_DEFAULTS = { steamDynamic: 24, registryConfirm: 30, downloadUrls: 30, negativeCache: 2 };
+const TTL_UNITS = { steamDynamic: 'hours', registryConfirm: 'days', downloadUrls: 'days', negativeCache: 'hours' };
+
+function toMs(value, unit) {
+  if (value === 0) return Infinity; // 0 = 长期有效 / 0 = keep forever
+  return value * (UNIT_MS[unit] || UNIT_MS.hours);
+}
+
+// 解析某缓存类型的 TTL 为毫秒（支持 {value, unit} 与旧数字格式；0 = 长期）
+// Resolve a cache type's TTL to ms ({value,unit} or legacy number; 0 = forever)
+export function resolveTtlMs(key, value) {
+  const raw = (value === null || value === undefined) ? TTL_DEFAULTS[key] : value;
+  const num = (typeof raw === 'object') ? raw.value : raw;
+  const unit = (typeof raw === 'object') ? (raw.unit || TTL_UNITS[key]) : TTL_UNITS[key];
+  if (num === undefined || num === null) return toMs(TTL_DEFAULTS[key], TTL_UNITS[key]);
+  return toMs(num, unit);
+}
+
+// 各缓存类型的有效期（毫秒；0 配置 = Infinity 长期有效）
+export const steamCacheTtlMs = () => resolveTtlMs('steamDynamic', TTL_CONFIG.steamDynamic);
+export const registryConfirmTtlMs = () => resolveTtlMs('registryConfirm', TTL_CONFIG.registryConfirm);
+export const nameNegativeCacheTtlMs = () => resolveTtlMs('negativeCache', TTL_CONFIG.negativeCache);
 
 // Steam 缓存写参数 / Steam cache write parameters
 export const STEAM_CACHE_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounced write

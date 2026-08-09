@@ -240,12 +240,13 @@
     OPTS.currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')]
       .map(cb => cb.dataset.site);
 
-    // 缓存有效期
+    // 缓存有效期（value + 单位，0 = 长期有效）
+    // Cache TTLs (value + unit; 0 = keep forever)
     OPTS.currentSettings.cacheTtls = {
-      steamDynamic: parseInt(document.getElementById('ttlSteamDynamic').value) || 24,
-      registryConfirm: parseInt(document.getElementById('ttlRegistryConfirm').value) || 30,
-      downloadUrls: parseInt(document.getElementById('ttlDownloadUrls').value) || 30,
-      negativeCache: parseInt(document.getElementById('ttlNegativeCache').value) || 2
+      steamDynamic: { value: parseInt(document.getElementById('ttlSteamDynamic').value) || 0, unit: document.getElementById('ttlSteamDynamicUnit').value },
+      registryConfirm: { value: parseInt(document.getElementById('ttlRegistryConfirm').value) || 0, unit: document.getElementById('ttlRegistryConfirmUnit').value },
+      downloadUrls: { value: parseInt(document.getElementById('ttlDownloadUrls').value) || 0, unit: document.getElementById('ttlDownloadUrlsUnit').value },
+      negativeCache: { value: parseInt(document.getElementById('ttlNegativeCache').value) || 0, unit: document.getElementById('ttlNegativeCacheUnit').value }
     };
 
     // 日志配置

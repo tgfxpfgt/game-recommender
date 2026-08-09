@@ -97,7 +97,26 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '2.0.0');
+check('manifest 版本', manifest.version, '2.1.0');
+
+// 6. 缓存 TTL 单位解析（加载真实 constants 模块）
+console.log('6. 缓存 TTL 单位解析');
+const constants = await import('file:///F:/data/browser%20extension/game-recommender/background/core/constants.js?t=' + Date.now());
+check('24 小时 → 24h', constants.resolveTtlMs('steamDynamic', { value: 24, unit: 'hours' }), 24 * 3600e3);
+check('30 天 → 30d', constants.resolveTtlMs('registryConfirm', { value: 30, unit: 'days' }), 30 * 86400e3);
+check('1 月 → 30d', constants.resolveTtlMs('steamDynamic', { value: 1, unit: 'months' }), 30 * 86400e3);
+check('1 年 → 365d', constants.resolveTtlMs('negativeCache', { value: 1, unit: 'years' }), 365 * 86400e3);
+check('0 = 长期 Infinity', constants.resolveTtlMs('steamDynamic', { value: 0, unit: 'days' }), Infinity);
+check('旧数字格式兼容（steamDynamic=小时）', constants.resolveTtlMs('steamDynamic', 24), 24 * 3600e3);
+check('旧数字格式兼容（registryConfirm=天）', constants.resolveTtlMs('registryConfirm', 30), 30 * 86400e3);
+check('缺省值', constants.resolveTtlMs('steamDynamic', null), 24 * 3600e3);
+
+// 7. 英文名异常检测（ensureValidEnglishName 的校验逻辑）
+console.log('7. 英文名异常检测');
+const validEn = (enName) => !enName || !/[A-Za-z]{2,}/.test(enName) === false;
+check('正常英文名', validEn('Worship Demon'), true);
+check('中文名异常', validEn('奉魔'), false);
+check('混合名含英文', validEn('Demeo x Dungeons'), true);
 
 console.log('\n===== 安全与存储测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

@@ -93,6 +93,8 @@
 
     if (!gameName) return;
     dbg(`Steam游戏: ${gameName} (appId=${appId})`);
+    // 工作状态浮窗：开始搜索 / Work status bar: searching
+    GR.status.showStatus('正在搜索下载站资源', null, null, `${gameName}`);
 
     const panel = document.createElement('div');
     panel.id = 'gr-download-site-panel';
@@ -119,9 +121,17 @@
         });
         if (resp && resp.sites) {
           renderDownloadSitePanel(panel, resp.sites, gameName);
+          // 工作状态浮窗：完成统计 / Completion stats
+          const found = resp.sites.filter(s => s.found).length;
+          GR.status.showStats({
+            title: '下载站资源检索完成',
+            summary: `${found}/${resp.sites.length} 个下载站找到资源`,
+            rows: resp.sites.filter(s => s.found).map(s => `${s.name}: ${s.detailUrl}`).slice(0, 3)
+          });
         } else {
           panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
           panel.appendChild(createCloseBtn(panel));
+          GR.status.showStats({ title: '下载站资源检索完成', summary: '未找到匹配资源' });
         }
       } catch (e) {
         panel.innerHTML = `<div style="padding:14px;text-align:center;color:#e74c3c;">搜索失败</div>`;
@@ -391,6 +401,7 @@
     (async () => {
       GR.debug.DEBUG.steamStatus = '查询中...';
       GR.debug.scheduleDebugUpdate();
+      GR.status.showStatus('正在查询 Steam 信息', null, null, gameName); // 工作状态浮窗
       try {
         const appId = GR.builder.extractSteamAppIdFromImages();
         let response = null;
@@ -405,6 +416,12 @@
 
         if (response && response.data) {
           renderAndShow(response.data, response.cachedAt || null, gameName);
+          // 工作状态浮窗：完成统计 / Completion stats
+          GR.status.showStats({
+            title: 'Steam 信息获取完成',
+            summary: `${response.data.ratingDesc || '暂无评价'} ${response.data.positiveRate != null ? response.data.positiveRate + '%' : ''}`,
+            rows: [`AppID ${response.data.appId} · ${response.data.name}`, response.data.chineseSupported ? '✓ 支持中文' : '✗ 暂不支持中文']
+          });
         } else {
           GR.debug.DEBUG.steamStatus = '❌ 未找到';
           dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
@@ -423,6 +440,7 @@
         dbg('Steam查询错误: ' + e.message);
         panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(e.message)}</div>`;
         showPanel();
+        GR.status.showStats({ title: 'Steam 信息查询失败', summary: e.message });
       }
       GR.debug.scheduleDebugUpdate();
     })();

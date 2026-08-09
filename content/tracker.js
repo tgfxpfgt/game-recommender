@@ -164,6 +164,11 @@
     if (message.action === 'GET_DEBUG_INFO') {
       sendResponse({ debug: debug.DEBUG });
     }
+    if (message.action === 'SHOW_LAST_STATS') {
+      // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats
+      if (GR.status) GR.status.showLastStats();
+      sendResponse({ success: true });
+    }
     return true;
   });
 })();

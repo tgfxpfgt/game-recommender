@@ -229,6 +229,8 @@
   async function requestSteamRatings(items, settings) {
     const maxItems = 60;
     const processItems = items.slice(0, maxItems);
+    // 工作状态浮窗：开始查询 / Show the in-progress status bar
+    GR.status.showStatus('正在获取 Steam 好评率', 0, processItems.length, '后台批量查询中...');
     // 去重游戏名，同时收集每个名称对应的封面 appId 与封面图 URL
     const imageAppIdEnabled = GR.builder.isImageAppIdEnabled();
     const nameToImage = {};
@@ -299,6 +301,17 @@
           error: response.error || null
         });
 
+        // 工作状态浮窗：完成统计（3 秒后自动消失）
+        // Work status bar: completion stats (auto-dismiss in 3s)
+        GR.status.showStats({
+          title: 'Steam 好评率获取完成',
+          summary: `${shown} 个好评率${filtered > 0 ? ` · ${filtered} 个已过滤` : ''}${notFoundNames.length > 0 ? ` · ${notFoundNames.length} 个未找到` : ''}`,
+          rows: [
+            `查询 ${uniqueNames.length} 个游戏 · 用时完成`,
+            notFoundNames.length > 0 ? `未找到: ${notFoundNames.slice(0, 3).join('、')}${notFoundNames.length > 3 ? '...' : ''}` : ''
+          ].filter(Boolean)
+        });
+
         // 未匹配的游戏 3 秒后重试一次（瞬时错误兜底）
         if (notFoundNames.length > 0) {
           setTimeout(async () => {
@@ -333,6 +346,7 @@
         notFound: 0,
         error: e.message
       });
+      GR.status.showStats({ title: 'Steam 好评率获取失败', summary: e.message });
     }
   }
 

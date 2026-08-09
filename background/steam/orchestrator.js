@@ -8,7 +8,8 @@
  */
 import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
-  fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ensureRegistryEntry
+  fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ensureRegistryEntry,
+  ensureValidEnglishName
 } from './api.js';
 import { isSteamCacheValid, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -42,8 +43,10 @@ export async function searchSteamGame(gameName) {
       if (isDemoCacheWithoutRating(cached.data)) {
         appId = null;
       } else {
-        // 缓存命中：幂等补写注册表，防止缓存管理页缺失条目
+        // 缓存命中：幂等补写注册表，防止缓存管理页缺失条目；
+        // 英文名异常（中文占位等）时自动按 appId 重新获取（自愈）
         await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+        await ensureValidEnglishName(cached.data.appId || appId, cached.data.englishName, cached.data.name, gameName);
         return cached.data;
       }
     } else if (await isDemoAppId(appId)) {
@@ -110,8 +113,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(cached.data)) {
-        // 缓存命中：幂等补写注册表（用缓存中的名称）
+        // 缓存命中：幂等补写注册表（用缓存中的名称）；英文名异常时自愈
         await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+        await ensureValidEnglishName(cached.data.appId || appId, cached.data.englishName, cached.data.name, gameName);
         return {
           positiveRate: cached.data.positiveRate,
           ratingDesc: cached.data.ratingDesc || null,

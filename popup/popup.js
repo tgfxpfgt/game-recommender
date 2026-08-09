@@ -141,6 +141,19 @@ document.addEventListener('DOMContentLoaded', async () => {
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 
+  // 显示最近统计（向当前标签页内容脚本请求重显浮窗）
+  // Re-show the latest stats on the active tab
+  document.getElementById('showStatsBtn').addEventListener('click', async () => {
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (tab && tab.id) {
+        await chrome.tabs.sendMessage(tab.id, { action: 'SHOW_LAST_STATS' });
+      }
+    } catch (e) {
+      // 页面未注入内容脚本时静默 / silently ignore when no content script
+    }
+  });
+
   // Open free games page / 打开限免提醒页
   document.getElementById('freeGamesBtn').addEventListener('click', () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('freegames/freegames.html') });

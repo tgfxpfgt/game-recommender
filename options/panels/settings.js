@@ -54,18 +54,30 @@
     // 下载站与追踪管理（合并展示）
     renderSiteManagement(settings);
 
-    // 缓存有效期 / Cache TTLs
+    // 缓存有效期（value + 单位，兼容旧数字格式；0 = 长期有效）
+    // Cache TTLs (value + unit; legacy numbers supported; 0 = forever)
     const ttls = settings.cacheTtls || {};
-    document.getElementById('ttlSteamDynamic').value = ttls.steamDynamic ?? 24;
-    document.getElementById('ttlRegistryConfirm').value = ttls.registryConfirm ?? 30;
-    document.getElementById('ttlDownloadUrls').value = ttls.downloadUrls ?? 30;
-    document.getElementById('ttlNegativeCache').value = ttls.negativeCache ?? 2;
+    setTtlControl('ttlSteamDynamic', ttls.steamDynamic, 'hours');
+    setTtlControl('ttlRegistryConfirm', ttls.registryConfirm, 'days');
+    setTtlControl('ttlDownloadUrls', ttls.downloadUrls, 'days');
+    setTtlControl('ttlNegativeCache', ttls.negativeCache, 'hours');
 
     // 日志配置 / Logging config
     document.getElementById('logEnabled').checked = settings.enableLog !== false;
     document.getElementById('logLevel').value = settings.logLevel || 'info';
     document.getElementById('logRetentionDays').value = settings.logRetentionDays ?? 7;
     document.getElementById('logStorage').value = settings.logStorage || 'ndjson';
+  }
+
+  // 设置单个 TTL 控件（value + 单位）/ Set a TTL control (value + unit)
+  function setTtlControl(inputId, val, defaultUnit) {
+    const v = (typeof val === 'object' && val !== null)
+      ? val
+      : { value: (val === null || val === undefined) ? 0 : val, unit: defaultUnit };
+    const input = document.getElementById(inputId);
+    const unitSel = document.getElementById(inputId + 'Unit');
+    if (input) input.value = v.value ?? 0;
+    if (unitSel) unitSel.value = v.unit || defaultUnit;
   }
 
   // ============ 下载站与追踪管理渲染 / Sites & Tracking Management ============

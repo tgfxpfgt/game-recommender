@@ -364,34 +364,66 @@
               </div>
             </div>
             <div class="section-body">
-              <p class="section-note">自定义各类缓存的有效期，到期后自动重新获取<br><em>Customize per-cache-type TTLs; expired entries are re-fetched</em></p>
+              <p class="section-note">自定义各类缓存的有效期，到期后自动重新获取；0 = 长期有效<br><em>Customize per-cache-type TTLs (0 = keep forever); expired entries are re-fetched</em></p>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">Steam 动态缓存（小时）</span>
-                  <span class="label-desc">Steam Dynamic Cache (hours)</span>
+                  <span class="label-text">Steam 动态缓存</span>
+                  <span class="label-desc">Steam Dynamic Cache</span>
                 </div>
-                <input type="number" id="ttlSteamDynamic" min="1" max="720" class="text-input ttl-input">
+                <div class="ttl-group">
+                  <input type="number" id="ttlSteamDynamic" min="0" max="10000" class="text-input ttl-input">
+                  <select id="ttlSteamDynamicUnit" class="text-input ttl-unit">
+                    <option value="hours">小时</option>
+                    <option value="days">天</option>
+                    <option value="months">月</option>
+                    <option value="years">年</option>
+                  </select>
+                </div>
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">注册表重确认（天）</span>
-                  <span class="label-desc">Registry Re-confirm (days)</span>
+                  <span class="label-text">注册表重确认</span>
+                  <span class="label-desc">Registry Re-confirm</span>
                 </div>
-                <input type="number" id="ttlRegistryConfirm" min="1" max="365" class="text-input ttl-input">
+                <div class="ttl-group">
+                  <input type="number" id="ttlRegistryConfirm" min="0" max="10000" class="text-input ttl-input">
+                  <select id="ttlRegistryConfirmUnit" class="text-input ttl-unit">
+                    <option value="hours">小时</option>
+                    <option value="days" selected>天</option>
+                    <option value="months">月</option>
+                    <option value="years">年</option>
+                  </select>
+                </div>
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">下载站网址缓存（天）</span>
-                  <span class="label-desc">Download URL Cache (days)</span>
+                  <span class="label-text">下载站网址缓存</span>
+                  <span class="label-desc">Download URL Cache</span>
                 </div>
-                <input type="number" id="ttlDownloadUrls" min="1" max="365" class="text-input ttl-input">
+                <div class="ttl-group">
+                  <input type="number" id="ttlDownloadUrls" min="0" max="10000" class="text-input ttl-input">
+                  <select id="ttlDownloadUrlsUnit" class="text-input ttl-unit">
+                    <option value="hours">小时</option>
+                    <option value="days" selected>天</option>
+                    <option value="months">月</option>
+                    <option value="years">年</option>
+                  </select>
+                </div>
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">名称负缓存（小时）</span>
-                  <span class="label-desc">Name Negative Cache (hours)</span>
+                  <span class="label-text">名称负缓存</span>
+                  <span class="label-desc">Name Negative Cache</span>
                 </div>
-                <input type="number" id="ttlNegativeCache" min="1" max="72" class="text-input ttl-input">
+                <div class="ttl-group">
+                  <input type="number" id="ttlNegativeCache" min="0" max="10000" class="text-input ttl-input">
+                  <select id="ttlNegativeCacheUnit" class="text-input ttl-unit">
+                    <option value="hours" selected>小时</option>
+                    <option value="days">天</option>
+                    <option value="months">月</option>
+                    <option value="years">年</option>
+                  </select>
+                </div>
               </div>
             </div>
           </div>
