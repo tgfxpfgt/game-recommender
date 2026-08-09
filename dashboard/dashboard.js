@@ -228,17 +228,8 @@ async function loadSteamRecommendations() {
     listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(e.message)}</span>`;
   }
 }
-
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text || '';
-  return div.innerHTML;
-}
-
-// HTML 属性值转义（用于 href/src 等属性）/ Attribute-value escape (for href/src attributes)
-function escapeAttr(text) {
-  return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-}
+// （escapeHtml/escapeAttr 由 shared/escape.js 提供全局实现）
+// (escapeHtml/escapeAttr come from shared/escape.js)
 
 // ============ 运行日志 / Runtime Logs ============
 let cachedLogs = [];

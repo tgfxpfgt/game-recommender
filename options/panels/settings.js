@@ -1,0 +1,213 @@
+/**
+ * Game Recommender - 设置面板模块 / Settings Panel
+ *
+ * 设置渲染、下载站与追踪管理、UI 切换、权重指示、LLM 测试。
+ * 共享状态与保存方法经 window.__OPTS__ 访问（普通页面脚本顺序加载）。
+ * Settings rendering, site/tracking management, UI toggles, weight indicator
+ * and LLM testing. Shared state/save go through window.__OPTS__.
+ */
+(function (global) {
+  'use strict';
+
+  const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
+
+  // ============ Render Settings / 渲染设置 ============
+  function renderSettings(settings) {
+    // 基本设置 / Basic settings
+    document.getElementById('enabled').checked = settings.enabled;
+    document.getElementById('threshold').value = settings.highlightThreshold * 100;
+    document.getElementById('thresholdVal').textContent = `${settings.highlightThreshold * 100}%`;
+    document.getElementById('maxLog').value = settings.maxBehaviorLog;
+
+    // Steam 好评率过滤 / Steam rating filter
+    document.getElementById('ratingFilterEnabled').checked = settings.enableRatingFilter || false;
+    document.getElementById('minRating').value = settings.minSteamRatingFilter || 0;
+    document.getElementById('minRatingVal').textContent = `${settings.minSteamRatingFilter || 0}%`;
+
+    // 虚拟机标题过滤 / VM title filter
+    document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
+    document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');
+
+    // 权重设置 / Algorithm weights
+    document.getElementById('weightClick').value = settings.weights.clickRate * 100;
+    document.getElementById('weightClickVal').textContent = settings.weights.clickRate.toFixed(2);
+    document.getElementById('weightDownload').value = settings.weights.downloadRate * 100;
+    document.getElementById('weightDownloadVal').textContent = settings.weights.downloadRate.toFixed(2);
+    document.getElementById('weightKeyword').value = settings.weights.keywordMatch * 100;
+    document.getElementById('weightKeywordVal').textContent = settings.weights.keywordMatch.toFixed(2);
+    document.getElementById('weightSteam').value = settings.weights.steamRating * 100;
+    document.getElementById('weightSteamVal').textContent = settings.weights.steamRating.toFixed(2);
+    updateWeightSum();
+
+    // LLM 设置 / LLM settings
+    document.getElementById('useLLM').checked = settings.useLLM;
+    document.getElementById('llmProvider').value = settings.llmConfig.provider;
+    document.getElementById('llmEndpoint').value = settings.llmConfig.endpoint;
+    document.getElementById('llmApiKey').value = settings.llmConfig.apiKey;
+    document.getElementById('llmModel').value = settings.llmConfig.model;
+    document.getElementById('llmTemp').value = settings.llmConfig.temperature * 100;
+    document.getElementById('llmTempVal').textContent = settings.llmConfig.temperature.toFixed(1);
+
+    toggleLLMSettings();
+    toggleApiKeyRow();
+
+    // 下载站与追踪管理（合并展示）
+    renderSiteManagement(settings);
+
+    // 缓存有效期 / Cache TTLs
+    const ttls = settings.cacheTtls || {};
+    document.getElementById('ttlSteamDynamic').value = ttls.steamDynamic ?? 24;
+    document.getElementById('ttlRegistryConfirm').value = ttls.registryConfirm ?? 30;
+    document.getElementById('ttlDownloadUrls').value = ttls.downloadUrls ?? 30;
+    document.getElementById('ttlNegativeCache').value = ttls.negativeCache ?? 2;
+
+    // 日志配置 / Logging config
+    document.getElementById('logEnabled').checked = settings.enableLog !== false;
+    document.getElementById('logLevel').value = settings.logLevel || 'info';
+    document.getElementById('logRetentionDays').value = settings.logRetentionDays ?? 7;
+    document.getElementById('logStorage').value = settings.logStorage || 'ndjson';
+  }
+
+  // ============ 下载站与追踪管理渲染 / Sites & Tracking Management ============
+  function renderSiteManagement(settings) {
+    const container = document.getElementById('siteManageList');
+    if (!container) return;
+    const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    const tracked = settings.trackedSites || [];
+    const steamSearch = settings.steamSiteSearch || [];
+
+    container.innerHTML = rules.map(s => {
+      const isTracked = s.domains.some(d => tracked.includes(d));
+      const canSearch = !!s.searchUrl;
+      return `
+        <div class="site-manage-row">
+          <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0])}</small></span>
+          <label class="check-item" title="追踪该站点的浏览行为">
+            <input type="checkbox" class="track-site-check" data-domain="${escapeAttr(s.domains[0])}" ${isTracked ? 'checked' : ''}>
+            <span>追踪行为</span>
+          </label>
+          ${canSearch ? `
+            <label class="check-item" title="在 Steam 详情页与缓存更新中检索该站点资源">
+              <input type="checkbox" class="steam-site-check" data-site="${escapeAttr(s.key)}" ${steamSearch.includes(s.key) ? 'checked' : ''}>
+              <span>Steam 检索</span>
+            </label>
+          ` : '<span class="no-search-hint">无站内搜索</span>'}
+        </div>
+      `;
+    }).join('');
+
+    renderCustomSiteList(tracked, rules);
+  }
+
+  // 自定义追踪站点标签（可删除）/ Custom tracked-site tags (removable)
+  function renderCustomSiteList(tracked, rules) {
+    const container = document.getElementById('siteList');
+    if (!container) return;
+    const isRuleDomain = (d) => rules.some(s => s.domains.some(x => d === x || d.includes(x)));
+    const custom = tracked.filter(d => !isRuleDomain(d));
+    container.innerHTML = custom.map(site => `
+      <div class="site-item">
+        <span>${escapeHtml(site)}</span>
+        <button class="remove-site" data-domain="${escapeAttr(site)}">✕</button>
+      </div>
+    `).join('');
+
+    container.querySelectorAll('.remove-site').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const domain = btn.dataset.domain;
+        OPTS.currentSettings.trackedSites = (OPTS.currentSettings.trackedSites || []).filter(d => d !== domain);
+        renderSiteManagement(OPTS.currentSettings);
+        OPTS.scheduleAutoSave();
+      });
+    });
+  }
+
+  // ============ UI Toggles / UI 切换 ============
+  function toggleLLMSettings() {
+    const useLLM = document.getElementById('useLLM').checked;
+    document.getElementById('llmSettings').style.display = useLLM ? 'block' : 'none';
+  }
+
+  function toggleApiKeyRow() {
+    const provider = document.getElementById('llmProvider').value;
+    document.getElementById('apiKeyRow').style.display = provider === 'local' ? 'none' : 'flex';
+  }
+
+  // ============ Weight Sum Indicator / 权重总和指示器 ============
+  function updateWeightSum() {
+    const ids = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam'];
+    const sum = ids.reduce((acc, id) => acc + (parseInt(document.getElementById(id).value, 10) || 0), 0) / 100;
+    const el = document.getElementById('weightSum');
+    if (!el) return;
+    el.textContent = sum.toFixed(2);
+    const dev = Math.abs(sum - 1);
+    el.classList.remove('warn', 'bad');
+    if (dev >= 0.15) el.classList.add('bad');
+    else if (dev >= 0.05) el.classList.add('warn');
+  }
+
+  // ============ Test LLM Connection / 测试 LLM 连接 ============
+  async function testLLMConnection() {
+    const resultEl = document.getElementById('llmTestResult');
+    resultEl.textContent = '测试中...';
+    resultEl.className = 'test-result';
+
+    const provider = document.getElementById('llmProvider').value;
+    const endpoint = document.getElementById('llmEndpoint').value;
+    const apiKey = document.getElementById('llmApiKey').value;
+    const model = document.getElementById('llmModel').value;
+
+    try {
+      let response;
+      if (provider === 'local') {
+        // Ollama - 测试模型列表
+        const testUrl = endpoint.replace('/api/generate', '/api/tags');
+        response = await fetch(testUrl, { method: 'GET' });
+        if (response.ok) {
+          const data = await response.json();
+          const models = data.models || [];
+          const hasModel = models.some(m => m.name.includes(model));
+          if (hasModel) {
+            resultEl.textContent = `✅ 连接成功，模型 ${model} 可用`;
+          } else {
+            resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map(m => m.name).join(', ')}`;
+          }
+          resultEl.className = 'test-result success';
+        } else {
+          throw new Error(`HTTP ${response.status}`);
+        }
+      } else {
+        // OpenAI 兼容接口
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: model,
+            messages: [{ role: 'user', content: 'hi' }],
+            max_tokens: 5
+          })
+        });
+        if (response.ok) {
+          resultEl.textContent = '✅ 连接成功';
+          resultEl.className = 'test-result success';
+        } else {
+          const err = await response.json().catch(() => ({}));
+          throw new Error(err.error?.message || `HTTP ${response.status}`);
+        }
+      }
+    } catch (e) {
+      resultEl.textContent = `❌ 连接失败: ${e.message}`;
+      resultEl.className = 'test-result error';
+    }
+  }
+
+  OPTS.renderSettings = renderSettings;
+  OPTS.renderSiteManagement = renderSiteManagement;
+  OPTS.toggleLLMSettings = toggleLLMSettings;
+  OPTS.toggleApiKeyRow = toggleApiKeyRow;
+  OPTS.updateWeightSum = updateWeightSum;
+  OPTS.testLLMConnection = testLLMConnection;
+})(typeof globalThis !== 'undefined' ? globalThis : this);

@@ -72,35 +72,39 @@
 ```
 game-recommender/
 ├── manifest.json              # 扩展配置文件（Manifest V3）
-├── adapters/                  # 适配规则（可分享、可移植）
-│   ├── default.js             # 基础共用规则（默认选择器/标题长度/详情页特征）
-│   ├── index.js               # 聚合入口（合并默认+站点规则，暴露平台规则）
-│   ├── platforms/             # 平台独立配置
-│   │   ├── steam.js           # Steam：搜索/详情/评测 API、缓存 TTL、SteamDB/Spy
-│   │   ├── epic.js            # Epic：限免 API
-│   │   └── gog.js             # GOG：限免 API
-│   └── sites/                 # 每个下载站一个独立配置文件（含字段说明）
-│       ├── xdgame.js
-│       ├── xianyudanji.js
-│       ├── gamer520.js
-│       ├── 3dmgame.js
-│       ├── ali213.js
-│       └── gamersky.js
+├── adapters/                  # 适配规则（default 基础 + platforms 平台 + sites 各站）
+│   ├── default.js / index.js
+│   ├── platforms/             # steam / epic / gog 平台配置
+│   └── sites/                 # 6 个下载站独立配置
+├── shared/
+│   └── escape.js              # 共享 HTML 转义工具（所有页面与内容脚本）
+├── background/                # 后台（模块化）
+│   ├── service-worker.js      # 入口（导入/监听/定时/初始化）
+│   ├── handlers.js            # 消息处理与分发映射
+│   ├── core/                  # 常量/工具/设置/规则/重置
+│   ├── storage/               # 数据模块（缓存/注册表/索引/日志/备份...）
+│   ├── steam/                 # 标题解析/API/编排器
+│   ├── recommend/engine.js    # 推荐算法
+│   ├── sites/search.js        # 下载站搜索
+│   └── freegames/manager.js   # 限免管理
+├── content/                   # 内容脚本（模块化）
+│   ├── tracker.js             # 入口（init/启动/监听）
+│   ├── core/                  # common 工具 / debug 调试
+│   ├── adapters/builder.js    # 适配器构建
+│   ├── list/list-page.js      # 列表页功能
+│   ├── detail/detail-page.js  # 详情页功能
+│   └── tracking/download-tracking.js # 下载追踪
 ├── data/
-│   └── data-store.js          # OPFS 数据存储层（分文件、ND-JSON/JSON、降级+迁移）
+│   └── data-store.js          # OPFS 数据存储层
 ├── lib/
 │   └── ndjson.js              # ND-JSON 编解码库
-├── background/
-│   └── service-worker.js      # 后台服务工作者（核心逻辑）
-├── content/
-│   └── tracker.js             # 内容脚本（页面注入与浮窗渲染）
-├── styles/
-│   └── content.css            # 内容样式
+├── tests/                     # 自动化测试套件（node tests/run-tests.js）
+├── styles/content.css
 ├── popup/                     # 工具栏弹窗
-├── options/                   # 设置页面
-├── dashboard/                 # 推荐仪表盘
-├── freegames/                 # 限免游戏页面
-└── icons/                     # 扩展图标资源
+├── options/                   # 设置页（入口 + panels/ 三面板）
+├── dashboard/                 # 数据分析
+├── freegames/                 # 限免页面
+└── icons/
 ```
 
 ## 技术架构
@@ -185,6 +189,15 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v2.0.0
+- **全局模块化重构（全局最优拆分/组合）**：
+  - content 脚本拆分：core（common 工具/debug 调试）+ adapters/builder（适配器构建）+ list（列表页）+ detail（详情页）+ tracking（下载追踪），tracker.js 仅保留入口（init/启动/监听），经 `__GR__` 命名空间共享
+  - options 页面拆分：panels/settings + panels/cache + panels/data-manage，options.js 仅保留入口（状态/事件/自动保存），经 `__OPTS__` 共享
+  - shared/escape.js：统一全局转义工具，消除 4 个页面重复实现
+- **自动化测试套件**（tests/）：标题解析（10 项，覆盖两字名/×分段/噪声/英文优先）、安全与存储（18 项：SSRF 校验/ND-JSON/TDZ 扫描/语法/manifest 引用），运行 `node tests/run-tests.js`
+- 测试驱动修复：parseGameTitle 纯噪声标题残留分隔符、空候选返回 undefined 两个真实 bug
+- 模块链验证：SW 模拟加载与 content 脚本模拟（命名空间完整性）全部通过
 
 ### v1.12.0
 - **service-worker.js 按功能拆分模块化**（约 3400 行 → 22 个模块文件）：

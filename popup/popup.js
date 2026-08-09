@@ -197,12 +197,8 @@ async function loadStats() {
 }
 
 // ============ Update LLM Status / 更新大模型状态 ============
-// HTML 转义（用于渲染用户关键词等不可信文本）/ HTML escape (for untrusted text like user keywords)
-function escapeHtml(text) {
-  const div = document.createElement('div');
-  div.textContent = text || '';
-  return div.innerHTML;
-}
+// （escapeHtml 由 shared/escape.js 提供全局实现）
+// (escapeHtml comes from shared/escape.js)
 
 function updateLLMStatus(settings) {
   const statusDiv = document.getElementById('llmStatus');

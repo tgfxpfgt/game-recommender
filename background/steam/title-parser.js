@@ -63,12 +63,20 @@ export function parseGameTitle(rawName) {
   }
 
   if (candidates.length === 0) {
-    addCandidate(name.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim());
+    // 兜底：整名清理后仍须是有效名称（纯噪声/仅残留分隔符时不生成候选）
+    // Fallback: the cleaned whole name must still be a valid title; pure-noise
+    // or separator-only leftovers produce no candidates
+    const fallback = name.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+    const strippedFallback = fallback.replace(/[\s\|\-:：、]+/g, '');
+    if (strippedFallback.length >= 2) addCandidate(fallback);
   }
 
   const junkPattern = /^(豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|build[.\s]*\d+|\d+[\d.]*|v[\d.]+)$/i;
   const filtered = candidates.filter(c => !junkPattern.test(c.trim()));
   const finalCandidates = filtered.length > 0 ? filtered : candidates;
+
+  // 无任何有效候选时返回空数组 / Return [] when no valid candidates exist
+  if (finalCandidates.length === 0) return [];
 
   const first = finalCandidates[0];
   const rest = finalCandidates.slice(1);
