@@ -12,7 +12,7 @@ import fs from 'fs';
 const src = fs.readFileSync('F:/data/browser extension/game-recommender/background/steam/title-parser.js', 'utf-8');
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖）
 const mod = await import('file:///F:/data/browser%20extension/game-recommender/background/steam/title-parser.js?t=' + Date.now());
-const { parseGameTitle, cleanGameName, pickRegistryEnName } = mod;
+const { parseGameTitle, cleanGameName, pickRegistryEnName, generateSearchVariants, extractNoiseCandidates } = mod;
 
 let pass = 0, fail = 0;
 function check(name, actual, expected) {
@@ -48,6 +48,22 @@ console.log('7. 抢先试玩噪声（v3.1.1 修复场景：gamer520 119668 幻�
 const huanshi = parseGameTitle('幻世录 重制版 抢先试玩|Build.24428366-诸界残歌-苍炎史诗|解压即撸');
 check('首候选为纯净游戏名', huanshi[0], '幻世录');
 check('候选不含抢先试玩', huanshi.some(t => t.includes('抢先') || t.includes('试玩')), false);
+
+console.log('8. 扩展搜索变体 generateSearchVariants（v3.1.2）');
+const variants = generateSearchVariants('幻世录 重制版 抢先试玩');
+check('变体经清洗去重后收敛为主名', JSON.stringify(variants), JSON.stringify(['幻世录']));
+check('静态噪声不进入变体', variants.includes('幻世录 抢先试玩'), false);
+const variants2 = generateSearchVariants('幻世录 重制版 抢先试玩', ['抢先试玩']);
+check('动态噪声词清洗不产生额外变体', JSON.stringify(variants2), JSON.stringify(['幻世录']));
+check('变体总数限 8', generateSearchVariants('甲 乙 丙 丁 戊 己 庚 辛 壬 癸 子 丑 寅 卯 辰 巳').length <= 8, true);
+check('单段不生成变体', generateSearchVariants('奉魔').length, 0);
+
+console.log('9. 候选噪声词提取 extractNoiseCandidates（v3.1.2）');
+check('成功词后剩余词提取', extractNoiseCandidates('幻世录 重制版 内测', '幻世录'), ['内测']);
+check('静态噪声词被排除（重制版/抢先试玩）', extractNoiseCandidates('幻世录 重制版 抢先试玩', '幻世录'), []);
+check('成功词为整段时无候选', extractNoiseCandidates('幻世录', '幻世录'), []);
+check('无子串关系时无候选', extractNoiseCandidates('地城英雄', '战痕之印'), []);
+check('段内非相邻词不提取', extractNoiseCandidates('地城英雄×龙与地下城 战痕之印', '地城英雄'), []);
 
 console.log('\n===== 标题解析测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

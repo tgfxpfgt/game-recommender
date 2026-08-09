@@ -11,6 +11,7 @@ import { resetSteamCache } from '../storage/steam-cache.js';
 import { resetRegistry } from '../storage/registry.js';
 import { resetNameIndex } from '../storage/name-index.js';
 import { resetLogBuffer } from '../storage/logger.js';
+import { resetLearnedNoise } from '../storage/learned-noise.js';
 
 // 重置所有内存缓存 / Reset all in-memory caches
 export function resetInMemoryCaches() {
@@ -20,4 +21,5 @@ export function resetInMemoryCaches() {
   resetSteamCache();
   resetLogBuffer();
   resetRulesCache();
+  resetLearnedNoise();
 }

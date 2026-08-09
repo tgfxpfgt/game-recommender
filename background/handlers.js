@@ -168,7 +168,7 @@ async function handleSearchSteamCandidates(message) {
   const seen = new Set();
   for (const term of searchTerms.slice(0, 3)) {
     try {
-      const result = await searchSteamAppId([term]);
+      const result = await searchSteamAppId([term], term);
       if (result) {
         const item = { appId: result.appId, name: result.name };
         if (!seen.has(item.appId)) {

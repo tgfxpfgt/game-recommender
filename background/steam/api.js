@@ -11,7 +11,8 @@
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
 import { getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
-import { parseGameTitle } from './title-parser.js';
+import { parseGameTitle, generateSearchVariants, extractNoiseCandidates } from './title-parser.js';
+import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
@@ -81,10 +82,13 @@ async function searchSteamAppIdOnce(searchTerms) {
   return null;
 }
 
-// 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）
-// Parallel CN/EN searches; EN names feed the registry; one whole-pass retry on
-// network flakiness (but not on a genuine "not found" result)
-export async function searchSteamAppId(searchTerms) {
+// 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）。
+// 静态候选全部失败时自动进入"扩展组合搜索"（删词变体 + 动态噪声词清洗），
+// 成功后把跳过的词作为候选噪声词自动学习（自适应检索，v3.1.2）。
+// Parallel CN/EN searches; one whole-pass retry on network flakiness. When all
+// static candidates fail, an extended combination search (word-drop variants +
+// learned-noise cleaning) runs automatically; skipped words are then learned.
+export async function searchSteamAppId(searchTerms, rawName) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await searchSteamAppIdOnce(searchTerms);
@@ -92,7 +96,40 @@ export async function searchSteamAppId(searchTerms) {
       break; // 网络正常但未找到：不重试
     } catch (e) { /* 网络失败：重试一次 */ }
   }
+
+  // 扩展组合搜索：删词变体 + 已生效的动态噪声词清洗
+  // Extended search: word-drop variants + active learned-noise cleaning
+  if (rawName) {
+    const activeNoise = await getActiveNoiseWords();
+    const variants = generateSearchVariants(rawName, activeNoise);
+    for (const variant of variants) {
+      const result = await searchSteamAppIdLight(variant);
+      if (result) {
+        // 成功 → 自动学习被跳过的词（计数确认后才生效，防误学副标题）
+        const noiseWords = extractNoiseCandidates(rawName, variant);
+        if (noiseWords.length > 0) {
+          await recordNoiseCandidates(noiseWords);
+          Logger.info('Steam', `扩展搜索命中: "${rawName}" → "${variant}" (appId ${result.appId})，候选噪声词: ${noiseWords.join('、')}`);
+        }
+        return result;
+      }
+    }
+  }
   return null;
+}
+
+// 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索）
+// Lightweight single CN search (for extended combinations: cheap, no retries)
+async function searchSteamAppIdLight(term) {
+  try {
+    const data = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
+    const items = (data && data.items) || [];
+    if (items.length === 0) return null;
+    const picked = pickSearchItem(items);
+    return { appId: picked.id, name: picked.name, englishName: picked.name };
+  } catch (e) {
+    return null;
+  }
 }
 
 // --- 应用详情 ---

@@ -60,7 +60,7 @@ export async function searchSteamGame(gameName) {
   try {
     // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取详情）
     if (!appId) {
-      const searchResult = await searchSteamAppId(parseGameTitle(gameName));
+      const searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName);
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
         await recordNameIndex(gameName, null);
@@ -172,7 +172,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let foundName = gameName;
     let searchResult = null;
     if (!foundAppId) {
-      searchResult = await searchSteamAppId(parseGameTitle(gameName));
+      searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName);
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
         Logger.warn('Steam', `列表页搜索未找到: ${gameName}`);
@@ -209,7 +209,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       const nameCheck = validateSteamNames(officialCn, officialEn);
       if (!nameCheck.valid || DEMO_NAME_PATTERN.test(officialCn + ' ' + officialEn)) {
         Logger.warn('Steam', `0评测匹配无效(${nameCheck.issues.join('/')}): ${foundAppId} ${officialCn}，重搜`);
-        const reSearch = await searchSteamAppId(parseGameTitle(gameName));
+        const reSearch = await searchSteamAppId(parseGameTitle(gameName), gameName);
         if (reSearch) {
           foundAppId = reSearch.appId;
           foundName = reSearch.name;

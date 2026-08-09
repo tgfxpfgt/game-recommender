@@ -23,7 +23,8 @@ export const DB_KEYS = {
   GAME_REGISTRY: 'gameRegistry', // appId → {cnName, enName, names[], firstSeen, lastConfirmed} 永久，30天重确认
   NAME_INDEX: 'nameIndex',       // name_lower → {appId, lastSearched} 名称反查 appId 的索引
   DOWNLOAD_URLS: 'downloadUrls', // 下载站网址缓存（按站点分桶 v2）
-  ADAPTER_RULES: 'adapterRules'  // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
+  ADAPTER_RULES: 'adapterRules',  // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
+  LEARNED_NOISE: 'learnedNoise'   // 动态学习的标题噪声词（自适应检索，v3.1.2）
 };
 
 // 默认设置 / Default settings
@@ -158,7 +159,8 @@ export const DATA_MODULES = [
   { key: 'freeGames',       name: '限免游戏',      desc: 'Free Games',      storageKey: 'freeGames' },
   { key: 'runtimeLog',      name: '运行日志',      desc: 'Runtime Logs',    storageKey: 'runtimeLog' },
   { key: 'downloadHistory', name: '下载历史',      desc: 'Download History', storageKey: 'downloadHistory' },
-  { key: 'adapterRules',    name: '适配规则',      desc: 'Adapter Rules',   storageKey: 'adapterRules' }
+  { key: 'adapterRules',    name: '适配规则',      desc: 'Adapter Rules',   storageKey: 'adapterRules' },
+  { key: 'learnedNoise',    name: '标题噪声词',    desc: 'Learned Noise',   storageKey: 'learnedNoise' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version
