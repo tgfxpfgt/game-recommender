@@ -173,11 +173,12 @@ const STEAM_CACHE_VERSION = 5;
 const STEAM_CACHE_TTL = 24 * 3600 * 1000; // 24小时
 
 // 名称负缓存有效期：搜索失败后 N 小时内不重复搜索（防 Steam API 限流）。
-// 保持较短（6 小时），避免某名称临时失败（如新游戏刚上架）后长时间无法重试。
+// 保持较短（2 小时）：列表页高频场景下，临时失败的游戏很快可以重试，
+// 避免"曾失败一次就整天不显示"的体验问题。
 // Negative-cache TTL: a failed search is not retried within this window
-// (API rate-limit protection). Kept short (6h) so temporary failures
-// (e.g. brand-new games) don't block retries for a whole day.
-const NAME_NEGATIVE_CACHE_TTL = 6 * 3600 * 1000; // 6小时
+// (API rate-limit protection). Kept short (2h) so temporarily failed games on
+// list pages can retry soon, avoiding "failed once → hidden all day".
+const NAME_NEGATIVE_CACHE_TTL = 2 * 3600 * 1000; // 2小时
 
 // 游戏注册表重确认周期：30 天。基础信息（中英文名）永久保留，
 // 但超过 30 天会重新从 Steam 获取确认，确保名称未变更。
@@ -989,9 +990,13 @@ async function searchSteamAppId(searchTerms) {
     // missing-EN-name issue on the lightweight list-page path).
     let cnData = null;
     let enData = null;
-    try {
-      cnData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
-    } catch (e) { /* 中文搜索失败不阻断流程 */ }
+    // 网络抖动时重试一次（首次失败再试，避免瞬时错误造成负缓存）
+    // Retry once on network flakiness (avoids negative-cache from transient errors)
+    for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
+      try {
+        cnData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
+      } catch (e) { /* 中文搜索失败不阻断流程 */ }
+    }
     try {
       enData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`)).json();
     } catch (e) { /* 英文搜索失败回退中文名 */ }
@@ -1333,6 +1338,26 @@ async function isDemoAppId(appId) {
   return /demo|试玩|trial/i.test(text);
 }
 
+// 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名。
+// 防止"缓存存在但注册表缺失"（如旧版本写入的缓存、注册表被清空等）导致
+// 游戏缓存管理页找不到已缓存的条目。
+// Idempotent registry fill: when serving from cache, make sure the registry
+// holds this appId's CN/EN names, so the cache-management page never misses an
+// entry that is already cached (e.g. caches written by older versions, or a
+// cleared registry).
+async function ensureRegistryEntry(appId, cnName, enName, gameName) {
+  if (!appId) return;
+  const existing = await getGameRegistryEntry(appId);
+  // 已存在且至少有一个名称 → 跳过；完全缺失时补写（不覆盖已有名称变体）
+  // Skip when an entry with at least one name exists; fill only when missing
+  if (existing && (existing.cnName || existing.enName)) return;
+  await recordGameInRegistry(appId, {
+    cnName: cnName || '',
+    enName: enName || cnName || '',
+    gameName: gameName || ''
+  });
+}
+
 // 选择注册表英文名：优先取下载站标题中嵌入的英文名（与站点标题一致，
 // 如"铁巢重炮|Iron Nest Heavy Turret Simulator"），
 // 回退到 Steam 官方英文名（可能为全大写形式）。
@@ -1364,6 +1389,9 @@ async function searchSteamGame(gameName) {
       if (isDemoCacheWithoutRating(cached.data)) {
         appId = null;
       } else {
+        // 缓存命中：幂等补写注册表，防止缓存管理页缺失条目
+        // Cache hit: idempotently fill the registry so the cache page never misses entries
+        await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         return cached.data;
       }
     } else if (await isDemoAppId(appId)) {
@@ -1433,6 +1461,9 @@ async function getSteamPositiveRate(gameName) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       // Self-heal: Demo cache entry without rating → treat as invalid, re-search full version
       if (!isDemoCacheWithoutRating(cached.data)) {
+        // 缓存命中：幂等补写注册表（用缓存中的名称）
+        // Cache hit: idempotently fill the registry from the cached names
+        await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
         return {
           positiveRate: cached.data.positiveRate,
           ratingDesc: cached.data.ratingDesc || null,
@@ -1522,7 +1553,7 @@ async function getSteamPositiveRate(gameName) {
     //    Merge into Steam dynamic cache (appId-keyed, preserve any existing full data).
     //    In the self-heal case (usableAppId null) the old Demo entry is not kept.
     const existing = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || {}).data || {} : {};
-    const mergedData = { ...existing, appId: foundAppId, name: foundName, positiveRate, ratingDesc };
+    const mergedData = { ...existing, appId: foundAppId, name: foundName, englishName: officialEn, positiveRate, ratingDesc };
     await setSteamCacheEntry(foundAppId, mergedData);
 
     // 7. 同步更新游戏注册表和名称索引：cnName/enName 以 Steam 官方名为准，
@@ -2545,12 +2576,14 @@ async function handleGetSteamRatings(message) {
       }
     }));
     batchResults.forEach(([name, r]) => { ratings[name] = r; });
+    // 每批完成后立即落盘：列表页批量查询耗时长，若 Service Worker 在中途被
+    // 终止（MV3 超时/休眠），已完成批次的数据也不丢失。
+    // Flush after every batch: list-page batch queries take a while; if the SW
+    // is terminated mid-way (MV3 timeout/dormancy), finished batches persist.
+    await flushSteamCache();
+    await flushNameIndex();
+    await flushRegistry();
   }
-  // 批量查询结束，强制写入缓存以防 SW 休眠导致数据丢失
-  // Force flush after batch queries to persist before SW may go dormant
-  await flushSteamCache();
-  await flushNameIndex();
-  await flushRegistry();
   return { ratings };
 }
 
