@@ -20,11 +20,30 @@ export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|soundtrack|\bost\b|
 // Demo/试玩版（单独用于 isDemo 标识）/ Demo/trial edition (for the isDemo badge)
 export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 
-// 在搜索结果中挑选目标游戏：优先非 Demo 且非附属内容的游戏本体
-// Pick the base game from search results (skip Demos and add-ons)
-export function pickSearchItem(items) {
-  const good = items.find(i => !ADDON_NAME_PATTERN.test(i.name || ''));
-  return good || items[0];
+// 名称相关性校验（v3.2.2）：防止下载站噪声词/删词变体匹配到无关游戏或续作。
+// 规范化后要求"结果名包含搜索词"；若原始标题中搜索词之后紧跟数字（如
+// "PC Building Simulator 2" 删词后变体缺失"2"），结果名必须也含数字——
+// 精确匹配时同样生效（变体词恰为前作名时拒绝）。
+// Name-relevance check: the result must contain the search term (normalized);
+// when the raw title has a digit right after the term, the result must too
+// (blocks sequel/1st-gen mismatches such as "PC Building Simulator 2" → gen 1,
+// including when the variant term equals the predecessor's exact name).
+export function nameMatchesSearch(resultName, term, rawName) {
+  const norm = s => String(s || '').toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）×•·]/g, '');
+  const rn = norm(resultName);
+  const tn = norm(term);
+  if (!rn || !tn || rn.length < 2 || tn.length < 2) return false;
+
+  // 续作防护：原始标题中该词后紧跟数字，而结果名无数字 → 视为不相关
+  const rawNorm = norm(rawName);
+  const idx = rawNorm.indexOf(tn);
+  if (idx >= 0) {
+    const next = rawNorm[idx + tn.length];
+    if (next && /\d/.test(next) && !/\d/.test(rn)) return false;
+  }
+
+  if (rn === tn) return true;
+  return rn.includes(tn);
 }
 
 // 名称校验：中文名含中文、英文名含英文、不命中附属内容关键词
@@ -50,8 +69,10 @@ export function coverImageFor(appId, fallback) {
 // --- 搜索 ---
 
 // 单次搜索实现（网络全挂时抛错供外层重试；无结果返回 null 表示"确实未找到"）
-// One search pass (throws on total network failure for outer retry; null = not found)
-async function searchSteamAppIdOnce(searchTerms) {
+// 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
+// One search pass (throws on total network failure for outer retry; null = not
+// found). Results must pass the name-relevance check.
+async function searchSteamAppIdOnce(searchTerms, rawName) {
   for (const term of searchTerms) {
     let cnData = null;
     let enData = null;
@@ -69,13 +90,15 @@ async function searchSteamAppIdOnce(searchTerms) {
 
     const cnItems = (cnData && cnData.items) || [];
     if (cnItems.length > 0) {
-      const picked = pickSearchItem(cnItems);
+      // 名称相关性校验：优先非 Demo/附属且与搜索词相关的项；无相关项则尝试下一词
+      const related = cnItems.find(i => !ADDON_NAME_PATTERN.test(i.name || '') && nameMatchesSearch(i.name, term, rawName));
+      if (!related) continue;
       const enItems = (enData && enData.items) || [];
-      const pickedEn = enItems.find(i => i.id === picked.id) || enItems[0];
+      const pickedEn = enItems.find(i => i.id === related.id) || enItems[0] || null;
       return {
-        appId: picked.id,
-        name: picked.name,
-        englishName: pickedEn ? pickedEn.name : picked.name
+        appId: related.id,
+        name: related.name,
+        englishName: pickedEn ? pickedEn.name : related.name
       };
     }
   }
@@ -91,7 +114,7 @@ async function searchSteamAppIdOnce(searchTerms) {
 export async function searchSteamAppId(searchTerms, rawName) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await searchSteamAppIdOnce(searchTerms);
+      const result = await searchSteamAppIdOnce(searchTerms, rawName);
       if (result) return result;
       break; // 网络正常但未找到：不重试
     } catch (e) { /* 网络失败：重试一次 */ }
@@ -103,7 +126,7 @@ export async function searchSteamAppId(searchTerms, rawName) {
     const activeNoise = await getActiveNoiseWords();
     const variants = generateSearchVariants(rawName, activeNoise);
     for (const variant of variants) {
-      const result = await searchSteamAppIdLight(variant);
+      const result = await searchSteamAppIdLight(variant, rawName);
       if (result) {
         // 成功 → 自动学习被跳过的词（计数确认后才生效，防误学副标题）
         const noiseWords = extractNoiseCandidates(rawName, variant);
@@ -118,15 +141,17 @@ export async function searchSteamAppId(searchTerms, rawName) {
   return null;
 }
 
-// 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索）
-// Lightweight single CN search (for extended combinations: cheap, no retries)
-async function searchSteamAppIdLight(term) {
+// 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
+// Lightweight single CN search (cheap; results pass the name-relevance check)
+async function searchSteamAppIdLight(term, rawName) {
   try {
     const data = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
     const items = (data && data.items) || [];
     if (items.length === 0) return null;
-    const picked = pickSearchItem(items);
-    return { appId: picked.id, name: picked.name, englishName: picked.name };
+    // 名称相关性校验：变体词较短，要求结果包含变体词且与原始标题相关
+    const related = items.find(i => !ADDON_NAME_PATTERN.test(i.name || '') && nameMatchesSearch(i.name, term, rawName));
+    if (!related) return null;
+    return { appId: related.id, name: related.name, englishName: related.name };
   } catch (e) {
     return null;
   }

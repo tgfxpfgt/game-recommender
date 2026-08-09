@@ -214,6 +214,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.2.2
+- **修复 gamer520 43259（装机模拟器2）列表页与详情页均检索错误**：
+  - 实测确认：PC Building Simulator 2 为 Epic 独占，**Steam 不存在该游戏**（storesearch 全词无匹配）——正确行为应为"未找到"
+  - 检索错误的根因是**误匹配**：标题分段产生垃圾候选"全季票"命中《真・三国无双８ 全季票版》、详情页扩展变体"PC Building"命中 1 代《PC Building Simulator》——噪声词表补充"全季票/季票"消除垃圾候选
+  - 新增**搜索结果名称相关性校验**（`nameMatchesSearch`）：结果名必须包含搜索词（规范化），且原始标题中搜索词后紧跟数字时结果名必须含数字（防续作/前作误匹配，如 "PC Building Simulator 2" → 1 代；精确匹配同样生效）；静态候选与扩展变体两条路径均接入——无法可靠匹配时返回 null 显示"未找到"，不再给出错误游戏
+- 测试：规则与清理新增名称校验用例（7 项）；全套 **117 项**通过
+
 ### v3.2.1
 - **修复 gamer520 列表页 114933（哥特王朝 重制版 / Gothic 1 Remake）检索不到 Steam**（详情页正常）：
   - 根因一：gamer520 列表封面为 lazyload——`src` 是占位 gif、真实图在 `data-src`，而封面 appId 直取优先读 `src` 导致失效（该游戏官方无中文名"哥特王朝"，标题中文搜索必然失败，只能靠封面 appId 直取）——`extractSteamImageInfo` 改为优先读取 `data-src`/`data-lazy-src` 再回退 `src`

@@ -27,6 +27,18 @@ check('按 appId 构造 CDN header 图', apiMod.coverImageFor('111', null), 'htt
 check('非 http 封面回退构造', apiMod.coverImageFor('111', 'data:image/png;base64,xx'), 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg');
 check('无 appId 返回空', apiMod.coverImageFor('', ''), '');
 
+// ============ 0.5 名称相关性校验（v3.2.2）/ nameMatchesSearch ============
+console.log('0.5 名称相关性校验 nameMatchesSearch');
+const nm = apiMod.nameMatchesSearch;
+check('正常中文匹配', nm('幻世录 重制版', '幻世录', '幻世录 重制版 抢先试玩'), true);
+check('正常英文精确', nm('Kungfu Card', 'Kungfu Card', 'Kungfu Card'), true);
+check('结果不含搜索词拒绝（装机模拟器2→1代）', nm('装机模拟器 (PC Building Simulator)', '装机模拟器2', '装机模拟器2'), false);
+check('无关游戏拒绝（装机模拟器2→三国无双）', nm('真・三国无双８ 全季票版', '装机模拟器2', '装机模拟器2'), false);
+check('续作防误匹配（删词变体精确等于前作名）', nm('PC Building Simulator', 'PC Building Simulator', '装机模拟器2 PC Building Simulator 2'), false);
+check('完整名精确匹配含数字', nm('装机模拟器2', '装机模拟器2', '装机模拟器2'), true);
+check('结果含搜索词且无数字差异', nm('装机模拟器 (PC Building Simulator)', '装机模拟器', '装机模拟器'), true);
+check('空输入', nm('', 'x', 'x'), false);
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {
