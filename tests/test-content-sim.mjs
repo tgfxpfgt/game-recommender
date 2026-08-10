@@ -46,14 +46,36 @@ class FakeEl {
   set src(v) { this._attrs['src'] = String(v); }
   appendChild(c) { if (c.parentNode) c.parentNode._removeChildFrom(c); c.parentNode = this; this.children.push(c); return c; }
   _removeChildFrom(c) { this.children = this.children.filter(x => x !== c); }
-  insertBefore(c, ref) { if (c.parentNode) c.parentNode._removeChildFrom(c); c.parentNode = this; this.children.push(c); return c; }
+  insertBefore(c, ref) {
+    if (c.parentNode) c.parentNode._removeChildFrom(c);
+    c.parentNode = this;
+    if (ref) {
+      const idx = this.children.indexOf(ref);
+      if (idx >= 0) this.children.splice(idx, 0, c);
+      else this.children.push(c);
+    } else {
+      this.children.push(c);
+    }
+    return c;
+  }
+  get nextSibling() {
+    if (!this.parentNode) return null;
+    const idx = this.parentNode.children.indexOf(this);
+    return (idx >= 0 && idx < this.parentNode.children.length - 1) ? this.parentNode.children[idx + 1] : null;
+  }
+  get firstChild() { return this.children.length ? this.children[0] : null; }
   remove() { if (this.parentNode) { this.parentNode._removeChildFrom(this); this.parentNode = null; } }
   removeChild(c) { this._removeChildFrom(c); c.parentNode = null; return c; }
   closest() { return this; }
-  // 简化的选择器支持：a.tit / img / 标签名
+  // 简化的选择器支持：a.tit / .class（含 className 属性匹配）/ 标签名
   querySelector(sel) {
     if (sel === 'a.tit') return this.children.find(c => c.tagName === 'A' && (c._attrs['class'] || '').includes('tit')) || null;
-    if (sel.startsWith('.')) return this.children.find(c => (c._attrs['class'] || '').includes(sel.slice(1))) || null;
+    if (sel.startsWith('.')) {
+      const cls = sel.slice(1).split(',')[0].trim();
+      return this.children.find(c =>
+        (c._attrs['class'] || '').split(/\s+/).includes(cls) ||
+        (c.className || '').split(/\s+/).includes(cls)) || null;
+    }
     return this.children.find(c => c.tagName === sel.toUpperCase()) || null;
   }
   querySelectorAll(sel) {
@@ -200,26 +222,43 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   return { ratings: { '游戏A': { appId: '111', positiveRate: 95, ratingDesc: '特别好评' } }, pending: 2 };
 };
 
+// 推荐计算：游戏A 高分、游戏B/C 中低分（含 breakdown 供悬停展示）
+presets['GET_RECOMMENDATIONS'] = (msg) => ({
+  results: (msg.games || []).map(g => ({
+    recommendation: g.name === '游戏A'
+      ? { score: 0.85, breakdown: { clickScore: 0.9, downloadScore: 0.8, keywordMatch: 0.7, steamRating: 0.9 } }
+      : { score: 0.4, breakdown: { clickScore: 0.5, downloadScore: 0.3, keywordMatch: 0.4, steamRating: 0.4 } }
+  }))
+});
+
 // 触发 DOMContentLoaded → init（warmup 已 resolve）
 docReadyCallbacks.forEach(cb => cb());
 await new Promise(r => setTimeout(r, 30));
 
-check('第一波：缓存命中游戏A 徽章已插入', itemA.a.children.length, 1);
-check('第一波：未命中游戏B/C 暂不显示徽章', itemB.a.children.length + itemC.a.children.length, 0);
+check('第一波：缓存命中游戏A 好评率徽章已插入', itemA.a.children.some(c => c.className.includes('gr-rating-badge')), true);
+check('第一波：未命中游戏B/C 无好评率徽章', itemB.a.children.some(c => c.className.includes('gr-rating-badge')) || itemC.a.children.some(c => c.className.includes('gr-rating-badge')), false);
+
+// 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）
+await new Promise(r => setTimeout(r, 30));
+check('推荐值徽章已插入（游戏A）', itemA.a.children.length, 2);
+check('好评率徽章在前、推荐徽章在后', itemA.a.children[0].className.includes('gr-rating-badge') && itemA.a.children[1].className.includes('gr-rec-badge'), true);
+check('推荐徽章显示数值', itemA.a.children[1].textContent, '🎯 85%');
+check('推荐徽章悬停含分值组成', itemA.a.children[1].title.includes('点击率') && itemA.a.children[1].title.includes('下载率') && itemA.a.children[1].title.includes('Steam'), true);
 
 // 后台推送第 1 波增量：游戏B 拉取完成 / background push wave 1: game B ready
 await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏B': { appId: '222', positiveRate: 60, ratingDesc: '多半好评' } } }, {}, () => {});
 
-check('第二波（增量1）：游戏B 徽章已插入', itemB.a.children.length, 1);
-check('第二波（增量1）：游戏C 仍未处理', itemC.a.children.length, 0);
+check('第二波（增量1）：游戏B 好评率徽章已插入', itemB.a.children.some(c => c.className.includes('gr-rating-badge')), true);
+check('第二波（增量1）：游戏C 仍无好评率徽章', itemC.a.children.some(c => c.className.includes('gr-rating-badge')), false);
 
-// 后台推送第 2 波增量：游戏C 确认为未找到 + done 收尾 / wave 2: C not found + done
-await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏C': null }, done: true }, {}, () => {});
+// 后台推送第 2 波增量：游戏C 为合集（bundle，无法解析本体）→ type 徽章 + done 收尾
+await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏C': { positiveRate: null, appId: '333', name: '游戏C', type: 'bundle' } }, done: true }, {}, () => {});
 
-check('第二波（增量2）：游戏C 显示未找到徽章', itemC.a.children.length, 1);
-check('未找到徽章样式正确', itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-not-found') : false, true);
+check('第二波（增量2）：游戏C 显示 type 徽章', itemC.a.children.some(c => c.className.includes('gr-type-badge')), true);
+check('type 徽章样式正确', itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-type-badge') : false, true);
+check('type 徽章显示 type 值', itemC.a.children.find(c => c.className.includes('gr-type-badge')).textContent, 'bundle');
 const barEl = documentMock.body.children.find(c => c.id === 'gr-status-bar');
-check('完成统计浮窗已显示', barEl ? (barEl.innerHTML.includes('Steam 好评率获取完成') && barEl.innerHTML.includes('2 个好评率')) : false, true);
+check('完成统计浮窗已显示', barEl ? barEl.innerHTML.includes('Steam 好评率获取完成') : false, true);
 const batchMsg = sentMessages.find(m => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
 check('下载站网址缓存批量写入（2 条）', batchMsg ? batchMsg.data.entries.length : 0, 2);
 

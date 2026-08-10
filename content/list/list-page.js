@@ -293,7 +293,9 @@
       if (rating && rating.appId) {
         job.processed.add(item.name);
         changed = true;
-        if (item.url) job.urlEntries.push({ appId: rating.appId, url: item.url });
+        // 合集等 type 徽章：appId 非本体，不写入下载站网址缓存
+        const isTypeBadge = rating.type && rating.type !== 'game' && rating.type !== 'demo';
+        if (item.url && !isTypeBadge) job.urlEntries.push({ appId: rating.appId, url: item.url });
         // 好评率过滤：低于阈值的从 DOM 移除（剩余元素自动重排）
         if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
           if (minRating > 0 && rating.positiveRate < minRating) {
@@ -419,21 +421,29 @@
     }
   }
 
-  // 在游戏标题前插入徽章（好评率/AppID/未找到 统一实现，rating 为空时显示"未找到"）
-  // Insert a badge before the game title (rating / AppID / not-found, unified)
+  // 在游戏标题前插入徽章（好评率/AppID/未找到/合集type 统一实现，rating 为空时显示"未找到"）
+  // Insert a badge before the game title (rating / AppID / not-found / bundle-type,
+  // unified). When rating.type marks a non-base app (e.g. bundle), show the type.
   function prependBadge(item, rating) {
     const link = item.link;
     if (!link) return;
 
     const isNotFound = !rating || !rating.appId;
+    const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
     const rate = rating ? rating.positiveRate : null;
-    // 颜色分级：>=80 蓝色，>=60 黄绿，<60 橙色；无评测（0条/Demo）灰色 AppID；未找到灰色虚线
+    // 颜色分级：>=80 蓝色，>=60 黄绿，<60 橙色；无评测（0条/Demo）灰色 AppID；
+    // 未找到灰色虚线；合集等 type 徽章紫色
     let color, bg, text, cls;
     if (isNotFound) {
       color = '#666';
       bg = 'rgba(102,102,102,0.08)';
       text = '未找到';
       cls = 'gr-rating-badge gr-not-found';
+    } else if (isTypeBadge) {
+      color = '#b48ce0';
+      bg = 'rgba(180,140,224,0.12)';
+      text = rating.type;
+      cls = 'gr-rating-badge gr-type-badge';
     } else if (rate === null || rate === undefined) {
       color = '#8f98a0';
       bg = 'rgba(143,152,160,0.15)';
@@ -449,14 +459,16 @@
     const badge = document.createElement('span');
     badge.className = cls;
     badge.textContent = text;
-    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px ${isNotFound ? 'dashed' : 'solid'} ${color};border-radius:3px;vertical-align:middle;${isNotFound ? '' : 'cursor:pointer;text-decoration:none;'}`;
+    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px ${isNotFound ? 'dashed' : 'solid'} ${color};border-radius:3px;vertical-align:middle;${isNotFound || isTypeBadge ? '' : 'cursor:pointer;text-decoration:none;'}`;
     badge.title = isNotFound
       ? '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）'
-      : (rate === null || rate === undefined)
-        ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
-        : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
+      : isTypeBadge
+        ? `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
+        : (rate === null || rate === undefined)
+          ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
+          : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
     // 点击徽章跳转 Steam 详情页（span+click 避免嵌套链接）
-    if (!isNotFound && rating.appId) {
+    if (!isNotFound && !isTypeBadge && rating.appId) {
       badge.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -483,6 +495,47 @@
     }
   }
 
+  // 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；
+  // 按推荐值分级着色（≥80% 红 / ≥60% 橙 / ≥40% 黄绿 / 其余灰）。
+  // Recommendation badge (after the rating badge): shows the score, tooltip with
+  // the breakdown, and a score-graded color.
+  function prependRecBadge(item, recommendation) {
+    const link = item.link;
+    if (!link || !recommendation) return;
+    const score = recommendation.score;
+    if (score === null || score === undefined || isNaN(score)) return;
+
+    const pct = Math.round(score * 100);
+    const color = pct >= 80 ? '#e74c3c' : pct >= 60 ? '#ff7b00' : pct >= 40 ? '#a3cf06' : '#8f98a0';
+    const bg = pct >= 80 ? 'rgba(231,76,60,0.12)' : pct >= 60 ? 'rgba(255,123,0,0.12)' : pct >= 40 ? 'rgba(163,207,6,0.12)' : 'rgba(143,152,160,0.1)';
+
+    const b = recommendation.breakdown || {};
+    const fmt = v => Math.round((v || 0) * 100) + '%';
+    const badge = document.createElement('span');
+    badge.className = 'gr-rec-badge';
+    badge.textContent = `🎯 ${pct}%`;
+    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:default;`;
+    badge.title = `推荐度: ${pct}%\n点击率: ${fmt(b.clickScore)} · 下载率: ${fmt(b.downloadScore)}\n关键词: ${fmt(b.keywordMatch)} · Steam: ${fmt(b.steamRating)}`;
+
+    // 插入到好评率徽章之后（若尚未插入好评率则插最前，好评率后插会自动排到其前）
+    let targetEl = item.titleEl || null;
+    if (!targetEl && item.element) {
+      targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
+    }
+    if (targetEl) {
+      const ratingBadge = targetEl.querySelector('.gr-rating-badge');
+      if (ratingBadge && ratingBadge.nextSibling) {
+        targetEl.insertBefore(badge, ratingBadge.nextSibling);
+      } else if (ratingBadge) {
+        targetEl.appendChild(badge);
+      } else {
+        targetEl.insertBefore(badge, targetEl.firstChild);
+      }
+    } else if (!link.querySelector('.gr-rec-badge')) {
+      link.insertBefore(badge, link.firstChild);
+    }
+  }
+
   // 列表页：计算并高亮推荐游戏
   async function requestRecommendations(items, settings) {
     try {
@@ -495,9 +548,13 @@
         const threshold = settings?.highlightThreshold || 0.6;
         let highlighted = 0;
         response.results.forEach((result, index) => {
-          if (result.recommendation && result.recommendation.score >= threshold) {
-            highlightItem(processItems[index], result.recommendation);
-            highlighted++;
+          if (result.recommendation) {
+            // 推荐值徽章（好评率徽章之后，悬停显示各分值组成，分级着色）
+            prependRecBadge(processItems[index], result.recommendation);
+            if (result.recommendation.score >= threshold) {
+              highlightItem(processItems[index]);
+              highlighted++;
+            }
           }
         });
         dbg(`高亮 ${highlighted} 个推荐游戏`);
@@ -507,15 +564,9 @@
     }
   }
 
-  function highlightItem(item, recommendation) {
+  function highlightItem(item) {
     const el = item.element;
     el.classList.add('gr-highlighted');
-    const badge = document.createElement('span');
-    badge.className = 'gr-badge';
-    badge.textContent = `🎮 ${Math.round(recommendation.score * 100)}%`;
-    badge.title = `推荐度: ${Math.round(recommendation.score * 100)}%`;
-    const link = item.link || el.querySelector('a');
-    if (link) { link.style.position = 'relative'; link.appendChild(badge); }
   }
 
   GR.list = {

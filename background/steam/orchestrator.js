@@ -193,8 +193,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           foundAppId = baseId;
           foundName = (baseCheck.fullgame && baseCheck.fullgame.name) || foundName;
         } else if (!baseId) {
-          Logger.warn('Steam', `appId ${foundAppId} 类型 ${baseCheck.type} 非游戏本体且无法解析，视为未找到`);
-          return null;
+          // bundle/未知类型且无法解析：返回 type 标记（徽章显示 type 值而非"未找到"）
+          Logger.warn('Steam', `appId ${foundAppId} 类型 ${baseCheck.type} 非游戏本体且无法解析，返回 type 标记`);
+          return { positiveRate: null, ratingDesc: null, appId: foundAppId, name: foundName, type: baseCheck.type };
         }
       }
     }
