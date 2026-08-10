@@ -430,80 +430,120 @@
     }
   }
 
-  // 在游戏标题前插入徽章（好评率/AppID/未找到/合集type 统一实现，rating 为空时显示"未找到"）
-  // Insert a badge before the game title (rating / AppID / not-found / bundle-type,
-  // unified). When rating.type marks a non-base app (e.g. bundle), show the type.
-  function prependBadge(item, rating) {
-    const link = item.link;
-    if (!link) return;
-
-    const isNotFound = !rating || !rating.appId;
-    const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
-    const rate = rating ? rating.positiveRate : null;
-    // 颜色分级：>=80 蓝色，>=60 黄绿，<60 橙色；无评测（0条/Demo）灰色 AppID；
-    // 未找到灰色虚线；合集等 type 徽章紫色
-    let color, bg, text, cls;
-    if (isNotFound) {
-      color = '#666';
-      bg = 'rgba(102,102,102,0.08)';
-      text = '未找到';
-      cls = 'gr-rating-badge gr-not-found';
-    } else if (isTypeBadge) {
-      color = '#b48ce0';
-      bg = 'rgba(180,140,224,0.12)';
-      text = rating.type;
-      cls = 'gr-rating-badge gr-type-badge';
-    } else if (rate === null || rate === undefined) {
-      color = '#8f98a0';
-      bg = 'rgba(143,152,160,0.15)';
-      text = rating.appId ? `#${rating.appId}` : '暂无';
-      cls = 'gr-rating-badge';
-    } else {
-      color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
-      bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
-      text = `${rate}%`;
-      cls = 'gr-rating-badge';
-    }
-
+  // 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）
+  // Create one badge span (shared styling; clickable badges open the store)
+  function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed }) {
     const badge = document.createElement('span');
-    badge.className = cls;
+    badge.className = cls || 'gr-rating-badge';
     badge.textContent = text;
-    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px ${isNotFound ? 'dashed' : 'solid'} ${color};border-radius:3px;vertical-align:middle;${isNotFound || isTypeBadge ? '' : 'cursor:pointer;text-decoration:none;'}`;
-    badge.title = isNotFound
-      ? '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）'
-      : isTypeBadge
-        ? `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
-        : rating.failed
-          ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），下次访问自动重试`
-          : (rate === null || rate === undefined)
-            ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
-            : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
-    // 点击徽章跳转 Steam 详情页（span+click 避免嵌套链接）
-    if (!isNotFound && !isTypeBadge && rating.appId) {
+    badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px ${dashed ? 'dashed' : 'solid'} ${color};border-radius:3px;vertical-align:middle;${clickable ? 'cursor:pointer;text-decoration:none;' : ''}`;
+    badge.title = title || '';
+    // span+click 避免嵌套链接 / span + click to avoid nested anchors
+    if (clickable && appId) {
       badge.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        window.open(`https://store.steampowered.com/app/${rating.appId}/`, '_blank', 'noopener');
+        window.open(`https://store.steampowered.com/app/${appId}/`, '_blank', 'noopener');
       });
     }
+    return badge;
+  }
 
-    // 查找标题元素插入徽章（titleEl 优先 → 元素内标题 → 链接文本节点）
+  // 批量插入徽章组（从后往前插保证从左到右顺序；标题元素优先，回退链接文本节点）
+  // Insert a badge group (reverse-order insert keeps left-to-right order)
+  function insertBadges(item, link, badges) {
     let targetEl = item.titleEl || null;
     if (!targetEl && item.element) {
       targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
     }
-
-    if (targetEl && !targetEl.querySelector('.gr-rating-badge, .gr-not-found')) {
-      targetEl.insertBefore(badge, targetEl.firstChild);
-    } else if (!link.querySelector('.gr-rating-badge, .gr-not-found')) {
+    if (targetEl) {
+      for (let i = badges.length - 1; i >= 0; i--) targetEl.insertBefore(badges[i], targetEl.firstChild);
+    } else {
       const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
       const firstTextNode = walker.nextNode();
-      if (firstTextNode && firstTextNode.textContent.trim().length > 1) {
-        link.insertBefore(badge, firstTextNode);
+      const ref = (firstTextNode && firstTextNode.textContent.trim().length > 1) ? firstTextNode : link.firstChild;
+      for (let i = badges.length - 1; i >= 0; i--) link.insertBefore(badges[i], ref);
+    }
+  }
+
+  // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
+  // 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
+  // Badges before the game title (three badges: 30-day rate → all-time rate →
+  // last update; tooltips carry review counts / release date; not-found, bundle
+  // type and no-review entries keep a single badge; the all-time badge opens
+  // the store page on click)
+  function prependBadge(item, rating) {
+    const link = item.link;
+    if (!link) return;
+    if (link.querySelector('.gr-rating-badge')) return; // 防重复 / no duplicates
+
+    const isNotFound = !rating || !rating.appId;
+    const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
+    const rate = rating ? rating.positiveRate : null;
+
+    const badges = [];
+    if (isNotFound) {
+      badges.push(createBadge(link, {
+        text: '未找到', color: '#666', bg: 'rgba(102,102,102,0.08)',
+        cls: 'gr-rating-badge gr-not-found',
+        title: '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）', dashed: true
+      }));
+    } else if (isTypeBadge) {
+      badges.push(createBadge(link, {
+        text: rating.type, color: '#b48ce0', bg: 'rgba(180,140,224,0.12)',
+        cls: 'gr-rating-badge gr-type-badge',
+        title: `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
+      }));
+    } else if (rate === null || rate === undefined) {
+      badges.push(createBadge(link, {
+        text: rating.appId ? `#${rating.appId}` : '暂无', color: '#8f98a0', bg: 'rgba(143,152,160,0.15)',
+        cls: 'gr-rating-badge',
+        title: rating.failed
+          ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），下次访问自动重试`
+          : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
+        clickable: true, appId: rating.appId
+      }));
+    } else {
+      // 段1：近 30 天好评率（浅蓝固定色；无近期评测 → 灰 —）
+      const recentRate = rating.recentPositiveRate;
+      const recentTotal = rating.recentTotalReviews || 0;
+      if (recentRate === null || recentRate === undefined) {
+        badges.push(createBadge(link, {
+          text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
+          cls: 'gr-rating-badge gr-recent-badge', title: '近30天暂无评测'
+        }));
       } else {
-        link.insertBefore(badge, link.firstChild);
+        badges.push(createBadge(link, {
+          text: `${recentRate}%`, color: '#66c0f4', bg: 'rgba(102,192,244,0.12)',
+          cls: 'gr-rating-badge gr-recent-badge',
+          title: `最近30天好评率: ${recentRate}% · ${recentTotal.toLocaleString()} 条评测`
+        }));
+      }
+      // 段2：全部好评率（分级色，可点击跳转）
+      const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
+      const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
+      badges.push(createBadge(link, {
+        text: `${rate}%`, color, bg, cls: 'gr-rating-badge',
+        title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
+        clickable: true, appId: rating.appId
+      }));
+      // 段3：最近更新日期（悬停显示发行日期；无数据 → 灰 —，详情页访问后补全）
+      const update = rating.lastUpdate || '';
+      if (update) {
+        badges.push(createBadge(link, {
+          text: `🛠 ${update.length >= 10 ? update.slice(5) : update}`, color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
+          cls: 'gr-rating-badge gr-update-badge',
+          title: `最近更新: ${update}${rating.releaseDate ? ' · 发行: ' + rating.releaseDate : ''}`
+        }));
+      } else {
+        badges.push(createBadge(link, {
+          text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
+          cls: 'gr-rating-badge gr-update-badge',
+          title: '最近更新未知（访问详情页后自动补全）'
+        }));
       }
     }
+    insertBadges(item, link, badges);
   }
 
   // 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；

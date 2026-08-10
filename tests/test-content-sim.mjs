@@ -240,16 +240,26 @@ check('第一波：未命中游戏B/C 无好评率徽章', itemB.a.children.some
 
 // 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）
 await new Promise(r => setTimeout(r, 30));
-check('推荐值徽章已插入（游戏A）', itemA.a.children.length, 2);
-check('好评率徽章在前、推荐徽章在后', itemA.a.children[0].className.includes('gr-rating-badge') && itemA.a.children[1].className.includes('gr-rec-badge'), true);
-check('推荐徽章显示数值', itemA.a.children[1].textContent, '🎯 85%');
-check('推荐徽章悬停含分值组成', itemA.a.children[1].title.includes('点击率') && itemA.a.children[1].title.includes('下载率') && itemA.a.children[1].title.includes('Steam'), true);
+// v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
+check('推荐值徽章已插入（游戏A）', itemA.a.children.length, 4);
+check('近30天徽章在最前（无近期评测显示 —）', itemA.a.children[0].className.includes('gr-recent-badge') && itemA.a.children[0].textContent === '—', true);
+check('全部好评率徽章第二位', itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '95%', true);
+check('最近更新徽章第三位（无数据 —）', itemA.a.children[2].className.includes('gr-update-badge') && itemA.a.children[2].textContent === '—', true);
+check('推荐徽章在最后', itemA.a.children[3].className.includes('gr-rec-badge'), true);
+check('推荐徽章显示数值', itemA.a.children[3].textContent, '🎯 85%');
+check('推荐徽章悬停含分值组成', itemA.a.children[3].title.includes('点击率') && itemA.a.children[3].title.includes('下载率') && itemA.a.children[3].title.includes('Steam'), true);
 
-// 后台推送第 1 波增量：游戏B 拉取完成 / background push wave 1: game B ready
-await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏B': { appId: '222', positiveRate: 60, ratingDesc: '多半好评' } } }, {}, () => {});
+// 后台推送第 1 波增量：游戏B 拉取完成（含近30天/最近更新数据） / background push wave 1
+await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏B': { appId: '222', positiveRate: 60, ratingDesc: '多半好评', totalReviews: 500, recentPositiveRate: 55, recentTotalReviews: 120, lastUpdate: '2026-08-01', releaseDate: '2025-03-30' } } }, {}, () => {});
 
 check('第二波（增量1）：游戏B 好评率徽章已插入', itemB.a.children.some(c => c.className.includes('gr-rating-badge')), true);
 check('第二波（增量1）：游戏C 仍无好评率徽章', itemC.a.children.some(c => c.className.includes('gr-rating-badge')), false);
+// v3.3.6：游戏B 三段徽章（近30天 55% / 全部 60% / 更新 08-01）
+check('游戏B 近30天徽章显示 55%', itemB.a.children[0].className.includes('gr-recent-badge') && itemB.a.children[0].textContent === '55%', true);
+check('游戏B 近30天悬停含评论数', itemB.a.children[0].title.includes('55%') && itemB.a.children[0].title.includes('120'), true);
+check('游戏B 全部徽章 60%', itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '60%', true);
+check('游戏B 最近更新徽章 MM-DD', itemB.a.children[2].className.includes('gr-update-badge') && itemB.a.children[2].textContent === '🛠 08-01', true);
+check('游戏B 更新悬停含发行日期', itemB.a.children[2].title.includes('2026-08-01') && itemB.a.children[2].title.includes('2025-03-30'), true);
 
 // 后台推送第 2 波增量：游戏C 为合集（bundle，无法解析本体）→ type 徽章 + done 收尾
 await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: { '游戏C': { positiveRate: null, appId: '333', name: '游戏C', type: 'bundle' } }, done: true }, {}, () => {});

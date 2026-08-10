@@ -502,49 +502,37 @@
       `;
     }
 
-    // SteamDB 信息区块（被拦截时显示SteamSpy补充数据）
-    let steamdbHtml = '';
-    if (data.steamdbUrl) {
-      const sdb = data.steamdb;
-      const spy = data.steamspy;
-      const hasSdbData = sdb && sdb.available && (sdb.rating || sdb.currentPlayers || sdb.lowestPrice);
-      const isBlocked = sdb && sdb.blocked;
-
-      let bodyHtml = '';
-      if (hasSdbData) {
-        bodyHtml = `
-          <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
-            ${sdb.rating ? `<div style="color:#acb2b8;">SteamDB 评分: <span style="color:#66c0f4;font-weight:bold;">${sdb.rating}%</span></div>` : ''}
-            ${sdb.reviewCount ? `<div style="color:#acb2b8;">评测数: <span style="color:#c7d5e0;font-weight:bold;">${sdb.reviewCount}</span></div>` : ''}
-            ${sdb.currentPlayers ? `<div style="color:#acb2b8;">当前在线: <span style="color:#a3cf06;font-weight:bold;">${sdb.currentPlayers}</span> 人</div>` : ''}
-            ${sdb.lowestPrice ? `<div style="color:#acb2b8;">历史最低价: <span style="color:#ff7b00;font-weight:bold;">${sdb.lowestPrice}</span></div>` : ''}
-          </div>
-        `;
-      } else if (spy && (spy.positiveRate !== null || spy.players2weeks)) {
-        bodyHtml = `
-          <div style="font-size:10px;color:#666;margin-bottom:4px;">SteamDB需人机验证，以下为SteamSpy数据</div>
-          <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
-            ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div style="color:#acb2b8;">好评率: <span style="color:#66c0f4;font-weight:bold;">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
-            ${spy.players2weeks ? `<div style="color:#acb2b8;">近两周玩家: <span style="color:#a3cf06;font-weight:bold;">${spy.players2weeks}</span> 人</div>` : ''}
-            ${spy.averagePlaytime ? `<div style="color:#acb2b8;">平均时长: <span style="color:#c7d5e0;font-weight:bold;">${spy.averagePlaytime}</span></div>` : ''}
-          </div>
-        `;
-      } else if (isBlocked) {
-        bodyHtml = `<div style="font-size:11px;color:#8f98a0;">SteamDB 启用了人机验证，请点上方链接查看</div>`;
-      } else {
-        bodyHtml = `<div style="font-size:11px;color:#8f98a0;">点击链接查看SteamDB详细数据</div>`;
-      }
-
-      steamdbHtml = `
-        <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.25);border-radius:3px;border:1px solid #2a475e;">
-          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
-            <span style="font-size:12px;font-weight:bold;color:#fff;">📊 SteamDB</span>
-            <a href="${GR.common.escapeAttr(data.steamdbUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">查看 ↗</a>
-          </div>
-          ${bodyHtml}
+    // SteamSpy 信息面板（v3.3.6：详情页以 SteamSpy 为主数据；SteamDB 链接保留）。
+    // SteamSpy 实测字段：positive/negative→好评率、ccu→当前在线、owners、average_forever。
+    // SteamSpy panel (the primary stats source since v3.3.6; SteamDB link kept).
+    let spyHtml = '';
+    const spy = data.steamspy;
+    const hasSpyData = spy && (
+      (spy.positiveRate !== null && spy.positiveRate !== undefined) ||
+      spy.currentPlayers || spy.owners || spy.averagePlaytime
+    );
+    let spyBody = '';
+    if (hasSpyData) {
+      spyBody = `
+        <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
+          ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div style="color:#acb2b8;">好评率: <span style="color:#66c0f4;font-weight:bold;">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
+          ${spy.currentPlayers ? `<div style="color:#acb2b8;">当前在线: <span style="color:#a3cf06;font-weight:bold;">${spy.currentPlayers}</span> 人</div>` : ''}
+          ${spy.owners ? `<div style="color:#acb2b8;">拥有者: <span style="color:#c7d5e0;font-weight:bold;">${spy.owners}</span></div>` : ''}
+          ${spy.averagePlaytime ? `<div style="color:#acb2b8;">平均时长: <span style="color:#c7d5e0;font-weight:bold;">${spy.averagePlaytime}</span></div>` : ''}
         </div>
       `;
+    } else {
+      spyBody = `<div style="font-size:11px;color:#8f98a0;">SteamSpy 数据暂不可用（站点可能启用了人机验证）</div>`;
     }
+    spyHtml = `
+      <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.25);border-radius:3px;border:1px solid #2a475e;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <span style="font-size:12px;font-weight:bold;color:#fff;">📊 SteamSpy</span>
+          ${data.steamdbUrl ? `<a href="${GR.common.escapeAttr(data.steamdbUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">SteamDB 查看 ↗</a>` : ''}
+        </div>
+        ${spyBody}
+      </div>
+    `;
 
     panel.innerHTML = `
       <!-- 头部图片 -->
@@ -571,6 +559,7 @@
             ${data.chineseSupported && data.chineseHasSubtitles ? ' · 字幕' : ''}
           </span>
           ${data.releaseDate ? `<span style="padding:2px 8px;border-radius:2px;background:rgba(255,255,255,0.05);color:#8f98a0;">📅 ${esc(data.releaseDate)}</span>` : ''}
+          ${data.lastUpdate ? `<span style="padding:2px 8px;border-radius:2px;background:rgba(255,255,255,0.05);color:#8f98a0;">🛠 更新 ${esc(data.lastUpdate)}</span>` : ''}
         </div>
 
         <!-- 跳转Steam按钮 -->
@@ -582,7 +571,7 @@
           text-shadow:1px 1px 0 rgba(0,0,0,0.3);
         ">在 Steam 上查看</a>` : ''}
 
-        <!-- 评分区域 - 三重评价（Steam总体/简体中文/SteamDB） -->
+        <!-- 评分区域 - 四重评价（Steam总体/最近30天/简体中文/SteamSpy） -->
         <div style="background:${ratingBg};border-radius:3px;padding:10px;margin-bottom:12px;">
           <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
@@ -596,6 +585,15 @@
           </div>
           <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-size:11px;color:#8f98a0;">🕒 最近 30 天</span>
+              <span style="font-size:13px;font-weight:bold;color:${(data.recentPositiveRate || 0) >= 80 ? '#66c0f4' : (data.recentPositiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00'};">${data.recentPositiveRate !== null && data.recentPositiveRate !== undefined ? `${data.recentPositiveRate}% 好评` : '暂无近期评测'}</span>
+            </div>
+            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">
+              ${data.recentTotalReviews ? `近30天 ${data.recentTotalReviews.toLocaleString()} 条` : ''}
+            </div>
+          </div>
+          <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
               <span style="font-size:11px;color:#8f98a0;">🇨🇳 简体中文</span>
               <span style="font-size:13px;font-weight:bold;color:${(data.cnPositiveRate || 0) >= 80 ? '#66c0f4' : (data.cnPositiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00'};">${data.cnRatingDesc || (data.cnPositiveRate !== null && data.cnPositiveRate !== undefined ? data.cnPositiveRate + '% 好评' : '暂无')}</span>
             </div>
@@ -605,13 +603,13 @@
             </div>
           </div>
           <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:11px;color:#8f98a0;">📊 SteamDB</span>
+            <span style="font-size:11px;color:#8f98a0;">📊 SteamSpy</span>
             <span style="font-size:13px;font-weight:bold;color:#67c1f5;">
-              ${data.steamdb && data.steamdb.rating ? data.steamdb.rating + '%' : '—'}
+              ${data.steamspy && data.steamspy.positiveRate !== null && data.steamspy.positiveRate !== undefined ? data.steamspy.positiveRate + '%' : '—'}
             </span>
           </div>
-          ${data.steamdb && data.steamdb.reviewCount ? `
-            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">${data.steamdb.reviewCount} 条评测</div>
+          ${data.steamspy && data.steamspy.reviewCount ? `
+            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">${data.steamspy.reviewCount} 条评测</div>
           ` : ''}
         </div>
 
@@ -648,7 +646,7 @@
         ` : ''}
 
         <!-- SteamDB 信息 -->
-        ${steamdbHtml}
+        ${spyHtml}
 
         <!-- 中文评测 -->
         ${reviewsHtml}

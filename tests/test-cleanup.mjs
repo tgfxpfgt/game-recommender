@@ -144,6 +144,22 @@ check('25h 条目：列表页默认 TTL(24h) 过期', cacheMod.isSteamCacheValid
 check('25h 条目：详情页 TTL(72h) 有效', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 25 * 3600e3, data: {} }, 72 * 3600e3), true);
 check('100h 条目：详情页 TTL 过期', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 100 * 3600e3, data: {} }, 72 * 3600e3), false);
 
+// ============ 0.13 近30天评测统计（v3.3.6）/ summarizeRecentReviews ============
+console.log('0.13 近30天评测统计 summarizeRecentReviews');
+const srr = apiMod.summarizeRecentReviews;
+const winSec = apiMod.RECENT_REVIEW_WINDOW_SEC;
+const nowSec = Math.floor(Date.now() / 1000);
+check('30天窗口内统计（2/3 好评 → 67%）', srr([
+  { timestamp_created: nowSec - 86400, voted_up: true },
+  { timestamp_created: nowSec - 2 * 86400, voted_up: false },
+  { timestamp_created: nowSec - 10 * 86400, voted_up: true }
+], nowSec - winSec), { total: 3, positive: 2, rate: 67 });
+check('窗口外评测不计入（返回 null 率）', srr([{ timestamp_created: nowSec - 40 * 86400, voted_up: true }], nowSec - winSec), { total: 0, positive: 0, rate: null });
+check('空数组', srr([], nowSec - winSec), { total: 0, positive: 0, rate: null });
+check('无 timestamp 条目忽略', srr([{ voted_up: true }, { timestamp_created: nowSec - 86400, voted_up: true }], nowSec - winSec), { total: 1, positive: 1, rate: 100 });
+check('100 条全近期统计（截断窗口近似）', srr(Array.from({ length: 100 }, (_, i) => ({ timestamp_created: nowSec - i * 3600, voted_up: i % 2 === 0 })), nowSec - winSec), { total: 100, positive: 50, rate: 50 });
+check('null 输入', srr(null, nowSec - winSec), { total: 0, positive: 0, rate: null });
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {
@@ -186,10 +202,10 @@ check('嵌套过深拒绝', rulesMod.validateAdapterRules(tooDeep).ok, false);
 console.log('2. Steam 缓存过期清理 collectExpiredSteamCache');
 const now = Date.now();
 const steamEntries = {
-  '1': { data: {}, timestamp: now, version: 5 },                    // 未过期
-  '2': { data: {}, timestamp: now - 25 * 3600e3, version: 5 },      // 过期（TTL 24h）
-  '3': { data: {}, timestamp: now, version: 4 },                    // 版本不符 → 过期
-  '4': { data: {}, timestamp: now - 25 * 3600e3, version: 5 }       // 过期
+  '1': { data: {}, timestamp: now, version: V },                    // 未过期
+  '2': { data: {}, timestamp: now - 25 * 3600e3, version: V },      // 过期（TTL 24h）
+  '3': { data: {}, timestamp: now, version: V - 1 },                // 版本不符 → 过期
+  '4': { data: {}, timestamp: now - 25 * 3600e3, version: V }       // 过期
 };
 let steamResult = cleanupMod.collectExpiredSteamCache(steamEntries, 24 * 3600e3);
 check('TTL 24h：移除 3 条', steamResult.removed, 3);

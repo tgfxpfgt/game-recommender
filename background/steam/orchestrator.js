@@ -123,7 +123,13 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
     ratingDesc: cached.data.ratingDesc || null,
     appId: cached.data.appId || appId,
     name: cached.data.name || gameName,
-    type: cached.data.type || 'game'
+    type: cached.data.type || 'game',
+    // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
+    totalReviews: cached.data.totalReviews || 0,
+    recentPositiveRate: cached.data.recentPositiveRate ?? null,
+    recentTotalReviews: cached.data.recentTotalReviews ?? 0,
+    lastUpdate: cached.data.lastUpdate || null,
+    releaseDate: cached.data.releaseDate || ''
   };
 }
 
@@ -156,7 +162,13 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           ratingDesc: cached.data.ratingDesc || null,
           appId: cached.data.appId || appId,
           name: cached.data.name || gameName,
-          type: cached.data.type || 'game'
+          type: cached.data.type || 'game',
+          // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
+          totalReviews: cached.data.totalReviews || 0,
+          recentPositiveRate: cached.data.recentPositiveRate ?? null,
+          recentTotalReviews: cached.data.recentTotalReviews ?? 0,
+          lastUpdate: cached.data.lastUpdate || null,
+          releaseDate: cached.data.releaseDate || ''
         };
       }
       usableAppId = null;
@@ -222,7 +234,8 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       }
     }
 
-    // 5. 获取评价统计（好评率）。获取失败（网络/限流）→ 不写缓存并标记 failed，
+    // 5. 获取评价统计（好评率 + 近 30 天好评率，v3.3.6 一次请求同取）。
+    //    获取失败（网络/限流）→ 不写缓存并标记 failed，
     //    下次访问自动重试（避免 null 固化导致长期只显示 AppID）。
     const reviewSummary = await fetchReviewSummary(foundAppId);
     if (!reviewSummary) {
@@ -231,10 +244,16 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     }
     let positiveRate = null;
     let ratingDesc = null;
+    let recentRate = null;
+    let recentTotal = 0;
     if (reviewSummary) {
       ratingDesc = reviewSummary.desc || null;
       if (reviewSummary.total > 0) {
         positiveRate = Math.round(reviewSummary.positive / reviewSummary.total * 100);
+      }
+      if (reviewSummary.recent) {
+        recentRate = reviewSummary.recent.rate;
+        recentTotal = reviewSummary.recent.total;
       }
     }
 
@@ -266,6 +285,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           if (rs2) {
             ratingDesc = rs2.desc || null;
             if (rs2.total > 0) positiveRate = Math.round(rs2.positive / rs2.total * 100);
+            if (rs2.recent) {
+              recentRate = rs2.recent.rate;
+              recentTotal = rs2.recent.total;
+            }
           }
         }
       }
@@ -273,11 +296,15 @@ export async function getSteamPositiveRate(gameName, options = {}) {
 
     // 6. 合并写入 Steam 动态缓存（自愈场景不留存旧 Demo 数据；含封面/type 供补写）。
     //    确认 0 评测（positiveRate null）时记录重试时间，冷却期内不再重复请求。
+    //    v3.3.6：近 30 天好评率随同一请求写入缓存（徽章三段式数据源）；
+    //    lastUpdate 由详情页全量拉取写入，经 ...existing 合并自动补全。
     const existing = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || {}).data || {} : {};
     const headerImage = coverImageFor(foundAppId, options.cover);
     const mergedData = {
       ...existing, appId: foundAppId, name: foundName, englishName: officialEn,
       positiveRate, ratingDesc, headerImage, type: appType || 'game',
+      totalReviews: reviewSummary ? reviewSummary.total : 0,
+      recentPositiveRate: recentRate, recentTotalReviews: recentTotal,
       ratingRetriedAt: positiveRate === null ? Date.now() : existing.ratingRetriedAt
     };
     await setSteamCacheEntry(foundAppId, mergedData);
@@ -292,7 +319,13 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     });
     await recordNameIndex(gameName, foundAppId);
 
-    return { positiveRate, ratingDesc, appId: foundAppId, name: foundName };
+    return {
+      positiveRate, ratingDesc, appId: foundAppId, name: foundName,
+      totalReviews: reviewSummary ? reviewSummary.total : 0,
+      recentPositiveRate: recentRate, recentTotalReviews: recentTotal,
+      lastUpdate: existing.lastUpdate || null,
+      releaseDate: existing.releaseDate || ''
+    };
   } catch (e) {
     Logger.warn('Steam', `获取好评率异常: ${gameName}`, e.message);
     console.log('获取Steam好评率失败:', e.message);

@@ -353,22 +353,51 @@ export function parseUserTags(storeHtml) {
 
 // --- 评测获取 ---
 
+// 近 30 天评测窗口（秒）/ 30-day recent-review window (seconds)
+export const RECENT_REVIEW_WINDOW_SEC = 30 * 24 * 3600;
+
+// 从最近评测列表中统计 30 天窗口内好评率（纯函数，可单测）。
+// appreviews 的 query_summary 恒为全时段统计（filter=recent 不影响），
+// 近 30 天好评率需从 reviews 数组自行统计（filter=recent 按时间降序返回）。
+// Summarize a 30-day window from a recent-reviews list (pure, testable).
+// query_summary always covers all-time totals (filter=recent does not change
+// it), so the 30-day rate is computed from the reviews array itself.
+export function summarizeRecentReviews(reviews, cutoffSec = Date.now() / 1000 - RECENT_REVIEW_WINDOW_SEC) {
+  const list = Array.isArray(reviews) ? reviews : [];
+  const inWindow = list.filter(r => r && typeof r.timestamp_created === 'number' && r.timestamp_created >= cutoffSec);
+  if (inWindow.length === 0) {
+    return { total: 0, positive: 0, rate: null };
+  }
+  const positive = inWindow.filter(r => r.voted_up === true).length;
+  return {
+    total: inWindow.length,
+    positive,
+    rate: Math.round(positive / inWindow.length * 100)
+  };
+}
+
 export async function fetchReviewSummary(appId) {
-  // 网络失败/限流时重试一次（列表页批量场景 Steam API 限流常见）
+  // 网络失败/限流时重试一次（列表页批量场景 Steam API 限流常见）。
+  // v3.3.6：filter=recent&num_per_page=100——一次请求同时拿到全时段
+  // query_summary 与最近 100 条评测（时间降序），近 30 天好评率由此统计。
+  // One request serves both: the all-time query_summary and the 100 newest
+  // reviews (time-descending) used to compute the 30-day rate.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
+      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&filter=recent&num_per_page=100&purchase_type=all`;
       const response = await fetchWithTimeout(reviewUrl);
       const data = await response.json();
       recordSteamCall(true);
       if (data.success === 1 && data.query_summary) {
         const qs = data.query_summary;
+        const recent = summarizeRecentReviews(data.reviews);
         return {
           total: qs.total_reviews,
           positive: qs.total_positive,
           negative: qs.total_negative,
           score: qs.review_score,
-          desc: qs.review_score_desc
+          desc: qs.review_score_desc,
+          recent
         };
       }
     } catch (e) {
@@ -376,6 +405,28 @@ export async function fetchReviewSummary(appId) {
     }
   }
   return null;
+}
+
+// 最近更新日期（v3.3.6）：Steam 官方无"最近更新"字段，用最新公告日期近似
+// （GetNewsForApp 免费无 key；持续更新/抢先体验游戏即最新更新公告，完成品
+// 显示发行日附近——语义"无后续更新"）。失败返回 null（UI 隐藏该部分）。
+// Last-update date: Steam exposes no such field; the newest announcement date
+// approximates it (GetNewsForApp is keyless). Null on failure (UI hides it).
+export async function fetchLastUpdate(appId) {
+  try {
+    const resp = await fetchWithTimeout(
+      `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appId}&count=1&maxlength=0&format=json`
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const item = data && data.appnews && data.appnews.newsitems && data.appnews.newsitems[0];
+    if (!item || !item.date) return null;
+    const d = new Date(item.date * 1000);
+    if (isNaN(d.getTime())) return null;
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  } catch (e) {
+    return null;
+  }
 }
 
 export async function fetchChineseReviews(appId) {
@@ -469,6 +520,12 @@ export async function fetchSteamDbInfo(appId) {
 
 // --- SteamSpy 信息（SteamDB 被拦截时的补充数据） ---
 
+// v3.3.6：实测 SteamSpy 响应的可用字段为 positive/negative/ccu(当前在线)/
+// owners(拥有者区间)/average_forever(平均游玩分钟)——原 players_2weeks/
+// players_forever 字段并不存在，恒为 null，已改为 ccu/owners。
+// Field fix: the real SteamSpy payload exposes positive/negative/ccu/owners/
+// average_forever; the previously-read players_2weeks/players_forever never
+// exist and were always null.
 export async function fetchSteamSpyInfo(appId) {
   try {
     const resp = await fetchWithTimeout(`https://steamspy.com/api.php?request=appdetails&appid=${appId}`);
@@ -480,8 +537,8 @@ export async function fetchSteamSpyInfo(appId) {
     return {
       positiveRate: total > 0 ? Math.round(data.positive / total * 100) : null,
       reviewCount: total > 0 ? total.toLocaleString() : null,
-      players2weeks: data.players_2weeks ? data.players_2weeks.toLocaleString() : null,
-      playersForever: data.players_forever ? data.players_forever.toLocaleString() : null,
+      currentPlayers: data.ccu ? data.ccu.toLocaleString() : null,
+      owners: data.owners || null,
       averagePlaytime: data.average_forever ? Math.round(data.average_forever / 60) + '小时' : null
     };
   } catch (e) {
@@ -492,9 +549,11 @@ export async function fetchSteamSpyInfo(appId) {
 
 // --- 组装最终结果对象 ---
 
-export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData) {
+export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData, lastUpdate = null) {
   const { reviewSummary, cnReviewSummary, chineseReviews } = reviews;
   const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;
+  // 近 30 天好评率（v3.3.6，来自 filter=recent 评测数组统计）
+  const recent = reviewSummary && reviewSummary.recent ? reviewSummary.recent : null;
 
   return {
     appId,
@@ -512,6 +571,11 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
     positiveRate: reviewSummary && reviewSummary.total > 0
       ? Math.round(reviewSummary.positive / reviewSummary.total * 100)
       : null,
+    // 近 30 天评价（v3.3.6）：好评率 + 条数（0 条 → rate null）
+    recentPositiveRate: recent ? recent.rate : null,
+    recentTotalReviews: recent ? recent.total : 0,
+    // 最近更新日期（最新公告日期近似，v3.3.6）
+    lastUpdate,
     cnRatingDesc: cnReviewSummary ? cnReviewSummary.desc : null,
     cnPositiveRate: cnReviewSummary ? cnReviewSummary.positiveRate : null,
     cnTotalReviews: cnReviewSummary ? cnReviewSummary.total : 0,
@@ -567,12 +631,15 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     Promise.resolve(parseUserTags(storeHtml)),
     fetchSteamReviews(appId)
   ]);
-  const steamdbInfo = await fetchSteamDbInfo(appId);
-  const steamspyInfo = (!steamdbInfo || !steamdbInfo.available)
-    ? await fetchSteamSpyInfo(appId)
-    : null;
+  // v3.3.6：SteamSpy 总是请求（详情页以 SteamSpy 为主数据）；SteamDB 仍抓取
+  // 供链接/补充；最近更新日期用最新公告日期近似
+  const [steamdbInfo, steamspyInfo, lastUpdate] = await Promise.all([
+    fetchSteamDbInfo(appId),
+    fetchSteamSpyInfo(appId).catch(() => null),
+    fetchLastUpdate(appId).catch(() => null)
+  ]);
 
-  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData);
+  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData, lastUpdate);
 }
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）

@@ -132,7 +132,8 @@ export const STEAM_CACHE_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounc
 export const STEAM_CACHE_MAX_ENTRIES = 1200;
 
 // Steam 缓存结构版本（匹配逻辑变更时递增，使旧缓存自动失效）
-export const STEAM_CACHE_VERSION = 5;
+// v3.3.6：新增 recentPositiveRate/recentTotalReviews/lastUpdate 字段
+export const STEAM_CACHE_VERSION = 6;
 
 // 名称索引/注册表写参数 / Name-index & registry write params
 export const NAME_INDEX_WRITE_DEBOUNCE = 2000;
