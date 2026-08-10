@@ -67,8 +67,10 @@ export const DEFAULT_SETTINGS = {
   // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
   // Cache TTLs (customizable in settings; value 0 = keep forever)
   cacheTtls: {
-    steamDynamic: { value: 24, unit: 'hours' },    // Steam 动态缓存 / hours
-    detailSteam: { value: 72, unit: 'hours' },     // 详情页 Steam 完整缓存 / hours
+    steamDynamic: { value: 24, unit: 'hours' },    // 好评率缓存（rating 模块）/ hours
+    detailSteam: { value: 72, unit: 'hours' },     // 详情页完整缓存（detail 模块）/ hours
+    spySteam: { value: 7, unit: 'days' },          // SteamSpy/SteamDB 补充数据（spy 模块）/ days
+    metaSteam: { value: 30, unit: 'days' },        // Steam 基础信息（meta 模块）/ days
     registryConfirm: { value: 30, unit: 'days' },  // 游戏注册表重确认 / days
     downloadUrls: { value: 30, unit: 'days' },     // 下载站网址缓存 / days
     negativeCache: { value: 2, unit: 'hours' }     // 名称搜索负缓存 / hours
@@ -87,6 +89,8 @@ export const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 let TTL_CONFIG = {
   steamDynamic: { value: 24, unit: 'hours' },
   detailSteam: { value: 72, unit: 'hours' },
+  spySteam: { value: 7, unit: 'days' },
+  metaSteam: { value: 30, unit: 'days' },
   registryConfirm: { value: 30, unit: 'days' },
   downloadUrls: { value: 30, unit: 'days' },
   negativeCache: { value: 2, unit: 'hours' }
@@ -100,8 +104,14 @@ export function setTtlConfig(ttls) {
 // TTL 单位换算（小时/天/月/年）/ Unit-to-ms conversion
 const UNIT_MS = { hours: 3600e3, days: 86400e3, months: 30 * 86400e3, years: 365 * 86400e3 };
 // 默认值与默认单位（旧格式数字兼容）/ Defaults and default units (legacy-number compatible)
-const TTL_DEFAULTS = { steamDynamic: 24, detailSteam: 72, registryConfirm: 30, downloadUrls: 30, negativeCache: 2 };
-const TTL_UNITS = { steamDynamic: 'hours', detailSteam: 'hours', registryConfirm: 'days', downloadUrls: 'days', negativeCache: 'hours' };
+const TTL_DEFAULTS = {
+  steamDynamic: 24, detailSteam: 72, spySteam: 7, metaSteam: 30,
+  registryConfirm: 30, downloadUrls: 30, negativeCache: 2
+};
+const TTL_UNITS = {
+  steamDynamic: 'hours', detailSteam: 'hours', spySteam: 'days', metaSteam: 'days',
+  registryConfirm: 'days', downloadUrls: 'days', negativeCache: 'hours'
+};
 
 function toMs(value, unit) {
   if (value === 0) return Infinity; // 0 = 长期有效 / 0 = keep forever
@@ -123,8 +133,28 @@ export const steamCacheTtlMs = () => resolveTtlMs('steamDynamic', TTL_CONFIG.ste
 // 详情页完整缓存有效期（v3.3.3 独立设置：详情信息变化慢，TTL 可比列表页长；
 // 列表页好评率缓存保持 steamDynamic 的新鲜度）
 export const detailSteamCacheTtlMs = () => resolveTtlMs('detailSteam', TTL_CONFIG.detailSteam);
+// SteamSpy/SteamDB 补充数据有效期（v3.3.7：spy 模块独立刷新）
+export const spySteamCacheTtlMs = () => resolveTtlMs('spySteam', TTL_CONFIG.spySteam);
+// Steam 基础信息有效期（v3.3.7：meta 模块，名称/类型/封面几乎不变）
+export const metaSteamCacheTtlMs = () => resolveTtlMs('metaSteam', TTL_CONFIG.metaSteam);
 export const registryConfirmTtlMs = () => resolveTtlMs('registryConfirm', TTL_CONFIG.registryConfirm);
 export const nameNegativeCacheTtlMs = () => resolveTtlMs('negativeCache', TTL_CONFIG.negativeCache);
+
+// 缓存模块 → TTL 配置 key 映射（v3.3.7 模块化缓存）
+// Module → TTL-config-key mapping (modular cache since v3.3.7)
+export const MODULE_TTL_KEYS = {
+  meta: 'metaSteam',
+  rating: 'steamDynamic',
+  detail: 'detailSteam',
+  spy: 'spySteam'
+};
+
+// 某缓存模块的有效期（毫秒）/ TTL of one cache module (ms)
+export function moduleTtlMs(moduleKey) {
+  const key = MODULE_TTL_KEYS[moduleKey];
+  if (!key) return steamCacheTtlMs();
+  return resolveTtlMs(key, TTL_CONFIG[key]);
+}
 
 // Steam 缓存写参数 / Steam cache write parameters
 export const STEAM_CACHE_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounced write

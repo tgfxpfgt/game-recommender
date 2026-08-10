@@ -137,11 +137,14 @@ export function isCompleteCacheData(data) {
 
 // 列表页缓存命中判定（v3.3.1）：缓存无好评率（0 评测/失败固化）时重新获取——
 // 失败固化立即重试；已确认 0 评测的按冷却期重试（默认 5 分钟）。
+// v3.3.7：兼容两种入参——旧缓存条目（{data: {...}}）与模块化后的合并视图
+// 数据对象（orchestrator 现传 getMergedData 结果）。
 // Cache-hit check: a cache entry without a positive rate is refetched — failed
 // snapshots immediately, confirmed zero-review entries after the cooldown.
+// Accepts both a legacy entry ({data}) and the merged-view data object.
 export function needsRatingRefetch(cached) {
-  if (!cached || !cached.data) return true;
-  const d = cached.data;
+  if (!cached) return true;
+  const d = cached.data || cached;
   if (d.positiveRate !== null && d.positiveRate !== undefined) return false;
   if (isFailedRatingEntry(d)) return true;
   if (d.ratingRetriedAt && (Date.now() - d.ratingRetriedAt < RATING_RETRY_COOLDOWN_MS)) return false;

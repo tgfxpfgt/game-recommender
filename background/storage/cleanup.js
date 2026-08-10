@@ -3,22 +3,32 @@
  *
  * v3.0.0：纯函数收集三类过期条目（Steam 动态缓存 / 名称负缓存 / 下载站网址），
  * 由 handlers 组装后写回。0 = 长期有效（Infinity）时全部保留。
+ * v3.3.7：Steam 缓存模块化——仅删除**所有模块均过期**的条目（部分有效的
+ * 条目保留，使用中按模块 TTL 自动刷新），不再检查全局版本号。
  * Pure functions collecting expired entries across the three cache types
  * (Steam dynamic / name negative / download URLs); handlers persist the result.
- * A TTL of 0 (Infinity) keeps everything.
+ * A TTL of 0 (Infinity) keeps everything. Since v3.3.7 a Steam entry is dropped
+ * only when ALL its modules are expired (partly-valid entries stay and refresh
+ * per-module on use); the global version check is gone.
  */
-import { STEAM_CACHE_VERSION, DOWNLOAD_URLS_VERSION } from '../core/constants.js';
+import { DOWNLOAD_URLS_VERSION } from '../core/constants.js';
+import { allModulesExpired, migrateEntry } from './steam-cache.js';
 
-// 清理 Steam 动态缓存：过期条目（版本不符或超 TTL）收集并移除，返回统计
-// Purge expired Steam-cache entries (bad version or beyond TTL)
-export function collectExpiredSteamCache(entries, ttlMs) {
+// 清理 Steam 动态缓存：所有模块均过期的条目收集并移除，返回统计。
+// 模块 TTL 由各模块自身配置决定（0=长期 的模块永不视为过期）；部分有效的
+// 条目保留，后续使用中按模块 TTL 自动刷新（部分刷新语义）。旧平铺结构
+// 先迁移再判定——迁移后仍有效的模块不被删除（旧缓存不立即失效）。
+// Purge Steam-cache entries whose modules are ALL expired. Each module's TTL
+// comes from its own config (0=forever modules never expire); partly-valid
+// entries stay and refresh per-module on use. Legacy flat entries are migrated
+// first so their still-valid modules survive (no whole-entry invalidation).
+export function collectExpiredSteamCache(entries) {
   const map = new Map(Object.entries(entries || {}));
   const now = Date.now();
   let removed = 0;
   for (const [key, entry] of map) {
-    const expired = !entry || entry.version !== STEAM_CACHE_VERSION ||
-      (ttlMs !== Infinity && (now - (entry.timestamp || 0) >= ttlMs));
-    if (expired) { map.delete(key); removed++; }
+    const migrated = migrateEntry(entry);
+    if (allModulesExpired(migrated, now)) { map.delete(key); removed++; }
   }
   return { removed, map };
 }

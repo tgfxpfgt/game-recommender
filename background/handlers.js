@@ -13,7 +13,8 @@ import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
 import { collectExpiredSteamCache, collectExpiredNegativeNames, collectExpiredDownloadUrls } from './storage/cleanup.js';
 import {
   flushSteamCache, getSteamCacheEntry, setSteamCacheEntry,
-  deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory
+  deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory,
+  isModuleValid, getModuleData, getMergedData, latestModuleTs
 } from './storage/steam-cache.js';
 import { flushRegistry, getGameRegistry, getGameRegistryEntry, recordGameInRegistry } from './storage/registry.js';
 import {
@@ -89,9 +90,9 @@ async function handleSearchSteam(message) {
   await flushSteamCache();
   await flushNameIndex();
   await flushRegistry();
-  // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"
+  // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"（模块化：取最近模块时间）
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
-  return { data: steamResult, cachedAt: cachedEntry ? cachedEntry.timestamp : null };
+  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
 }
 
 async function handleRefreshSteamCache(message) {
@@ -108,19 +109,21 @@ async function handleRefreshSteamCache(message) {
   if (steamResult) {
     Logger.info('Steam', `手动刷新缓存"${message.gameName}" → ${steamResult.name}`, { appId: steamResult.appId });
   }
-  return { data: steamResult, cachedAt: cachedEntry ? cachedEntry.timestamp : null };
+  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
 }
 
 // 直接通过 appId 获取 Steam 详情（绕过名称搜索；图片 URL 含 appId 时使用）
-// v3.3.3：缓存命中要求"未过期（详情页独立 TTL）+ 数据完整"——列表页轻量
-// 缓存不再命中（避免详情页渲染残缺），过期缓存也不再命中（避免旧数据）。
+// v3.3.7：缓存命中要求"detail 模块未过期（详情页独立 TTL）+ 数据完整"——
+// 仅 detail 过期时重新获取详情，meta/rating/spy 模块保留（部分刷新）。
 async function handleGetSteamByAppId(message) {
   const appId = message.appId;
   const gameName = message.gameName || '';
 
   const cached = await getSteamCacheEntry(appId);
-  if (cached && cached.data && isSteamCacheValid(cached, detailSteamCacheTtlMs()) && isCompleteCacheData(cached.data)) {
-    return { data: cached.data, cachedAt: cached.timestamp };
+  const detailData = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
+  if (detailData && isCompleteCacheData(detailData)) {
+    // 返回合并视图（detail 判定完整性；meta/rating 字段随合并返回供浮窗渲染）
+    return { data: getMergedData(cached), cachedAt: latestModuleTs(cached) };
   }
 
   try {
@@ -142,7 +145,7 @@ async function handleGetSteamByAppId(message) {
     await flushRegistry();
     const newEntry = await getSteamCacheEntry(appId);
     Logger.info('Steam', `通过 appId ${appId} 直接获取: ${result.name}`);
-    return { data: result, cachedAt: newEntry ? newEntry.timestamp : null };
+    return { data: result, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
   } catch (e) {
     Logger.error('Steam', `通过 appId ${appId} 获取失败: ${e.message}`);
     return { data: null, cachedAt: null };
@@ -308,7 +311,9 @@ async function handlePrefetchSteamRatings(message) {
       const appId = await lookupAppIdByName(name);
       if (appId) {
         const cached = await getSteamCacheEntry(appId);
-        if (cached && cached.data && cached.data.positiveRate !== undefined) continue;
+        // v3.3.7：rating 模块有效（含好评率）即跳过；仅 rating 过期才预载
+        const rating = isModuleValid(cached, 'rating') ? getModuleData(cached, 'rating') : null;
+        if (rating && rating.positiveRate !== undefined) continue;
         needsPrefetch.push(name);
       } else {
         needsPrefetch.push(name);
@@ -536,9 +541,8 @@ async function handleClearCacheForPage(message) {
 async function handleCleanExpiredCache() {
   const settings = await getSettings();
   const ttl = settings.cacheTtls || {};
-  // Steam 缓存同时服务列表页（steamDynamic）与详情页（detailSteam），
-  // 以两者中更长者判定过期（详情页缓存周期通常更长，未到期的条目保留）
-  const steamTtl = Math.max(resolveTtlMs('steamDynamic', ttl.steamDynamic), resolveTtlMs('detailSteam', ttl.detailSteam));
+  // v3.3.7 模块化：Steam 缓存按各模块自身 TTL 判定（collectExpiredSteamCache
+  // 不再需要外部 TTL），仅清理所有模块均过期的条目
   const negTtl = resolveTtlMs('negativeCache', ttl.negativeCache);
   const urlTtl = resolveTtlMs('downloadUrls', ttl.downloadUrls);
 
@@ -547,7 +551,7 @@ async function handleCleanExpiredCache() {
     dataStore.readModule(DB_KEYS.NAME_INDEX),
     readDownloadUrlsStore()
   ]);
-  const steam = collectExpiredSteamCache(steamData || {}, steamTtl);
+  const steam = collectExpiredSteamCache(steamData || {});
   const names = collectExpiredNegativeNames(nameData || {}, negTtl);
   const urls = collectExpiredDownloadUrls(urlStore, urlTtl);
 
@@ -700,7 +704,7 @@ async function handleGetGameCacheList(message) {
     }
     const primaryUrl = Object.values(urls).find(u => u && u.url) || null;
     const cachedEntry = steamCacheMemory ? steamCacheMemory.get(String(appId)) || null : null;
-    const cachedData = cachedEntry ? cachedEntry.data : null;
+    const cachedData = cachedEntry ? getMergedData(cachedEntry) : null;
     // 推荐值计算（纯函数，行为/Steam 信息动态反映）
     const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
     const rec = computeGameScore({

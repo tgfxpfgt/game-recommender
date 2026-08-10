@@ -135,14 +135,61 @@ const constMod = await import('file:///F:/data/browser%20extension/game-recommen
 check('默认 72 小时', constMod.detailSteamCacheTtlMs(), 72 * 3600e3);
 check('detailSteam 0 = 长期', (() => { constMod.setTtlConfig({ detailSteam: { value: 0, unit: 'hours' } }); return constMod.detailSteamCacheTtlMs(); })(), Infinity);
 check('detailSteam 3 天', (() => { constMod.setTtlConfig({ detailSteam: { value: 3, unit: 'days' } }); return constMod.detailSteamCacheTtlMs(); })(), 3 * 86400e3);
+// 恢复默认，避免污染后续测试（模块化后 TTL 为模块级全局配置）
+constMod.setTtlConfig({
+  steamDynamic: { value: 24, unit: 'hours' },
+  detailSteam: { value: 72, unit: 'hours' },
+  spySteam: { value: 7, unit: 'days' },
+  metaSteam: { value: 30, unit: 'days' },
+  registryConfirm: { value: 30, unit: 'days' },
+  downloadUrls: { value: 30, unit: 'days' },
+  negativeCache: { value: 2, unit: 'hours' }
+});
 
-// ============ 0.12 缓存有效性带 TTL 参数（v3.3.3）/ isSteamCacheValid ============
-console.log('0.12 缓存有效性带 TTL 参数 isSteamCacheValid');
+// ============ 0.12 模块化缓存（v3.3.7）/ isModuleValid / getMergedData ============
+console.log('0.12 模块化缓存 isModuleValid / getMergedData');
 const cacheMod = await import('file:///F:/data/browser%20extension/game-recommender/background/storage/steam-cache.js?t=' + Date.now());
-const V = constMod.STEAM_CACHE_VERSION;
-check('25h 条目：列表页默认 TTL(24h) 过期', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 25 * 3600e3, data: {} }), false);
-check('25h 条目：详情页 TTL(72h) 有效', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 25 * 3600e3, data: {} }, 72 * 3600e3), true);
-check('100h 条目：详情页 TTL 过期', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 100 * 3600e3, data: {} }, 72 * 3600e3), false);
+const modNow = Date.now();
+const modEntry = {
+  modules: {
+    meta: { data: { appId: '3117820', name: '苏丹的游戏' }, ts: modNow },
+    rating: { data: { positiveRate: 90 }, ts: modNow - 25 * 3600e3 },   // 25h 前（rating 24h 过期）
+    detail: { data: { url: 'https://store.steampowered.com/app/1/' }, ts: modNow - 25 * 3600e3 } // 25h 前（detail 72h 有效）
+  }
+};
+check('rating 模块 25h 前写入已过期（24h TTL）', cacheMod.isModuleValid(modEntry, 'rating'), false);
+check('detail 模块 25h 前写入仍有效（72h TTL）', cacheMod.isModuleValid(modEntry, 'detail'), true);
+check('meta 模块 30 天 TTL 有效', cacheMod.isModuleValid(modEntry, 'meta'), true);
+check('条目整体有效（任一模块未过期）', cacheMod.isSteamCacheValid(modEntry), true);
+check('合并视图含各模块字段', (() => { const m = cacheMod.getMergedData(modEntry); return m.appId === '3117820' && m.positiveRate === 90 && !!m.url; })(), true);
+check('全部过期条目整体无效', cacheMod.isSteamCacheValid({ modules: { rating: { data: { positiveRate: 1 }, ts: modNow - 25 * 3600e3 } } }), false);
+
+// 0.12b 字段归属路由（setSteamCacheEntry 自动拆分）
+console.log('0.12b 字段归属路由 setSteamCacheEntry');
+globalThis.chrome = {
+  storage: { local: { get: async () => ({}), set: async () => {} } }
+};
+await cacheMod.resetSteamCache();
+await cacheMod.setSteamCacheEntry('test-1', { appId: '1', positiveRate: 95, genres: ['RPG'], steamspy: { ccu: 100 } });
+const e1 = await cacheMod.getSteamCacheEntry('test-1');
+check('meta 模块路由（appId）', !!e1.modules.meta && e1.modules.meta.data.appId === '1', true);
+check('rating 模块路由（positiveRate）', !!e1.modules.rating && e1.modules.rating.data.positiveRate === 95, true);
+check('detail 模块路由（genres）', !!e1.modules.detail && e1.modules.detail.data.genres[0] === 'RPG', true);
+check('spy 模块路由（steamspy）', !!e1.modules.spy && e1.modules.spy.data.steamspy.ccu === 100, true);
+// 部分更新：只写 rating → 其他模块保留
+await cacheMod.setSteamCacheEntry('test-1', { positiveRate: 96 });
+const e2 = await cacheMod.getSteamCacheEntry('test-1');
+check('部分更新保留其他模块', !!e2.modules.meta && !!e2.modules.detail && !!e2.modules.spy, true);
+check('部分更新覆盖同模块字段', e2.modules.rating.data.positiveRate === 96 && e2.modules.rating.data.ratingDesc === undefined, true);
+
+// 0.12c 旧平铺结构迁移（load 时自动迁移，旧缓存不立即失效）
+console.log('0.12c 旧平铺结构迁移 migrateEntry');
+const legacy = { data: { appId: '100', positiveRate: 88, genres: ['RPG'] }, timestamp: modNow - 10 * 3600e3, version: 5 };
+const migrated = cacheMod.migrateEntry(legacy);
+check('迁移为模块结构', !!migrated.modules, true);
+check('迁移字段归属正确', migrated.modules.meta.data.appId === '100' && migrated.modules.rating.data.positiveRate === 88 && migrated.modules.detail.data.genres[0] === 'RPG', true);
+check('迁移保留原时间戳', migrated.modules.rating.ts === modNow - 10 * 3600e3, true);
+check('模块结构条目迁移不变', cacheMod.migrateEntry(modEntry) === modEntry, true);
 
 // ============ 0.13 近30天评测统计（v3.3.6）/ summarizeRecentReviews ============
 console.log('0.13 近30天评测统计 summarizeRecentReviews');
@@ -199,21 +246,26 @@ const tooDeep = { version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'],
 check('嵌套过深拒绝', rulesMod.validateAdapterRules(tooDeep).ok, false);
 
 // ============ 2. Steam 缓存过期清理 / Steam-cache cleanup ============
-console.log('2. Steam 缓存过期清理 collectExpiredSteamCache');
+console.log('2. Steam 缓存过期清理 collectExpiredSteamCache（v3.3.7 模块化）');
 const now = Date.now();
 const steamEntries = {
-  '1': { data: {}, timestamp: now, version: V },                    // 未过期
-  '2': { data: {}, timestamp: now - 25 * 3600e3, version: V },      // 过期（TTL 24h）
-  '3': { data: {}, timestamp: now, version: V - 1 },                // 版本不符 → 过期
-  '4': { data: {}, timestamp: now - 25 * 3600e3, version: V }       // 过期
+  // 全部模块未过期 → 保留
+  '1': { modules: { meta: { data: { appId: '1' }, ts: now }, rating: { data: { positiveRate: 90 }, ts: now } } },
+  // 仅 rating 且过期（无其他模块）→ 全过期删除
+  '2': { modules: { rating: { data: { positiveRate: 80 }, ts: now - 25 * 3600e3 } } },
+  // detail 25h 前（72h TTL 仍有效）→ 保留（部分有效，使用中自动刷新）
+  '3': { modules: { detail: { data: { url: 'https://x' }, ts: now - 25 * 3600e3 } } },
+  // 旧平铺结构 → 迁移后按模块判定（空 data 无字段 → 删除）
+  '4': { data: {}, timestamp: now - 25 * 3600e3, version: 6 },
+  // 旧平铺结构含有效模块字段（25h 前详情，迁移后 detail 仍有效）→ 保留
+  '5': { data: { appId: '5', url: 'https://x' }, timestamp: now - 25 * 3600e3, version: 6 }
 };
-let steamResult = cleanupMod.collectExpiredSteamCache(steamEntries, 24 * 3600e3);
-check('TTL 24h：移除 3 条', steamResult.removed, 3);
-check('保留未过期条目', steamResult.map.has('1'), true);
-check('移除过期条目', steamResult.map.has('2') || steamResult.map.has('3') || steamResult.map.has('4'), false);
-steamResult = cleanupMod.collectExpiredSteamCache(steamEntries, Infinity);
-check('0=长期：时间过期全保留，版本不符仍清理', steamResult.removed, 1);
-check('空输入', cleanupMod.collectExpiredSteamCache(null, 24 * 3600e3).removed, 0);
+let steamResult = cleanupMod.collectExpiredSteamCache(steamEntries);
+check('仅删除全过期条目（2 条）', steamResult.removed, 2);
+check('保留全部有效条目', steamResult.map.has('1') && steamResult.map.has('3') && steamResult.map.has('5'), true);
+check('删除仅 rating 过期条目', steamResult.map.has('2'), false);
+check('删除空字段旧结构条目', steamResult.map.has('4'), false);
+check('空输入', cleanupMod.collectExpiredSteamCache(null).removed, 0);
 
 // ============ 3. 名称负缓存清理 / Negative-name cleanup ============
 console.log('3. 名称负缓存清理 collectExpiredNegativeNames');

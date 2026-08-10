@@ -172,8 +172,8 @@
       saveSettings();
     });
 
-    // 缓存有效期输入（变更即自动保存）
-    ['ttlSteamDynamic', 'ttlRegistryConfirm', 'ttlDownloadUrls', 'ttlNegativeCache'].forEach(id => {
+    // 缓存有效期输入（变更即自动保存；v3.3.7 补全 ttlDetailSteam/ttlSpySteam/ttlMetaSteam）
+    ['ttlSteamDynamic', 'ttlDetailSteam', 'ttlSpySteam', 'ttlMetaSteam', 'ttlRegistryConfirm', 'ttlDownloadUrls', 'ttlNegativeCache'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('change', () => scheduleAutoSave());
@@ -247,11 +247,13 @@
     OPTS.currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')]
       .map(cb => cb.dataset.site);
 
-    // 缓存有效期（value + 单位，0 = 长期有效）
-    // Cache TTLs (value + unit; 0 = keep forever)
+    // 缓存有效期（value + 单位，0 = 长期有效；v3.3.7 模块化：每模块独立 TTL）
+    // Cache TTLs (value + unit; 0 = keep forever; per-module since v3.3.7)
     OPTS.currentSettings.cacheTtls = {
       steamDynamic: { value: parseInt(document.getElementById('ttlSteamDynamic').value) || 0, unit: document.getElementById('ttlSteamDynamicUnit').value },
       detailSteam: { value: parseInt(document.getElementById('ttlDetailSteam').value) || 0, unit: document.getElementById('ttlDetailSteamUnit').value },
+      spySteam: { value: parseInt(document.getElementById('ttlSpySteam').value) || 0, unit: document.getElementById('ttlSpySteamUnit').value },
+      metaSteam: { value: parseInt(document.getElementById('ttlMetaSteam').value) || 0, unit: document.getElementById('ttlMetaSteamUnit').value },
       registryConfirm: { value: parseInt(document.getElementById('ttlRegistryConfirm').value) || 0, unit: document.getElementById('ttlRegistryConfirmUnit').value },
       downloadUrls: { value: parseInt(document.getElementById('ttlDownloadUrls').value) || 0, unit: document.getElementById('ttlDownloadUrlsUnit').value },
       negativeCache: { value: parseInt(document.getElementById('ttlNegativeCache').value) || 0, unit: document.getElementById('ttlNegativeCacheUnit').value }

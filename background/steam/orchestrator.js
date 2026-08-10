@@ -12,7 +12,7 @@ import {
   ensureRegistryEntry, ensureValidRegistryNames, coverImageFor, isDemoAppId,
   baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch, isCompleteCacheData
 } from './api.js';
-import { isSteamCacheValid, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
+import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
 import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '../storage/name-index.js';
 import { parseGameTitle, pickRegistryEnName } from './title-parser.js';
@@ -36,21 +36,24 @@ export async function searchSteamGame(gameName) {
   // 1. 通过名称索引查找 appId / Lookup appId via name index
   let appId = await lookupAppIdByName(gameName);
 
-  // 2. 若有 appId，检查 Steam 动态缓存（详情页完整缓存，TTL 独立可配置；
-  //    仅当数据完整且未过期时命中——列表页轻量缓存不满足完整性，转完整拉取）
+  // 2. 若有 appId，检查 Steam 动态缓存（v3.3.7 模块化：detail 模块有效且
+  //    数据完整才命中——列表页仅 rating 模块的条目不满足，转完整拉取，
+  //    拉取只更新 detail/spy 模块，meta/rating 保留）
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
+    const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
+    const merged = getMergedData(cached) || {};
     // 无好评率条目（0 评测/失败固化）按冷却期重新获取
-    if (isSteamCacheValid(cached, detailSteamCacheTtlMs()) && cached.data && cached.data.appId && cached.data.name && isCompleteCacheData(cached.data) && !needsRatingRefetch(cached)) {
+    if (detail && merged.appId && merged.name && isCompleteCacheData(detail) && !needsRatingRefetch(merged)) {
       // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
-      if (isDemoCacheWithoutRating(cached.data)) {
+      if (isDemoCacheWithoutRating(merged)) {
         appId = null;
       } else {
         // 缓存命中：幂等补写注册表（含封面），防止缓存管理页缺失条目/封面；
         // 中英文名异常（占位/缺失）时自动按 appId 重新获取（自愈）
-        await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName, cached.data.headerImage || '', cached.data.type);
-        await ensureValidRegistryNames(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
-        return cached.data;
+        await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
+        await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
+        return merged;
       }
     } else if (await isDemoAppId(appId)) {
       // 缓存缺失/过期且该 appId 是 Demo 版 → 重新搜索完整版
@@ -111,25 +114,26 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (!appId) return null;
 
   const cached = await getSteamCacheEntry(appId);
-  // 无好评率条目（0 评测/失败固化）按冷却期重新获取
-  if (!isSteamCacheValid(cached) || !cached.data || cached.data.positiveRate === undefined || needsRatingRefetch(cached)) return null;
-  if (isDemoCacheWithoutRating(cached.data)) return null;
+  const merged = getMergedData(cached) || {};
+  // 无好评率条目（0 评测/失败固化）按冷却期重新获取（v3.3.7：rating 模块有效判定）
+  if (!isModuleValid(cached, 'rating') || merged.positiveRate === undefined || needsRatingRefetch(merged)) return null;
+  if (isDemoCacheWithoutRating(merged)) return null;
 
   // 与完整路径一致：幂等补写注册表（含封面/type）+ 中英文名异常自愈（缓存命中时同步）
-  await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName, cached.data.headerImage || '', cached.data.type);
-  await ensureValidRegistryNames(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+  await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
+  await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
   return {
-    positiveRate: cached.data.positiveRate,
-    ratingDesc: cached.data.ratingDesc || null,
-    appId: cached.data.appId || appId,
-    name: cached.data.name || gameName,
-    type: cached.data.type || 'game',
+    positiveRate: merged.positiveRate,
+    ratingDesc: merged.ratingDesc || null,
+    appId: merged.appId || appId,
+    name: merged.name || gameName,
+    type: merged.type || 'game',
     // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
-    totalReviews: cached.data.totalReviews || 0,
-    recentPositiveRate: cached.data.recentPositiveRate ?? null,
-    recentTotalReviews: cached.data.recentTotalReviews ?? 0,
-    lastUpdate: cached.data.lastUpdate || null,
-    releaseDate: cached.data.releaseDate || ''
+    totalReviews: merged.totalReviews || 0,
+    recentPositiveRate: merged.recentPositiveRate ?? null,
+    recentTotalReviews: merged.recentTotalReviews ?? 0,
+    lastUpdate: merged.lastUpdate || null,
+    releaseDate: merged.releaseDate || ''
   };
 }
 
@@ -147,28 +151,29 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     appId = await lookupAppIdByName(gameName);
   }
 
-  // 2. 若有 appId，检查 Steam 动态缓存（含 Demo 自愈）
+  // 2. 若有 appId，检查 Steam 动态缓存（含 Demo 自愈；v3.3.7：rating 模块有效判定）
   let usableAppId = appId;
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
-    if (isSteamCacheValid(cached) && cached.data && cached.data.positiveRate !== undefined && !needsRatingRefetch(cached)) {
+    const merged = getMergedData(cached) || {};
+    if (isModuleValid(cached, 'rating') && merged.positiveRate !== undefined && !needsRatingRefetch(merged)) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
-      if (!isDemoCacheWithoutRating(cached.data)) {
+      if (!isDemoCacheWithoutRating(merged)) {
         // 缓存命中：幂等补写注册表（含封面/type）；中英文名异常时自愈
-        await ensureRegistryEntry(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName, cached.data.headerImage || '', cached.data.type);
-        await ensureValidRegistryNames(cached.data.appId || appId, cached.data.name, cached.data.englishName, gameName);
+        await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
+        await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
         return {
-          positiveRate: cached.data.positiveRate,
-          ratingDesc: cached.data.ratingDesc || null,
-          appId: cached.data.appId || appId,
-          name: cached.data.name || gameName,
-          type: cached.data.type || 'game',
+          positiveRate: merged.positiveRate,
+          ratingDesc: merged.ratingDesc || null,
+          appId: merged.appId || appId,
+          name: merged.name || gameName,
+          type: merged.type || 'game',
           // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
-          totalReviews: cached.data.totalReviews || 0,
-          recentPositiveRate: cached.data.recentPositiveRate ?? null,
-          recentTotalReviews: cached.data.recentTotalReviews ?? 0,
-          lastUpdate: cached.data.lastUpdate || null,
-          releaseDate: cached.data.releaseDate || ''
+          totalReviews: merged.totalReviews || 0,
+          recentPositiveRate: merged.recentPositiveRate ?? null,
+          recentTotalReviews: merged.recentTotalReviews ?? 0,
+          lastUpdate: merged.lastUpdate || null,
+          releaseDate: merged.releaseDate || ''
         };
       }
       usableAppId = null;
@@ -213,9 +218,11 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     // shows no add-on hints — saves 1 request per game (~20% fewer in batch).
     let appType = null;
     if (foundAppId) {
-      const cachedType = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || {}).data?.type : null;
-      if (cachedType) {
-        appType = cachedType;
+      // v3.3.7：缓存 type 从合并视图读取（meta 模块）
+      const cachedType = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || null) : null;
+      const cachedTypeVal = cachedType ? (getMergedData(cachedType) || {}).type : null;
+      if (cachedTypeVal) {
+        appType = cachedTypeVal;
       } else if (ADDON_NAME_PATTERN.test(foundName)) {
         const baseCheck = await fetchSteamAppDetails(foundAppId, 'schinese').catch(() => null);
         if (baseCheck) {
@@ -298,7 +305,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //    确认 0 评测（positiveRate null）时记录重试时间，冷却期内不再重复请求。
     //    v3.3.6：近 30 天好评率随同一请求写入缓存（徽章三段式数据源）；
     //    lastUpdate 由详情页全量拉取写入，经 ...existing 合并自动补全。
-    const existing = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || {}).data || {} : {};
+    //    v3.3.7：existing 为模块合并视图（setSteamCacheEntry 按字段自动路由，
+    //    只更新 meta/rating 模块，detail/spy 保留）
+    const existing = usableAppId ? (getMergedData(await getSteamCacheEntry(usableAppId)) || {}) : {};
     const headerImage = coverImageFor(foundAppId, options.cover);
     const mergedData = {
       ...existing, appId: foundAppId, name: foundName, englishName: officialEn,

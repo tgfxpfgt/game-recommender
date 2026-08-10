@@ -56,11 +56,13 @@
     // 下载站与追踪管理（合并展示）
     renderSiteManagement(settings);
 
-    // 缓存有效期（value + 单位，兼容旧数字格式；0 = 长期有效）
-    // Cache TTLs (value + unit; legacy numbers supported; 0 = forever)
+    // 缓存有效期（value + 单位，兼容旧数字格式；0 = 长期有效；v3.3.7 每模块独立）
+    // Cache TTLs (value + unit; legacy numbers supported; 0 = forever; per-module)
     const ttls = settings.cacheTtls || {};
     setTtlControl('ttlSteamDynamic', ttls.steamDynamic, 'hours');
     setTtlControl('ttlDetailSteam', ttls.detailSteam, 'hours');
+    setTtlControl('ttlSpySteam', ttls.spySteam, 'days');
+    setTtlControl('ttlMetaSteam', ttls.metaSteam, 'days');
     setTtlControl('ttlRegistryConfirm', ttls.registryConfirm, 'days');
     setTtlControl('ttlDownloadUrls', ttls.downloadUrls, 'days');
     setTtlControl('ttlNegativeCache', ttls.negativeCache, 'hours');

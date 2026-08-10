@@ -15,7 +15,7 @@ import { getSettings } from '../core/settings.js';
 import { getBehaviorLog } from '../storage/behavior.js';
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
-import { getSteamCacheEntry } from '../storage/steam-cache.js';
+import { getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { cleanGameName } from '../steam/title-parser.js';
 
@@ -138,7 +138,8 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
     maxViews: Math.max(1, ...allProfiles.map(p => p.views || 0)),
     maxDownloads: Math.max(1, ...allProfiles.map(p => p.downloads || 0))
   };
-  const steamData = steamEntry && steamEntry.data ? steamEntry.data : null;
+  // v3.3.7：缓存为模块结构，用合并视图读字段
+  const steamData = steamEntry ? getMergedData(steamEntry) : null;
 
   return computeGameScore({
     profile,
