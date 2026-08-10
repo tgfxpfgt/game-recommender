@@ -66,16 +66,23 @@ export function validateSteamNames(cnName, enName) {
   return { valid: issues.length === 0, issues };
 }
 
-// 从 appdetails 数据解析"游戏本体" appId（v3.2.6）：
-//   - type=game/demo → 自身（demo 由名称词表另行判定）
+// 从 appdetails 数据解析"游戏本体" appId（v3.2.6+，v3.2.10 补 demo）：
+//   - type=game → 自身
+//   - type=demo → 优先解析所属本体（demo 页面同样带 fullgame，如
+//     "杀死影子 Demo" 2947640 → 2660230）；无 fullgame 的独立 Demo 保留自身
 //   - type=dlc 且含 fullgame → 返回所属本体 appId（DLC 页面提供）
 //   - 其他（bundle/mod/music/soundtrack/video/software/hardware 等非本体）→ null
-// Resolve the base-game appId from appdetails data: game/demo stay; a DLC with
-// a fullgame entry resolves to its base game; every other non-base type
-// (bundle/mod/music/video/software/hardware...) → null (invalid for a badge).
+// Resolve the base-game appId from appdetails data: game stays; a demo resolves
+// to its full game when fullgame exists (e.g. "杀死影子 Demo" 2947640 →
+// 2660230), otherwise stays; a DLC with fullgame resolves to its base game;
+// every other non-base type (bundle/mod/music/video/software/hardware...) → null.
 export function baseAppIdFromDetails(data) {
   if (!data || typeof data !== 'object') return null;
-  if (data.type === 'game' || data.type === 'demo') {
+  if (data.type === 'game') {
+    return data.appid ? String(data.appid) : null;
+  }
+  if (data.type === 'demo') {
+    if (data.fullgame && data.fullgame.appid) return String(data.fullgame.appid);
     return data.appid ? String(data.appid) : null;
   }
   if (data.type === 'dlc' && data.fullgame && data.fullgame.appid) {
@@ -472,19 +479,23 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     fetchSteamAppDetails(appId, 'schinese'),
     fetchSteamAppDetails(appId, 'english').catch(() => null)
   ]);
-  // appId 校验：type=dlc 且含 fullgame → 自动切换到本体重新获取
-  if (gameData && gameData.type === 'dlc' && gameData.fullgame && gameData.fullgame.appid) {
-    const baseId = String(gameData.fullgame.appid);
-    Logger.warn('Steam', `appId ${appId} 为 DLC，自动解析为本体 ${baseId}（${gameData.fullgame.name || ''}）`);
-    appId = baseId;
-    [gameData, enGameData] = await Promise.all([
-      fetchSteamAppDetails(appId, 'schinese'),
-      fetchSteamAppDetails(appId, 'english').catch(() => null)
-    ]);
-  } else if (gameData && gameData.type !== 'game' && gameData.type !== 'demo') {
-    // bundle/未知类型：非游戏本体且无法解析 → 视为无效
-    Logger.warn('Steam', `appId ${appId} 类型 ${gameData.type} 非游戏本体且无法解析`);
-    return null;
+  // appId 校验（统一走 baseAppIdFromDetails）：dlc/demo 等非本体自动切换到
+  // 所属本体（fullgame）重新获取；bundle 等无法解析的类型视为无效。
+  if (gameData) {
+    const baseId = baseAppIdFromDetails(gameData);
+    if (baseId && baseId !== String(appId)) {
+      const reason = gameData.type === 'dlc' ? 'DLC' : gameData.type === 'demo' ? 'Demo' : gameData.type;
+      Logger.warn('Steam', `appId ${appId} 为 ${reason}，自动解析为本体 ${baseId}（${(gameData.fullgame && gameData.fullgame.name) || ''}）`);
+      appId = baseId;
+      [gameData, enGameData] = await Promise.all([
+        fetchSteamAppDetails(appId, 'schinese'),
+        fetchSteamAppDetails(appId, 'english').catch(() => null)
+      ]);
+    } else if (!baseId) {
+      // bundle/mod/music 等非本体且无法解析 → 视为无效
+      Logger.warn('Steam', `appId ${appId} 类型 ${gameData.type} 非游戏本体且无法解析`);
+      return null;
+    }
   }
   if (!gameData) return null;
 

@@ -214,6 +214,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.2.10
+- **修复 gamer520 119439（杀死影子）列表页未获好评率、详情页误中 Demo**：
+  - 实测根因：列表页封面与详情页首图均为 **Demo 封面（2947640）**，appId 直取提取到 Demo appid；而本体解析规则未处理 demo 类型的 `fullgame`（demo 页面同样携带所属本体，如"杀死影子 Demo"→ 2660230）→ 列表页取 Demo 好评率（少/0，显示 AppID）、详情页显示"杀死影子 Demo"
+  - 修复：`baseAppIdFromDetails` 增加 **demo 规则**——demo 含 fullgame 时解析本体（无 fullgame 的独立 Demo 保留自身）；`fetchSteamFullDetailsByAppId` 校验统一走 `baseAppIdFromDetails`（dlc/demo 自动切本体，bundle 等无效）
+  - **列表页与详情页一致性**：两页共用同一本体解析函数——封面/截图提取到 dlc/demo appid 时自动解析到本体，列表页好评率（219 条"特别好评"）、详情页信息、下载站检索全部基于同一 appId（2660230）；名称索引/注册表/缓存均写本体，跨页数据同源自愈
+- 测试：本体解析 demo 规则更新（demo+fullgame→本体、独立 demo 保留）；全套 **168 项**通过
+
 ### v3.2.9
 - **修复大量 appid 缓存后只显示 AppID（好评率不展示）**：根因是批量检索时 Steam appreviews API 失败（网络/限流）把 `positiveRate: null` **写入缓存固化**，此后一直显示灰 AppID。修复：`fetchReviewSummary` 网络失败重试一次；获取失败**不写缓存**并返回 `failed` 标记（徽章提示"获取失败，下次访问自动重试"）；新增 `isFailedRatingEntry` 检测（好评率与描述均空的缓存条目视为失败固化，三条缓存命中路径均不命中、自动重新获取）——已固化的旧数据下次访问自动自愈
 - **列表页缓存 appId 的 type 处理规则完善**（Steam 全 type）：

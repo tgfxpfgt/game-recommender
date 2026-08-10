@@ -48,7 +48,8 @@ check('跨语言+数字差异仍拒绝（装机模拟器2→1代）', nm('装机
 console.log('0.6 appId 本体解析 baseAppIdFromDetails');
 const bd = apiMod.baseAppIdFromDetails;
 check('game 类型保留自身', bd({ type: 'game', appid: 2806120 }), '2806120');
-check('demo 类型保留自身', bd({ type: 'demo', appid: 1332470 }), '1332470');
+check('demo 含 fullgame 解析本体（杀死影子 Demo→本体）', bd({ type: 'demo', appid: 2947640, fullgame: { appid: '2660230', name: '杀死影子' } }), '2660230');
+check('独立 demo 无 fullgame 保留自身', bd({ type: 'demo', appid: 1332470 }), '1332470');
 check('dlc 含 fullgame 解析本体', bd({ type: 'dlc', appid: 4818690, fullgame: { appid: '2389170', name: '华夏史诗：战国' } }), '2389170');
 check('dlc 无 fullgame 无法解析', bd({ type: 'dlc', appid: 4145470 }), null);
 check('bundle 无法解析', bd({ type: 'bundle', appid: 12345 }), null);
