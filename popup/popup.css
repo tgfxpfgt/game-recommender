@@ -533,6 +533,22 @@ input:checked + .slider::before {
   box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
 }
 
+/* Steam API 状态灯：正常/异常 / API status: ok / anomaly */
+.status-dot.ok {
+  background: #2ecc71;
+  box-shadow: 0 0 4px rgba(46, 204, 113, 0.5);
+}
+.status-dot.error {
+  background: #e74c3c;
+  box-shadow: 0 0 4px rgba(231, 76, 60, 0.5);
+}
+
+/* API 状态信息区 / API status info */
+.api-status-info {
+  font-size: 12px;
+  line-height: 1.5;
+}
+
 /* ============================================================
    Keyword Tags / 偏好关键词标签
    ============================================================ */

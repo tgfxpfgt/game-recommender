@@ -60,6 +60,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load statistics / 加载统计数据
   loadStats();
 
+  // Load Steam API status / 加载 Steam API 状态
+  loadApiStatus();
+
   // Load free games count / 加载限免游戏数量
   loadFreeGamesCount();
 
@@ -160,6 +163,33 @@ document.addEventListener('DOMContentLoaded', async () => {
     chrome.tabs.create({ url: chrome.runtime.getURL('freegames/freegames.html') });
   });
 });
+
+// ============ Load Steam API Status / 加载 Steam API 状态 ============
+async function loadApiStatus() {
+  const dot = document.getElementById('apiStatusDot');
+  const info = document.getElementById('apiStatusInfo');
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_API_STATUS' });
+    if (!resp) {
+      info.innerHTML = '<span class="no-data">无法获取状态</span>';
+      return;
+    }
+    // 状态点：绿=正常 / 黄=采样不足 / 红=异常（限流/高频失败）
+    if (resp.anomaly) {
+      dot.className = 'status-dot error';
+      info.innerHTML = `<span style="color:#e74c3c;font-size:12px;">⚠️ Steam API 异常：近 ${resp.windowSec / 60} 分钟失败率 <b>${resp.failRate}%</b>（${resp.failed}/${resp.total} 次失败），疑似限流</span>
+        <div style="font-size:11px;color:#8f98a0;margin-top:4px;">扩展已自动降低批量检索速度；建议稍后重试或减少连续刷新</div>`;
+    } else if (resp.total < 8) {
+      dot.className = 'status-dot';
+      info.innerHTML = `<span style="font-size:12px;color:#8f98a0;">采样中：近 5 分钟 ${resp.total} 次调用（${resp.failed} 次失败）</span>`;
+    } else {
+      dot.className = 'status-dot ok';
+      info.innerHTML = `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${resp.windowSec / 60} 分钟 ${resp.total} 次调用，失败 ${resp.failed} 次（${resp.failRate}%）${resp.limited > 0 ? `，限流 ${resp.limited} 次` : ''}</span>`;
+    }
+  } catch (e) {
+    info.innerHTML = '<span class="no-data">无法获取状态</span>';
+  }
+}
 
 // ============ Load Free Games Count / 加载限免游戏数量 ============
 async function loadFreeGamesCount() {

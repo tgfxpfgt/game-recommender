@@ -67,6 +67,35 @@ check('0 评测条目有效（有描述）', fe({ positiveRate: null, ratingDesc
 check('失败固化（双空）判定', fe({ positiveRate: null, ratingDesc: null }), true);
 check('null 输入', fe(null), false);
 
+// ============ 0.8 Steam API 状态监测（v3.3.0）/ api-monitor ============
+console.log('0.8 Steam API 状态监测');
+const monitor = await import('file:///F:/data/browser%20extension/game-recommender/background/core/api-monitor.js?t=' + Date.now());
+monitor.resetApiMonitor();
+let st = monitor.getSteamApiStatus();
+check('空窗口状态', st.total === 0 && st.anomaly === false && st.failRate === 0, true);
+// 正常调用
+for (let i = 0; i < 10; i++) monitor.recordSteamCall(true);
+st = monitor.getSteamApiStatus();
+check('10 次成功：失败率 0、非异常', st.failRate === 0 && st.anomaly === false && st.total === 10, true);
+// 高频失败 → 异常
+monitor.resetApiMonitor();
+for (let i = 0; i < 6; i++) monitor.recordSteamCall(false);
+for (let i = 0; i < 4; i++) monitor.recordSteamCall(true);
+st = monitor.getSteamApiStatus();
+check('失败率 60% 判定异常', st.anomaly === true && st.failRate === 60, true);
+// 样本不足不误报
+monitor.resetApiMonitor();
+monitor.recordSteamCall(false);
+st = monitor.getSteamApiStatus();
+check('样本不足（1 次失败）不判定异常', st.anomaly === false, true);
+// 限流状态码统计
+monitor.resetApiMonitor();
+monitor.recordSteamCall(false, 429);
+monitor.recordSteamCall(true);
+monitor.recordSteamCall(false, 503);
+st = monitor.getSteamApiStatus();
+check('限流状态码统计（429/503）', st.limited, 2);
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {

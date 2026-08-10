@@ -13,6 +13,7 @@ import { Logger } from '../storage/logger.js';
 import { getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
 import { generateSearchVariants, extractNoiseCandidates } from './title-parser.js';
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
+import { recordSteamCall, getSteamApiStatus } from '../core/api-monitor.js';
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
@@ -120,11 +121,17 @@ async function searchSteamAppIdOnce(searchTerms, rawName) {
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
         cnData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
-      } catch (e) { /* 中文搜索失败不阻断流程 */ }
+        recordSteamCall(true);
+      } catch (e) {
+        recordSteamCall(false); /* 中文搜索失败不阻断流程 */
+      }
     }
     try {
       enData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`)).json();
-    } catch (e) { /* 英文搜索失败回退中文名 */ }
+      recordSteamCall(true);
+    } catch (e) {
+      recordSteamCall(false); /* 英文搜索失败回退中文名 */
+    }
 
     // 网络整体失败（中英文均未返回）：抛错 → 外层重试一次（抗瞬时抖动）
     if (!cnData && !enData) throw new Error('Steam 搜索网络失败');
@@ -203,10 +210,16 @@ async function searchSteamAppIdLight(term, rawName) {
 // 获取应用详情（language: schinese/english 等，name 随语言） / Fetch app details
 export async function fetchSteamAppDetails(appId, language = 'schinese') {
   const detailUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=${language}`;
-  const response = await fetchWithTimeout(detailUrl);
-  const detailData = await response.json();
-  if (!detailData[appId] || !detailData[appId].success) return null;
-  return detailData[appId].data;
+  try {
+    const response = await fetchWithTimeout(detailUrl);
+    const detailData = await response.json();
+    recordSteamCall(true);
+    if (!detailData[appId] || !detailData[appId].success) return null;
+    return detailData[appId].data;
+  } catch (e) {
+    recordSteamCall(false);
+    return null;
+  }
 }
 
 // --- 商店页面 HTML ---
@@ -299,6 +312,7 @@ export async function fetchReviewSummary(appId) {
       const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
       const response = await fetchWithTimeout(reviewUrl);
       const data = await response.json();
+      recordSteamCall(true);
       if (data.success === 1 && data.query_summary) {
         const qs = data.query_summary;
         return {
@@ -310,7 +324,7 @@ export async function fetchReviewSummary(appId) {
         };
       }
     } catch (e) {
-      // 重试一次 / retry once
+      recordSteamCall(false); // 重试一次 / retry once
     }
   }
   return null;

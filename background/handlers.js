@@ -30,6 +30,7 @@ import { calculateRecommendation, computeGameScore, findProfile } from './recomm
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { fetchWithTimeout } from './core/utils.js';
+import { getSteamApiStatus, resetApiMonitor } from './core/api-monitor.js';
 
 // --- 行为追踪 / Behavior tracking ---
 async function handleTrackEvent(message) {
@@ -245,6 +246,10 @@ async function handleGetSteamRatings(message, sender) {
           await flushNameIndex();
           await flushRegistry();
           push({ ratings: wave });
+          // 限流降速：Steam API 异常状态时拉大批次间隔，避免加剧限流
+          if (getSteamApiStatus().anomaly && i + batchSize < names.length) {
+            await new Promise(r => setTimeout(r, 1500));
+          }
         }
         // 全部完成：done 标记（内容脚本据此收尾并显示统计）
         push({ ratings: null, done: true });
@@ -486,6 +491,11 @@ async function handleHealRegistryNames(message) {
   const result = await scanAndHealRegistry(Math.min(50, message && message.limit || 20));
   Logger.info('Steam', `名称批量自愈: 扫描 ${result.scanned} 条, 修复 ${result.healed} 条, 剩余 ${result.remaining} 条`);
   return result;
+}
+
+// --- Steam API 状态监测（v3.3.0）---
+async function handleGetApiStatus() {
+  return getSteamApiStatus();
 }
 
 // --- 下载站搜索（Steam 页浮窗）---
@@ -872,7 +882,8 @@ export const MESSAGE_HANDLERS = {
   SAVE_ADAPTER_RULES:     handleSaveAdapterRules,
   DELETE_ADAPTER_RULES:   handleDeleteAdapterRules,
   CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache,
-  HEAL_REGISTRY_NAMES:    handleHealRegistryNames
+  HEAL_REGISTRY_NAMES:    handleHealRegistryNames,
+  GET_API_STATUS:         handleGetApiStatus
 };
 
 // 消息统一入口 / Message entry
