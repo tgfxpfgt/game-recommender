@@ -9,7 +9,7 @@
 import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
   fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ensureRegistryEntry,
-  ensureValidRegistryNames, coverImageFor, isDemoAppId
+  ensureValidRegistryNames, coverImageFor, isDemoAppId, baseAppIdFromDetails
 } from './api.js';
 import { isSteamCacheValid, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -180,6 +180,23 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       }
       foundAppId = searchResult.appId;
       foundName = searchResult.name;
+    }
+
+    // 4.5 appId 校验（v3.2.6）：DLC 等非游戏本体 → 自动解析为所属本体（fullgame）；
+    // bundle/未知类型且无法解析 → 视为未找到。网络失败时保持原值继续（防误杀）。
+    if (foundAppId) {
+      const baseCheck = await fetchSteamAppDetails(foundAppId, 'schinese').catch(() => null);
+      if (baseCheck) {
+        const baseId = baseAppIdFromDetails(baseCheck);
+        if (baseId && baseId !== String(foundAppId)) {
+          Logger.warn('Steam', `appId ${foundAppId} 为 DLC/非本体，自动解析为本体 ${baseId}（${(baseCheck.fullgame && baseCheck.fullgame.name) || ''}）`);
+          foundAppId = baseId;
+          foundName = (baseCheck.fullgame && baseCheck.fullgame.name) || foundName;
+        } else if (!baseId) {
+          Logger.warn('Steam', `appId ${foundAppId} 类型 ${baseCheck.type} 非游戏本体且无法解析，视为未找到`);
+          return null;
+        }
+      }
     }
 
     // 5. 获取评价统计（好评率）

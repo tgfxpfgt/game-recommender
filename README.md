@@ -214,6 +214,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.2.6
+- **appId 校验与自动纠错**：检索/直取到的 appId 若为 DLC、合集等非单个游戏本体，判定为检索错误并**自动解析正确本体**——
+  - 新增 `baseAppIdFromDetails`（纯函数）：`type=game/demo` 保留自身；`type=dlc` 且含 `fullgame` 时返回所属本体 appId（Steam DLC 页面自带 fullgame 字段，实测 4818690→2389170 华夏史诗、4145470→3613270 星际采矿公司）；bundle/未知类型且无法解析 → 视为无效
+  - 详情页路径（`fetchSteamFullDetailsByAppId`，覆盖封面 appId 直取/手动更新）：DLC appId 自动切换本体重新获取（并行中英文），bundle 等返回无效
+  - 列表页路径（`getSteamPositiveRate`）：搜索命中与 appId 直取均校验，DLC 自动解析本体（好评率/注册表/名称索引均写入本体），无法解析的 bundle 视为未找到；网络失败保持原值继续（防误杀）
+- 测试：新增 baseAppIdFromDetails 用例（6 项）；全套 **140 项**通过
+
 ### v3.2.5
 - **修复 Steam 页（3064810 Strategos / 2275490 Kaizen）下载站检索全部失败**（重大根因）：
   - 根因：`regexExecAll` 使用 `re[Symbol.exec]`——**`Symbol.exec` 不是标准符号**（标准仅 Symbol.match/matchAll/replace/search/split），表达式恒为 undefined，调用抛 TypeError 被 catch 吞掉 → **所有站内搜索（xdgame/xianyudanji/gamer520）全部静默失败**；此前被"缓存优先/注册表兜底"路径掩盖（访问过下载站才有缓存）。修复为标准符号 `Symbol.matchAll`——实测 Strategos 三站全部命中（xdgame 13184 / xianyudanji 88052 / gamer520 105598），Kaizen 命中 xdgame 11146 / xianyudanji 73257（gamer520 无资源，正确失败）

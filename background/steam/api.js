@@ -66,6 +66,23 @@ export function validateSteamNames(cnName, enName) {
   return { valid: issues.length === 0, issues };
 }
 
+// 从 appdetails 数据解析"游戏本体" appId（v3.2.6）：
+//   - type=game/demo → 自身（demo 由名称词表另行判定）
+//   - type=dlc 且含 fullgame → 返回所属本体 appId（DLC 页面提供）
+//   - 其他（bundle/未知）→ null（无法解析，视为无效检索）
+// Resolve the base-game appId from appdetails data: game/demo stay; a DLC with
+// a fullgame entry resolves to its base game; anything else → null (invalid).
+export function baseAppIdFromDetails(data) {
+  if (!data || typeof data !== 'object') return null;
+  if (data.type === 'game' || data.type === 'demo') {
+    return data.appid ? String(data.appid) : null;
+  }
+  if (data.type === 'dlc' && data.fullgame && data.fullgame.appid) {
+    return String(data.fullgame.appid);
+  }
+  return null;
+}
+
 // 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
 // Cover URL: keep the provided cover, else build the Steam CDN header URL
 export function coverImageFor(appId, fallback) {
@@ -433,13 +450,29 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
 }
 
 // 通过 appId 获取完整的 Steam 详情（组装：详情/语言/标签/评测/SteamDB/SteamSpy）
-// Fetch full Steam details by appId (details/language/tags/reviews/SteamDB/SteamSpy)
+// 先校验 appId：DLC 等非游戏本体自动解析为所属本体（fullgame）。
+// Fetch full Steam details by appId (details/language/tags/reviews/SteamDB/
+// SteamSpy). The appId is validated first: a DLC resolves to its base game.
 export async function fetchSteamFullDetailsByAppId(appId) {
   // 并行获取中英文详情：中文用于页面显示，英文名写入游戏注册表
-  const [gameData, enGameData] = await Promise.all([
+  let [gameData, enGameData] = await Promise.all([
     fetchSteamAppDetails(appId, 'schinese'),
-    fetchSteamAppDetails(appId, 'english')
+    fetchSteamAppDetails(appId, 'english').catch(() => null)
   ]);
+  // appId 校验：type=dlc 且含 fullgame → 自动切换到本体重新获取
+  if (gameData && gameData.type === 'dlc' && gameData.fullgame && gameData.fullgame.appid) {
+    const baseId = String(gameData.fullgame.appid);
+    Logger.warn('Steam', `appId ${appId} 为 DLC，自动解析为本体 ${baseId}（${gameData.fullgame.name || ''}）`);
+    appId = baseId;
+    [gameData, enGameData] = await Promise.all([
+      fetchSteamAppDetails(appId, 'schinese'),
+      fetchSteamAppDetails(appId, 'english').catch(() => null)
+    ]);
+  } else if (gameData && gameData.type !== 'game' && gameData.type !== 'demo') {
+    // bundle/未知类型：非游戏本体且无法解析 → 视为无效
+    Logger.warn('Steam', `appId ${appId} 类型 ${gameData.type} 非游戏本体且无法解析`);
+    return null;
+  }
   if (!gameData) return null;
 
   const storeHtml = await fetchStorePageHtml(appId);

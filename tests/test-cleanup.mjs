@@ -44,6 +44,16 @@ check('跨语言信任（英文词命中官方中文名本体）', nm('角斗士
 check('跨语言信任（星际采矿公司）', nm('星际采矿公司', 'Star Ores Inc', '星际采矿公司/Star Ores Inc'), true);
 check('跨语言+数字差异仍拒绝（装机模拟器2→1代）', nm('装机模拟器 (PC Building Simulator)', '装机模拟器2', '装机模拟器2'), false);
 
+// ============ 0.6 appId 本体解析（v3.2.6）/ baseAppIdFromDetails ============
+console.log('0.6 appId 本体解析 baseAppIdFromDetails');
+const bd = apiMod.baseAppIdFromDetails;
+check('game 类型保留自身', bd({ type: 'game', appid: 2806120 }), '2806120');
+check('demo 类型保留自身', bd({ type: 'demo', appid: 1332470 }), '1332470');
+check('dlc 含 fullgame 解析本体', bd({ type: 'dlc', appid: 4818690, fullgame: { appid: '2389170', name: '华夏史诗：战国' } }), '2389170');
+check('dlc 无 fullgame 无法解析', bd({ type: 'dlc', appid: 4145470 }), null);
+check('bundle 无法解析', bd({ type: 'bundle', appid: 12345 }), null);
+check('空输入', bd(null), null);
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {
