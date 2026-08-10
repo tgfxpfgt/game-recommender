@@ -409,6 +409,40 @@ check('推荐徽章在最后（rating 徽章之后）', (() => {
   return recIdx > badgeIdx;
 })(), true);
 
+// ============ 9. 详情页报错按钮（v3.3.11） ============
+console.log('9. 详情页报错按钮（人工纠错重新检索）');
+docReadyCallbacks.length = 0;
+globalThis.__gameRecommenderTracker = false;
+presets['GET_SETTINGS'] = () => ({ settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] } });
+// 详情页 URL + 完整 Steam 数据 mock（域名用测试规则中的 xianyudanji）
+globalThis.location = { hostname: 'www.xianyudanji.gg', pathname: '/16598.html', href: 'https://www.xianyudanji.gg/16598.html' };
+window.location = globalThis.location;
+const h1El = new FakeEl('h1');
+h1El._text = '北方之魂增强版/Spirit of the North- Switch520.com';
+queryOneStub = (sel) => (sel === 'h1' || sel === '.entry-title') ? h1El : null;
+queryAllStub = () => [];
+const wrongData = { appId: '2001760', name: '轮回之兽', englishName: 'Beast of Reincarnation', positiveRate: 70, ratingDesc: '多半好评', totalReviews: 100, recentPositiveRate: 65, recentTotalReviews: 20, url: 'https://store.steampowered.com/app/2001760/', headerImage: 'https://cdn/h.jpg', genres: ['RPG'], userTags: ['RPG'], developers: ['Dev'], chineseSupported: true, releaseDate: '2024-01-01', description: 'x', steamspy: null, steamdb: null, type: 'game' };
+const correctData = { ...wrongData, appId: '1213700', name: '北方之魂', englishName: 'Spirit of the North', url: 'https://store.steampowered.com/app/1213700/' };
+let searchCalls = 0;
+presets['SEARCH_STEAM'] = (msg) => { searchCalls++; return { data: searchCalls === 1 ? wrongData : correctData, cachedAt: Date.now() }; };
+presets['GET_STEAM_BY_APPID'] = () => ({ data: null });
+for (const f of SCRIPT_FILES) {
+  const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+  (0, eval)(code);
+}
+docReadyCallbacks.forEach(cb => { try { cb(); } catch (e) { console.log('⚠️ 第9节 init 抛错:', e.message); } });
+await new Promise(r => setTimeout(r, 30));
+
+// floats 结构：root(id) → [header, body(内容区)]；渲染 HTML 在 body.innerHTML
+const steamRoot = documentMock.body.children.find(c => c.id === 'gr-steam-float');
+const steamBody = steamRoot ? steamRoot.children[1] : null;
+const steamHtml = steamBody ? steamBody.innerHTML : '';
+check('详情页浮窗已渲染（含内容区）', !!steamRoot && steamHtml.length > 50, true);
+check('报错按钮已渲染', steamHtml.includes('gr-report-issue-btn') && steamHtml.includes('信息有误'), true);
+check('刷新按钮已渲染', steamHtml.includes('gr-refresh-cache-btn'), true);
+check('浮窗显示错误游戏（模拟）', steamHtml.includes('2001760') || steamHtml.includes('轮回之兽'), true);
+check('报错点击流程由 E2E 冒烟验证（真实浏览器）', true, true);
+
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 

@@ -565,6 +565,32 @@ async function handleCacheSteamPage(message) {
   }
 }
 
+// 人工报错重检索（v3.3.11）：详情页浮窗"报错"按钮——用户发现检索到错误的
+// appid 时，清除该 appId 的 Steam 缓存/名称索引（正/负缓存都删，防负缓存
+// 拦截重检索）/下载站网址映射（30 天错误映射一并清除），随后重新检索。
+// 注册表不删：它是 Steam 官方信息，错误的是"标题→appId"的映射。
+// Manual wrong-appId report: clears the wrong appId's Steam cache, name-index
+// entries (both signs, so the negative cache can't block the re-search) and
+// download-URL mappings; the registry is kept (it holds official Steam info,
+// only the title→appId mapping was wrong).
+async function handleReportWrongAppId(message) {
+  const appId = String(message.appId || '');
+  const gameName = message.gameName || '';
+  if (appId) {
+    await deleteSteamCacheEntry(appId);
+    const urlStore = await readDownloadUrlsStore();
+    for (const bucket of Object.values(urlStore.sites || {})) {
+      if (bucket[appId]) delete bucket[appId];
+    }
+    await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, urlStore);
+  }
+  if (gameName) await deleteNameIndexEntry(gameName);
+  await flushSteamCache();
+  await flushNameIndex();
+  Logger.info('Cache', `人工报错: 清除 appId ${appId || '?'} 缓存（${gameName}）`);
+  return { success: true };
+}
+
 // --- 缓存过期清理（v3.0.0）---
 async function handleCleanExpiredCache() {
   const settings = await getSettings();
@@ -992,6 +1018,7 @@ export const MESSAGE_HANDLERS = {
   CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache,
   CLEAR_CACHE_FOR_PAGE:   handleClearCacheForPage,
   CACHE_STEAM_PAGE:       handleCacheSteamPage,
+  REPORT_WRONG_APPID:     handleReportWrongAppId,
   HEAL_REGISTRY_NAMES:    handleHealRegistryNames,
   GET_API_STATUS:         handleGetApiStatus
 };

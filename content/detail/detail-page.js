@@ -279,6 +279,42 @@
       panel.style.display = 'none';
     }
 
+    // 人工报错重检索回调（v3.3.11）：清除错误 appid 缓存 → 重新检索 →
+    // 更新浮窗；仍失败进入手动选择面板。reportIssue 在 renderAndShow 时创建
+    // 并随渲染传递（makeOnRefresh 重渲染时复用同一回调）
+    let reportIssue = null;
+    function makeReportIssue(name) {
+      return async () => {
+        const wrongAppId = steamData && steamData.appId ? String(steamData.appId) : (GR.builder.extractSteamAppIdFromImages() || '');
+        dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
+        try {
+          await chrome.runtime.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
+        } catch (e) { /* 后台不可达不阻断重检索 */ }
+        // 重新检索：有封面 appId 直取，否则名称搜索
+        const imgAppId = GR.builder.extractSteamAppIdFromImages();
+        let resp = null;
+        if (imgAppId) {
+          resp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
+        }
+        if (!resp || !resp.data) {
+          resp = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM', gameName: name });
+        }
+        if (resp && resp.data) {
+          steamData = resp.data;
+          const newCachedAt = resp.cachedAt || Date.now();
+          dbg(`✅ 报错重检索成功: ${steamData.name} (appId ${steamData.appId})`);
+          renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
+          showPanel();
+        } else {
+          dbg('⚠️ 报错重检索未找到，进入手动选择');
+          renderManualSelectPanel(panel, name, hidePanel, (selData, selAppId) => {
+            renderAndShow(selData, Date.now(), name);
+            chrome.runtime.sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId }).catch(() => {});
+          });
+        }
+      };
+    }
+
     // 手动更新缓存回调（成功获取数据后复用渲染逻辑）
     function makeOnRefresh(name) {
       return async () => {
@@ -293,7 +329,7 @@
           steamData = refreshResp.data;
           const newCachedAt = refreshResp.cachedAt || Date.now();
           dbg(`🔄 手动刷新缓存成功: ${steamData.name}`);
-          renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name));
+          renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
         } else {
           throw new Error('刷新后未获取到数据');
         }
@@ -303,9 +339,10 @@
     // 渲染数据并显示浮窗的通用函数
     function renderAndShow(data, cachedAt, name) {
       steamData = data;
+      reportIssue = makeReportIssue(name);
       GR.debug.DEBUG.steamStatus = `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
       dbg(`Steam: ${data.name} - ${data.ratingDesc} ${data.positiveRate}%`);
-      renderSteamSidebar(panel, data, hidePanel, cachedAt, makeOnRefresh(name));
+      renderSteamSidebar(panel, data, hidePanel, cachedAt, makeOnRefresh(name), reportIssue);
       showPanel();
 
       // 记录下载站详情页访问（Steam 匹配成功后补充记录）
@@ -483,7 +520,7 @@
 
   // 仿Steam右侧信息栏渲染
   // 参数：panel, data, onClose, cachedAt（缓存时间戳 ms）, onRefresh（手动更新回调）
-  function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh) {
+  function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport) {
     const ratingColor = (data.positiveRate || 0) >= 80 ? '#66c0f4' : (data.positiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00';
     const ratingBg = (data.positiveRate || 0) >= 80 ? 'rgba(102,192,244,0.1)' : (data.positiveRate || 0) >= 60 ? 'rgba(163,207,6,0.1)' : 'rgba(255,123,0,0.1)';
 
@@ -654,7 +691,7 @@
         <!-- 中文评测 -->
         ${reviewsHtml}
 
-        <!-- 底部信息栏：App ID + 缓存时间 + 手动更新按钮 -->
+        <!-- 底部信息栏：App ID + 缓存时间 + 手动更新/报错按钮 -->
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
             ${data.appId ? `<span>App ID: <a href="https://store.steampowered.com/app/${data.appId}" target="_blank" style="color:#67c1f5;text-decoration:none;">${data.appId}</a></span>` : '<span>App ID: —</span>'}
@@ -668,6 +705,15 @@
               cursor:pointer;font-size:12px;font-family:inherit;
               transition:background 0.2s;
             ">🔄 手动更新 Steam 缓存</button>
+          ` : ''}
+          ${onReport ? `
+            <button id="gr-report-issue-btn" style="
+              margin-top:6px;width:100%;padding:7px 0;
+              background:linear-gradient(to right,#8e3a3a,#5e2a2a);
+              color:#ffb3b3;border:1px solid #8e3a3a;border-radius:3px;
+              cursor:pointer;font-size:12px;font-family:inherit;
+              transition:background 0.2s;
+            " title="检索到的游戏与页面内容不符？点击清除错误缓存并重新检索">⚠️ 信息有误？重新检索</button>
           ` : ''}
         </div>
       </div>
@@ -686,6 +732,24 @@
           } catch (e) {
             refreshBtn.textContent = '❌ 更新失败';
             setTimeout(() => { refreshBtn.textContent = originalText; refreshBtn.disabled = false; }, 1500);
+          }
+        });
+      }
+    }
+
+    // 绑定报错按钮事件（v3.3.11：人工纠错 → 清缓存重检索）
+    if (onReport) {
+      const reportBtn = panel.querySelector('#gr-report-issue-btn');
+      if (reportBtn) {
+        reportBtn.addEventListener('click', async () => {
+          const originalText = reportBtn.textContent;
+          reportBtn.textContent = '⏳ 重新检索中...';
+          reportBtn.disabled = true;
+          try {
+            await onReport();
+          } catch (e) {
+            reportBtn.textContent = '❌ 重检索失败';
+            setTimeout(() => { reportBtn.textContent = originalText; reportBtn.disabled = false; }, 1500);
           }
         });
       }
