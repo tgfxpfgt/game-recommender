@@ -127,14 +127,18 @@ if (extId) {
   if (hasReportBtn) {
     // force: 状态浮窗（右下）可能遮挡按钮区域，强制点击（真实场景两区域不重叠）
     await page3.click('#gr-report-issue-btn', { force: true });
-    // 清缓存 + 重新检索（完整拉取）——轮询等待浮窗重新渲染完成
-    await page3.waitForFunction(
-      () => !document.querySelector('#gr-report-issue-btn')?.textContent?.includes('重新检索中'),
-      null, { timeout: 20000 }
-    ).catch(() => {});
+    // 清缓存 + 重新检索：同 appid → 自动手动选择；不同 appid → 渲染纠正结果
+    await page3.waitForFunction(() => {
+      const btn = document.querySelector('#gr-report-issue-btn');
+      return !btn || !btn.textContent.includes('重新检索中');
+    }, null, { timeout: 30000 }).catch(() => {});
   }
+  const manualShown = await page3.evaluate(() => !!document.querySelector('#gr-manual-search-input'));
   const panelText = await page3.evaluate(() => (document.querySelector('#gr-steam-float') || { textContent: '' }).textContent || '');
-  check('报错点击后浮窗仍在（重检索完成）', panelText.length > 0 && !panelText.includes('重检索失败'), `(${panelText.substring(0, 40).replace(/\n/g, ' ')})`);
+  // 正确行为二选一：同 appid 自动进入手动选择；或重检索纠正为新结果
+  const resorted = panelText.includes('手动选择游戏') || /App ID|好评率|Steam 总体/.test(panelText);
+  check('报错重检索流程完成（手动选择或纠正渲染）', manualShown || resorted,
+    `(手动选择=${manualShown} | 内容=${panelText.substring(0, 40).replace(/\n/g, ' ')})`);
   check('报错流程无 console error', errors3.length === 0, `(${errors3.slice(0, 3).join(' | ')})`);
   await page3.close();
 }

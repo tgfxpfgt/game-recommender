@@ -280,7 +280,8 @@
     }
 
     // 人工报错重检索回调（v3.3.11）：清除错误 appid 缓存 → 重新检索 →
-    // 更新浮窗；仍失败进入手动选择面板。reportIssue 在 renderAndShow 时创建
+    // 更新浮窗；**重检索结果仍是同一 appid（未纠正）或失败时，自动进入
+    // 手动选择面板**（v3.3.12）。reportIssue 在 renderAndShow 时创建
     // 并随渲染传递（makeOnRefresh 重渲染时复用同一回调）
     let reportIssue = null;
     function makeReportIssue(name) {
@@ -299,14 +300,19 @@
         if (!resp || !resp.data) {
           resp = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM', gameName: name });
         }
-        if (resp && resp.data) {
+        // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
+        const sameAppId = resp && resp.data && wrongAppId &&
+          String(resp.data.appId) === wrongAppId;
+        if (resp && resp.data && !sameAppId) {
           steamData = resp.data;
           const newCachedAt = resp.cachedAt || Date.now();
           dbg(`✅ 报错重检索成功: ${steamData.name} (appId ${steamData.appId})`);
           renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
           showPanel();
         } else {
-          dbg('⚠️ 报错重检索未找到，进入手动选择');
+          dbg(sameAppId
+            ? `⚠️ 报错重检索仍是同一 appId ${wrongAppId}，进入手动选择`
+            : '⚠️ 报错重检索未找到，进入手动选择');
           renderManualSelectPanel(panel, name, hidePanel, (selData, selAppId) => {
             renderAndShow(selData, Date.now(), name);
             chrome.runtime.sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId }).catch(() => {});
