@@ -214,6 +214,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.3.15
+- **调试/状态浮窗默认禁用 + 开关**：
+  - 根因：`dbg()` 日志的 `scheduleDebugUpdate` → `refreshInBar` → `showDebugView` **无条件显示"🔧 Game Recommender 调试"浮窗**——`showDebugPanel`/`showStatusBar` 开关都关不掉它
+  - 修复：`showDebugView` 仅 **debugMode（showDebugPanel）开启**时显示；`showStatusBar` 默认改为 **false**（状态/诊断浮窗默认禁用）
+  - **popup 新增"显示状态浮窗"开关**（调试窗口区，控制 showStatusBar）；设置页既有开关保留
+- E2E：验证默认禁用（页面无调试浮窗）→ popup 开启后浮窗渲染；全套 **264 项** + E2E 13/13 通过
+
 ### v3.3.14
 - **修复详情页误检索侧边推荐游戏**（16598 页右侧推荐 119428"轮回之兽"导致浮窗误检索 2001760）：
   - 根因：详情页 appId 提取扫描**全页面图片**——gamer520 侧边推荐的封面是 Steam CDN 图（含 /steam/apps/{id}/），被误当作当前游戏封面直取 appId

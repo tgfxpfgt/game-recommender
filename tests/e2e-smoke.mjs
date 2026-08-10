@@ -62,6 +62,8 @@ console.log(`1. 扩展 ${manifest.name} v${manifest.version}`);
 
 const channel = process.env.E2E_CHANNEL || 'msedge';
 const userDataDir = path.join(ROOT, '.e2e-profile');
+// 清理上次运行残留的 profile（否则默认设置断言会受旧状态影响）
+fs.rmSync(userDataDir, { recursive: true, force: true });
 let context = null;
 try {
   context = await chromium.launchPersistentContext(userDataDir, {
@@ -104,9 +106,9 @@ if (extId) {
   check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
   await page.close();
 
-  // 3. 内容脚本注入 fixture 页（隔离 world 的 __GR__ 主 world 不可见，
-  //    以 DOM 副作用——状态浮窗/徽章——为注入证据）
-  console.log('3. 内容脚本注入（fixture 列表页）');
+  // 3. 内容脚本注入 fixture 页。v3.3.15：状态/诊断浮窗默认禁用——先验证
+  //    默认不渲染，再通过 popup 开启后验证渲染与列表页流程
+  console.log('3. 内容脚本注入（默认禁用状态浮窗，v3.3.15）');
   const page2 = await context.newPage();
   const errors2 = [];
   page2.on('console', msg => { if (msg.type() === 'error') errors2.push(msg.text()); });
@@ -117,11 +119,36 @@ if (extId) {
     hasStatusBar: !!document.getElementById('gr-status-bar'),
     badgeCount: document.querySelectorAll('.gr-rating-badge').length
   }));
-  check('内容脚本已注入（状态浮窗渲染）', domInfo.hasStatusBar);
-  check('列表页好评率流程已启动（徽章出现或后台查询中）',
-    domInfo.hasStatusBar && (domInfo.badgeCount >= 0), `(徽章 ${domInfo.badgeCount} 个)`);
+  check('状态浮窗默认禁用（不渲染）', !domInfo.hasStatusBar);
   check('无 console error', errors2.length === 0, `(${errors2.slice(0, 3).join(' | ')})`);
   await page2.close();
+
+  // 3b. 通过 popup 开启状态浮窗后重新验证
+  console.log('3b. 开启状态浮窗后内容脚本注入');
+  const popup2 = await context.newPage();
+  await popup2.goto(`chrome-extension://${extId}/popup/popup.html`);
+  await popup2.waitForTimeout(500);
+  await popup2.evaluate(async () => {
+    const s = (await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' })).settings;
+    s.showStatusBar = true;
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: s });
+  });
+  await popup2.close();
+  const page2b = await context.newPage();
+  const errors2b = [];
+  page2b.on('console', msg => { if (msg.type() === 'error') errors2b.push(msg.text()); });
+  page2b.on('pageerror', e => errors2b.push(String(e)));
+  await page2b.goto(FIXTURE_URL);
+  await page2b.waitForTimeout(1500);
+  const domInfo2 = await page2b.evaluate(() => ({
+    hasStatusBar: !!document.getElementById('gr-status-bar'),
+    badgeCount: document.querySelectorAll('.gr-rating-badge').length
+  }));
+  check('开启后状态浮窗渲染', domInfo2.hasStatusBar);
+  check('列表页好评率流程已启动（徽章出现或后台查询中）',
+    domInfo2.hasStatusBar && (domInfo2.badgeCount >= 0), `(徽章 ${domInfo2.badgeCount} 个)`);
+  check('无 console error', errors2b.length === 0, `(${errors2b.slice(0, 3).join(' | ')})`);
+  await page2b.close();
 
   // 4. 详情页报错按钮（v3.3.11：真实点击 → 清缓存重检索）
   console.log('4. 详情页报错按钮（真实点击）');

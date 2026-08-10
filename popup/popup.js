@@ -41,6 +41,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('thresholdSlider').value = threshold;
   document.getElementById('thresholdValue').textContent = `${threshold}%`;
   document.getElementById('debugToggle').checked = settings.showDebugPanel || false;
+  // v3.3.15：状态/诊断浮窗总开关（默认禁用）
+  document.getElementById('statusBarToggle').checked = settings.showStatusBar !== false;
 
   // Steam rating filter / 好评率过滤
   document.getElementById('ratingFilterToggle').checked = settings.enableRatingFilter || false;
@@ -139,6 +141,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Debug panel toggle / 调试窗口开关
   document.getElementById('debugToggle').addEventListener('change', async (e) => {
     settings.showDebugPanel = e.target.checked;
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+  });
+
+  // Status bar toggle（v3.3.15）/ 状态浮窗总开关
+  document.getElementById('statusBarToggle').addEventListener('change', async (e) => {
+    settings.showStatusBar = e.target.checked;
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
   });
 

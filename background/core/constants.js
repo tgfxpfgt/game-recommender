@@ -32,7 +32,7 @@ export const DB_KEYS = {
 export const DEFAULT_SETTINGS = {
   enabled: true,
   showDebugPanel: false,
-  showStatusBar: true, // 工作状态浮窗总开关 / work status bar master switch
+  showStatusBar: false, // 工作状态/诊断浮窗总开关（v3.3.15 默认禁用，设置页/popup 可开）
   highlightThreshold: 0.6,
   maxBehaviorLog: 500,
   steamApiKey: '',

@@ -92,10 +92,16 @@
   }
 
   // 渲染诊断视图：经 GR.float 统一管理（chrome 标题栏，✕ 关闭后不再自动复活）。
+  // v3.3.15：仅 debugMode（showDebugPanel）开启时显示——此前 dbg 日志的
+  // scheduleDebugUpdate 会无条件刷新调试视图，导致 showDebugPanel=false 时
+  // 页面仍出现"🔧 Game Recommender 调试"浮窗。
   // Render the debug view (managed by GR.float; once dismissed it stays closed).
+  // Since v3.3.15 it only shows when debugMode is on — dbg()'s refresh used to
+  // render it regardless of the showDebugPanel setting.
   let debugDismissed = false;
   function showDebugView(html) {
     if (debugDismissed) return; // 用户已关闭：不自动复活 / user dismissed: keep closed
+    if (!debugMode) return; // v3.3.15：调试视图仅 showDebugPanel 开启时显示
     statusEl = GR.float.create(GR.float.ZONE.BOTTOM_RIGHT, 'gr-status-bar', {
       chrome: true,
       width: 380,
