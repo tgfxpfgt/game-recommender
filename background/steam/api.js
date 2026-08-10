@@ -100,10 +100,14 @@ export function isFailedRatingEntry(cachedData) {
   return !!cachedData && cachedData.positiveRate === null && !cachedData.ratingDesc;
 }
 
-// 无好评率重试冷却期（确认 0 评测后，避免每次刷新列表页都请求 Steam）
+// 无好评率重试冷却期（确认 0 评测后，避免每次刷新列表页都请求 Steam）。
+// v3.3.2：10 分钟 → 5 分钟——游戏评测增长通常以小时计，5 分钟已能防刷新
+// 风暴（用户高频刷新时每轮最多一次重试），同时更快反映"游戏后来有了评测"。
 // Cooldown after confirming a zero-review rating (avoids re-fetching on every
-// list refresh, which would amplify API rate limiting)
-export const RATING_RETRY_COOLDOWN_MS = 10 * 60 * 1000;
+// list refresh, which would amplify API rate limiting). 10→5 minutes since
+// v3.3.2: review growth happens over hours, so 5 minutes still stops refresh
+// storms while reflecting newly published reviews sooner.
+export const RATING_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 
 // 列表页缓存命中判定（v3.3.1）：缓存无好评率（0 评测/失败固化）时重新获取——
 // 失败固化立即重试；已确认 0 评测的按冷却期重试（默认 10 分钟）。

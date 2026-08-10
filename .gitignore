@@ -48,3 +48,6 @@ backup-*.json
  
 # ===== AI 助手会话/计划文件 ===== 
 .zcode/
+
+# extension.js local session state
+.extension-js

@@ -8,9 +8,9 @@
  */
 import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
-  fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ensureRegistryEntry,
-  ensureValidRegistryNames, coverImageFor, isDemoAppId, baseAppIdFromDetails,
-  isFailedRatingEntry, needsRatingRefetch
+  fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ADDON_NAME_PATTERN,
+  ensureRegistryEntry, ensureValidRegistryNames, coverImageFor, isDemoAppId,
+  baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch
 } from './api.js';
 import { isSteamCacheValid, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -187,23 +187,35 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       foundName = searchResult.name;
     }
 
-    // 4.5 appId 校验（v3.2.6）：DLC 等非游戏本体 → 自动解析为所属本体（fullgame）；
-    // 其他非本体类型（bundle/mod/music 等）→ 返回 type 标记（徽章显示 type 值）。
-    // 网络失败时保持原值继续（防误杀）。
+    // 4.5 appId 校验（v3.2.6，v3.3.2 按需化）：DLC 等非游戏本体 → 自动解析为
+    // 所属本体（fullgame）；其他非本体类型（bundle/mod/music 等）→ 返回 type 标记。
+    // 网络失败时保持原值继续（防误杀）。**按需执行**：缓存条目已有 type（说明该
+    // appId 此前已校验并解析为本体）或游戏名不疑似附属内容（正常游戏名几乎不可
+    // 能是 DLC/bundle）时跳过网络校验，省 1 请求/游戏——批量列表页请求量减 20%，
+    // 显著降低 Steam 限流与慢网下批内挂起风险。
+    // appId validation (on-demand since v3.3.2): a DLC resolves to its base game,
+    // other non-base types (bundle/mod/music) return a type marker. Skipped when
+    // the cache already carries a type (already validated/resolved) or the name
+    // shows no add-on hints — saves 1 request per game (~20% fewer in batch).
     let appType = null;
     if (foundAppId) {
-      const baseCheck = await fetchSteamAppDetails(foundAppId, 'schinese').catch(() => null);
-      if (baseCheck) {
-        appType = baseCheck.type || 'game';
-        const baseId = baseAppIdFromDetails(baseCheck);
-        if (baseId && baseId !== String(foundAppId)) {
-          Logger.warn('Steam', `appId ${foundAppId} 为 DLC/非本体，自动解析为本体 ${baseId}（${(baseCheck.fullgame && baseCheck.fullgame.name) || ''}）`);
-          foundAppId = baseId;
-          foundName = (baseCheck.fullgame && baseCheck.fullgame.name) || foundName;
-        } else if (!baseId) {
-          // bundle/mod/music 等非本体且无法解析：返回 type 标记（徽章显示 type 值而非"未找到"）
-          Logger.warn('Steam', `appId ${foundAppId} 类型 ${baseCheck.type} 非游戏本体且无法解析，返回 type 标记`);
-          return { positiveRate: null, ratingDesc: null, appId: foundAppId, name: foundName, type: baseCheck.type };
+      const cachedType = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || {}).data?.type : null;
+      if (cachedType) {
+        appType = cachedType;
+      } else if (ADDON_NAME_PATTERN.test(foundName)) {
+        const baseCheck = await fetchSteamAppDetails(foundAppId, 'schinese').catch(() => null);
+        if (baseCheck) {
+          appType = baseCheck.type || 'game';
+          const baseId = baseAppIdFromDetails(baseCheck);
+          if (baseId && baseId !== String(foundAppId)) {
+            Logger.warn('Steam', `appId ${foundAppId} 为 DLC/非本体，自动解析为本体 ${baseId}（${(baseCheck.fullgame && baseCheck.fullgame.name) || ''}）`);
+            foundAppId = baseId;
+            foundName = (baseCheck.fullgame && baseCheck.fullgame.name) || foundName;
+          } else if (!baseId) {
+            // bundle/mod/music 等非本体且无法解析：返回 type 标记（徽章显示 type 值而非"未找到"）
+            Logger.warn('Steam', `appId ${foundAppId} 类型 ${baseCheck.type} 非游戏本体且无法解析，返回 type 标记`);
+            return { positiveRate: null, ratingDesc: null, appId: foundAppId, name: foundName, type: baseCheck.type };
+          }
         }
       }
     }
@@ -225,16 +237,19 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     }
 
     // 5.5 官方中英文名：搜索路径用搜索结果英文名；0 评测时轻量获取官方名
-    //     并验证 Demo/附属内容（校验失败 → 重搜本体）
+    //     并验证 Demo/附属内容（校验失败 → 重搜本体）。
+    //     v3.3.2：officialEn 已有可靠英文名时仅请求 schinese（省 1 请求/0 评测游戏）
     let officialCn = foundName;
     let officialEn = searchResult ? (searchResult.englishName || foundName) : pickRegistryEnName(gameName, foundName);
     if (positiveRate === null) {
+      // 英文名缺失时才并行补英文（避免 validateSteamNames 误判重搜）
+      const needsEn = !/[A-Za-z]{2,}/.test(officialEn);
       const [cnData, enData] = await Promise.all([
         fetchSteamAppDetails(foundAppId, 'schinese').catch(() => null),
-        fetchSteamAppDetails(foundAppId, 'english').catch(() => null)
+        needsEn ? fetchSteamAppDetails(foundAppId, 'english').catch(() => null) : Promise.resolve(null)
       ]);
       officialCn = (cnData && cnData.name) || officialCn;
-      officialEn = (enData && enData.name) || officialCn;
+      if (enData && enData.name) officialEn = enData.name;
       // 名称校验：Demo/试玩或附属内容 → 视为无效匹配，重搜本体
       const nameCheck = validateSteamNames(officialCn, officialEn);
       if (!nameCheck.valid || DEMO_NAME_PATTERN.test(officialCn + ' ' + officialEn)) {

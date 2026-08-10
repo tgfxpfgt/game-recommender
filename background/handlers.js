@@ -213,32 +213,50 @@ async function handleGetSteamRatings(message, sender) {
 
   // 阶段2：未命中 → 后台继续从 Steam 拉取（忽略负缓存），**每批完成后立即落盘并
   // 推送增量**（防 SW 休眠导致整批结果丢失）；全部完成后推送 done 标记供内容脚本收尾。
+  // 批内每 10s 调用扩展 API 保活，防止 SW 空闲休眠中断循环（中国网络下 Steam 请求
+  // 常挂起 5-15s，批内等待可能超过 MV3 SW 的 30s 空闲限制）；批内失败/限流的游戏
+  // 自动进入重试队列（最多一轮）。
   // Phase 2: fetch misses from Steam in the background; each batch is persisted
-  // and pushed immediately (survives SW suspension); a done marker closes the flow.
+  // and pushed immediately (survives SW suspension); a done marker closes the
+  // flow. A keep-alive chrome API call every 10s prevents the MV3 service worker
+  // from going idle mid-batch (slow Steam responses on CN networks can stall a
+  // batch beyond the 30s idle limit); failed/rate-limited games retry once.
   if (!cacheOnly && pending.length > 0) {
     const tabId = sender && sender.tab ? sender.tab.id : null;
     const names = pending.slice();
     (async () => {
+      const keepAlive = setInterval(() => {
+        chrome.runtime.getPlatformInfo().catch(() => {});
+      }, 10000);
       try {
-        const batchSize = 5;
+        const batchSize = 3;
         const push = (payload) => {
           if (tabId !== null && tabId !== undefined) {
             chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});
           }
         };
-        for (let i = 0; i < names.length; i += batchSize) {
-          const batch = names.slice(i, i + batchSize);
+        let queue = names;
+        let retried = false;
+        let consecutiveAnomaly = 0;
+        while (queue.length > 0) {
+          const batch = queue.slice(0, batchSize);
+          queue = queue.slice(batchSize);
           const wave = {};
+          const retryBatch = [];
           await Promise.all(batch.map(async (name) => {
             try {
               const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
-              wave[name] = await getSteamPositiveRate(name, {
+              const r = await getSteamPositiveRate(name, {
                 ignoreNegativeCache: true,
                 appId: img ? img.appId : null,
                 cover: img ? img.cover : null
               });
+              wave[name] = r;
+              // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
+              if (!r || r.failed) retryBatch.push(name);
             } catch (e) {
               wave[name] = null;
+              retryBatch.push(name);
             }
           }));
           // 每批完成后立即落盘（flush 已安全化）+ 推送增量
@@ -246,15 +264,26 @@ async function handleGetSteamRatings(message, sender) {
           await flushNameIndex();
           await flushRegistry();
           push({ ratings: wave });
-          // 限流降速：Steam API 异常状态时拉大批次间隔，避免加剧限流
-          if (getSteamApiStatus().anomaly && i + batchSize < names.length) {
-            await new Promise(r => setTimeout(r, 1500));
+          // 限流降速：Steam API 异常状态时拉大批次间隔；连续异常暂停 30s 等窗口恢复
+          if (getSteamApiStatus().anomaly) {
+            consecutiveAnomaly++;
+            const wait = consecutiveAnomaly >= 2 ? 30000 : 5000;
+            if (queue.length > 0 || retryBatch.length > 0) await new Promise(r => setTimeout(r, wait));
+          } else {
+            consecutiveAnomaly = 0;
+          }
+          // 一轮结束后重试失败的条目（最多一轮，防无限循环）
+          if (queue.length === 0 && retryBatch.length > 0 && !retried) {
+            retried = true;
+            queue = retryBatch;
           }
         }
         // 全部完成：done 标记（内容脚本据此收尾并显示统计）
         push({ ratings: null, done: true });
       } catch (e) {
         Logger.warn('Steam', '后台补拉好评率失败', e.message);
+      } finally {
+        clearInterval(keepAlive);
       }
     })();
   }
@@ -288,24 +317,37 @@ async function handlePrefetchSteamRatings(message) {
   }
   if (needsPrefetch.length === 0) return { success: true };
 
-  const batchSize = 6;
-  for (let i = 0; i < needsPrefetch.length; i += batchSize) {
-    const batch = needsPrefetch.slice(i, i + batchSize);
-    await Promise.all(batch.map(async (name) => {
-      try {
-        const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
-        await getSteamPositiveRate(name, {
-          ignoreNegativeCache: true,
-          appId: img ? img.appId : null,
-          cover: img ? img.cover : null
-        });
-      } catch (e) {}
-    }));
+  // 预载同样批内保活，防 SW 休眠中断（见 handleGetSteamRatings 说明）
+  // Keep-alive during prefetch batches too (see handleGetSteamRatings)
+  const keepAlive = setInterval(() => {
+    chrome.runtime.getPlatformInfo().catch(() => {});
+  }, 10000);
+  try {
+    const batchSize = 4;
+    for (let i = 0; i < needsPrefetch.length; i += batchSize) {
+      const batch = needsPrefetch.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (name) => {
+        try {
+          const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
+          await getSteamPositiveRate(name, {
+            ignoreNegativeCache: true,
+            appId: img ? img.appId : null,
+            cover: img ? img.cover : null
+          });
+        } catch (e) {}
+      }));
+      // 预载同样限流降速 / same rate-limit slowdown as the main flow
+      if (getSteamApiStatus().anomaly) {
+        await new Promise(r => setTimeout(r, 3000));
+      }
+    }
+    await flushSteamCache();
+    await flushNameIndex();
+    await flushRegistry();
+    return { success: true };
+  } finally {
+    clearInterval(keepAlive);
   }
-  await flushSteamCache();
-  await flushNameIndex();
-  await flushRegistry();
-  return { success: true };
 }
 
 // --- 设置 / Settings ---
