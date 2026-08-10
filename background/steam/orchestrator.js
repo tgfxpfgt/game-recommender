@@ -15,7 +15,8 @@ import {
 } from './api.js';
 import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
-import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '../storage/name-index.js';
+import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound, deleteNameIndexEntry } from '../storage/name-index.js';
+import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { parseGameTitle, pickRegistryEnName } from './title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
@@ -36,6 +37,16 @@ function isDemoCacheWithoutRating(cachedData) {
 export async function searchSteamGame(gameName) {
   // 1. 通过名称索引查找 appId / Lookup appId via name index
   let appId = await lookupAppIdByName(gameName);
+
+  // 1.5 人工纠正知识库优先（v3.3.13）：该标题曾报错并手动确认了正确 appid——
+  // 用户确认 > 自动匹配；同时清除该名负缓存（纠正名不应被负缓存拦截）
+  const correction = await lookupWrongReportCorrection(gameName);
+  let excludeAppId = null;
+  if (correction) {
+    appId = correction.correctAppId;
+    excludeAppId = correction.wrongAppId;
+    await deleteNameIndexEntry(gameName);
+  }
 
   // 2. 若有 appId，检查 Steam 动态缓存（v3.3.7 模块化：detail 模块有效且
   //    数据完整才命中——列表页仅 rating 模块的条目不满足，转完整拉取，
@@ -69,9 +80,10 @@ export async function searchSteamGame(gameName) {
   }
 
   try {
-    // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取详情）
+    // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取详情；
+    //    v3.3.13：排除曾报错的错误 appid）
     if (!appId) {
-      const searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName);
+      const searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
         await recordNameIndex(gameName, null);
@@ -194,12 +206,15 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   }
 
   try {
-    // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取评价）
+    // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取评价；
+    //    v3.3.13：排除曾报错的错误 appid）
     let foundAppId = usableAppId;
     let foundName = gameName;
     let searchResult = null;
     if (!foundAppId) {
-      searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName);
+      // 该标题曾报错：错误 appid 作为黑名单排除
+      const corr = await lookupWrongReportCorrection(gameName);
+      searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
         Logger.warn('Steam', `列表页搜索未找到: ${gameName}`);
@@ -286,7 +301,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       const nameCheck = validateSteamNames(officialCn, officialEn);
       if (!nameCheck.valid || DEMO_NAME_PATTERN.test(officialCn + ' ' + officialEn)) {
         Logger.warn('Steam', `0评测匹配无效(${nameCheck.issues.join('/')}): ${foundAppId} ${officialCn}，重搜`);
-        const reSearch = await searchSteamAppId(parseGameTitle(gameName), gameName);
+        const reSearch = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
         if (reSearch) {
           foundAppId = reSearch.appId;
           foundName = reSearch.name;

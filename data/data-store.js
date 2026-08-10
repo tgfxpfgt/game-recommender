@@ -33,7 +33,9 @@ const MODULE_FILES = {
   runtimeLog:      { file: 'runtime-log.ndjson',    format: 'ndjson' },
   downloadHistory: { file: 'download-history.json', format: 'json' },
   adapterRules:    { file: 'adapter-rules.json',    format: 'json' },
-  backups:         { file: 'backups.json',          format: 'json' }
+  backups:         { file: 'backups.json',          format: 'json' },
+  learnedNoise:    { file: 'learned-noise.json',    format: 'json' },
+  wrongReports:    { file: 'wrong-reports.json',    format: 'json' }
 };
 
 class DataStore {

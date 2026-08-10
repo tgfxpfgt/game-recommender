@@ -24,6 +24,7 @@ import { readDownloadUrlsStore, recordDownloadUrl, recordDownloadUrlsBatch, getD
 import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorLog } from './storage/behavior.js';
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from './storage/backups.js';
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
+import { recordWrongReport, flushWrongReports } from './storage/wrong-reports.js';
 import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
@@ -162,6 +163,9 @@ async function handleSaveManualMapping(message) {
   await recordGameInRegistry(appId, { cnName: gameName, gameName });
   await flushNameIndex();
   await flushRegistry();
+  // v3.3.13：手动选择 = 用户确认正确 appid → 记录为纠正知识（长期有效）
+  await recordWrongReport(gameName, { correctAppId: appId, source: 'manual' });
+  await flushWrongReports();
   Logger.info('Steam', `保存手动映射: "${gameName}" → appId ${appId}`);
   return { success: true };
 }
@@ -587,6 +591,11 @@ async function handleReportWrongAppId(message) {
   if (gameName) await deleteNameIndexEntry(gameName);
   await flushSteamCache();
   await flushNameIndex();
+  // v3.3.13：记录报错样本（长期有效，供检索纠正知识库与错误排除）
+  if (gameName && appId) {
+    await recordWrongReport(gameName, { wrongAppId: appId, source: 'report' });
+    await flushWrongReports();
+  }
   Logger.info('Cache', `人工报错: 清除 appId ${appId || '?'} 缓存（${gameName}）`);
   return { success: true };
 }

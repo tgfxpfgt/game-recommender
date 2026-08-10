@@ -171,7 +171,7 @@ export function coverImageFor(appId, fallback) {
 // 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
 // One search pass (throws on total network failure for outer retry; null = not
 // found). Results must pass the name-relevance check.
-async function searchSteamAppIdOnce(searchTerms, rawName) {
+async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
   for (const term of searchTerms) {
     let cnData = null;
     let enData = null;
@@ -196,7 +196,11 @@ async function searchSteamAppIdOnce(searchTerms, rawName) {
     const cnItems = (cnData && cnData.items) || [];
     if (cnItems.length > 0) {
       // 名称相关性校验：优先非 Demo/附属且与搜索词相关的项；无相关项则尝试下一词
-      const related = cnItems.find(i => !ADDON_NAME_PATTERN.test(i.name || '') && nameMatchesSearch(i.name, term, rawName));
+      // v3.3.13：排除曾报错的错误 appid（人工纠正知识库的"黑名单"项）
+      const related = cnItems.find(i =>
+        String(i.id) !== String(excludeAppId) &&
+        !ADDON_NAME_PATTERN.test(i.name || '') &&
+        nameMatchesSearch(i.name, term, rawName));
       if (!related) continue;
       const enItems = (enData && enData.items) || [];
       const pickedEn = enItems.find(i => i.id === related.id) || enItems[0] || null;
@@ -213,13 +217,15 @@ async function searchSteamAppIdOnce(searchTerms, rawName) {
 // 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）。
 // 静态候选全部失败时自动进入"扩展组合搜索"（删词变体 + 动态噪声词清洗），
 // 成功后把跳过的词作为候选噪声词自动学习（自适应检索，v3.1.2）。
+// v3.3.13：excludeAppId 为曾报错的错误 appid（人工纠正知识库黑名单），
+// 搜索结果中排除它——避免自动检索再次命中用户已报告的错误游戏。
 // Parallel CN/EN searches; one whole-pass retry on network flakiness. When all
-// static candidates fail, an extended combination search (word-drop variants +
-// learned-noise cleaning) runs automatically; skipped words are then learned.
-export async function searchSteamAppId(searchTerms, rawName) {
+// static candidates fail, an extended combination search runs automatically;
+// skipped words are then learned. excludeAppId skips a user-reported-wrong app.
+export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await searchSteamAppIdOnce(searchTerms, rawName);
+      const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId);
       if (result) return result;
       break; // 网络正常但未找到：不重试
     } catch (e) { /* 网络失败：重试一次 */ }
@@ -231,7 +237,7 @@ export async function searchSteamAppId(searchTerms, rawName) {
     const activeNoise = await getActiveNoiseWords();
     const variants = generateSearchVariants(rawName, activeNoise);
     for (const variant of variants) {
-      const result = await searchSteamAppIdLight(variant, rawName);
+      const result = await searchSteamAppIdLight(variant, rawName, excludeAppId);
       if (result) {
         // 成功 → 自动学习被跳过的词（计数确认后才生效，防误学副标题）
         const noiseWords = extractNoiseCandidates(rawName, variant);
@@ -248,13 +254,17 @@ export async function searchSteamAppId(searchTerms, rawName) {
 
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
-async function searchSteamAppIdLight(term, rawName) {
+async function searchSteamAppIdLight(term, rawName, excludeAppId) {
   try {
     const data = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
     const items = (data && data.items) || [];
     if (items.length === 0) return null;
-    // 名称相关性校验：变体词较短，要求结果包含变体词且与原始标题相关
-    const related = items.find(i => !ADDON_NAME_PATTERN.test(i.name || '') && nameMatchesSearch(i.name, term, rawName));
+    // 名称相关性校验：变体词较短，要求结果包含变体词且与原始标题相关；
+    // v3.3.13：排除曾报错的错误 appid
+    const related = items.find(i =>
+      String(i.id) !== String(excludeAppId) &&
+      !ADDON_NAME_PATTERN.test(i.name || '') &&
+      nameMatchesSearch(i.name, term, rawName));
     if (!related) return null;
     return { appId: related.id, name: related.name, englishName: related.name };
   } catch (e) {
