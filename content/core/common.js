@@ -14,19 +14,21 @@
   // 当前站点域名 / Current site domain
   function getCurrentDomain() { return window.location.hostname; }
 
-  // HTML 转义（动态内容安全）。复用同一个 div 提升性能（高频渲染场景）
-  // HTML escape (safe dynamic content); a cached div avoids per-call allocation
+  // HTML 转义（动态内容安全）。v3.3.9：shared/escape.js 已由 manifest 注入
+  // 内容脚本（单点维护）——存在全局实现时复用，缺失时回退本地实现。
+  // HTML escape (safe dynamic content). Since v3.3.9 shared/escape.js is
+  // injected into content scripts (single maintenance point); reuse the global
+  // implementation when present, fall back to the local one otherwise.
   const escapeDiv = document.createElement('div');
-  function escapeHtml(text) {
+  function escapeHtmlLocal(text) {
     escapeDiv.textContent = text || '';
     return escapeDiv.innerHTML;
   }
-
-  // HTML 属性值转义（href 等属性，防止引号逃逸）
-  // Attribute-value escape (prevents quotes breaking out of attributes)
-  function escapeAttr(text) {
+  function escapeAttrLocal(text) {
     return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
+  const escapeHtml = (typeof global.escapeHtml === 'function') ? global.escapeHtml : escapeHtmlLocal;
+  const escapeAttr = (typeof global.escapeAttr === 'function') ? global.escapeAttr : escapeAttrLocal;
 
   // 相对时间格式化（内容脚本统一实现，替代各浮窗独立实现）
   // Relative-time formatting (shared by all content floats)

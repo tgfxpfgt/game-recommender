@@ -81,6 +81,17 @@ for (const file of jsFiles) {
 }
 check('TDZ 后向引用', tdzCount, 0);
 
+// 3.5 噪声词双源一致性（v3.3.9：shared/patterns.js 为权威源，后台副本防漂移）
+console.log('3.5 噪声词双源一致性（shared/patterns.js ↔ title-parser.js）');
+const sharedPatterns = fs.readFileSync(path.join(ROOT, 'shared/patterns.js'), 'utf-8');
+const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/steam/title-parser.js'), 'utf-8');
+// shared 侧是 JS 字符串字面量（\\d 双反斜杠），title-parser 侧是正则字面量（\d 单反斜杠）——
+// 归一化后再比较（字符串字面量转义还原）
+const sharedSource = ((sharedPatterns.match(/noisePatternSource = '([^']+)'/) || [])[1] || '').replace(/\\\\/g, '\\');
+const parserSource = (titleParserSrc.match(/const noisePattern = \/([\s\S]*?)\/gi;/) || [])[1] || '';
+check('双源正则一致（无漂移）', sharedSource === parserSource, true);
+check('权威源非空', sharedSource.length > 50, true);
+
 // 4. 全部 JS 语法
 console.log('4. JS 语法检查');
 let syntaxFail = 0;
@@ -103,7 +114,7 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '3.3.8');
+check('manifest 版本', manifest.version, '3.3.9');
 
 // 6. 缓存 TTL 单位解析（加载真实 constants 模块）
 console.log('6. 缓存 TTL 单位解析');

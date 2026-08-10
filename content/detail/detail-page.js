@@ -51,8 +51,11 @@
         }
       }
 
-      // 策略2：按分隔符分段，移除纯噪声段（保留中英文名段）
-      const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|下载|游戏下载|免费下载|支持手柄|手柄|支持|新游发布|免安装绿色版)/gi;
+      // 策略2：按分隔符分段，移除纯噪声段（保留中英文名段）。
+      // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，防双副本漂移）
+      const noiseSource = (globalThis.__GR_PATTERNS__ && globalThis.__GR_PATTERNS__.noisePatternSource) ||
+        '(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|update\\s*\\d+|DLC.*|全DLC|整合|硬盘|免DVD|下载|游戏下载|免费下载|支持手柄|手柄|支持|新游发布|免安装绿色版)';
+      const noisePattern = new RegExp(noiseSource, 'gi');
       let text = h1.textContent.trim();
       const parts = text.split(/[|]+|\s+[-–—]\s+|[×•·]/).map(s => s.trim()).filter(s => s.length > 1);
       const keptParts = parts.filter(p => {

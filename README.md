@@ -214,6 +214,18 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.3.9
+- **8 项隐患核实与优化**（逐项核实后按判定处理）：
+  1. **常量单源**：噪声词表抽为 `shared/patterns.js` 唯一权威源（内容脚本引用 + 后台副本交叉注释 + **双源一致性测试**防漂移）；`shared/escape.js` 注入内容脚本，common.js 复用全局实现（单点维护）
+  2. 内容脚本全局耦合：核实为 MV3 经典脚本标准模式（隔离 world 无冲突），**不做 ES Module 迁移**——替代：tracker.js 入口加**命名空间完整性自检**（缺失即报错指明加载顺序）
+  3. **工程基础**：新增 `package.json`（npm test/e2e/lint）+ `eslint.config.js`——**eslint 立即抓到真实 bug**：api.js `scanAndHealRegistry` 用了未导入的 `getGameRegistry`（批量自愈 ReferenceError，已修复）；核心函数补 JSDoc 类型标注
+  4. **parseUserTags 降级**：商店页被拦截时用官方 categories 兜底（"热门用户标签"区块不再消失）
+  5. 站点选择器：核实多候选+三级回退已实现；通用适配器路径表提为常量 + **域名段匹配**（xdgame2.com 不再误配 xdgame）
+  6. **链接扫描上限可配置**（`maxScanLinks`，默认 500，设置页可调），列表判定与回退提取共用
+  7. **浏览器 E2E 冒烟**：`npm run e2e`（playwright-core 复用系统 Edge）——扩展加载/SW 启动/popup/内容脚本注入/列表页流程 7 项全过
+  8. i18n 最小化：manifest `default_locale: zh_CN` + `_locales/`（name/description 走 `__MSG_*__`，Chrome 商店多语言受益）；UI 文案 6000+ 字符不迁移（中文站定位）
+- 测试：新增噪声双源一致性（2 项）；全套 **241 项**通过；eslint 0 errors
+
 ### v3.3.8
 - **列表页徽章独立开关**（设置页"徽章显示"区，默认全开）：近30天好评率/全部好评率/最近更新/推荐值各自开关；关闭不影响后台数据获取——关闭"全部好评率"同时**停用好评率过滤**，关闭"推荐值"同时**停用推荐高亮**（用户确认语义）
 - **列表页徽章独立获取**：最近更新日期不再依赖详情页访问——`getSteamPositiveRate` 未命中时直接调 GetNewsForApp（api.steampowered.com 独立限流域，不影响商店 API 配额），写入缓存（detail 模块自动路由），列表页首次即显示

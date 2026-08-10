@@ -217,6 +217,8 @@
       update: document.getElementById('badgeUpdate').checked,
       rec: document.getElementById('badgeRec').checked
     };
+    // 列表页链接扫描上限（v3.3.9）
+    OPTS.currentSettings.maxScanLinks = parseInt(document.getElementById('maxScanLinks').value) || 500;
 
     // 虚拟机过滤
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;

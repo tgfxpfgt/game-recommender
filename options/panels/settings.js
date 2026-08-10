@@ -32,6 +32,8 @@
     document.getElementById('badgeAll').checked = bv.all !== false;
     document.getElementById('badgeUpdate').checked = bv.update !== false;
     document.getElementById('badgeRec').checked = bv.rec !== false;
+    // 列表页链接扫描上限（v3.3.9）
+    document.getElementById('maxScanLinks').value = settings.maxScanLinks || 500;
 
     // 虚拟机标题过滤 / VM title filter
     document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;

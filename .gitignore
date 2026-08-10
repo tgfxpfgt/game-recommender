@@ -51,3 +51,7 @@ backup-*.json
 
 # extension.js local session state
 .extension-js
+
+# ===== E2E 测试生成物（v3.3.9） =====
+tests/.e2e-profile/
+tests/fixtures/

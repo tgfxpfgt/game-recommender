@@ -10,7 +10,7 @@
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
-import { getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
+import { getGameRegistry, getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
 import { generateSearchVariants, extractNoiseCandidates } from './title-parser.js';
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 import { recordSteamCall, getSteamApiStatus } from '../core/api-monitor.js';
@@ -21,14 +21,20 @@ export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|prologue|序章|序
 // Demo/试玩版（单独用于 isDemo 标识）/ Demo/trial edition (for the isDemo badge)
 export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 
-// 名称相关性校验（v3.2.2）：防止下载站噪声词/删词变体匹配到无关游戏或续作。
-// 规范化后要求"结果名包含搜索词"；若原始标题中搜索词之后紧跟数字（如
-// "PC Building Simulator 2" 删词后变体缺失"2"），结果名必须也含数字——
-// 精确匹配时同样生效（变体词恰为前作名时拒绝）。
-// Name-relevance check: the result must contain the search term (normalized);
-// when the raw title has a digit right after the term, the result must too
-// (blocks sequel/1st-gen mismatches such as "PC Building Simulator 2" → gen 1,
-// including when the variant term equals the predecessor's exact name).
+/**
+ * 名称相关性校验（v3.2.2）：防止下载站噪声词/删词变体匹配到无关游戏或续作。
+ * 规范化后要求"结果名包含搜索词"；若原始标题中搜索词之后紧跟数字（如
+ * "PC Building Simulator 2" 删词后变体缺失"2"），结果名必须也含数字——
+ * 精确匹配时同样生效（变体词恰为前作名时拒绝）。
+ * Name-relevance check: the result must contain the search term (normalized);
+ * when the raw title has a digit right after the term, the result must too
+ * (blocks sequel/1st-gen mismatches such as "PC Building Simulator 2" → gen 1,
+ * including when the variant term equals the predecessor's exact name).
+ * @param {string} resultName - storesearch 结果名
+ * @param {string} term - 搜索词
+ * @param {string} rawName - 原始下载站标题
+ * @returns {boolean} 是否相关
+ */
 export function nameMatchesSearch(resultName, term, rawName) {
   const norm = s => String(s || '').toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）×•·]/g, '');
   const rn = norm(resultName);
@@ -332,26 +338,35 @@ export function parseChineseLanguageSupport(storeHtml, gameData) {
 
 // --- 用户标签解析 ---
 
-export function parseUserTags(storeHtml) {
-  if (!storeHtml) return [];
-  const tagMatches = storeHtml.match(/<a[^>]*class="[^"]*app_tag[^"]*"[^>]*>[\s\S]*?<\/a>/gi);
-  if (!tagMatches) return [];
-
-  const seenTags = new Set();
-  return tagMatches
-    .map(m => m
-      .replace(/<[^>]+>/g, '')
-      .replace(/&[a-z]+;/gi, ' ')
-      .replace(/\s+/g, ' ')
-      .trim())
-    .filter(t => {
-      if (t.length < 1 || t.length > 30) return false;
-      const lower = t.toLowerCase();
-      if (seenTags.has(lower)) return false;
-      seenTags.add(lower);
-      return true;
-    })
-    .slice(0, 10);
+// 解析商店页用户标签；商店页被拦截/抓取失败时降级为官方分类
+// （gameData.categories）兜底，避免"热门用户标签"区块整体消失（v3.3.9）。
+// Parse store-page user tags; when the store HTML is unavailable fall back to
+// the official categories so the tag section never disappears entirely.
+export function parseUserTags(storeHtml, gameData) {
+  if (storeHtml) {
+    const tagMatches = storeHtml.match(/<a[^>]*class="[^"]*app_tag[^"]*"[^>]*>[\s\S]*?<\/a>/gi);
+    if (tagMatches && tagMatches.length > 0) {
+      const seenTags = new Set();
+      return tagMatches
+        .map(m => m
+          .replace(/<[^>]+>/g, '')
+          .replace(/&[a-z]+;/gi, ' ')
+          .replace(/\s+/g, ' ')
+          .trim())
+        .filter(t => {
+          if (t.length < 1 || t.length > 30) return false;
+          const lower = t.toLowerCase();
+          if (seenTags.has(lower)) return false;
+          seenTags.add(lower);
+          return true;
+        })
+        .slice(0, 10);
+    }
+  }
+  // 降级：官方分类（Single-player/多人等）作为标签兜底 / fallback: official categories
+  return (gameData && Array.isArray(gameData.categories))
+    ? gameData.categories.map(c => c.description).filter(Boolean).slice(0, 10)
+    : [];
 }
 
 // --- 评测获取 ---
@@ -359,12 +374,17 @@ export function parseUserTags(storeHtml) {
 // 近 30 天评测窗口（秒）/ 30-day recent-review window (seconds)
 export const RECENT_REVIEW_WINDOW_SEC = 30 * 24 * 3600;
 
-// 从最近评测列表中统计 30 天窗口内好评率（纯函数，可单测）。
-// appreviews 的 query_summary 恒为全时段统计（filter=recent 不影响），
-// 近 30 天好评率需从 reviews 数组自行统计（filter=recent 按时间降序返回）。
-// Summarize a 30-day window from a recent-reviews list (pure, testable).
-// query_summary always covers all-time totals (filter=recent does not change
-// it), so the 30-day rate is computed from the reviews array itself.
+/**
+ * 从最近评测列表中统计 30 天窗口内好评率（纯函数，可单测）。
+ * appreviews 的 query_summary 恒为全时段统计（filter=recent 不影响），
+ * 近 30 天好评率需从 reviews 数组自行统计（filter=recent 按时间降序返回）。
+ * Summarize a 30-day window from a recent-reviews list (pure, testable).
+ * query_summary always covers all-time totals (filter=recent does not change
+ * it), so the 30-day rate is computed from the reviews array itself.
+ * @param {Array<{timestamp_created?: number, voted_up?: boolean}>} reviews - 最近评测列表（时间降序）
+ * @param {number} [cutoffSec] - 窗口起点（Unix 秒），默认 now-30 天
+ * @returns {{total: number, positive: number, rate: number|null}} rate=null 表示窗口内 0 条
+ */
 export function summarizeRecentReviews(reviews, cutoffSec = Date.now() / 1000 - RECENT_REVIEW_WINDOW_SEC) {
   const list = Array.isArray(reviews) ? reviews : [];
   const inWindow = list.filter(r => r && typeof r.timestamp_created === 'number' && r.timestamp_created >= cutoffSec);
@@ -631,7 +651,7 @@ export async function fetchSteamFullDetailsByAppId(appId) {
   const storeHtml = await fetchStorePageHtml(appId);
   const [langInfo, userTags, reviews] = await Promise.all([
     Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData)),
-    Promise.resolve(parseUserTags(storeHtml)),
+    Promise.resolve(parseUserTags(storeHtml, gameData)),
     fetchSteamReviews(appId)
   ]);
   // v3.3.6：SteamSpy 总是请求（详情页以 SteamSpy 为主数据）；SteamDB 仍抓取

@@ -63,11 +63,22 @@ export function findProfile(profiles, name, registryEntry) {
   return null;
 }
 
-// 单游戏推荐评分（纯计算，输入为聚合数据，可单测）
-// 信号：行为（详情打开/下载占比，归一化）、标签匹配（Steam 官方标签 vs 用户偏好）、
-// 好评率 + 中文支持。综合加权后返回 score 与 breakdown（徽章悬停展示用）。
-// Pure per-game score computation. Signals: behaviour (normalised view/download
-// shares), tag-preference match, positive rate + Chinese support.
+/**
+ * 单游戏推荐评分（纯计算，输入为聚合数据，可单测）
+ * 信号：行为（详情打开/下载占比，归一化）、标签匹配（Steam 官方标签 vs 用户偏好）、
+ * 好评率 + 中文支持。综合加权后返回 score 与 breakdown（徽章悬停展示用）。
+ * Pure per-game score computation. Signals: behaviour (normalised view/download
+ * shares), tag-preference match, positive rate + Chinese support.
+ * @param {Object} params - 聚合输入 / aggregated inputs
+ * @param {Object|null} params.profile - 游戏画像（views/downloads/keywords）/ game profile
+ * @param {{maxViews?: number, maxDownloads?: number}} params.globalStats - 全站归一化基准
+ * @param {string[]|null} params.tags - Steam 官方标签
+ * @param {Object} params.keywordWeights - 用户偏好关键词权重表
+ * @param {number|null} params.positiveRate - 好评率（0-100，null=未知）
+ * @param {boolean} params.chineseSupported - 是否支持中文
+ * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating）
+ * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number}, method: string}}
+ */
 export function computeGameScore({
   profile = null, globalStats = {}, tags = null,
   keywordWeights = {}, positiveRate = null, chineseSupported = false, weights = {}

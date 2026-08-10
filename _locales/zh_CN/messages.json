@@ -1,0 +1,10 @@
+{
+  "extName": {
+    "message": "Game Recommender - 游戏智能推荐",
+    "description": "扩展名称 / Extension name"
+  },
+  "extDescription": {
+    "message": "基于浏览行为学习的游戏资源智能推荐插件，自动预判下载概率并集成Steam评分",
+    "description": "扩展描述 / Extension description"
+  }
+}

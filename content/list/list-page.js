@@ -32,12 +32,14 @@
            /\/page\/\d+/i.test(path);
   }
 
-  // 智能获取列表项：优先适配器，回退通用链接提取
+  // 智能获取列表项：优先适配器，回退通用链接提取（v3.3.9：回退扫描受
+  // maxScanLinks 上限保护，防止极端大列表页提取数千项并发请求）
   function getListItemsSmart(adapter) {
     let items = adapter.getListItems ? adapter.getListItems() : [];
     if (items.length === 0) {
       const seen = new Set();
-      document.querySelectorAll('a').forEach(a => {
+      const links = Array.from(document.querySelectorAll('a')).slice(0, GR.builder.getScanLimit ? GR.builder.getScanLimit() : 500);
+      links.forEach(a => {
         const href = a.href || '';
         let p;
         try {

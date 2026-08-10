@@ -30,6 +30,16 @@
   const detail = GR.detail || {};
   const tracking = GR.tracking || {};
 
+  // 命名空间完整性自检（v3.3.9）：内容脚本靠 manifest 数组顺序加载，
+  // 任一模块缺失即说明加载顺序/文件遗漏，尽早报错指明问题
+  // Namespace integrity check: content scripts load in manifest order; a
+  // missing module means a broken order or a dropped file — fail loudly.
+  const REQUIRED_KEYS = ['common', 'float', 'status', 'debug', 'builder', 'list', 'detail', 'tracking'];
+  const missing = REQUIRED_KEYS.filter(k => !GR[k]);
+  if (missing.length > 0) {
+    console.error(`[Game Recommender] 内容脚本模块缺失（检查 manifest content_scripts 加载顺序）: ${missing.join(', ')}`);
+  }
+
   const dbg = (...a) => debug.dbg(...a);
 
   // ============ 预热（document_start 立即执行，与页面加载并行） ============
@@ -69,6 +79,8 @@
     // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
     await builder.loadSiteRules();
     builder.buildSiteAdapters(builder.getSITE_RULES());
+    // v3.3.9：列表页链接扫描上限可配置（默认 500）
+    if (builder.setScanLimit) builder.setScanLimit(settings.maxScanLinks || 500);
 
     const domain = common.getCurrentDomain();
     const trackedSites = settings.trackedSites || [];

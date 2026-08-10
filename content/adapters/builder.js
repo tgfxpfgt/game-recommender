@@ -76,7 +76,8 @@
         if (minLinks > 0) {
           let count = 0;
           const anchors = document.querySelectorAll('a');
-          const scanLimit = Math.min(anchors.length, 500);
+          // v3.3.9：扫描上限可配置（默认 500）
+          const scanLimit = Math.min(anchors.length, getScanLimit());
           for (let i = 0; i < scanLimit; i++) {
             if (isDetailHref(anchors[i].href || '')) count++;
             if (count >= minLinks) return true;
@@ -144,12 +145,14 @@
   }
 
   // 通用适配器（所有站点兜底）/ Generic adapter (fallback for every site)
+  // 常见下载站路径特征（v3.3.9 提为常量便于扩展；新站点路径风格不同时可在此追加）
+  const GENERIC_DETAIL_PATHS = ['/game/', '/down/', '/soft/'];
   const DEFAULT_ADAPTER = {
     name: '通用',
     isListPage: () => {
       let gameLinks = 0;
       document.querySelectorAll('a').forEach(a => {
-        if (a.href && (a.href.includes('/game/') || a.href.includes('/down/') || a.href.includes('/soft/'))) gameLinks++;
+        if (a.href && GENERIC_DETAIL_PATHS.some(p => a.href.includes(p))) gameLinks++;
       });
       return gameLinks >= 5;
     },
@@ -157,7 +160,7 @@
       const items = [];
       const seen = new Set();
       document.querySelectorAll('a').forEach(a => {
-        if (a.href && (a.href.includes('/game/') || a.href.includes('/down/') || a.href.includes('/soft/')) && !seen.has(a.href)) {
+        if (a.href && GENERIC_DETAIL_PATHS.some(p => a.href.includes(p)) && !seen.has(a.href)) {
           seen.add(a.href);
           const text = a.textContent.trim();
           if (text.length > 2 && text.length < 100) {
@@ -170,6 +173,12 @@
       return items;
     }
   };
+
+  // 列表页链接扫描上限（大列表页性能保护；v3.3.9 可由设置 maxScanLinks 调整，
+  // tracker init 时注入） / link-scan limit for list detection (tunable since v3.3.9)
+  let SCAN_LIMIT = 500;
+  function setScanLimit(n) { if (typeof n === 'number' && n > 0) SCAN_LIMIT = n; }
+  function getScanLimit() { return SCAN_LIMIT; }
 
   // 站点适配器表（init 时构建；规则导入/更新后重建）
   let SITE_ADAPTERS = { '_default': DEFAULT_ADAPTER };
@@ -186,7 +195,9 @@
   function getAdapter() {
     const domain = GR.common.getCurrentDomain();
     for (const [key, adapter] of Object.entries(SITE_ADAPTERS)) {
-      if (key !== '_default' && domain.includes(key)) return adapter;
+      // v3.3.9：域名段匹配（www.xianyudanji.gg → xianyudanji），
+      // 比子串匹配严格——xdgame2.com 不再误配 xdgame
+      if (key !== '_default' && domain.split('.').includes(key)) return adapter;
     }
     return SITE_ADAPTERS['_default'];
   }
@@ -195,7 +206,7 @@
   function getAdapterKey() {
     const domain = GR.common.getCurrentDomain();
     for (const key of Object.keys(SITE_ADAPTERS)) {
-      if (key !== '_default' && domain.includes(key)) return key;
+      if (key !== '_default' && domain.split('.').includes(key)) return key;
     }
     return '';
   }
@@ -231,6 +242,8 @@
     getAdapterKey,
     extractSteamImageInfo,
     extractSteamAppIdFromImages,
+    setScanLimit,
+    getScanLimit,
     getSITE_RULES: () => SITE_RULES
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

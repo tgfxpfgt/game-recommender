@@ -68,6 +68,7 @@ export const DEFAULT_SETTINGS = {
   // List-page badge toggles (all on by default). Data fetching keeps running;
   // turning off "all" also disables the rating filter, "rec" the highlighting.
   badgeVisibility: { recent: true, all: true, update: true, rec: true },
+  maxScanLinks: 500, // 列表页链接扫描上限（大列表页性能保护，v3.3.9 可配置）
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
   // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
   // Cache TTLs (customizable in settings; value 0 = keep forever)
