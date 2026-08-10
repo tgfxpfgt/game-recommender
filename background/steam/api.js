@@ -67,24 +67,29 @@ export function validateSteamNames(cnName, enName) {
   return { valid: issues.length === 0, issues };
 }
 
-// 从 appdetails 数据解析"游戏本体" appId（v3.2.6+，v3.2.10 补 demo）：
+// 从 appdetails 数据解析"游戏本体" appId（v3.2.6+，v3.2.10 补 demo，v3.3.4 兼容真实字段）：
 //   - type=game → 自身
 //   - type=demo → 优先解析所属本体（demo 页面同样带 fullgame，如
 //     "杀死影子 Demo" 2947640 → 2660230）；无 fullgame 的独立 Demo 保留自身
 //   - type=dlc 且含 fullgame → 返回所属本体 appId（DLC 页面提供）
 //   - 其他（bundle/mod/music/soundtrack/video/software/hardware 等非本体）→ null
+// 注意：appdetails 响应的应用 ID 字段是 `steam_appid`（无 `appid`），
+// 两者都兼容（测试/模拟数据可能用 appid）。
 // Resolve the base-game appId from appdetails data: game stays; a demo resolves
 // to its full game when fullgame exists (e.g. "杀死影子 Demo" 2947640 →
 // 2660230), otherwise stays; a DLC with fullgame resolves to its base game;
 // every other non-base type (bundle/mod/music/video/software/hardware...) → null.
+// Note: the real appdetails payload names the app id `steam_appid` (there is no
+// `appid` field); both are accepted (tests/mock data may use `appid`).
 export function baseAppIdFromDetails(data) {
   if (!data || typeof data !== 'object') return null;
+  const selfId = data.appid || data.steam_appid;
   if (data.type === 'game') {
-    return data.appid ? String(data.appid) : null;
+    return selfId ? String(selfId) : null;
   }
   if (data.type === 'demo') {
     if (data.fullgame && data.fullgame.appid) return String(data.fullgame.appid);
-    return data.appid ? String(data.appid) : null;
+    return selfId ? String(selfId) : null;
   }
   if (data.type === 'dlc' && data.fullgame && data.fullgame.appid) {
     return String(data.fullgame.appid);

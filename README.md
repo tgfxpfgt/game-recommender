@@ -214,6 +214,14 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.3.4
+- **修复详情页"获取详情失败，请重试"（根因：appdetails 字段名不兼容）**：
+  - 实测链路：66096（苏丹的游戏 3117820）/57106（刀剑江湖路 2361680）详情页自动匹配失败 → 手动选择正确候选项 → 点击仍"获取详情失败"
+  - 根因：`baseAppIdFromDetails` 读取 `data.appid`，但**真实 appdetails 响应的 ID 字段是 `steam_appid`**（v3.2.6 加入校验以来从未兼容）→ type=game/demo 永远解析为 null → `fetchSteamFullDetailsByAppId` 的"非本体无法解析"分支必然触发返回 null → **所有新游戏详情页完整拉取 100% 失败**（只有 v3.2.5 前写入的旧完整缓存能命中显示）；v3.3.3 将列表页轻量缓存命中改为转完整拉取后问题全面暴露
+  - 修复：`baseAppIdFromDetails` 兼容 `data.appid || data.steam_appid`（game 保留自身/demo 优先解析本体/DLC 解析 fullgame 本体不变）
+  - 实测验证：3117820 → OK（苏丹的游戏，type=game，10 标签，中文支持）；2361680 → OK（刀剑江湖路 72%）；DLC 4145470 → 自动解析本体 3613270（星际采矿公司）
+- 测试：新增真实 appdetails 结构用例（5 项：game/demo/独立 demo/dlc/bundle 的 steam_appid 形态）；全套 **196 项**通过
+
 ### v3.3.3
 - **详情页 Steam 信息缓存命中机制改进**（列表页打开详情页直接用缓存，秒开）：
   - 新增 `isCompleteCacheData` 完整性判定：详情页渲染需要的关键字段（链接/类型/标签/中文支持/发行日期/开发商/简介/封面）齐全才可命中缓存——修复 `SEARCH_STEAM` 回退路径命中列表页轻量缓存导致详情页缺字段渲染残缺的 bug（缺 genres/标签/中文支持/开发商/描述等 19 个字段）

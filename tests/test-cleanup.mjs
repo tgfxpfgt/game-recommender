@@ -58,6 +58,13 @@ check('music/soundtrack 无法解析', bd({ type: 'music', appid: 12345 }), null
 check('video 无法解析', bd({ type: 'video', appid: 12345 }), null);
 check('software 无法解析', bd({ type: 'software', appid: 12345 }), null);
 check('空输入', bd(null), null);
+// v3.3.4：真实 appdetails 响应的 ID 字段是 steam_appid（无 appid 字段），
+// 此前 game/demo 类型因此解析为 null → 详情页完整拉取全部失败（"获取详情失败"）
+check('真实结构 game+steam_appid 保留自身', bd({ type: 'game', steam_appid: 3117820 }), '3117820');
+check('真实结构 demo+fullgame+steam_appid 解析本体', bd({ type: 'demo', steam_appid: 2947640, fullgame: { appid: 2660230 } }), '2660230');
+check('真实结构独立 demo 保留自身', bd({ type: 'demo', steam_appid: 2947640 }), '2947640');
+check('真实结构 dlc+fullgame 解析本体', bd({ type: 'dlc', steam_appid: 4145470, fullgame: { appid: 3613270 } }), '3613270');
+check('真实结构 bundle 无法解析', bd({ type: 'bundle', steam_appid: 888 }), null);
 
 // ============ 0.7 失败固化检测（v3.2.9）/ isFailedRatingEntry ============
 console.log('0.7 失败固化检测 isFailedRatingEntry');
