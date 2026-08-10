@@ -26,6 +26,13 @@
     document.getElementById('minRating').value = settings.minSteamRatingFilter || 0;
     document.getElementById('minRatingVal').textContent = `${settings.minSteamRatingFilter || 0}%`;
 
+    // 徽章显示开关（v3.3.8，默认全开）
+    const bv = settings.badgeVisibility || {};
+    document.getElementById('badgeRecent').checked = bv.recent !== false;
+    document.getElementById('badgeAll').checked = bv.all !== false;
+    document.getElementById('badgeUpdate').checked = bv.update !== false;
+    document.getElementById('badgeRec').checked = bv.rec !== false;
+
     // 虚拟机标题过滤 / VM title filter
     document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
     document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');

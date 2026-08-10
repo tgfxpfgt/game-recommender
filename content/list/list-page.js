@@ -294,7 +294,10 @@
   function applyRatingsResponse(ratings, mode) {
     if (!ratingsJob) return false;
     const job = ratingsJob;
-    const minRating = job.settings?.enableRatingFilter ? (job.settings.minSteamRatingFilter || 0) : 0;
+    // v3.3.8：关闭"全部好评率"徽章 → 好评率过滤停用（数据获取不受影响）
+    const bv = (job.settings && job.settings.badgeVisibility) || {};
+    const filterEnabled = job.settings?.enableRatingFilter && bv.all !== false;
+    const minRating = filterEnabled ? (job.settings.minSteamRatingFilter || 0) : 0;
     let changed = false;
     job.processItems.forEach(item => {
       if (job.processed.has(item.name)) return;
@@ -468,14 +471,18 @@
 
   // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
   // 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
-  // Badges before the game title (three badges: 30-day rate → all-time rate →
-  // last update; tooltips carry review counts / release date; not-found, bundle
-  // type and no-review entries keep a single badge; the all-time badge opens
-  // the store page on click)
+  // v3.3.8：徽章显示开关（badgeVisibility）——关闭某徽章仅跳过渲染，
+  // 后台数据获取不受影响；关闭"全部好评率"同时停用好评率过滤。
+  // Badges before the game title (three badges since v3.3.6). Since v3.3.8 each
+  // badge is toggleable (badgeVisibility); hidden badges skip rendering only.
   function prependBadge(item, rating) {
     const link = item.link;
     if (!link) return;
     if (link.querySelector('.gr-rating-badge')) return; // 防重复 / no duplicates
+    const bv = (ratingsJob && ratingsJob.settings && ratingsJob.settings.badgeVisibility) || {};
+    const showRecent = bv.recent !== false;
+    const showAll = bv.all !== false;
+    const showUpdate = bv.update !== false;
 
     const isNotFound = !rating || !rating.appId;
     const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
@@ -505,54 +512,65 @@
       }));
     } else {
       // 段1：近 30 天好评率（浅蓝固定色；无近期评测 → 灰 —）
-      const recentRate = rating.recentPositiveRate;
-      const recentTotal = rating.recentTotalReviews || 0;
-      if (recentRate === null || recentRate === undefined) {
-        badges.push(createBadge(link, {
-          text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
-          cls: 'gr-rating-badge gr-recent-badge', title: '近30天暂无评测'
-        }));
-      } else {
-        badges.push(createBadge(link, {
-          text: `${recentRate}%`, color: '#66c0f4', bg: 'rgba(102,192,244,0.12)',
-          cls: 'gr-rating-badge gr-recent-badge',
-          title: `最近30天好评率: ${recentRate}% · ${recentTotal.toLocaleString()} 条评测`
-        }));
+      if (showRecent) {
+        const recentRate = rating.recentPositiveRate;
+        const recentTotal = rating.recentTotalReviews || 0;
+        if (recentRate === null || recentRate === undefined) {
+          badges.push(createBadge(link, {
+            text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
+            cls: 'gr-rating-badge gr-recent-badge', title: '近30天暂无评测'
+          }));
+        } else {
+          badges.push(createBadge(link, {
+            text: `${recentRate}%`, color: '#66c0f4', bg: 'rgba(102,192,244,0.12)',
+            cls: 'gr-rating-badge gr-recent-badge',
+            title: `最近30天好评率: ${recentRate}% · ${recentTotal.toLocaleString()} 条评测`
+          }));
+        }
       }
       // 段2：全部好评率（分级色，可点击跳转）
-      const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
-      const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
-      badges.push(createBadge(link, {
-        text: `${rate}%`, color, bg, cls: 'gr-rating-badge',
-        title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
-        clickable: true, appId: rating.appId
-      }));
-      // 段3：最近更新日期（悬停显示发行日期；无数据 → 灰 —，详情页访问后补全）
-      const update = rating.lastUpdate || '';
-      if (update) {
+      if (showAll) {
+        const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
+        const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
         badges.push(createBadge(link, {
-          text: `🛠 ${update.length >= 10 ? update.slice(5) : update}`, color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
-          cls: 'gr-rating-badge gr-update-badge',
-          title: `最近更新: ${update}${rating.releaseDate ? ' · 发行: ' + rating.releaseDate : ''}`
-        }));
-      } else {
-        badges.push(createBadge(link, {
-          text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
-          cls: 'gr-rating-badge gr-update-badge',
-          title: '最近更新未知（访问详情页后自动补全）'
+          text: `${rate}%`, color, bg, cls: 'gr-rating-badge',
+          title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
+          clickable: true, appId: rating.appId
         }));
       }
+      // 段3：最近更新日期（悬停显示发行日期；无数据 → 灰 —，列表页独立获取）
+      if (showUpdate) {
+        const update = rating.lastUpdate || '';
+        if (update) {
+          badges.push(createBadge(link, {
+            text: `🛠 ${update.length >= 10 ? update.slice(5) : update}`, color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
+            cls: 'gr-rating-badge gr-update-badge',
+            title: `最近更新: ${update}${rating.releaseDate ? ' · 发行: ' + rating.releaseDate : ''}`
+          }));
+        } else {
+          badges.push(createBadge(link, {
+            text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
+            cls: 'gr-rating-badge gr-update-badge',
+            title: '最近更新获取中...'
+          }));
+        }
+      }
     }
-    insertBadges(item, link, badges);
+    if (badges.length > 0) insertBadges(item, link, badges);
   }
 
   // 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；
   // 按推荐值分级着色（≥80% 红 / ≥60% 橙 / ≥40% 黄绿 / 其余灰）。
-  // Recommendation badge (after the rating badge): shows the score, tooltip with
-  // the breakdown, and a score-graded color.
-  function prependRecBadge(item, recommendation) {
+  // v3.3.8：插入到**最后一个**好评率/更新徽章之后（此前插到第一个 rating 徽章
+  // 后，三段式下顺序错乱）；受 badgeVisibility.rec 开关控制（关闭同时停用高亮）。
+  // Recommendation badge (after the rating badges): shows the score, tooltip with
+  // the breakdown, and a score-graded color. Inserted after the LAST rating badge
+  // (the old nextSibling logic broke ordering with three badges).
+  function prependRecBadge(item, recommendation, settings) {
     const link = item.link;
     if (!link || !recommendation) return;
+    const bv = (settings && settings.badgeVisibility) || {};
+    if (bv.rec === false) return;
     const score = recommendation.score;
     if (score === null || score === undefined || isNaN(score)) return;
 
@@ -568,16 +586,16 @@
     badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:default;`;
     badge.title = `推荐度: ${pct}%\n点击率: ${fmt(b.clickScore)} · 下载率: ${fmt(b.downloadScore)}\n关键词: ${fmt(b.keywordMatch)} · Steam: ${fmt(b.steamRating)}`;
 
-    // 插入到好评率徽章之后（若尚未插入好评率则插最前，好评率后插会自动排到其前）
+    // 与 prependBadge 相同的定位逻辑；插到最后一个徽章之后
     let targetEl = item.titleEl || null;
     if (!targetEl && item.element) {
       targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
     }
     if (targetEl) {
-      const ratingBadge = targetEl.querySelector('.gr-rating-badge');
-      if (ratingBadge && ratingBadge.nextSibling) {
-        targetEl.insertBefore(badge, ratingBadge.nextSibling);
-      } else if (ratingBadge) {
+      const lastBadge = [...targetEl.querySelectorAll('.gr-rating-badge, .gr-recent-badge, .gr-update-badge')].pop();
+      if (lastBadge && lastBadge.nextSibling) {
+        targetEl.insertBefore(badge, lastBadge.nextSibling);
+      } else if (lastBadge) {
         targetEl.appendChild(badge);
       } else {
         targetEl.insertBefore(badge, targetEl.firstChild);
@@ -601,12 +619,15 @@
       const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
       if (response && response.results) {
         const threshold = settings?.highlightThreshold || 0.6;
+        // v3.3.8：关闭"推荐值"徽章 → 推荐高亮停用（数据获取不受影响）
+        const bv = (settings && settings.badgeVisibility) || {};
+        const recEnabled = bv.rec !== false;
         let highlighted = 0;
         response.results.forEach((result, index) => {
           if (result.recommendation) {
             // 推荐值徽章（好评率徽章之后，悬停显示各分值组成，分级着色）
-            prependRecBadge(processItems[index], result.recommendation);
-            if (result.recommendation.score >= threshold) {
+            prependRecBadge(processItems[index], result.recommendation, settings);
+            if (recEnabled && result.recommendation.score >= threshold) {
               highlightItem(processItems[index]);
               highlighted++;
             }

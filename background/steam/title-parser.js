@@ -16,14 +16,18 @@ function isPureNoise(text) {
   return stripped.length === 0;
 }
 
-// 分段：移除括号/书名号后按 |、带空格连字符、中文分隔符 ×•· 拆分
-// Split a title into segments (brackets removed; |, spaced dashes, ×•· separators)
+// 分段：移除括号/书名号后按 |、带空格连字符、中文分隔符 ×•· 与冒号拆分
+// （v3.3.8 加冒号：官方中文名常为 "英文名: 中文名" 形式，如 "Windrose: 风启之旅"，
+// 下载站只认 "Windrose" 或 "风启之旅"——整段带冒号搜索全部落空，必须分段）
+// Split a title into segments (brackets removed; |, spaced dashes, ×•· and
+// colons split — CN names are often "English: 中文" like "Windrose: 风启之旅",
+// and download sites only match either half, so colons must split).
 function splitTitleSegments(rawName) {
   if (!rawName) return [];
   const name = rawName.trim()
     .replace(/[\(\[\【].*?[\)\]\】]/g, '')
     .replace(/[《》]/g, '');
-  return name.split(/[|]+|\s+[-–—]\s+|[×•·]/).map(s => s.trim()).filter(s => s.length > 1);
+  return name.split(/[|]+|\s+[-–—]\s+|[×•·]|[:：]/).map(s => s.trim()).filter(s => s.length > 1);
 }
 
 /**
@@ -60,10 +64,12 @@ export function parseGameTitle(rawName) {
     const cleaned = part.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
     if (cleaned.length >= 2) addCandidate(cleaned);
 
-    // 2) 英文子串作为补充候选
+    // 2) 英文子串作为补充候选（v3.3.8：去除尾随冒号等标点——贪婪匹配会把
+    //    "Windrose: 风启之旅" 抽出 "Windrose:"，下载站搜不到）
     const en = part.match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
     if (en) en.forEach(m => {
-      const cleanedEn = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+      const cleanedEn = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim()
+        .replace(/[:：\s\-]+$/g, '');
       if (cleanedEn.length >= 2) addCandidate(cleanedEn);
     });
 

@@ -5,7 +5,7 @@
  * All message handlers and the dispatch map (stateless; delegates to modules).
  */
 import { dataStore } from '../data/data-store.js';
-import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS, resolveTtlMs, steamCacheTtlMs, detailSteamCacheTtlMs } from './core/constants.js';
+import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS, resolveTtlMs, detailSteamCacheTtlMs } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
 import { resetInMemoryCaches } from './core/reset.js';
 import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
@@ -537,6 +537,34 @@ async function handleClearCacheForPage(message) {
   return { success: true, cleared };
 }
 
+// Steam 商品页缓存预取（v3.3.8）：浏览 store.steampowered.com/app/{id}/ 时
+// 预热该游戏缓存——detail 模块有效则跳过（防重复请求）；否则完整拉取并记录
+// 名称索引（回下载站列表页徽章/筛选立即命中）
+// Steam-store-page cache warm-up: prefetch the game's full data while browsing
+// its store page (skipped when the detail module is still valid); the name
+// index entry makes download-site list badges hit instantly afterwards.
+async function handleCacheSteamPage(message) {
+  const appId = String(message.appId || '');
+  const gameName = message.gameName || '';
+  if (!appId) return { success: false };
+  try {
+    const cached = await getSteamCacheEntry(appId);
+    const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
+    if (detail && isCompleteCacheData(detail)) return { success: true, cached: true };
+    const result = await fetchSteamFullDetailsByAppId(appId);
+    if (!result) return { success: false };
+    await setSteamCacheEntry(appId, result);
+    if (gameName) await recordNameIndex(gameName, appId);
+    await flushSteamCache();
+    await flushNameIndex();
+    Logger.info('Steam', `Steam 商品页缓存预取: appId ${appId} (${result.name})`);
+    return { success: true, cached: false };
+  } catch (e) {
+    Logger.warn('Steam', `Steam 商品页缓存预取失败: appId ${appId}`, e.message);
+    return { success: false };
+  }
+}
+
 // --- 缓存过期清理（v3.0.0）---
 async function handleCleanExpiredCache() {
   const settings = await getSettings();
@@ -963,6 +991,7 @@ export const MESSAGE_HANDLERS = {
   DELETE_ADAPTER_RULES:   handleDeleteAdapterRules,
   CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache,
   CLEAR_CACHE_FOR_PAGE:   handleClearCacheForPage,
+  CACHE_STEAM_PAGE:       handleCacheSteamPage,
   HEAL_REGISTRY_NAMES:    handleHealRegistryNames,
   GET_API_STATUS:         handleGetApiStatus
 };

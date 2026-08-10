@@ -63,6 +63,11 @@ export const DEFAULT_SETTINGS = {
   enableRatingFilter: false, // 是否启用好评率过滤
   enableVmFilter: false, // 是否启用虚拟机标题过滤
   vmFilterKeywords: ['虚拟机板', '虚拟机'], // 虚拟机过滤关键词列表
+  // 列表页徽章显示开关（v3.3.8，默认全开）。关闭不影响后台数据获取；
+  // 关闭"全部好评率"→ 好评率过滤停用；关闭"推荐值"→ 推荐高亮停用
+  // List-page badge toggles (all on by default). Data fetching keeps running;
+  // turning off "all" also disables the rating filter, "rec" the highlighting.
+  badgeVisibility: { recent: true, all: true, update: true, rec: true },
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
   // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
   // Cache TTLs (customizable in settings; value 0 = keep forever)

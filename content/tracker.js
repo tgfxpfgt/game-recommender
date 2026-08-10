@@ -91,6 +91,17 @@
     // === 功能3：Steam页面 → 注入下载站跳转浮窗 ===
     if (isSteamPage) {
       detail.injectDownloadSitePanel();
+      // v3.3.8：浏览 Steam 商品页时预取并缓存该游戏完整数据——回到下载站
+      // 列表页时徽章/筛选立即有数据（后台 detail 缓存有效则自动跳过）
+      // Cache the game when browsing a Steam store page, so badges are ready
+      // when the user returns to download-site lists (the background skips
+      // when the detail module is still valid)
+      const appIdMatch = window.location.pathname.match(/\/app\/(\d+)/);
+      if (appIdMatch) {
+        const nameEl = document.querySelector('.apphub_AppName');
+        const pageName = (nameEl ? nameEl.textContent : document.title.replace(/^Steam 上的\s*|\s*on Steam$/i, '')).trim();
+        chrome.runtime.sendMessage({ action: 'CACHE_STEAM_PAGE', appId: appIdMatch[1], gameName: pageName }).catch(() => {});
+      }
       if (!isTracked) return; // Steam页只注入下载站浮窗，不做行为追踪
     }
 

@@ -8,9 +8,10 @@
  */
 import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
-  fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ADDON_NAME_PATTERN,
-  ensureRegistryEntry, ensureValidRegistryNames, coverImageFor, isDemoAppId,
-  baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch, isCompleteCacheData
+  fetchReviewSummary, fetchLastUpdate, validateSteamNames, DEMO_NAME_PATTERN,
+  ADDON_NAME_PATTERN, ensureRegistryEntry, ensureValidRegistryNames, coverImageFor,
+  isDemoAppId, baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch,
+  isCompleteCacheData
 } from './api.js';
 import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -303,17 +304,23 @@ export async function getSteamPositiveRate(gameName, options = {}) {
 
     // 6. 合并写入 Steam 动态缓存（自愈场景不留存旧 Demo 数据；含封面/type 供补写）。
     //    确认 0 评测（positiveRate null）时记录重试时间，冷却期内不再重复请求。
-    //    v3.3.6：近 30 天好评率随同一请求写入缓存（徽章三段式数据源）；
-    //    lastUpdate 由详情页全量拉取写入，经 ...existing 合并自动补全。
+    //    v3.3.6：近 30 天好评率随同一请求写入缓存（徽章三段式数据源）。
     //    v3.3.7：existing 为模块合并视图（setSteamCacheEntry 按字段自动路由，
-    //    只更新 meta/rating 模块，detail/spy 保留）
+    //    只更新 meta/rating 模块，detail/spy 保留）。
+    //    v3.3.8：列表页独立获取最近更新日期（不依赖详情页访问；缓存已有则复用；
+    //    GetNewsForApp 在 api.steampowered.com 独立限流域，不影响商店 API 配额）。
     const existing = usableAppId ? (getMergedData(await getSteamCacheEntry(usableAppId)) || {}) : {};
     const headerImage = coverImageFor(foundAppId, options.cover);
+    let lastUpdate = existing.lastUpdate || null;
+    if (!lastUpdate) {
+      lastUpdate = await fetchLastUpdate(foundAppId).catch(() => null);
+    }
     const mergedData = {
       ...existing, appId: foundAppId, name: foundName, englishName: officialEn,
       positiveRate, ratingDesc, headerImage, type: appType || 'game',
       totalReviews: reviewSummary ? reviewSummary.total : 0,
       recentPositiveRate: recentRate, recentTotalReviews: recentTotal,
+      lastUpdate: lastUpdate || existing.lastUpdate || null,
       ratingRetriedAt: positiveRate === null ? Date.now() : existing.ratingRetriedAt
     };
     await setSteamCacheEntry(foundAppId, mergedData);
@@ -332,7 +339,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       positiveRate, ratingDesc, appId: foundAppId, name: foundName,
       totalReviews: reviewSummary ? reviewSummary.total : 0,
       recentPositiveRate: recentRate, recentTotalReviews: recentTotal,
-      lastUpdate: existing.lastUpdate || null,
+      lastUpdate: lastUpdate || existing.lastUpdate || null,
       releaseDate: existing.releaseDate || ''
     };
   } catch (e) {

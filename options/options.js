@@ -210,6 +210,14 @@
     OPTS.currentSettings.enableRatingFilter = document.getElementById('ratingFilterEnabled').checked;
     OPTS.currentSettings.minSteamRatingFilter = parseInt(document.getElementById('minRating').value);
 
+    // 徽章显示开关（v3.3.8）
+    OPTS.currentSettings.badgeVisibility = {
+      recent: document.getElementById('badgeRecent').checked,
+      all: document.getElementById('badgeAll').checked,
+      update: document.getElementById('badgeUpdate').checked,
+      rec: document.getElementById('badgeRec').checked
+    };
+
     // 虚拟机过滤
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
     const vmKeywordsRaw = document.getElementById('vmFilterKeywords').value

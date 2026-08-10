@@ -168,6 +168,59 @@
 
           <div class="settings-section">
             <div class="section-header">
+              <span class="section-icon">🏷️</span>
+              <div class="section-title">
+                <h3>徽章显示</h3>
+                <span class="section-subtitle">Badge Visibility</span>
+              </div>
+            </div>
+            <div class="section-body">
+              <p class="section-note">列表页各徽章独立开关。关闭不影响后台数据获取；关闭"全部好评率"同时停用好评率过滤，关闭"推荐值"同时停用推荐高亮<br><em>Per-badge toggles on list pages. Data keeps fetching; "all" also controls the rating filter, "rec" the highlighting</em></p>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">近30天好评率</span>
+                  <span class="label-desc">30-day Rating Badge</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="badgeRecent">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">全部好评率</span>
+                  <span class="label-desc">All-time Rating Badge</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="badgeAll">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">最近更新日期</span>
+                  <span class="label-desc">Last Update Badge</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="badgeUpdate">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">推荐值</span>
+                  <span class="label-desc">Recommendation Badge</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="badgeRec">
+                  <span class="slider"></span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="section-header">
               <span class="section-icon">🚫</span>
               <div class="section-title">
                 <h3>虚拟机版过滤</h3>

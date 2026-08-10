@@ -128,7 +128,8 @@ MutationObserver.instances = [];
 const DEFAULT_SETTINGS = {
   enabled: true, enableVmFilter: false, enableRatingFilter: false,
   minSteamRatingFilter: 0, showStatusBar: true, showDebugPanel: false,
-  trackedSites: [], steamSiteSearch: [], highlightThreshold: 0.6
+  trackedSites: [], steamSiteSearch: [], highlightThreshold: 0.6,
+  badgeVisibility: { recent: true, all: true, update: true, rec: true }
 };
 
 // ============ Fake chrome API（预设按 action 分发）/ fake chrome with presets ============
@@ -352,6 +353,61 @@ check('收集的游戏名正确', clearMsg && clearMsg.names.includes('游戏A')
 check('后台清除请求已发送', !!clearMsg, true);
 check('响应成功', forceResp ? forceResp.success : false, true);
 check('已触发页面重载', reloaded, true);
+
+// ============ 8. 徽章开关与过滤/高亮联动（v3.3.8） ============
+console.log('8. 徽章开关与过滤/高亮联动');
+// 重新加载内容脚本（新 warmupPromise 读新设置；清空旧回调 + 清除 tracker 防重复守卫）
+docReadyCallbacks.length = 0;
+globalThis.__gameRecommenderTracker = false;
+const badgeSettings = { ...DEFAULT_SETTINGS, enableRatingFilter: true, minSteamRatingFilter: 70, badgeVisibility: { recent: false, all: true, update: true, rec: false } };
+presets['GET_SETTINGS'] = () => ({ settings: badgeSettings });
+for (const f of SCRIPT_FILES) {
+  const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+  (0, eval)(code);
+}
+const itemE = makeItem('游戏E', 5);
+queryAllStub = (sel) => sel === 'li.game-item' ? [itemE.li] : [];
+presets['GET_STEAM_RATINGS'] = (msg) => ({ ratings: { '游戏E': { appId: '555', positiveRate: 88, ratingDesc: '特别好评', totalReviews: 100, recentPositiveRate: 85, recentTotalReviews: 20, lastUpdate: '2026-08-01' } }, pending: 0 });
+presets['GET_RECOMMENDATIONS'] = (msg) => ({ results: [{ recommendation: { score: 0.85, breakdown: { clickScore: 0.9, downloadScore: 0.8, keywordMatch: 0.7, steamRating: 0.9 } } }] });
+docReadyCallbacks.forEach(cb => cb());
+await new Promise(r => setTimeout(r, 30));
+
+check('关近30天：无近30天徽章', itemE.a.children.some(c => c.className.includes('gr-recent-badge')), false);
+const isAllBadge = c => c.className.includes('gr-rating-badge') && !c.className.includes('gr-recent') && !c.className.includes('gr-update');
+check('全部好评率徽章仍显示', itemE.a.children.some(isAllBadge), true);
+check('最近更新徽章仍显示', itemE.a.children.some(c => c.className.includes('gr-update-badge')), true);
+check('关推荐值：无推荐徽章', itemE.a.children.some(c => c.className.includes('gr-rec-badge')), false);
+check('关推荐值：不高亮', itemE.li.classList.contains('gr-highlighted'), false);
+check('好评率过滤仍生效（88% ≥ 70 保留）', itemE.a.children.some(isAllBadge), true);
+
+// 8b：关闭"全部好评率"→ 好评率过滤停用（低好评率游戏不再被移除）
+console.log('8b. 关全部好评率徽章 → 过滤停用');
+docReadyCallbacks.length = 0;
+globalThis.__gameRecommenderTracker = false;
+const badgeSettings2 = { ...DEFAULT_SETTINGS, enableRatingFilter: true, minSteamRatingFilter: 70, badgeVisibility: { recent: true, all: false, update: true, rec: true } };
+presets['GET_SETTINGS'] = () => ({ settings: badgeSettings2 });
+for (const f of SCRIPT_FILES) {
+  const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+  (0, eval)(code);
+}
+const itemF = makeItem('游戏F', 6);
+documentMock.body.appendChild(itemF.li); // 模拟挂载（过滤会从 DOM 移除）
+queryAllStub = (sel) => sel === 'li.game-item' ? [itemF.li] : [];
+presets['GET_STEAM_RATINGS'] = (msg) => ({ ratings: { '游戏F': { appId: '666', positiveRate: 50, ratingDesc: '褒贬不一', totalReviews: 100, recentPositiveRate: 40, recentTotalReviews: 10, lastUpdate: '2026-07-15' } }, pending: 0 });
+presets['GET_RECOMMENDATIONS'] = (msg) => ({ results: [{ recommendation: { score: 0.3, breakdown: { clickScore: 0.2, downloadScore: 0.1, keywordMatch: 0.3, steamRating: 0.4 } } }] });
+docReadyCallbacks.forEach(cb => cb());
+await new Promise(r => setTimeout(r, 30));
+
+check('关全部：无全部好评率徽章', itemF.a.children.some(isAllBadge), false);
+check('关全部：近30天徽章仍显示', itemF.a.children.some(c => c.className.includes('gr-recent-badge')), true);
+check('关全部：低好评率游戏未被过滤（仍在 DOM）', documentMock.body.children.includes(itemF.li), true);
+check('关全部：推荐徽章仍显示（rec 开）', itemF.a.children.some(c => c.className.includes('gr-rec-badge')), true);
+check('推荐徽章在最后（rating 徽章之后）', (() => {
+  const kids = itemF.a.children;
+  const recIdx = kids.findIndex(c => c.className.includes('gr-rec-badge'));
+  const badgeIdx = kids.findIndex(c => c.className.includes('gr-rating-badge') || c.className.includes('gr-update-badge') || c.className.includes('gr-recent-badge'));
+  return recIdx > badgeIdx;
+})(), true);
 
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
