@@ -36,7 +36,7 @@ export async function getGameRegistryEntry(appId) {
 }
 
 // 记录/更新游戏到注册表 / Record/update a game in the registry
-export async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '', tags = null, coverImage = null }) {
+export async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '', tags = null, coverImage = null, type = null }) {
   if (!appId) return;
   await loadRegistryToMemory();
   const key = String(appId);
@@ -44,6 +44,9 @@ export async function recordGameInRegistry(appId, { cnName = '', enName = '', ga
 
   if (cnName) existing.cnName = cnName;
   if (enName) existing.enName = enName;
+
+  // Steam 条目类型（game/dlc/demo/bundle 等，管理页筛选用）
+  if (type) existing.type = type;
 
   // 更新封面图 URL（仅 http/https，安全校验）/ Update the cover URL (http/https only)
   if (coverImage && /^https?:\/\//i.test(coverImage)) {

@@ -473,9 +473,11 @@
       ? '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）'
       : isTypeBadge
         ? `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
-        : (rate === null || rate === undefined)
-          ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
-          : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
+        : rating.failed
+          ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），下次访问自动重试`
+          : (rate === null || rate === undefined)
+            ? `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`
+            : `Steam 好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''}\n点击跳转 Steam 详情页`;
     // 点击徽章跳转 Steam 详情页（span+click 避免嵌套链接）
     if (!isNotFound && !isTypeBadge && rating.appId) {
       badge.addEventListener('click', (e) => {

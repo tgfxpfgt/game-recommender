@@ -214,6 +214,15 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.2.9
+- **修复大量 appid 缓存后只显示 AppID（好评率不展示）**：根因是批量检索时 Steam appreviews API 失败（网络/限流）把 `positiveRate: null` **写入缓存固化**，此后一直显示灰 AppID。修复：`fetchReviewSummary` 网络失败重试一次；获取失败**不写缓存**并返回 `failed` 标记（徽章提示"获取失败，下次访问自动重试"）；新增 `isFailedRatingEntry` 检测（好评率与描述均空的缓存条目视为失败固化，三条缓存命中路径均不命中、自动重新获取）——已固化的旧数据下次访问自动自愈
+- **列表页缓存 appId 的 type 处理规则完善**（Steam 全 type）：
+  - `game`/`demo` → 正常缓存与展示（demo 由名称词表另行判定）
+  - `dlc` → 经 `fullgame` 自动解析本体 appId（game）后缓存
+  - `bundle`/`mod`/`music`/`soundtrack`/`video`/`software`/`hardware` 等非本体且无法解析 → 返回 type 值（徽章紫色显示 type，不写下载站网址缓存）
+- **缓存信息保存 type 并支持管理页筛选**：Steam 缓存与游戏注册表均持久化 `type` 字段（详情/列表/命中补写三路径写入，旧数据访问时自动补齐）；缓存管理页新增"类型"列（game 蓝/dlc 橙/bundle 紫/其他灰）与类型下拉筛选（game/dlc/demo/bundle/music/mod/video 等）
+- 测试：本体解析覆盖全 type（+5）、失败固化检测（+4）；全套 **167 项**通过
+
 ### v3.2.8
 - **修复推荐值全相同**（根因：推荐计算未使用任何游戏特征——列表页请求 keywords 恒为空、点击/下载率用全站统计，每个游戏得分相同）。重构为 **appId 维度个性化概率预测**：
   - 信号（每个 appId 一个值，预测"点开详情并下载"的概率）：**行为信号**（该游戏详情打开/下载次数占全站最高活跃度比例，归一化）＋ **标签匹配**（注册表 Steam 官方标签 vs 用户偏好关键词权重）＋ **好评率 70% + 中文支持 30%**；设置页算法权重（点击率/下载率/关键词/Steam）仍然生效

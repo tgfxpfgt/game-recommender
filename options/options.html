@@ -542,6 +542,16 @@
                 <select id="cacheSiteFilter" class="text-input cache-filter-select" title="按下载站筛选">
                   <option value="">全部站点</option>
                 </select>
+                <select id="cacheTypeFilter" class="text-input cache-filter-select" title="按 Steam 条目类型筛选">
+                  <option value="">全部类型</option>
+                  <option value="game">game 游戏</option>
+                  <option value="dlc">dlc 扩展</option>
+                  <option value="demo">demo 试玩</option>
+                  <option value="bundle">bundle 合集</option>
+                  <option value="music">music 音乐</option>
+                  <option value="mod">mod 模组</option>
+                  <option value="video">video 视频</option>
+                </select>
                 <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
                 <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
                 <button id="cacheCleanExpiredBtn" class="btn btn-sm" title="清理过期缓存条目（Steam 缓存/名称负缓存/下载站网址）">🧹 清理过期缓存</button>
@@ -557,6 +567,7 @@
                       <th>AppID</th>
                       <th>中文名</th>
                       <th>英文名</th>
+                      <th>类型</th>
                       <th>推荐值</th>
                       <th>上次刷新</th>
                       <th>下载站网址</th>
@@ -565,7 +576,7 @@
                     </tr>
                   </thead>
                   <tbody id="cacheTableBody">
-                    <tr><td colspan="9" class="cache-empty">点击"刷新"加载缓存数据</td></tr>
+                    <tr><td colspan="10" class="cache-empty">点击"刷新"加载缓存数据</td></tr>
                   </tbody>
                 </table>
               </div>

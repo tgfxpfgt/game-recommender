@@ -584,6 +584,7 @@ async function handleGetGameCacheList(message) {
   const minRating = Number(message.minRating) > 0 ? Number(message.minRating) : 0;
   const tag = (message.tag || '').trim().toLowerCase();
   const siteKey = (message.siteKey || '').trim().toLowerCase();
+  const typeFilter = (message.typeFilter || '').trim().toLowerCase();
   const page = Math.max(1, message.page || 1);
   const pageSize = Math.max(1, Math.min(100, message.pageSize || 20));
 
@@ -637,6 +638,7 @@ async function handleGetGameCacheList(message) {
       positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
       recommendation: rec.score,
       recommendationDetail: rec.breakdown,
+      type: entry.type || (cachedData && cachedData.type) || '',
       downloadUrls: Object.entries(urls).map(([sk, u]) => ({
         siteKey: sk,
         siteName: u.siteName || sk,
@@ -666,6 +668,9 @@ async function handleGetGameCacheList(message) {
   }
   if (siteKey) {
     games = games.filter(g => g.downloadUrls.some(u => u.siteKey === siteKey && u.url));
+  }
+  if (typeFilter) {
+    games = games.filter(g => (g.type || '').toLowerCase() === typeFilter);
   }
 
   games.sort((a, b) => (b.lastConfirmed || 0) - (a.lastConfirmed || 0));

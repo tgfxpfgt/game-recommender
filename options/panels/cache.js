@@ -33,8 +33,8 @@
         loadGameCache();
       }, 300);
     });
-    // 好评率 / 标签 / 站点筛选：变更即搜索（防抖 300ms）
-    ['cacheMinRating', 'cacheTagInput', 'cacheSiteFilter'].forEach(id => {
+    // 好评率 / 标签 / 站点 / 类型筛选：变更即搜索（防抖 300ms）
+    ['cacheMinRating', 'cacheTagInput', 'cacheSiteFilter', 'cacheTypeFilter'].forEach(id => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('input', () => {
@@ -130,10 +130,11 @@
     const minRating = parseInt(document.getElementById('cacheMinRating').value) || 0;
     const tag = document.getElementById('cacheTagInput').value.trim();
     const siteKey = document.getElementById('cacheSiteFilter').value;
+    const typeFilter = document.getElementById('cacheTypeFilter').value;
     const tbody = document.getElementById('cacheTableBody');
     const statsEl = document.getElementById('cacheStats');
 
-    tbody.innerHTML = '<tr><td colspan="9" class="cache-empty">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">加载中...</td></tr>';
     statsEl.textContent = '';
 
     try {
@@ -143,19 +144,20 @@
         minRating,
         tag,
         siteKey,
+        typeFilter,
         page: OPTS.cacheCurrentPage,
         pageSize: OPTS.CACHE_PAGE_SIZE
       });
 
       if (!resp || !resp.games) {
-        tbody.innerHTML = '<tr><td colspan="9" class="cache-empty">加载失败，请重试</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">加载失败，请重试</td></tr>';
         return;
       }
 
       statsEl.textContent = `共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页`;
 
       if (resp.games.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" class="cache-empty">暂无缓存数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">暂无缓存数据</td></tr>';
         renderPagination(0, 1);
         return;
       }
@@ -175,6 +177,7 @@
           </td>
           <td class="col-name" title="${escapeAttr(g.cnName)}">${escapeHtml(g.cnName || '—')}</td>
           <td class="col-name" title="${escapeAttr(g.enName)}">${escapeHtml(g.enName || '—')}</td>
+          <td class="col-type">${formatTypeBadge(g.type)}</td>
           <td class="col-rec" title="${formatRecDetail(g)}">${formatRecBadge(g.recommendation)}</td>
           <td class="col-time">${formatTime(g.lastConfirmed)}</td>
           <td class="col-url">${formatDownloadUrls(g.downloadUrls, g.primaryDownloadUrl)}</td>
@@ -200,7 +203,7 @@
 
       renderPagination(resp.total, resp.totalPages);
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="9" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
     }
   }
 
@@ -212,6 +215,15 @@
     const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
     const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
     return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">${rate}%</span>`;
+  }
+
+  // Steam 条目类型徽章（game 蓝色 / dlc 橙 / 其他紫灰）
+  function formatTypeBadge(type) {
+    if (!type) return '—';
+    const t = type.toLowerCase();
+    const map = { game: ['#66c0f4', 'rgba(102,192,244,0.12)'], dlc: ['#ff7b00', 'rgba(255,123,0,0.12)'], bundle: ['#b48ce0', 'rgba(180,140,224,0.12)'] };
+    const [color, bg] = map[t] || ['#8f98a0', 'rgba(143,152,160,0.1)'];
+    return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">${escapeHtml(type)}</span>`;
   }
 
   // 推荐值徽章（分级着色，悬停显示各分值组成）

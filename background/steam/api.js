@@ -69,9 +69,10 @@ export function validateSteamNames(cnName, enName) {
 // 从 appdetails 数据解析"游戏本体" appId（v3.2.6）：
 //   - type=game/demo → 自身（demo 由名称词表另行判定）
 //   - type=dlc 且含 fullgame → 返回所属本体 appId（DLC 页面提供）
-//   - 其他（bundle/未知）→ null（无法解析，视为无效检索）
+//   - 其他（bundle/mod/music/soundtrack/video/software/hardware 等非本体）→ null
 // Resolve the base-game appId from appdetails data: game/demo stay; a DLC with
-// a fullgame entry resolves to its base game; anything else → null (invalid).
+// a fullgame entry resolves to its base game; every other non-base type
+// (bundle/mod/music/video/software/hardware...) → null (invalid for a badge).
 export function baseAppIdFromDetails(data) {
   if (!data || typeof data !== 'object') return null;
   if (data.type === 'game' || data.type === 'demo') {
@@ -81,6 +82,14 @@ export function baseAppIdFromDetails(data) {
     return String(data.fullgame.appid);
   }
   return null;
+}
+
+// 缓存条目是否为"好评率获取失败固化"（positiveRate 与 ratingDesc 均为空）。
+// 网络失败/限流时若把 null 写入缓存会固化"只显示 AppID"，命中时需重新获取。
+// Is a cached entry a "failed-rating snapshot" (both positiveRate and ratingDesc
+// empty)? Such entries must be re-fetched instead of served from cache.
+export function isFailedRatingEntry(cachedData) {
+  return !!cachedData && cachedData.positiveRate === null && !cachedData.ratingDesc;
 }
 
 // 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
@@ -277,22 +286,25 @@ export function parseUserTags(storeHtml) {
 // --- 评测获取 ---
 
 export async function fetchReviewSummary(appId) {
-  try {
-    const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
-    const response = await fetchWithTimeout(reviewUrl);
-    const data = await response.json();
-    if (data.success === 1 && data.query_summary) {
-      const qs = data.query_summary;
-      return {
-        total: qs.total_reviews,
-        positive: qs.total_positive,
-        negative: qs.total_negative,
-        score: qs.review_score,
-        desc: qs.review_score_desc
-      };
+  // 网络失败/限流时重试一次（列表页批量场景 Steam API 限流常见）
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&num_per_page=0`;
+      const response = await fetchWithTimeout(reviewUrl);
+      const data = await response.json();
+      if (data.success === 1 && data.query_summary) {
+        const qs = data.query_summary;
+        return {
+          total: qs.total_reviews,
+          positive: qs.total_positive,
+          negative: qs.total_negative,
+          score: qs.review_score,
+          desc: qs.review_score_desc
+        };
+      }
+    } catch (e) {
+      // 重试一次 / retry once
     }
-  } catch (e) {
-    console.log('获取总体评价失败:', e);
   }
   return null;
 }
@@ -417,6 +429,7 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
 
   return {
     appId,
+    type: gameData.type || 'game', // Steam 条目类型（game/dlc/demo/...）/ entry type
     name: gameData.name,
     // 英文名：来自 english 语言的详情（注册表/缓存管理页使用）
     englishName: (enGameData && enGameData.name) || gameData.name,
@@ -499,15 +512,18 @@ export async function isDemoAppId(appId) {
   return DEMO_NAME_PATTERN.test(text);
 }
 
-// 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名（含封面）
-// Idempotent registry fill when serving from cache (cover included)
-export async function ensureRegistryEntry(appId, cnName, enName, gameName, coverImage) {
+// 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名（含封面/type）
+// Idempotent registry fill when serving from cache (cover + type included)
+export async function ensureRegistryEntry(appId, cnName, enName, gameName, coverImage, type) {
   if (!appId) return;
   const existing = await getGameRegistryEntry(appId);
   if (existing && (existing.cnName || existing.enName)) {
-    // 条目已存在：仅补缺失的封面 / fill the missing cover only
+    // 条目已存在：仅补缺失的封面与 type / fill missing cover & type only
     if (coverImage && !existing.coverImage && /^https?:\/\//i.test(coverImage)) {
       await recordGameInRegistry(appId, { coverImage });
+    }
+    if (type && !existing.type) {
+      await recordGameInRegistry(appId, { type });
     }
     return;
   }
@@ -515,7 +531,8 @@ export async function ensureRegistryEntry(appId, cnName, enName, gameName, cover
     cnName: cnName || '',
     enName: enName || cnName || '',
     gameName: gameName || '',
-    coverImage: coverImage || ''
+    coverImage: coverImage || '',
+    type: type || ''
   });
 }
 

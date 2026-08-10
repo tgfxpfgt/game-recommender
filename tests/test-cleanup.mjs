@@ -52,7 +52,19 @@ check('demo 类型保留自身', bd({ type: 'demo', appid: 1332470 }), '1332470'
 check('dlc 含 fullgame 解析本体', bd({ type: 'dlc', appid: 4818690, fullgame: { appid: '2389170', name: '华夏史诗：战国' } }), '2389170');
 check('dlc 无 fullgame 无法解析', bd({ type: 'dlc', appid: 4145470 }), null);
 check('bundle 无法解析', bd({ type: 'bundle', appid: 12345 }), null);
+check('mod 无法解析', bd({ type: 'mod', appid: 12345 }), null);
+check('music/soundtrack 无法解析', bd({ type: 'music', appid: 12345 }), null);
+check('video 无法解析', bd({ type: 'video', appid: 12345 }), null);
+check('software 无法解析', bd({ type: 'software', appid: 12345 }), null);
 check('空输入', bd(null), null);
+
+// ============ 0.7 失败固化检测（v3.2.9）/ isFailedRatingEntry ============
+console.log('0.7 失败固化检测 isFailedRatingEntry');
+const fe = apiMod.isFailedRatingEntry;
+check('正常好评率条目有效', fe({ positiveRate: 90, ratingDesc: '特别好评' }), false);
+check('0 评测条目有效（有描述）', fe({ positiveRate: null, ratingDesc: '无用户评测' }), false);
+check('失败固化（双空）判定', fe({ positiveRate: null, ratingDesc: null }), true);
+check('null 输入', fe(null), false);
 
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
