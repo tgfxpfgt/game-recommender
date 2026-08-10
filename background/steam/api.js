@@ -100,6 +100,24 @@ export function isFailedRatingEntry(cachedData) {
   return !!cachedData && cachedData.positiveRate === null && !cachedData.ratingDesc;
 }
 
+// 无好评率重试冷却期（确认 0 评测后，避免每次刷新列表页都请求 Steam）
+// Cooldown after confirming a zero-review rating (avoids re-fetching on every
+// list refresh, which would amplify API rate limiting)
+export const RATING_RETRY_COOLDOWN_MS = 10 * 60 * 1000;
+
+// 列表页缓存命中判定（v3.3.1）：缓存无好评率（0 评测/失败固化）时重新获取——
+// 失败固化立即重试；已确认 0 评测的按冷却期重试（默认 10 分钟）。
+// Cache-hit check: a cache entry without a positive rate is refetched — failed
+// snapshots immediately, confirmed zero-review entries after the cooldown.
+export function needsRatingRefetch(cached) {
+  if (!cached || !cached.data) return true;
+  const d = cached.data;
+  if (d.positiveRate !== null && d.positiveRate !== undefined) return false;
+  if (isFailedRatingEntry(d)) return true;
+  if (d.ratingRetriedAt && (Date.now() - d.ratingRetriedAt < RATING_RETRY_COOLDOWN_MS)) return false;
+  return true;
+}
+
 // 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
 // Cover URL: keep the provided cover, else build the Steam CDN header URL
 export function coverImageFor(appId, fallback) {

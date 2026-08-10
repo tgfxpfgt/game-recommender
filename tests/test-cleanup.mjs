@@ -96,6 +96,17 @@ monitor.recordSteamCall(false, 503);
 st = monitor.getSteamApiStatus();
 check('限流状态码统计（429/503）', st.limited, 2);
 
+// ============ 0.9 无好评率缓存重新获取（v3.3.1）/ needsRatingRefetch ============
+console.log('0.9 无好评率缓存重新获取 needsRatingRefetch');
+const nr = apiMod.needsRatingRefetch;
+const refetchNow = Date.now();
+check('有好评率不重取', nr({ data: { positiveRate: 90, ratingDesc: '特别好评' } }), false);
+check('失败固化立即重取', nr({ data: { positiveRate: null, ratingDesc: null } }), true);
+check('0 评测冷却期内不重取', nr({ data: { positiveRate: null, ratingDesc: '无用户评测', ratingRetriedAt: refetchNow - 60 * 1000 } }), false);
+check('0 评测冷却期外重取', nr({ data: { positiveRate: null, ratingDesc: '无用户评测', ratingRetriedAt: refetchNow - 11 * 60 * 1000 } }), true);
+check('无缓存条目重取', nr(null), true);
+check('无重试记录立即重取', nr({ data: { positiveRate: null, ratingDesc: '无用户评测' } }), true);
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {
