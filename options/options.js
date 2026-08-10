@@ -251,6 +251,7 @@
     // Cache TTLs (value + unit; 0 = keep forever)
     OPTS.currentSettings.cacheTtls = {
       steamDynamic: { value: parseInt(document.getElementById('ttlSteamDynamic').value) || 0, unit: document.getElementById('ttlSteamDynamicUnit').value },
+      detailSteam: { value: parseInt(document.getElementById('ttlDetailSteam').value) || 0, unit: document.getElementById('ttlDetailSteamUnit').value },
       registryConfirm: { value: parseInt(document.getElementById('ttlRegistryConfirm').value) || 0, unit: document.getElementById('ttlRegistryConfirmUnit').value },
       downloadUrls: { value: parseInt(document.getElementById('ttlDownloadUrls').value) || 0, unit: document.getElementById('ttlDownloadUrlsUnit').value },
       negativeCache: { value: parseInt(document.getElementById('ttlNegativeCache').value) || 0, unit: document.getElementById('ttlNegativeCacheUnit').value }

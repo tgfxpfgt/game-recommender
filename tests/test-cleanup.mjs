@@ -107,6 +107,36 @@ check('0 评测冷却期外重取', nr({ data: { positiveRate: null, ratingDesc:
 check('无缓存条目重取', nr(null), true);
 check('无重试记录立即重取', nr({ data: { positiveRate: null, ratingDesc: '无用户评测' } }), true);
 
+// ============ 0.10 详情页缓存完整性（v3.3.3）/ isCompleteCacheData ============
+console.log('0.10 详情页缓存完整性 isCompleteCacheData');
+const icd = apiMod.isCompleteCacheData;
+const fullData = {
+  url: 'https://store.steampowered.com/app/1/', name: 'Game', genres: ['RPG'],
+  userTags: ['RPG'], developers: ['Dev'], chineseSupported: true,
+  releaseDate: '2024-01-01', description: 'desc', headerImage: 'https://cdn/h.jpg'
+};
+check('完整数据判定通过', icd(fullData), true);
+check('轻量缓存（列表页写入）判定失败', icd({ appId: '1', name: 'Game', positiveRate: 90, ratingDesc: 'x', headerImage: 'h' }), false);
+check('缺 userTags 判定失败', icd({ ...fullData, userTags: undefined }), false);
+check('缺 genres 判定失败', icd({ ...fullData, genres: null }), false);
+check('缺 url 判定失败', icd({ ...fullData, url: '' }), false);
+check('null 输入判定失败', icd(null), false);
+
+// ============ 0.11 详情页独立 TTL（v3.3.3）/ detailSteamCacheTtlMs ============
+console.log('0.11 详情页独立 TTL detailSteamCacheTtlMs');
+const constMod = await import('file:///F:/data/browser%20extension/game-recommender/background/core/constants.js?t=' + Date.now());
+check('默认 72 小时', constMod.detailSteamCacheTtlMs(), 72 * 3600e3);
+check('detailSteam 0 = 长期', (() => { constMod.setTtlConfig({ detailSteam: { value: 0, unit: 'hours' } }); return constMod.detailSteamCacheTtlMs(); })(), Infinity);
+check('detailSteam 3 天', (() => { constMod.setTtlConfig({ detailSteam: { value: 3, unit: 'days' } }); return constMod.detailSteamCacheTtlMs(); })(), 3 * 86400e3);
+
+// ============ 0.12 缓存有效性带 TTL 参数（v3.3.3）/ isSteamCacheValid ============
+console.log('0.12 缓存有效性带 TTL 参数 isSteamCacheValid');
+const cacheMod = await import('file:///F:/data/browser%20extension/game-recommender/background/storage/steam-cache.js?t=' + Date.now());
+const V = constMod.STEAM_CACHE_VERSION;
+check('25h 条目：列表页默认 TTL(24h) 过期', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 25 * 3600e3, data: {} }), false);
+check('25h 条目：详情页 TTL(72h) 有效', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 25 * 3600e3, data: {} }, 72 * 3600e3), true);
+check('100h 条目：详情页 TTL 过期', cacheMod.isSteamCacheValid({ version: V, timestamp: Date.now() - 100 * 3600e3, data: {} }, 72 * 3600e3), false);
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {

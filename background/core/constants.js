@@ -68,6 +68,7 @@ export const DEFAULT_SETTINGS = {
   // Cache TTLs (customizable in settings; value 0 = keep forever)
   cacheTtls: {
     steamDynamic: { value: 24, unit: 'hours' },    // Steam 动态缓存 / hours
+    detailSteam: { value: 72, unit: 'hours' },     // 详情页 Steam 完整缓存 / hours
     registryConfirm: { value: 30, unit: 'days' },  // 游戏注册表重确认 / days
     downloadUrls: { value: 30, unit: 'days' },     // 下载站网址缓存 / days
     negativeCache: { value: 2, unit: 'hours' }     // 名称搜索负缓存 / hours
@@ -85,6 +86,7 @@ export const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 // Cache TTL config, updated dynamically from settings
 let TTL_CONFIG = {
   steamDynamic: { value: 24, unit: 'hours' },
+  detailSteam: { value: 72, unit: 'hours' },
   registryConfirm: { value: 30, unit: 'days' },
   downloadUrls: { value: 30, unit: 'days' },
   negativeCache: { value: 2, unit: 'hours' }
@@ -98,8 +100,8 @@ export function setTtlConfig(ttls) {
 // TTL 单位换算（小时/天/月/年）/ Unit-to-ms conversion
 const UNIT_MS = { hours: 3600e3, days: 86400e3, months: 30 * 86400e3, years: 365 * 86400e3 };
 // 默认值与默认单位（旧格式数字兼容）/ Defaults and default units (legacy-number compatible)
-const TTL_DEFAULTS = { steamDynamic: 24, registryConfirm: 30, downloadUrls: 30, negativeCache: 2 };
-const TTL_UNITS = { steamDynamic: 'hours', registryConfirm: 'days', downloadUrls: 'days', negativeCache: 'hours' };
+const TTL_DEFAULTS = { steamDynamic: 24, detailSteam: 72, registryConfirm: 30, downloadUrls: 30, negativeCache: 2 };
+const TTL_UNITS = { steamDynamic: 'hours', detailSteam: 'hours', registryConfirm: 'days', downloadUrls: 'days', negativeCache: 'hours' };
 
 function toMs(value, unit) {
   if (value === 0) return Infinity; // 0 = 长期有效 / 0 = keep forever
@@ -118,6 +120,9 @@ export function resolveTtlMs(key, value) {
 
 // 各缓存类型的有效期（毫秒；0 配置 = Infinity 长期有效）
 export const steamCacheTtlMs = () => resolveTtlMs('steamDynamic', TTL_CONFIG.steamDynamic);
+// 详情页完整缓存有效期（v3.3.3 独立设置：详情信息变化慢，TTL 可比列表页长；
+// 列表页好评率缓存保持 steamDynamic 的新鲜度）
+export const detailSteamCacheTtlMs = () => resolveTtlMs('detailSteam', TTL_CONFIG.detailSteam);
 export const registryConfirmTtlMs = () => resolveTtlMs('registryConfirm', TTL_CONFIG.registryConfirm);
 export const nameNegativeCacheTtlMs = () => resolveTtlMs('negativeCache', TTL_CONFIG.negativeCache);
 

@@ -109,8 +109,29 @@ export function isFailedRatingEntry(cachedData) {
 // storms while reflecting newly published reviews sooner.
 export const RATING_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 
+// 详情页缓存数据完整性判定（v3.3.3）：详情页渲染需要的关键字段齐全才可
+// 直接命中缓存——列表页写入的轻量缓存（appId/name/好评率等 7 字段）不含
+// 标签/中文支持/开发商/描述等，命中会导致详情页渲染残缺，必须视为未命中
+// 并转完整拉取。纯函数，可单测。
+// Detail-page cache completeness check: only entries carrying every field the
+// detail page renders may be served from cache — the lightweight list-page
+// entries (appId/name/rating etc.) would render a broken detail page, so they
+// count as a miss and trigger a full fetch. Pure function, unit-testable.
+export function isCompleteCacheData(data) {
+  if (!data || typeof data !== 'object') return false;
+  return !!data.url &&
+    !!data.name &&
+    Array.isArray(data.genres) &&
+    Array.isArray(data.userTags) &&
+    Array.isArray(data.developers) &&
+    data.chineseSupported !== undefined &&
+    data.releaseDate !== undefined &&
+    data.description !== undefined &&
+    !!data.headerImage;
+}
+
 // 列表页缓存命中判定（v3.3.1）：缓存无好评率（0 评测/失败固化）时重新获取——
-// 失败固化立即重试；已确认 0 评测的按冷却期重试（默认 10 分钟）。
+// 失败固化立即重试；已确认 0 评测的按冷却期重试（默认 5 分钟）。
 // Cache-hit check: a cache entry without a positive rate is refetched — failed
 // snapshots immediately, confirmed zero-review entries after the cooldown.
 export function needsRatingRefetch(cached) {

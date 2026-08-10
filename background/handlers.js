@@ -5,7 +5,7 @@
  * All message handlers and the dispatch map (stateless; delegates to modules).
  */
 import { dataStore } from '../data/data-store.js';
-import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS, resolveTtlMs } from './core/constants.js';
+import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS, resolveTtlMs, steamCacheTtlMs, detailSteamCacheTtlMs } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
 import { resetInMemoryCaches } from './core/reset.js';
 import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
@@ -24,7 +24,7 @@ import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorL
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from './storage/backups.js';
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
 import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
-import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry } from './steam/api.js';
+import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
 import { calculateRecommendation, computeGameScore, findProfile } from './recommend/engine.js';
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
@@ -112,12 +112,14 @@ async function handleRefreshSteamCache(message) {
 }
 
 // 直接通过 appId 获取 Steam 详情（绕过名称搜索；图片 URL 含 appId 时使用）
+// v3.3.3：缓存命中要求"未过期（详情页独立 TTL）+ 数据完整"——列表页轻量
+// 缓存不再命中（避免详情页渲染残缺），过期缓存也不再命中（避免旧数据）。
 async function handleGetSteamByAppId(message) {
   const appId = message.appId;
   const gameName = message.gameName || '';
 
   const cached = await getSteamCacheEntry(appId);
-  if (cached && cached.data && cached.data.url && cached.data.appId) {
+  if (cached && cached.data && isSteamCacheValid(cached, detailSteamCacheTtlMs()) && isCompleteCacheData(cached.data)) {
     return { data: cached.data, cachedAt: cached.timestamp };
   }
 
@@ -504,7 +506,9 @@ async function handleDeleteAdapterRules() {
 async function handleCleanExpiredCache() {
   const settings = await getSettings();
   const ttl = settings.cacheTtls || {};
-  const steamTtl = resolveTtlMs('steamDynamic', ttl.steamDynamic);
+  // Steam 缓存同时服务列表页（steamDynamic）与详情页（detailSteam），
+  // 以两者中更长者判定过期（详情页缓存周期通常更长，未到期的条目保留）
+  const steamTtl = Math.max(resolveTtlMs('steamDynamic', ttl.steamDynamic), resolveTtlMs('detailSteam', ttl.detailSteam));
   const negTtl = resolveTtlMs('negativeCache', ttl.negativeCache);
   const urlTtl = resolveTtlMs('downloadUrls', ttl.downloadUrls);
 

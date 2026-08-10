@@ -10,13 +10,14 @@ import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
   fetchReviewSummary, validateSteamNames, DEMO_NAME_PATTERN, ADDON_NAME_PATTERN,
   ensureRegistryEntry, ensureValidRegistryNames, coverImageFor, isDemoAppId,
-  baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch
+  baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch, isCompleteCacheData
 } from './api.js';
 import { isSteamCacheValid, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
 import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '../storage/name-index.js';
 import { parseGameTitle, pickRegistryEnName } from './title-parser.js';
 import { Logger } from '../storage/logger.js';
+import { detailSteamCacheTtlMs } from '../core/constants.js';
 
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
@@ -35,11 +36,12 @@ export async function searchSteamGame(gameName) {
   // 1. 通过名称索引查找 appId / Lookup appId via name index
   let appId = await lookupAppIdByName(gameName);
 
-  // 2. 若有 appId，检查 Steam 动态缓存（appId+name 即可命中；列表页部分缓存可复用）
+  // 2. 若有 appId，检查 Steam 动态缓存（详情页完整缓存，TTL 独立可配置；
+  //    仅当数据完整且未过期时命中——列表页轻量缓存不满足完整性，转完整拉取）
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
     // 无好评率条目（0 评测/失败固化）按冷却期重新获取
-    if (isSteamCacheValid(cached) && cached.data && cached.data.appId && cached.data.name && !needsRatingRefetch(cached)) {
+    if (isSteamCacheValid(cached, detailSteamCacheTtlMs()) && cached.data && cached.data.appId && cached.data.name && isCompleteCacheData(cached.data) && !needsRatingRefetch(cached)) {
       // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
       if (isDemoCacheWithoutRating(cached.data)) {
         appId = null;

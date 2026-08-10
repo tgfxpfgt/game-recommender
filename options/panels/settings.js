@@ -60,6 +60,7 @@
     // Cache TTLs (value + unit; legacy numbers supported; 0 = forever)
     const ttls = settings.cacheTtls || {};
     setTtlControl('ttlSteamDynamic', ttls.steamDynamic, 'hours');
+    setTtlControl('ttlDetailSteam', ttls.detailSteam, 'hours');
     setTtlControl('ttlRegistryConfirm', ttls.registryConfirm, 'days');
     setTtlControl('ttlDownloadUrls', ttls.downloadUrls, 'days');
     setTtlControl('ttlNegativeCache', ttls.negativeCache, 'hours');

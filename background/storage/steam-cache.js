@@ -17,11 +17,13 @@ let steamCacheMemory = null;        // Map: appId -> entry
 let steamCacheMemoryLoaded = false;
 let steamCacheWriteTimer = null;
 
-// 判断缓存条目是否有效（版本匹配 + 未过期）/ Is a cache entry valid?
-export function isSteamCacheValid(entry) {
+// 判断缓存条目是否有效（版本匹配 + 未过期；ttlMs 可覆盖默认列表页 TTL——
+// 详情页路径传详情页独立 TTL）/ Is a cache entry valid? (version + not expired;
+// ttlMs overrides the default list-page TTL, e.g. the detail-page TTL)
+export function isSteamCacheValid(entry, ttlMs) {
   return entry &&
     entry.version === STEAM_CACHE_VERSION &&
-    (Date.now() - entry.timestamp < steamCacheTtlMs());
+    (Date.now() - entry.timestamp < (ttlMs !== undefined ? ttlMs : steamCacheTtlMs()));
 }
 
 // 加载缓存到内存（仅首次从存储读取）/ Load cache into memory (once)
