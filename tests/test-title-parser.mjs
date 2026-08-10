@@ -76,6 +76,12 @@ check('汇总贴标题无 "PC" 垃圾候选', digest.some(t => t === 'PC'), fals
 check('汇总贴候选不含汇总贴噪声', digest.some(t => t.includes('汇总贴') || t.includes('顶置')), false);
 check('短字母词 junk 过滤', parseGameTitle('VR 专题').includes('VR'), false);
 
+console.log('12. DLC 名不成为候选（v3.2.4 修复场景：gamer520 109979 华夏史诗 战国）');
+const huaxia = parseGameTitle('华夏史诗 战国 支持者版|豪华中文|Build.24627143+初心请鞭DLC-英勇逐鹿-破阵成王+全DLC|解压即撸|');
+check('首候选为纯净游戏名', huaxia[0], '华夏史诗 战国');
+check('候选不含 DLC 名（初心请鞭）', huaxia.some(t => t.includes('初心请鞭') || t.includes('英勇逐鹿')), false);
+check('候选不含"者"残留', huaxia.some(t => t.includes('者')), false);
+
 console.log('\n===== 标题解析测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 

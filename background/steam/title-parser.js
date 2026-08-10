@@ -8,7 +8,7 @@
  */
 
 // 噪声词表（下载站标题常见修饰/版本词）/ Noise keywords in download-site titles
-const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|\s+The\s+Game\s*)/gi;
+const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|\s+The\s+Game\s*)/gi;
 
 // 判断整段是否仅由噪声词组成 / Is a segment pure noise?
 function isPureNoise(text) {
@@ -49,6 +49,12 @@ export function parseGameTitle(rawName) {
 
   for (const part of rawParts) {
     if (isPureNoise(part)) continue;
+
+    // 版本/DLC 信息段（含 Build/DLC/全DLC/版本号）整体跳过——其中的
+    // DLC 名（如"初心请鞭"）不是游戏主名，不应成为搜索候选
+    // Skip version/DLC info segments entirely: DLC names must not become
+    // search candidates (e.g. "初心请鞭" matched a DLC instead of the base game)
+    if (/\bDLC\b|Build[.\s]*\d+|^V?\d+\.\d+/.test(part)) continue;
 
     // 1) 整段清洗后作为候选（保留主名，去掉噪声词）
     const cleaned = part.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();

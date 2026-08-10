@@ -16,7 +16,7 @@ import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-n
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
-export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|soundtrack|\bost\b|artbook|\bdlc\b|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版/i;
+export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|soundtrack|\bost\b|artbook|\bdlc\b|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包/i;
 // Demo/试玩版（单独用于 isDemo 标识）/ Demo/trial edition (for the isDemo badge)
 export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 
