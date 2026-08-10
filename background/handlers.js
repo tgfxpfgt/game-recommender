@@ -26,7 +26,7 @@ import { createBackup, getBackupList, restoreBackup, deleteBackup } from './stor
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
 import { recordWrongReport, flushWrongReports } from './storage/wrong-reports.js';
 import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
-import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData } from './steam/api.js';
+import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
 import { calculateRecommendation, computeGameScore, findProfile } from './recommend/engine.js';
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
@@ -116,20 +116,34 @@ async function handleRefreshSteamCache(message) {
 // 直接通过 appId 获取 Steam 详情（绕过名称搜索；图片 URL 含 appId 时使用）
 // v3.3.7：缓存命中要求"detail 模块未过期（详情页独立 TTL）+ 数据完整"——
 // 仅 detail 过期时重新获取详情，meta/rating/spy 模块保留（部分刷新）。
+// v3.3.14：图片提取的 appId 可能与页面标题无关（gamer520 侧边推荐图是 Steam
+// CDN 封面，会被全页图提取误取）——有 gameName 时校验名称相关性，不相关
+// 拒绝并转标题搜索；manual=true（手动选择候选）跳过校验（用户主动确认）。
 async function handleGetSteamByAppId(message) {
   const appId = message.appId;
   const gameName = message.gameName || '';
+  const manual = message.manual === true;
 
   const cached = await getSteamCacheEntry(appId);
   const detailData = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
   if (detailData && isCompleteCacheData(detailData)) {
-    // 返回合并视图（detail 判定完整性；meta/rating 字段随合并返回供浮窗渲染）
-    return { data: getMergedData(cached), cachedAt: latestModuleTs(cached) };
+    // 返回合并视图（detail 判定完整性；meta/rating 字段随合并返回供浮窗渲染）；
+    // v3.3.14：非手动路径校验名称相关性（侧边推荐缓存也可能被误取）
+    if (manual || !gameName || namesRelated(gameName, detailData.name)) {
+      return { data: getMergedData(cached), cachedAt: latestModuleTs(cached) };
+    }
+    Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${detailData.name} vs ${gameName}），拒绝缓存命中`);
+    return { data: null, cachedAt: null };
   }
 
   try {
     const result = await fetchSteamFullDetailsByAppId(appId);
     if (!result) return { data: null, cachedAt: null };
+    // v3.3.14：名称相关性校验（手动选择跳过）
+    if (!manual && gameName && !namesRelated(gameName, result.name)) {
+      Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${result.name} vs ${gameName}），拒绝并转标题搜索`);
+      return { data: null, cachedAt: null };
+    }
 
     await setSteamCacheEntry(appId, result);
     await recordGameInRegistry(appId, {

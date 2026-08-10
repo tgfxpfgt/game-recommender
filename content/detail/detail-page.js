@@ -377,7 +377,11 @@
       GR.debug.scheduleDebugUpdate();
       GR.status.showStatus('正在查询 Steam 信息', null, null, gameName); // 工作状态浮窗
       try {
-        const appId = GR.builder.extractSteamAppIdFromImages();
+        // v3.3.14：appId 提取限定主内容区——gamer520 侧边推荐图是 Steam CDN
+        // 封面，全页提取会误取推荐游戏的 appId（如 16598 页右侧推荐 2001760）；
+        // 主内容区无图时回退全页（后台另有 namesRelated 校验兜底）
+        const mainEl = document.querySelector('article, .entry-content, .post-content, .main-content, #main-content, main, .single-content');
+        const appId = GR.builder.extractSteamAppIdFromImages(mainEl || document);
         let response = null;
         if (appId) {
           dbg(`从图片URL提取到 appId: ${appId}，直接获取 Steam 详情`);
@@ -491,7 +495,8 @@
               const detailResp = await chrome.runtime.sendMessage({
                 action: 'GET_STEAM_BY_APPID',
                 appId: parseInt(selectedAppId),
-                gameName
+                gameName,
+                manual: true // v3.3.14：手动选择候选跳过名称相关性校验（用户主动确认）
               });
               if (detailResp && detailResp.data) {
                 onSelect(detailResp.data, parseInt(selectedAppId));

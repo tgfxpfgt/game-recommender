@@ -32,8 +32,18 @@ function makeListHtml() {
 <ul id="game-list">${items}</ul></body></html>`;
 }
 const LIST_HTML = makeListHtml();
+// 详情页：主内容区（article 内含主图 Steam CDN 1213700）+ 侧边推荐图（2001760）——
+// 验证 appId 提取限定主内容区 + 后台名称相关性校验（v3.3.14）
 const DETAIL_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>北方之魂增强版/Spirit of the North- Switch520.com</title></head>
-<body><h1 class="entry-title">北方之魂增强版/Spirit of the North- Switch520.com</h1></body></html>`;
+<body>
+<article class="entry-content">
+  <h1 class="entry-title">北方之魂增强版/Spirit of the North- Switch520.com</h1>
+  <img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1213700/header.jpg">
+</article>
+<aside class="sidebar">
+  <a href="/119428.html"><img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2001760/header.jpg"></a>轮回之兽|修改器
+</aside>
+</body></html>`;
 
 fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });
 fs.writeFileSync(FIXTURE, LIST_HTML);
@@ -124,6 +134,11 @@ if (extId) {
   await page3.waitForSelector('#gr-report-issue-btn', { timeout: 20000 }).catch(() => {});
   const hasReportBtn = await page3.evaluate(() => !!document.querySelector('#gr-report-issue-btn'));
   check('浮窗报错按钮存在', hasReportBtn);
+  // v3.3.14：主内容区图（1213700）应优先于侧边推荐图（2001760）
+  const shownText = await page3.evaluate(() => (document.querySelector('#gr-steam-float') || { textContent: '' }).textContent || '');
+  check('浮窗显示主内容区游戏（非侧边推荐）',
+    (shownText.includes('1213700') || shownText.includes('Spirit of the North')) && !shownText.includes('2001760'),
+    `(${shownText.substring(0, 50).replace(/\n/g, ' ')})`);
   if (hasReportBtn) {
     // force: 状态浮窗（右下）可能遮挡按钮区域，强制点击（真实场景两区域不重叠）
     await page3.click('#gr-report-issue-btn', { force: true });
