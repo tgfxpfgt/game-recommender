@@ -17,7 +17,7 @@ import {
 } from './storage/steam-cache.js';
 import { flushRegistry, getGameRegistry, getGameRegistryEntry, recordGameInRegistry } from './storage/registry.js';
 import {
-  flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntries
+  flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntries, deleteNameIndexEntry
 } from './storage/name-index.js';
 import { readDownloadUrlsStore, recordDownloadUrl, recordDownloadUrlsBatch, getDownloadUrls } from './storage/download-urls.js';
 import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorLog } from './storage/behavior.js';
@@ -502,6 +502,36 @@ async function handleDeleteAdapterRules() {
   return { ok: true };
 }
 
+// 强制刷新页面（popup 按钮）：清除当前页游戏的 Steam 缓存与名称索引
+// （含负缓存），页面重载后全部重新从 Steam 获取——忽视缓存有效期与
+// 0 评测冷却。Force-refresh (popup button): clear this page's Steam cache
+// and name-index entries (negative ones included); the reload then fetches
+// everything fresh from Steam, ignoring cache TTLs and the zero-review cooldown.
+async function handleClearCacheForPage(message) {
+  const names = message.names || [];
+  const appIds = message.appIds || [];
+  const seen = new Set();
+  let cleared = 0;
+  for (const id of appIds) {
+    const key = String(id);
+    if (!seen.has(key)) { seen.add(key); await deleteSteamCacheEntry(key); cleared++; }
+  }
+  for (const name of names) {
+    const appId = await lookupAppIdByName(name);
+    if (appId && !seen.has(String(appId))) {
+      seen.add(String(appId));
+      await deleteSteamCacheEntry(String(appId));
+      cleared++;
+    }
+    // 名称索引条目（正/负缓存）一并删除，防止负缓存拦截重新获取
+    await deleteNameIndexEntry(name);
+  }
+  await flushSteamCache();
+  await flushNameIndex();
+  Logger.info('Cache', `强制刷新清除 ${cleared} 条 Steam 缓存（${names.length} 个游戏名）`);
+  return { success: true, cleared };
+}
+
 // --- 缓存过期清理（v3.0.0）---
 async function handleCleanExpiredCache() {
   const settings = await getSettings();
@@ -928,6 +958,7 @@ export const MESSAGE_HANDLERS = {
   SAVE_ADAPTER_RULES:     handleSaveAdapterRules,
   DELETE_ADAPTER_RULES:   handleDeleteAdapterRules,
   CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache,
+  CLEAR_CACHE_FOR_PAGE:   handleClearCacheForPage,
   HEAL_REGISTRY_NAMES:    handleHealRegistryNames,
   GET_API_STATUS:         handleGetApiStatus
 };

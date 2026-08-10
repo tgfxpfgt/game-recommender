@@ -204,6 +204,44 @@
       if (GR.list) GR.list.applySteamRatingsUpdate(message.ratings, message.done === true);
       sendResponse({ success: true });
     }
+    if (message.action === 'FORCE_REFRESH_PAGE') {
+      // popup 强制刷新：收集当前页游戏引用 → 后台清除对应 Steam 缓存（忽视
+      // 缓存有效期与 0 评测冷却）→ 重载页面后全部重新获取
+      // Popup force-refresh: collect this page's game refs → clear their Steam
+      // cache (ignoring TTLs and the zero-review cooldown) → reload to re-fetch
+      (async () => {
+        try {
+          const names = new Set();
+          const appIds = new Set();
+          if (list.isDetailPageByUrl()) {
+            const gn = detail.detectGameName();
+            if (gn && gn.length > 1) names.add(gn);
+            const img = builder.extractSteamImageInfo(document);
+            if (img) appIds.add(img.appId);
+          } else {
+            const adapter = builder.getAdapter();
+            if (list.isListPageByUrl() || adapter.isListPage()) {
+              list.getListItemsSmart(adapter).forEach(item => {
+                if (item.name) names.add(item.name);
+                const info = builder.extractSteamImageInfo(item.element);
+                if (info) appIds.add(info.appId);
+              });
+            }
+          }
+          const resp = await chrome.runtime.sendMessage({
+            action: 'CLEAR_CACHE_FOR_PAGE',
+            names: [...names],
+            appIds: [...appIds]
+          });
+          dbg(`♻️ 强制刷新：已清除 ${resp && resp.cleared} 条缓存，重载页面`);
+          sendResponse({ success: true, cleared: resp && resp.cleared });
+          location.reload();
+        } catch (e) {
+          sendResponse({ success: false, error: e.message });
+        }
+      })();
+      return true; // 异步响应 / Async response
+    }
     return true;
   });
 })();

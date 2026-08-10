@@ -106,6 +106,26 @@ document.addEventListener('DOMContentLoaded', async () => {
     setTimeout(() => { btn.textContent = '🔄 刷新'; }, 1500);
   });
 
+  // Force refresh page / 强制刷新当前页（清除当前页 Steam 缓存后重载，忽视缓存有效期）
+  document.getElementById('forceRefreshBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('forceRefreshBtn');
+    btn.disabled = true;
+    btn.textContent = '⏳ 刷新中...';
+    try {
+      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+      if (!tab || !tab.id) {
+        btn.textContent = '⚠️ 无活动页面';
+      } else {
+        await chrome.tabs.sendMessage(tab.id, { action: 'FORCE_REFRESH_PAGE' });
+        btn.textContent = '✅ 已刷新';
+      }
+    } catch (e) {
+      // 内容脚本不可达（chrome:// 等受限页面）/ content script unreachable
+      btn.textContent = '⚠️ 页面不支持';
+    }
+    setTimeout(() => window.close(), 800);
+  });
+
   // Open options page / 打开设置页
   document.getElementById('optionsBtn').addEventListener('click', () => {
     chrome.runtime.openOptionsPage();

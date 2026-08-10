@@ -131,6 +131,28 @@ export async function deleteNameIndexEntries(appId, names) {
   }
 }
 
+// 删除指定名字的索引条目（强制刷新页用：正/负缓存条目都删——负缓存
+// appId=null 无法用 deleteNameIndexEntries 匹配，而残留负缓存会拦截重取）。
+// Delete one name's index entry (force-refresh: removes both positive and
+// negative entries — the latter carry appId=null and can't be matched by
+// deleteNameIndexEntries, yet would block re-fetching if left behind).
+export async function deleteNameIndexEntry(name) {
+  const key = (name || '').toLowerCase().trim();
+  if (!key) return;
+  await loadNameIndexToMemory();
+  if (!nameIndexMemory.has(key)) return;
+  nameIndexMemory.delete(key);
+  if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
+  nameIndexWriteTimer = setTimeout(async () => {
+    nameIndexWriteTimer = null;
+    try {
+      await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
+    } catch (e) {
+      console.error('名称索引删除写入失败:', e.message);
+    }
+  }, NAME_INDEX_WRITE_DEBOUNCE);
+}
+
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetNameIndex() {
   nameIndexMemory = null;

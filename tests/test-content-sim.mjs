@@ -329,6 +329,20 @@ check('汇总贴项被过滤', filteredItems.some(i => i.name.includes('汇总�
 check('正常游戏项保留', filteredItems.some(i => i.name === '游戏A'), true);
 queryAllStub = (sel) => sel === 'li.game-item' ? allItems.map(x => x.li) : [];
 
+// ============ 7. FORCE_REFRESH_PAGE（popup 强制刷新，v3.3.5） ============
+console.log('7. FORCE_REFRESH_PAGE（popup 强制刷新）');
+let reloaded = false;
+globalThis.location.reload = () => { reloaded = true; };
+let forceResp = null;
+await msgListener({ action: 'FORCE_REFRESH_PAGE' }, {}, (r) => { forceResp = r; });
+await new Promise(r => setTimeout(r, 30));
+const clearMsg = sentMessages.find(m => m.action === 'CLEAR_CACHE_FOR_PAGE');
+check('收集当前页全部游戏名（3 个）', clearMsg ? clearMsg.names.length : 0, 3);
+check('收集的游戏名正确', clearMsg && clearMsg.names.includes('游戏A') && clearMsg.names.includes('游戏C'), true);
+check('后台清除请求已发送', !!clearMsg, true);
+check('响应成功', forceResp ? forceResp.success : false, true);
+check('已触发页面重载', reloaded, true);
+
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 
