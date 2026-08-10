@@ -32,8 +32,12 @@ export function calcLinkMatchScore(linkText, searchName) {
     if (ns.includes(seg) && seg.length >= 4) return 65;
   }
 
-  // 跨语言匹配：按非目标字符分段提取中英文子串，独立比较
-  // Cross-language matching: split on non-target chars to extract CN/EN substrings
+  // 跨语言匹配：按非目标字符分段提取中英文子串，独立比较。
+  // v3.3.10 数字保护：搜索词段含数字而链接段不含 → 该段不匹配——
+  // "spiritofthenorth2"(二代) 不再匹配 "spiritofthenorth"(一代页)，
+  // 防续作检索错配（与 nameMatchesSearch 的续作防护同思路）。
+  // Cross-language matching with sequel-number protection (v3.3.10): when the
+  // search segment carries a digit the link segment lacks, the pair is rejected.
   function splitLang(s) {
     const text = String(s || '');
     const en = text.split(/[^a-z0-9\s']+/i).map(norm).filter(m => m.length >= 2);
@@ -44,6 +48,12 @@ export function calcLinkMatchScore(linkText, searchName) {
   const linkLang = splitLang(linkText);
   const searchLang = splitLang(searchName);
 
+  // 数字保护：搜索词段有数字但链接段没有 → 拒绝该段（续作 vs 前作）
+  // Digit guard: a search segment with digits must not match a digit-less link segment
+  function digitGapRejects(se, le) {
+    return /\d/.test(se) && !/\d/.test(le);
+  }
+
   let enScore = 0;
   let cnScore = 0;
 
@@ -51,6 +61,7 @@ export function calcLinkMatchScore(linkText, searchName) {
     let bestEn = 0;
     for (const se of searchLang.en) {
       for (const le of linkLang.en) {
+        if (digitGapRejects(se, le)) continue;
         if (le === se) { bestEn = Math.max(bestEn, 100); }
         else if (le.includes(se) && se.length >= 4) { bestEn = Math.max(bestEn, 85); }
         else if (se.includes(le) && le.length >= 4) { bestEn = Math.max(bestEn, 75); }
@@ -63,6 +74,7 @@ export function calcLinkMatchScore(linkText, searchName) {
     let bestCn = 0;
     for (const sc of searchLang.cn) {
       for (const lc of linkLang.cn) {
+        if (digitGapRejects(sc, lc)) continue;
         if (lc === sc) { bestCn = Math.max(bestCn, 100); }
         else if (lc.includes(sc) && sc.length >= 2) { bestCn = Math.max(bestCn, 85); }
         else if (sc.includes(lc) && lc.length >= 2) { bestCn = Math.max(bestCn, 75); }
@@ -213,8 +225,10 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
         const detailUrl = bestUrl.startsWith('http') ? bestUrl : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
         result.found = true;
         result.detailUrl = detailUrl;
-        // 记录到下载站网址缓存（以 appId 为键，30 天有效，新网址替代旧网址）
-        if (appId) {
+        // 记录到下载站网址缓存（以 appId 为键，30 天有效，新网址替代旧网址）。
+        // v3.3.10：仅高分（≥80）结果写缓存——低分/模糊匹配不固化，
+        // 防止误匹配结果污染 30 天缓存（如二代词匹配到一代页面 75 分）
+        if (appId && bestScore >= 80) {
           await recordDownloadUrl(appId, site.key, site.name, detailUrl);
         }
         try {

@@ -17,5 +17,5 @@
   // 噪声词（中文/版本/资源/发布修饰词，段级丢弃与搜索清洗共用）。
   // 修改本表后需同步 background/steam/title-parser.js 的 noisePattern。
   global.__GR_PATTERNS__ = global.__GR_PATTERNS__ || {};
-  global.__GR_PATTERNS__.noisePatternSource = '(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|update\\s*\\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\\d+\\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|\\s+The\\s+Game\\s*)';
+  global.__GR_PATTERNS__.noisePatternSource = '(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|update\\s*\\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\\d+\\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520\\.com|Switch520|520\\.com|\\s+The\\s+Game\\s*)';
 })(typeof globalThis !== 'undefined' ? globalThis : this);

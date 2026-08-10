@@ -207,6 +207,24 @@ check('无 timestamp 条目忽略', srr([{ voted_up: true }, { timestamp_created
 check('100 条全近期统计（截断窗口近似）', srr(Array.from({ length: 100 }, (_, i) => ({ timestamp_created: nowSec - i * 3600, voted_up: i % 2 === 0 })), nowSec - winSec), { total: 100, positive: 50, rate: 50 });
 check('null 输入', srr(null, nowSec - winSec), { total: 0, positive: 0, rate: null });
 
+// ============ 0.14 检索匹配修复（v3.3.10）/ calcLinkMatchScore + namesRelated ============
+console.log('0.14 检索匹配修复 calcLinkMatchScore + namesRelated');
+const searchMod = await import('file:///F:/data/browser%20extension/game-recommender/background/sites/search.js?t=' + Date.now());
+// 数字保护：二代搜索词 vs 一代页面 → 0 分（"spiritofthenorth2" 不再匹配 "spiritofthenorth"）
+check('二代词 vs 一代页（数字保护 → 0 分）', searchMod.calcLinkMatchScore('北方之魂增强版/Spirit of the North- Switch520.com', 'Spirit of the North 2'), 0);
+check('一代词 vs 一代页（正常命中）', searchMod.calcLinkMatchScore('北方之魂增强版/Spirit of the North- Switch520.com', 'Spirit of the North') >= 60, true);
+check('正常英文命中', searchMod.calcLinkMatchScore('风启之旅/Windrose/支持网络联机', 'Windrose') >= 80, true);
+check('无关游戏拒绝', searchMod.calcLinkMatchScore('轮回之兽|豪华中文', 'Spirit of the North 2'), 0);
+// namesRelated：缓存命中名称校验（防名称索引粘性）
+const nr2 = apiMod.namesRelated;
+check('粘性条目拒绝（16598标题 vs 轮回之兽）', nr2('北方之魂增强版/Spirit of the North- Switch520.com', '轮回之兽'), false);
+check('一代标题 vs 一代缓存名', nr2('北方之魂增强版/Spirit of the North- Switch520.com', 'Spirit of the North'), true);
+check('正常下载站标题 vs 缓存名', nr2('泰坦之旅2|v0.7.0.136009|官方中文|Titan Quest II', 'Titan Quest II'), true);
+check('纯英文标题 vs 纯中文缓存名（跨语言信任）', nr2('Gladiator Guild Manager', '角斗士公会经理'), true);
+check('纯中文标题 vs 纯英文缓存名（跨语言信任）', nr2('角斗士公会经理', 'Gladiator Guild Manager'), true);
+check('无关中文标题拒绝', nr2('奉魔', '轮回之兽'), false);
+check('空输入', nr2('', ''), false);
+
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {

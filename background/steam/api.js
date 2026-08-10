@@ -262,6 +262,31 @@ async function searchSteamAppIdLight(term, rawName) {
   }
 }
 
+// 标题与缓存名是否相关（v3.3.10）：提取双方 CJK/英文词集合（去停用词），
+// 任一语言共同词非空 → 相关；双方均为单语言且语言不同 → 跨语言信任；
+// 混合语言且无共同词 → 不相关。用于 searchSteamGame 缓存命中校验，
+// 防止名称索引粘性条目（历史误写钉死的 appId）命中缓存反复返回错误游戏。
+// Title-vs-cached-name relevance (v3.3.10): shared CJK/EN tokens make them
+// related; single-language pairs of different languages are trusted across
+// languages; mixed-language pairs with no shared token are unrelated. Guards
+// cache hits against sticky name-index entries that pin the wrong appId.
+export function namesRelated(title, cachedName) {
+  const norm = s => String(s || '').toLowerCase();
+  // 中文词（连续 2+ 汉字）/ CJK tokens
+  const cjkWords = s => (norm(s).match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || []);
+  // 英文词（≥4 字符，排除 of/the/and/ii 等短词）/ EN tokens (≥4 chars)
+  const enWords = s => (norm(s).match(/[a-z][a-z0-9']{3,}/g) || []);
+  const tCjk = cjkWords(title), tEn = enWords(title);
+  const cCjk = cjkWords(cachedName), cEn = enWords(cachedName);
+  const hasCommon = (a, b) => a.some(w => b.includes(w));
+  if (hasCommon(tCjk, cCjk) || hasCommon(tEn, cEn)) return true;
+  // 跨语言信任：双方均单语言且语言不同（纯英文标题 vs 纯中文缓存名等）
+  const tSingle = tCjk.length === 0 || tEn.length === 0;
+  const cSingle = cCjk.length === 0 || cEn.length === 0;
+  if (tSingle && cSingle && (tCjk.length > 0) !== (cCjk.length > 0)) return true;
+  return false;
+}
+
 // --- 应用详情 ---
 
 // 获取应用详情（language: schinese/english 等，name 随语言） / Fetch app details

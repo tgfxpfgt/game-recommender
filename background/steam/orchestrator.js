@@ -11,7 +11,7 @@ import {
   fetchReviewSummary, fetchLastUpdate, validateSteamNames, DEMO_NAME_PATTERN,
   ADDON_NAME_PATTERN, ensureRegistryEntry, ensureValidRegistryNames, coverImageFor,
   isDemoAppId, baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch,
-  isCompleteCacheData
+  isCompleteCacheData, namesRelated
 } from './api.js';
 import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -39,13 +39,16 @@ export async function searchSteamGame(gameName) {
 
   // 2. 若有 appId，检查 Steam 动态缓存（v3.3.7 模块化：detail 模块有效且
   //    数据完整才命中——列表页仅 rating 模块的条目不满足，转完整拉取，
-  //    拉取只更新 detail/spy 模块，meta/rating 保留）
+  //    拉取只更新 detail/spy 模块，meta/rating 保留）。
+  //    v3.3.10：命中前校验标题与缓存名相关——名称索引粘性条目（历史误写
+  //    钉死 appId）在此被推翻，转重新搜索自愈（如 16598 页误钉 2001760）
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
     const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
     const merged = getMergedData(cached) || {};
     // 无好评率条目（0 评测/失败固化）按冷却期重新获取
-    if (detail && merged.appId && merged.name && isCompleteCacheData(detail) && !needsRatingRefetch(merged)) {
+    if (detail && merged.appId && merged.name && isCompleteCacheData(detail) && !needsRatingRefetch(merged) &&
+        namesRelated(gameName, merged.name)) {
       // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
       if (isDemoCacheWithoutRating(merged)) {
         appId = null;

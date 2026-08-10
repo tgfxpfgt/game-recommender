@@ -91,6 +91,12 @@ const warhammer = parseGameTitle('战锤40K: 星际战士2 (Warhammer 40,000: Sp
 check('中文冒号名分段', warhammer.includes('战锤40K') && warhammer.includes('星际战士2'), true);
 check('英文冒号名分段后无标点残留', warhammer.some(t => /:$/.test(t)), false);
 
+console.log('14. 站点后缀噪声（v3.3.10：16598 标题 Switch520.com）');
+const spiritOfNorth = parseGameTitle('北方之魂增强版/Spirit of the North- Switch520.com');
+check('Switch520.com 被噪声清洗', spiritOfNorth.some(t => t.includes('Switch520') || t.includes('520.com') || t.includes('.com')), false);
+check('保留干净英文候选', spiritOfNorth.includes('Spirit of the North'), true);
+check('保留中文候选', spiritOfNorth.includes('北方之魂'), true);
+
 console.log('\n===== 标题解析测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 
