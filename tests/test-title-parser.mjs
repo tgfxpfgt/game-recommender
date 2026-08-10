@@ -70,6 +70,12 @@ const gothic = parseGameTitle('哥特王朝 重制版|豪华中文|Build.2453946
 check('首候选为纯净游戏名', gothic[0], '哥特王朝');
 check('候选不含修改器', gothic.some(t => t.includes('修改器')), false);
 
+console.log('11. 汇总贴/短词垃圾候选（v3.2.3 修复场景：gamer520 56286 置顶汇总贴）');
+const digest = parseGameTitle('[顶置]PC近期爆火游戏 汇总贴');
+check('汇总贴标题无 "PC" 垃圾候选', digest.some(t => t === 'PC'), false);
+check('汇总贴候选不含汇总贴噪声', digest.some(t => t.includes('汇总贴') || t.includes('顶置')), false);
+check('短字母词 junk 过滤', parseGameTitle('VR 专题').includes('VR'), false);
+
 console.log('\n===== 标题解析测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 

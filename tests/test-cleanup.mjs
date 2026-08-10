@@ -38,6 +38,8 @@ check('续作防误匹配（删词变体精确等于前作名）', nm('PC Buildi
 check('完整名精确匹配含数字', nm('装机模拟器2', '装机模拟器2', '装机模拟器2'), true);
 check('结果含搜索词且无数字差异', nm('装机模拟器 (PC Building Simulator)', '装机模拟器', '装机模拟器'), true);
 check('空输入', nm('', 'x', 'x'), false);
+check('短英文词需精确匹配（PC→Gunner HEAT PC!）', nm('Gunner, HEAT, PC!', 'PC', '[顶置]PC近期爆火游戏 汇总贴'), false);
+check('短英文词精确匹配接受', nm('VR', 'VR', 'VR'), true);
 
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');

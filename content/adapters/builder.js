@@ -92,6 +92,9 @@
           if (seen.has(href)) return;
           const text = (nameEl.textContent || '').trim().replace(/\s+/g, ' ');
           if (text.length < minLen || text.length > maxLen) return;
+          // 汇总贴/索引贴（置顶汇总/索引页）不是单个游戏，直接跳过
+          // Skip pinned digest/index posts (not a single game)
+          if (/顶置|置顶|汇总贴|汇总|索引/.test(text)) return;
           if (!isDetailHref(href)) return;
           seen.add(href);
           items.push({ element, link, name: text, url: href, titleEl: nameEl });

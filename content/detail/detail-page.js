@@ -32,8 +32,12 @@
 
   // 从页面提取游戏名称（不依赖适配器）
   // 先移除 h1 徽章元素，再按分隔符分段移除纯噪声段（中英文名段都保留）
+  // 汇总贴/索引页（顶置汇总、索引）不是单个游戏，直接返回空（跳过详情处理）
   function detectGameName() {
     const h1 = document.querySelector('h1');
+    const pageTitle = (document.title || '') + ' ' + (h1 ? h1.textContent : '');
+    if (/顶置|置顶|汇总贴|汇总|索引/.test(pageTitle)) return '';
+
     if (h1) {
       // 移除徽章/角标元素（如咸鱼单机的"新游发布" span）
       h1.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach(b => b.remove());

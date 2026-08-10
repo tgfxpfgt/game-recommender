@@ -270,6 +270,18 @@ plainScope._imgs = [plainImg];
 const plainInfo = GR.builder.extractSteamImageInfo(plainScope);
 check('无 data-src 时回退 src', plainInfo ? plainInfo.appId : null, '111');
 
+// ============ 6. 汇总贴过滤（v3.2.3：gamer520 56286 置顶汇总贴） ============
+console.log('6. 汇总贴/索引贴过滤');
+const pinItem = makeItem('[顶置]PC近期爆火游戏 汇总贴', 56286);
+queryAllStub = (sel) => {
+  if (sel === 'li.game-item') return [pinItem.li, itemA.li];
+  return [];
+};
+const filteredItems = GR.builder.getAdapter().getListItems();
+check('汇总贴项被过滤', filteredItems.some(i => i.name.includes('汇总贴')), false);
+check('正常游戏项保留', filteredItems.some(i => i.name === '游戏A'), true);
+queryAllStub = (sel) => sel === 'li.game-item' ? allItems.map(x => x.li) : [];
+
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');
 

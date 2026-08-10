@@ -175,13 +175,17 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
         if (!resp.ok) continue;
         const html = await resp.text();
 
-        // 提取候选详情链接
+        // 提取候选详情链接：文本为空时回退 title 属性（WordPress 图片链接场景）
+        // Candidate detail links; fall back to the title attribute when the
+        // link text is empty (WordPress image-only links)
         const candidates = [];
-        const linkMatches = regexExecAll(html, /<a[^>]*href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"[^>]*>([\s\S]*?)<\/a>/gi);
+        const linkMatches = regexExecAll(html, /<a([^>]*)href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"([^>]*)>([\s\S]*?)<\/a>/gi);
         for (const lm of linkMatches) {
-          const href = lm[1];
-          const text = lm[2].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
-          candidates.push({ href, text });
+          const href = lm[2];
+          const text = lm[4].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+          const titleAttr = regexMatch(lm[1] + lm[3], /title="([^"]*)"/i);
+          const titleText = titleAttr ? titleAttr[1].replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim() : '';
+          candidates.push({ href, text: text || titleText });
         }
 
         // 按文本匹配度选出最符合游戏名的链接

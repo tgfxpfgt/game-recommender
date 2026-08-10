@@ -33,6 +33,8 @@ export function nameMatchesSearch(resultName, term, rawName) {
   const rn = norm(resultName);
   const tn = norm(term);
   if (!rn || !tn || rn.length < 2 || tn.length < 2) return false;
+  // 纯短英文词（≤3 字母，如 PC/VR/HD）：仅精确匹配接受，防"PC"匹配"Gunner, HEAT, PC!"类
+  if (/^[a-z]{1,3}$/.test(tn) && rn !== tn) return false;
 
   // 续作防护：原始标题中该词后紧跟数字，而结果名无数字 → 视为不相关
   const rawNorm = norm(rawName);
