@@ -104,7 +104,16 @@
       });
     });
 
-    requestRecommendations(filteredItems, settings);
+    // 提取封面 appId（推荐计算用：appId 维度个性化评分）
+    const imageAppIdEnabled = GR.builder.isImageAppIdEnabled();
+    const nameToImage = {};
+    filteredItems.forEach(item => {
+      if (item.name && !nameToImage[item.name]) {
+        nameToImage[item.name] = imageAppIdEnabled ? GR.builder.extractSteamImageInfo(item.element) : null;
+      }
+    });
+
+    requestRecommendations(filteredItems, settings, nameToImage);
     requestSteamRatings(filteredItems, settings);
 
     // 预载下一页：提前预热下一页的 Steam 缓存
@@ -536,12 +545,16 @@
     }
   }
 
-  // 列表页：计算并高亮推荐游戏
-  async function requestRecommendations(items, settings) {
+  // 列表页：计算并高亮推荐游戏（appId 维度个性化评分）
+  async function requestRecommendations(items, settings, nameToImage) {
     try {
       const maxItems = 60;
       const processItems = items.slice(0, maxItems);
-      const games = processItems.map(item => ({ name: item.name, url: item.url, keywords: [] }));
+      // 携带封面 appId：后台按 appId 聚合行为画像/Steam 标签/好评率/中文支持
+      const games = processItems.map(item => {
+        const img = nameToImage && nameToImage[item.name];
+        return { name: item.name, url: item.url, appId: img && img.appId ? img.appId : null };
+      });
 
       const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
       if (response && response.results) {

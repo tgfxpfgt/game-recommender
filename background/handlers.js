@@ -26,7 +26,7 @@ import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from '
 import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry } from './steam/api.js';
 import { parseGameTitle } from './steam/title-parser.js';
-import { calculateRecommendation } from './recommend/engine.js';
+import { calculateRecommendation, computeGameScore, findProfile } from './recommend/engine.js';
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { fetchWithTimeout } from './core/utils.js';
@@ -587,10 +587,24 @@ async function handleGetGameCacheList(message) {
   const page = Math.max(1, message.page || 1);
   const pageSize = Math.max(1, Math.min(100, message.pageSize || 20));
 
+  const settings = await getSettings();
+  const weights = settings.weights;
+
   const registry = await getGameRegistry();
   const urlStore = await readDownloadUrlsStore();
   await loadSteamCacheToMemory();
   const steamCacheMemory = getSteamCacheMemory();
+
+  // 推荐值（appId 维度个性化）：批量计算一次取齐画像/偏好，循环复用
+  const [gameProfiles, keywordWeights] = await Promise.all([
+    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
+    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
+  ]);
+  const allProfiles = Object.values(gameProfiles);
+  const globalStats = {
+    maxViews: Math.max(1, ...allProfiles.map(p => p.views || 0)),
+    maxDownloads: Math.max(1, ...allProfiles.map(p => p.downloads || 0))
+  };
 
   let games = Object.entries(registry).map(([appId, entry]) => {
     const urls = {};
@@ -600,6 +614,17 @@ async function handleGetGameCacheList(message) {
     const primaryUrl = Object.values(urls).find(u => u && u.url) || null;
     const cachedEntry = steamCacheMemory ? steamCacheMemory.get(String(appId)) || null : null;
     const cachedData = cachedEntry ? cachedEntry.data : null;
+    // 推荐值计算（纯函数，行为/Steam 信息动态反映）
+    const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
+    const rec = computeGameScore({
+      profile,
+      globalStats,
+      tags: entry.tags || null,
+      keywordWeights,
+      positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
+      chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
+      weights
+    });
     return {
       appId,
       cnName: entry.cnName || '',
@@ -610,6 +635,8 @@ async function handleGetGameCacheList(message) {
       firstSeen: entry.firstSeen || null,
       lastConfirmed: entry.lastConfirmed || null,
       positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
+      recommendation: rec.score,
+      recommendationDetail: rec.breakdown,
       downloadUrls: Object.entries(urls).map(([sk, u]) => ({
         siteKey: sk,
         siteName: u.siteName || sk,

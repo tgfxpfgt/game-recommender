@@ -1,14 +1,21 @@
 /**
  * Game Recommender - 推荐算法引擎 / Recommendation Engine
  *
- * 内置加权算法（点击率/下载率/关键词匹配/Steam 评分 + 历史画像加成）
- * 与 LLM 推荐（Ollama 本地 / OpenAI 兼容，失败回退内置）。
- * Built-in weighted algorithm plus LLM recommendations (fallback on failure).
+ * v3.2.8 重构：内置算法改为 **appId 维度的个性化概率预测**——每个游戏的
+ * 推荐值 = 该游戏的浏览/下载行为信号 + Steam 官方标签与用户偏好匹配 +
+ * 好评率 + 中文支持 的综合加权，不同游戏得到不同分值（此前全站统计与
+ * 空关键词导致所有游戏分数相同）。LLM 推荐（Ollama / OpenAI）保留。
+ * Built-in algorithm rebuilt as an appId-level personalised probability: a
+ * game's score combines its own view/download signals, tag-preference match,
+ * positive rate and Chinese support — distinct per game. LLM stays.
  */
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { getBehaviorLog } from '../storage/behavior.js';
+import { lookupAppIdByName } from '../storage/name-index.js';
+import { getGameRegistryEntry } from '../storage/registry.js';
+import { getSteamCacheEntry } from '../storage/steam-cache.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { cleanGameName } from '../steam/title-parser.js';
 
@@ -26,6 +33,75 @@ export function calculateKeywordScore(keywords, keywordWeights) {
   return matchCount > 0 ? matchScore / matchCount : null;
 }
 
+// 查找游戏画像：精确名 → 清洗名 → 注册表名称变体 → 模糊包含（取行为量最高）
+// Find the game profile by exact name, cleaned name, registry variants or a
+// fuzzy containment match (picking the most active one).
+export function findProfile(profiles, name, registryEntry) {
+  if (!profiles || !name) return null;
+  const key = name.toLowerCase().trim();
+  if (profiles[key]) return profiles[key];
+  const cleaned = cleanGameName(name).toLowerCase().trim();
+  if (cleaned && cleaned !== key && profiles[cleaned]) return profiles[cleaned];
+  if (registryEntry && registryEntry.names) {
+    for (const n of registryEntry.names) {
+      if (profiles[n]) return profiles[n];
+    }
+  }
+  if (cleaned && cleaned.length >= 2) {
+    // 模糊匹配前规范化（去标点/空格/斜杠），兼容记录名与列表标题的格式差异
+    const normKey = s => s.toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）\/]/g, '');
+    const normCleaned = normKey(cleaned);
+    let best = null;
+    for (const [k, p] of Object.entries(profiles)) {
+      const nk = normKey(k);
+      if (nk.includes(normCleaned) || normCleaned.includes(nk)) {
+        if (!best || (p.views + p.downloads) > (best.views + best.downloads)) best = p;
+      }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+// 单游戏推荐评分（纯计算，输入为聚合数据，可单测）
+// 信号：行为（详情打开/下载占比，归一化）、标签匹配（Steam 官方标签 vs 用户偏好）、
+// 好评率 + 中文支持。综合加权后返回 score 与 breakdown（徽章悬停展示用）。
+// Pure per-game score computation. Signals: behaviour (normalised view/download
+// shares), tag-preference match, positive rate + Chinese support.
+export function computeGameScore({
+  profile = null, globalStats = {}, tags = null,
+  keywordWeights = {}, positiveRate = null, chineseSupported = false, weights = {}
+}) {
+  const views = profile ? (profile.views || 0) : 0;
+  const downloads = profile ? (profile.downloads || 0) : 0;
+  // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）
+  const clickScore = globalStats.maxViews > 0 ? Math.min(views / globalStats.maxViews, 1) : 0;
+  const downloadScore = globalStats.maxDownloads > 0 ? Math.min(downloads / globalStats.maxDownloads, 1) : 0;
+  // 2. 标签匹配：Steam 官方标签与用户偏好关键词的匹配度（无标签给中性值）
+  const kw = calculateKeywordScore(tags || [], keywordWeights);
+  const keywordScore = kw !== null ? kw : 0.3;
+  // 3. Steam 信号：好评率 70% + 中文支持 30%
+  let steamScore = 0.4;
+  if (positiveRate !== null && positiveRate !== undefined) {
+    steamScore = Math.min((positiveRate / 100) * 0.7 + (chineseSupported ? 0.3 : 0), 1);
+  }
+  const finalScore =
+    clickScore * (weights.clickRate || 0) +
+    downloadScore * (weights.downloadRate || 0) +
+    keywordScore * (weights.keywordMatch || 0) +
+    steamScore * (weights.steamRating || 0);
+  return {
+    score: Math.round(finalScore * 100) / 100,
+    breakdown: {
+      clickScore: Math.round(clickScore * 100) / 100,
+      downloadScore: Math.round(downloadScore * 100) / 100,
+      keywordScore: Math.round(keywordScore * 100) / 100,
+      steamScore: Math.round(steamScore * 100) / 100
+    },
+    method: 'builtin'
+  };
+}
+
 // 计算推荐评分（forceBuiltin 批量时强制内置算法）/ Compute a recommendation score
 export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
   const settings = await getSettings();
@@ -41,95 +117,38 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
     }
   }
 
-  // 内置算法
-  const [behaviorLog, keywordWeights, profiles] = await Promise.all([
-    getBehaviorLog(),
-    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {}),
-    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {})
+  // 内置算法：聚合该游戏所需数据（行为画像/偏好/注册表/Steam 缓存）
+  const [profiles, keywordWeights] = await Promise.all([
+    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
+    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
   ]);
 
-  // 1. 点击率得分
-  let clickScore = 0.5;
-  const totalViews = behaviorLog.filter(e => e.type === 'view_list').length;
-  const totalClicks = behaviorLog.filter(e => e.type === 'view_detail').length;
-  if (totalViews > 0) {
-    clickScore = Math.min(totalClicks / totalViews, 1);
+  // 解析 appId：列表页封面直取优先，否则名称索引
+  let appId = gameInfo.appId || null;
+  if (!appId) {
+    appId = await lookupAppIdByName(gameInfo.name || '');
   }
+  const [registryEntry, steamEntry] = appId
+    ? await Promise.all([getGameRegistryEntry(appId), getSteamCacheEntry(appId)])
+    : [null, null];
 
-  // 2. 下载率得分：关键词信号（与第 3 步相同的匹配度）+ 历史下载占比信号
-  //    修复：此前与"关键词匹配得分"调用同一函数导致两个权重加权同一值
-  //    Download-rate score: keyword signal + the game's share of download events
-  let downloadScore = 0.3;
-  const gameKeywords = gameInfo.keywords || [];
-  const kwDownloadScore = calculateKeywordScore(gameKeywords, keywordWeights);
-  if (kwDownloadScore !== null) downloadScore = kwDownloadScore;
-
-  // 3. 关键词匹配得分
-  let keywordScore = 0.4;
-  const kwMatchScore = calculateKeywordScore(gameKeywords, keywordWeights);
-  if (kwMatchScore !== null) keywordScore = kwMatchScore;
-
-  // 4. Steam评分得分
-  let steamScore = 0.5;
-  if (gameInfo.steamRating !== null && gameInfo.steamRating !== undefined) {
-    steamScore = gameInfo.steamRating / 10;
-  } else if (gameInfo.positiveRate !== null && gameInfo.positiveRate !== undefined) {
-    steamScore = gameInfo.positiveRate / 100;
-  }
-
-  // 5. 历史画像加成（支持模糊匹配）
-  const profileKey = (gameInfo.name || '').toLowerCase().trim();
-  const cleanedKey = cleanGameName(gameInfo.name || '').toLowerCase().trim();
-  let profileMatch = profiles[profileKey] || profiles[cleanedKey];
-
-  if (!profileMatch && cleanedKey.length > 3) {
-    for (const [key, profile] of Object.entries(profiles)) {
-      if (key.includes(cleanedKey) || cleanedKey.includes(key) ||
-          (key.length > 4 && cleanedKey.length > 4 &&
-           (key.substring(0, 4) === cleanedKey.substring(0, 4)))) {
-        profileMatch = profile;
-        break;
-      }
-    }
-  }
-
-  if (profileMatch) {
-    // 历史下载占比信号：该游戏下载次数占全部下载的比例（真实下载率信号，
-    // 与关键词得分解耦，避免权重 double-count）
-    if (profileMatch.downloads > 0) {
-      const totalDownloads = behaviorLog.filter(e => e.type === 'click_download').length;
-      if (totalDownloads > 0) {
-        downloadScore = Math.max(downloadScore, Math.min(profileMatch.downloads / totalDownloads, 1));
-      } else {
-        downloadScore = Math.min(downloadScore + 0.3, 1);
-      }
-    }
-    if (gameKeywords.length === 0 && profileMatch.keywords && profileMatch.keywords.length > 0) {
-      const profileKwScore = calculateKeywordScore(profileMatch.keywords, keywordWeights);
-      if (profileKwScore !== null) {
-        keywordScore = profileKwScore;
-        downloadScore = Math.max(downloadScore, profileKwScore);
-      }
-    }
-  }
-
-  // 加权计算最终得分
-  const finalScore =
-    clickScore * weights.clickRate +
-    downloadScore * weights.downloadRate +
-    keywordScore * weights.keywordMatch +
-    steamScore * weights.steamRating;
-
-  return {
-    score: Math.round(finalScore * 100) / 100,
-    breakdown: {
-      clickScore: Math.round(clickScore * 100) / 100,
-      downloadScore: Math.round(downloadScore * 100) / 100,
-      keywordScore: Math.round(keywordScore * 100) / 100,
-      steamScore: Math.round(steamScore * 100) / 100
-    },
-    method: 'builtin'
+  const profile = findProfile(profiles, gameInfo.name, registryEntry);
+  const allProfiles = Object.values(profiles);
+  const globalStats = {
+    maxViews: Math.max(1, ...allProfiles.map(p => p.views || 0)),
+    maxDownloads: Math.max(1, ...allProfiles.map(p => p.downloads || 0))
   };
+  const steamData = steamEntry && steamEntry.data ? steamEntry.data : null;
+
+  return computeGameScore({
+    profile,
+    globalStats,
+    tags: registryEntry ? registryEntry.tags : null,
+    keywordWeights,
+    positiveRate: steamData ? steamData.positiveRate : null,
+    chineseSupported: steamData ? !!steamData.chineseSupported : false,
+    weights
+  });
 }
 
 // --- LLM 计算 / LLM scoring ---

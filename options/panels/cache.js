@@ -133,7 +133,7 @@
     const tbody = document.getElementById('cacheTableBody');
     const statsEl = document.getElementById('cacheStats');
 
-    tbody.innerHTML = '<tr><td colspan="8" class="cache-empty">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="cache-empty">加载中...</td></tr>';
     statsEl.textContent = '';
 
     try {
@@ -148,14 +148,14 @@
       });
 
       if (!resp || !resp.games) {
-        tbody.innerHTML = '<tr><td colspan="8" class="cache-empty">加载失败，请重试</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="cache-empty">加载失败，请重试</td></tr>';
         return;
       }
 
       statsEl.textContent = `共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页`;
 
       if (resp.games.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="8" class="cache-empty">暂无缓存数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" class="cache-empty">暂无缓存数据</td></tr>';
         renderPagination(0, 1);
         return;
       }
@@ -175,6 +175,7 @@
           </td>
           <td class="col-name" title="${escapeAttr(g.cnName)}">${escapeHtml(g.cnName || '—')}</td>
           <td class="col-name" title="${escapeAttr(g.enName)}">${escapeHtml(g.enName || '—')}</td>
+          <td class="col-rec" title="${formatRecDetail(g)}">${formatRecBadge(g.recommendation)}</td>
           <td class="col-time">${formatTime(g.lastConfirmed)}</td>
           <td class="col-url">${formatDownloadUrls(g.downloadUrls, g.primaryDownloadUrl)}</td>
           <td class="col-time">${formatTime(g.lastAccessed)}</td>
@@ -199,7 +200,7 @@
 
       renderPagination(resp.total, resp.totalPages);
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="8" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="9" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
     }
   }
 
@@ -211,6 +212,22 @@
     const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
     const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
     return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">${rate}%</span>`;
+  }
+
+  // 推荐值徽章（分级着色，悬停显示各分值组成）
+  function formatRecBadge(score) {
+    if (score === null || score === undefined) return '—';
+    const pct = Math.round(score * 100);
+    const color = pct >= 80 ? '#e74c3c' : pct >= 60 ? '#ff7b00' : pct >= 40 ? '#a3cf06' : '#8f98a0';
+    const bg = pct >= 80 ? 'rgba(231,76,60,0.12)' : pct >= 60 ? 'rgba(255,123,0,0.12)' : pct >= 40 ? 'rgba(163,207,6,0.12)' : 'rgba(143,152,160,0.1)';
+    return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">🎯 ${pct}%</span>`;
+  }
+
+  // 推荐值组成说明（悬停）/ Recommendation breakdown tooltip
+  function formatRecDetail(g) {
+    const b = g.recommendationDetail || {};
+    const fmt = v => Math.round((v || 0) * 100) + '%';
+    return `推荐度: ${Math.round((g.recommendation || 0) * 100)}%\n点击率: ${fmt(b.clickScore)} · 下载率: ${fmt(b.downloadScore)}\n关键词: ${fmt(b.keywordScore)} · Steam: ${fmt(b.steamScore)}`;
   }
 
   // 手动更新单条缓存（Steam 中英文名/标签 + 下载站地址）

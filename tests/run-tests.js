@@ -12,7 +12,8 @@ const tests = [
   { name: '标题解析 Title Parser', file: './test-title-parser.mjs' },
   { name: '安全与存储 Security & Storage', file: './test-security.mjs' },
   { name: '内容脚本模拟 Content Script Sim', file: './test-content-sim.mjs' },
-  { name: '规则校验与缓存清理 Rules & Cleanup', file: './test-cleanup.mjs' }
+  { name: '规则校验与缓存清理 Rules & Cleanup', file: './test-cleanup.mjs' },
+  { name: '推荐算法 Recommendation Engine', file: './test-engine.mjs' }
 ];
 
 let allPass = true;
