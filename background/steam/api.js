@@ -16,7 +16,7 @@ import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-n
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
-export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|soundtrack|\bost\b|artbook|\bdlc\b|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包/i;
+export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|prologue|序章|序幕|\bsoundtrack\b|\bost\b|\bartbook\b|\bdlc\b|supporter pack|支持者包|fan pack|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包/i;
 // Demo/试玩版（单独用于 isDemo 标识）/ Demo/trial edition (for the isDemo badge)
 export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 
@@ -39,13 +39,19 @@ export function nameMatchesSearch(resultName, term, rawName) {
   // 续作防护：原始标题中该词后紧跟数字，而结果名无数字 → 视为不相关
   const rawNorm = norm(rawName);
   const idx = rawNorm.indexOf(tn);
-  if (idx >= 0) {
-    const next = rawNorm[idx + tn.length];
-    if (next && /\d/.test(next) && !/\d/.test(rn)) return false;
-  }
+  const next = idx >= 0 ? rawNorm[idx + tn.length] : '';
+  const digitGap = !!next && /\d/.test(next) && !/\d/.test(rn);
 
-  if (rn === tn) return true;
-  return rn.includes(tn);
+  if (rn === tn) return !digitGap;
+  if (rn.includes(tn)) return !digitGap;
+
+  // 跨语言信任：搜索词与结果名一中文一英文时（如英文搜索词命中官方中文名
+  // 条目"Gladiator Guild Manager"→"角斗士公会经理"），信任 storesearch 索引
+  // 匹配；数字差异（1代/2代）仍拒绝。
+  if (digitGap) return false;
+  const cnOf = s => /[\u4e00-\u9fff]/.test(s);
+  if (cnOf(tn) !== cnOf(rn)) return true;
+  return false;
 }
 
 // 名称校验：中文名含中文、英文名含英文、不命中附属内容关键词

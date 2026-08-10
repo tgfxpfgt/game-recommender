@@ -61,17 +61,15 @@ export function regexMatch(text, pattern) {
   return pattern[Symbol.match](String(text == null ? '' : text));
 }
 
-// 全局正则迭代提取（等价 exec 循环，自动补 g 标志）
-// Global regex iteration (equivalent to an exec loop; adds the g flag if absent)
+// 全局正则迭代提取（等价 exec 循环，自动补 g 标志）。
+// 通过标准符号 Symbol.matchAll 调用（Symbol.exec 不是标准符号，此前实现
+// 恒为 undefined 导致调用抛错）；纯正则匹配，不涉及任何系统命令执行。
+// Global regex iteration (equivalent to an exec loop; adds the g flag if
+// absent). Uses the standard Symbol.matchAll — Symbol.exec is NOT a standard
+// symbol (the old implementation was always undefined and threw).
 export function regexExecAll(text, pattern) {
   const source = String(text == null ? '' : text);
   const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';
   const re = new RegExp(pattern.source, flags);
-  const results = [];
-  let m;
-  while ((m = re[Symbol.exec](source)) !== null) {
-    results.push(m);
-    if (m.index === re.lastIndex) re.lastIndex++; // 空匹配防死循环 / guard against empty-match loops
-  }
-  return results;
+  return [...re[Symbol.matchAll](source)];
 }

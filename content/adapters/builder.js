@@ -201,15 +201,16 @@
   }
 
   // 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）。
-  // lazyload 站点（如 gamer520）src 是占位图、真实图在 data-src/data-lazy-src，
-  // 故优先读取 data-* 属性，最后才回退 src。
+  // lazyload 站点真实图在 data-* 属性：gamer520 用 data-src/data-lazy-src，
+  // xdgame 用 data-original（jQuery lazy），故 data-* 属性优先，最后回退 src。
   // Extract appId and cover URL from Steam images (optional element scope).
-  // Lazyload sites (e.g. gamer520) put a placeholder in src and the real image
-  // in data-src/data-lazy-src, so data-* attributes are checked first.
+  // Lazyload sites keep the real image in data-* attributes: data-src /
+  // data-lazy-src (gamer520) and data-original (xdgame, jQuery lazy), so the
+  // data-* attributes are checked first, then src.
   function extractSteamImageInfo(scope) {
     const imgs = (scope || document).querySelectorAll('img');
     for (const img of imgs) {
-      const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.src || '';
+      const src = img.getAttribute('data-src') || img.getAttribute('data-lazy-src') || img.getAttribute('data-original') || img.src || '';
       const match = src.match(/\/steam\/apps\/(\d+)\//i);
       if (match) return { appId: match[1], cover: src };
     }

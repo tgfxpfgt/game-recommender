@@ -214,6 +214,15 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.2.5
+- **修复 Steam 页（3064810 Strategos / 2275490 Kaizen）下载站检索全部失败**（重大根因）：
+  - 根因：`regexExecAll` 使用 `re[Symbol.exec]`——**`Symbol.exec` 不是标准符号**（标准仅 Symbol.match/matchAll/replace/search/split），表达式恒为 undefined，调用抛 TypeError 被 catch 吞掉 → **所有站内搜索（xdgame/xianyudanji/gamer520）全部静默失败**；此前被"缓存优先/注册表兜底"路径掩盖（访问过下载站才有缓存）。修复为标准符号 `Symbol.matchAll`——实测 Strategos 三站全部命中（xdgame 13184 / xianyudanji 88052 / gamer520 105598），Kaizen 命中 xdgame 11146 / xianyudanji 73257（gamer520 无资源，正确失败）
+- **修复 xdgame 列表页 12730/12493/2427 检索错误**（DLC 误匹配 / 找不到本体 / 命中试玩版）：
+  - 根因一：xdgame 列表封面用 `data-original`（jQuery lazy）属性存真实图，封面 appId 直取未读取该属性 → 全部落入标题搜索；修复：`extractSteamImageInfo` 增加 `data-original` 支持——3 个游戏封面直取本体 appId（3613270/2806120/1043260）直接命中
+  - 根因二：附属词表缺 **"Supporter Pack/支持者包"** 与 **"Prologue/序章/序幕"**（Star Ores Inc - Supporter Pack、Gladiator Guild Manager: Prologue 绕过过滤）；且英文搜索词命中**官方中文名本体**（"角斗士公会经理"/"星际采矿公司"）时被跨语言名称校验跳过，英文 DLC/序章名反而匹配——修复：附属词表补齐；`nameMatchesSearch` 增加**跨语言信任**（一中文一英文时信任 storesearch 索引匹配，数字差异如 1代/2代仍拒绝）
+- **版本规则调整**：版本号 X.Y.Z（大.中.小）；中版本触发条件=功能重大调整/小版本累计 10 次/单次变更 >3000 行/累计 >10000 行；每次变更做静态审查+基本测试，中版本变更做深度扫描+全面测试+提交 GitHub+更新说明，大版本在中版本基础上增加清理/优化/美化/深度测试/备份
+- 测试：安全存储新增 regexExecAll 用例（3 项）、名称校验新增跨语言用例（3 项）、内容模拟新增 data-original 用例（1 项）；全套 **134 项**通过
+
 ### v3.2.4
 - **修复 gamer520 109979（华夏史诗 战国）错误匹配到 DLC（4818690 初心请鞭 - 内容包）**：
   - 根因：标题"华夏史诗 战国 支持者版|...Build.24627143+初心请鞭DLC-...|..."中，"支持者版"被"支持/版"噪声拆出垃圾候选"华夏史诗 战国 者"（错失正确搜索词）；版本信息段中的 **DLC 名"初心请鞭"成为搜索候选**，storesearch 命中 DLC《初心请鞭 - 内容包》（storesearch 的 type 字段恒为 "app" 无法区分，且"内容包"不在附属词表、名称校验通过）

@@ -39,6 +39,12 @@ check('解码还原', ndjson.NDJSON.decode(encoded), entries);
 check('损坏行跳过', ndjson.NDJSON.decode('{bad}\n{"ok":1}\n').length, 1);
 check('空输入', ndjson.NDJSON.decode(''), []);
 
+// 2.5 regexExecAll（Symbol.matchAll 标准符号，v3.2.5 修复）
+console.log('2.5 regexExecAll');
+check('迭代提取', utils.regexExecAll('a1 b22 c333', /\d+/g).map(m => m[0]), ['1', '22', '333']);
+check('自动补 g 标志', utils.regexExecAll('a1 b2', /\d+/).length, 2);
+check('无匹配返回空', utils.regexExecAll('abc', /\d+/g).length, 0);
+
 // 3. TDZ 静态扫描（全部 JS 文件）
 console.log('3. TDZ 扫描');
 const jsFiles = [];
@@ -97,7 +103,7 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '3.2.4');
+check('manifest 版本', manifest.version, '3.2.5');
 
 // 6. 缓存 TTL 单位解析（加载真实 constants 模块）
 console.log('6. 缓存 TTL 单位解析');

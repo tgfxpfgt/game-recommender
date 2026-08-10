@@ -40,6 +40,9 @@ check('结果含搜索词且无数字差异', nm('装机模拟器 (PC Building S
 check('空输入', nm('', 'x', 'x'), false);
 check('短英文词需精确匹配（PC→Gunner HEAT PC!）', nm('Gunner, HEAT, PC!', 'PC', '[顶置]PC近期爆火游戏 汇总贴'), false);
 check('短英文词精确匹配接受', nm('VR', 'VR', 'VR'), true);
+check('跨语言信任（英文词命中官方中文名本体）', nm('角斗士公会经理', 'Gladiator Guild Manager', '角斗士公会经理/Gladiator Guild Manager'), true);
+check('跨语言信任（星际采矿公司）', nm('星际采矿公司', 'Star Ores Inc', '星际采矿公司/Star Ores Inc'), true);
+check('跨语言+数字差异仍拒绝（装机模拟器2→1代）', nm('装机模拟器 (PC Building Simulator)', '装机模拟器2', '装机模拟器2'), false);
 
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 console.log('1. 适配规则校验 validateAdapterRules');

@@ -269,6 +269,14 @@ const plainScope = new FakeEl('div');
 plainScope._imgs = [plainImg];
 const plainInfo = GR.builder.extractSteamImageInfo(plainScope);
 check('无 data-src 时回退 src', plainInfo ? plainInfo.appId : null, '111');
+// data-original（xdgame jQuery lazy，v3.2.5）
+const xdImg = new FakeEl('img');
+xdImg._attrs['src'] = '/images/defaultpic.gif';
+xdImg._attrs['data-original'] = 'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/3613270/xxx/capsule_616x353.jpg';
+const xdScope = new FakeEl('div');
+xdScope._imgs = [xdImg];
+const xdInfo = GR.builder.extractSteamImageInfo(xdScope);
+check('data-original appId 直取（xdgame）', xdInfo ? xdInfo.appId : null, '3613270');
 
 // ============ 6. 汇总贴过滤（v3.2.3：gamer520 56286 置顶汇总贴） ============
 console.log('6. 汇总贴/索引贴过滤');
