@@ -46,7 +46,7 @@ async function fetchEpicFreeGames() {
       });
     }
   } catch (e) {
-    console.log('Epic限免获取失败:', e.message);
+    Logger.debug('FreeGames', 'Epic限免获取失败:', e.message);
   }
   return games;
 }
@@ -77,7 +77,7 @@ async function fetchGogFreeGames() {
       });
     }
   } catch (e) {
-    console.log('GOG限免获取失败:', e.message);
+    Logger.debug('FreeGames', 'GOG限免获取失败:', e.message);
   }
   return games;
 }
@@ -108,7 +108,7 @@ async function fetchSteamFreeGames() {
       }
     }
   } catch (e) {
-    console.log('Steam限免获取失败:', e.message);
+    Logger.debug('FreeGames', 'Steam限免获取失败:', e.message);
   }
   return games;
 }
@@ -179,7 +179,7 @@ async function fetchGamerPowerFreeGames() {
       });
     }
   } catch (e) {
-    console.log('GamerPower限免获取失败:', e.message);
+    Logger.debug('FreeGames', 'GamerPower限免获取失败:', e.message);
   }
   return games;
 }
@@ -255,7 +255,7 @@ async function updateFreeGamesBadge() {
     chrome.action.setBadgeText({ text: newToday > 0 ? String(newToday) : '' });
     chrome.action.setBadgeBackgroundColor({ color: '#e74c3c' });
   } catch (e) {
-    console.log('更新badge失败:', e.message);
+    Logger.debug('FreeGames', '更新badge失败:', e.message);
   }
 }
 

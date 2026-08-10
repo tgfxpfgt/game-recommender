@@ -11,7 +11,6 @@
 export const DB_KEYS = {
   BEHAVIOR_LOG: 'behaviorLog',
   GAME_PROFILES: 'gameProfiles',
-  USER_PREFERENCES: 'userPrefs',
   SETTINGS: 'settings',
   STEAM_CACHE: 'steamCache',
   KEYWORD_WEIGHTS: 'keywordWeights',

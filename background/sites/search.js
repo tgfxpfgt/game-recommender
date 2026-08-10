@@ -12,6 +12,7 @@ import { getDownloadSites } from '../core/rules.js';
 import { fetchWithTimeout, regexMatch, regexExecAll } from '../core/utils.js';
 import { cleanGameName, parseGameTitle } from '../steam/title-parser.js';
 import { recordDownloadUrl } from '../storage/download-urls.js';
+import { Logger } from '../storage/logger.js';
 
 // 链接匹配度评分（0-100）：规范化后全等/包含/分段/跨语言独立比较
 // Link match score (0-100): normalized equality/inclusion/segments/cross-language
@@ -248,11 +249,11 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
           }
         } catch (e) {
           // 详情页元信息抓取失败不影响搜索结果
-          console.log(`获取${site.name}详情页元信息失败:`, e.message);
+          Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, e.message);
         }
       }
     } catch (e) {
-      console.log(`搜索${site.name}失败:`, e.message);
+      Logger.debug('Sites', `搜索${site.name}失败:`, e.message);
     }
     results.push(result);
   }

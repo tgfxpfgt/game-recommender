@@ -52,10 +52,12 @@
       }
 
       // 策略2：按分隔符分段，移除纯噪声段（保留中英文名段）。
-      // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，防双副本漂移）
-      const noiseSource = (globalThis.__GR_PATTERNS__ && globalThis.__GR_PATTERNS__.noisePatternSource) ||
-        '(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|解压即撸|预购特典|预购|特典|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|update\\s*\\d+|DLC.*|全DLC|整合|硬盘|免DVD|下载|游戏下载|免费下载|支持手柄|手柄|支持|新游发布|免安装绿色版)';
-      const noisePattern = new RegExp(noiseSource, 'gi');
+      // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，v3.4.0
+      // 移除降级副本——权威源由 manifest 保证在内容脚本加载时已注入）
+      const noisePattern = new RegExp(
+        (globalThis.__GR_PATTERNS__ && globalThis.__GR_PATTERNS__.noisePatternSource) || '(中文|汉化|破解|下载|游戏下载|免费下载|支持手柄|手柄|支持|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|DLC.*|全DLC|整合|硬盘|免DVD)',
+        'gi'
+      );
       let text = h1.textContent.trim();
       const parts = text.split(/[|]+|\s+[-–—]\s+|[×•·]/).map(s => s.trim()).filter(s => s.length > 1);
       const keptParts = parts.filter(p => {
@@ -242,7 +244,7 @@
           下载站点：<span style="color:#66c0f4;">${esc(siteName)}</span>
         </div>
         ${record.totalDownloads && record.totalDownloads > 1 ? `<div style="color:#666;margin-top:6px;font-size:11px;">共下载 ${record.totalDownloads} 次</div>` : ''}
-        ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${esc(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
+        ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${GR.common.escapeAttr(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
       `;
     }).catch(() => {});
   }
@@ -614,7 +616,7 @@
         </div>
 
         <!-- 跳转Steam按钮 -->
-        ${data.url ? `<a href="${esc(data.url)}" target="_blank" style="
+        ${data.url ? `<a href="${GR.common.escapeAttr(data.url)}" target="_blank" style="
           display:block;margin-bottom:12px;padding:9px 0;text-align:center;
           background:linear-gradient(to right,#75b022,#588a1b);
           color:#d2efa9;border-radius:3px;text-decoration:none;

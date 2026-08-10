@@ -5,8 +5,10 @@
  * 查询、count 累计。OPFS 探测失败 → 降级 chrome.storage.local（mock）。
  */
 'use strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'F:/data/browser extension/game-recommender';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
 function check(name, actual, expected) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
@@ -30,7 +32,7 @@ globalThis.chrome = {
   }
 };
 
-const mod = await import('file:///F:/data/browser%20extension/game-recommender/background/storage/wrong-reports.js?t=' + Date.now());
+const mod = await import(new URL('../background/storage/wrong-reports.js', import.meta.url).href + '?t=' + Date.now());
 
 // 1. 记录报错样本
 console.log('1. 报错记录 recordWrongReport');

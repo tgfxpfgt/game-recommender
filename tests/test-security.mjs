@@ -6,9 +6,10 @@
 'use strict';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 import { execSync } from 'child_process';
 
-const ROOT = 'F:/data/browser extension/game-recommender';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
 function check(name, actual, expected) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
@@ -17,7 +18,7 @@ function check(name, actual, expected) {
 }
 
 // 1. SSRF 校验（加载真实 utils 模块）
-const utils = await import('file:///F:/data/browser%20extension/game-recommender/background/core/utils.js?t=' + Date.now());
+const utils = await import(new URL('../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
 console.log('1. SSRF 校验 isSafeFetchUrl');
 check('https 公网', utils.isSafeFetchUrl('https://store.steampowered.com/app/1/'), true);
 check('http 公网', utils.isSafeFetchUrl('http://xdgame.com/'), true);
@@ -30,7 +31,7 @@ check('js 协议拒绝', utils.isSafeFetchUrl('javascript:alert(1)'), false);
 check('非字符串拒绝', utils.isSafeFetchUrl(123), false);
 
 // 2. ND-JSON 编解码（加载真实 ndjson 模块）
-const ndjson = await import('file:///F:/data/browser%20extension/game-recommender/lib/ndjson.js?t=' + Date.now());
+const ndjson = await import(new URL('../lib/ndjson.js', import.meta.url).href + '?t=' + Date.now());
 console.log('2. ND-JSON 编解码');
 const entries = [{ a: 1 }, { b: '中文' }, { c: [1, 2] }];
 const encoded = ndjson.NDJSON.encode(entries);
@@ -91,6 +92,10 @@ const sharedSource = ((sharedPatterns.match(/noisePatternSource = '([^']+)'/) ||
 const parserSource = (titleParserSrc.match(/const noisePattern = \/([\s\S]*?)\/gi;/) || [])[1] || '';
 check('双源正则一致（无漂移）', sharedSource === parserSource, true);
 check('权威源非空', sharedSource.length > 50, true);
+// v3.4.0：detail-page 的噪声词必须经 __GR_PATTERNS__ 权威源构造（移除漂移副本）
+const detailPageSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
+check('detail-page 引用权威源（无独立副本）', detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource'), true);
+check('detail-page 不含完整漂移副本', !detailPageSrc.includes('抢先试玩|抢先体验'), true);
 
 // 4. 全部 JS 语法
 console.log('4. JS 语法检查');
@@ -114,11 +119,11 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '3.3.15');
+check('manifest 版本', manifest.version, '3.4.0');
 
 // 6. 缓存 TTL 单位解析（加载真实 constants 模块）
 console.log('6. 缓存 TTL 单位解析');
-const constants = await import('file:///F:/data/browser%20extension/game-recommender/background/core/constants.js?t=' + Date.now());
+const constants = await import(new URL('../background/core/constants.js', import.meta.url).href + '?t=' + Date.now());
 check('24 小时 → 24h', constants.resolveTtlMs('steamDynamic', { value: 24, unit: 'hours' }), 24 * 3600e3);
 check('30 天 → 30d', constants.resolveTtlMs('registryConfirm', { value: 30, unit: 'days' }), 30 * 86400e3);
 check('1 月 → 30d', constants.resolveTtlMs('steamDynamic', { value: 1, unit: 'months' }), 30 * 86400e3);

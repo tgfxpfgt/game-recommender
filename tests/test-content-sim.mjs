@@ -13,8 +13,9 @@
 'use strict';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'F:/data/browser extension/game-recommender';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
 function check(name, actual, expected) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);

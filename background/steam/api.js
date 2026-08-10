@@ -322,7 +322,7 @@ export async function fetchStorePageHtml(appId) {
     const resp = await fetchWithTimeout(storePageUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
     return await resp.text();
   } catch (e) {
-    console.log('获取商店页面失败:', e);
+    Logger.debug('Steam', '获取商店页面失败:', e.message);
     return '';
   }
 }
@@ -518,7 +518,7 @@ export async function fetchChineseReviews(appId) {
       }
     }
   } catch (e) {
-    console.log('获取中文评价失败:', e);
+    Logger.debug('Steam', '获取中文评价失败:', e.message);
   }
   return { cnReviewSummary, chineseReviews };
 }
@@ -571,7 +571,7 @@ export async function fetchSteamDbInfo(appId) {
       blocked: false
     };
   } catch (e) {
-    console.log('SteamDB获取失败:', e.message);
+    Logger.debug('Steam', 'SteamDB获取失败:', e.message);
     return { url: steamdbUrl, available: false, blocked: true };
   }
 }
@@ -600,7 +600,7 @@ export async function fetchSteamSpyInfo(appId) {
       averagePlaytime: data.average_forever ? Math.round(data.average_forever / 60) + '小时' : null
     };
   } catch (e) {
-    console.log('SteamSpy获取失败:', e.message);
+    Logger.debug('Steam', 'SteamSpy获取失败:', e.message);
     return null;
   }
 }

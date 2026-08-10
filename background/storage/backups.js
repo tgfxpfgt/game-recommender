@@ -25,6 +25,13 @@ export async function createBackup(manual = false, moduleKeys = null) {
       const value = await dataStore.readModule(key);
       if (value !== undefined) snapshot[key] = value;
     }
+    // v3.4.0：密钥安全——备份剔除 API 密钥（与导出一致，备份文件流转不泄露凭据）
+    if (snapshot.settings) {
+      const s = { ...snapshot.settings };
+      if (s.llmConfig) s.llmConfig = { ...s.llmConfig, apiKey: '' };
+      if (s.steamApiKey) s.steamApiKey = '';
+      snapshot.settings = s;
+    }
 
     const backup = {
       id: (crypto.randomUUID ? crypto.randomUUID().substring(0, 8) : Date.now().toString(36)) + Date.now().toString(36),

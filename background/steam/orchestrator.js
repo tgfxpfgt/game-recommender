@@ -10,7 +10,7 @@ import {
   searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
   fetchReviewSummary, fetchLastUpdate, validateSteamNames, DEMO_NAME_PATTERN,
   ADDON_NAME_PATTERN, ensureRegistryEntry, ensureValidRegistryNames, coverImageFor,
-  isDemoAppId, baseAppIdFromDetails, isFailedRatingEntry, needsRatingRefetch,
+  isDemoAppId, baseAppIdFromDetails, needsRatingRefetch,
   isCompleteCacheData, namesRelated
 } from './api.js';
 import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
@@ -211,9 +211,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let foundAppId = usableAppId;
     let foundName = gameName;
     let searchResult = null;
+    // 该标题曾报错：错误 appid 作为黑名单排除（全流程复用，含 0 评测重搜）
+    const corr = await lookupWrongReportCorrection(gameName);
     if (!foundAppId) {
-      // 该标题曾报错：错误 appid 作为黑名单排除
-      const corr = await lookupWrongReportCorrection(gameName);
       searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
@@ -301,7 +301,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       const nameCheck = validateSteamNames(officialCn, officialEn);
       if (!nameCheck.valid || DEMO_NAME_PATTERN.test(officialCn + ' ' + officialEn)) {
         Logger.warn('Steam', `0评测匹配无效(${nameCheck.issues.join('/')}): ${foundAppId} ${officialCn}，重搜`);
-        const reSearch = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
+        const reSearch = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
         if (reSearch) {
           foundAppId = reSearch.appId;
           foundName = reSearch.name;
@@ -362,7 +362,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     };
   } catch (e) {
     Logger.warn('Steam', `获取好评率异常: ${gameName}`, e.message);
-    console.log('获取Steam好评率失败:', e.message);
+    Logger.debug('Steam', '获取Steam好评率失败:', e.message);
     return null;
   }
 }

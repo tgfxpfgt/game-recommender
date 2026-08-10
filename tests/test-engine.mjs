@@ -13,7 +13,7 @@ function check(name, actual, expected) {
   else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
 }
 
-const mod = await import('file:///F:/data/browser%20extension/game-recommender/background/recommend/engine.js?t=' + Date.now());
+const mod = await import(new URL('../background/recommend/engine.js', import.meta.url).href + '?t=' + Date.now());
 const { computeGameScore, findProfile, calculateKeywordScore } = mod;
 
 const W = { clickRate: 0.2, downloadRate: 0.35, keywordMatch: 0.25, steamRating: 0.2 };

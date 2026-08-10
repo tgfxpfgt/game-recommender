@@ -181,12 +181,12 @@ async function loadSteamRecommendations() {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RECOMMENDATIONS' });
     
     if (response.message) {
-      listEl.innerHTML = `<span class="no-data">${response.message}</span>`;
+      listEl.innerHTML = `<span class="no-data">${escapeHtml(response.message)}</span>`;
       return;
     }
 
     if (response.error) {
-      listEl.innerHTML = `<span class="no-data">${response.error}</span>`;
+      listEl.innerHTML = `<span class="no-data">${escapeHtml(response.error)}</span>`;
       return;
     }
 

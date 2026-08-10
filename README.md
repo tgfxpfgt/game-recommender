@@ -214,6 +214,24 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.4.0（中版本：全面审查与优化）
+- **全面审查结论**（技术/工程/安全双维度深度审查）：健康面——无循环依赖、GR 命名空间契约、SSRF/XSS/CSP 系统化、定时器无泄漏、存储模块化；发现并修复 **7 项真实缺陷 + 5 项工程优化**
+- **真实缺陷修复**：
+  1. **CI 跨平台修复**：测试文件硬编码 Windows 绝对路径 → `import.meta.url` 派生（Linux CI 此前必然失败）
+  2. **导入/恢复后纠正知识库内存陈旧**：`resetWrongReports` 接入 `resetInMemoryCaches`；"清除学习数据"语义统一（同时删除 learnedNoise 存储）
+  3. **noisePattern 第三副本漂移**：detail-page 降级副本移除（缺 25 词），统一经 `__GR_PATTERNS__` 权威源 + 断言扩展
+  4. **名称索引正缓存无界增长**：新增 5000 条 LRU 上限（此前仅负缓存有清理）
+  5. **预载下一页安全加固**：同源校验 + 15s 超时（此前可代发请求到任意地址）
+  6. **API 密钥泄露面**：导出/备份默认剔除 `llmConfig.apiKey`/`steamApiKey`（备份文件流转不再泄露凭据）
+  7. **转义统一**：detail-page 2 处属性值改 escapeAttr；dashboard 2 处补 escapeHtml
+- **工程优化**：
+  - **列表页 OPFS 写放大下降 ~80%**：批量拉取从每批 flush 3 次全量文件改为每 5 批一次（60 游戏 ≈ 12 次写入）
+  - **handlers.js 拆块**（1054 行 → ~800 行）：批量好评率/预载抽为 `steam/ratings-batch.js`
+  - 13 处调试 console.log → Logger；死常量 USER_PREFERENCES 清理；过期注释修正
+  - 徽章分级色单源化（`__GR_PATTERNS__.ratingColorFor`，列表/详情/缓存页共用）
+  - manifest 补 `minimum_chrome_version: "109"`
+- 测试：新增路径跨平台/密钥剔除相关；全套 **276 项** + E2E 13/13 + eslint 0 errors
+
 ### v3.3.15
 - **调试/状态浮窗默认禁用 + 开关**：
   - 根因：`dbg()` 日志的 `scheduleDebugUpdate` → `refreshInBar` → `showDebugView` **无条件显示"🔧 Game Recommender 调试"浮窗**——`showDebugPanel`/`showStatusBar` 开关都关不掉它

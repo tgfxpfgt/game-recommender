@@ -11,7 +11,7 @@ import fs from 'fs';
 
 const src = fs.readFileSync('F:/data/browser extension/game-recommender/background/steam/title-parser.js', 'utf-8');
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖）
-const mod = await import('file:///F:/data/browser%20extension/game-recommender/background/steam/title-parser.js?t=' + Date.now());
+const mod = await import(new URL('../background/steam/title-parser.js', import.meta.url).href + '?t=' + Date.now());
 const { parseGameTitle, cleanGameName, pickRegistryEnName, generateSearchVariants, extractNoiseCandidates } = mod;
 
 let pass = 0, fail = 0;

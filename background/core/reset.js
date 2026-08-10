@@ -12,6 +12,7 @@ import { resetRegistry } from '../storage/registry.js';
 import { resetNameIndex } from '../storage/name-index.js';
 import { resetLogBuffer } from '../storage/logger.js';
 import { resetLearnedNoise } from '../storage/learned-noise.js';
+import { resetWrongReports } from '../storage/wrong-reports.js';
 
 // 重置所有内存缓存 / Reset all in-memory caches
 export function resetInMemoryCaches() {
@@ -22,4 +23,5 @@ export function resetInMemoryCaches() {
   resetLogBuffer();
   resetRulesCache();
   resetLearnedNoise();
+  resetWrongReports(); // v3.4.0：导入/恢复后纠正知识库内存与存储保持一致
 }

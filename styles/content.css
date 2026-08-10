@@ -1,8 +1,8 @@
 /* ============================================================
    Game Recommender - Content Styles (v2)
    内容脚本样式 / Content-script styles
-   Injected into download-site pages by content/tracker.js.
-   由 content/tracker.js 注入到下载站页面。
+   Injected via manifest content_scripts css (all download sites).
+   经 manifest content_scripts css 注入（全部下载站页面）。
    ============================================================ */
 
 /* 列表页高亮样式 / List-page recommendation highlight */

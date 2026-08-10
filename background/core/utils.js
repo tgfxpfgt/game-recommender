@@ -1,8 +1,8 @@
 /**
  * Game Recommender - 通用工具 / Utils
  *
- * 请求安全校验、带超时 fetch 等通用函数（无内部依赖）。
- * Generic utilities: safe-fetch with timeout, URL validation, sleep.
+ * 请求安全校验、带超时 fetch、正则提取封装等通用函数（无内部依赖）。
+ * Generic utilities: safe-fetch with timeout, URL validation, regex helpers.
  */
 
 // 请求目标校验：仅允许 http/https，且拒绝 localhost、环回、私有与保留地址。

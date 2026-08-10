@@ -6,8 +6,10 @@
  * validateAdapterRules and the three expired-cache cleanup helpers.
  */
 'use strict';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ROOT = 'F:/data/browser extension/game-recommender';
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 let pass = 0, fail = 0;
 function check(name, actual, expected) {
   const ok = JSON.stringify(actual) === JSON.stringify(expected);
@@ -16,9 +18,9 @@ function check(name, actual, expected) {
 }
 
 // 加载真实模块（带查询串绕缓存）
-const rulesMod = await import('file:///F:/data/browser%20extension/game-recommender/background/core/rules.js?t=' + Date.now());
-const cleanupMod = await import('file:///F:/data/browser%20extension/game-recommender/background/storage/cleanup.js?t=' + Date.now());
-const apiMod = await import('file:///F:/data/browser%20extension/game-recommender/background/steam/api.js?t=' + Date.now());
+const rulesMod = await import(new URL('../background/core/rules.js', import.meta.url).href + '?t=' + Date.now());
+const cleanupMod = await import(new URL('../background/storage/cleanup.js', import.meta.url).href + '?t=' + Date.now());
+const apiMod = await import(new URL('../background/steam/api.js', import.meta.url).href + '?t=' + Date.now());
 
 // ============ 0. 封面 URL 构造（v3.1.0）/ coverImageFor ============
 console.log('0. 封面 URL 构造 coverImageFor');
@@ -76,7 +78,7 @@ check('null 输入', fe(null), false);
 
 // ============ 0.8 Steam API 状态监测（v3.3.0）/ api-monitor ============
 console.log('0.8 Steam API 状态监测');
-const monitor = await import('file:///F:/data/browser%20extension/game-recommender/background/core/api-monitor.js?t=' + Date.now());
+const monitor = await import(new URL('../background/core/api-monitor.js', import.meta.url).href + '?t=' + Date.now());
 monitor.resetApiMonitor();
 let st = monitor.getSteamApiStatus();
 check('空窗口状态', st.total === 0 && st.anomaly === false && st.failRate === 0, true);
@@ -131,7 +133,7 @@ check('null 输入判定失败', icd(null), false);
 
 // ============ 0.11 详情页独立 TTL（v3.3.3）/ detailSteamCacheTtlMs ============
 console.log('0.11 详情页独立 TTL detailSteamCacheTtlMs');
-const constMod = await import('file:///F:/data/browser%20extension/game-recommender/background/core/constants.js?t=' + Date.now());
+const constMod = await import(new URL('../background/core/constants.js', import.meta.url).href + '?t=' + Date.now());
 check('默认 72 小时', constMod.detailSteamCacheTtlMs(), 72 * 3600e3);
 check('detailSteam 0 = 长期', (() => { constMod.setTtlConfig({ detailSteam: { value: 0, unit: 'hours' } }); return constMod.detailSteamCacheTtlMs(); })(), Infinity);
 check('detailSteam 3 天', (() => { constMod.setTtlConfig({ detailSteam: { value: 3, unit: 'days' } }); return constMod.detailSteamCacheTtlMs(); })(), 3 * 86400e3);
@@ -148,7 +150,7 @@ constMod.setTtlConfig({
 
 // ============ 0.12 模块化缓存（v3.3.7）/ isModuleValid / getMergedData ============
 console.log('0.12 模块化缓存 isModuleValid / getMergedData');
-const cacheMod = await import('file:///F:/data/browser%20extension/game-recommender/background/storage/steam-cache.js?t=' + Date.now());
+const cacheMod = await import(new URL('../background/storage/steam-cache.js', import.meta.url).href + '?t=' + Date.now());
 const modNow = Date.now();
 const modEntry = {
   modules: {
@@ -209,7 +211,7 @@ check('null 输入', srr(null, nowSec - winSec), { total: 0, positive: 0, rate: 
 
 // ============ 0.14 检索匹配修复（v3.3.10）/ calcLinkMatchScore + namesRelated ============
 console.log('0.14 检索匹配修复 calcLinkMatchScore + namesRelated');
-const searchMod = await import('file:///F:/data/browser%20extension/game-recommender/background/sites/search.js?t=' + Date.now());
+const searchMod = await import(new URL('../background/sites/search.js', import.meta.url).href + '?t=' + Date.now());
 // 数字保护：二代搜索词 vs 一代页面 → 0 分（"spiritofthenorth2" 不再匹配 "spiritofthenorth"）
 check('二代词 vs 一代页（数字保护 → 0 分）', searchMod.calcLinkMatchScore('北方之魂增强版/Spirit of the North- Switch520.com', 'Spirit of the North 2'), 0);
 check('一代词 vs 一代页（正常命中）', searchMod.calcLinkMatchScore('北方之魂增强版/Spirit of the North- Switch520.com', 'Spirit of the North') >= 60, true);

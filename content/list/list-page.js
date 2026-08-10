@@ -159,7 +159,22 @@
 
         dbg(`预载下一页: ${nextUrl}`);
 
-        const response = await fetch(nextUrl, { credentials: 'omit' });
+        // v3.4.0：安全加固——仅同源请求（分页链接来自页面 DOM，恶意页面可
+        // 指向内网地址）+ 15s 超时（防挂起拖垮页面）；响应受 CORS 限制只读
+        // 解析，但请求本身不应代发到任意目标
+        const next = new URL(nextUrl, window.location.href);
+        if (next.origin !== window.location.origin) {
+          dbg('预载下一页: 跨源链接已跳过');
+          return;
+        }
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), 15000);
+        let response;
+        try {
+          response = await fetch(nextUrl, { credentials: 'omit', signal: controller.signal });
+        } finally {
+          clearTimeout(timer);
+        }
         if (!response.ok) { dbg(`预载：HTTP ${response.status}`); return; }
         const html = await response.text();
 
@@ -530,10 +545,11 @@
           }));
         }
       }
-      // 段2：全部好评率（分级色，可点击跳转）
+      // 段2：全部好评率（分级色，可点击跳转；v3.4.0 颜色单源 shared/patterns.js）
       if (showAll) {
-        const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
-        const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
+        const P = globalThis.__GR_PATTERNS__ || {};
+        const color = P.ratingColorFor ? P.ratingColorFor(rate) : (rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00');
+        const bg = P.ratingBgFor ? P.ratingBgFor(rate) : (rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)');
         badges.push(createBadge(link, {
           text: `${rate}%`, color, bg, cls: 'gr-rating-badge',
           title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
