@@ -6,12 +6,8 @@
  */
 'use strict';
 
-// 从模块源码中提取解析函数（避免依赖 ESM 加载，直接复制逻辑测试行为）
-import fs from 'fs';
-
-const src = fs.readFileSync('F:/data/browser extension/game-recommender/background/steam/title-parser.js', 'utf-8');
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖）
-const mod = await import(new URL('../background/steam/title-parser.js', import.meta.url).href + '?t=' + Date.now());
+const mod = await import(new URL('../background/core/title-parser.js', import.meta.url).href + '?t=' + Date.now());
 const { parseGameTitle, cleanGameName, pickRegistryEnName, generateSearchVariants, extractNoiseCandidates } = mod;
 
 let pass = 0, fail = 0;
@@ -34,7 +30,8 @@ check('× 分段', xRes.includes('地城英雄') && xRes.includes('龙与地下�
 
 console.log('4. 英文优先排序');
 const enFirst = parseGameTitle('铁巢重炮|Iron Nest Heavy Turret Simulator');
-check('英文优先', enFirst[0], '铁巢重炮') || check('候选含英文', enFirst.includes('Iron Nest Heavy Turret Simulator'), true);
+check('英文优先', enFirst[0], '铁巢重炮');
+check('候选含英文', enFirst.includes('Iron Nest Heavy Turret Simulator'), true);
 
 console.log('5. 纯噪声段移除');
 check('仅噪声', parseGameTitle('官方中文|破解|免安装绿色版|v1.0'), []);

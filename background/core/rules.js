@@ -7,7 +7,7 @@
  * otherwise the built-in adapters/ files (side-effect imported globals).
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from './constants.js';
+import { DB_KEYS, DEFAULT_SETTINGS } from './constants.js';
 
 let siteRulesCache = null;
 let downloadSitesCache = null;
@@ -97,8 +97,9 @@ function validateNestedObject(siteKey, field, obj, depth) {
   return null;
 }
 
-// 校验一个站点的字段（必填项 + 类型白名单 + 嵌套递归）
-// Validate a site's fields (required fields + type whitelist + nested recursion)
+// 校验一个站点的字段（必填项 + 类型白名单 + 嵌套递归 + 正则试编译）
+// Validate a site's fields (required fields + type whitelist + nested
+// recursion + regex compile check)
 function validateSiteRule(site, depth) {
   if (!isPlainObject(site)) return '站点规则必须是对象 (site rule must be an object)';
   if (depth > RULE_LIMITS.maxDepth) return '规则嵌套过深 (nesting too deep)';
@@ -113,6 +114,20 @@ function validateSiteRule(site, depth) {
   for (const d of site.domains) {
     if (typeof d !== 'string' || !d || d.length > RULE_LIMITS.maxFieldLen) {
       return `站点 "${site.key}" domains 含非法项`;
+    }
+  }
+  // v3.4.1：正则字段试编译——非法正则会在内容脚本 new RegExp 时抛错
+  // 拖垮整页适配器，导入前必须拦截
+  // Regex fields are compile-checked so a bad pattern cannot throw in the
+  // content script's new RegExp() and take down the whole page adapter
+  const regexFields = [
+    ...(Array.isArray(site.detailUrlPatterns) ? site.detailUrlPatterns : []),
+    ...(isPlainObject(site.listPage) && Array.isArray(site.listPage.urlPatterns) ? site.listPage.urlPatterns : [])
+  ];
+  for (const p of regexFields) {
+    if (typeof p !== 'string') return `站点 "${site.key}" 正则字段含非字符串项`;
+    try { new RegExp(p, 'i'); } catch (e) {
+      return `站点 "${site.key}" 含非法正则: ${String(p).substring(0, 60)}`;
     }
   }
   for (const [field, value] of Object.entries(site)) {
@@ -190,4 +205,72 @@ export async function getAllRules() {
   } catch (e) { /* 读取失败按无导入处理 */ }
   const merged = imported || builtin;
   return { builtin, imported, merged };
+}
+
+// ============ 导入数据清洗 / Imported-Module Sanitization (v3.4.1) ============
+// 导入（IMPORT_DATA）与备份恢复（restoreBackup）共用的模块级白名单校验：
+// - settings：仅保留 DEFAULT_SETTINGS 已知字段，API 密钥一律清空，
+//   llmConfig.endpoint 仅接受 http(s)（防 javascript: 等注入）
+// - adapterRules：复用 validateAdapterRules 结构校验
+// - 其余模块：强制 JSON 可序列化纯数据（剥离函数/循环引用）+ 规模上限
+// 防止恶意/损坏文件写入畸形数据（超大数组拖垮存储、注入任意 settings 字段）。
+// Shared validation for IMPORT_DATA and restoreBackup: whitelist + type + size
+// limits (settings keys whitelisted, API keys blanked, endpoint http(s) only;
+// adapterRules via validateAdapterRules; others must be pure JSON within caps).
+export const IMPORT_MODULE_BYTES_LIMIT = 16 * 1024 * 1024; // 单模块 16MB
+export const IMPORT_TOTAL_BYTES_LIMIT = 64 * 1024 * 1024;  // 总量 64MB
+
+function isPureJsonSafe(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value !== 'object') {
+    return typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean';
+  }
+  try {
+    const json = JSON.stringify(value);
+    if (json === undefined || json.length > IMPORT_MODULE_BYTES_LIMIT) return false;
+    JSON.parse(json);
+    return true;
+  } catch (e) { return false; }
+}
+
+// settings 模块清洗：已知字段白名单 + 密钥清空 + endpoint 协议校验
+// Settings sanitization: known-key whitelist, blanked secrets, http(s) endpoint
+function sanitizeImportedSettings(raw) {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out = {};
+  for (const [key, def] of Object.entries(DEFAULT_SETTINGS)) {
+    const v = raw[key];
+    if (v === undefined) continue;
+    if (key === 'steamApiKey') { out[key] = ''; continue; } // 密钥永不导入 / never import secrets
+    if (key === 'llmConfig') {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      const llm = {};
+      for (const [lk, ld] of Object.entries(def)) {
+        const lv = v[lk];
+        if (lv === undefined) continue;
+        if (lk === 'apiKey') { llm.apiKey = ''; continue; }
+        if (lk === 'endpoint') {
+          if (typeof lv === 'string' && /^https?:\/\//i.test(lv)) llm.endpoint = lv;
+          continue;
+        }
+        if (typeof lv === typeof ld) llm[lk] = lv;
+      }
+      out[key] = llm;
+      continue;
+    }
+    if (typeof v === typeof def) out[key] = v;
+  }
+  return out;
+}
+
+// 按模块 key 校验并清洗导入值；非法输入返回 null（调用方跳过该模块）
+// Validate & sanitize one module's imported value; null = reject this module
+export function sanitizeImportedModule(key, value) {
+  if (key === 'settings') return sanitizeImportedSettings(value);
+  if (key === 'adapterRules') {
+    const result = validateAdapterRules(value);
+    return result.ok ? result.rules : null;
+  }
+  if (!isPureJsonSafe(value)) return null;
+  return value;
 }

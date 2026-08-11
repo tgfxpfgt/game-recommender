@@ -13,6 +13,7 @@ import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
 let registryMemory = null;
 let registryMemoryLoaded = false;
 let registryWriteTimer = null;
+let registryDirty = false;          // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载注册表到内存 / Load registry into memory (once)
 async function loadRegistryToMemory() {
@@ -74,6 +75,7 @@ export async function recordGameInRegistry(appId, { cnName = '', enName = '', ga
 
 // 防抖写入 / Debounced write
 function scheduleRegistryWrite() {
+  registryDirty = true;
   if (registryWriteTimer) clearTimeout(registryWriteTimer);
   registryWriteTimer = setTimeout(flushRegistry, REGISTRY_WRITE_DEBOUNCE);
 }
@@ -81,7 +83,9 @@ function scheduleRegistryWrite() {
 // 强制立即写入 / Force flush
 export async function flushRegistry() {
   if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
-  if (!registryMemory) return;
+  // v3.4.1：无未落盘修改时跳过整次全量序列化
+  if (!registryMemory || !registryDirty) return;
+  registryDirty = false;
   try {
     await dataStore.writeModule(DB_KEYS.GAME_REGISTRY, registryMemory);
   } catch (e) {
@@ -93,5 +97,6 @@ export async function flushRegistry() {
 export function resetRegistry() {
   registryMemory = null;
   registryMemoryLoaded = false;
+  registryDirty = false;
   if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
 }

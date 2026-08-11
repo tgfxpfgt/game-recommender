@@ -40,24 +40,29 @@
     document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');
 
     // 权重设置 / Algorithm weights
-    document.getElementById('weightClick').value = settings.weights.clickRate * 100;
-    document.getElementById('weightClickVal').textContent = settings.weights.clickRate.toFixed(2);
-    document.getElementById('weightDownload').value = settings.weights.downloadRate * 100;
-    document.getElementById('weightDownloadVal').textContent = settings.weights.downloadRate.toFixed(2);
-    document.getElementById('weightKeyword').value = settings.weights.keywordMatch * 100;
-    document.getElementById('weightKeywordVal').textContent = settings.weights.keywordMatch.toFixed(2);
-    document.getElementById('weightSteam').value = settings.weights.steamRating * 100;
-    document.getElementById('weightSteamVal').textContent = settings.weights.steamRating.toFixed(2);
+    // v3.4.1：畸形/缺失权重不再崩溃（toFixed 前兜底为 0）
+    const w = settings.weights || {};
+    const pct2 = (n) => (Number.isFinite(n) ? n * 100 : 0).toFixed(2);
+    document.getElementById('weightClick').value = pct2(w.clickRate);
+    document.getElementById('weightClickVal').textContent = pct2(w.clickRate);
+    document.getElementById('weightDownload').value = pct2(w.downloadRate);
+    document.getElementById('weightDownloadVal').textContent = pct2(w.downloadRate);
+    document.getElementById('weightKeyword').value = pct2(w.keywordMatch);
+    document.getElementById('weightKeywordVal').textContent = pct2(w.keywordMatch);
+    document.getElementById('weightSteam').value = pct2(w.steamRating);
+    document.getElementById('weightSteamVal').textContent = pct2(w.steamRating);
     updateWeightSum();
 
     // LLM 设置 / LLM settings
+    const llm = settings.llmConfig || {};
     document.getElementById('useLLM').checked = settings.useLLM;
-    document.getElementById('llmProvider').value = settings.llmConfig.provider;
-    document.getElementById('llmEndpoint').value = settings.llmConfig.endpoint;
-    document.getElementById('llmApiKey').value = settings.llmConfig.apiKey;
-    document.getElementById('llmModel').value = settings.llmConfig.model;
-    document.getElementById('llmTemp').value = settings.llmConfig.temperature * 100;
-    document.getElementById('llmTempVal').textContent = settings.llmConfig.temperature.toFixed(1);
+    document.getElementById('llmProvider').value = llm.provider || 'local';
+    document.getElementById('llmEndpoint').value = llm.endpoint || '';
+    document.getElementById('llmApiKey').value = llm.apiKey || '';
+    document.getElementById('llmModel').value = llm.model || '';
+    const tempPct = Number.isFinite(llm.temperature) ? llm.temperature * 100 : 30;
+    document.getElementById('llmTemp').value = tempPct;
+    document.getElementById('llmTempVal').textContent = tempPct.toFixed(1);
 
     toggleLLMSettings();
     toggleApiKeyRow();

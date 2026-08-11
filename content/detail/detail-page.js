@@ -598,7 +598,7 @@
       <div style="padding:14px;">
         <!-- 游戏名 + Demo/试玩版标识 -->
         <div style="font-size:17px;font-weight:bold;color:#fff;margin-bottom:8px;">
-          ${(data.isDemo || /demo|试玩|trial/i.test((data.name || '') + ' ' + (data.englishName || '')))
+          ${(data.isDemo || /\b(demo|trial)\b|试玩/i.test((data.name || '') + ' ' + (data.englishName || '')))
             ? `<span style="display:inline-block;padding:2px 8px;margin-right:6px;font-size:11px;font-weight:bold;color:#ff7b00;background:rgba(255,123,0,0.15);border:1px solid #ff7b00;border-radius:3px;vertical-align:middle;">试玩版 / Demo</span>`
             : ''}
           ${esc(data.name)}

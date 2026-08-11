@@ -10,7 +10,7 @@
  */
 import { getDownloadSites } from '../core/rules.js';
 import { fetchWithTimeout, regexMatch, regexExecAll } from '../core/utils.js';
-import { cleanGameName, parseGameTitle } from '../steam/title-parser.js';
+import { cleanGameName, parseGameTitle } from '../core/title-parser.js';
 import { recordDownloadUrl } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 
@@ -224,32 +224,50 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
 
       if (bestUrl && bestScore >= 60) {
         const detailUrl = bestUrl.startsWith('http') ? bestUrl : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
-        result.found = true;
-        result.detailUrl = detailUrl;
-        // 记录到下载站网址缓存（以 appId 为键，30 天有效，新网址替代旧网址）。
-        // v3.3.10：仅高分（≥80）结果写缓存——低分/模糊匹配不固化，
-        // 防止误匹配结果污染 30 天缓存（如二代词匹配到一代页面 75 分）
-        if (appId && bestScore >= 80) {
-          await recordDownloadUrl(appId, site.key, site.name, detailUrl);
-        }
+        // v3.4.1：详情页链接同域白名单——搜索结果页 HTML 里的链接若被
+        // 植入外站/伪协议地址（站点被黑或恶意规则），一律丢弃。
+        // SSRF 校验（fetch/缓存写入）是第二道防线，这里拦在数据源头。
+        // Same-origin whitelist for detail links: a compromised search page or
+        // a malicious rule cannot smuggle off-site/javascript: URLs in.
+        let safeDetailUrl = '';
         try {
-          const dResp = await fetchWithTimeout(detailUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
-          if (dResp.ok) {
-            const dHtml = await dResp.text();
-            const meta = extractDetailMeta(dHtml, site.key);
-            result.updateDate = meta.updateDate;
-            result.version = meta.version;
-            result.size = meta.size;
-            result.panUrl = meta.panUrl;
-            result.panCode = meta.panCode;
-            // 百度网盘自动拼接提取码
-            if (result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
-              result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
-            }
+          const baseHost = new URL(site.base).hostname;
+          const detailHost = new URL(detailUrl).hostname;
+          if (detailHost === baseHost || detailHost.endsWith('.' + baseHost)) {
+            safeDetailUrl = detailUrl;
           }
-        } catch (e) {
-          // 详情页元信息抓取失败不影响搜索结果
-          Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, e.message);
+        } catch (e) { /* 无法解析即丢弃 */ }
+        if (!safeDetailUrl) {
+          Logger.debug('Sites', `丢弃非本域详情链接: ${detailUrl.substring(0, 80)}`);
+        }
+        if (safeDetailUrl) {
+          result.found = true;
+          result.detailUrl = safeDetailUrl;
+          // 记录到下载站网址缓存（以 appId 为键，30 天有效，新网址替代旧网址）。
+          // v3.3.10：仅高分（≥80）结果写缓存——低分/模糊匹配不固化，
+          // 防止误匹配结果污染 30 天缓存（如二代词匹配到一代页面 75 分）
+          if (appId && bestScore >= 80) {
+            await recordDownloadUrl(appId, site.key, site.name, safeDetailUrl);
+          }
+          try {
+            const dResp = await fetchWithTimeout(safeDetailUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
+            if (dResp.ok) {
+              const dHtml = await dResp.text();
+              const meta = extractDetailMeta(dHtml, site.key);
+              result.updateDate = meta.updateDate;
+              result.version = meta.version;
+              result.size = meta.size;
+              result.panUrl = meta.panUrl;
+              result.panCode = meta.panCode;
+              // 百度网盘自动拼接提取码
+              if (result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
+                result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
+              }
+            }
+          } catch (e) {
+            // 详情页元信息抓取失败不影响搜索结果
+            Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, e.message);
+          }
         }
       }
     } catch (e) {

@@ -9,7 +9,8 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, DATA_MODULES } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
-import { resetInMemoryCaches } from '../core/reset.js';
+import { sanitizeImportedModule } from '../core/rules.js';
+import { resetInMemoryCaches } from './reset.js';
 import { Logger } from './logger.js';
 
 // 创建备份（moduleKeys 可选：勾选要备份的模块，默认全部）
@@ -90,7 +91,11 @@ export async function restoreBackup(backupId, moduleKeys = null) {
     const snapshot = {};
     for (const mod of modules) {
       const key = mod.storageKey;
-      if (backup.data[key] !== undefined) snapshot[key] = backup.data[key];
+      if (backup.data[key] === undefined) continue;
+      // v3.4.1：恢复同样经过模块级白名单校验（与导入一致，防备份数据异常）
+      const value = sanitizeImportedModule(mod.key, backup.data[key]);
+      if (value === null || value === undefined) continue;
+      snapshot[key] = value;
     }
     for (const [key, value] of Object.entries(snapshot)) {
       await dataStore.writeModule(key, value);

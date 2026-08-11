@@ -420,7 +420,12 @@
       }
     });
     const uniqueNames = Object.keys(nameToImage).filter(n => n && n.length > 1);
-    if (uniqueNames.length === 0) return;
+    if (uniqueNames.length === 0) {
+      // v3.4.1：无可查询名称时提前退出并收起状态栏（此前 showStatus 已调用，
+      // 早退导致状态栏永远停留在"获取中"）
+      GR.status.hide();
+      return;
+    }
 
     createRatingsJob(processItems, settings, uniqueNames);
 

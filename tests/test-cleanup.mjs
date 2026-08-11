@@ -135,7 +135,7 @@ check('null 输入判定失败', icd(null), false);
 console.log('0.11 详情页独立 TTL detailSteamCacheTtlMs');
 const constMod = await import(new URL('../background/core/constants.js', import.meta.url).href + '?t=' + Date.now());
 check('默认 72 小时', constMod.detailSteamCacheTtlMs(), 72 * 3600e3);
-check('detailSteam 0 = 长期', (() => { constMod.setTtlConfig({ detailSteam: { value: 0, unit: 'hours' } }); return constMod.detailSteamCacheTtlMs(); })(), Infinity);
+check('detailSteam 0 = 长期', (() => { constMod.setTtlConfig({ detailSteam: { value: 0, unit: 'hours' } }); return constMod.detailSteamCacheTtlMs(); })() === Infinity, true);
 check('detailSteam 3 天', (() => { constMod.setTtlConfig({ detailSteam: { value: 3, unit: 'days' } }); return constMod.detailSteamCacheTtlMs(); })(), 3 * 86400e3);
 // 恢复默认，避免污染后续测试（模块化后 TTL 为模块级全局配置）
 constMod.setTtlConfig({

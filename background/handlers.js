@@ -7,8 +7,8 @@
 import { dataStore } from '../data/data-store.js';
 import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION, DEFAULT_SETTINGS, resolveTtlMs, detailSteamCacheTtlMs } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
-import { resetInMemoryCaches } from './core/reset.js';
-import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
+import { resetInMemoryCaches } from './storage/reset.js';
+import { getDownloadSites, saveAdapterRules, deleteAdapterRules, getAllRules, sanitizeImportedModule, IMPORT_MODULE_BYTES_LIMIT, IMPORT_TOTAL_BYTES_LIMIT } from './core/rules.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
 import { collectExpiredSteamCache, collectExpiredNegativeNames, collectExpiredDownloadUrls } from './storage/cleanup.js';
 import {
@@ -28,12 +28,13 @@ import { recordWrongReport, flushWrongReports } from './storage/wrong-reports.js
 import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated } from './steam/api.js';
-import { parseGameTitle } from './steam/title-parser.js';
+import { parseGameTitle } from './core/title-parser.js';
 import { calculateRecommendation, computeGameScore, findProfile } from './recommend/engine.js';
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { fetchWithTimeout } from './core/utils.js';
 import { getSteamApiStatus } from './core/api-monitor.js';
+import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
 
 // --- 行为追踪 / Behavior tracking ---
 async function handleTrackEvent(message) {
@@ -73,9 +74,23 @@ async function handleTrackEvent(message) {
 async function handleGetRecommendations(message) {
   const games = message.games || [];
   const useBuiltinOnly = games.length > 1; // 批量时强制内置算法
+  // v3.4.1：批量（列表页徽章）时共享只读数据——画像/关键词权重/设置仅读
+  // 一次，避免每款游戏各读两次盘（此前 N 款游戏 = 2N 次模块读取）
+  // Shared read for batch mode: profiles/keyword weights/settings loaded once
+  // (previously N games triggered 2N module reads)
+  const shared = games.length > 1
+    ? await (async () => {
+        const [profiles, keywordWeights, settings] = await Promise.all([
+          dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
+          dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {}),
+          getSettings()
+        ]);
+        return { profiles, keywordWeights, settings };
+      })()
+    : null;
   const results = [];
   for (const game of games) {
-    const score = await calculateRecommendation(game, useBuiltinOnly);
+    const score = await calculateRecommendation(game, useBuiltinOnly, shared);
     results.push({ ...game, recommendation: score });
   }
   return { results };
@@ -820,11 +835,24 @@ async function handleImportData(message) {
     : Object.keys(payload.modules);
   try {
     const imported = [];
+    let totalBytes = 0;
     for (const key of moduleKeys) {
       const mod = DATA_MODULES.find(m => m.key === key);
       if (!mod) continue;
-      const value = payload.modules[key];
-      if (value === undefined) continue;
+      const raw = payload.modules[key];
+      if (raw === undefined) continue;
+      // v3.4.1：白名单 + 类型 + 规模校验后再写入（拒绝恶意/畸形数据）
+      const value = sanitizeImportedModule(mod.key, raw);
+      if (value === null || value === undefined) {
+        Logger.warn('Import', `模块 ${key} 校验失败，已跳过`);
+        continue;
+      }
+      const size = JSON.stringify(value).length;
+      totalBytes += size;
+      if (size > IMPORT_MODULE_BYTES_LIMIT || totalBytes > IMPORT_TOTAL_BYTES_LIMIT) {
+        Logger.warn('Import', `模块 ${key} 超出导入规模上限，已跳过`);
+        continue;
+      }
       await dataStore.writeModule(mod.storageKey, value);
       imported.push(key);
     }
@@ -885,7 +913,9 @@ export const MESSAGE_HANDLERS = {
   CACHE_STEAM_PAGE:       handleCacheSteamPage,
   REPORT_WRONG_APPID:     handleReportWrongAppId,
   HEAL_REGISTRY_NAMES:    handleHealRegistryNames,
-  GET_API_STATUS:         handleGetApiStatus
+  GET_API_STATUS:         handleGetApiStatus,
+  GET_OUTBOUND_AUDIT:     async (msg) => getOutboundAudit(msg && msg.limit),
+  CLEAR_OUTBOUND_AUDIT:   async () => { resetOutboundAudit(); return { success: true }; }
 };
 
 // 消息统一入口 / Message entry

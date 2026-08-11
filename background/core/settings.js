@@ -11,6 +11,34 @@ let settingsCache = null;
 let settingsCacheTime = 0;
 const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
 
+// v3.4.1：深合并——旧版本存储缺少新增嵌套字段（weights/llmConfig/cacheTtls/
+// badgeVisibility 等）时自动用默认值补齐，避免设置页对 undefined 调用
+// toFixed() 等崩溃；类型不一致的畸形值按默认值处理（防御坏数据）。
+// Deep merge: nested keys added in newer versions are back-filled from the
+// defaults so stale stored settings never crash the UI; malformed values with
+// a mismatched type fall back to the default.
+function isPlainObject(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v) &&
+    Object.getPrototypeOf(v) === Object.prototype;
+}
+
+function deepMergeSettings(base, stored) {
+  if (!isPlainObject(base) || !isPlainObject(stored)) {
+    return stored === undefined ? base : stored;
+  }
+  const out = { ...base };
+  for (const [k, v] of Object.entries(stored)) {
+    if (v === undefined) continue;
+    if (isPlainObject(base[k]) && isPlainObject(v)) {
+      out[k] = deepMergeSettings(base[k], v);
+    } else if (typeof v === typeof base[k] || (base[k] === undefined && v !== null)) {
+      out[k] = v;
+    }
+    // 类型不一致：保留默认值 / type mismatch: keep the default
+  }
+  return out;
+}
+
 // 初始化存储与设置 / Init the data store and default settings
 export async function initStorage() {
   await dataStore.init();
@@ -28,7 +56,7 @@ export async function getSettings() {
     return settingsCache;
   }
   const stored = await dataStore.readModule(DB_KEYS.SETTINGS);
-  settingsCache = { ...DEFAULT_SETTINGS, ...(stored || {}) };
+  settingsCache = deepMergeSettings(DEFAULT_SETTINGS, stored || {});
   settingsCacheTime = now;
   return settingsCache;
 }
@@ -36,7 +64,7 @@ export async function getSettings() {
 // 保存设置（同步刷新 TTL 配置）/ Save settings (refresh TTL config)
 export async function saveSettings(settings) {
   await dataStore.writeModule(DB_KEYS.SETTINGS, settings);
-  settingsCache = { ...DEFAULT_SETTINGS, ...settings };
+  settingsCache = deepMergeSettings(DEFAULT_SETTINGS, settings || {});
   settingsCacheTime = Date.now();
   await refreshTtlConfig();
 }

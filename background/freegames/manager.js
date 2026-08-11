@@ -13,6 +13,14 @@ import { Logger } from '../storage/logger.js';
 
 const ONE_DAY = 24 * 3600 * 1000;
 
+// v3.4.1：外链协议白名单——第三方 API 的链接/图片只允许 http(s)
+// （防止 javascript: 等伪协议注入弹出页 href/src）
+// Protocol whitelist for giveaway links/images (http(s) only, blocks javascript:)
+const SAFE_URL_RE = /^https?:\/\//i;
+function sanitizeGameUrl(url) {
+  return (typeof url === 'string' && SAFE_URL_RE.test(url)) ? url : '';
+}
+
 async function fetchEpicFreeGames() {
   const games = [];
   try {
@@ -201,6 +209,12 @@ async function fetchAllFreeGames() {
       seenNames.add(norm);
       merged.push(gp);
     }
+  }
+
+  // v3.4.1：统一协议白名单（入口收敛，防第三方 API 注入伪协议链接）
+  for (const g of merged) {
+    g.url = sanitizeGameUrl(g.url);
+    g.image = sanitizeGameUrl(g.image);
   }
 
   return merged;

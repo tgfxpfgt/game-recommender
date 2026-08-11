@@ -38,13 +38,23 @@
 
   // 根据规则构建站点适配器 / Build a site adapter from its rules
   function buildAdapter(rule) {
-    const detailPatterns = (rule.detailUrlPatterns || []).map(p => new RegExp(p, 'i'));
-    // 判断链接是否指向详情页（未配置规则时不限制）
+    // 非法正则跳过（防御旧版本/手工写入的坏规则；后台 rules.js 也有同款校验）
+    const detailPatterns = [];
+    for (const p of (rule.detailUrlPatterns || [])) {
+      try { detailPatterns.push(new RegExp(p, 'i')); } catch (e) { /* skip invalid */ }
+    }
+    // v3.4.1：判断链接是否指向详情页。未配置规则时回退内置路径特征
+    // （此前直接放行全部链接，会把导航/分类链接误当详情页条目）。
+    // Detail-link detection; unconfigured rules fall back to the built-in path
+    // hints instead of accepting every link (previously nav/category links
+    // were mis-detected as game detail pages).
     const isDetailHref = (href) => {
-      if (detailPatterns.length === 0) return true;
       try {
         const p = new URL(href, window.location.href).pathname;
-        return detailPatterns.some(re => re.test(p));
+        if (detailPatterns.length > 0) {
+          return detailPatterns.some(re => re.test(p));
+        }
+        return GENERIC_DETAIL_PATHS.some(prefix => p.includes(prefix));
       } catch (e) { return false; }
     };
     const cfg = rule.listItem || {};
@@ -66,8 +76,10 @@
       name: rule.name,
       isListPage: () => {
         const path = window.location.pathname;
-        // 1. URL 特征 / URL patterns
-        if ((rule.listPage?.urlPatterns || []).some(p => new RegExp(p, 'i').test(path))) return true;
+        // 1. URL 特征 / URL patterns（非法正则跳过）
+        if ((rule.listPage?.urlPatterns || []).some(p => {
+          try { return new RegExp(p, 'i').test(path); } catch (e) { return false; }
+        })) return true;
         // 2. DOM 选择器 / DOM selectors
         if ((rule.listPage?.selectors || []).some(sel => document.querySelector(sel))) return true;
         // 3. 通用判断：详情链接数量达到阈值（XDGame 首页等）。
@@ -102,12 +114,16 @@
         };
 
         // 策略1：容器 + 标题链接选择器（XDGame 的 a.tit 优先）
-        for (const sel of containers) {
-          document.querySelectorAll(sel).forEach(li => {
-            const tl = li.querySelector(cfg.titleLink);
-            if (tl) addItem(li, tl, tl);
-          });
-          if (items.length > 0) return items;
+        // 多数站点未配置 titleLink（undefined 选择器会抛 DOMException），
+        // 未配置时直接跳过该策略（v3.4.1 修复：此前 5/6 站点列表页整体崩溃）
+        if (cfg.titleLink) {
+          for (const sel of containers) {
+            document.querySelectorAll(sel).forEach(li => {
+              const tl = li.querySelector(cfg.titleLink);
+              if (tl) addItem(li, tl, tl);
+            });
+            if (items.length > 0) return items;
+          }
         }
 
         // 策略2：容器内找有文本的详情页链接（跳过纯图片/按钮类）

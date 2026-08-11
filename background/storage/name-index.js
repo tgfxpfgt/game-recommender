@@ -8,11 +8,12 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE, nameNegativeCacheTtlMs } from '../core/constants.js';
-import { cleanGameName } from '../steam/title-parser.js';
+import { cleanGameName } from '../core/title-parser.js';
 
 let nameIndexMemory = null;
 let nameIndexMemoryLoaded = false;
 let nameIndexWriteTimer = null;
+let nameIndexDirty = false;         // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载名称索引到内存（顺手清理过期负缓存）
 // Load the name index into memory (also purges expired negative entries)
@@ -82,6 +83,7 @@ export async function recordNameIndex(gameName, appId) {
     for (let i = 0; i < toRemove; i++) nameIndexMemory.delete(entries[i][0]);
   }
   // 防抖写入 / Debounced write
+  nameIndexDirty = true;
   if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
   nameIndexWriteTimer = setTimeout(async () => {
     nameIndexWriteTimer = null;
@@ -96,7 +98,9 @@ export async function recordNameIndex(gameName, appId) {
 // 强制立即写入 / Force flush
 export async function flushNameIndex() {
   if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
-  if (!nameIndexMemory) return;
+  // v3.4.1：无未落盘修改时跳过整次全量序列化
+  if (!nameIndexMemory || !nameIndexDirty) return;
+  nameIndexDirty = false;
   try {
     await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
   } catch (e) {
@@ -118,6 +122,7 @@ function cleanupExpiredNegativeEntries() {
     }
   }
   if (removed > 0) {
+    nameIndexDirty = true;
     if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
     nameIndexWriteTimer = setTimeout(async () => {
       nameIndexWriteTimer = null;
@@ -135,12 +140,15 @@ export async function deleteNameIndexEntries(appId, names) {
   if (!appId) return;
   await loadNameIndexToMemory();
   const key = String(appId);
+  let removed = false;
   for (const name of (names || [])) {
     const entry = nameIndexMemory.get(name);
     if (entry && String(entry.appId) === key) {
       nameIndexMemory.delete(name);
+      removed = true;
     }
   }
+  if (removed) nameIndexDirty = true;   // v3.4.1：dirty 检查下必须显式标记
 }
 
 // 删除指定名字的索引条目（强制刷新页用：正/负缓存条目都删——负缓存
@@ -154,6 +162,7 @@ export async function deleteNameIndexEntry(name) {
   await loadNameIndexToMemory();
   if (!nameIndexMemory.has(key)) return;
   nameIndexMemory.delete(key);
+  nameIndexDirty = true;
   if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
   nameIndexWriteTimer = setTimeout(async () => {
     nameIndexWriteTimer = null;
@@ -169,5 +178,6 @@ export async function deleteNameIndexEntry(name) {
 export function resetNameIndex() {
   nameIndexMemory = null;
   nameIndexMemoryLoaded = false;
+  nameIndexDirty = false;
   if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
 }

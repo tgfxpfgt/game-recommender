@@ -1,13 +1,13 @@
 {
   "name": "game-recommender",
-  "version": "3.4.0",
+  "version": "3.4.1",
   "description": "Game Recommender - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
   "scripts": {
     "test": "node tests/run-tests.js",
     "e2e": "node tests/e2e-smoke.mjs",
-    "lint": "eslint background content options popup shared tests adapters --no-warn-ignored"
+    "lint": "eslint background content options popup shared tests adapters dashboard data freegames lib --no-warn-ignored"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

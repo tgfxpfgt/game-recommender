@@ -8,10 +8,10 @@
  * parsing, review summaries, SteamDB/SteamSpy fallbacks, result assembly.
  * All requests go through the timeout + host-validated fetch.
  */
-import { fetchWithTimeout } from '../core/utils.js';
+import { fetchWithTimeout, hasChineseChars, hasLatinLetters } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
 import { getGameRegistry, getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
-import { generateSearchVariants, extractNoiseCandidates } from './title-parser.js';
+import { generateSearchVariants, extractNoiseCandidates } from '../core/title-parser.js';
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 import { recordSteamCall, getSteamApiStatus } from '../core/api-monitor.js';
 
@@ -620,7 +620,11 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
     // 英文名：来自 english 语言的详情（注册表/缓存管理页使用）
     englishName: (enGameData && enGameData.name) || gameData.name,
     // 是否为 Demo/试玩版（详情页浮窗显示标识用）
-    isDemo: DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
+    // 优先用 appdetails 的 type 权威信号；名称判定带词边界（\b），
+    // 避免 Trials/Demons 等合法游戏名被误判（v3.4.2）。
+    isDemo: gameData.type === 'demo'
+      || (enGameData && enGameData.type === 'demo')
+      || DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
     url: `https://store.steampowered.com/app/${appId}/`,
     steamdbUrl: steamdbInfo?.url || `https://steamdb.info/app/${appId}/`,
     rating: reviewSummary ? reviewSummary.score : null,
@@ -778,8 +782,8 @@ export async function ensureValidRegistryNames(appId, cnName, enName, gameName) 
 export async function scanAndHealRegistry(limit = 20) {
   const registry = await getGameRegistry();
   const abnormal = Object.entries(registry).filter(([, e]) => {
-    const cnBad = !e.cnName || !/[\u4e00-\u9fff]/.test(e.cnName);
-    const enBad = !e.enName || !/[A-Za-z]{2,}/.test(e.enName);
+    const cnBad = !hasChineseChars(e.cnName);
+    const enBad = !hasLatinLetters(e.enName);
     return cnBad || enBad;
   });
   const targets = abnormal.slice(0, limit);

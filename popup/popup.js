@@ -100,7 +100,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('refreshBtn').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
-      chrome.tabs.sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' });
+      // v3.4.1：捕获拒绝——无内容脚本注入的页面（如 chrome://、扩展商店）
+      // sendMessage 会 reject，未捕获时中断后续按钮反馈
+      chrome.tabs.sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' }).catch(() => {});
     }
     // Button feedback / 按钮反馈
     const btn = document.getElementById('refreshBtn');

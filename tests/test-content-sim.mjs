@@ -67,7 +67,29 @@ class FakeEl {
   get firstChild() { return this.children.length ? this.children[0] : null; }
   remove() { if (this.parentNode) { this.parentNode._removeChildFrom(this); this.parentNode = null; } }
   removeChild(c) { this._removeChildFrom(c); c.parentNode = null; return c; }
-  closest() { return this; }
+  // 向上查找祖先匹配（v3.4.1：原实现恒返回 this，掩盖真实 closest 行为）
+  // Walk up the ancestor chain like the real API (was: always returns this)
+  closest(sel) {
+    let el = this;
+    while (el) {
+      if (el._matchesSel(sel)) return el;
+      el = el.parentNode;
+    }
+    return null;
+  }
+  _matchesSel(sel) {
+    const parts = String(sel).split(',').map(s => s.trim()).filter(Boolean);
+    return parts.some(p => {
+      if (p.startsWith('.')) {
+        return (this._attrs['class'] || this.className || '').split(/\s+/).includes(p.slice(1));
+      }
+      if (p.startsWith('[')) {
+        const m = p.match(/^\[([\w-]+)(?:[^=\]]*)?\]/);
+        return !!m && this._attrs[m[1]] !== undefined;
+      }
+      return this.tagName === p.toUpperCase();
+    });
+  }
   // 简化的选择器支持：a.tit / .class（含 className 属性匹配）/ 标签名
   querySelector(sel) {
     if (sel === 'a.tit') return this.children.find(c => c.tagName === 'A' && (c._attrs['class'] || '').includes('tit')) || null;
@@ -442,7 +464,18 @@ check('详情页浮窗已渲染（含内容区）', !!steamRoot && steamHtml.len
 check('报错按钮已渲染', steamHtml.includes('gr-report-issue-btn') && steamHtml.includes('信息有误'), true);
 check('刷新按钮已渲染', steamHtml.includes('gr-refresh-cache-btn'), true);
 check('浮窗显示错误游戏（模拟）', steamHtml.includes('2001760') || steamHtml.includes('轮回之兽'), true);
-check('报错点击流程由 E2E 冒烟验证（真实浏览器）', true, true);
+// v3.4.1：原断言恒真（"由 E2E 验证"），改为源码级守护——报错按钮绑定 +
+// REPORT_WRONG_APPID 消息流 + 手动选择面板兜底路径必须存在
+const detailSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
+check('报错按钮绑定存在（源码级）', detailSrc.includes("#gr-report-issue-btn") && detailSrc.includes("action: 'REPORT_WRONG_APPID'"), true);
+check('重检索失败/同 appId 兜底到手动选择面板（源码级）', detailSrc.includes('renderManualSelectPanel'), true);
+check('详情页真实发起 Steam 检索（第9节流程执行）', searchCalls >= 1, true);
+// v3.4.2：demo 判定防误伤（源码级）——浮窗前端正则必须带词边界
+// （\b），避免 Trials/Demons 等合法游戏名子串被误标为 Demo；后台 isDemo
+// 以 appdetails type=demo 为权威信号，名称兜底同样带边界。
+const steamApiSrc = fs.readFileSync(path.join(ROOT, 'background/steam/api.js'), 'utf-8');
+check('浮窗 demo 徽标正则带词边界（源码级）', detailSrc.includes('\\b(demo|trial)\\b'), true);
+check('后台 isDemo 优先用 type 权威信号（源码级）', steamApiSrc.includes("gameData.type === 'demo'"), true);
 
 console.log('\n===== 内容脚本模拟测试结果 =====');
 console.log(pass + ' 通过, ' + fail + ' 失败');

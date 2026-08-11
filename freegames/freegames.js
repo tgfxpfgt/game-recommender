@@ -148,10 +148,16 @@ function renderGameCard(game) {
     ? `<span class="claim-type thirdparty" title="需到第三方平台（${escapeHtml(game.source || '第三方')}）领取，可能有额外条件">🟡 第三方·${escapeHtml(game.source || '需条件')}</span>`
     : `<span class="claim-type direct" title="可直接在 ${escapeHtml(game.platformName)} 平台领取，无门槛">🟢 官方直领</span>`;
 
-  // 领取按钮：始终为可点击链接（可重复点击），已领取仅改变样式/文案
+  // 领取按钮：始终为可点击链接（可重复点击），已领取仅改变样式/文案。
+  // v3.4.1：仅渲染合法 http(s) 链接，否则降级为无跳转按钮（防 javascript: 伪协议）
+  const safeUrl = /^https?:\/\//i.test(game.url || '') ? game.url : '';
   const claimBtn = game.claimed
-    ? `<a href="${escapeAttr(game.url)}" target="_blank" class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 再次打开</a>`
-    : `<a href="${escapeAttr(game.url)}" target="_blank" class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</a>`;
+    ? (safeUrl
+        ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 再次打开</a>`
+        : `<span class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 无外链</span>`)
+    : (safeUrl
+        ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</a>`
+        : `<span class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</span>`);
 
   return `
     <div class="game-card ${game.claimed ? 'claimed' : ''}">

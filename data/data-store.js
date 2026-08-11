@@ -43,6 +43,18 @@ class DataStore {
     this.opfsAvailable = false;
     this.dir = null;
     this._initPromise = null;
+    // v3.4.1：模块级写串行队列（并发追加/写入同一文件时不互相覆盖）
+    this._writeQueues = {};
+  }
+
+  // v3.4.1：按模块串行化写入任务（后一个等待前一个完成，防 read-size+write 竞态）
+  // Serialize writes per module (later tasks wait for earlier ones; kills the
+  // read-size-then-write race between concurrent appends)
+  _serialize(moduleKey, task) {
+    const prev = this._writeQueues[moduleKey] || Promise.resolve();
+    const run = prev.then(() => task());
+    this._writeQueues[moduleKey] = run.then(() => undefined, () => undefined);
+    return run;
   }
 
   // 初始化（幂等）：探测 OPFS 并迁移旧数据 / Init (idempotent): probe OPFS + migrate
@@ -92,10 +104,46 @@ class DataStore {
     }
   }
 
+  // v3.4.1 原子写：先写临时文件再移动/重命名到目标，进程中途崩溃不会留下
+  // 半截损坏文件；旧版 Chrome（<112，无 move()）回退为直接写目标。
+  // Atomic write since v3.4.1: write to a temp file, then move() over the target
+  // so a crash mid-write cannot leave a truncated file; older Chrome falls back.
   async _writeHandle(fileHandle, value, format) {
     const text = format === 'ndjson' ? NDJSON.encode(value) : JSON.stringify(value);
+    const tmpHandle = await this.dir.getFileHandle(fileHandle.name + '.tmp', { create: true });
+    const tmpWritable = await tmpHandle.createWritable();
+    await tmpWritable.write(text);
+    await tmpWritable.close();
+    if (typeof fileHandle.move === 'function') {
+      // move() 目标已存在时直接替换（文件语义）/ move() replaces an existing target file
+      await fileHandle.move(tmpHandle);
+    } else {
+      // 旧版 Chrome：直接覆盖目标（createWritable 默认截断，无法原子替换）
+      const writable = await fileHandle.createWritable();
+      await writable.write(text);
+      await writable.close();
+    }
+  }
+
+  // v3.4.1：读取损坏时把原文件备份为 <name>.corrupt-<ts> 并重置为空
+  //（防止每次读取都崩溃/静默丢数据；备份供人工/工具恢复）
+  // Corrupt file recovery: back the raw bytes up as <name>.corrupt-<ts>, reset
+  // the module to its empty default (avoids crash-looping on every read)
+  async _backupCorruptFile(fileHandle, file) {
+    try {
+      const backupName = fileHandle.name + '.corrupt-' + Date.now();
+      const backupHandle = await this.dir.getFileHandle(backupName, { create: true });
+      const writable = await backupHandle.createWritable();
+      await writable.write(await file.text());
+      await writable.close();
+    } catch (e) {
+      console.warn('[DataStore] 损坏文件备份失败:', e.message);
+    }
+  }
+
+  async _resetFile(fileHandle) {
     const writable = await fileHandle.createWritable();
-    await writable.write(text);
+    await writable.write('');
     await writable.close();
   }
 
@@ -103,7 +151,16 @@ class DataStore {
     const file = await fileHandle.getFile();
     if (file.size === 0) return format === 'ndjson' ? [] : null;
     const text = await file.text();
-    return format === 'ndjson' ? NDJSON.decode(text) : JSON.parse(text);
+    try {
+      return format === 'ndjson' ? NDJSON.decode(text) : JSON.parse(text);
+    } catch (e) {
+      // v3.4.1：损坏数据备份后重置为默认值（JSON 解析失败才走恢复路径；
+      // NDJSON 内部已跳过损坏行）
+      console.warn(`[DataStore] ${fileHandle.name} 数据损坏，备份后重置:`, e.message);
+      await this._backupCorruptFile(fileHandle, file);
+      try { await this._resetFile(fileHandle); } catch (e2) { /* 重置失败下次再试 */ }
+      return format === 'ndjson' ? [] : null;
+    }
   }
 
   // 读取模块：OPFS 优先，文件不存在时回退 storage.local（旧数据）
@@ -134,16 +191,19 @@ class DataStore {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
     if (!cfg) return;
-    if (this.opfsAvailable) {
-      try {
-        const handle = await this.dir.getFileHandle(cfg.file, { create: true });
-        await this._writeHandle(handle, value, cfg.format);
-        return;
-      } catch (e) {
-        console.warn(`[DataStore] 写入 ${moduleKey} 到 OPFS 失败:`, e.message);
+    // v3.4.1：同模块写入串行化（防并发覆盖）
+    return this._serialize(moduleKey, async () => {
+      if (this.opfsAvailable) {
+        try {
+          const handle = await this.dir.getFileHandle(cfg.file, { create: true });
+          await this._writeHandle(handle, value, cfg.format);
+          return;
+        } catch (e) {
+          console.warn(`[DataStore] 写入 ${moduleKey} 到 OPFS 失败:`, e.message);
+        }
       }
-    }
-    await chrome.storage.local.set({ [moduleKey]: value });
+      await chrome.storage.local.set({ [moduleKey]: value });
+    });
   }
 
   // 追加单条（仅 ND-JSON 模块）：文件尾部追加一行，无需重写整个文件
@@ -152,24 +212,28 @@ class DataStore {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
     if (!cfg || cfg.format !== 'ndjson') return;
-    if (this.opfsAvailable) {
-      try {
-        const handle = await this.dir.getFileHandle(cfg.file, { create: true });
-        const file = await handle.getFile();
-        const prefix = file.size > 0 ? '\n' : '';
-        const writable = await handle.createWritable({ keepExistingData: true });
-        await writable.write({ type: 'write', position: file.size, data: prefix + JSON.stringify(entry) });
-        await writable.close();
-        return;
-      } catch (e) {
-        console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, e.message);
+    // v3.4.1：同模块写入串行化（修复并发追加时 read-size + write 竞态导致
+    // 互相覆盖/错位的问题）
+    return this._serialize(moduleKey, async () => {
+      if (this.opfsAvailable) {
+        try {
+          const handle = await this.dir.getFileHandle(cfg.file, { create: true });
+          const file = await handle.getFile();
+          const prefix = file.size > 0 ? '\n' : '';
+          const writable = await handle.createWritable({ keepExistingData: true });
+          await writable.write({ type: 'write', position: file.size, data: prefix + JSON.stringify(entry) });
+          await writable.close();
+          return;
+        } catch (e) {
+          console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, e.message);
+        }
       }
-    }
-    // 降级：读-改-写 / fallback: read-modify-write
-    const stored = await chrome.storage.local.get(moduleKey);
-    const list = stored[moduleKey] || [];
-    list.push(entry);
-    await chrome.storage.local.set({ [moduleKey]: list });
+      // 降级：读-改-写 / fallback: read-modify-write
+      const stored = await chrome.storage.local.get(moduleKey);
+      const list = stored[moduleKey] || [];
+      list.push(entry);
+      await chrome.storage.local.set({ [moduleKey]: list });
+    });
   }
 
   // 删除模块（OPFS 文件 + storage.local 键）

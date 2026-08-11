@@ -51,7 +51,7 @@ const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.end(req.url.includes('16598') ? DETAIL_HTML : LIST_HTML);
 });
-await new Promise(r => server.listen(0, '0.0.0.0', r));
+await new Promise(r => server.listen(0, '127.0.0.1', r));
 // 用 host-resolver-rules 把下载站域名映射到本地 fixture（内容脚本对非追踪
 // 站点会早退，域名必须是已追踪的下载站）
 const FIXTURE_PORT = server.address().port;
@@ -77,11 +77,24 @@ try {
   });
 } catch (e) {
   console.log('⚠️ 浏览器启动失败（需本机安装 Edge 或设置 E2E_CHANNEL=chrome）:', e.message.split('\n')[0]);
-  process.exit(fail > 0 ? 1 : 0);
+  // v3.4.1：启动失败必须失败退出——此前 exit(0) 使 e2e 在"根本没测"时假绿
+  process.exit(1);
 }
 
 // 等待扩展加载并获取扩展 id（service worker 就绪）
-let extId = null;
+try {
+  await runChecks();
+} finally {
+  // v3.4.1：中途异常也清理 profile/HTTP server，避免残留
+  if (context) await context.close().catch(() => {});
+  server.close();
+  fs.rmSync(userDataDir, { recursive: true, force: true });
+}
+console.log(`\n===== E2E 冒烟结果 =====\n${pass} 通过, ${fail} 失败`);
+process.exit(fail > 0 ? 1 : 0);
+
+async function runChecks() {
+  let extId = null;
 for (let i = 0; i < 30; i++) {
   const workers = context.serviceWorkers();
   if (workers.length > 0) {
@@ -145,8 +158,14 @@ if (extId) {
     badgeCount: document.querySelectorAll('.gr-rating-badge').length
   }));
   check('开启后状态浮窗渲染', domInfo2.hasStatusBar);
-  check('列表页好评率流程已启动（徽章出现或后台查询中）',
-    domInfo2.hasStatusBar && (domInfo2.badgeCount >= 0), `(徽章 ${domInfo2.badgeCount} 个)`);
+  // v3.4.1：原先 `badgeCount >= 0` 恒真属空断言。改轮询等待真实徽章出现：
+  // 成功/未找到均渲染徽章，网络失败不阻塞（不依赖 Steam 可用性）
+  let badgeCount = domInfo2.badgeCount;
+  for (let i = 0; i < 60 && badgeCount === 0; i++) {
+    await new Promise(r => setTimeout(r, 500));
+    badgeCount = await page2b.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
+  }
+  check('列表页好评率流程已启动（徽章渲染）', badgeCount > 0, `(徽章 ${badgeCount} 个)`);
   check('无 console error', errors2b.length === 0, `(${errors2b.slice(0, 3).join(' | ')})`);
   await page2b.close();
 
@@ -183,10 +202,5 @@ if (extId) {
     `(手动选择=${manualShown} | 内容=${panelText.substring(0, 40).replace(/\n/g, ' ')})`);
   check('报错流程无 console error', errors3.length === 0, `(${errors3.slice(0, 3).join(' | ')})`);
   await page3.close();
+  }
 }
-
-await context.close();
-server.close();
-fs.rmSync(userDataDir, { recursive: true, force: true });
-console.log(`\n===== E2E 冒烟结果 =====\n${pass} 通过, ${fail} 失败`);
-process.exit(fail > 0 ? 1 : 0);

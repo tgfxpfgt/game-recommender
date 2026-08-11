@@ -19,18 +19,25 @@ let calls = []; // [{t, ok, status}]
 
 // 记录一次 Steam API 调用（status 为 HTTP 状态码，0 = 网络异常）
 // Record one Steam API call (status = HTTP code; 0 = network error)
+// v3.4.1：惰性清理——不再每次调用都全量 filter（批量检索时高频调用，
+// 此前每次 O(n) 扫描；现仅在超上限 64 条时压缩一次，读取时再惰性过期）
 export function recordSteamCall(ok, status = 0) {
   const now = Date.now();
   calls.push({ t: now, ok: !!ok, status: status || 0 });
-  calls = calls.filter(c => now - c.t < WINDOW_MS);
-  if (calls.length > MAX_SAMPLES) calls = calls.slice(-MAX_SAMPLES);
+  if (calls.length > MAX_SAMPLES + 64) {
+    calls = calls.filter(c => now - c.t < WINDOW_MS).slice(-MAX_SAMPLES);
+  }
 }
 
 // 获取当前 API 状态（纯函数，可单测）
 // Current API status (pure; unit-testable)
 export function getSteamApiStatus() {
   const now = Date.now();
-  const recent = calls.filter(c => now - c.t < WINDOW_MS);
+  let recent = calls;
+  if (calls.length > 0 && now - calls[0].t >= WINDOW_MS) {
+    calls = calls.filter(c => now - c.t < WINDOW_MS);
+    recent = calls;
+  }
   const total = recent.length;
   const failed = recent.filter(c => !c.ok).length;
   // 限流迹象：HTTP 429/503（0 = 网络异常，不并入限流）

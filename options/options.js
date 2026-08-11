@@ -185,6 +185,18 @@
     document.getElementById('logLevel').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('logRetentionDays').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('logStorage').addEventListener('change', () => scheduleAutoSave());
+
+    // v3.4.1：页面关闭兜底——防抖定时器未触发时立即保存，避免设置改动丢失
+    //（尽力而为：pagehide 阶段 sendMessage 仍可能发出，总比丢弃强）
+    // Flush a pending debounced save on page close (best-effort; the message
+    // may still be delivered during pagehide)
+    window.addEventListener('pagehide', () => {
+      if (OPTS.saveTimer) {
+        clearTimeout(OPTS.saveTimer);
+        OPTS.saveTimer = null;
+        void saveSettings();
+      }
+    });
   }
 
   // ============ Auto-Save with Debounce / 防抖自动保存 ============

@@ -48,30 +48,46 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ============ 初始化 / Initialization ============
 initStorage().catch(e => console.error('初始化失败:', e));
 
+// 定时器幂等创建：MV3 SW 每次冷启动都会重跑顶层代码，`alarms.create`
+// 对同名 alarm 是替换（重新起算周期）——重复创建会让 24h 任务永远不触发。
+// 已存在则跳过（v3.4.1 修复）。
+// Idempotent alarm creation: MV3 SW top-level re-runs on every cold start and
+// `alarms.create` REPLACES an existing alarm (restarts its period), so naive
+// re-creation meant the daily tasks never fired. Skip when already present.
+async function ensureAlarm(name, periodInMinutes) {
+  try {
+    const existing = await chrome.alarms.get(name);
+    if (existing && existing.periodInMinutes === periodInMinutes) return;
+    chrome.alarms.create(name, { periodInMinutes });
+  } catch (e) {
+    console.error('alarm 创建失败:', name, e.message);
+  }
+}
+
 // 每日刷新限免游戏 / Refresh free games daily
-chrome.alarms.create('refreshFreeGames', { periodInMinutes: 24 * 60 });
+ensureAlarm('refreshFreeGames', 24 * 60);
 
 // 自动备份定时器 / Auto-backup alarm setup
 async function setupBackupAlarm() {
   const settings = await getSettings();
   const intervalMinutes = (settings.backupIntervalHours || 24) * 60;
-  chrome.alarms.create('autoBackup', { periodInMinutes: intervalMinutes });
+  await ensureAlarm('autoBackup', intervalMinutes);
 }
-setupBackupAlarm();
+setupBackupAlarm().catch(e => console.error('自动备份定时器初始化失败:', e.message));
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {
-    refreshFreeGames(true);
+    refreshFreeGames(true).catch(e => console.error('限免刷新失败:', e.message));
   }
   if (alarm.name === 'autoBackup') {
     getSettings().then(settings => {
-      if (settings.autoBackup) createBackup(false);
+      if (settings.autoBackup) createBackup(false).catch(e => console.error('自动备份失败:', e.message));
     });
   }
 });
 
 // 启动时刷新限免游戏并更新 badge / Refresh free games on startup
-refreshFreeGames(false);
+refreshFreeGames(false).catch(e => console.error('启动限免刷新失败:', e.message));
 
 // 启动日志（含版本号，便于确认浏览器加载的是否为最新版本）
 // Startup log with the version, to verify the browser loaded the latest build

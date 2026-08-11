@@ -10,6 +10,20 @@ import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, DOWNLOAD_URLS_VERSION } from '../core/constants.js';
 import { isSafeFetchUrl } from '../core/utils.js';
 
+// v3.4.1：整个存储的读-改-写串行锁（并发 record* 调用不互相覆盖）。
+// 注意 dataStore.writeModule 的串行化只保护写入本身，无法覆盖
+// 读→改→写三段；这里在业务层加锁，让批量写入与详情页访问互斥。
+// Module-wide read-modify-write lock (concurrent record* calls cannot
+// overwrite each other; the store-level write serialization alone cannot
+// cover the read→modify→write span, so we lock at the business layer)
+let storeLock = Promise.resolve();
+function withStoreLock(task) {
+  const prev = storeLock;
+  let release;
+  storeLock = new Promise(res => { release = res; });
+  return prev.then(() => task()).finally(release);
+}
+
 // 读取整个存储结构（含版本校验，版本不符视为空）
 // Read the whole store (version-checked; mismatches treated as empty)
 export async function readDownloadUrlsStore() {
@@ -38,50 +52,54 @@ export async function getDownloadUrls(appId) {
 export async function recordDownloadUrl(appId, siteKey, siteName, url) {
   // 仅接受 http/https 且非内网地址（SSRF 纵深防御）
   if (!appId || !siteKey || !isSafeFetchUrl(url)) return;
-  const store = await readDownloadUrlsStore();
-  const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
-  const key = String(appId);
-  const existing = bucket[key];
-  const now = Date.now();
-
-  if (existing && existing.url === url) {
-    existing.lastAccessed = now; // 网址未变，仅更新调用时间 / URL unchanged
-  } else {
-    bucket[key] = {
-      url,
-      siteName: siteName || siteKey,
-      firstSeen: existing ? existing.firstSeen : now,
-      lastRefreshed: now,
-      lastAccessed: now
-    };
-  }
-  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
-}
-
-// 批量记录某站点下多个 appId 的详情页地址（列表页调用，一次读写）
-// Batch-record many appIds at one site (single read + write)
-export async function recordDownloadUrlsBatch(siteKey, siteName, entries) {
-  if (!siteKey || !entries || entries.length === 0) return;
-  const store = await readDownloadUrlsStore();
-  const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
-  const now = Date.now();
-  for (const entry of entries) {
-    const appId = entry && entry.appId;
-    const url = entry && entry.url;
-    if (!appId || !isSafeFetchUrl(url)) continue;
+  return withStoreLock(async () => {
+    const store = await readDownloadUrlsStore();
+    const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
     const key = String(appId);
     const existing = bucket[key];
+    const now = Date.now();
+
     if (existing && existing.url === url) {
-      existing.lastAccessed = now;
+      existing.lastAccessed = now; // 网址未变，仅更新调用时间 / URL unchanged
     } else {
       bucket[key] = {
-        url: String(url),
+        url,
         siteName: siteName || siteKey,
         firstSeen: existing ? existing.firstSeen : now,
         lastRefreshed: now,
         lastAccessed: now
       };
     }
-  }
-  await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
+    await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
+  });
+}
+
+// 批量记录某站点下多个 appId 的详情页地址（列表页调用，一次读写）
+// Batch-record many appIds at one site (single read + write)
+export async function recordDownloadUrlsBatch(siteKey, siteName, entries) {
+  if (!siteKey || !entries || entries.length === 0) return;
+  return withStoreLock(async () => {
+    const store = await readDownloadUrlsStore();
+    const bucket = store.sites[siteKey] || (store.sites[siteKey] = {});
+    const now = Date.now();
+    for (const entry of entries) {
+      const appId = entry && entry.appId;
+      const url = entry && entry.url;
+      if (!appId || !isSafeFetchUrl(url)) continue;
+      const key = String(appId);
+      const existing = bucket[key];
+      if (existing && existing.url === url) {
+        existing.lastAccessed = now;
+      } else {
+        bucket[key] = {
+          url: String(url),
+          siteName: siteName || siteKey,
+          firstSeen: existing ? existing.firstSeen : now,
+          lastRefreshed: now,
+          lastAccessed: now
+        };
+      }
+    }
+    await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);
+  });
 }

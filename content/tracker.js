@@ -220,12 +220,14 @@
       // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats
       if (GR.status) GR.status.showLastStats();
       sendResponse({ success: true });
+      return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }
     if (message.action === 'STEAM_RATINGS_UPDATE') {
       // 后台推送：缓存未命中的游戏已从 Steam 拉取完成（多波增量，done 标记收尾）
       // Background push: cache misses fetched from Steam (incremental waves + done)
       if (GR.list) GR.list.applySteamRatingsUpdate(message.ratings, message.done === true);
       sendResponse({ success: true });
+      return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }
     if (message.action === 'FORCE_REFRESH_PAGE') {
       // popup 强制刷新：收集当前页游戏引用 → 后台清除对应 Steam 缓存（忽视
@@ -265,6 +267,8 @@
       })();
       return true; // 异步响应 / Async response
     }
-    return true;
+    // v3.4.1：未处理的消息不返回 true（不无谓地保持消息通道，避免拖住
+    // Service Worker 生命周期）/ Unhandled messages return nothing, so no
+    // message channel is held open
   });
 })();

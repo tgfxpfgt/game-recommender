@@ -7,6 +7,7 @@
  * - Tag preference cloud, download-method breakdown, per-game table
  * - Steam tag-based recommendations
  * - Runtime log viewer (filter / export / clear)
+ * - Outbound request audit (v3.4.1: host/status/duration, failures highlighted)
  * - Backup management (create / restore / delete)
  *
  * 功能：
@@ -14,6 +15,7 @@
  * - 标签偏好云、下载方式分布、游戏明细表
  * - 基于 Steam 标签的推荐
  * - 运行日志查看（筛选 / 导出 / 清空）
+ * - 出站请求审计（v3.4.1：主机/状态/耗时，失败高亮）
  * - 备份管理（创建 / 恢复 / 删除）
  */
 
@@ -29,6 +31,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('logLevelFilter').addEventListener('change', loadRuntimeLogs);
   document.getElementById('exportLogsBtn').addEventListener('click', exportLogs);
   document.getElementById('clearLogsBtn').addEventListener('click', clearLogs);
+
+  // 出站请求审计 / Outbound audit
+  loadOutboundAudit();
+  document.getElementById('refreshAuditBtn').addEventListener('click', loadOutboundAudit);
+  document.getElementById('clearAuditBtn').addEventListener('click', clearAudit);
 
   // 备份 / Backups
   document.getElementById('createBackupBtn').addEventListener('click', createBackup);
@@ -102,7 +109,7 @@ function renderDownloadMethods(methods) {
     .map(([method, count]) => `
       <div class="method-item">
         <div class="method-count">${count}</div>
-        <div class="method-name">${methodNames[method] || method}</div>
+        <div class="method-name">${methodNames[method] || escapeHtml(method)}</div>
       </div>
     `).join('');
 }
@@ -150,11 +157,12 @@ function renderLogTable(logs) {
   };
 
   tbody.innerHTML = logs.map(log => {
-    const [typeName, typeClass] = typeNames[log.type] || [log.type, 'list'];
+    const [typeName, typeClass] = typeNames[log.type] || [escapeHtml(String(log.type || '未知')), 'list'];
     const time = log.timestamp ? new Date(log.timestamp).toLocaleString('zh-CN', {
       month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
     }) : '-';
-    const method = log.method || '-';
+    // v3.4.1：日志内容不可信，method 与未知 type 必须转义（防 innerHTML 注入）
+    const method = escapeHtml(log.method || '-');
 
     return `<tr>
       <td>${time}</td>
@@ -298,6 +306,54 @@ async function clearLogs() {
   if (!confirm('确定要清空所有运行日志吗？')) return;
   await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
   loadRuntimeLogs();
+}
+
+// ============ 出站请求审计 / Outbound Request Audit ============
+let cachedAudit = { entries: [], stats: null };
+
+// 从后台加载出站请求审计（最近 100 条）/ Load outbound request audit (latest 100)
+async function loadOutboundAudit() {
+  const container = document.getElementById('auditList');
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'GET_OUTBOUND_AUDIT', limit: 100 });
+    cachedAudit = (response && response.audit) || { entries: [], stats: null };
+    renderOutboundAudit();
+  } catch (e) {
+    container.innerHTML = `<div class="no-data">加载审计失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// 渲染审计列表（最新在前，失败高亮）/ Render audit (newest first, failures red)
+function renderOutboundAudit() {
+  const container = document.getElementById('auditList');
+  const stats = cachedAudit.stats || {};
+  const statsEl = document.getElementById('auditStats');
+  statsEl.textContent = stats.total > 0
+    ? `共 ${stats.total} 次 · 失败 ${stats.failed}（${stats.failRate}%）`
+    : '';
+  const entries = cachedAudit.entries || [];
+  if (entries.length === 0) {
+    container.innerHTML = '<div class="no-data">暂无请求记录</div>';
+    return;
+  }
+  container.innerHTML = entries.map(e => {
+    const time = new Date(e.t).toLocaleString('zh-CN', {
+      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
+    });
+    const detail = e.status ? `HTTP ${e.status}` : (e.ok ? '成功' : '异常');
+    return `<div class="log-entry ${e.ok ? '' : 'log-error'}">
+      <span class="log-time">${time}</span>
+      <span class="log-module">[${escapeHtml(e.host)}]</span>
+      <span class="log-msg">${e.ok ? '✓' : '✗'} ${escapeHtml(detail)} · ${e.ms}ms</span>
+    </div>`;
+  }).join('');
+}
+
+// 清空出站请求审计 / Clear outbound request audit
+async function clearAudit() {
+  if (!confirm('确定要清空出站请求审计吗？')) return;
+  await chrome.runtime.sendMessage({ action: 'CLEAR_OUTBOUND_AUDIT' });
+  loadOutboundAudit();
 }
 
 // ============ 备份管理 / Backup Management ============

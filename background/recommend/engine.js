@@ -17,7 +17,7 @@ import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 import { getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';
 import { fetchWithTimeout } from '../core/utils.js';
-import { cleanGameName } from '../steam/title-parser.js';
+import { cleanGameName } from '../core/title-parser.js';
 
 // 关键词评分计算 / Keyword-score calculation
 export function calculateKeywordScore(keywords, keywordWeights) {
@@ -113,9 +113,12 @@ export function computeGameScore({
   };
 }
 
-// 计算推荐评分（forceBuiltin 批量时强制内置算法）/ Compute a recommendation score
-export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
-  const settings = await getSettings();
+// 计算推荐评分（forceBuiltin 批量时强制内置算法；shared 为批量场景共享的
+// 只读数据 {settings, profiles, keywordWeights}，由调用方加载一次）
+// Compute a recommendation score (forceBuiltin for batch mode; `shared` carries
+// read-once data {settings, profiles, keywordWeights} loaded by the caller)
+export async function calculateRecommendation(gameInfo, forceBuiltin = false, shared = null) {
+  const settings = shared && shared.settings ? shared.settings : await getSettings();
   const weights = settings.weights;
 
   // LLM 模式（非强制内置时）
@@ -129,10 +132,12 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false) {
   }
 
   // 内置算法：聚合该游戏所需数据（行为画像/偏好/注册表/Steam 缓存）
-  const [profiles, keywordWeights] = await Promise.all([
-    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
-    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
-  ]);
+  const [profiles, keywordWeights] = (shared && shared.profiles)
+    ? [shared.profiles, shared.keywordWeights || {}]
+    : await Promise.all([
+        dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
+        dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
+      ]);
 
   // 解析 appId：列表页封面直取优先，否则名称索引
   let appId = gameInfo.appId || null;

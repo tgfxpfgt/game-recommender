@@ -5,6 +5,9 @@
  * 中英文子串提取、优先级排序）。
  * Parses searchable name candidates from download-site titles (noise removal,
  * segmentation, CN/EN substring extraction, priority ordering).
+ *
+ * v3.4.1：由 background/steam/ 下沉至 core/ —— 纯函数工具被 storage 层
+ * （name-index）与业务层共用，下沉后恢复 core→storage→业务层 单向依赖。
  */
 
 // 噪声词表（下载站标题常见修饰/版本词）。
@@ -13,11 +16,16 @@
 // Noise keywords in download-site titles. AUTHORITATIVE SOURCE: shared/patterns.js
 // (shared with content scripts); this copy must stay byte-identical — the
 // consistency assertion in tests/test-security.mjs guards against drift.
-const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520\.com|Switch520|520\.com|\s+The\s+Game\s*)/gi;
-
+const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520\.com|Switch520|520\.com|\s+The\s+Game\s*)/i;
+// v3.4.1：去掉全局标志 g——该正则会被 noisePattern.test()（learnNoise）复用，
+// 带 g 时 lastIndex 状态残留导致奇偶次调用结果交替（已实测复现）。
+// 但 replace() 需要 g 才能清掉**每一处**噪声（无 g 只替换第一处匹配，
+// 会导致 "重制版 抢先试玩" 之类仅清一个词），因此下方用克隆正则
+// noisePatternAll（带 g）专供 replace——test 与 replace 各用其版本，互不干扰。
+const noisePatternAll = new RegExp(noisePattern.source, 'gi');
 // 判断整段是否仅由噪声词组成 / Is a segment pure noise?
 function isPureNoise(text) {
-  const stripped = text.replace(noisePattern, '').replace(/[\s\|\-:：、]+/g, '');
+  const stripped = text.replace(noisePatternAll, '').replace(/[\s\|\-:：、]+/g, '');
   return stripped.length === 0;
 }
 
@@ -66,14 +74,14 @@ export function parseGameTitle(rawName) {
     if (/\bDLC\b|Build[.\s]*\d+|^V?\d+\.\d+/.test(part)) continue;
 
     // 1) 整段清洗后作为候选（保留主名，去掉噪声词）
-    const cleaned = part.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+    const cleaned = part.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
     if (cleaned.length >= 2) addCandidate(cleaned);
 
     // 2) 英文子串作为补充候选（v3.3.8：去除尾随冒号等标点——贪婪匹配会把
     //    "Windrose: 风启之旅" 抽出 "Windrose:"，下载站搜不到）
     const en = part.match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
     if (en) en.forEach(m => {
-      const cleanedEn = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim()
+      const cleanedEn = m.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim()
         .replace(/[:：\s\-]+$/g, '');
       if (cleanedEn.length >= 2) addCandidate(cleanedEn);
     });
@@ -82,7 +90,7 @@ export function parseGameTitle(rawName) {
     //    CN substring candidates (also noise-cleaned to keep search terms clean)
     const cn = part.match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
     if (cn) cn.forEach(m => {
-      const cleanedCn = m.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+      const cleanedCn = m.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
       if (cleanedCn.length >= 2) addCandidate(cleanedCn);
     });
   }
@@ -92,7 +100,7 @@ export function parseGameTitle(rawName) {
     // Fallback: the cleaned whole name must still be a valid title; pure-noise
     // or separator-only leftovers produce no candidates
     const fallback = splitTitleSegments(rawName).join(' ')
-      .replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+      .replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
     const strippedFallback = fallback.replace(/[\s\|\-:：、]+/g, '');
     if (strippedFallback.length >= 2) addCandidate(fallback);
   }
@@ -148,7 +156,7 @@ export function generateSearchVariants(rawName, extraNoiseWords = []) {
   const variants = [];
   const seen = new Set();
   const add = (text) => {
-    const cleaned = text.replace(noisePattern, ' ').replace(/\s+/g, ' ').trim();
+    const cleaned = text.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
     const key = cleaned.toLowerCase();
     if (cleaned.length >= 2 && !seen.has(key)) {
       seen.add(key);

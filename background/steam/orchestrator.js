@@ -17,7 +17,7 @@ import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSte
 import { recordGameInRegistry } from '../storage/registry.js';
 import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound, deleteNameIndexEntry } from '../storage/name-index.js';
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
-import { parseGameTitle, pickRegistryEnName } from './title-parser.js';
+import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
 

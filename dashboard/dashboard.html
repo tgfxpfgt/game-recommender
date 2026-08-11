@@ -126,6 +126,20 @@
       </div>
     </section>
 
+    <!-- 出站请求审计 / Outbound request audit -->
+    <section class="section">
+      <h2>🔎 出站请求审计</h2>
+      <p class="section-desc">后台对外部服务发起的请求记录（含被拦截/限速），用于异常外联溯源</p>
+      <div class="section-toolbar">
+        <span id="auditStats" class="backup-status"></span>
+        <button id="refreshAuditBtn" class="btn btn-sm">🔄 刷新</button>
+        <button id="clearAuditBtn" class="btn btn-sm btn-danger">🗑️ 清空审计</button>
+      </div>
+      <div id="auditList" class="runtime-log">
+        <div class="no-data">暂无请求记录</div>
+      </div>
+    </section>
+
     <!-- 备份管理 / Backup management -->
     <section class="section">
       <h2>💾 数据备份管理</h2>

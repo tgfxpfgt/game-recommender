@@ -214,6 +214,19 @@ node --check options/options.js
 
 ## 更新日志
 
+### v3.4.1（小版本：报告建议甄别 + 工程与安全加固）
+- **报告 7/8 章建议甄别**：对《项目进展与统计报告》24 条演进路线逐条核实（代码/CI/git 实测），确认 17 条准确、7 处不准确（如"chrome.storage 加密区"API 无此能力、LLM 本地化/规则 schema 校验已实现、内容脚本 ESM 化与 v3.3.9 决策矛盾等）；选择真实缺口路线落地（详见提交信息与下文）
+- **R1 依赖分层单向校验**：
+  1. `title-parser.js` 下沉 `steam/ → core/`（纯函数被 storage 层引用，修复分层违规①）；7 处引用同步
+  2. `reset.js` 归位 `core/ → storage/`（聚合各存储模块重置属 storage 层编排，修复分层违规②）
+  3. 新增 `tests/test-layers.mjs` 静态扫描全部 import，断言单向分层（core→storage→业务→handlers→入口），CI 拦截分层回归
+- **R2 出站请求审计 + 全局限速**（SSRF 校验 v3.4.1 基线之上的安全补强）：
+  4. 新增 `background/core/outbound-audit.js`：300 条环形审计缓冲（主机/耗时/状态/成败）+ 聚合统计 + 每主机 10s/100 次滑动窗口限速（可注入时钟可单测）
+  5. `fetchWithTimeout`（唯一出站通道）全路径接入：成功/网络错误/被拦截/被限速均记录；超限抛 `rate-limited`
+  6. 新 action `GET_OUTBOUND_AUDIT`/`CLEAR_OUTBOUND_AUDIT`；dashboard 新增"出站请求审计"区块（失败高亮 + 聚合统计 + 清空）
+- **R3 CI 补 E2E**：GitHub Actions 新增 `e2e` job（微软官方 apt 源安装 Edge + xvfb 跑非无头冒烟），PR/推送自动拦截浏览器端回归
+- **质量验证**：328 项单测全过（+30：分层 5 + 审计 24 + 版本断言）· E2E 13/13 · eslint 0 errors
+
 ### v3.4.0（中版本：全面审查与优化）
 - **全面审查结论**（技术/工程/安全双维度深度审查）：健康面——无循环依赖、GR 命名空间契约、SSRF/XSS/CSP 系统化、定时器无泄漏、存储模块化；发现并修复 **7 项真实缺陷 + 5 项工程优化**
 - **真实缺陷修复**：

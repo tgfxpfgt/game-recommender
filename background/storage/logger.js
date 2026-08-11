@@ -12,6 +12,25 @@ import { getSettings } from '../core/settings.js';
 
 let logBuffer = [];
 let logFlushTimer = null;
+let logConfig = null;       // 日志配置缓存（v3.4.1：高频 writeLog 不再每次读设置）
+let logConfigChecked = 0;   // 上次刷新时间戳
+
+// 日志配置（10 秒缓存；开关/级别调整最多延迟 10s 生效——flush 仍实时读设置兜底）
+// Logging config with a 10s cache (flush still reads settings live as a fallback)
+async function getLogConfig() {
+  const now = Date.now();
+  if (logConfig && now - logConfigChecked < 10000) return logConfig;
+  const settings = await getSettings();
+  logConfig = {
+    enableLog: !!settings.enableLog,
+    minLevel: LOG_LEVELS[settings.logLevel] !== undefined ? LOG_LEVELS[settings.logLevel] : LOG_LEVELS.info,
+    logStorage: settings.logStorage,
+    logRetentionDays: settings.logRetentionDays || 0,
+    maxRuntimeLog: settings.maxRuntimeLog || 300
+  };
+  logConfigChecked = now;
+  return logConfig;
+}
 
 // 立即将缓冲区合并写入存储 / Flush buffered logs into storage immediately
 export async function flushLogBuffer() {
@@ -22,6 +41,7 @@ export async function flushLogBuffer() {
   logBuffer = [];
 
   try {
+    // flush 低频（防抖 2s），实时读设置兜底（开关关闭时立即丢弃缓冲）
     const settings = await getSettings();
     if (!settings.enableLog) return; // 日志开关已关闭，丢弃缓冲 / Logging disabled; drop buffer
 
@@ -54,10 +74,9 @@ export async function flushLogBuffer() {
 // 记录日志（按配置级别过滤）/ Write a log entry (filtered by configured level)
 async function writeLog(level, module, message, data) {
   try {
-    const settings = await getSettings();
-    if (!settings.enableLog) return;
-    const minLevel = LOG_LEVELS[settings.logLevel] !== undefined ? LOG_LEVELS[settings.logLevel] : LOG_LEVELS.info;
-    if (LOG_LEVELS[level] < minLevel) return;
+    const cfg = await getLogConfig();
+    if (!cfg.enableLog) return;
+    if (LOG_LEVELS[level] < cfg.minLevel) return;
 
     const entry = { timestamp: Date.now(), level, module, message };
     if (data !== undefined) {
@@ -113,5 +132,7 @@ export async function clearRuntimeLogs() {
 // 重置缓冲（备份恢复/导入/清除后调用）/ Reset the buffer
 export function resetLogBuffer() {
   logBuffer = [];
+  logConfig = null;
+  logConfigChecked = 0;
   if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
 }

@@ -50,6 +50,7 @@ function moduleOf(field) {
 let steamCacheMemory = null;        // Map: appId -> entry（modules 结构）
 let steamCacheMemoryLoaded = false;
 let steamCacheWriteTimer = null;
+let steamCacheDirty = false;        // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
 // Is one module valid? (exists and not past its own TTL)
@@ -110,7 +111,8 @@ export async function loadSteamCacheToMemory() {
   const stored = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
   steamCacheMemory = new Map();
   for (const [key, entry] of Object.entries(stored || {})) {
-    steamCacheMemory.set(key, migrateEntry(entry));
+    // v3.4.1：历史 number 键（storesearch 搜索路径写入）统一规范化为 string
+    steamCacheMemory.set(String(key), migrateEntry(entry));
   }
   steamCacheMemoryLoaded = true;
 }
@@ -138,7 +140,7 @@ export function migrateEntry(entry) {
 // 读取缓存条目（返回模块结构）/ Read a cache entry (modular structure)
 export async function getSteamCacheEntry(cacheKey) {
   await loadSteamCacheToMemory();
-  return steamCacheMemory.get(cacheKey) || null;
+  return steamCacheMemory.get(String(cacheKey)) || null;
 }
 
 // 写入缓存条目（按 FIELD_MODULES 自动路由拆分到各模块；签名不变，调用方零改动）
@@ -146,6 +148,7 @@ export async function getSteamCacheEntry(cacheKey) {
 // unchanged so callers stay untouched)
 export async function setSteamCacheEntry(cacheKey, data) {
   await loadSteamCacheToMemory();
+  cacheKey = String(cacheKey);
   const now = Date.now();
   const existing = steamCacheMemory.get(cacheKey) || { modules: {} };
   const modules = existing.modules || {};
@@ -169,6 +172,7 @@ export async function setSteamCacheEntry(cacheKey, data) {
 
 // 防抖写入 / Debounced write
 function scheduleSteamCacheWrite() {
+  steamCacheDirty = true;
   if (steamCacheWriteTimer) clearTimeout(steamCacheWriteTimer);
   steamCacheWriteTimer = setTimeout(flushSteamCache, STEAM_CACHE_WRITE_DEBOUNCE);
 }
@@ -179,7 +183,10 @@ export async function flushSteamCache() {
     clearTimeout(steamCacheWriteTimer);
     steamCacheWriteTimer = null;
   }
-  if (!steamCacheMemory) return;
+  // v3.4.1：无未落盘修改时跳过整次全量序列化（批量场景每 5 批一次 flush，
+  // 无脏数据时避免重复写盘）
+  if (!steamCacheMemory || !steamCacheDirty) return;
+  steamCacheDirty = false;
   cleanupSteamCacheMemory(); // 写入前清理过期和超量条目 / Purge before persisting
   try {
     await dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steamCacheMemory));
@@ -230,12 +237,15 @@ export function getSteamCacheMemory() {
 // 删除单个缓存条目（缓存管理页删除用）/ Delete a single cache entry
 export async function deleteSteamCacheEntry(appId) {
   await loadSteamCacheToMemory();
-  if (steamCacheMemory) steamCacheMemory.delete(appId);
+  if (steamCacheMemory && steamCacheMemory.delete(String(appId))) {
+    steamCacheDirty = true;   // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
+  }
 }
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetSteamCache() {
   steamCacheMemory = null;
   steamCacheMemoryLoaded = false;
+  steamCacheDirty = false;
   if (steamCacheWriteTimer) { clearTimeout(steamCacheWriteTimer); steamCacheWriteTimer = null; }
 }

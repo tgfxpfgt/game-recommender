@@ -29,6 +29,25 @@ check('192.168 私有拒绝', utils.isSafeFetchUrl('http://192.168.1.1/'), false
 check('172.16 私有拒绝', utils.isSafeFetchUrl('http://172.16.0.1/'), false);
 check('js 协议拒绝', utils.isSafeFetchUrl('javascript:alert(1)'), false);
 check('非字符串拒绝', utils.isSafeFetchUrl(123), false);
+// v3.4.1：SSRF 加固用例（尾点域名 / IPv6 / 编码变体）
+check('尾点 localhost. 拒绝', utils.isSafeFetchUrl('http://localhost.:8080/'), false);
+check('尾点 127.0.0.1. 拒绝', utils.isSafeFetchUrl('http://127.0.0.1.:8080/'), false);
+check('IPv4 八进制变体拒绝', utils.isSafeFetchUrl('http://0177.0.0.1:8080/'), false);
+check('IPv4 十六进制变体拒绝', utils.isSafeFetchUrl('http://0x7f000001/'), false);
+check('IPv4 单整数变体拒绝', utils.isSafeFetchUrl('http://2130706433/'), false);
+check('IPv6 环回 ::1 拒绝', utils.isSafeFetchUrl('http://[::1]/'), false);
+check('IPv6 长格式环回拒绝', utils.isSafeFetchUrl('http://[0:0:0:0:0:0:0:1]/'), false);
+check('IPv6 未指定 :: 拒绝', utils.isSafeFetchUrl('http://[::]/'), false);
+check('IPv6 ULA fd00::/8 拒绝', utils.isSafeFetchUrl('http://[fd00::1]/'), false);
+check('IPv6 链路本地 fe80::/10 拒绝', utils.isSafeFetchUrl('http://[fe80::1]/'), false);
+check('IPv6 链路本地带 zone 拒绝', utils.isSafeFetchUrl('http://[fe80::1%25eth0]/'), false);
+check('IPv6 6to4 嵌入 127.0.0.1 拒绝', utils.isSafeFetchUrl('http://[2002:7f00:1::]/'), false);
+check('IPv6 Teredo 拒绝', utils.isSafeFetchUrl('http://[2001:0:0:1::1]/'), false);
+check('IPv6 v4-mapped 127.0.0.1 拒绝', utils.isSafeFetchUrl('http://[::ffff:127.0.0.1]/'), false);
+check('IPv6 v4-mapped 公网放行', utils.isSafeFetchUrl('http://[::ffff:8.8.8.8]/'), true);
+check('IPv6 组播 ff02 拒绝', utils.isSafeFetchUrl('http://[ff02::1]/'), false);
+check('IPv6 公网放行', utils.isSafeFetchUrl('http://[2606:4700:4700::1111]/'), true);
+check('IPv6 文档段放行', utils.isSafeFetchUrl('http://[2001:db8::1]/'), true);
 
 // 2. ND-JSON 编解码（加载真实 ndjson 模块）
 const ndjson = await import(new URL('../lib/ndjson.js', import.meta.url).href + '?t=' + Date.now());
@@ -85,11 +104,11 @@ check('TDZ 后向引用', tdzCount, 0);
 // 3.5 噪声词双源一致性（v3.3.9：shared/patterns.js 为权威源，后台副本防漂移）
 console.log('3.5 噪声词双源一致性（shared/patterns.js ↔ title-parser.js）');
 const sharedPatterns = fs.readFileSync(path.join(ROOT, 'shared/patterns.js'), 'utf-8');
-const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/steam/title-parser.js'), 'utf-8');
+const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/core/title-parser.js'), 'utf-8');
 // shared 侧是 JS 字符串字面量（\\d 双反斜杠），title-parser 侧是正则字面量（\d 单反斜杠）——
-// 归一化后再比较（字符串字面量转义还原）
+// 归一化后再比较（字符串字面量转义还原）。v3.4.1 后正则无 g 标志（防 .test() 状态残留）
 const sharedSource = ((sharedPatterns.match(/noisePatternSource = '([^']+)'/) || [])[1] || '').replace(/\\\\/g, '\\');
-const parserSource = (titleParserSrc.match(/const noisePattern = \/([\s\S]*?)\/gi;/) || [])[1] || '';
+const parserSource = (titleParserSrc.match(/const noisePattern = \/([\s\S]*?)\/(?:gi|i);/) || [])[1] || '';
 check('双源正则一致（无漂移）', sharedSource === parserSource, true);
 check('权威源非空', sharedSource.length > 50, true);
 // v3.4.0：detail-page 的噪声词必须经 __GR_PATTERNS__ 权威源构造（移除漂移副本）
@@ -119,7 +138,7 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '3.4.0');
+check('manifest 版本', manifest.version, '3.4.1');
 
 // 6. 缓存 TTL 单位解析（加载真实 constants 模块）
 console.log('6. 缓存 TTL 单位解析');
@@ -128,15 +147,16 @@ check('24 小时 → 24h', constants.resolveTtlMs('steamDynamic', { value: 24, u
 check('30 天 → 30d', constants.resolveTtlMs('registryConfirm', { value: 30, unit: 'days' }), 30 * 86400e3);
 check('1 月 → 30d', constants.resolveTtlMs('steamDynamic', { value: 1, unit: 'months' }), 30 * 86400e3);
 check('1 年 → 365d', constants.resolveTtlMs('negativeCache', { value: 1, unit: 'years' }), 365 * 86400e3);
-check('0 = 长期 Infinity', constants.resolveTtlMs('steamDynamic', { value: 0, unit: 'days' }), Infinity);
+check('0 = 长期 Infinity', constants.resolveTtlMs('steamDynamic', { value: 0, unit: 'days' }) === Infinity, true);
 check('旧数字格式兼容（steamDynamic=小时）', constants.resolveTtlMs('steamDynamic', 24), 24 * 3600e3);
 check('旧数字格式兼容（registryConfirm=天）', constants.resolveTtlMs('registryConfirm', 30), 30 * 86400e3);
 check('缺省值', constants.resolveTtlMs('steamDynamic', null), 24 * 3600e3);
 
-// 7. 中英文名异常检测（ensureValidChineseName / ensureValidEnglishName 的校验逻辑）
-console.log('7. 中英文名异常检测');
-const validEn = (enName) => !enName || !/[A-Za-z]{2,}/.test(enName) === false;
-const validCn = (cnName) => !cnName || !/[\u4e00-\u9fff]/.test(cnName) === false;
+// 7. 中英文名异常检测（导入 utils.js 真实谓词，不再复制被测逻辑）
+console.log('7. 中英文名异常检测（utils.js 真实谓词）');
+const utilsMod = await import(new URL('../background/core/utils.js', import.meta.url).href);
+const validEn = (enName) => !enName || utilsMod.hasLatinLetters(enName, 2);
+const validCn = (cnName) => !cnName || utilsMod.hasChineseChars(cnName);
 check('正常英文名', validEn('Worship Demon'), true);
 check('英文名中文占位异常', validEn('奉魔'), false);
 check('混合名含英文', validEn('Demeo x Dungeons'), true);
