@@ -77,8 +77,8 @@ const now = Date.now();
 const steamEntries = {
   // 全部模块未过期 → 保留
   1: { modules: { meta: { data: { appId: '1' }, ts: now }, rating: { data: { positiveRate: 90 }, ts: now } } },
-  // 仅 rating 且过期（无其他模块）→ 全过期删除
-  2: { modules: { rating: { data: { positiveRate: 80 }, ts: now - 25 * 3600e3 } } },
+  // 仅 rating 且过期（无其他模块）→ 全过期删除（v6.2.1：rating TTL 24h→7d，用 8 天前数据）
+  2: { modules: { rating: { data: { positiveRate: 80 }, ts: now - 8 * 86400e3 } } },
   // detail 25h 前（72h TTL 仍有效）→ 保留（部分有效，使用中自动刷新）
   3: { modules: { detail: { data: { url: 'https://x' }, ts: now - 25 * 3600e3 } } },
   // 旧平铺结构 → 迁移后按模块判定（空 data 无字段 → 删除）

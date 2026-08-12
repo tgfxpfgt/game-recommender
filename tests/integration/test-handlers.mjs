@@ -87,6 +87,11 @@ describe('SEARCH_STEAM 完整链路', () => {
     expect(after === before).toEqual(true);
     expect(resp.data && String(resp.data.appId)).toEqual('1245620');
   });
+  test('搜索链路仅发中文搜索（v6.2.1 english 冗余移除，每游戏省 1 请求）', () => {
+    const storesearchCalls = fetchMock._calls.filter((u) => u.includes('/api/storesearch'));
+    expect(storesearchCalls.length).toEqual(1);
+    expect(storesearchCalls[0].includes('l=schinese')).toEqual(true);
+  });
 });
 
 // ============ 2. SEARCH_STEAM 无结果 → 负缓存 ============

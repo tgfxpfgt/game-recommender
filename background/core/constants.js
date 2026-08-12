@@ -83,7 +83,7 @@ export const DEFAULT_SETTINGS = {
   // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
   // Cache TTLs (customizable in settings; value 0 = keep forever)
   cacheTtls: {
-    steamDynamic: { value: 24, unit: 'hours' }, // 好评率缓存（rating 模块）/ hours
+    steamDynamic: { value: 7, unit: 'days' }, // 好评率缓存（rating 模块）——周级稳定数据，24h→7d 减少重复请求（v6.2.1）/ days
     detailSteam: { value: 72, unit: 'hours' }, // 详情页完整缓存（detail 模块）/ hours
     spySteam: { value: 7, unit: 'days' }, // SteamSpy/SteamDB 补充数据（spy 模块）/ days
     metaSteam: { value: 30, unit: 'days' }, // Steam 基础信息（meta 模块）/ days
@@ -103,7 +103,7 @@ export const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 // 缓存 TTL 配置（随设置动态更新，可在设置页自定义各类缓存有效期）
 // Cache TTL config, updated dynamically from settings
 let TTL_CONFIG = {
-  steamDynamic: { value: 24, unit: 'hours' },
+  steamDynamic: { value: 7, unit: 'days' },
   detailSteam: { value: 72, unit: 'hours' },
   spySteam: { value: 7, unit: 'days' },
   metaSteam: { value: 30, unit: 'days' },

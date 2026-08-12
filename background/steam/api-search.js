@@ -142,7 +142,6 @@ export function nameMatchesSearch(resultName, term, rawName) {
 async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
   for (const term of searchTerms) {
     let cnData = null;
-    let enData = null;
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
         cnData = await (
@@ -155,19 +154,9 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
         recordSteamCall(false); /* 中文搜索失败不阻断流程 */
       }
     }
-    try {
-      enData = await (
-        await fetchWithTimeout(
-          `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`
-        )
-      ).json();
-      recordSteamCall(true);
-    } catch {
-      recordSteamCall(false); /* 英文搜索失败回退中文名 */
-    }
 
-    // 网络整体失败（中英文均未返回）：抛错 → 外层重试一次（抗瞬时抖动）
-    if (!cnData && !enData) throw new Error('Steam 搜索网络失败');
+    // 网络失败（两次尝试均未返回）：抛错 → 外层重试一次（抗瞬时抖动）
+    if (!cnData) throw new Error('Steam 搜索网络失败');
 
     const cnItems = (cnData && cnData.items) || [];
     if (cnItems.length > 0) {
@@ -180,12 +169,14 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
           nameMatchesSearch(i.name, term, rawName)
       );
       if (!related) continue;
-      const enItems = (enData && enData.items) || [];
-      const pickedEn = enItems.find((i) => i.id === related.id) || enItems[0] || null;
+      // v6.2.1：移除冗余的 english storesearch（此前每词并行 2 请求）——
+      // schinese 搜索对英文词同样有效，且英文名由 fetchSteamFullDetailsByAppId
+      // 的 appdetails(english) 官方直取覆盖（buildSteamResult.englishName），
+      // 此处英文名占位即可。每新游戏搜索省 1 请求（官方 API 优先 + 直取优先）。
       return {
         appId: related.id,
         name: related.name,
-        englishName: pickedEn ? pickedEn.name : related.name
+        englishName: related.name
       };
     }
   }

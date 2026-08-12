@@ -253,6 +253,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.2.1（小版本：官方 API 优先 + 直取优先 + 缓存优先三项优化）
+- **移除冗余 english storesearch**（api-search）：schinese 搜索对英文词同样有效，且英文名由 `fetchSteamFullDetailsByAppId` 的 appdetails(english) 官方直取覆盖（buildSteamResult.englishName）——此前每词并行 2 请求，english 结果仅用于被覆盖的英文名占位；**每新游戏搜索省 1 请求**（test-handlers 加防回归断言）
+- **rating 模块 TTL 24h → 7 天**（constants 默认 + TTL_CONFIG）：好评率是周级稳定数据，24h 意味着用户每天浏览同一游戏就重新请求 appreviews；7 天大幅减少重复请求（test-rules-cleanup 过期数据同步为 8 天前）
+- **移除 SteamDB 网页抓取**（api-supplement/api-assemble）：抓取仅产出展示链接（解析字段从未被消费），链接改模板拼接；每详情抓取省 1 个慢速网页请求（SteamDB 反爬频繁）；SteamSpy 保留（玩家人数/热度无官方替代，spy 模块 7 天缓存）
+- **质量**：vitest 15 套件 465 test 全过 · lint 0 · typecheck 0 · E2E 16/16
+
 ### v6.2.0（中版本：全局审查落地——单 runner 全量统一 + 契约化收尾 + 接线层测试）
 - **全局审查驱动**（2026-08-12）：对项目做全量审查（遗留标记/测试盲区/架构技术债三维扫描 + 实验验证），落地 P0+P1 全部项：
 - **单 runner 全量统一**：content-sim 纳入 vitest——`__grImport` 注入（eval 代码里的动态 import() 在 vite-node vm 执行器无回调，字符串替换为全局 provider 后兼容）+ 65 项 check→expect 节级 test 化（11 节，跨节 DOM 变量提升文件级）；`run-tests.js`/`helpers/assert.mjs`（check 体系）退役，`test:sim`/`coverage:node` 删除；CI 只跑 `npm test`

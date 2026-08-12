@@ -8,7 +8,7 @@ import {
 } from './api-details.js';
 import { fetchLastUpdate, fetchSteamReviews } from './api-reviews.js';
 import { DEMO_NAME_PATTERN } from './api-search.js';
-import { fetchSteamDbInfo, fetchSteamSpyInfo } from './api-supplement.js';
+import { fetchSteamSpyInfo } from './api-supplement.js';
 
 /**
  * Game Recommender - Steam API 子模块：api-assemble.js
@@ -24,7 +24,6 @@ export function buildSteamResult(
   langInfo,
   userTags,
   reviews,
-  steamdbInfo,
   steamspyInfo,
   enGameData,
   lastUpdate = null
@@ -48,7 +47,9 @@ export function buildSteamResult(
       (enGameData && enGameData.type === 'demo') ||
       DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
     url: `https://store.steampowered.com/app/${appId}/`,
-    steamdbUrl: steamdbInfo?.url || `https://steamdb.info/app/${appId}/`,
+    // v6.2.1：SteamDB 链接模板拼接（此前每次详情抓取 SteamDB 网页仅产出该
+    // URL——官方 API 优先，移除冗余网页抓取）
+    steamdbUrl: `https://steamdb.info/app/${appId}/`,
     rating: reviewSummary ? reviewSummary.score : null,
     ratingDesc: reviewSummary ? reviewSummary.desc : null,
     totalReviews: reviewSummary ? reviewSummary.total : 0,
@@ -75,7 +76,6 @@ export function buildSteamResult(
     developers: gameData.developers || [],
     description: gameData.short_description || '',
     headerImage: gameData.header_image || '',
-    steamdb: steamdbInfo,
     steamspy: steamspyInfo
   };
 }
@@ -124,10 +124,9 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     Promise.resolve(parseUserTags(storeHtml, gameData)),
     fetchSteamReviews(appId)
   ]);
-  // v3.3.6：SteamSpy 总是请求（详情页以 SteamSpy 为主数据）；SteamDB 仍抓取
-  // 供链接/补充；最近更新日期用最新公告日期近似
-  const [steamdbInfo, steamspyInfo, lastUpdate] = await Promise.all([
-    fetchSteamDbInfo(appId),
+  // v3.3.6：SteamSpy 总是请求（详情页以 SteamSpy 为主数据）；最近更新日期
+  // 用最新公告日期近似。v6.2.1：SteamDB 网页抓取移除（链接模板拼接即可）
+  const [steamspyInfo, lastUpdate] = await Promise.all([
     fetchSteamSpyInfo(appId).catch(() => null),
     fetchLastUpdate(appId).catch(() => null)
   ]);
@@ -138,7 +137,6 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     langInfo,
     userTags,
     reviews,
-    steamdbInfo,
     steamspyInfo,
     enGameData,
     lastUpdate
