@@ -24,9 +24,10 @@ function check(name, ok, extra = '') {
 
 // 生成 fixture 页（模拟 xianyudanji 列表页/详情页结构）；用本地 http 托管
 // （file:// 不被内容脚本 <all_urls> 匹配）。详情页 h1 复刻 16598 标题场景。
-function makeListHtml() {
-  const items = ['游戏A', '游戏B', '游戏C'].map((n, i) =>
-    `<li class="game-item"><a class="tit" href="/${100 + i}.html">${n}</a></li>`).join('');
+// v4.1.0：count 参数支持大列表（滚动批次场景，130 项 > 首屏批 60）
+function makeListHtml(count = 3) {
+  const items = Array.from({ length: count }, (_, i) =>
+    `<li class="game-item"><a class="tit" href="/${100 + i}.html">游戏${i + 1}</a></li>`).join('');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>fixture</title></head>
 <body><h2 class="entry-title"><a href="/1.html">游戏A</a></h2>
 <ul id="game-list">${items}</ul></body></html>`;
@@ -49,7 +50,9 @@ fs.mkdirSync(path.dirname(FIXTURE), { recursive: true });
 fs.writeFileSync(FIXTURE, LIST_HTML);
 const server = http.createServer((req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.end(req.url.includes('16598') ? DETAIL_HTML : LIST_HTML);
+  if (req.url.includes('16598')) return res.end(DETAIL_HTML);
+  if (req.url.includes('scroll=1')) return res.end(makeListHtml(130)); // v4.1.0 滚动批次
+  res.end(LIST_HTML);
 });
 await new Promise(r => server.listen(0, '127.0.0.1', r));
 // 用 host-resolver-rules 把下载站域名映射到本地 fixture（内容脚本对非追踪
@@ -202,5 +205,34 @@ if (extId) {
     `(手动选择=${manualShown} | 内容=${panelText.substring(0, 40).replace(/\n/g, ' ')})`);
   check('报错流程无 console error', errors3.length === 0, `(${errors3.slice(0, 3).join(' | ')})`);
   await page3.close();
+
+  // 5. 滚动批次 + dashboard 趋势图（v4.1.0）
+  console.log('5. 滚动批次与 dashboard 趋势图');
+  // 5a. 滚动批次：130 项大列表 → 滚动底部触发 IO 哨兵 → 第二批徽章
+  const page4 = await context.newPage();
+  await page4.goto(`${FIXTURE_URL}?scroll=1`);
+  await page4.waitForTimeout(1200); // 首屏批（60 项）发起
+  const badgesBefore = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
+  await page4.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  let badgesAfter = badgesBefore;
+  for (let i = 0; i < 40 && badgesAfter <= badgesBefore; i++) {
+    await new Promise(r => setTimeout(r, 500));
+    badgesAfter = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
+  }
+  check('滚动触发第二批徽章（按需扫描）', badgesAfter > badgesBefore,
+    `(${badgesBefore} → ${badgesAfter})`);
+  await page4.close();
+
+  // 5b. dashboard 趋势图（第 4 节详情页访问已产生当天 view_detail）
+  const dash = await context.newPage();
+  await dash.goto(`chrome-extension://${extId}/dashboard/dashboard.html`);
+  await dash.waitForTimeout(800);
+  const trendInfo = await dash.evaluate(() => ({
+    svgCount: document.querySelectorAll('#trendChart svg').length,
+    stats: (document.getElementById('trendStats') || { textContent: '' }).textContent
+  }));
+  check('dashboard 趋势图 SVG 渲染', trendInfo.svgCount > 0);
+  check('趋势统计显示浏览数据', /浏览/.test(trendInfo.stats), `(${trendInfo.stats})`);
+  await dash.close();
   }
 }

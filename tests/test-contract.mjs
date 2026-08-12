@@ -8,15 +8,13 @@
  */
 'use strict';
 
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
+
 const mod = await import(new URL('../background/core/message-contract.js', import.meta.url).href + '?t=' + Date.now());
 const { validateMessage } = mod;
 
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 console.log('1. TRACK_EVENT（type 白名单 + gameName 必填）');
 check('合法 view_detail', validateMessage('TRACK_EVENT', { data: { type: 'view_detail', gameName: '游戏A' } }).ok, true);
@@ -60,4 +58,39 @@ check('未契约化 action 放行', validateMessage('GET_STATS', {}).ok, true);
 check('未知 action 放行（由分发层拒绝）', validateMessage('NO_SUCH_ACTION', {}).ok, true);
 check('null 消息放行到分发层（missing action）', validateMessage('GET_STATS', null).ok, true);
 
-export const testResult = { pass, fail, ok: fail === 0 };
+console.log('6. 第二批契约（v4.1.0：批量/列表/日志/备份类）');
+check('GET_RECOMMENDATIONS 合法', validateMessage('GET_RECOMMENDATIONS', { games: [{ name: '游戏A', url: 'x', appId: 1 }] }).ok, true);
+check('GET_RECOMMENDATIONS 空数组合法', validateMessage('GET_RECOMMENDATIONS', { games: [] }).ok, true);
+check('GET_RECOMMENDATIONS 非数组拒绝', validateMessage('GET_RECOMMENDATIONS', {}).ok, false);
+check('GET_RECOMMENDATIONS 缺 name 拒绝', validateMessage('GET_RECOMMENDATIONS', { games: [{ appId: 1 }] }).ok, false);
+check('GET_STEAM_RATINGS 合法', validateMessage('GET_STEAM_RATINGS', { names: ['游戏A'], imageData: {} }).ok, true);
+check('GET_STEAM_RATINGS 空数组合法', validateMessage('GET_STEAM_RATINGS', { names: [] }).ok, true);
+check('GET_STEAM_RATINGS 非数组拒绝', validateMessage('GET_STEAM_RATINGS', {}).ok, false);
+check('PREFETCH_STEAM_RATINGS 合法', validateMessage('PREFETCH_STEAM_RATINGS', { names: ['A'], appIds: {} }).ok, true);
+check('CLEAR_CACHE_FOR_PAGE 合法', validateMessage('CLEAR_CACHE_FOR_PAGE', { names: ['A'], appIds: ['123'] }).ok, true);
+check('CLEAR_CACHE_FOR_PAGE 缺 appIds 拒绝', validateMessage('CLEAR_CACHE_FOR_PAGE', { names: [] }).ok, false);
+check('GET_GAME_CACHE_LIST 合法', validateMessage('GET_GAME_CACHE_LIST', { keyword: 'RPG', minRating: 70, page: 1 }).ok, true);
+check('GET_GAME_CACHE_LIST 空参合法', validateMessage('GET_GAME_CACHE_LIST', {}).ok, true);
+check('GET_GAME_CACHE_LIST 非法 minRating 拒绝', validateMessage('GET_GAME_CACHE_LIST', { minRating: 'x' }).ok, false);
+check('SEARCH_STEAM_CANDIDATES 合法', validateMessage('SEARCH_STEAM_CANDIDATES', { gameName: '游戏' }).ok, true);
+check('SEARCH_STEAM_CANDIDATES 缺名拒绝', validateMessage('SEARCH_STEAM_CANDIDATES', {}).ok, false);
+check('SEARCH_DOWNLOAD_SITES 合法', validateMessage('SEARCH_DOWNLOAD_SITES', { gameName: '游戏', appId: 123 }).ok, true);
+check('SEARCH_DOWNLOAD_SITES 缺名拒绝', validateMessage('SEARCH_DOWNLOAD_SITES', {}).ok, false);
+check('RECORD_DOWNLOAD_URLS_BATCH 合法', validateMessage('RECORD_DOWNLOAD_URLS_BATCH', { data: { domain: 'x', entries: [{ appId: 123, url: 'https://x' }] } }).ok, true);
+check('RECORD_DOWNLOAD_URLS_BATCH 空 entries 合法', validateMessage('RECORD_DOWNLOAD_URLS_BATCH', { data: { entries: [] } }).ok, true);
+check('RECORD_DOWNLOAD_URLS_BATCH 缺 data 拒绝', validateMessage('RECORD_DOWNLOAD_URLS_BATCH', {}).ok, false);
+check('GET_DOWNLOAD_HISTORY 空参合法', validateMessage('GET_DOWNLOAD_HISTORY', {}).ok, true);
+check('GET_DOWNLOAD_HISTORY 带名合法', validateMessage('GET_DOWNLOAD_HISTORY', { gameName: '游戏' }).ok, true);
+check('GET_RUNTIME_LOGS limit 合法', validateMessage('GET_RUNTIME_LOGS', { limit: 200 }).ok, true);
+check('GET_RUNTIME_LOGS limit 超界拒绝', validateMessage('GET_RUNTIME_LOGS', { limit: 99999 }).ok, false);
+check('GET_OUTBOUND_AUDIT 空参合法', validateMessage('GET_OUTBOUND_AUDIT', {}).ok, true);
+check('HEAL_REGISTRY_NAMES 空参合法（调用方不发 msg）', validateMessage('HEAL_REGISTRY_NAMES', {}).ok, true);
+check('GET_FREE_GAMES force 合法', validateMessage('GET_FREE_GAMES', { force: true }).ok, true);
+check('GET_FREE_GAMES force 非布尔拒绝', validateMessage('GET_FREE_GAMES', { force: 'yes' }).ok, false);
+check('EXPORT_DATA moduleKeys 合法', validateMessage('EXPORT_DATA', { moduleKeys: ['behaviorLog'] }).ok, true);
+check('EXPORT_DATA 无 moduleKeys 合法', validateMessage('EXPORT_DATA', {}).ok, true);
+check('EXPORT_DATA moduleKeys 非数组拒绝', validateMessage('EXPORT_DATA', { moduleKeys: 'behaviorLog' }).ok, false);
+check('RESTORE_BACKUP 带 moduleKeys 合法', validateMessage('RESTORE_BACKUP', { backupId: 'b-1', moduleKeys: ['settings'] }).ok, true);
+check('RESTORE_BACKUP 缺 backupId 仍拒绝', validateMessage('RESTORE_BACKUP', { moduleKeys: ['settings'] }).ok, false);
+
+export const testResult = reporter.getResult();

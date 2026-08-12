@@ -11,17 +11,15 @@
  * flow (instant cache hits → push updates for misses), and AJAX list waiting.
  */
 'use strict';
+
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 // ============ Fake DOM / Fake DOM ============
 class FakeEl {
@@ -255,9 +253,11 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   return { ratings: { '游戏A': { appId: '111', positiveRate: 95, ratingDesc: '特别好评' } }, pending: 2 };
 };
 
-// 推荐计算：游戏A 高分、游戏B/C 中低分（含 breakdown 供悬停展示）
+// 推荐计算：游戏A 高分、游戏B/C 中低分（含 breakdown 供悬停展示）。
+// v4.1.0：后台回包携带 name（按名回填，替代 index 对齐）
 presets['GET_RECOMMENDATIONS'] = (msg) => ({
   results: (msg.games || []).map(g => ({
+    name: g.name,
     recommendation: g.name === '游戏A'
       ? { score: 0.85, breakdown: { clickScore: 0.9, downloadScore: 0.8, keywordMatch: 0.7, steamRating: 0.9 } }
       : { score: 0.4, breakdown: { clickScore: 0.5, downloadScore: 0.3, keywordMatch: 0.4, steamRating: 0.4 } }
@@ -471,7 +471,7 @@ const itemF = makeItem('游戏F', 6);
 documentMock.body.appendChild(itemF.li); // 模拟挂载（过滤会从 DOM 移除）
 queryAllStub = (sel) => sel === 'li.game-item' ? [itemF.li] : [];
 presets['GET_STEAM_RATINGS'] = (msg) => ({ ratings: { '游戏F': { appId: '666', positiveRate: 50, ratingDesc: '褒贬不一', totalReviews: 100, recentPositiveRate: 40, recentTotalReviews: 10, lastUpdate: '2026-07-15' } }, pending: 0 });
-presets['GET_RECOMMENDATIONS'] = (msg) => ({ results: [{ recommendation: { score: 0.3, breakdown: { clickScore: 0.2, downloadScore: 0.1, keywordMatch: 0.3, steamRating: 0.4 } } }] });
+presets['GET_RECOMMENDATIONS'] = (msg) => ({ results: [{ name: '游戏F', recommendation: { score: 0.3, breakdown: { clickScore: 0.2, downloadScore: 0.1, keywordMatch: 0.3, steamRating: 0.4 } } }] });
 docReadyCallbacks.forEach(cb => cb());
 await new Promise(r => setTimeout(r, 30));
 
@@ -532,7 +532,8 @@ check('浮窗 demo 徽标正则带词边界（源码级）', detailSrc.includes(
 check('后台 isDemo 优先用 type 权威信号（源码级）', steamApiSrc.includes("gameData.type === 'demo'"), true);
 
 console.log('\n===== 内容脚本模拟测试结果 =====');
-console.log(pass + ' 通过, ' + fail + ' 失败');
+const finalResult = reporter.getResult();
+console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
 // 导出结果供 run-tests.js 聚合 / Export results for the test runner
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

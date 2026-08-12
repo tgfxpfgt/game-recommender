@@ -4,18 +4,16 @@
  * SSRF 校验（isSafeFetchUrl）、ND-JSON 编解码、TDZ 扫描、模块链模拟。
  */
 'use strict';
+
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'child_process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 // 1. SSRF 校验（加载真实 utils 模块）
 const utils = await import(new URL('../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
@@ -138,7 +136,11 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '4.0.0');
+check('manifest 版本', manifest.version, '4.1.0');
+// v4.1.0：版本三源一致（manifest / package.json / 本测试）——发布时手改易漏
+const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
+check('package.json 版本与 manifest 一致', pkg.version, manifest.version);
+check('CSP 显式声明（extension_pages 默认基线）', JSON.stringify(manifest.content_security_policy || {}), JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" }));
 
 // 6. 缓存 TTL 单位解析（加载真实 constants 模块）
 console.log('6. 缓存 TTL 单位解析');
@@ -165,7 +167,8 @@ check('中文名英文占位异常', validCn('Worship Demon'), false);
 check('中文名空值', validCn(''), true);
 
 console.log('\n===== 安全与存储测试结果 =====');
-console.log(pass + ' 通过, ' + fail + ' 失败');
+const finalResult = reporter.getResult();
+console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
 // 导出结果供 run-tests.js 聚合 / Export results for the test runner
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

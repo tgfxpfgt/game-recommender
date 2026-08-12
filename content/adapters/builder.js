@@ -22,7 +22,7 @@
       SITE_RULES = (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0)
         ? imported.sites
         : ((globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || []);
-    } catch (e) {
+    } catch {
       SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
     }
     return SITE_RULES;
@@ -41,7 +41,7 @@
     // 非法正则跳过（防御旧版本/手工写入的坏规则；后台 rules.js 也有同款校验）
     const detailPatterns = [];
     for (const p of (rule.detailUrlPatterns || [])) {
-      try { detailPatterns.push(new RegExp(p, 'i')); } catch (e) { /* skip invalid */ }
+      try { detailPatterns.push(new RegExp(p, 'i')); } catch { /* skip invalid */ }
     }
     // v3.4.1：判断链接是否指向详情页。未配置规则时回退内置路径特征
     // （此前直接放行全部链接，会把导航/分类链接误当详情页条目）。
@@ -55,7 +55,7 @@
           return detailPatterns.some(re => re.test(p));
         }
         return GENERIC_DETAIL_PATHS.some(prefix => p.includes(prefix));
-      } catch (e) { return false; }
+      } catch { return false; }
     };
     const cfg = rule.listItem || {};
     const containers = cfg.containers || [];
@@ -71,6 +71,20 @@
       }
       return root.querySelector(titleEls.join(',')) || fallback;
     };
+    // v4.1.0：addItem 无状态化（items/seen 由调用方持有），供整页扫描与
+    // 容器级增量提取（extractFromContainer）共用
+    const addItem = (items, seen, element, link, nameEl) => {
+      const href = link.href;
+      if (seen.has(href)) return;
+      const text = (nameEl.textContent || '').trim().replace(/\s+/g, ' ');
+      if (text.length < minLen || text.length > maxLen) return;
+      // 汇总贴/索引贴（置顶汇总/索引页）不是单个游戏，直接跳过
+      // Skip pinned digest/index posts (not a single game)
+      if (/顶置|置顶|汇总贴|汇总|索引/.test(text)) return;
+      if (!isDetailHref(href)) return;
+      seen.add(href);
+      items.push({ element, link, name: text, url: href, titleEl: nameEl });
+    };
 
     return {
       name: rule.name,
@@ -78,7 +92,7 @@
         const path = window.location.pathname;
         // 1. URL 特征 / URL patterns（非法正则跳过）
         if ((rule.listPage?.urlPatterns || []).some(p => {
-          try { return new RegExp(p, 'i').test(path); } catch (e) { return false; }
+          try { return new RegExp(p, 'i').test(path); } catch { return false; }
         })) return true;
         // 2. DOM 选择器 / DOM selectors
         if ((rule.listPage?.selectors || []).some(sel => document.querySelector(sel))) return true;
@@ -100,18 +114,6 @@
       getListItems: () => {
         const items = [];
         const seen = new Set();
-        const addItem = (element, link, nameEl) => {
-          const href = link.href;
-          if (seen.has(href)) return;
-          const text = (nameEl.textContent || '').trim().replace(/\s+/g, ' ');
-          if (text.length < minLen || text.length > maxLen) return;
-          // 汇总贴/索引贴（置顶汇总/索引页）不是单个游戏，直接跳过
-          // Skip pinned digest/index posts (not a single game)
-          if (/顶置|置顶|汇总贴|汇总|索引/.test(text)) return;
-          if (!isDetailHref(href)) return;
-          seen.add(href);
-          items.push({ element, link, name: text, url: href, titleEl: nameEl });
-        };
 
         // 策略1：容器 + 标题链接选择器（XDGame 的 a.tit 优先）
         // 多数站点未配置 titleLink（undefined 选择器会抛 DOMException），
@@ -120,7 +122,7 @@
           for (const sel of containers) {
             document.querySelectorAll(sel).forEach(li => {
               const tl = li.querySelector(cfg.titleLink);
-              if (tl) addItem(li, tl, tl);
+              if (tl) addItem(items, seen, li, tl, tl);
             });
             if (items.length > 0) return items;
           }
@@ -136,7 +138,7 @@
               const text = (a.textContent || '').trim();
               if (text.length < minLen) continue;
               const titleEl = findTitleEl(li, a);
-              addItem(li, a, titleEl);
+              addItem(items, seen, li, a, titleEl);
               if (items.some(it => it.element === li)) break;
             }
           });
@@ -152,10 +154,37 @@
             if (text.length < minLen) return;
             const element = a.closest('li, div, article') || a;
             const titleEl = findTitleEl(element, a);
-            addItem(element, a, titleEl);
+            addItem(items, seen, element, a, titleEl);
           });
         }
 
+        return items;
+      },
+      // v4.1.0：容器级增量提取（MutationObserver 新增节点用）——只扫传入
+      // 容器，不整页扫描；item 结构与 getListItems 完全一致
+      // Container-scoped incremental extraction for MutationObserver-added
+      // nodes; item shape matches getListItems.
+      extractFromContainer: (root) => {
+        if (!root || root.nodeType !== 1) return [];
+        const items = [];
+        const seen = new Set();
+        // 策略1：容器内 titleLink 直取
+        if (cfg.titleLink) {
+          const tl = root.querySelector(cfg.titleLink);
+          if (tl) addItem(items, seen, root, tl, tl);
+        }
+        // 策略2：容器内详情链接（与整页策略 2 同规则，取首个命中）
+        if (items.length === 0) {
+          const links = root.querySelectorAll('a[href]');
+          for (const a of links) {
+            if (isExcluded(a)) continue;
+            const text = (a.textContent || '').trim();
+            if (text.length < minLen) continue;
+            const titleEl = findTitleEl(root, a);
+            addItem(items, seen, root, a, titleEl);
+            if (items.length > 0) break;
+          }
+        }
         return items;
       }
     };
@@ -179,6 +208,24 @@
       const seen = new Set();
       // v4.0.0：受 scanLimit 上限（此前全量）
       Array.from(document.querySelectorAll('a')).slice(0, getScanLimit()).forEach(a => {
+        if (a.href && GENERIC_DETAIL_PATHS.some(p => a.href.includes(p)) && !seen.has(a.href)) {
+          seen.add(a.href);
+          const text = a.textContent.trim();
+          if (text.length > 2 && text.length < 100) {
+            const container = a.closest('li, div, article') || a;
+            const title = container.querySelector('h2, h3, h4, .title, .entry-title, .name') || a;
+            items.push({ element: container, link: a, name: text, url: a.href, titleEl: title });
+          }
+        }
+      });
+      return items;
+    },
+    // v4.1.0：容器级增量提取（通用路径特征）
+    extractFromContainer: (root) => {
+      if (!root || root.nodeType !== 1) return [];
+      const items = [];
+      const seen = new Set();
+      Array.from(root.querySelectorAll('a')).slice(0, getScanLimit()).forEach(a => {
         if (a.href && GENERIC_DETAIL_PATHS.some(p => a.href.includes(p)) && !seen.has(a.href)) {
           seen.add(a.href);
           const text = a.textContent.trim();
@@ -253,6 +300,15 @@
     return info ? info.appId : null;
   }
 
+  // v4.1.0：容器级增量提取（MutationObserver 新增节点用）——按当前站点
+  // 适配器规则只扫传入容器，item 结构与 getListItems 一致
+  // Container-scoped incremental extraction for MutationObserver-added nodes.
+  function findItemsInContainer(container) {
+    const adapter = getAdapter();
+    if (!adapter || typeof adapter.extractFromContainer !== 'function') return [];
+    return adapter.extractFromContainer(container);
+  }
+
   GR.builder = {
     loadSiteRules,
     isImageAppIdEnabled,
@@ -261,6 +317,7 @@
     getAdapterKey,
     extractSteamImageInfo,
     extractSteamAppIdFromImages,
+    findItemsInContainer, // v4.1.0：增量提取
     setScanLimit,
     getScanLimit,
     getSITE_RULES: () => SITE_RULES

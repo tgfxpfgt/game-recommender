@@ -38,11 +38,11 @@ export async function handleGetSteamRatings(message, sender) {
         });
         if (r) ratings[name] = r;
         else pending.push(name);
-      } catch (e) {
+      } catch {
         pending.push(name);
       }
     }));
-  } catch (e) {
+  } catch {
     pending.push(...ratingNames.filter(n => !ratings[n]));
   }
 
@@ -91,7 +91,7 @@ export async function handleGetSteamRatings(message, sender) {
               wave[name] = r;
               // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
               if (!r || r.failed) retryBatch.push(name);
-            } catch (e) {
+            } catch {
               wave[name] = null;
               retryBatch.push(name);
             }
@@ -153,7 +153,7 @@ export async function handlePrefetchSteamRatings(message) {
       } else {
         needsPrefetch.push(name);
       }
-    } catch (e) {
+    } catch {
       needsPrefetch.push(name);
     }
   }
@@ -176,7 +176,7 @@ export async function handlePrefetchSteamRatings(message) {
             appId: img ? img.appId : null,
             cover: img ? img.cover : null
           });
-        } catch (e) {}
+        } catch {}
       }));
       // 预载同样限流降速 / same rate-limit slowdown as the main flow
       if (getSteamApiStatus().anomaly) {

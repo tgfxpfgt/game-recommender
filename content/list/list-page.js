@@ -44,7 +44,7 @@
         let p;
         try {
           p = new URL(href, window.location.href).pathname;
-        } catch (e) {
+        } catch {
           return; // 畸形 href 跳过，不中断整页提取 / skip malformed hrefs
         }
         if (/\/\d+\.html?$/.test(p) || /\/game\/\d+\.html?$/i.test(p)) {
@@ -106,16 +106,9 @@
       });
     });
 
-    // 提取封面 appId（推荐计算用：appId 维度个性化评分）
-    const imageAppIdEnabled = GR.builder.isImageAppIdEnabled();
-    const nameToImage = {};
-    filteredItems.forEach(item => {
-      if (item.name && !nameToImage[item.name]) {
-        nameToImage[item.name] = imageAppIdEnabled ? GR.builder.extractSteamImageInfo(item.element) : null;
-      }
-    });
-
-    requestRecommendations(filteredItems, settings, nameToImage);
+    // v4.1.0：封面 appId 提取延迟化（fireBatch 内对批内名字惰性提取，不再
+    // 全量扫描）；推荐请求并入批次调度（fireBatch 并发，滚动批次自动获得
+    // 推荐徽章）。首屏提取成本从 O(全部 item) 降至 O(批大小)。
     requestSteamRatings(filteredItems, settings);
 
     // 预载下一页：提前预热下一页的 Steam 缓存
@@ -272,7 +265,7 @@
             const text = (a.textContent || '').trim().replace(/\s+/g, ' ');
             if (text.length > 2 && text.length < 200) names.add(text);
           }
-        } catch (e) {}
+        } catch {}
       });
     }
 
@@ -432,7 +425,8 @@
     batchState = {
       settings,
       processItems: [],    // 全部已发现 item（追加式）/ all discovered items
-      nameToImage: {},     // name → {appId, cover}（全部）/ per-name cover info
+      itemsByName: new Map(), // name → item（同名取首个，按名回填/惰性提取用）
+      nameToImage: {},     // name → {appId, cover}（惰性填充）/ lazy cover info
       requested: new Set(),// 已请求过的名字 / names already requested
       queue: [],           // 待请求名字（FIFO）/ names awaiting a batch
       inflight: false,     // 有在途批次（等待 resolve/done）/ batch in flight
@@ -443,11 +437,15 @@
     };
   }
 
-  // 提取单个 item 的封面 appId/图（幂等）/ extract cover info (idempotent)
-  function extractNameToImage(item) {
-    if (!item || !item.name || batchState.nameToImage[item.name]) return;
-    batchState.nameToImage[item.name] = GR.builder.isImageAppIdEnabled()
-      ? GR.builder.extractSteamImageInfo(item.element) : null;
+  // v4.1.0：封面 appId/图惰性提取（幂等）——只对批内名字提取，避免全量扫描
+  // Lazy per-name cover extraction (idempotent); batch-scoped, no full scan.
+  function ensureNameToImage(name) {
+    if (batchState.nameToImage[name] !== undefined) return batchState.nameToImage[name];
+    const item = batchState.itemsByName.get(name);
+    batchState.nameToImage[name] = item
+      ? (GR.builder.isImageAppIdEnabled() ? GR.builder.extractSteamImageInfo(item.element) : null)
+      : null;
+    return batchState.nameToImage[name];
   }
 
   // 追加 item 入队（url 去重；名字未请求过才入队）/ enqueue new items (url-dedup)
@@ -457,7 +455,7 @@
       if (!item || !item.name || item.name.length < 2 || seen.has(item.url)) continue;
       seen.add(item.url);
       batchState.processItems.push(item);
-      extractNameToImage(item);
+      if (!batchState.itemsByName.has(item.name)) batchState.itemsByName.set(item.name, item);
       if (!batchState.requested.has(item.name)) batchState.queue.push(item.name);
     }
   }
@@ -484,8 +482,11 @@
     const doneCount = batchState.requested.size - names.length;
     GR.status.showStatus('正在获取 Steam 好评率', doneCount, total,
       batchState.queue.length > 0 ? `已排队 ${batchState.queue.length} 个，缓存优先检索中...` : '缓存优先检索中...');
+    // v4.1.0：惰性提取批内封面（不再全量扫描）；评分与推荐共用同一 imageData
     const imageData = {};
-    names.forEach(n => { imageData[n] = batchState.nameToImage[n] || null; });
+    names.forEach(n => { imageData[n] = ensureNameToImage(n) || null; });
+    // v4.1.0：推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
+    fetchRecommendationsForBatch(names, imageData);
     try {
       const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData });
       const ratings = (response && response.ratings) || {};
@@ -512,18 +513,72 @@
     }
   }
 
-  // 滚动/追加调度：MutationObserver 发现新增项 + IntersectionObserver 底部哨兵
-  // Scroll/discovery scheduling: MutationObserver finds new items; an IO
-  // sentinel at the page bottom fires the next batch when scrolled near.
+  // v4.1.0：按批发起推荐请求（fire-and-forget；失败不影响评分流程）
+  // Per-batch recommendation request (fire-and-forget; failures don't block ratings)
+  async function fetchRecommendationsForBatch(names, imageData) {
+    try {
+      const games = names.map(n => {
+        const img = imageData[n];
+        return { name: n, url: '', appId: img && img.appId ? img.appId : null };
+      });
+      const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
+      applyRecommendationResults(response && response.results);
+    } catch (e) {
+      dbg('推荐计算失败: ' + e.message);
+    }
+  }
+
+  // v4.1.0：按名回填推荐徽章/高亮（results 自带 name，替代 index 对齐——
+  // 滚动批次追加后仍正确对应 item）
+  // Apply recommendation results by name (results carry `name`; replaces the
+  // index-aligned logic that broke when later batches appended items).
+  function applyRecommendationResults(results) {
+    if (!results || results.length === 0) return;
+    const settings = batchState.settings || {};
+    const threshold = settings.highlightThreshold || 0.6;
+    const bv = (settings && settings.badgeVisibility) || {};
+    const recEnabled = bv.rec !== false;
+    let highlighted = 0;
+    for (const result of results) {
+      if (!result || !result.recommendation) continue;
+      const item = batchState.itemsByName.get(result.name);
+      if (!item) continue;
+      // 推荐值徽章（好评率徽章之后，悬停显示各分值组成，分级着色）
+      prependRecBadge(item, result.recommendation, settings);
+      if (recEnabled && result.recommendation.score >= threshold) {
+        highlightItem(item);
+        highlighted++;
+      }
+    }
+    if (highlighted > 0) dbg(`高亮 ${highlighted} 个推荐游戏`);
+  }
+
+  // 滚动/追加调度：MutationObserver 增量发现 + IntersectionObserver 底部哨兵
+  // Scroll/discovery scheduling: MutationObserver finds new items (container-
+  // scoped, v4.1.0); an IO sentinel fires the next batch when scrolled near.
   function startListScan() {
     if (!batchState || batchState.observer) return;
-    let debounceTimer = null;
-    batchState.observer = new MutationObserver(() => {
-      if (debounceTimer) clearTimeout(debounceTimer);
-      debounceTimer = setTimeout(() => {
-        const fresh = getListItemsSmart(GR.builder.getAdapter());
+    let scanTimer = null;
+    let pendingNodes = [];
+    batchState.observer = new MutationObserver((mutations) => {
+      // 收集新增元素节点（v4.1.0：容器级增量提取，不再整页重扫）
+      for (const m of mutations) {
+        for (const node of m.addedNodes) {
+          if (node.nodeType === 1) pendingNodes.push(node);
+        }
+      }
+      if (scanTimer) clearTimeout(scanTimer);
+      scanTimer = setTimeout(() => {
+        const nodes = pendingNodes;
+        pendingNodes = [];
         const known = new Set(batchState.processItems.map(i => i.url));
-        const newItems = fresh.filter(f => !known.has(f.url));
+        const newItems = [];
+        for (const node of nodes) {
+          const found = GR.builder.findItemsInContainer(node);
+          for (const it of found) {
+            if (!known.has(it.url)) { known.add(it.url); newItems.push(it); }
+          }
+        }
         if (newItems.length > 0) {
           enqueueItems(newItems);
           maybeFetchNextBatch();
@@ -546,7 +601,8 @@
     if (!items || items.length === 0) return;
     initBatchState(settings);
     enqueueItems(items);
-    const jobNames = Object.keys(batchState.nameToImage).filter(n => n && n.length > 1);
+    // v4.1.0：名字全集来自 processItems（nameToImage 已惰性化）
+    const jobNames = batchState.processItems.map(i => i.name).filter(n => n && n.length > 1);
     if (jobNames.length === 0) {
       GR.status.hide();
       return;
@@ -694,6 +750,8 @@
   function prependRecBadge(item, recommendation, settings) {
     const link = item.link;
     if (!link || !recommendation) return;
+    // v4.1.0：防重复（REFRESH 强制刷新/多批回填场景）
+    if (link.querySelector('.gr-rec-badge')) return;
     const bv = (settings && settings.badgeVisibility) || {};
     if (bv.rec === false) return;
     const score = recommendation.score;
@@ -730,39 +788,19 @@
     }
   }
 
-  // 列表页：计算并高亮推荐游戏（appId 维度个性化评分）
+  // v4.1.0：推荐并入批次调度（fireBatch 按批发起 + 按名回填）。本函数保留
+  // 供 REFRESH_RECOMMENDATIONS 强制刷新：经 batchState 惰性提取兜底 appId
+  //（此前 REFRESH 不传 nameToImage → appId 恒 null 的缺陷一并修复）。
+  // Recommendations now ride the batch scheduler; this entry stays for the
+  // REFRESH_RECOMMENDATIONS force-refresh, falling back to batchState's lazy
+  // cover extraction (fixes the old appId-always-null on refresh).
   async function requestRecommendations(items, settings, nameToImage) {
-    try {
-      const maxItems = 60;
-      const processItems = items.slice(0, maxItems);
-      // 携带封面 appId：后台按 appId 聚合行为画像/Steam 标签/好评率/中文支持
-      const games = processItems.map(item => {
-        const img = nameToImage && nameToImage[item.name];
-        return { name: item.name, url: item.url, appId: img && img.appId ? img.appId : null };
-      });
-
-      const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
-      if (response && response.results) {
-        const threshold = settings?.highlightThreshold || 0.6;
-        // v3.3.8：关闭"推荐值"徽章 → 推荐高亮停用（数据获取不受影响）
-        const bv = (settings && settings.badgeVisibility) || {};
-        const recEnabled = bv.rec !== false;
-        let highlighted = 0;
-        response.results.forEach((result, index) => {
-          if (result.recommendation) {
-            // 推荐值徽章（好评率徽章之后，悬停显示各分值组成，分级着色）
-            prependRecBadge(processItems[index], result.recommendation, settings);
-            if (recEnabled && result.recommendation.score >= threshold) {
-              highlightItem(processItems[index]);
-              highlighted++;
-            }
-          }
-        });
-        dbg(`高亮 ${highlighted} 个推荐游戏`);
-      }
-    } catch (e) {
-      dbg('推荐计算失败: ' + e.message);
-    }
+    if (!batchState || !items || items.length === 0) return;
+    const names = items.map(i => i.name).filter(n => n && n.length > 1);
+    if (names.length === 0) return;
+    const imageData = {};
+    names.forEach(n => { imageData[n] = ensureNameToImage(n) || null; });
+    await fetchRecommendationsForBatch(names, imageData);
   }
 
   function highlightItem(item) {

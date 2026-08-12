@@ -7,12 +7,10 @@
  */
 'use strict';
 
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
+
 
 const mod = await import(new URL('../background/recommend/engine.js', import.meta.url).href + '?t=' + Date.now());
 const { computeGameScore, findProfile, calculateKeywordScore, steamspyScores } = mod;
@@ -72,6 +70,7 @@ check('模糊包含匹配', findProfile(profiles, '生化女神 末日开端|完
 check('无匹配返回 null', findProfile(profiles, '不存在的游戏', null), null);
 
 console.log('\n===== 推荐算法测试结果 =====');
-console.log(pass + ' 通过, ' + fail + ' 失败');
+const finalResult = reporter.getResult();
+console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

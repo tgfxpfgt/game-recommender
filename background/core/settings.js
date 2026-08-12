@@ -74,7 +74,7 @@ export async function refreshTtlConfig() {
   try {
     const s = await getSettings();
     setTtlConfig(s.cacheTtls);
-  } catch (e) { /* 使用默认值 */ }
+  } catch { /* 使用默认值 */ }
 }
 
 // 重置设置缓存（备份恢复/导入后调用）/ Reset the settings cache

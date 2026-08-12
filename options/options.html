@@ -387,7 +387,11 @@
                     <span class="label-text">API Key</span>
                     <span class="label-desc">API Key</span>
                   </div>
-                  <input type="password" id="llmApiKey" class="text-input" placeholder="sk-...">
+                  <div style="flex:1">
+                    <input type="password" id="llmApiKey" class="text-input" placeholder="sk-...">
+                    <!-- v4.1.0：密钥存储知情提示 -->
+                    <p class="setting-hint" style="margin:6px 0 0;font-size:12px;color:#8f98a0;">🔒 密钥仅存储于本机浏览器配置；导出 / 备份 / 导入均会自动剔除</p>
+                  </div>
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">

@@ -44,19 +44,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 行为趋势 / Trends (v4.0.0)
   loadTrends();
+  document.getElementById('trendGranularity').addEventListener('change', loadTrends);
   document.getElementById('exportTrendsCsvBtn').addEventListener('click', exportTrendsCsv);
   document.getElementById('exportGamesCsvBtn').addEventListener('click', exportGamesCsv);
   document.getElementById('exportLogsCsvBtn').addEventListener('click', exportLogsCsv);
+
+  // 出站审计筛选/导出 (v4.1.0)
+  document.getElementById('auditHostFilter').addEventListener('input', renderOutboundAudit);
+  document.getElementById('exportAuditCsvBtn').addEventListener('click', exportAuditCsv);
 });
 
-// ============ 行为趋势 / Behavior Trends (v4.0.0) ============
+// ============ 行为趋势 / Behavior Trends (v4.0.0, weekly since v4.1.0) ============
 let cachedTrends = []; // 供 CSV 导出 / cached daily trends for CSV export
 
-// 从后台加载按天聚合趋势 / Load daily-aggregated trends from background
+// 从后台加载聚合趋势（日/周粒度）/ Load trends from background (day/week)
 async function loadTrends() {
   const container = document.getElementById('trendChart');
+  const granularity = document.getElementById('trendGranularity').value;
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_TRENDS' });
+    const response = await chrome.runtime.sendMessage({ action: 'GET_TRENDS', granularity });
     cachedTrends = (response && response.daily) || [];
     renderTrendChart(cachedTrends);
   } catch (e) {
@@ -464,7 +470,8 @@ async function loadOutboundAudit() {
   }
 }
 
-// 渲染审计列表（最新在前，失败高亮）/ Render audit (newest first, failures red)
+// 渲染审计列表（最新在前，失败高亮；v4.1.0：支持主机筛选）
+// Render audit (newest first, failures red; host filter since v4.1.0)
 function renderOutboundAudit() {
   const container = document.getElementById('auditList');
   const stats = cachedAudit.stats || {};
@@ -472,9 +479,10 @@ function renderOutboundAudit() {
   statsEl.textContent = stats.total > 0
     ? `共 ${stats.total} 次 · 失败 ${stats.failed}（${stats.failRate}%）`
     : '';
-  const entries = cachedAudit.entries || [];
+  const filter = (document.getElementById('auditHostFilter').value || '').trim().toLowerCase();
+  const entries = (cachedAudit.entries || []).filter(e => !filter || (e.host || '').toLowerCase().includes(filter));
   if (entries.length === 0) {
-    container.innerHTML = '<div class="no-data">暂无请求记录</div>';
+    container.innerHTML = '<div class="no-data">' + (filter ? '无匹配主机记录' : '暂无请求记录') + '</div>';
     return;
   }
   container.innerHTML = entries.map(e => {
@@ -488,6 +496,19 @@ function renderOutboundAudit() {
       <span class="log-msg">${e.ok ? '✓' : '✗'} ${escapeHtml(detail)} · ${e.ms}ms</span>
     </div>`;
   }).join('');
+}
+
+// v4.1.0：导出审计 CSV（含筛选结果）/ Export the (filtered) audit as CSV
+function exportAuditCsv() {
+  const filter = (document.getElementById('auditHostFilter').value || '').trim().toLowerCase();
+  const entries = (cachedAudit.entries || []).filter(e => !filter || (e.host || '').toLowerCase().includes(filter));
+  if (entries.length === 0) { alert('暂无审计记录'); return; }
+  downloadCsv(`game-recommender-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(['时间', '主机', '成功', '状态', '耗时ms'],
+      entries.map(e => [
+        new Date(e.t).toLocaleString('zh-CN'), e.host,
+        e.ok ? '是' : '否', e.status || '', e.ms
+      ])));
 }
 
 // 清空出站请求审计 / Clear outbound request audit

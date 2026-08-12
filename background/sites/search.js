@@ -236,7 +236,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
           if (detailHost === baseHost || detailHost.endsWith('.' + baseHost)) {
             safeDetailUrl = detailUrl;
           }
-        } catch (e) { /* 无法解析即丢弃 */ }
+        } catch { /* 无法解析即丢弃 */ }
         if (!safeDetailUrl) {
           Logger.debug('Sites', `丢弃非本域详情链接: ${detailUrl.substring(0, 80)}`);
         }
@@ -292,7 +292,7 @@ export function buildBaiduPanUrlWithPwd(url, pwd) {
     if (u.searchParams.has('pwd')) return url;
     u.searchParams.set('pwd', pwd);
     return u.toString();
-  } catch (e) {
+  } catch {
     // URL解析失败，简单拼接
     if (url.includes('?')) {
       return url + '&pwd=' + encodeURIComponent(pwd);

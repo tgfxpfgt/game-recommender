@@ -158,7 +158,7 @@ class DataStore {
       // NDJSON 内部已跳过损坏行）
       console.warn(`[DataStore] ${fileHandle.name} 数据损坏，备份后重置:`, e.message);
       await this._backupCorruptFile(fileHandle, file);
-      try { await this._resetFile(fileHandle); } catch (e2) { /* 重置失败下次再试 */ }
+      try { await this._resetFile(fileHandle); } catch { /* 重置失败下次再试 */ }
       return format === 'ndjson' ? [] : null;
     }
   }
@@ -241,7 +241,7 @@ class DataStore {
   async removeModule(moduleKey) {
     const cfg = MODULE_FILES[moduleKey];
     if (this.opfsAvailable && cfg) {
-      try { await this.dir.removeEntry(cfg.file); } catch (e) { /* 文件不存在忽略 */ }
+      try { await this.dir.removeEntry(cfg.file); } catch { /* 文件不存在忽略 */ }
     }
     await chrome.storage.local.remove(moduleKey);
   }

@@ -124,6 +124,32 @@ game-recommender/
 
 ## 技术架构
 
+### 依赖分层（v4.1.0 静态断言 + 自动生成图）
+后台单向分层 `core → storage → 业务层 → handlers → 入口`，由 `tests/test-layers.mjs` 静态扫描全部 import 断言（CI 拦截回归）；`node tests/test-layers.mjs --print` 可重新生成下图：
+
+```mermaid
+flowchart LR
+  core["core(工具/常量)"] --> data["data(OPFS)"]
+  core["core(工具/常量)"] --> core["core(工具/常量)"]
+  biz["业务层(steam/recommend/sites/freegames)"] --> data["data(OPFS)"]
+  biz["业务层(steam/recommend/sites/freegames)"] --> core["core(工具/常量)"]
+  biz["业务层(steam/recommend/sites/freegames)"] --> storage["storage(数据)"]
+  handlers["handlers(分发)"] --> data["data(OPFS)"]
+  handlers["handlers(分发)"] --> core["core(工具/常量)"]
+  handlers["handlers(分发)"] --> storage["storage(数据)"]
+  handlers["handlers(分发)"] --> biz["业务层(steam/recommend/sites/freegames)"]
+  entry["service-worker(入口)"] --> adapters["adapters(站点规则)"]
+  entry["service-worker(入口)"] --> core["core(工具/常量)"]
+  entry["service-worker(入口)"] --> storage["storage(数据)"]
+  entry["service-worker(入口)"] --> handlers["handlers(分发)"]
+  entry["service-worker(入口)"] --> biz["业务层(steam/recommend/sites/freegames)"]
+  biz["业务层(steam/recommend/sites/freegames)"] --> biz["业务层(steam/recommend/sites/freegames)"]
+  storage["storage(数据)"] --> data["data(OPFS)"]
+  storage["storage(数据)"] --> core["core(工具/常量)"]
+  storage["storage(数据)"] --> storage["storage(数据)"]
+  data["data(OPFS)"] --> lib["lib(工具)"]
+```
+
 ### 后台服务工作者 (service-worker.js)
 - **Steam API 编排器**：搜索游戏 → 获取详情 → 解析语言支持 → 获取评测 → SteamDB/SteamSpy 数据；自适应检索（删词组合 + 噪声词自动学习）
 - **下载站搜索引擎**：多搜索词策略 + 跨语言匹配算法 + 链接匹配度评分，站点配置来自规则文件
@@ -213,6 +239,25 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v4.1.0（中版本：全部优化建议落地）
+- **性能三件套**：
+  1. **推荐流联动滚动**：推荐请求并入批次调度（fireBatch 按批并发 GET_RECOMMENDATIONS），按 name 回填徽章（替代 index 对齐）——滚动批次自动获得推荐徽章/高亮；顺带修复 REFRESH 路径 appId 恒 null 缺陷；prependRecBadge 防重复
+  2. **封面提取延迟化**：`extractSteamImageInfo` 从全量提取改为 fireBatch 内惰性提取（500 项列表首屏 DOM 扫描降 ~90%），评分与推荐共用 imageData
+  3. **MutationObserver 增量提取**：新增 `GR.builder.findItemsInContainer`（容器级提取，item 结构与全量一致），新增节点不再整页重扫（大列表 O(n) → O(新增)）
+- **工程三件套**：
+  4. **eslint 完全清零**：删 4 个未使用 import + 50 处 catch 参数 → optional catch binding（`catch {`），`npm run lint` 0 problems（此前 54 warnings）
+  5. **版本三源断言**：manifest / package.json / 测试断言三者一致（防发布手改遗漏）
+  6. **测试框架统一**：9 个测试文件的重复 check()/计数器抽取为 `tests/helpers/assert.mjs`（createReporter），行为完全一致
+  7. **依赖图自动生成**：`node tests/test-layers.mjs --print` 输出 Mermaid 分层图（含 data/lib 基础层），README 附图，静态断言 CI 拦截回归
+- **安全两小项**：manifest 显式声明 CSP（与 MV3 默认一致，基线显式化）；LLM API Key 输入框旁加"仅本机存储、导出/备份/导入剔除"知情提示
+- **功能扩展**：
+  8. **详情页综合推荐理由**：浮窗评分区底部显示"综合推荐 X%（好评率 · 中文支持 · 热度 · 平均时长）"（与推荐引擎同源口径，零新调用）
+  9. **趋势周聚合**：`aggregateTrends(log, 'week')`（周桶键=周一）；dashboard 日/周切换
+  10. **出站审计增强**：主机筛选输入框 + 审计 CSV 导出（含筛选结果）
+  11. **限免微软商店**：GamerPower 平台门新增 microsoft 关键字映射（此前 "Microsoft Store" 被丢弃）+ 筛选按钮；itch/Humble 已被 GamerPower 聚合覆盖不重复建设
+  12. **消息契约全量覆盖**：第二批 13 条规则（GET_RECOMMENDATIONS/GET_STEAM_RATINGS/PREFETCH_STEAM_RATINGS 数组校验、CLEAR_CACHE_FOR_PAGE、GET_GAME_CACHE_LIST 过滤字段、SEARCH_* 必填名、RECORD_DOWNLOAD_URLS_BATCH、limit 范围、moduleKeys 数组、force 布尔），全部 action 契约化完成
+- **质量验证**：410 项单测全过（+35）· E2E 16/16（+3：滚动批次/dashboard 趋势）· **eslint 0 problems** · Mimosa 深度扫描 0 findings
 
 ### v4.0.0（大版本：按需扫描 + 可视化 + 契约化 + 信号增强）
 - **R4 列表按需扫描**（性能）：

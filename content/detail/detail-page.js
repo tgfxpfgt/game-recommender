@@ -142,7 +142,7 @@
           panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
           GR.status.showStats({ title: '下载站资源检索完成', summary: '未找到匹配资源' });
         }
-      } catch (e) {
+      } catch {
         panel.innerHTML = `<div style="padding:14px;text-align:center;color:#e74c3c;">搜索失败</div>`;
       }
     })();
@@ -292,7 +292,7 @@
         dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
         try {
           await chrome.runtime.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
-        } catch (e) { /* 后台不可达不阻断重检索 */ }
+        } catch { /* 后台不可达不阻断重检索 */ }
         // 重新检索：有封面 appId 直取，否则名称搜索
         const imgAppId = GR.builder.extractSteamAppIdFromImages();
         let resp = null;
@@ -673,6 +673,20 @@
           ${data.steamspy && data.steamspy.reviewCount ? `
             <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">${data.steamspy.reviewCount} 条评测</div>
           ` : ''}
+          <!-- v4.1.0：综合推荐理由（好评率 70% + 中文 30% 口径 + 热度/时长因子，与推荐引擎同源） -->
+          ${(() => {
+            let s = 0.4; // 无好评率中性值（对齐引擎 steamScore）
+            if (data.positiveRate !== null && data.positiveRate !== undefined) {
+              s = Math.min((data.positiveRate / 100) * 0.7 + (data.chineseSupported ? 0.3 : 0), 1);
+            }
+            const parts = [];
+            if (data.positiveRate !== null && data.positiveRate !== undefined) parts.push(`好评率 ${data.positiveRate}%`);
+            parts.push(data.chineseSupported ? '中文支持' : '暂无中文');
+            const heat = spyHeatLabel();
+            if (heat) parts.push(`热度 ${heat}`);
+            if (spy && spy.averagePlaytime) parts.push(`平均时长 ${spy.averagePlaytime}`);
+            return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#acb2b8;">综合推荐 <span style="color:#66c0f4;font-weight:bold;">${Math.round(s * 100)}%</span><span style="color:#8f98a0;">（${parts.join(' · ')}）</span></div>`;
+          })()}
         </div>
 
         <!-- 热门用户自定义标签 -->
@@ -751,7 +765,7 @@
           refreshBtn.disabled = true;
           try {
             await onRefresh();
-          } catch (e) {
+          } catch {
             refreshBtn.textContent = '❌ 更新失败';
             setTimeout(() => { refreshBtn.textContent = originalText; refreshBtn.disabled = false; }, 1500);
           }
@@ -769,7 +783,7 @@
           reportBtn.disabled = true;
           try {
             await onReport();
-          } catch (e) {
+          } catch {
             reportBtn.textContent = '❌ 重检索失败';
             setTimeout(() => { reportBtn.textContent = originalText; reportBtn.disabled = false; }, 1500);
           }

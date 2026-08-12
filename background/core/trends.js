@@ -11,25 +11,44 @@
 // 按天聚合行为日志：返回按日期升序的 [{date, views, downloads, rate}]
 // Aggregate the behavior log by calendar day (ascending [{date,views,downloads,rate}]).
 export function aggregateDailyTrends(log) {
-  const byDay = new Map();
+  return aggregateTrends(log, 'day');
+}
+
+// v4.1.0：按粒度聚合（day=日历日 / week=自然周，周桶键为该周周一日期）
+// Aggregate by granularity ('day' = calendar day, 'week' = ISO-ish week keyed
+// by its Monday). Pure, zero-dependency, unit-testable.
+export function aggregateTrends(log, granularity = 'day') {
+  const byBucket = new Map();
   for (const e of log || []) {
     if (!e || !e.timestamp) continue;
     const d = new Date(e.timestamp);
     if (Number.isNaN(d.getTime())) continue;
-    const key = d.getFullYear() + '-' +
-      String(d.getMonth() + 1).padStart(2, '0') + '-' +
-      String(d.getDate()).padStart(2, '0');
-    let day = byDay.get(key);
-    if (!day) { day = { date: key, views: 0, downloads: 0 }; byDay.set(key, day); }
-    if (e.type === 'view_detail') day.views++;
-    else if (e.type === 'click_download') day.downloads++;
+    const key = granularity === 'week' ? mondayKey(d) : dayKey(d);
+    let bucket = byBucket.get(key);
+    if (!bucket) { bucket = { date: key, views: 0, downloads: 0 }; byBucket.set(key, bucket); }
+    if (e.type === 'view_detail') bucket.views++;
+    else if (e.type === 'click_download') bucket.downloads++;
   }
-  return [...byDay.values()]
+  return [...byBucket.values()]
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(day => ({
-      date: day.date,
-      views: day.views,
-      downloads: day.downloads,
-      rate: day.views > 0 ? Math.round((day.downloads / day.views) * 100) : 0
+    .map(b => ({
+      date: b.date,
+      views: b.views,
+      downloads: b.downloads,
+      rate: b.views > 0 ? Math.round((b.downloads / b.views) * 100) : 0
     }));
+}
+
+function dayKey(d) {
+  return d.getFullYear() + '-' +
+    String(d.getMonth() + 1).padStart(2, '0') + '-' +
+    String(d.getDate()).padStart(2, '0');
+}
+
+// 该日期所在周的周一日期（周桶键）/ Monday of the week containing d
+function mondayKey(d) {
+  const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const dow = (m.getDay() + 6) % 7; // 周一=0 ... 周日=6
+  m.setDate(m.getDate() - dow);
+  return dayKey(m);
 }

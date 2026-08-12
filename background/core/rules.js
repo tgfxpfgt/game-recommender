@@ -20,7 +20,7 @@ export async function getSiteRules() {
     siteRulesCache = (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0)
       ? imported
       : (globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] });
-  } catch (e) {
+  } catch {
     siteRulesCache = globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] };
   }
   return siteRulesCache;
@@ -126,7 +126,7 @@ function validateSiteRule(site, depth) {
   ];
   for (const p of regexFields) {
     if (typeof p !== 'string') return `站点 "${site.key}" 正则字段含非字符串项`;
-    try { new RegExp(p, 'i'); } catch (e) {
+    try { new RegExp(p, 'i'); } catch {
       return `站点 "${site.key}" 含非法正则: ${String(p).substring(0, 60)}`;
     }
   }
@@ -202,7 +202,7 @@ export async function getAllRules() {
   try {
     const stored = await dataStore.readModule(DB_KEYS.ADAPTER_RULES);
     if (stored && stored.version && Array.isArray(stored.sites)) imported = stored;
-  } catch (e) { /* 读取失败按无导入处理 */ }
+  } catch { /* 读取失败按无导入处理 */ }
   const merged = imported || builtin;
   return { builtin, imported, merged };
 }
@@ -230,7 +230,7 @@ function isPureJsonSafe(value) {
     if (json === undefined || json.length > IMPORT_MODULE_BYTES_LIMIT) return false;
     JSON.parse(json);
     return true;
-  } catch (e) { return false; }
+  } catch { return false; }
 }
 
 // settings 模块清洗：已知字段白名单 + 密钥清空 + endpoint 协议校验

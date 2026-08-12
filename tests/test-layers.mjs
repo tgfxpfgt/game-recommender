@@ -12,6 +12,10 @@
  */
 'use strict';
 
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
+
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,12 +23,6 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const BG = path.join(ROOT, 'background');
 
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 // 目标模块 → 所属层 / target path (relative to background/) → layer
 function layerOf(relPath) {
@@ -48,6 +46,8 @@ const ALLOWED = {
   biz:       new Set(['biz', 'storage', 'core', 'data', 'lib']),
   handlers:  new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry']),
   entry:     new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry']),
+  data:      new Set(['data', 'lib']),
+  lib:       new Set(['lib']),
   // adapters 是内容脚本全局 IIFE，仅允许入口副作用导入（注册站点规则）
   adapters:  new Set(['entry'])
 };
@@ -65,8 +65,12 @@ function collectJs(dir, out) {
 
 console.log('1. 依赖分层单向校验（core→storage→业务→handlers→入口）');
 const violations = [];
+const edges = []; // [srcLayer, targetLayer]（--print 模式用）
 const importRe = /import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g;
-for (const file of collectJs(BG, [])) {
+// v4.1.0：扫描范围含 background + data + lib（基础层，图表完整性）
+const scannedFiles = collectJs(BG, [])
+  .concat(collectJs(path.join(ROOT, 'data'), []), collectJs(path.join(ROOT, 'lib'), []));
+for (const file of scannedFiles) {
   const rel = path.relative(BG, file);
   const src = fs.readFileSync(file, 'utf-8');
   const srcLayer = layerOf(rel);
@@ -78,10 +82,29 @@ for (const file of collectJs(BG, [])) {
     if (!spec.startsWith('.') && !spec.startsWith('..')) continue; // 裸模块说明符跳过
     const target = path.normalize(path.join(path.dirname(rel), spec));
     const targetLayer = layerOf(target);
+    edges.push([srcLayer, targetLayer]);
     if (!allowed.has(targetLayer)) {
       violations.push(`${rel} → ${target}（${targetLayer}，源层 ${srcLayer} 不允许）`);
     }
   }
+}
+
+// v4.1.0：--print 模式输出 Mermaid 依赖图（层聚合边，供 README 附图）
+// --print mode: emit a Mermaid flowchart (layer-level edges) for the README.
+const LAYER_LABELS = {
+  core: 'core(工具/常量)', storage: 'storage(数据)', biz: '业务层(steam/recommend/sites/freegames)',
+  handlers: 'handlers(分发)', entry: 'service-worker(入口)', data: 'data(OPFS)', lib: 'lib(工具)',
+  adapters: 'adapters(站点规则)'
+};
+if (process.argv.includes('--print')) {
+  const unique = [...new Set(edges.map(e => e[0] + '>' + e[1]))].map(e => e.split('>'));
+  console.log('\n```mermaid');
+  console.log('flowchart LR');
+  for (const [s, t] of unique) {
+    console.log(`  ${s}["${LAYER_LABELS[s] || s}"] --> ${t}["${LAYER_LABELS[t] || t}"]`);
+  }
+  console.log('```');
+  process.exit(0);
 }
 for (const v of violations) console.log('  ⚠', v);
 check('分层违规数（应为 0）', violations.length, 0);
@@ -91,4 +114,4 @@ check('storage/reset.js 存在（归位后）', fs.existsSync(path.join(BG, 'sto
 check('旧 steam/title-parser.js 已移除', fs.existsSync(path.join(BG, 'steam/title-parser.js')), false);
 check('旧 core/reset.js 已移除', fs.existsSync(path.join(BG, 'core/reset.js')), false);
 
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

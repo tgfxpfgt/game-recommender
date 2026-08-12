@@ -65,7 +65,7 @@ export async function flushLogBuffer() {
     } else {
       await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
     }
-  } catch (e) {
+  } catch {
     // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
     logBuffer = [...pending, ...logBuffer];
   }
@@ -83,13 +83,13 @@ async function writeLog(level, module, message, data) {
       try {
         const s = typeof data === 'string' ? data : JSON.stringify(data);
         entry.data = s.length > 1000 ? s.substring(0, 1000) + '...' : s;
-      } catch (e) { entry.data = String(data); }
+      } catch { entry.data = String(data); }
     }
 
     logBuffer.push(entry);
     if (logFlushTimer) clearTimeout(logFlushTimer);
     logFlushTimer = setTimeout(flushLogBuffer, LOG_FLUSH_DEBOUNCE);
-  } catch (e) {
+  } catch {
     // 忽略日志记录异常 / Ignore logging exceptions
   }
 }

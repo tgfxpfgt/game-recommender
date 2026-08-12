@@ -5,16 +5,14 @@
  * 查询、count 累计。OPFS 探测失败 → 降级 chrome.storage.local（mock）。
  */
 'use strict';
+
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 // chrome.storage mock（OPFS 不可用 → dataStore 降级 storage.local）
 const storageData = {};
@@ -70,7 +68,8 @@ check('持久化（重新加载后仍存在）', await (async () => {
 })(), '1213700');
 
 console.log('\n===== 报错纠正记录测试结果 =====');
-console.log(pass + ' 通过, ' + fail + ' 失败');
+const finalResult = reporter.getResult();
+console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
 // 导出结果供 run-tests.js 聚合 / Export results for the test runner
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

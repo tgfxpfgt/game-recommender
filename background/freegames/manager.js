@@ -164,6 +164,9 @@ async function fetchGamerPowerFreeGames() {
       else if (platforms.includes('steam')) { platform = 'steam'; platformName = 'Steam'; }
       else if (platforms.includes('gog')) { platform = 'gog'; platformName = 'GOG'; }
       else if (platforms.includes('itch')) { platform = 'itch'; platformName = 'Itch.io'; }
+      // v4.1.0：微软商店（GamerPower 的 platforms 可能出现 "Microsoft Store"，
+      // 此前无关键字落入 other 被丢弃）
+      else if (platforms.includes('microsoft')) { platform = 'microsoft'; platformName = 'Microsoft Store'; }
       else if (platforms.includes('drm-free') || platforms.includes('pc')) { platform = 'pc'; platformName = 'PC'; }
 
       if (platform === 'other') continue;

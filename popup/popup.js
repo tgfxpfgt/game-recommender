@@ -123,7 +123,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         await chrome.tabs.sendMessage(tab.id, { action: 'FORCE_REFRESH_PAGE' });
         btn.textContent = '✅ 已刷新';
       }
-    } catch (e) {
+    } catch {
       // 内容脚本不可达（chrome:// 等受限页面）/ content script unreachable
       btn.textContent = '⚠️ 页面不支持';
     }
@@ -183,7 +183,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (tab && tab.id) {
         await chrome.tabs.sendMessage(tab.id, { action: 'SHOW_LAST_STATS' });
       }
-    } catch (e) {
+    } catch {
       // 页面未注入内容脚本时静默 / silently ignore when no content script
     }
   });
@@ -216,7 +216,7 @@ async function loadApiStatus() {
       dot.className = 'status-dot ok';
       info.innerHTML = `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${resp.windowSec / 60} 分钟 ${resp.total} 次调用，失败 ${resp.failed} 次（${resp.failRate}%）${resp.limited > 0 ? `，限流 ${resp.limited} 次` : ''}</span>`;
     }
-  } catch (e) {
+  } catch {
     info.innerHTML = '<span class="no-data">无法获取状态</span>';
   }
 }

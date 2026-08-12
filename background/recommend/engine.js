@@ -12,7 +12,6 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
-import { getBehaviorLog } from '../storage/behavior.js';
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 import { getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';

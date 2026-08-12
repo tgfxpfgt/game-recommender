@@ -27,7 +27,7 @@ async function load() {
   try {
     const stored = await dataStore.readModule(DB_KEYS.LEARNED_NOISE);
     noiseMemory = (stored && typeof stored === 'object' && !Array.isArray(stored)) ? stored : {};
-  } catch (e) {
+  } catch {
     noiseMemory = {};
   }
   loaded = true;

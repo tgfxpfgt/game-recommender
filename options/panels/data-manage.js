@@ -142,7 +142,7 @@
         return `<option value="${escapeAttr(b.id)}">${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)</option>`;
       }).join('');
       btn.disabled = backups.length === 0;
-    } catch (e) {
+    } catch {
       select.innerHTML = '<option value="">备份加载失败</option>';
     }
   }

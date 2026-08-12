@@ -51,11 +51,11 @@
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       settings = resp?.settings;
-    } catch (e) { /* 后台不可达时 init 会自行重试 */ }
+    } catch { /* 后台不可达时 init 会自行重试 */ }
     try {
       await builder.loadSiteRules();
       builder.buildSiteAdapters(builder.getSITE_RULES());
-    } catch (e) { /* 规则加载失败时回退内置规则 */ }
+    } catch { /* 规则加载失败时回退内置规则 */ }
     return settings;
   })();
 
@@ -69,7 +69,7 @@
       try {
         const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
         settings = resp?.settings;
-      } catch (e) { /* 仍失败则放弃本页 */ }
+      } catch { /* 仍失败则放弃本页 */ }
     }
     if (!settings || !settings.enabled) return;
 

@@ -25,7 +25,7 @@ import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, getBehaviorL
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from './storage/backups.js';
 import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from './storage/history.js';
 import { recordWrongReport, flushWrongReports } from './storage/wrong-reports.js';
-import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './steam/orchestrator.js';
+import { searchSteamGame } from './steam/orchestrator.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated } from './steam/api.js';
 import { parseGameTitle } from './core/title-parser.js';
@@ -35,7 +35,7 @@ import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { fetchWithTimeout } from './core/utils.js';
 import { getSteamApiStatus } from './core/api-monitor.js';
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
-import { aggregateDailyTrends } from './core/trends.js';
+import { aggregateTrends } from './core/trends.js';
 import { validateMessage } from './core/message-contract.js';
 
 // --- 行为追踪 / Behavior tracking ---
@@ -217,7 +217,7 @@ async function handleSearchSteamCandidates(message) {
           candidates.push({ appId: item.appId, name: item.name, price: null, image: '' });
         }
       }
-    } catch (e) { /* 单个词失败继续 */ }
+    } catch { /* 单个词失败继续 */ }
   }
   return { candidates: candidates.slice(0, 10) };
 }
@@ -276,10 +276,12 @@ async function handleGetStats() {
   };
 }
 
-// 行为趋势（按天浏览/下载/转化率，v4.0.0）/ Daily behavior trends
-async function handleGetTrends() {
+// 行为趋势（按天/周浏览·下载·转化率，v4.0.0 起；v4.1.0 支持周粒度）
+// Behavior trends (daily/weekly views · downloads · rate)
+async function handleGetTrends(message) {
   const log = await getBehaviorLog();
-  return { daily: aggregateDailyTrends(log) };
+  const granularity = message && message.granularity === 'week' ? 'week' : 'day';
+  return { daily: aggregateTrends(log, granularity), granularity };
 }
 
 // 基于用户偏好标签的 Steam 推荐
@@ -314,7 +316,7 @@ async function handleGetSteamRecommendations() {
             if (detData[item.id]?.success) {
               detail = detData[item.id].data;
             }
-          } catch (e) {}
+          } catch {}
 
           recGames.push({
             appId: item.id,
@@ -537,7 +539,7 @@ async function handleSearchDownloadSites(message) {
             const meta = extractDetailMeta(await dResp.text(), s.key);
             Object.assign(s, { updateDate: meta.updateDate, version: meta.version, size: meta.size, panUrl: meta.panUrl, panCode: meta.panCode });
           }
-        } catch (e) { /* 元信息失败忽略 */ }
+        } catch { /* 元信息失败忽略 */ }
       }
     }
     if (sites.some(s => s.found)) {

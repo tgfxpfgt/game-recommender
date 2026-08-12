@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Game Recommender - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,

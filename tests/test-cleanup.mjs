@@ -6,16 +6,14 @@
  * validateAdapterRules and the three expired-cache cleanup helpers.
  */
 'use strict';
+
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 // 加载真实模块（带查询串绕缓存）
 const rulesMod = await import(new URL('../background/core/rules.js', import.meta.url).href + '?t=' + Date.now());
@@ -324,6 +322,7 @@ check('0=长期：全保留', urlResult.removed, 0);
 check('空输入', cleanupMod.collectExpiredDownloadUrls(null, 30 * 86400e3).removed, 0);
 
 console.log('\n===== 规则校验与缓存清理测试结果 =====');
-console.log(pass + ' 通过, ' + fail + ' 失败');
+const finalResult = reporter.getResult();
+console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

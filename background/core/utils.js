@@ -86,7 +86,7 @@ export function hasLatinLetters(text, min = 2) {
 
 export function isSafeFetchUrl(url) {  if (typeof url !== 'string') return false;
   let parsed;
-  try { parsed = new URL(url); } catch (e) { return false; }
+  try { parsed = new URL(url); } catch { return false; }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
   let host = parsed.hostname.toLowerCase();
   // FQDN 尾点形式（localhost./127.0.0.1.）可绕过域名检查，先剥除
@@ -120,7 +120,7 @@ const MAX_REDIRECTS = 5;
 // errors included) and per-host rate-limited as a safety net.
 export async function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIMEOUT) {
   let host = 'invalid';
-  try { host = new URL(String(url)).hostname; } catch (e) { /* URL 非法时保持 invalid */ }
+  try { host = new URL(String(url)).hostname; } catch { /* URL 非法时保持 invalid */ }
   const allowPrivate = !!(options && options.allowPrivateHosts === true && /^https?:\/\//i.test(String(url)));
   const t0 = Date.now();
   if (!checkRateLimit(host)) {

@@ -13,7 +13,7 @@ import { Logger } from '../storage/logger.js';
 import { getGameRegistry, getGameRegistryEntry, recordGameInRegistry, flushRegistry } from '../storage/registry.js';
 import { generateSearchVariants, extractNoiseCandidates } from '../core/title-parser.js';
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
-import { recordSteamCall, getSteamApiStatus } from '../core/api-monitor.js';
+import { recordSteamCall } from '../core/api-monitor.js';
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
@@ -179,14 +179,14 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
       try {
         cnData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
         recordSteamCall(true);
-      } catch (e) {
+      } catch {
         recordSteamCall(false); /* 中文搜索失败不阻断流程 */
       }
     }
     try {
       enData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`)).json();
       recordSteamCall(true);
-    } catch (e) {
+    } catch {
       recordSteamCall(false); /* 英文搜索失败回退中文名 */
     }
 
@@ -228,7 +228,7 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
       const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId);
       if (result) return result;
       break; // 网络正常但未找到：不重试
-    } catch (e) { /* 网络失败：重试一次 */ }
+    } catch { /* 网络失败：重试一次 */ }
   }
 
   // 扩展组合搜索：删词变体 + 已生效的动态噪声词清洗
@@ -267,7 +267,7 @@ async function searchSteamAppIdLight(term, rawName, excludeAppId) {
       nameMatchesSearch(i.name, term, rawName));
     if (!related) return null;
     return { appId: related.id, name: related.name, englishName: related.name };
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -308,7 +308,7 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
     recordSteamCall(true);
     if (!detailData[appId] || !detailData[appId].success) return null;
     return detailData[appId].data;
-  } catch (e) {
+  } catch {
     recordSteamCall(false);
     return null;
   }
@@ -458,7 +458,7 @@ export async function fetchReviewSummary(appId) {
           recent
         };
       }
-    } catch (e) {
+    } catch {
       recordSteamCall(false); // 重试一次 / retry once
     }
   }
@@ -482,7 +482,7 @@ export async function fetchLastUpdate(appId) {
     const d = new Date(item.date * 1000);
     if (isNaN(d.getTime())) return null;
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -779,7 +779,7 @@ export async function healRegistryNames(appId, { cnName, enName, gameName }) {
       Logger.warn('Steam', `名称异常自愈: appId ${appId} cn "${cnName || '空'}"→"${newCn || '空'}" en "${enName || '空'}"→"${newEn || '空'}"`);
       return true;
     }
-  } catch (e) {
+  } catch {
     // 获取失败，下次访问时重试 / retry on the next visit
   }
   return false;
@@ -807,7 +807,7 @@ export async function scanAndHealRegistry(limit = 20) {
     await Promise.all(batch.map(async ([appId, e]) => {
       try {
         if (await healRegistryNames(appId, { cnName: e.cnName, enName: e.enName, gameName: '' })) healed++;
-      } catch (err) { /* 单条失败不阻断 */ }
+      } catch { /* 单条失败不阻断 */ }
     }));
   }
   if (healed > 0) await flushRegistry();

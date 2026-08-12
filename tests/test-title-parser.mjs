@@ -6,16 +6,14 @@
  */
 'use strict';
 
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
+
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖）
 const mod = await import(new URL('../background/core/title-parser.js', import.meta.url).href + '?t=' + Date.now());
 const { parseGameTitle, cleanGameName, pickRegistryEnName, generateSearchVariants, extractNoiseCandidates } = mod;
 
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 console.log('1. 两字游戏名（v1.8.3 修复场景）');
 check('奉魔', parseGameTitle('奉魔'), ['奉魔']);
@@ -95,8 +93,9 @@ check('保留干净英文候选', spiritOfNorth.includes('Spirit of the North'),
 check('保留中文候选', spiritOfNorth.includes('北方之魂'), true);
 
 console.log('\n===== 标题解析测试结果 =====');
-console.log(pass + ' 通过, ' + fail + ' 失败');
+const finalResult = reporter.getResult();
+console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
 // 导出结果供 run-tests.js 聚合 / Export results for the test runner
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();
 

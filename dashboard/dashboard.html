@@ -43,8 +43,12 @@
     <!-- 行为趋势 / Behavior trends (v4.0.0) -->
     <section class="section">
       <h2>📈 行为趋势</h2>
-      <p class="section-desc">按天浏览 / 下载 / 转化率（数据受行为日志保留窗口约束）</p>
+      <p class="section-desc">按天/周浏览 / 下载 / 转化率（数据受行为日志保留窗口约束）</p>
       <div class="section-toolbar">
+        <select id="trendGranularity" class="log-filter">
+          <option value="day">按天</option>
+          <option value="week">按周</option>
+        </select>
         <span id="trendStats" class="backup-status"></span>
         <button id="exportTrendsCsvBtn" class="btn btn-sm">📄 导出趋势 CSV</button>
       </div>
@@ -153,6 +157,8 @@
       <p class="section-desc">后台对外部服务发起的请求记录（含被拦截/限速），用于异常外联溯源</p>
       <div class="section-toolbar">
         <span id="auditStats" class="backup-status"></span>
+        <input type="text" id="auditHostFilter" class="text-input" placeholder="按主机筛选..." style="max-width:180px;flex:1">
+        <button id="exportAuditCsvBtn" class="btn btn-sm">📄 导出审计 CSV</button>
         <button id="refreshAuditBtn" class="btn btn-sm">🔄 刷新</button>
         <button id="clearAuditBtn" class="btn btn-sm btn-danger">🗑️ 清空审计</button>
       </div>

@@ -8,6 +8,10 @@
  */
 'use strict';
 
+import { createReporter } from './helpers/assert.mjs';
+const reporter = createReporter();
+const { check } = reporter;
+
 import { fileURLToPath } from 'node:url';
 
 // 注意：outbound-audit 必须不带查询参数导入——utils.js 内部以静态 import
@@ -22,12 +26,6 @@ const {
   recordOutbound, getOutboundAudit, resetOutboundAudit, checkRateLimit
 } = mod;
 
-let pass = 0, fail = 0;
-function check(name, actual, expected) {
-  const ok = JSON.stringify(actual) === JSON.stringify(expected);
-  if (ok) { pass++; console.log('  ✅', name); }
-  else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
-}
 
 resetOutboundAudit();
 
@@ -106,4 +104,4 @@ try {
   resetOutboundAudit();
 }
 
-export const testResult = { pass, fail, ok: fail === 0 };
+export const testResult = reporter.getResult();

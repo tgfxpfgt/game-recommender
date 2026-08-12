@@ -75,7 +75,8 @@ async function loadFreeGames(force = false) {
 function renderGames() {
   const listEl = document.getElementById('gameList');
 
-  const mainPlatforms = ['epic', 'steam', 'gog'];
+  // v4.1.0：微软商店独立筛选（manager.js 平台门已映射 microsoft）
+  const mainPlatforms = ['epic', 'steam', 'gog', 'microsoft'];
   let filtered;
   if (currentFilter === 'all') {
     filtered = allGames;
