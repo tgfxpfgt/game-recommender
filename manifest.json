@@ -43,6 +43,7 @@
         "content/core/debug.js",
         "content/adapters/builder.js",
         "content/list/badges.js",
+        "content/list/list-batch.js",
         "content/list/list-page.js",
         "content/detail/detail-templates.js",
         "content/detail/detail-page.js",

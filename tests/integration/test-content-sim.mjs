@@ -202,6 +202,7 @@ const SCRIPT_FILES = [
   'content/core/debug.js',
   'content/adapters/builder.js',
   'content/list/badges.js',
+  'content/list/list-batch.js',
   'content/list/list-page.js',
   'content/detail/detail-templates.js',
   'content/detail/detail-page.js',
@@ -323,7 +324,7 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   (msg.names || []).forEach(n => { ratings[n] = { appId: '999', positiveRate: 90 }; });
   return { ratings, pending: 0 }; // 全部缓存命中 → 无推送，自动衔接下一批
 };
-GR.list.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
+GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
 await new Promise(r => setTimeout(r, 50));
 check('首批请求 60 个名字', batchRequests[0] ? batchRequests[0].length : 0, 60);
 check('自动衔接第二批 40 个名字', batchRequests[1] ? batchRequests[1].length : 0, 40);
@@ -343,7 +344,7 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   (msg.names || []).slice(0, 10).forEach(n => { ratings[n] = { appId: '888', positiveRate: 80 }; });
   return { ratings, pending: msg.names.length - 10 };
 };
-GR.list.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
+GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
 await new Promise(r => setTimeout(r, 30));
 check('done 前仅一批在途', batchRequests2.length, 1);
 // 后台完成 → 推送 done → 应自动发起第二批

@@ -10,6 +10,8 @@
 
   const GR = (global.__GR__ = global.__GR__ || {});
   const dbg = (...a) => GR.debug.dbg(...a);
+  // v5.1.0：GR.list 容器提前初始化（_state 由本文件与 list-batch 共享）
+  GR.list = GR.list || {};
 
   // ============ 页面类型检测（URL优先，最可靠） ============
   // 详情页URL特征：以 数字.html 结尾，或 /game/数字.html 形式
@@ -109,7 +111,7 @@
     // v4.1.0：封面 appId 提取延迟化（fireBatch 内对批内名字惰性提取，不再
     // 全量扫描）；推荐请求并入批次调度（fireBatch 并发，滚动批次自动获得
     // 推荐徽章）。首屏提取成本从 O(全部 item) 降至 O(批大小)。
-    requestSteamRatings(filteredItems, settings);
+    GR.listBatch.requestSteamRatings(filteredItems, settings);
 
     // 预载下一页：提前预热下一页的 Steam 缓存
     preloadNextPage();
@@ -275,10 +277,11 @@
   // ============ 列表页 Steam 好评率（两波：缓存命中即时显示 + 后台推送更新） ============
   // Two-wave rating flow: cached hits render instantly; misses are fetched in
   // the background and pushed back via STEAM_RATINGS_UPDATE.
-  let ratingsJob = null; // 当前批次的处理状态 / current batch job state
+  // v5.1.0：状态容器（list-page 与 list-batch 共享）/ shared state container
+  GR.list._state = { ratingsJob: null, batchState: null };
 
   function createRatingsJob(processItems, settings, uniqueNames) {
-    ratingsJob = {
+    GR.list._state.ratingsJob = {
       processItems, settings, uniqueNames,
       processed: new Set(), // 已出结果的游戏名（徽章已显示）/ names already resolved
       shown: 0, filtered: 0, notFoundNames: [],
@@ -295,8 +298,8 @@
   // Apply one wave of results. 'first': misses wait for the push; 'final':
   // misses in this wave resolve as "not found". Late pushes still apply badges.
   function applyRatingsResponse(ratings, mode) {
-    if (!ratingsJob) return false;
-    const job = ratingsJob;
+    if (!GR.list._state.ratingsJob) return false;
+    const job = GR.list._state.ratingsJob;
     // v3.3.8：关闭"全部好评率"徽章 → 好评率过滤停用（数据获取不受影响）
     const bv = (job.settings && job.settings.badgeVisibility) || {};
     const filterEnabled = job.settings?.enableRatingFilter && bv.all !== false;
@@ -336,10 +339,10 @@
   // 完成统计：批量写下载站网址缓存 + 统一浮窗显示统计。
   // 收尾后保留 ratingsJob（迟到推送仍可补徽章），不再置 null。
   function finishRatings() {
-    if (!ratingsJob || ratingsJob.finished) return;
-    ratingsJob.finished = true;
-    clearTimeout(ratingsJob.forceTimer);
-    const job = ratingsJob;
+    if (!GR.list._state.ratingsJob || GR.list._state.ratingsJob.finished) return;
+    GR.list._state.ratingsJob.finished = true;
+    clearTimeout(GR.list._state.ratingsJob.forceTimer);
+    const job = GR.list._state.ratingsJob;
     const unresolved = job.processItems.filter(i => !job.processed.has(i.name)).length;
     // 批量写入下载站网址缓存（fire-and-forget）
     const siteKey = GR.builder.getAdapterKey();
@@ -366,26 +369,28 @@
   // 刷新页面第一波即命中），**不误标"未找到"**；收尾后迟到的推送仍会应用徽章。
   // v4.0.0：批次多次调度，forceTimer 逐批重置（最后一批发起 +45s 起算）。
   function scheduleFallbacks() {
-    const job = ratingsJob;
+    const job = GR.list._state.ratingsJob;
     if (!job) return;
     clearTimeout(job.forceTimer);
     job.forceTimer = setTimeout(() => {
-      if (!ratingsJob || ratingsJob.finished) return;
+      if (!GR.list._state.ratingsJob || GR.list._state.ratingsJob.finished) return;
       finishRatings();
     }, 45000);
   }
 
   // 后台推送的结果（STEAM_RATINGS_UPDATE）：多波增量，波内 null 判定"未找到"；
   // done 标记或全部处理后收尾。
+  // v5.1.0：批次状态与调度经 GR.list._state / GR.listBatch
   function applySteamRatingsUpdate(ratings, done) {
-    if (!ratingsJob) return false;
+    const batchState = GR.list._state.batchState;
+    if (!GR.list._state.ratingsJob) return false;
     // 后台全部批次完成标记 / background completion marker
     if (ratings === null && done) {
-      if (!batchState) { if (!ratingsJob.finished) finishRatings(); return true; }
+      if (!batchState) { if (!GR.list._state.ratingsJob.finished) finishRatings(); return true; }
       batchState.pendingDone = true;
       if (batchState.inflight) batchState.inflight = false; // 当前批结束
-      const fired = maybeFetchNextBatch(); // 队列非空 → 衔接下一批（串行）
-      if (!fired && !ratingsJob.finished) finishRatings();
+      const fired = GR.listBatch.maybeFetchNextBatch(); // 队列非空 → 衔接下一批（串行）
+      if (!fired && !GR.list._state.ratingsJob.finished) finishRatings();
       return true;
     }
     applyRatingsResponse(ratings || {}, 'final');
@@ -393,8 +398,8 @@
     // 未请求名字对应 item 必未 processed，等 done 衔接下一批）
     // all discovered games resolved → finish (queued names' items are never
     // processed yet, so the check only passes when nothing is left queued)
-    if (!ratingsJob.finished &&
-        ratingsJob.processItems.every(i => ratingsJob.processed.has(i.name))) {
+    if (!GR.list._state.ratingsJob.finished &&
+        GR.list._state.ratingsJob.processItems.every(i => GR.list._state.ratingsJob.processed.has(i.name))) {
       if (!batchState || batchState.queue.length === 0) {
         finishRatings();
       }
@@ -402,235 +407,23 @@
     return true;
   }
 
-  // ============ 列表页批量调度（v4.0.0）/ Batch scheduling ============
-  // 首屏优先 + 滚动按需：全部 item 提取（受 scanLimit 上限），每批最多
-  // RATINGS_BATCH_SIZE 个名字串行请求；IntersectionObserver 底部哨兵 +
-  // MutationObserver 增量发现驱动后续批次；每名字仅请求一次，后台各循环
-  // 无重叠，done 到达后衔接下一批。
-  // First-screen priority with scroll-driven batching: all items are extracted
-  // (scanLimit-capped); batches of ≤60 names are requested serially; an
-  // IntersectionObserver sentinel + MutationObserver discovery drive later
-  // batches; each name is requested once, so background loops never overlap.
-  const RATINGS_BATCH_SIZE = 60; // 每批请求上限（与后台批处理规模对应）
-  let batchState = null;         // 批次调度状态 / batch scheduler state
-
-  function initBatchState(settings) {
-    batchState = {
-      settings,
-      processItems: [],    // 全部已发现 item（追加式）/ all discovered items
-      itemsByName: new Map(), // name → item（同名取首个，按名回填/惰性提取用）
-      nameToImage: {},     // name → {appId, cover}（惰性填充）/ lazy cover info
-      requested: new Set(),// 已请求过的名字 / names already requested
-      queue: [],           // 待请求名字（FIFO）/ names awaiting a batch
-      inflight: false,     // 有在途批次（等待 resolve/done）/ batch in flight
-      pendingDone: false,  // 后台已推送 done / background done received
-      forceTimer: null,    // 强制收尾定时器 / force-finish timer
-      observer: null,      // MutationObserver（新增项发现）/ discovery observer
-      sentinelObserver: null // IntersectionObserver（滚动调度）/ scroll sentinel
-    };
-  }
-
-  // v4.1.0：封面 appId/图惰性提取（幂等）——只对批内名字提取，避免全量扫描
-  // Lazy per-name cover extraction (idempotent); batch-scoped, no full scan.
-  function ensureNameToImage(name) {
-    if (batchState.nameToImage[name] !== undefined) return batchState.nameToImage[name];
-    const item = batchState.itemsByName.get(name);
-    batchState.nameToImage[name] = item
-      ? (GR.builder.isImageAppIdEnabled() ? GR.builder.extractSteamImageInfo(item.element) : null)
-      : null;
-    return batchState.nameToImage[name];
-  }
-
-  // 追加 item 入队（url 去重；名字未请求过才入队）/ enqueue new items (url-dedup)
-  function enqueueItems(items) {
-    const seen = new Set(batchState.processItems.map(i => i.url));
-    for (const item of items || []) {
-      if (!item || !item.name || item.name.length < 2 || seen.has(item.url)) continue;
-      seen.add(item.url);
-      batchState.processItems.push(item);
-      if (!batchState.itemsByName.has(item.name)) batchState.itemsByName.set(item.name, item);
-      if (!batchState.requested.has(item.name)) batchState.queue.push(item.name);
-    }
-  }
-
-  // 发起下一批（串行调度：同步判定可否发起，实际请求 fire-and-forget）
-  // Serial scheduler: sync gate + async request (fire-and-forget) — the sync
-  // return value lets callers know whether a batch actually started.
-  function maybeFetchNextBatch() {
-    if (!batchState || batchState.inflight) return false;
-    const names = batchState.queue.filter(n => !batchState.requested.has(n)).slice(0, RATINGS_BATCH_SIZE);
-    if (names.length === 0) return false;
-    names.forEach(n => batchState.requested.add(n));
-    batchState.queue = batchState.queue.filter(n => !batchState.requested.has(n));
-    batchState.inflight = true;
-    batchState.pendingDone = false;
-    fireBatch(names);
-    return true;
-  }
-
-  // 单个批次的请求与第一波应用（fire-and-forget；done 由 applySteamRatingsUpdate
-  // 衔接下一批）/ request one batch and apply wave 1 (done chains the next batch)
-  async function fireBatch(names) {
-    const total = batchState.processItems.length;
-    const doneCount = batchState.requested.size - names.length;
-    GR.status.showStatus('正在获取 Steam 好评率', doneCount, total,
-      batchState.queue.length > 0 ? `已排队 ${batchState.queue.length} 个，缓存优先检索中...` : '缓存优先检索中...');
-    // v4.1.0：惰性提取批内封面（不再全量扫描）；评分与推荐共用同一 imageData
-    const imageData = {};
-    names.forEach(n => { imageData[n] = ensureNameToImage(n) || null; });
-    // v4.1.0：推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
-    fetchRecommendationsForBatch(names, imageData);
-    try {
-      const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData });
-      const ratings = (response && response.ratings) || {};
-      const pendingCount = (response && response.pending) || 0;
-      // 第一波：缓存命中即时显示徽章 / wave 1: cached hits render instantly
-      applyRatingsResponse(ratings, 'first');
-      const job = ratingsJob;
-      if (!job || job.finished) return;
-      if (pendingCount > 0) {
-        // 后台正在拉取：等推送 done 衔接下一批（45s 兜底随批次重置）
-        GR.status.showStatus('正在从 Steam 更新缓存', job.processed.size, total,
-          `${pendingCount} 个未命中缓存，后台拉取中...`);
-        scheduleFallbacks();
-      } else {
-        // 本批全部命中缓存，无推送会来：立即衔接下一批
-        batchState.inflight = false;
-        const fired = maybeFetchNextBatch();
-        if (!fired && !job.finished) finishRatings();
-      }
-    } catch (e) {
-      dbg('Steam好评率检索失败: ' + e.message);
-      batchState.inflight = false;
-      finishRatings();
-    }
-  }
-
-  // v4.1.0：按批发起推荐请求（fire-and-forget；失败不影响评分流程）
-  // Per-batch recommendation request (fire-and-forget; failures don't block ratings)
-  async function fetchRecommendationsForBatch(names, imageData) {
-    try {
-      const games = names.map(n => {
-        const img = imageData[n];
-        return { name: n, url: '', appId: img && img.appId ? img.appId : null };
-      });
-      const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
-      applyRecommendationResults(response && response.results);
-    } catch (e) {
-      dbg('推荐计算失败: ' + e.message);
-    }
-  }
-
-  // v4.1.0：按名回填推荐徽章/高亮（results 自带 name，替代 index 对齐——
-  // 滚动批次追加后仍正确对应 item）
-  // Apply recommendation results by name (results carry `name`; replaces the
-  // index-aligned logic that broke when later batches appended items).
-  function applyRecommendationResults(results) {
-    if (!results || results.length === 0) return;
-    const settings = batchState.settings || {};
-    const threshold = settings.highlightThreshold || 0.6;
-    const bv = (settings && settings.badgeVisibility) || {};
-    const recEnabled = bv.rec !== false;
-    let highlighted = 0;
-    for (const result of results) {
-      if (!result || !result.recommendation) continue;
-      const item = batchState.itemsByName.get(result.name);
-      if (!item) continue;
-      // 推荐值徽章（好评率徽章之后，悬停显示各分值组成，分级着色）
-      GR.badges.prependRecBadge(item, result.recommendation, settings);
-      if (recEnabled && result.recommendation.score >= threshold) {
-        GR.badges.highlightItem(item);
-        highlighted++;
-      }
-    }
-    if (highlighted > 0) dbg(`高亮 ${highlighted} 个推荐游戏`);
-  }
-
-  // 滚动/追加调度：MutationObserver 增量发现 + IntersectionObserver 底部哨兵
-  // Scroll/discovery scheduling: MutationObserver finds new items (container-
-  // scoped, v4.1.0); an IO sentinel fires the next batch when scrolled near.
-  function startListScan() {
-    if (!batchState || batchState.observer) return;
-    let scanTimer = null;
-    let pendingNodes = [];
-    batchState.observer = new MutationObserver((mutations) => {
-      // 收集新增元素节点（v4.1.0：容器级增量提取，不再整页重扫）
-      for (const m of mutations) {
-        for (const node of m.addedNodes) {
-          if (node.nodeType === 1) pendingNodes.push(node);
-        }
-      }
-      if (scanTimer) clearTimeout(scanTimer);
-      scanTimer = setTimeout(() => {
-        const nodes = pendingNodes;
-        pendingNodes = [];
-        const known = new Set(batchState.processItems.map(i => i.url));
-        const newItems = [];
-        for (const node of nodes) {
-          const found = GR.builder.findItemsInContainer(node);
-          for (const it of found) {
-            if (!known.has(it.url)) { known.add(it.url); newItems.push(it); }
-          }
-        }
-        if (newItems.length > 0) {
-          enqueueItems(newItems);
-          maybeFetchNextBatch();
-        }
-      }, 200);
-    });
-    batchState.observer.observe(document.body, { childList: true, subtree: true });
-    const sentinel = document.createElement('div');
-    sentinel.style.cssText = 'height:1px;width:1px;opacity:0;pointer-events:none;';
-    (document.body || document.documentElement).appendChild(sentinel);
-    batchState.sentinelObserver = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) maybeFetchNextBatch();
-    }, { rootMargin: '400px 0px' });
-    batchState.sentinelObserver.observe(sentinel);
-  }
-
-  // 列表页：初始化批次调度并发出首批评分请求（入口签名不变，内部改分批调度）
-  // List page: initialise the batch scheduler and fire the first batch.
-  function requestSteamRatings(items, settings) {
-    if (!items || items.length === 0) return;
-    initBatchState(settings);
-    enqueueItems(items);
-    // v4.1.0：名字全集来自 processItems（nameToImage 已惰性化）
-    const jobNames = batchState.processItems.map(i => i.name).filter(n => n && n.length > 1);
-    if (jobNames.length === 0) {
-      GR.status.hide();
-      return;
-    }
-    GR.status.showStatus('正在获取 Steam 好评率', 0, batchState.processItems.length, '缓存优先检索中...');
-    createRatingsJob(batchState.processItems, settings, jobNames);
-    maybeFetchNextBatch();
-    startListScan();
-  }
-
-  // v4.1.0：推荐并入批次调度（fireBatch 按批发起 + 按名回填）。本函数保留
-  // 供 REFRESH_RECOMMENDATIONS 强制刷新：经 batchState 惰性提取兜底 appId
-  //（此前 REFRESH 不传 nameToImage → appId 恒 null 的缺陷一并修复）。
-  // Recommendations now ride the batch scheduler; this entry stays for the
-  // REFRESH_RECOMMENDATIONS force-refresh, falling back to batchState's lazy
-  // cover extraction (fixes the old appId-always-null on refresh).
-  async function requestRecommendations(items, settings, nameToImage) {
-    if (!batchState || !items || items.length === 0) return;
-    const names = items.map(i => i.name).filter(n => n && n.length > 1);
-    if (names.length === 0) return;
-    const imageData = {};
-    names.forEach(n => { imageData[n] = ensureNameToImage(n) || null; });
-    await fetchRecommendationsForBatch(names, imageData);
-  }
-
+  // v5.1.0：合并导出（保留 _state/_internal 共享容器）
   GR.list = {
+    ...GR.list,
     isDetailPageByUrl,
     isListPageByUrl,
     getListItemsSmart,
     trackListView,
     applyVmFilter,
-    requestSteamRatings,
-    maybeFetchNextBatch, // v4.0.0：批次调度（供测试驱动）
-    requestRecommendations,
+    requestRecommendations: (items, settings, nameToImage) => GR.listBatch.requestRecommendations(items, settings, nameToImage),
     waitForListItems,
-    applySteamRatingsUpdate
+    applySteamRatingsUpdate,
+    _internal: {
+      createRatingsJob,
+      applyRatingsResponse,
+      finishRatings,
+      scheduleFallbacks,
+      applySteamRatingsUpdate
+    }
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);
