@@ -113,7 +113,7 @@ game-recommender/
 │   └── data-store.js          # OPFS 数据存储层
 ├── lib/
 │   └── ndjson.js              # ND-JSON 编解码库
-├── tests/                     # 自动化测试套件（vitest 13 套件 + content-sim 直跑）
+├── tests/                     # 自动化测试套件（vitest 15 套件单 runner）
 ├── styles/content.css
 ├── popup/                     # 工具栏弹窗
 ├── options/                   # 设置页（入口 + panels/ 四面板）
@@ -228,12 +228,9 @@ flowchart LR
 # 一键验证（lint + 单测）/ full check (lint + unit tests)
 npm run check
 
-# 单测（v6.1.1 起单 runner 为主）：vitest 覆盖全部 13 套件（414 test，
-# 断言点 484 与原 check 全量等价）；仅 content-sim（eval+动态 import 模拟
-# 与 vite-node 不兼容）由 node 直跑
-npm test          # vitest run（13 套件 414 test）
-npm run test:sim  # node tests/run-tests.js（content-sim 65 项）
-npm run coverage  # vitest 覆盖率；coverage:node 为 c8（content-sim）
+# 单测（v6.2.0 起单 runner 全量统一）：vitest 覆盖全部 15 套件（464 test）
+npm test          # vitest run（15 套件，含 content-sim 与 handlers 集成）
+npm run coverage  # vitest 覆盖率（v8 provider）
 
 # 安装 git 钩子（提交信息格式校验 + 暂存 JS 语法检查，v4.1.2）
 npm run install-hooks
@@ -256,6 +253,16 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.2.0（中版本：全局审查落地——单 runner 全量统一 + 契约化收尾 + 接线层测试）
+- **全局审查驱动**（2026-08-12）：对项目做全量审查（遗留标记/测试盲区/架构技术债三维扫描 + 实验验证），落地 P0+P1 全部项：
+- **单 runner 全量统一**：content-sim 纳入 vitest——`__grImport` 注入（eval 代码里的动态 import() 在 vite-node vm 执行器无回调，字符串替换为全局 provider 后兼容）+ 65 项 check→expect 节级 test 化（11 节，跨节 DOM 变量提升文件级）；`run-tests.js`/`helpers/assert.mjs`（check 体系）退役，`test:sim`/`coverage:node` 删除；CI 只跑 `npm test`
+- **测试隔离健康化**：`isolate: true` + 文件级并行（v6.1.1 结构化重写后各套件已自包含，验证 464 test 全过；消除跨文件 chrome mock 泄漏/防抖写竞态）
+- **消息契约化收尾**（25 → 38 个）：13 个写/破坏性 action 全量入参校验（RESET_SETTINGS/CLEAR_DATA/CLEAR_GAME_CACHE/DELETE_GAME_CACHE_ENTRY/REFRESH_GAME_CACHE_ENTRY/CACHE_STEAM_PAGE/TRACK_DOWNLOAD_SITE_VISIT/SAVE_ADAPTER_RULES/REPORT_WRONG_APPID 等）
+- **接线层测试**：新增 `tests/integration/test-handlers.mjs`（16 项）——mock chrome.storage + fetch 驱动真实 handleMessage 链路（SEARCH_STEAM 全流程/负缓存/REPORT_WRONG_APPID/SAVE_MANUAL_MAPPING/下载站记录/缓存删除/契约拒绝），覆盖 handlers/ 与 orchestrator.searchSteamGame 此前零测试盲区
+- **顺带修复真实 bug**：`deleteNameIndexEntry` 只删精确 key、清理名变体残留——报错重检索会被旧映射干扰（test-handlers 集成测试发现，与 recordNameIndex 对称删除修复）
+- **去重**：detail-page 第三份噪声词副本删除（content-sim 注入真实 shared/patterns.js 权威源）、评级色 bg fallback 统一 0.15
+- **质量**：vitest 15 套件 464 test 全过（3 次稳定）· lint 0 · typecheck 0 · E2E 16/16
+
 ### v6.1.1（小版本：4 个状态敏感套件结构化重写，双体系合并）
 - **根因定位**：此前"vitest 与 check 双体系"实为**检查点错位**而非实例分裂——check 线性脚本的顶层准备（reset/数据写入）在 vitest 收集阶段全部提前执行，断言延迟到运行阶段，读到的是全部准备完成后的最终状态（探针验证：单 test 场景实例一致，多检查点场景中间状态丢失）
 - **结构化重写 4 套件**（api-pure/rules-cleanup/storage/outbound）：顶层状态准备移入各 test（自包含：准备→断言），共享对象原地修改（steam-cache 内存引用）改为 test 内重新获取，storage mock 残留用 `_reset()` 隔离——**断言点 484 与原 check 全量完全等价**（vitest 13 套件 414 test + content-sim 65 项）
@@ -267,7 +274,7 @@ node --check options/options.js
 - **vitest 断言全量重写（check → describe/test/expect）**：13 个测试文件的 check/assertThrows/assertAsync 全部转为 vitest 原生断言（419+ 处，文件头引入 `import { test, expect } from 'vitest'`）：
   1. 9 个套件（title-parser/engine/contract/trends/freegames/sites/security + orchestrator/integrity）完成转换由 vitest 直接收集（**243 项**）
   2. **4 个线性状态敏感套件（api-pure/rules-cleanup/storage/outbound）回滚 check 体系**：其顶层线性脚本 + 模块级共享状态（审计缓冲/TTL 配置/模块状态）与 vite-node 的模块执行语义不兼容（顶层写入与 test 闭包读取不同实例，15 项失败无法归因修复）→ 由 `test:node`（node tests/run-tests.js）直跑，语义保持与原 run-tests 一致
-  3. `tests/all.test.mjs` 聚合入口删除（import + include 双重收集冲突）；vitest.config include 显式列出 9 文件（排除 5 个 node 套件）
+  3. `tests/all.test.mjs` 聚合入口删除（import + include 双重收集冲突）；vitest.config include 显式列出 9 文件（排除 5 个 node 套件）【v6.1.1 起 include 为 13 文件全量，v6.2.0 起 14 文件】
 - **工具链**：scripts 调整（`test:node` 新增、`test:legacy` 更名、coverage 切 vitest `--coverage` + `coverage:node` 保留 c8）；CI test job 改 `npm test` + `npm run test:node`（此前只跑 test:sim 会漏 4 套件）
 - **质量**：484 项单测全过（vitest 243 + node 241，与原 check 全量一致）· lint 0 · typecheck 0 · 深度扫描 0 findings
 
@@ -278,7 +285,7 @@ node --check options/options.js
   3. **manifest**：content_scripts 裁剪为 shared×2 + adapters×8 + tracker.js；新增 `web_accessible_resources`（content/*.js）
   4. **content-sim 加载器重写**：模块无参动态 import + GR shim 兼容层（测试体 GR.* 引用零改动）+ getURL mock 共享实例；**关键教训**：带 `?t=` 的入口其静态依赖解析为无参 URL 导致实例分裂——必须全部无参导入
 - **vitest runner 接入**：
-  5. `npm i -D vitest` + vitest.config（pool forks）+ `tests/all.test.mjs` 聚合 13 套件（check 断言体系保留）；`npm test` = vitest run；`npm run test:sim`（content-sim 直跑——其 eval+动态 import 模拟与 vite-node 运行器不兼容，保持 node 直跑）；`test:legacy`（run-tests.js 全 14 套件）；CI 同步
+  5. `npm i -D vitest` + vitest.config（pool forks）+ `tests/all.test.mjs` 聚合 13 套件（check 断言体系保留）；`npm test` = vitest run；`npm run test:sim`（content-sim 直跑——其 eval+动态 import 模拟与 vite-node 运行器不兼容，保持 node 直跑）；`test:legacy`（run-tests.js 全 14 套件）；CI 同步【v6.1.1 起 all.test.mjs 已删、check 全量转 vitest；v6.2.0 起 content-sim 亦纳入 vitest，run-tests.js/test:legacy 退役】
 - **质量**：484 项单测全过（node legacy）· vitest 13/13 · E2E 16/16（真实浏览器验证动态 import + WAR）· lint 0 · typecheck 0 · 深度扫描 0 findings
 
 ### v5.1.0（中版本：拆分与工具链——用户决策的架构/工程类未做项落地）
@@ -305,7 +312,7 @@ node --check options/options.js
   9. 新增 `background/core/types.js`（SteamCacheEntry/MessagePayload/AppSettings/TrendBucket/AuditEntry @typedef）+ chrome 全局声明
   10. `npm i -D typescript` + tsconfig.json（allowJs + **checkJs core/ 层**）+ `npm run typecheck`（tsc --noEmit 0 错误）
 - **质量**：484 项单测 · E2E 16/16 · lint 0 problems · **tsc --noEmit 0 错误** · 深度扫描 0 findings
-- **说明**：content 的批次调度（list-batch）与 detail 模板拆分因与闭包状态机/按钮绑定深度交织，留待后续专项（详见 README 测试目录结构）
+- **说明**：content 的批次调度（list-batch）与 detail 模板拆分因与闭包状态机/按钮绑定深度交织，留待后续专项（**已于 v5.1.0 完成拆分**：GR.list._state 状态容器 + listBatch/detailTemplates 模块）
 
 ### v4.2.0（中版本：测试体系重构）
 - **重新排列组合（按领域分组）**：`tests/unit/`（纯函数单测，11 个套件）+ `tests/integration/`（内容脚本模拟/Steam 编排器/项目完整性，3 个套件）——原"名实不符"的 test-cleanup 拆分为 test-api-pure（Steam API 纯函数 93 项）与 test-rules-cleanup（规则与清理 38 项）；test-security 静态扫描节（TDZ/语法/manifest/双源）并入新 test-integrity；test-layers（5 项）与 test-wrong-reports（9 项）并入大套件（文件数 9 → 14，覆盖更清晰）

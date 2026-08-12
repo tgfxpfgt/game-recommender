@@ -55,13 +55,10 @@ export function detectGameName() {
       }
 
       // 策略2：按分隔符分段，移除纯噪声段（保留中英文名段）。
-      // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，v3.4.0
-      // 移除降级副本——权威源由 manifest 保证在内容脚本加载时已注入）
-      const noisePattern = new RegExp(
-        (globalThis.__GR_PATTERNS__ && globalThis.__GR_PATTERNS__.noisePatternSource) ||
-          '(中文|汉化|破解|下载|游戏下载|免费下载|支持手柄|手柄|支持|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|DLC.*|全DLC|整合|硬盘|免DVD)',
-        'gi'
-      );
+      // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，v6.2.0
+      // 移除内联降级副本——权威源由 manifest 保证在内容脚本加载时已注入，
+      // 与 content-sim 的注入顺序一致）
+      const noisePattern = new RegExp(globalThis.__GR_PATTERNS__.noisePatternSource, 'gi');
       let text = h1.textContent.trim();
       const parts = text
         .split(/[|]+|\s+[-–—]\s+|[×•·]/)

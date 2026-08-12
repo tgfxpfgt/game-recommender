@@ -27,10 +27,10 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
     const ratingBg = P.ratingBgFor
       ? P.ratingBgFor(rate)
       : rate >= 80
-        ? 'rgba(102,192,244,0.1)'
+        ? 'rgba(102,192,244,0.15)'
         : rate >= 60
-          ? 'rgba(163,207,6,0.1)'
-          : 'rgba(255,123,0,0.1)';
+          ? 'rgba(163,207,6,0.15)'
+          : 'rgba(255,123,0,0.15)';
 
     const cacheAgeText = common.formatRelativeTime(cachedAt);
 

@@ -94,4 +94,3 @@ test('保留干净英文候选', () => { expect(spiritOfNorth.includes('Spirit o
 test('保留中文候选', () => { expect(spiritOfNorth.includes('北方之魂')).toEqual(true); });
 
 
-// 导出结果供 run-tests.js 聚合 / Export results for the test runner

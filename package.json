@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "6.1.1",
+  "version": "6.2.0",
   "description": "Game Recommender - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -9,18 +9,15 @@
   },
   "scripts": {
     "test": "vitest run",
-    "test:sim": "node tests/run-tests.js",
     "e2e": "node tests/e2e-smoke.mjs",
     "lint": "eslint background content options popup shared tests adapters dashboard data freegames lib --no-warn-ignored",
     "check": "npm run lint && npm test",
     "typecheck": "tsc --noEmit",
     "coverage": "vitest run --coverage",
-    "coverage:node": "c8 --reporter=text node tests/run-tests.js",
     "install-hooks": "sh scripts/install-hooks.sh"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",
-    "c8": "^12.0.0",
     "eslint": "^9.0.0",
     "playwright-core": "^1.45.0",
     "typescript": "^7.0.2",

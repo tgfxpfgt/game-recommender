@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 /**
  * Game Recommender - 测试：内容脚本模拟 / Content Script Simulation
  *
@@ -12,9 +13,6 @@
  */
 'use strict';
 
-import { createReporter } from '../helpers/assert.mjs';
-const reporter = createReporter();
-const { check } = reporter;
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
@@ -268,7 +266,9 @@ globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: SITE_RULES };
 
 // ============ 按 manifest 顺序加载内容脚本 / Load content scripts in order ============
 // v6.0.0：内容脚本 ESM 化——经典入口 tracker.js eval + 模块动态 import
-const SCRIPT_FILES = ['content/tracker.js'];
+// v6.2.0：SCRIPT_FILES 含 shared×2（与 manifest 注入顺序一致）——
+// __GR_PATTERNS__/escapeHtml 权威源真实注入，content 侧不再走降级副本
+const SCRIPT_FILES = ['shared/patterns.js', 'shared/escape.js', 'content/tracker.js'];
 // 模块加载（动态 import + GR shim 兼容层；固定 ?t= 与 tracker 的 getURL 共享实例）
 let MODULE_T = Date.now();
 const MODULE_FILES = [
@@ -292,6 +292,9 @@ async function loadModules() {
 }
 
 // 重载内容脚本（模拟页面重载：新模块实例 + 重置 tracker 守卫）
+// v6.2.0：__grImport 注入——eval 的 tracker.js 内变量动态 import() 在
+// vite-node 的 vm 执行器无 import 回调（ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING），
+// 字符串替换为全局 provider（真实 import 由本文件转换域承担）后兼容 vitest
 async function reloadContentScripts() {
   docReadyCallbacks.length = 0;
   globalThis.__gameRecommenderTracker = false;
@@ -300,34 +303,20 @@ async function reloadContentScripts() {
   await loadModules();
   for (const f of SCRIPT_FILES) {
     const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
-    (0, eval)(code);
+    evalWithGrImport(code);
   }
 }
 
-console.log('1. 顶层加载与预热');
-let loadError = null;
-try {
-  await loadModules();
-  for (const f of SCRIPT_FILES) {
-    const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
-    (0, eval)(code);
-  }
-} catch (e) {
-  loadError = e;
+// import provider：eval 代码里的 import( → __grImport(（vitest 兼容层）
+globalThis.__grImport = (spec) => import(spec);
+function evalWithGrImport(code) {
+  return (0, eval)(code.replace(/\bimport\(/g, '__grImport('));
 }
-check('内容脚本链加载无异常（含 warmup 顶层执行）', loadError ? loadError.message : null, null);
 
-const GR = globalThis.__GR__;
-check(
-  'GR 命名空间完整（ESM 模块全部挂载）',
-  MODULE_KEYS.filter((k) => GR && GR[k]).length,
-  MODULE_KEYS.length
-);
+let GR = null; // 节 1 赋值，后续节共享（文件级 let + test 顺序执行）
 
-// ============ 2. 列表页两波流程 / Two-wave rating flow ============
-console.log('2. 列表页两波好评率流程');
-
-// 构建列表页 DOM：3 个游戏项 / build a 3-item list page
+// 构建列表页 DOM 项（Fake DOM）/ build a list item
+// v6.2.0：makeItem 提升至文件级（节 2/2b/6/7/8b 共享）
 function makeItem(name, id) {
   const li = new FakeEl('li');
   li._attrs['class'] = 'game-item';
@@ -338,10 +327,43 @@ function makeItem(name, id) {
   li.appendChild(a);
   return { li, a };
 }
-const itemA = makeItem('游戏A', 1);
-const itemB = makeItem('游戏B', 2);
-const itemC = makeItem('游戏C', 3);
-const allItems = [itemA, itemB, itemC];
+// v6.2.0：跨节共享 DOM 变量/函数提升至文件级（节 2 赋值，节 3/6/8b 读取）
+let itemA = null, itemB = null, itemC = null, allItems = null;
+function isAllBadge(c) {
+  return c.className.includes('gr-rating-badge') && !c.className.includes('gr-recent') && !c.className.includes('gr-update');
+}
+
+test('1. 顶层加载与预热', async () => {
+console.log('1. 顶层加载与预热');
+let loadError = null;
+try {
+  await loadModules();
+  for (const f of SCRIPT_FILES) {
+    const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+    evalWithGrImport(code);
+  }
+} catch (e) {
+  loadError = e;
+}
+expect(loadError ? loadError.message : null).toEqual(null);
+
+GR = globalThis.__GR__;
+expect(MODULE_KEYS.filter((k) => GR && GR[k]).length).toEqual(MODULE_KEYS.length);;
+// v6.2.0：等待 tracker warmup（bootPromise）完成——全量并发下监听器注册与
+// 模块就绪存在竞争，固定短延时偶发不足导致推送丢失（单跑通过、全量偶发）
+await new Promise((r) => setTimeout(r, 150));
+
+// ============ 2. 列表页两波流程 / Two-wave rating flow ============
+});
+
+test('2. 列表页两波好评率流程', async () => {
+console.log('2. 列表页两波好评率流程');
+
+// 构建列表页 DOM：3 个游戏项 / build a 3-item list page
+itemA = makeItem('游戏A', 1);
+itemB = makeItem('游戏B', 2);
+itemC = makeItem('游戏C', 3);
+allItems = [itemA, itemB, itemC];
 queryAllStub = (sel) => {
   if (sel === 'li.game-item') return allItems.map((x) => x.li);
   return [];
@@ -368,48 +390,24 @@ presets['GET_RECOMMENDATIONS'] = (msg) => ({
 
 // 触发 DOMContentLoaded → init（warmup 已 resolve）
 docReadyCallbacks.forEach((cb) => cb());
-await new Promise((r) => setTimeout(r, 30));
+await new Promise((r) => setTimeout(r, 100));
 
-check(
-  '第一波：缓存命中游戏A 好评率徽章已插入',
-  itemA.a.children.some((c) => c.className.includes('gr-rating-badge')),
-  true
-);
-check(
-  '第一波：未命中游戏B/C 无好评率徽章',
-  itemB.a.children.some((c) => c.className.includes('gr-rating-badge')) ||
-    itemC.a.children.some((c) => c.className.includes('gr-rating-badge')),
-  false
-);
+expect(itemA.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);;
+expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge')) ||
+    itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);;
 
 // 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）
-await new Promise((r) => setTimeout(r, 30));
+await new Promise((r) => setTimeout(r, 100));
 // v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
-check('推荐值徽章已插入（游戏A）', itemA.a.children.length, 4);
-check(
-  '近30天徽章在最前（无近期评测显示 —）',
-  itemA.a.children[0].className.includes('gr-recent-badge') && itemA.a.children[0].textContent === '—',
-  true
-);
-check(
-  '全部好评率徽章第二位',
-  itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '95%',
-  true
-);
-check(
-  '最近更新徽章第三位（无数据 —）',
-  itemA.a.children[2].className.includes('gr-update-badge') && itemA.a.children[2].textContent === '—',
-  true
-);
-check('推荐徽章在最后', itemA.a.children[3].className.includes('gr-rec-badge'), true);
-check('推荐徽章显示数值', itemA.a.children[3].textContent, '🎯 85%');
-check(
-  '推荐徽章悬停含分值组成',
-  itemA.a.children[3].title.includes('点击率') &&
+expect(itemA.a.children.length).toEqual(4);
+expect(itemA.a.children[0].className.includes('gr-recent-badge') && itemA.a.children[0].textContent === '—').toEqual(true);;
+expect(itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '95%').toEqual(true);;
+expect(itemA.a.children[2].className.includes('gr-update-badge') && itemA.a.children[2].textContent === '—').toEqual(true);;
+expect(itemA.a.children[3].className.includes('gr-rec-badge')).toEqual(true);
+expect(itemA.a.children[3].textContent).toEqual('🎯 85%');
+expect(itemA.a.children[3].title.includes('点击率') &&
     itemA.a.children[3].title.includes('下载率') &&
-    itemA.a.children[3].title.includes('Steam'),
-  true
-);
+    itemA.a.children[3].title.includes('Steam')).toEqual(true);;
 
 // 后台推送第 1 波增量：游戏B 拉取完成（含近30天/最近更新数据） / background push wave 1
 await msgListener(
@@ -432,44 +430,16 @@ await msgListener(
   () => {}
 );
 // v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底），等待微任务
-await new Promise((r) => setTimeout(r, 0));
+await new Promise((r) => setTimeout(r, 100));
 
-check(
-  '第二波（增量1）：游戏B 好评率徽章已插入',
-  itemB.a.children.some((c) => c.className.includes('gr-rating-badge')),
-  true
-);
-check(
-  '第二波（增量1）：游戏C 仍无好评率徽章',
-  itemC.a.children.some((c) => c.className.includes('gr-rating-badge')),
-  false
-);
+expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);;
+expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);;
 // v3.3.6：游戏B 三段徽章（近30天 55% / 全部 60% / 更新 08-01）
-check(
-  '游戏B 近30天徽章显示 55%',
-  itemB.a.children[0].className.includes('gr-recent-badge') && itemB.a.children[0].textContent === '55%',
-  true
-);
-check(
-  '游戏B 近30天悬停含评论数',
-  itemB.a.children[0].title.includes('55%') && itemB.a.children[0].title.includes('120'),
-  true
-);
-check(
-  '游戏B 全部徽章 60%',
-  itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '60%',
-  true
-);
-check(
-  '游戏B 最近更新徽章 MM-DD',
-  itemB.a.children[2].className.includes('gr-update-badge') && itemB.a.children[2].textContent === '🛠 08-01',
-  true
-);
-check(
-  '游戏B 更新悬停含发行日期',
-  itemB.a.children[2].title.includes('2026-08-01') && itemB.a.children[2].title.includes('2025-03-30'),
-  true
-);
+expect(itemB.a.children[0].className.includes('gr-recent-badge') && itemB.a.children[0].textContent === '55%').toEqual(true);;
+expect(itemB.a.children[0].title.includes('55%') && itemB.a.children[0].title.includes('120')).toEqual(true);;
+expect(itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '60%').toEqual(true);;
+expect(itemB.a.children[2].className.includes('gr-update-badge') && itemB.a.children[2].textContent === '🛠 08-01').toEqual(true);;
+expect(itemB.a.children[2].title.includes('2026-08-01') && itemB.a.children[2].title.includes('2025-03-30')).toEqual(true);;
 
 // 后台推送第 2 波增量：游戏C 为合集（bundle，无法解析本体）→ type 徽章 + done 收尾
 await msgListener(
@@ -482,27 +452,18 @@ await msgListener(
   () => {}
 );
 
-check(
-  '第二波（增量2）：游戏C 显示 type 徽章',
-  itemC.a.children.some((c) => c.className.includes('gr-type-badge')),
-  true
-);
-check(
-  'type 徽章样式正确',
-  itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-type-badge') : false,
-  true
-);
-check(
-  'type 徽章显示 type 值',
-  itemC.a.children.find((c) => c.className.includes('gr-type-badge')).textContent,
-  'bundle'
-);
+expect(itemC.a.children.some((c) => c.className.includes('gr-type-badge'))).toEqual(true);;
+expect(itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-type-badge') : false).toEqual(true);;
+expect(itemC.a.children.find((c) => c.className.includes('gr-type-badge')).textContent).toEqual('bundle');;
 const barEl = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
-check('完成统计浮窗已显示', barEl ? barEl.innerHTML.includes('Steam 好评率获取完成') : false, true);
+expect(barEl ? barEl.innerHTML.includes('Steam 好评率获取完成') : false).toEqual(true);
 const batchMsg = sentMessages.find((m) => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
-check('下载站网址缓存批量写入（2 条）', batchMsg ? batchMsg.data.entries.length : 0, 2);
+expect(batchMsg ? batchMsg.data.entries.length : 0).toEqual(2);
 
 // ============ 2b. 批次调度（v4.0.0）/ Batch scheduling ============
+});
+
+test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
 console.log('2b. 批次调度（首屏 60 + 滚动衔接）');
 // 100 个游戏项：首批只应请求 60 个，缓存全命中（pending=0）时自动衔接第二批 40 个
 const manyItems = [];
@@ -522,19 +483,15 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
 };
 GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
 await new Promise((r) => setTimeout(r, 50));
-check('首批请求 60 个名字', batchRequests[0] ? batchRequests[0].length : 0, 60);
-check('自动衔接第二批 40 个名字', batchRequests[1] ? batchRequests[1].length : 0, 40);
-check(
-  '两批无重复名字',
-  (() => {
+expect(batchRequests[0] ? batchRequests[0].length : 0).toEqual(60);
+expect(batchRequests[1] ? batchRequests[1].length : 0).toEqual(40);
+expect((() => {
     if (batchRequests.length < 2) return false;
     const all = [...batchRequests[0], ...batchRequests[1]];
     return new Set(all).size === all.length && all.length === 100;
-  })(),
-  true
-);
+  })()).toEqual(true);;
 const doneBar = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
-check('全部批次完成后统计浮窗显示', doneBar ? doneBar.innerHTML.includes('Steam 好评率获取完成') : false, true);
+expect(doneBar ? doneBar.innerHTML.includes('Steam 好评率获取完成') : false).toEqual(true);
 
 // done 衔接场景：首批部分未命中（pending>0）→ 等后台 done → 衔接第二批
 const batchRequests2 = [];
@@ -547,15 +504,18 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   return { ratings, pending: msg.names.length - 10 };
 };
 GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
-await new Promise((r) => setTimeout(r, 30));
-check('done 前仅一批在途', batchRequests2.length, 1);
+await new Promise((r) => setTimeout(r, 100));
+expect(batchRequests2.length).toEqual(1);
 // 后台完成 → 推送 done → 应自动发起第二批
 await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
-await new Promise((r) => setTimeout(r, 30));
-check('done 后衔接第二批（40 个）', batchRequests2[1] ? batchRequests2[1].length : 0, 40);
+await new Promise((r) => setTimeout(r, 100));
+expect(batchRequests2[1] ? batchRequests2[1].length : 0).toEqual(40);
 presets['GET_STEAM_RATINGS'] = batchPreset;
 
 // ============ 3. waitForListItems：AJAX 延迟渲染 / AJAX list wait ============
+});
+
+test('3. waitForListItems（AJAX 延迟渲染）', async () => {
 console.log('3. waitForListItems（AJAX 延迟渲染）');
 queryAllStub = () => []; // 初始列表为空
 const waitPromise = GR.list.waitForListItems(GR.builder.getAdapter(), 4000);
@@ -567,40 +527,34 @@ setTimeout(() => {
   if (MutationObserver.instances.length) MutationObserver.instances[MutationObserver.instances.length - 1].cb();
 }, 260);
 const waitedItems = await waitPromise;
-check('等待到列表项出现', waitedItems.length, 3);
+expect(waitedItems.length).toEqual(3);
 
 // ============ 4. 调试视图关闭后不自动复活 / Debug view dismissal ============
+});
+
+test('4. 调试视图关闭后不自动复活', async () => {
 console.log('4. 调试视图关闭后不自动复活');
 GR.status.setDebugMode(true);
 GR.status.showDebugView('<div>test debug</div>');
 const dbgRoot = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
-check('调试视图已创建（chrome 标题栏）', !!dbgRoot && !!dbgRoot.children[0], true);
+expect(!!dbgRoot && !!dbgRoot.children[0]).toEqual(true);
 // 模拟用户点击标题栏 ✕ 关闭
 dbgRoot.children[0].children[2].click();
-check(
-  '点击关闭后浮窗已移除',
-  documentMock.body.children.some((c) => c.id === 'gr-status-bar'),
-  false
-);
+expect(documentMock.body.children.some((c) => c.id === 'gr-status-bar')).toEqual(false);;
 // 关闭后 dbg 日志触发防抖刷新，不应复活浮窗
 GR.debug.dbg('关闭后的测试日志');
 await new Promise((r) => setTimeout(r, 350));
-check(
-  '关闭后日志不再复活调试视图',
-  documentMock.body.children.some((c) => c.id === 'gr-status-bar'),
-  false
-);
+expect(documentMock.body.children.some((c) => c.id === 'gr-status-bar')).toEqual(false);;
 // 重新开启调试模式 → 允许再次显示
 GR.status.setDebugMode(true);
 GR.status.showDebugView('<div>again</div>');
-check(
-  '重新开启后调试视图可显示',
-  documentMock.body.children.some((c) => c.id === 'gr-status-bar'),
-  true
-);
+expect(documentMock.body.children.some((c) => c.id === 'gr-status-bar')).toEqual(true);;
 GR.float.closeAll();
 
 // ============ 5. lazyload 封面 appId 直取（v3.2.1：gamer520 114933） ============
+});
+
+test('5. lazyload 封面 appId 直取（data-src 优先）', async () => {
 console.log('5. lazyload 封面 appId 直取（data-src 优先）');
 const lazyScope = new FakeEl('div');
 const lazyImg = new FakeEl('img');
@@ -609,15 +563,15 @@ lazyImg._attrs['data-src'] =
   'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/1297900/c68d4/capsule_616x353.jpg';
 lazyScope._imgs = [lazyImg];
 const lazyInfo = GR.builder.extractSteamImageInfo(lazyScope);
-check('占位 src 时从 data-src 提取 appId', lazyInfo ? lazyInfo.appId : null, '1297900');
-check('返回真实封面 URL', lazyInfo ? lazyInfo.cover.includes('1297900') : false, true);
+expect(lazyInfo ? lazyInfo.appId : null).toEqual('1297900');
+expect(lazyInfo ? lazyInfo.cover.includes('1297900') : false).toEqual(true);
 // 无 data-src 时回退 src
 const plainImg = new FakeEl('img');
 plainImg._attrs['src'] = 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg';
 const plainScope = new FakeEl('div');
 plainScope._imgs = [plainImg];
 const plainInfo = GR.builder.extractSteamImageInfo(plainScope);
-check('无 data-src 时回退 src', plainInfo ? plainInfo.appId : null, '111');
+expect(plainInfo ? plainInfo.appId : null).toEqual('111');
 // data-original（xdgame jQuery lazy，v3.2.5）
 const xdImg = new FakeEl('img');
 xdImg._attrs['src'] = '/images/defaultpic.gif';
@@ -626,9 +580,12 @@ xdImg._attrs['data-original'] =
 const xdScope = new FakeEl('div');
 xdScope._imgs = [xdImg];
 const xdInfo = GR.builder.extractSteamImageInfo(xdScope);
-check('data-original appId 直取（xdgame）', xdInfo ? xdInfo.appId : null, '3613270');
+expect(xdInfo ? xdInfo.appId : null).toEqual('3613270');
 
 // ============ 6. 汇总贴过滤（v3.2.3：gamer520 56286 置顶汇总贴） ============
+});
+
+test('6. 汇总贴/索引贴过滤', async () => {
 console.log('6. 汇总贴/索引贴过滤');
 const pinItem = makeItem('[顶置]PC近期爆火游戏 汇总贴', 56286);
 queryAllStub = (sel) => {
@@ -636,19 +593,14 @@ queryAllStub = (sel) => {
   return [];
 };
 const filteredItems = GR.builder.getAdapter().getListItems();
-check(
-  '汇总贴项被过滤',
-  filteredItems.some((i) => i.name.includes('汇总贴')),
-  false
-);
-check(
-  '正常游戏项保留',
-  filteredItems.some((i) => i.name === '游戏A'),
-  true
-);
+expect(filteredItems.some((i) => i.name.includes('汇总贴'))).toEqual(false);;
+expect(filteredItems.some((i) => i.name === '游戏A')).toEqual(true);;
 queryAllStub = (sel) => (sel === 'li.game-item' ? allItems.map((x) => x.li) : []);
 
 // ============ 7. FORCE_REFRESH_PAGE（popup 强制刷新，v3.3.5） ============
+});
+
+test('7. FORCE_REFRESH_PAGE（popup 强制刷新）', async () => {
 console.log('7. FORCE_REFRESH_PAGE（popup 强制刷新）');
 let reloaded = false;
 globalThis.location.reload = () => {
@@ -658,15 +610,18 @@ let forceResp = null;
 await msgListener({ action: 'FORCE_REFRESH_PAGE' }, {}, (r) => {
   forceResp = r;
 });
-await new Promise((r) => setTimeout(r, 30));
+await new Promise((r) => setTimeout(r, 100));
 const clearMsg = sentMessages.find((m) => m.action === 'CLEAR_CACHE_FOR_PAGE');
-check('收集当前页全部游戏名（3 个）', clearMsg ? clearMsg.names.length : 0, 3);
-check('收集的游戏名正确', clearMsg && clearMsg.names.includes('游戏A') && clearMsg.names.includes('游戏C'), true);
-check('后台清除请求已发送', !!clearMsg, true);
-check('响应成功', forceResp ? forceResp.success : false, true);
-check('已触发页面重载', reloaded, true);
+expect(clearMsg ? clearMsg.names.length : 0).toEqual(3);
+expect(clearMsg && clearMsg.names.includes('游戏A') && clearMsg.names.includes('游戏C')).toEqual(true);
+expect(!!clearMsg).toEqual(true);
+expect(forceResp ? forceResp.success : false).toEqual(true);
+expect(reloaded).toEqual(true);
 
 // ============ 8. 徽章开关与过滤/高亮联动（v3.3.8） ============
+});
+
+test('8. 徽章开关与过滤/高亮联动', async () => {
 console.log('8. 徽章开关与过滤/高亮联动');
 // 重新加载内容脚本（新 warmupPromise 读新设置；清空旧回调 + 清除 tracker 防重复守卫）
 await reloadContentScripts();
@@ -679,7 +634,7 @@ const badgeSettings = {
 presets['GET_SETTINGS'] = () => ({ settings: badgeSettings });
 for (const f of SCRIPT_FILES) {
   const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
-  (0, eval)(code);
+  evalWithGrImport(code);
 }
 const itemE = makeItem('游戏E', 5);
 queryAllStub = (sel) => (sel === 'li.game-item' ? [itemE.li] : []);
@@ -708,30 +663,20 @@ presets['GET_RECOMMENDATIONS'] = (msg) => ({
   ]
 });
 docReadyCallbacks.forEach((cb) => cb());
-await new Promise((r) => setTimeout(r, 30));
+await new Promise((r) => setTimeout(r, 100));
 
-check(
-  '关近30天：无近30天徽章',
-  itemE.a.children.some((c) => c.className.includes('gr-recent-badge')),
-  false
-);
-const isAllBadge = (c) =>
-  c.className.includes('gr-rating-badge') && !c.className.includes('gr-recent') && !c.className.includes('gr-update');
-check('全部好评率徽章仍显示', itemE.a.children.some(isAllBadge), true);
-check(
-  '最近更新徽章仍显示',
-  itemE.a.children.some((c) => c.className.includes('gr-update-badge')),
-  true
-);
-check(
-  '关推荐值：无推荐徽章',
-  itemE.a.children.some((c) => c.className.includes('gr-rec-badge')),
-  false
-);
-check('关推荐值：不高亮', itemE.li.classList.contains('gr-highlighted'), false);
-check('好评率过滤仍生效（88% ≥ 70 保留）', itemE.a.children.some(isAllBadge), true);
+expect(itemE.a.children.some((c) => c.className.includes('gr-recent-badge'))).toEqual(false);;
+// isAllBadge 定义见文件级（v6.2.0 提升）
+expect(itemE.a.children.some(isAllBadge)).toEqual(true);
+expect(itemE.a.children.some((c) => c.className.includes('gr-update-badge'))).toEqual(true);;
+expect(itemE.a.children.some((c) => c.className.includes('gr-rec-badge'))).toEqual(false);;
+expect(itemE.li.classList.contains('gr-highlighted')).toEqual(false);
+expect(itemE.a.children.some(isAllBadge)).toEqual(true);
 
 // 8b：关闭"全部好评率"→ 好评率过滤停用（低好评率游戏不再被移除）
+});
+
+test('8b. 关全部好评率徽章 → 过滤停用', async () => {
 console.log('8b. 关全部好评率徽章 → 过滤停用');
 await reloadContentScripts();
 const badgeSettings2 = {
@@ -743,7 +688,7 @@ const badgeSettings2 = {
 presets['GET_SETTINGS'] = () => ({ settings: badgeSettings2 });
 for (const f of SCRIPT_FILES) {
   const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
-  (0, eval)(code);
+  evalWithGrImport(code);
 }
 const itemF = makeItem('游戏F', 6);
 documentMock.body.appendChild(itemF.li); // 模拟挂载（过滤会从 DOM 移除）
@@ -774,23 +719,13 @@ presets['GET_RECOMMENDATIONS'] = (msg) => ({
   ]
 });
 docReadyCallbacks.forEach((cb) => cb());
-await new Promise((r) => setTimeout(r, 30));
+await new Promise((r) => setTimeout(r, 100));
 
-check('关全部：无全部好评率徽章', itemF.a.children.some(isAllBadge), false);
-check(
-  '关全部：近30天徽章仍显示',
-  itemF.a.children.some((c) => c.className.includes('gr-recent-badge')),
-  true
-);
-check('关全部：低好评率游戏未被过滤（仍在 DOM）', documentMock.body.children.includes(itemF.li), true);
-check(
-  '关全部：推荐徽章仍显示（rec 开）',
-  itemF.a.children.some((c) => c.className.includes('gr-rec-badge')),
-  true
-);
-check(
-  '推荐徽章在最后（rating 徽章之后）',
-  (() => {
+expect(itemF.a.children.some(isAllBadge)).toEqual(false);
+expect(itemF.a.children.some((c) => c.className.includes('gr-recent-badge'))).toEqual(true);;
+expect(documentMock.body.children.includes(itemF.li)).toEqual(true);
+expect(itemF.a.children.some((c) => c.className.includes('gr-rec-badge'))).toEqual(true);;
+expect((() => {
     const kids = itemF.a.children;
     const recIdx = kids.findIndex((c) => c.className.includes('gr-rec-badge'));
     const badgeIdx = kids.findIndex(
@@ -800,11 +735,12 @@ check(
         c.className.includes('gr-recent-badge')
     );
     return recIdx > badgeIdx;
-  })(),
-  true
-);
+  })()).toEqual(true);;
 
 // ============ 9. 详情页报错按钮（v3.3.11） ============
+});
+
+test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
 console.log('9. 详情页报错按钮（人工纠错重新检索）');
 await reloadContentScripts();
 presets['GET_SETTINGS'] = () => ({
@@ -857,7 +793,7 @@ presets['SEARCH_STEAM'] = (msg) => {
 presets['GET_STEAM_BY_APPID'] = () => ({ data: null });
 for (const f of SCRIPT_FILES) {
   const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
-  (0, eval)(code);
+  evalWithGrImport(code);
 }
 docReadyCallbacks.forEach((cb) => {
   try {
@@ -866,26 +802,22 @@ docReadyCallbacks.forEach((cb) => {
     console.log('⚠️ 第9节 init 抛错:', e.message);
   }
 });
-await new Promise((r) => setTimeout(r, 30));
+await new Promise((r) => setTimeout(r, 100));
 
 // floats 结构：root(id) → [header, body(内容区)]；渲染 HTML 在 body.innerHTML
 const steamRoot = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
 const steamBody = steamRoot ? steamRoot.children[1] : null;
 const steamHtml = steamBody ? steamBody.innerHTML : '';
-check('详情页浮窗已渲染（含内容区）', !!steamRoot && steamHtml.length > 50, true);
-check('报错按钮已渲染', steamHtml.includes('gr-report-issue-btn') && steamHtml.includes('信息有误'), true);
-check('刷新按钮已渲染', steamHtml.includes('gr-refresh-cache-btn'), true);
-check('浮窗显示错误游戏（模拟）', steamHtml.includes('2001760') || steamHtml.includes('轮回之兽'), true);
+expect(!!steamRoot && steamHtml.length > 50).toEqual(true);
+expect(steamHtml.includes('gr-report-issue-btn') && steamHtml.includes('信息有误')).toEqual(true);
+expect(steamHtml.includes('gr-refresh-cache-btn')).toEqual(true);
+expect(steamHtml.includes('2001760') || steamHtml.includes('轮回之兽')).toEqual(true);
 // v3.4.1：原断言恒真（"由 E2E 验证"），改为源码级守护——报错按钮绑定 +
 // REPORT_WRONG_APPID 消息流 + 手动选择面板兜底路径必须存在
 const detailSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
-check(
-  '报错按钮绑定存在（源码级）',
-  detailSrc.includes('#gr-report-issue-btn') && detailSrc.includes("action: 'REPORT_WRONG_APPID'"),
-  true
-);
-check('重检索失败/同 appId 兜底到手动选择面板（源码级）', detailSrc.includes('renderManualSelectPanel'), true);
-check('详情页真实发起 Steam 检索（第9节流程执行）', searchCalls >= 1, true);
+expect(detailSrc.includes('#gr-report-issue-btn') && detailSrc.includes("action: 'REPORT_WRONG_APPID'")).toEqual(true);;
+expect(detailSrc.includes('renderManualSelectPanel')).toEqual(true);
+expect(searchCalls >= 1).toEqual(true);
 // v3.4.2：demo 判定防误伤（源码级）——浮窗前端正则必须带词边界
 // （\b），避免 Trials/Demons 等合法游戏名子串被误标为 Demo；后台 isDemo
 // 以 appdetails type=demo 为权威信号，名称兜底同样带边界。
@@ -899,12 +831,8 @@ const steamApiSrc =
     .map((f) => fs.readFileSync(path.join(ROOT, 'background/steam', f), 'utf-8'))
     .join('\n');
 const detailAllSrc = detailSrc + fs.readFileSync(path.join(ROOT, 'content/detail/detail-templates.js'), 'utf-8');
-check('浮窗 demo 徽标正则带词边界（源码级）', detailAllSrc.includes('\\b(demo|trial)\\b'), true);
-check('后台 isDemo 优先用 type 权威信号（源码级）', steamApiSrc.includes("gameData.type === 'demo'"), true);
+expect(detailAllSrc.includes('\\b(demo|trial)\\b')).toEqual(true);
+expect(steamApiSrc.includes("gameData.type === 'demo'")).toEqual(true);
 
-console.log('\n===== 内容脚本模拟测试结果 =====');
-const finalResult = reporter.getResult();
-console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
 
-// 导出结果供 run-tests.js 聚合 / Export results for the test runner
-export const testResult = reporter.getResult();
+});

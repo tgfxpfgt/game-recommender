@@ -148,12 +148,16 @@ export async function deleteNameIndexEntries(appId, names) {
 // Delete one name's index entry (force-refresh: removes both positive and
 // negative entries — the latter carry appId=null and can't be matched by
 // deleteNameIndexEntries, yet would block re-fetching if left behind).
+// v6.2.0 修复：与 recordNameIndex 对称删除清理名变体——此前只删精确 key，
+// lookupAppIdByName 的清理名回退仍能命中残留变体（报错重检索被旧映射干扰，
+// test-handlers 集成测试发现）
 export async function deleteNameIndexEntry(name) {
   const key = (name || '').toLowerCase().trim();
   if (!key) return;
   await loadNameIndexToMemory();
-  if (!nameIndexMemory.has(key)) return;
   nameIndexMemory.delete(key);
+  const cleaned = cleanGameName(name).toLowerCase().trim();
+  if (cleaned && cleaned !== key) nameIndexMemory.delete(cleaned);
   scheduleWrite();
 }
 

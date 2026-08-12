@@ -151,7 +151,45 @@ const RULES = {
   },
   EXPORT_DATA: moduleKeysRule('EXPORT_DATA'),
   IMPORT_DATA: moduleKeysRule('IMPORT_DATA'),
-  CREATE_BACKUP: moduleKeysRule('CREATE_BACKUP')
+  CREATE_BACKUP: moduleKeysRule('CREATE_BACKUP'),
+  // ---- v6.2.0 第三批：写/破坏性 action 全量入参校验 ----
+  // 无参清理类：显式声明已契约（校验恒过，防止未来误判为未覆盖）
+  RESET_SETTINGS: () => ({ ok: true }),
+  CLEAR_DATA: () => ({ ok: true }),
+  CLEAR_RUNTIME_LOGS: () => ({ ok: true }),
+  CLEAR_OUTBOUND_AUDIT: () => ({ ok: true }),
+  CLEAR_GAME_CACHE: () => ({ ok: true }),
+  DELETE_ADAPTER_RULES: () => ({ ok: true }),
+  CLEAN_EXPIRED_CACHE: () => ({ ok: true }),
+  // 缓存条目级操作：appId 必填
+  DELETE_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'DELETE_GAME_CACHE_ENTRY.appId'),
+  REFRESH_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'REFRESH_GAME_CACHE_ENTRY.appId'),
+  CACHE_STEAM_PAGE: (m) => {
+    const a = appIdRule(m && m.appId, 'CACHE_STEAM_PAGE.appId');
+    if (!a.ok) return a;
+    return optStr(m && m.gameName, 200) ? { ok: true } : { error: 'CACHE_STEAM_PAGE.gameName 可选字符串（≤200）' };
+  },
+  TRACK_DOWNLOAD_SITE_VISIT: (m) => {
+    const data = m && m.data;
+    if (
+      !isPlainObject(data) ||
+      !APP_ID_RE.test(String(data.appId == null ? '' : data.appId)) ||
+      typeof data.url !== 'string' ||
+      !data.url
+    ) {
+      return { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.appId 数字且 url 必填' };
+    }
+    return optStr(data.domain, 100) ? { ok: true } : { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.domain 可选字符串（≤100）' };
+  },
+  SAVE_ADAPTER_RULES: (m) =>
+    isPlainObject(m && m.rules) ? { ok: true } : { error: 'SAVE_ADAPTER_RULES.rules 必须是对象' },
+  REPORT_WRONG_APPID: (m) => {
+    const appIdOk = m.appId === undefined || m.appId === null || APP_ID_RE.test(String(m.appId));
+    if (!appIdOk) return { error: 'REPORT_WRONG_APPID.appId 可选 1-10 位数字' };
+    if (!optStr(m && m.gameName, 200)) return { error: 'REPORT_WRONG_APPID.gameName 可选字符串（≤200）' };
+    if (m.appId == null && !m.gameName) return { error: 'REPORT_WRONG_APPID 至少提供 appId 或 gameName 之一' };
+    return { ok: true };
+  }
 };
 
 // 统一校验入口：未契约化 action 放行 / unified entry; uncovered actions pass

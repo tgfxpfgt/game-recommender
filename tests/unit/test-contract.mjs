@@ -96,3 +96,31 @@ test('EXPORT_DATA moduleKeys 非数组拒绝', () => { expect(validateMessage('E
 test('RESTORE_BACKUP 带 moduleKeys 合法', () => { expect(validateMessage('RESTORE_BACKUP', { backupId: 'b-1', moduleKeys: ['settings'] }).ok).toEqual(true); });
 test('RESTORE_BACKUP 缺 backupId 仍拒绝', () => { expect(validateMessage('RESTORE_BACKUP', { moduleKeys: ['settings'] }).ok).toEqual(false); });
 
+console.log('7. 第三批契约（v6.2.0：写/破坏性 action 全量）');
+console.log('7a. 无参清理类（恒通过，防误判为未覆盖）');
+test('RESET_SETTINGS 合法', () => { expect(validateMessage('RESET_SETTINGS', {}).ok).toEqual(true); });
+test('CLEAR_DATA 合法', () => { expect(validateMessage('CLEAR_DATA', {}).ok).toEqual(true); });
+test('CLEAR_RUNTIME_LOGS 合法', () => { expect(validateMessage('CLEAR_RUNTIME_LOGS', {}).ok).toEqual(true); });
+test('CLEAR_OUTBOUND_AUDIT 合法', () => { expect(validateMessage('CLEAR_OUTBOUND_AUDIT', {}).ok).toEqual(true); });
+test('CLEAR_GAME_CACHE 合法', () => { expect(validateMessage('CLEAR_GAME_CACHE', {}).ok).toEqual(true); });
+test('DELETE_ADAPTER_RULES 合法', () => { expect(validateMessage('DELETE_ADAPTER_RULES', {}).ok).toEqual(true); });
+test('CLEAN_EXPIRED_CACHE 合法', () => { expect(validateMessage('CLEAN_EXPIRED_CACHE', {}).ok).toEqual(true); });
+console.log('7b. 缓存条目级操作（appId 必填）');
+test('DELETE_GAME_CACHE_ENTRY 合法', () => { expect(validateMessage('DELETE_GAME_CACHE_ENTRY', { appId: '275850' }).ok).toEqual(true); });
+test('DELETE_GAME_CACHE_ENTRY 非数字拒绝', () => { expect(validateMessage('DELETE_GAME_CACHE_ENTRY', { appId: 'x' }).ok).toEqual(false); });
+test('DELETE_GAME_CACHE_ENTRY 缺 appId 拒绝', () => { expect(validateMessage('DELETE_GAME_CACHE_ENTRY', {}).ok).toEqual(false); });
+test('REFRESH_GAME_CACHE_ENTRY 合法', () => { expect(validateMessage('REFRESH_GAME_CACHE_ENTRY', { appId: '123' }).ok).toEqual(true); });
+test('REFRESH_GAME_CACHE_ENTRY 非数字拒绝', () => { expect(validateMessage('REFRESH_GAME_CACHE_ENTRY', { appId: 'abc' }).ok).toEqual(false); });
+test('CACHE_STEAM_PAGE 合法（带可选 gameName）', () => { expect(validateMessage('CACHE_STEAM_PAGE', { appId: '1', gameName: '游戏' }).ok).toEqual(true); });
+test('CACHE_STEAM_PAGE 缺 appId 拒绝', () => { expect(validateMessage('CACHE_STEAM_PAGE', { gameName: '游戏' }).ok).toEqual(false); });
+console.log('7c. 站点访问/规则/报错类');
+test('TRACK_DOWNLOAD_SITE_VISIT 合法', () => { expect(validateMessage('TRACK_DOWNLOAD_SITE_VISIT', { data: { appId: 123, url: 'https://xdgame.com/1.html', domain: 'xdgame.com' } }).ok).toEqual(true); });
+test('TRACK_DOWNLOAD_SITE_VISIT 缺 url 拒绝', () => { expect(validateMessage('TRACK_DOWNLOAD_SITE_VISIT', { data: { appId: 123 } }).ok).toEqual(false); });
+test('TRACK_DOWNLOAD_SITE_VISIT 缺 data 拒绝', () => { expect(validateMessage('TRACK_DOWNLOAD_SITE_VISIT', {}).ok).toEqual(false); });
+test('SAVE_ADAPTER_RULES 合法', () => { expect(validateMessage('SAVE_ADAPTER_RULES', { rules: { version: 1, sites: [] } }).ok).toEqual(true); });
+test('SAVE_ADAPTER_RULES 非对象拒绝', () => { expect(validateMessage('SAVE_ADAPTER_RULES', { rules: 'x' }).ok).toEqual(false); });
+test('REPORT_WRONG_APPID 合法（appId + gameName）', () => { expect(validateMessage('REPORT_WRONG_APPID', { appId: '730', gameName: '游戏' }).ok).toEqual(true); });
+test('REPORT_WRONG_APPID 仅 gameName 合法', () => { expect(validateMessage('REPORT_WRONG_APPID', { gameName: '游戏' }).ok).toEqual(true); });
+test('REPORT_WRONG_APPID 全空拒绝', () => { expect(validateMessage('REPORT_WRONG_APPID', {}).ok).toEqual(false); });
+test('REPORT_WRONG_APPID 非数字 appId 拒绝', () => { expect(validateMessage('REPORT_WRONG_APPID', { appId: 'x', gameName: '游戏' }).ok).toEqual(false); });
+

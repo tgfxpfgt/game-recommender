@@ -18,13 +18,14 @@ export default defineConfig({
   test: {
     environment: 'node',
     pool: 'forks',
-    // v6.1.0：文件级串行 + 关闭隔离——测试依赖顺序执行与模块缓存共享
-    //（跨文件共享 TTL 配置/审计缓冲等全局状态，与 node legacy 语义一致）
-    // v6.1.1：4 个状态敏感套件结构化重写后 test 已自包含，串行保留稳妥
-    fileParallelism: false,
-    isolate: false,
+    // v6.2.0：默认隔离 + 文件级并行——v6.1.1 结构化重写后各套件已自包含
+    //（chrome/storage mock 各自安装还原、模块实例按文件独立），无需串行共享；
+    // 隔离开启后跨文件状态竞态（防抖延迟写落点依赖执行时序）一并消除
+    fileParallelism: true,
+    isolate: true,
     include: [
-      // v6.1.1：13 个套件全部由 vitest 收集；content-sim 由 test:sim 直跑
+      // v6.2.0：14 个套件全部由 vitest 收集（content-sim 经 __grImport
+      // 注入兼容 eval 动态 import，单 runner 全量统一）
       'tests/unit/test-title-parser.mjs',
       'tests/unit/test-engine.mjs',
       'tests/unit/test-contract.mjs',
@@ -36,8 +37,10 @@ export default defineConfig({
       'tests/unit/test-rules-cleanup.mjs',
       'tests/unit/test-storage.mjs',
       'tests/unit/test-outbound.mjs',
+      'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
-      'tests/integration/test-integrity.mjs',
+      'tests/integration/test-handlers.mjs',
+      'tests/integration/test-integrity.mjs'
     ],
     server: {
       deps: {
