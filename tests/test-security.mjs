@@ -136,7 +136,7 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '4.1.0');
+check('manifest 版本', manifest.version, '4.1.1');
 // v4.1.0：版本三源一致（manifest / package.json / 本测试）——发布时手改易漏
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
 check('package.json 版本与 manifest 一致', pkg.version, manifest.version);
@@ -165,6 +165,30 @@ check('混合名含英文', validEn('Demeo x Dungeons'), true);
 check('正常中文名', validCn('奉魔'), true);
 check('中文名英文占位异常', validCn('Worship Demon'), false);
 check('中文名空值', validCn(''), true);
+
+// 8. 版本后缀补搜（v4.1.1：封面旧版 + 标题"增强版" → 升级新版；mock 网络）
+console.log('8. 版本后缀补搜 findVersionVariant（mock Steam）');
+const apiMod = await import(new URL('../background/steam/api.js', import.meta.url).href + '?t=' + Date.now());
+const realFetch = globalThis.fetch;
+// mock：appdetails 返回英文名（Legacy 后缀）；storesearch 返回增强版条目
+globalThis.fetch = async (url) => {
+  const u = String(url);
+  if (u.includes('/api/appdetails')) {
+    return { ok: true, json: async () => ({ '271590': { success: true, data: { name: 'Grand Theft Auto V Legacy' } } }) };
+  }
+  if (u.includes('/api/storesearch')) {
+    return { ok: true, json: async () => ({ items: [{ id: 3240220, name: 'Grand Theft Auto V 增强版', type: 'app' }] }) };
+  }
+  return { ok: false };
+};
+try {
+  const v = await apiMod.findVersionVariant(271590, '侠盗猎车手V 增强版|中字-国语|V1.0.1158.13');
+  check('封面旧版+增强版标题 → 命中新版 3240220', v ? String(v.appId) : 'null', '3240220');
+  check('无版本后缀标题 → 不触发', await apiMod.findVersionVariant(271590, '侠盗猎车手V'), null);
+  check('标题为空 → 不触发', await apiMod.findVersionVariant(271590, ''), null);
+} finally {
+  globalThis.fetch = realFetch;
+}
 
 console.log('\n===== 安全与存储测试结果 =====');
 const finalResult = reporter.getResult();

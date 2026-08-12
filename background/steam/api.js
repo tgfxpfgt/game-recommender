@@ -252,6 +252,45 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
   return null;
 }
 
+// v4.1.1：版本后缀补搜——标题含"增强版/重制版"等版本词、但封面/直取 appId
+// 是旧版时（如 gamer520 40746 封面 271590 是 GTA5 老版，标题"侠盗猎车手V 增强版"
+// 应为 3240220），用旧版英文名 + 英文版本后缀补搜新版。
+// 触发条件：标题含 CN 后缀；直取详情名不含 CN 后缀；英文名不含 EN 后缀。
+// 结果要求：名称含 EN 后缀（防匹配无关新作）且与标题相关（单语言跨语言信任）。
+// Version-suffix variant search: when the title says "增强版" but the cover
+// appId is the legacy/base edition, search "<EN name> <EN suffix>" (e.g. GTA V
+// legacy cover 271590 → "Grand Theft Auto V Enhanced" → 3240220). The result
+// must carry the EN suffix and pass the name-relevance check.
+const VERSION_SUFFIX_PAIRS = [
+  ['增强版', 'Enhanced'], ['重制版', 'Remastered'], ['复刻版', 'Remake'],
+  ['豪华版', 'Deluxe'], ['终极版', 'Ultimate'], ['年度版', 'Game of the Year'],
+  ['典藏版', 'Collector'], ['黄金版', 'Gold']
+];
+export async function findVersionVariant(appId, title) {
+  if (!title) return null;
+  const pair = VERSION_SUFFIX_PAIRS.find(([cn]) => title.includes(cn));
+  if (!pair) return null;
+  const [cnSuffix, enSuffix] = pair;
+  // 英文名来源：直取 appId 的 english 详情（失败/无名为 null → 跳过补搜）
+  const details = await fetchSteamAppDetails(appId, 'english').catch(() => null);
+  if (!details || !details.name) return null;
+  if (details.name.toLowerCase().includes(enSuffix.toLowerCase())) return null; // 已是该版本
+  // 旧版名常带 Legacy/Classic 等后缀（如 GTA5 传承版 "Grand Theft Auto V Legacy"），
+  // 拼新版本后缀前先剥离，否则 "Legacy Enhanced" 组合在 Steam 索引无结果
+  // Strip legacy suffixes (e.g. "Grand Theft Auto V Legacy") before appending
+  // the new-edition suffix — "Legacy Enhanced" never matches the index.
+  const baseName = details.name.replace(/\s+(legacy|classic|original( edition)?|standard edition|vanilla)$/i, '');
+  const result = await searchSteamAppId([`${baseName} ${enSuffix}`], title);
+  if (!result) return null;
+  // 结果名必须带版本标识（防"Grand Theft Auto VI"类新作误配）——storesearch
+  // 可能返回中文条目名（"Grand Theft Auto V 增强版"），CN/EN 后缀都接受
+  const resultName = result.name.toLowerCase();
+  const hasSuffix = resultName.includes(enSuffix.toLowerCase()) || result.name.includes(cnSuffix);
+  if (!hasSuffix) return null;
+  if (!namesRelated(title, result.name)) return null;
+  return result;
+}
+
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
 async function searchSteamAppIdLight(term, rawName, excludeAppId) {

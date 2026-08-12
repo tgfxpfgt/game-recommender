@@ -240,6 +240,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v4.1.1（小版本：版本后缀补搜修复）
+- **修复**：`https://www.gamer520.com/40746.html` 等"增强版/重制版"标题无法正确检索新版 Steam 条目（如 GTA5 增强版 3240220）：
+  - **根因**：① 页面 Steam 封面是旧版（40746 封面 271590 = GTA5 传承版），appId 直取命中旧版；② 该类游戏无官方中文名（3240220 索引为英文 "Grand Theft Auto V Enhanced"），中文标题"侠盗猎车手V"在 storesearch 中文索引 0 命中 → 搜索路径全部落空
+  - **修复**：新增 `findVersionVariant(appId, title)`——标题含版本后缀词（增强版/重制版/复刻版/豪华版/终极版/年度版/典藏版/黄金版）且直取条目是旧版时，剥离旧版后缀（Legacy/Classic 等）后用"英文名 + 英文版本后缀"补搜（"Grand Theft Auto V" + " Enhanced" → 3240220）；结果须带版本标识（CN/EN 后缀任一）且与标题相关（跨语言信任）；`GET_STEAM_BY_APPID` 命中变体则整体走新版（缓存/注册表/名称索引全部按新版写入）
+  - 覆盖场景：旧版封面 + 新版标题；已是新版标题（不重复搜）；无版本后缀（不触发）
+- **质量**：新增 mock 单测 3 项 + 真实 API 端到端验证（271590 → 3240220）
+
 ### v4.1.0（中版本：全部优化建议落地）
 - **性能三件套**：
   1. **推荐流联动滚动**：推荐请求并入批次调度（fireBatch 按批并发 GET_RECOMMENDATIONS），按 name 回填徽章（替代 index 对齐）——滚动批次自动获得推荐徽章/高亮；顺带修复 REFRESH 路径 appId 恒 null 缺陷；prependRecBadge 防重复

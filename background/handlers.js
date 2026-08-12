@@ -27,7 +27,7 @@ import { getDownloadHistory, recordDownloadHistory, inferSiteFromDomain } from '
 import { recordWrongReport, flushWrongReports } from './storage/wrong-reports.js';
 import { searchSteamGame } from './steam/orchestrator.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
-import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated } from './steam/api.js';
+import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated, findVersionVariant } from './steam/api.js';
 import { parseGameTitle } from './core/title-parser.js';
 import { calculateRecommendation, computeGameScore, findProfile, steamspyScores } from './recommend/engine.js';
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
@@ -163,22 +163,37 @@ async function handleGetSteamByAppId(message) {
       return { data: null, cachedAt: null };
     }
 
-    await setSteamCacheEntry(appId, result);
-    await recordGameInRegistry(appId, {
-      cnName: result.name,
-      enName: result.englishName || result.name,
+    // v4.1.1：版本后缀补搜（findVersionVariant）——标题含"增强版"等版本词、
+    // 封面/直取 appId 是旧版时升级到新版（如 gamer520 40746 封面 271590 是
+    // GTA5 老版，标题"侠盗猎车手V 增强版"应匹配 3240220）；命中则整体走新版
+    let target = result;
+    if (!manual && gameName) {
+      const variant = await findVersionVariant(appId, gameName);
+      if (variant && String(variant.appId) !== String(appId)) {
+        const variantResult = await fetchSteamFullDetailsByAppId(variant.appId);
+        if (variantResult) {
+          Logger.info('Steam', `版本后缀补搜: "${gameName}" 封面 ${appId} 为旧版 → 升级 ${variant.appId} ${variantResult.name}`);
+          target = variantResult;
+        }
+      }
+    }
+
+    await setSteamCacheEntry(target.appId, target);
+    await recordGameInRegistry(target.appId, {
+      cnName: target.name,
+      enName: target.englishName || target.name,
       gameName,
-      tags: result.genres,
-      coverImage: result.headerImage || ''
+      tags: target.genres,
+      coverImage: target.headerImage || ''
     });
-    if (gameName) await recordNameIndex(gameName, appId);
+    if (gameName) await recordNameIndex(gameName, target.appId);
 
     await flushSteamCache();
     await flushNameIndex();
     await flushRegistry();
-    const newEntry = await getSteamCacheEntry(appId);
-    Logger.info('Steam', `通过 appId ${appId} 直接获取: ${result.name}`);
-    return { data: result, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
+    const newEntry = await getSteamCacheEntry(target.appId);
+    Logger.info('Steam', `通过 appId ${target.appId} 直接获取: ${target.name}`);
+    return { data: target, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
   } catch (e) {
     Logger.error('Steam', `通过 appId ${appId} 获取失败: ${e.message}`);
     return { data: null, cachedAt: null };
