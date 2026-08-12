@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 /**
  * Game Recommender - 测试：Steam 编排器集成 / Orchestrator Integration Tests
  *
@@ -8,9 +9,6 @@
  */
 'use strict';
 
-import { createReporter } from '../helpers/assert.mjs';
-const reporter = createReporter();
-const { check } = reporter;
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 
@@ -27,8 +25,8 @@ const cacheMod = await import(new URL('../../background/storage/steam-cache.js',
 const { getSteamRatingsFromCacheOnly, getSteamPositiveRate } = orchMod;
 
 console.log('1. 缓存只读查询（getSteamRatingsFromCacheOnly）');
-check('空名称返回 null', await getSteamRatingsFromCacheOnly(''), null);
-check('无索引无缓存返回 null', await getSteamRatingsFromCacheOnly('不存在的游戏'), null);
+test('空名称返回 null', async () => { expect(await await getSteamRatingsFromCacheOnly('')).toEqual(null); });
+test('无索引无缓存返回 null', async () => { expect(await await getSteamRatingsFromCacheOnly('不存在的游戏')).toEqual(null); });
 
 // 预置缓存：名称索引 + rating 模块（用真实 setSteamCacheEntry 写入）
 await cacheMod.loadSteamCacheToMemory();
@@ -50,9 +48,9 @@ await nameIdx.recordNameIndex('无人深空', '275850');
 await nameIdx.flushNameIndex();
 
 const cached = await getSteamRatingsFromCacheOnly('无人深空');
-check('缓存命中返回好评率', cached && cached.positiveRate, 85);
-check('缓存命中携带 appId', cached && cached.appId, '275850');
-check('缓存命中携带近30天', cached && cached.recentPositiveRate, 80);
+test('缓存命中返回好评率', () => { expect(cached && cached.positiveRate).toEqual(85); });
+test('缓存命中携带 appId', () => { expect(cached && cached.appId).toEqual('275850'); });
+test('缓存命中携带近30天', () => { expect(cached && cached.recentPositiveRate).toEqual(80); });
 
 console.log('2. 全流程拉取（getSteamPositiveRate：缓存优先 → 搜索 → 写缓存）');
 // 新游戏：无缓存 → mock Steam 搜索与详情 → 返回并写缓存
@@ -86,20 +84,16 @@ const fetchMock = createFetchMock({
 const restoreFetch = installFetchMock(fetchMock);
 
 const result = await getSteamPositiveRate('艾尔登法环', { ignoreNegativeCache: true });
-check('搜索+详情链路返回 appId', result && String(result.appId), '1245620');
-check('好评率计算正确（900/1000）', result && result.positiveRate, 90);
+test('搜索+详情链路返回 appId', () => { expect(result && String(result.appId)).toEqual('1245620'); });
+test('好评率计算正确（900/1000）', () => { expect(result && result.positiveRate).toEqual(90); });
 // 写缓存后：二次查询应缓存命中（不再发起 storesearch 搜索）
 const searchCallsBefore = fetchMock._calls.filter((u) => u.includes('/api/storesearch')).length;
 const cached2 = await getSteamPositiveRate('艾尔登法环', { ignoreNegativeCache: true });
 const searchCallsAfter = fetchMock._calls.filter((u) => u.includes('/api/storesearch')).length;
-check('二次查询缓存命中（无新增搜索请求）', searchCallsAfter === searchCallsBefore, true);
-check('缓存命中好评率一致', cached2 && cached2.positiveRate, 90);
+test('二次查询缓存命中（无新增搜索请求）', () => { expect(searchCallsAfter === searchCallsBefore).toEqual(true); });
+test('缓存命中好评率一致', () => { expect(cached2 && cached2.positiveRate).toEqual(90); });
 
 console.log('3. 边界');
-check('空名称返回 null', await getSteamPositiveRate(''), null);
+test('空名称返回 null', async () => { expect(await await getSteamPositiveRate('')).toEqual(null); });
 restoreFetch();
 
-console.log('\n===== 编排器集成测试结果 =====');
-const finalResult = reporter.getResult();
-console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
-export const testResult = reporter.getResult();

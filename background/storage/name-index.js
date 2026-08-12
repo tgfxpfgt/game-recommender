@@ -9,10 +9,10 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE, nameNegativeCacheTtlMs } from '../core/constants.js';
 import { cleanGameName } from '../core/title-parser.js';
+import { createDebouncedStore } from './debounced-store.js';
 
 let nameIndexMemory = null;
 let nameIndexMemoryLoaded = false;
-let nameIndexWriteTimer = null;
 let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载名称索引到内存（顺手清理过期负缓存）
@@ -85,33 +85,26 @@ export async function recordNameIndex(gameName, appId) {
     for (let i = 0; i < toRemove; i++) nameIndexMemory.delete(entries[i][0]);
   }
   // 防抖写入 / Debounced write
+  scheduleWrite();
+}
+
+// v6.1.0：防抖写入收敛至 debounced-store 工厂
+const writer = createDebouncedStore({
+  name: '名称索引',
+  debounceMs: NAME_INDEX_WRITE_DEBOUNCE,
+  save: async () => {
+    if (!nameIndexMemory || !nameIndexDirty) return;
+    nameIndexDirty = false;
+    await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
+  }
+});
+function scheduleWrite() {
   nameIndexDirty = true;
-  if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
-  nameIndexWriteTimer = setTimeout(async () => {
-    nameIndexWriteTimer = null;
-    try {
-      await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
-    } catch (e) {
-      console.error('名称索引防抖写入失败:', e.message);
-    }
-  }, NAME_INDEX_WRITE_DEBOUNCE);
+  writer.scheduleWrite();
 }
 
 // 强制立即写入 / Force flush
-export async function flushNameIndex() {
-  if (nameIndexWriteTimer) {
-    clearTimeout(nameIndexWriteTimer);
-    nameIndexWriteTimer = null;
-  }
-  // v3.4.1：无未落盘修改时跳过整次全量序列化
-  if (!nameIndexMemory || !nameIndexDirty) return;
-  nameIndexDirty = false;
-  try {
-    await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
-  } catch (e) {
-    console.error('名称索引写入失败:', e.message);
-  }
-}
+export const flushNameIndex = writer.flush;
 
 // 清理过期的负缓存条目（内存中删除并防抖写回）
 // Purge expired negative-cache entries from memory (debounced write-back)
@@ -130,16 +123,7 @@ function cleanupExpiredNegativeEntries() {
     }
   }
   if (removed > 0) {
-    nameIndexDirty = true;
-    if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
-    nameIndexWriteTimer = setTimeout(async () => {
-      nameIndexWriteTimer = null;
-      try {
-        await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
-      } catch (e) {
-        console.error('名称索引清理写入失败:', e.message);
-      }
-    }, NAME_INDEX_WRITE_DEBOUNCE);
+    scheduleWrite();
   }
 }
 
@@ -170,16 +154,7 @@ export async function deleteNameIndexEntry(name) {
   await loadNameIndexToMemory();
   if (!nameIndexMemory.has(key)) return;
   nameIndexMemory.delete(key);
-  nameIndexDirty = true;
-  if (nameIndexWriteTimer) clearTimeout(nameIndexWriteTimer);
-  nameIndexWriteTimer = setTimeout(async () => {
-    nameIndexWriteTimer = null;
-    try {
-      await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
-    } catch (e) {
-      console.error('名称索引删除写入失败:', e.message);
-    }
-  }, NAME_INDEX_WRITE_DEBOUNCE);
+  scheduleWrite();
 }
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
@@ -187,8 +162,4 @@ export function resetNameIndex() {
   nameIndexMemory = null;
   nameIndexMemoryLoaded = false;
   nameIndexDirty = false;
-  if (nameIndexWriteTimer) {
-    clearTimeout(nameIndexWriteTimer);
-    nameIndexWriteTimer = null;
-  }
 }

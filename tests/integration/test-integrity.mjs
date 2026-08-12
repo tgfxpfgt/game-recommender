@@ -1,3 +1,4 @@
+import { test, expect } from 'vitest';
 /**
  * Game Recommender - 测试：项目完整性 / Project Integrity Tests
  *
@@ -8,9 +9,6 @@
  */
 'use strict';
 
-import { createReporter } from '../helpers/assert.mjs';
-const reporter = createReporter();
-const { check } = reporter;
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -108,11 +106,11 @@ if (process.argv.includes('--print')) {
   process.exit(0);
 }
 for (const v of violations) console.log('  ⚠', v);
-check('分层违规数（应为 0）', violations.length, 0);
-check('core/title-parser.js 存在（下沉后）', fs.existsSync(path.join(BG, 'core/title-parser.js')), true);
-check('storage/reset.js 存在（归位后）', fs.existsSync(path.join(BG, 'storage/reset.js')), true);
-check('旧 steam/title-parser.js 已移除', fs.existsSync(path.join(BG, 'steam/title-parser.js')), false);
-check('旧 core/reset.js 已移除', fs.existsSync(path.join(BG, 'core/reset.js')), false);
+test('分层违规数（应为 0）', () => { expect(violations.length).toEqual(0); });
+test('core/title-parser.js 存在（下沉后）', () => { expect(fs.existsSync(path.join(BG, 'core/title-parser.js'))).toEqual(true); });
+test('storage/reset.js 存在（归位后）', () => { expect(fs.existsSync(path.join(BG, 'storage/reset.js'))).toEqual(true); });
+test('旧 steam/title-parser.js 已移除', () => { expect(fs.existsSync(path.join(BG, 'steam/title-parser.js'))).toEqual(false); });
+test('旧 core/reset.js 已移除', () => { expect(fs.existsSync(path.join(BG, 'core/reset.js'))).toEqual(false); });
 
 console.log('2. TDZ 静态扫描（顶层常量后向引用）');
 const jsFiles = [];
@@ -155,7 +153,7 @@ for (const file of jsFiles) {
     }
   }
 }
-check('TDZ 后向引用', tdzCount, 0);
+test('TDZ 后向引用', () => { expect(tdzCount).toEqual(0); });
 
 console.log('3. 噪声词双源一致性（shared/patterns.js ↔ title-parser.js）');
 const sharedPatterns = fs.readFileSync(path.join(ROOT, 'shared/patterns.js'), 'utf-8');
@@ -163,11 +161,11 @@ const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/core/title-pa
 // v5.1.0：提取正则支持跨行（prettier 会把长定义拆到多行）
 const sharedSource = ((sharedPatterns.match(/noisePatternSource\s*=\s*'([^']+)'/) || [])[1] || '').replace(/\\\\/g, '\\');
 const parserSource = (titleParserSrc.match(/const noisePattern\s*=\s*\/([\s\S]*?)\/(?:gi|i);/) || [])[1] || '';
-check('双源正则一致（无漂移）', sharedSource === parserSource, true);
-check('权威源非空', sharedSource.length > 50, true);
+test('双源正则一致（无漂移）', () => { expect(sharedSource === parserSource).toEqual(true); });
+test('权威源非空', () => { expect(sharedSource.length > 50).toEqual(true); });
 const detailPageSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
-check('detail-page 引用权威源（无独立副本）', detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource'), true);
-check('detail-page 不含完整漂移副本', !detailPageSrc.includes('抢先试玩|抢先体验'), true);
+test('detail-page 引用权威源（无独立副本）', () => { expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(true); });
+test('detail-page 不含完整漂移副本', () => { expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true); });
 
 console.log('4. JS 语法检查（全仓库 node --check）');
 let syntaxFail = 0;
@@ -179,8 +177,8 @@ for (const f of jsFiles) {
     console.log('  ❌', path.relative(ROOT, f));
   }
 }
-check('语法错误数', syntaxFail, 0);
-check('JS 文件数', jsFiles.length >= 40, true);
+test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
+test('JS 文件数', () => { expect(jsFiles.length >= 40).toEqual(true); });
 
 console.log('5. manifest 引用与版本一致性（v4.2.0：去硬编码）');
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf-8'));
@@ -194,17 +192,9 @@ for (const v of Object.values(manifest.icons || {})) refs.push(v);
 if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter((r) => !fs.existsSync(path.join(ROOT, r)));
-check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本为 x.y.z 格式', /^\d+\.\d+\.\d+$/.test(manifest.version), true);
+test('manifest 引用缺失', () => { expect(missing.length).toEqual(0); });
+test('manifest 版本为 x.y.z 格式', () => { expect(/^\d+\.\d+\.\d+$/.test(manifest.version)).toEqual(true); });
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
-check('package.json 版本与 manifest 一致', pkg.version, manifest.version);
-check(
-  'CSP 显式声明（extension_pages 默认基线）',
-  JSON.stringify(manifest.content_security_policy || {}),
-  JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" })
-);
+test('package.json 版本与 manifest 一致', () => { expect(pkg.version).toEqual(manifest.version); });
+test('CSP 显式声明（extension_pages 默认基线）', () => { expect(JSON.stringify(manifest.content_security_policy || {})).toEqual(JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" })); });
 
-console.log('\n===== 项目完整性测试结果 =====');
-const finalResult = reporter.getResult();
-console.log(finalResult.pass + ' 通过, ' + finalResult.fail + ' 失败');
-export const testResult = reporter.getResult();

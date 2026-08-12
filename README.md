@@ -113,7 +113,7 @@ game-recommender/
 │   └── data-store.js          # OPFS 数据存储层
 ├── lib/
 │   └── ndjson.js              # ND-JSON 编解码库
-├── tests/                     # 自动化测试套件（node tests/run-tests.js）
+├── tests/                     # 自动化测试套件（双 runner：vitest 9 套件 + node 直跑 5 套件）
 ├── styles/content.css
 ├── popup/                     # 工具栏弹窗
 ├── options/                   # 设置页（入口 + panels/ 四面板）
@@ -228,6 +228,13 @@ flowchart LR
 # 一键验证（lint + 单测）/ full check (lint + unit tests)
 npm run check
 
+# 单测双 runner（v6.1.0）：vitest 覆盖 9 个 describe/test 套件；test:node 直跑
+# 5 个线性状态敏感套件（api-pure/rules-cleanup/storage/outbound + content-sim）
+npm test          # vitest run（243 项）
+npm run test:node # node tests/run-tests.js（241 项）
+npm run test:sim  # 仅 content-sim 快速子集（--grep）
+npm run coverage  # vitest 覆盖率；coverage:node 为 c8（node 套件）
+
 # 安装 git 钩子（提交信息格式校验 + 暂存 JS 语法检查，v4.1.2）
 npm run install-hooks
 
@@ -248,6 +255,15 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v6.1.0（中版本：防抖工厂全量迁移 + vitest 断言全量重写）
+- **防抖工厂全量迁移**（v5.1.0 仅 wrong-reports/learned-noise 2 个）：steam-cache / registry / name-index / logger 4 个内联防抖块全部改用 `storage/debounced-store.js`（`scheduleWrite`/`flush`/`reset`），每模块删除自维护 timer 与复合 flush 主体；name-index 修复迁移中暴露的缺失 import 与残留 flush 主体
+- **vitest 断言全量重写（check → describe/test/expect）**：13 个测试文件的 check/assertThrows/assertAsync 全部转为 vitest 原生断言（419+ 处，文件头引入 `import { test, expect } from 'vitest'`）：
+  1. 9 个套件（title-parser/engine/contract/trends/freegames/sites/security + orchestrator/integrity）完成转换由 vitest 直接收集（**243 项**）
+  2. **4 个线性状态敏感套件（api-pure/rules-cleanup/storage/outbound）回滚 check 体系**：其顶层线性脚本 + 模块级共享状态（审计缓冲/TTL 配置/模块状态）与 vite-node 的模块执行语义不兼容（顶层写入与 test 闭包读取不同实例，15 项失败无法归因修复）→ 由 `test:node`（node tests/run-tests.js）直跑，语义保持与原 run-tests 一致
+  3. `tests/all.test.mjs` 聚合入口删除（import + include 双重收集冲突）；vitest.config include 显式列出 9 文件（排除 5 个 node 套件）
+- **工具链**：scripts 调整（`test:node` 新增、`test:legacy` 更名、coverage 切 vitest `--coverage` + `coverage:node` 保留 c8）；CI test job 改 `npm test` + `npm run test:node`（此前只跑 test:sim 会漏 4 套件）
+- **质量**：484 项单测全过（vitest 243 + node 241，与原 check 全量一致）· lint 0 · typecheck 0 · 深度扫描 0 findings
 
 ### v6.0.0（大版本：内容脚本 ESM 化 + vitest runner）
 - **内容脚本 ESM 化（动态 import 路径，零构建）**：

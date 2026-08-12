@@ -8,11 +8,11 @@
  * Permanent, re-confirmed after the TTL; in-memory cache + debounced writes.
  */
 import { dataStore } from '../../data/data-store.js';
+import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
 
 let registryMemory = null;
 let registryMemoryLoaded = false;
-let registryWriteTimer = null;
 let registryDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载注册表到内存 / Load registry into memory (once)
@@ -77,18 +77,20 @@ export async function recordGameInRegistry(
 }
 
 // 防抖写入 / Debounced write
+// v6.1.0：防抖调度收敛至工厂
+const writer = createDebouncedStore({
+  name: '注册表',
+  debounceMs: REGISTRY_WRITE_DEBOUNCE,
+  save: flushRegistry
+});
+
 function scheduleRegistryWrite() {
   registryDirty = true;
-  if (registryWriteTimer) clearTimeout(registryWriteTimer);
-  registryWriteTimer = setTimeout(flushRegistry, REGISTRY_WRITE_DEBOUNCE);
+  writer.scheduleWrite();
 }
 
 // 强制立即写入 / Force flush
 export async function flushRegistry() {
-  if (registryWriteTimer) {
-    clearTimeout(registryWriteTimer);
-    registryWriteTimer = null;
-  }
   // v3.4.1：无未落盘修改时跳过整次全量序列化
   if (!registryMemory || !registryDirty) return;
   registryDirty = false;
@@ -104,8 +106,4 @@ export function resetRegistry() {
   registryMemory = null;
   registryMemoryLoaded = false;
   registryDirty = false;
-  if (registryWriteTimer) {
-    clearTimeout(registryWriteTimer);
-    registryWriteTimer = null;
-  }
 }

@@ -19,6 +19,7 @@
  * migrated on load and keep working.
  */
 import { dataStore } from '../../data/data-store.js';
+import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, STEAM_CACHE_WRITE_DEBOUNCE, STEAM_CACHE_MAX_ENTRIES, moduleTtlMs } from '../core/constants.js';
 
 // 字段 → 模块归属映射（v3.3.7 模块化；未知新字段默认进 detail）
@@ -69,7 +70,6 @@ function moduleOf(field) {
 
 let steamCacheMemory = null; // Map: appId -> entry（modules 结构）
 let steamCacheMemoryLoaded = false;
-let steamCacheWriteTimer = null;
 let steamCacheDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
@@ -191,18 +191,21 @@ export async function setSteamCacheEntry(cacheKey, data) {
 }
 
 // 防抖写入 / Debounced write
+// v6.1.0：防抖调度收敛至工厂（flush 保留原 dirty/清理语义）
+const writer = createDebouncedStore({
+  name: 'Steam缓存',
+  debounceMs: STEAM_CACHE_WRITE_DEBOUNCE,
+  save: flushSteamCache
+});
+
 function scheduleSteamCacheWrite() {
   steamCacheDirty = true;
-  if (steamCacheWriteTimer) clearTimeout(steamCacheWriteTimer);
-  steamCacheWriteTimer = setTimeout(flushSteamCache, STEAM_CACHE_WRITE_DEBOUNCE);
+  writer.scheduleWrite();
 }
 
 // 强制立即写入 / Force flush
 export async function flushSteamCache() {
-  if (steamCacheWriteTimer) {
-    clearTimeout(steamCacheWriteTimer);
-    steamCacheWriteTimer = null;
-  }
+  // v6.1.0：timer 管理收敛至工厂
   // v3.4.1：无未落盘修改时跳过整次全量序列化（批量场景每 5 批一次 flush，
   // 无脏数据时避免重复写盘）
   if (!steamCacheMemory || !steamCacheDirty) return;
@@ -267,8 +270,4 @@ export function resetSteamCache() {
   steamCacheMemory = null;
   steamCacheMemoryLoaded = false;
   steamCacheDirty = false;
-  if (steamCacheWriteTimer) {
-    clearTimeout(steamCacheWriteTimer);
-    steamCacheWriteTimer = null;
-  }
 }

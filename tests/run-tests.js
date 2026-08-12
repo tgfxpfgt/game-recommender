@@ -11,23 +11,14 @@
 const grepArg = process.argv.find((a) => a.startsWith('--grep='));
 const grepFilter = grepArg ? grepArg.slice('--grep='.length).toLowerCase() : null;
 
+// v6.1.0：node 直跑套件（5 个）——线性脚本 + 共享模块状态语义，
+// 与 vitest 的模块执行模型不兼容；其余 9 套件由 vitest run 覆盖
 const tests = [
-  // ---- 纯函数单测 unit/ ----
-  { name: '标题解析 Title Parser', file: './unit/test-title-parser.mjs' },
-  { name: '推荐算法 Recommendation Engine', file: './unit/test-engine.mjs' },
-  { name: '消息契约 Message Contract', file: './unit/test-contract.mjs' },
-  { name: '行为趋势 Trend Aggregation', file: './unit/test-trends.mjs' },
   { name: 'Steam API 纯函数 Steam API Pure', file: './unit/test-api-pure.mjs' },
   { name: '规则与清理 Rules & Cleanup', file: './unit/test-rules-cleanup.mjs' },
   { name: '存储层 Storage Layer', file: './unit/test-storage.mjs' },
   { name: '出站审计与限速 Outbound Audit', file: './unit/test-outbound.mjs' },
-  { name: '限免分类 Free-Games', file: './unit/test-freegames.mjs' },
-  { name: '站点元信息 Site Detail-Meta', file: './unit/test-sites.mjs' },
-  { name: '安全与工具 Security & Utility', file: './unit/test-security.mjs' },
-  // ---- 集成与完整性 integration/ ----
-  { name: '内容脚本模拟 Content Script Sim', file: './integration/test-content-sim.mjs' },
-  { name: 'Steam 编排器 Orchestrator', file: './integration/test-orchestrator.mjs' },
-  { name: '项目完整性 Project Integrity', file: './integration/test-integrity.mjs' }
+  { name: '内容脚本模拟 Content Script Sim', file: './integration/test-content-sim.mjs' }
 ];
 
 let allPass = true;

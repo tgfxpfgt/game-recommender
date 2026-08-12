@@ -7,11 +7,11 @@
  * cleanup and storage-format selection are config-driven.
  */
 import { dataStore } from '../../data/data-store.js';
+import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 
 let logBuffer = [];
-let logFlushTimer = null;
 let logConfig = null; // 日志配置缓存（v3.4.1：高频 writeLog 不再每次读设置）
 let logConfigChecked = 0; // 上次刷新时间戳
 
@@ -33,11 +33,14 @@ async function getLogConfig() {
 }
 
 // 立即将缓冲区合并写入存储 / Flush buffered logs into storage immediately
+// v6.1.0：防抖调度收敛至工厂
+const writer = createDebouncedStore({
+  name: '日志',
+  debounceMs: LOG_FLUSH_DEBOUNCE,
+  save: flushLogBuffer
+});
+
 export async function flushLogBuffer() {
-  if (logFlushTimer) {
-    clearTimeout(logFlushTimer);
-    logFlushTimer = null;
-  }
   if (logBuffer.length === 0) return;
 
   const pending = logBuffer;
@@ -92,8 +95,7 @@ async function writeLog(level, module, message, data) {
     }
 
     logBuffer.push(entry);
-    if (logFlushTimer) clearTimeout(logFlushTimer);
-    logFlushTimer = setTimeout(flushLogBuffer, LOG_FLUSH_DEBOUNCE);
+    writer.scheduleWrite();
   } catch {
     // 忽略日志记录异常 / Ignore logging exceptions
   }
@@ -125,10 +127,6 @@ export async function getRuntimeLogs(limit) {
 // 清空日志 / Clear runtime logs
 export async function clearRuntimeLogs() {
   logBuffer = [];
-  if (logFlushTimer) {
-    clearTimeout(logFlushTimer);
-    logFlushTimer = null;
-  }
   const settings = await getSettings();
   if (settings.logStorage === 'local') {
     await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
@@ -142,8 +140,4 @@ export function resetLogBuffer() {
   logBuffer = [];
   logConfig = null;
   logConfigChecked = 0;
-  if (logFlushTimer) {
-    clearTimeout(logFlushTimer);
-    logFlushTimer = null;
-  }
 }
