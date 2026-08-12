@@ -16,6 +16,7 @@ const tests = [
   { name: '规则校验与缓存清理 Rules & Cleanup', file: './test-cleanup.mjs' },
   { name: '报错纠正记录 Wrong Reports', file: './test-wrong-reports.mjs' },
   { name: '出站审计与限速 Outbound Audit', file: './test-outbound.mjs' },
+  { name: '消息契约 Message Contract', file: './test-contract.mjs' },
   { name: '推荐算法 Recommendation Engine', file: './test-engine.mjs' }
 ];
 

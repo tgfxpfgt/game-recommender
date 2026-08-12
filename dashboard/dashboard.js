@@ -8,6 +8,7 @@
  * - Steam tag-based recommendations
  * - Runtime log viewer (filter / export / clear)
  * - Outbound request audit (v3.4.1: host/status/duration, failures highlighted)
+ * - Behavior trends chart + CSV export (v4.0.0: daily views/downloads/rate, SVG)
  * - Backup management (create / restore / delete)
  *
  * 功能：
@@ -16,6 +17,7 @@
  * - 基于 Steam 标签的推荐
  * - 运行日志查看（筛选 / 导出 / 清空）
  * - 出站请求审计（v3.4.1：主机/状态/耗时，失败高亮）
+ * - 行为趋势图 + CSV 导出（v4.0.0：按天浏览/下载/转化率，SVG 零依赖）
  * - 备份管理（创建 / 恢复 / 删除）
  */
 
@@ -39,9 +41,147 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 备份 / Backups
   document.getElementById('createBackupBtn').addEventListener('click', createBackup);
+
+  // 行为趋势 / Trends (v4.0.0)
+  loadTrends();
+  document.getElementById('exportTrendsCsvBtn').addEventListener('click', exportTrendsCsv);
+  document.getElementById('exportGamesCsvBtn').addEventListener('click', exportGamesCsv);
+  document.getElementById('exportLogsCsvBtn').addEventListener('click', exportLogsCsv);
 });
 
+// ============ 行为趋势 / Behavior Trends (v4.0.0) ============
+let cachedTrends = []; // 供 CSV 导出 / cached daily trends for CSV export
+
+// 从后台加载按天聚合趋势 / Load daily-aggregated trends from background
+async function loadTrends() {
+  const container = document.getElementById('trendChart');
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'GET_TRENDS' });
+    cachedTrends = (response && response.daily) || [];
+    renderTrendChart(cachedTrends);
+  } catch (e) {
+    container.innerHTML = `<div class="no-data">加载趋势失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+// 手绘 SVG 趋势图：浏览/下载双柱 + 转化率折线（零依赖，深色主题）
+// Hand-drawn SVG chart: views/downloads bars + conversion-rate line (no deps)
+function renderTrendChart(daily) {
+  const container = document.getElementById('trendChart');
+  const statsEl = document.getElementById('trendStats');
+  if (!daily || daily.length === 0) {
+    container.innerHTML = '<div class="no-data">暂无行为数据，请先浏览游戏网站</div>';
+    statsEl.textContent = '';
+    return;
+  }
+  const totalViews = daily.reduce((s, d) => s + d.views, 0);
+  const totalDl = daily.reduce((s, d) => s + d.downloads, 0);
+  statsEl.textContent = `近 ${daily.length} 天 · 浏览 ${totalViews} · 下载 ${totalDl}`;
+
+  const W = 640, H = 200, PAD = { l: 42, r: 42, t: 12, b: 26 };
+  const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
+  const maxCount = Math.max(1, ...daily.map(d => Math.max(d.views, d.downloads)));
+  const n = daily.length;
+  const slot = iw / n;
+  const barW = Math.min(10, slot * 0.36);
+  const x = i => PAD.l + i * slot + slot / 2;
+  const y = v => PAD.t + ih - (v / maxCount) * ih;
+
+  let bars = '';
+  daily.forEach((d, i) => {
+    bars += `<rect x="${(x(i) - barW - 1).toFixed(1)}" y="${y(d.views).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.views)).toFixed(1)}" fill="#66c0f4" opacity="0.75"/>` +
+            `<rect x="${(x(i) + 1).toFixed(1)}" y="${y(d.downloads).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.downloads)).toFixed(1)}" fill="#a3cf06" opacity="0.85"/>`;
+  });
+  let line = '';
+  daily.forEach((d, i) => {
+    const px = x(i).toFixed(1);
+    const py = (PAD.t + ih - (d.rate / 100) * ih).toFixed(1);
+    line += (i === 0 ? `M${px},${py}` : `L${px},${py}`);
+  });
+  // 横轴刻度：最多 10 个 / x ticks: at most 10
+  const step = Math.max(1, Math.ceil(n / 10));
+  const ticks = [];
+  for (let i = 0; i < n; i += step) ticks.push(i);
+  if (ticks[ticks.length - 1] !== n - 1) ticks.push(n - 1);
+  let yTicks = '';
+  for (let g = 0; g <= 4; g++) {
+    const v = Math.round(maxCount * g / 4);
+    yTicks += `<text x="${PAD.l - 6}" y="${(y(maxCount * g / 4) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8f98a0">${v}</text>`;
+  }
+  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="行为趋势图">
+    <g>${bars}</g>
+    <path d="${line}" fill="none" stroke="#ff7b00" stroke-width="2"/>
+    <g>${ticks.map(i =>
+      `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#8f98a0">${escapeHtml(daily[i].date.slice(5))}</text>`
+    ).join('')}</g>
+    <g>${yTicks}</g>
+    <rect x="${W - 168}" y="5" width="12" height="10" fill="#66c0f4"/><text x="${W - 152}" y="14" font-size="10" fill="#c9d4e0">浏览</text>
+    <rect x="${W - 112}" y="5" width="12" height="10" fill="#a3cf06"/><text x="${W - 96}" y="14" font-size="10" fill="#c9d4e0">下载</text>
+    <line x1="${W - 52}" y1="10" x2="${W - 40}" y2="10" stroke="#ff7b00" stroke-width="2"/><text x="${W - 36}" y="14" font-size="10" fill="#c9d4e0">转化%</text>
+  </svg>`;
+}
+
+// ============ CSV 导出 / CSV Export (v4.0.0) ============
+// CSV 转义（引号/逗号/换行）；值含特殊字符时加引号并双写引号
+// CSV escaping: quote values containing commas/quotes/newlines ("" doubling)
+function toCsv(headers, rows) {
+  const esc = v => {
+    const s = v === null || v === undefined ? '' : String(v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  };
+  return [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\r\n');
+}
+
+// Blob 下载（BOM 防 Excel 中文乱码）/ Blob download with UTF-8 BOM for Excel
+function downloadCsv(filename, csv) {
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// 导出趋势 CSV（按天）/ Export daily trends as CSV
+function exportTrendsCsv() {
+  if (cachedTrends.length === 0) { alert('暂无趋势数据'); return; }
+  downloadCsv(`game-recommender-trends-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(['日期', '浏览', '下载', '转化率%'],
+      cachedTrends.map(d => [d.date, d.views, d.downloads, d.rate])));
+}
+
+// 导出游戏明细 CSV（当前 GET_STATS 返回的前 50 画像）/ Export game profiles as CSV
+function exportGamesCsv() {
+  if (cachedGameList.length === 0) { alert('暂无游戏数据'); return; }
+  downloadCsv(`game-recommender-games-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(['游戏名称', '浏览', '下载', 'Steam标签', 'AppID', '评分', '最后时间'],
+      cachedGameList.map(g => [
+        g.name, g.views ?? 0, g.downloads ?? 0,
+        (g.keywords || []).join('; '), g.steamAppId || '', g.steamRating ?? '', g.lastSeen || ''
+      ])));
+}
+
+// 导出行为日志 CSV（全量，经 EXPORT_DATA 获取）/ Export the full behavior log as CSV
+async function exportLogsCsv() {
+  try {
+    const response = await chrome.runtime.sendMessage({ action: 'EXPORT_DATA', moduleKeys: ['behaviorLog'] });
+    const entries = (response && response.data && response.data.modules && response.data.modules.behaviorLog) || [];
+    if (!entries || entries.length === 0) { alert('暂无行为日志'); return; }
+    downloadCsv(`game-recommender-behavior-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(['时间', '类型', '游戏', '方式', '网站', 'URL'],
+        entries.map(e => [
+          new Date(e.timestamp).toLocaleString('zh-CN'), e.type,
+          e.gameName || '', e.method || '', e.domain || '', e.url || ''
+        ])));
+  } catch (e) {
+    alert('导出失败: ' + e.message);
+  }
+}
+
 // ============ 概览统计 / Overview Statistics ============
+let cachedGameList = []; // 供 CSV 导出 / cached game list for CSV export
+
 async function loadStats() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
@@ -61,7 +201,8 @@ async function loadStats() {
     renderDownloadMethods(response.downloadMethods);
 
     // 游戏列表 / Game table
-    renderGameTable(response.gameList);
+    cachedGameList = response.gameList || [];
+    renderGameTable(cachedGameList);
 
     // 行为日志 / Behavior log
     renderLogTable(response.recentLog);

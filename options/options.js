@@ -88,8 +88,8 @@
     document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('vmFilterKeywords').addEventListener('input', () => scheduleAutoSave());
 
-    // 权重滑块
-    const weightIds = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam'];
+    // 权重滑块（v4.0.0：新增 playTime/heat）
+    const weightIds = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam', 'weightPlayTime', 'weightHeat'];
     weightIds.forEach(id => {
       document.getElementById(id).addEventListener('input', (e) => {
         document.getElementById(`${id}Val`).textContent = (e.target.value / 100).toFixed(2);
@@ -240,12 +240,15 @@
       .filter(Boolean);
     OPTS.currentSettings.vmFilterKeywords = vmKeywordsRaw.length > 0 ? vmKeywordsRaw : ['虚拟机板', '虚拟机'];
 
-    // 权重
+    // 权重（v4.0.0：新增 playTime/heat——必须写入保存映射，否则用户保存时
+    // 会抹掉新权重项的自定义值）
     OPTS.currentSettings.weights = {
       clickRate: document.getElementById('weightClick').value / 100,
       downloadRate: document.getElementById('weightDownload').value / 100,
       keywordMatch: document.getElementById('weightKeyword').value / 100,
-      steamRating: document.getElementById('weightSteam').value / 100
+      steamRating: document.getElementById('weightSteam').value / 100,
+      playTime: document.getElementById('weightPlayTime').value / 100,
+      heat: document.getElementById('weightHeat').value / 100
     };
 
     // LLM 配置

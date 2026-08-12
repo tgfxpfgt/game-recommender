@@ -29,12 +29,14 @@ import { searchSteamGame, getSteamPositiveRate, getSteamRatingsFromCacheOnly } f
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated } from './steam/api.js';
 import { parseGameTitle } from './core/title-parser.js';
-import { calculateRecommendation, computeGameScore, findProfile } from './recommend/engine.js';
+import { calculateRecommendation, computeGameScore, findProfile, steamspyScores } from './recommend/engine.js';
 import { searchDownloadSites, extractDetailMeta } from './sites/search.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { fetchWithTimeout } from './core/utils.js';
 import { getSteamApiStatus } from './core/api-monitor.js';
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
+import { aggregateDailyTrends } from './core/trends.js';
+import { validateMessage } from './core/message-contract.js';
 
 // --- 行为追踪 / Behavior tracking ---
 async function handleTrackEvent(message) {
@@ -238,8 +240,7 @@ async function handleResetSettings() {
 
 // --- 统计 / Stats ---
 async function handleGetStats() {
-  const log = await getBehaviorLog();
-  const [profiles, keywordWeights] = await Promise.all([
+  const log = await getBehaviorLog();  const [profiles, keywordWeights] = await Promise.all([
     dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
     dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
   ]);
@@ -273,6 +274,12 @@ async function handleGetStats() {
     downloadMethods,
     recentLog: log.slice(-30).reverse()
   };
+}
+
+// 行为趋势（按天浏览/下载/转化率，v4.0.0）/ Daily behavior trends
+async function handleGetTrends() {
+  const log = await getBehaviorLog();
+  return { daily: aggregateDailyTrends(log) };
 }
 
 // 基于用户偏好标签的 Steam 推荐
@@ -633,6 +640,9 @@ async function handleGetGameCacheList(message) {
     const cachedData = cachedEntry ? getMergedData(cachedEntry) : null;
     // 推荐值计算（纯函数，行为/Steam 信息动态反映）
     const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
+    // v4.0.0：SteamSpy 时长/热度信号（与 calculateRecommendation 两处评分一致）
+    const { playTimeScore, heatScore } = steamspyScores(
+      cachedData && cachedData.steamspy ? cachedData.steamspy : null);
     const rec = computeGameScore({
       profile,
       globalStats,
@@ -640,6 +650,8 @@ async function handleGetGameCacheList(message) {
       keywordWeights,
       positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
       chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
+      playTimeScore,
+      heatScore,
       weights
     });
     return {
@@ -880,6 +892,7 @@ export const MESSAGE_HANDLERS = {
   SAVE_SETTINGS:          handleSaveSettings,
   RESET_SETTINGS:         handleResetSettings,
   GET_STATS:              handleGetStats,
+  GET_TRENDS:             handleGetTrends,
   GET_STEAM_RECOMMENDATIONS: handleGetSteamRecommendations,
   CLEAR_DATA:             handleClearData,
   SEARCH_DOWNLOAD_SITES:  handleSearchDownloadSites,
@@ -920,6 +933,10 @@ export const MESSAGE_HANDLERS = {
 
 // 消息统一入口 / Message entry
 export async function handleMessage(message, sender) {
+  if (!message || !message.action) return { error: 'missing action' };
+  // v4.0.0：消息契约校验（高风险 action 入参白名单，违规直接拒绝）
+  const v = validateMessage(message.action, message);
+  if (!v.ok) return { error: 'invalid-message: ' + v.error };
   const handler = MESSAGE_HANDLERS[message.action];
   if (handler) return await handler(message, sender);
   return { error: 'Unknown action: ' + message.action };

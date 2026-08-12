@@ -143,9 +143,10 @@
           if (items.length > 0) return items;
         }
 
-        // 策略3：回退——全页面范围内提取详情页链接
+        // 策略3：回退——全页面范围内提取详情页链接（v4.0.0：受 scanLimit 上限，
+        // 此前无上限全量扫描大列表页）
         if (cfg.fallbackLinks) {
-          document.querySelectorAll('a[href]').forEach(a => {
+          Array.from(document.querySelectorAll('a[href]')).slice(0, getScanLimit()).forEach(a => {
             if (isExcluded(a)) return;
             const text = (a.textContent || '').trim();
             if (text.length < minLen) return;
@@ -167,7 +168,8 @@
     name: '通用',
     isListPage: () => {
       let gameLinks = 0;
-      document.querySelectorAll('a').forEach(a => {
+      // v4.0.0：计数同样受 scanLimit 上限（此前全量）
+      Array.from(document.querySelectorAll('a')).slice(0, getScanLimit()).forEach(a => {
         if (a.href && GENERIC_DETAIL_PATHS.some(p => a.href.includes(p))) gameLinks++;
       });
       return gameLinks >= 5;
@@ -175,7 +177,8 @@
     getListItems: () => {
       const items = [];
       const seen = new Set();
-      document.querySelectorAll('a').forEach(a => {
+      // v4.0.0：受 scanLimit 上限（此前全量）
+      Array.from(document.querySelectorAll('a')).slice(0, getScanLimit()).forEach(a => {
         if (a.href && GENERIC_DETAIL_PATHS.some(p => a.href.includes(p)) && !seen.has(a.href)) {
           seen.add(a.href);
           const text = a.textContent.trim();

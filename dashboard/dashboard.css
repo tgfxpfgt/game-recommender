@@ -286,3 +286,18 @@ body {
 .backup-time { color: #c7d5e0; }
 .backup-size { color: #888; font-size: 12px; }
 .backup-actions { display: flex; gap: 8px; }
+
+/* v4.0.0：行为趋势图 / Behavior trend chart */
+.trend-chart {
+  background: #141428;
+  border: 1px solid #2a2a4a;
+  border-radius: 8px;
+  padding: 12px;
+  overflow-x: auto;
+}
+.trend-chart svg {
+  display: block;
+  min-width: 480px;
+  width: 100%;
+  height: auto;
+}

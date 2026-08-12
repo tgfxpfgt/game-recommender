@@ -557,6 +557,7 @@
 
     // SteamSpy 信息面板（v3.3.6：详情页以 SteamSpy 为主数据；SteamDB 链接保留）。
     // SteamSpy 实测字段：positive/negative→好评率、ccu→当前在线、owners、average_forever。
+    // v4.0.0：owners 区间解析出热度等级（ownersLow/ownersHigh 数值字段）。
     // SteamSpy panel (the primary stats source since v3.3.6; SteamDB link kept).
     let spyHtml = '';
     const spy = data.steamspy;
@@ -564,13 +565,21 @@
       (spy.positiveRate !== null && spy.positiveRate !== undefined) ||
       spy.currentPlayers || spy.owners || spy.averagePlaytime
     );
+    // 热度等级：owners 区间中点对数分档（与推荐引擎 heatScore 同源）
+    // Heat label from the owners-range midpoint (same source as engine heatScore)
+    const spyHeatLabel = () => {
+      if (!spy || typeof spy.ownersLow !== 'number' || typeof spy.ownersHigh !== 'number' || spy.ownersHigh <= 0) return '';
+      const mid = (spy.ownersLow + spy.ownersHigh) / 2;
+      const h = Math.min(Math.log10(mid) / 7, 1);
+      return h >= 0.85 ? '爆款' : h >= 0.6 ? '热门' : h >= 0.35 ? '一般' : '冷门';
+    };
     let spyBody = '';
     if (hasSpyData) {
       spyBody = `
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
           ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div style="color:#acb2b8;">好评率: <span style="color:#66c0f4;font-weight:bold;">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
           ${spy.currentPlayers ? `<div style="color:#acb2b8;">当前在线: <span style="color:#a3cf06;font-weight:bold;">${spy.currentPlayers}</span> 人</div>` : ''}
-          ${spy.owners ? `<div style="color:#acb2b8;">拥有者: <span style="color:#c7d5e0;font-weight:bold;">${spy.owners}</span></div>` : ''}
+          ${spy.owners ? `<div style="color:#acb2b8;">拥有者: <span style="color:#c7d5e0;font-weight:bold;">${spy.owners}</span>${spyHeatLabel() ? ` · 热度 <span style="color:#a3cf06;font-weight:bold;">${spyHeatLabel()}</span>` : ''}</div>` : ''}
           ${spy.averagePlaytime ? `<div style="color:#acb2b8;">平均时长: <span style="color:#c7d5e0;font-weight:bold;">${spy.averagePlaytime}</span></div>` : ''}
         </div>
       `;

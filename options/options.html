@@ -315,6 +315,27 @@
                   <span id="weightSteamVal" class="range-value">0.20</span>
                 </div>
               </div>
+              <!-- v4.0.0：SteamSpy 时长/热度信号权重 -->
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">游玩时长权重</span>
+                  <span class="label-desc">Play Time (SteamSpy)</span>
+                </div>
+                <div class="range-group">
+                  <input type="range" id="weightPlayTime" min="0" max="50" step="5">
+                  <span id="weightPlayTimeVal" class="range-value">0.10</span>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">热度权重</span>
+                  <span class="label-desc">Heat (SteamSpy owners)</span>
+                </div>
+                <div class="range-group">
+                  <input type="range" id="weightHeat" min="0" max="50" step="5">
+                  <span id="weightHeatVal" class="range-value">0.10</span>
+                </div>
+              </div>
               <div class="weight-sum-row">
                 <span class="weight-sum-label">权重总和 / Weight Sum</span>
                 <span id="weightSum" class="weight-sum-value">1.00</span>

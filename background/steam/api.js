@@ -592,12 +592,26 @@ export async function fetchSteamSpyInfo(appId) {
     if (!data || !data.appid) return null;
 
     const total = (data.positive || 0) + (data.negative || 0);
+    // v4.0.0：新增原始数值字段（averageForeverMin / ownersLow / ownersHigh），
+    // 供推荐引擎时长/热度信号归一化——此前 average_forever 被转成"X小时"
+    // 字符串、owners 区间串，原始数值全部丢失。嵌套对象整体入 spy 模块，
+    // 无需缓存迁移，旧缓存 7 天 TTL 后自动刷新。
+    // v4.0.0: raw numeric fields for engine signals (playtime/heat); the old
+    // code collapsed average_forever into "X小时" and owners into a range
+    // string, losing the numbers. Nested in the spy module, so no cache
+    // migration; stale entries refresh after the 7-day TTL.
+    const avgMin = typeof data.average_forever === 'number' ? data.average_forever : null;
+    const ownersMatch = typeof data.owners === 'string'
+      ? data.owners.replace(/,/g, '').match(/(\d+)\s*\.\.\s*(\d+)/) : null;
     return {
       positiveRate: total > 0 ? Math.round(data.positive / total * 100) : null,
       reviewCount: total > 0 ? total.toLocaleString() : null,
       currentPlayers: data.ccu ? data.ccu.toLocaleString() : null,
       owners: data.owners || null,
-      averagePlaytime: data.average_forever ? Math.round(data.average_forever / 60) + '小时' : null
+      ownersLow: ownersMatch ? parseInt(ownersMatch[1], 10) : null,
+      ownersHigh: ownersMatch ? parseInt(ownersMatch[2], 10) : null,
+      averagePlaytime: avgMin ? Math.round(avgMin / 60) + '小时' : null,
+      averageForeverMin: avgMin
     };
   } catch (e) {
     Logger.debug('Steam', 'SteamSpy获取失败:', e.message);

@@ -44,10 +44,14 @@ export const DEFAULT_SETTINGS = {
     temperature: 0.3
   },
   weights: {
-    clickRate: 0.2,
-    downloadRate: 0.35,
-    keywordMatch: 0.25,
-    steamRating: 0.2
+    // v4.0.0：新增 SteamSpy 时长/热度信号（playTime/heat），四项原有权重
+    // 同步下调，六项和保持 1.0（徽章百分比不超 100%）
+    clickRate: 0.15,
+    downloadRate: 0.30,
+    keywordMatch: 0.20,
+    steamRating: 0.15,
+    playTime: 0.10,
+    heat: 0.10
   },
   trackedSites: [
     '3dmgame.com', 'ali213.net', 'gamersky.com', 'yystv.cn',

@@ -40,6 +40,19 @@
       </div>
     </section>
 
+    <!-- 行为趋势 / Behavior trends (v4.0.0) -->
+    <section class="section">
+      <h2>📈 行为趋势</h2>
+      <p class="section-desc">按天浏览 / 下载 / 转化率（数据受行为日志保留窗口约束）</p>
+      <div class="section-toolbar">
+        <span id="trendStats" class="backup-status"></span>
+        <button id="exportTrendsCsvBtn" class="btn btn-sm">📄 导出趋势 CSV</button>
+      </div>
+      <div id="trendChart" class="trend-chart">
+        <div class="no-data">暂无行为数据</div>
+      </div>
+    </section>
+
     <!-- 标签偏好 / Tag preferences -->
     <section class="section">
       <h2>📊 Steam标签偏好（学习结果）</h2>
@@ -60,6 +73,10 @@
     <!-- 游戏记录 / Game records -->
     <section class="section">
       <h2>🕹️ 游戏学习记录</h2>
+      <div class="section-toolbar">
+        <span class="backup-status"></span>
+        <button id="exportGamesCsvBtn" class="btn btn-sm">📄 导出游戏 CSV</button>
+      </div>
       <div class="table-wrapper">
         <table id="gameTable" class="data-table">
           <thead>
@@ -89,6 +106,10 @@
     <!-- 最近行为日志 / Recent behavior log -->
     <section class="section">
       <h2>📋 最近行为日志</h2>
+      <div class="section-toolbar">
+        <span class="backup-status"></span>
+        <button id="exportLogsCsvBtn" class="btn btn-sm">📄 导出行为 CSV</button>
+      </div>
       <div class="table-wrapper">
         <table class="data-table">
           <thead>

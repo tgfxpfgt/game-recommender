@@ -214,6 +214,25 @@ node --check options/options.js
 
 ## 更新日志
 
+### v4.0.0（大版本：按需扫描 + 可视化 + 契约化 + 信号增强）
+- **R4 列表按需扫描**（性能）：
+  1. 消除 2 处无上限扫描路径（builder 策略 3 fallbackLinks / 通用适配器全量 `a` 扫描，现受 `maxScanLinks` 上限约束）
+  2. **批次调度器**：全部 item 提取后每批 60 个名字串行请求（每名字仅请求一次，后台循环无重叠），done 到达后自动衔接下一批
+  3. **滚动调度**：IntersectionObserver 底部哨兵（提前 400px）+ MutationObserver 增量发现——无限滚动/分页加载的新增游戏自动入队并获取徽章（此前完全不处理）
+  4. 45s 强制收尾随批次重置（最后一批 +45s），保持"不误标未找到"语义；推荐流保持首屏 60
+- **R5 Dashboard 趋势可视化 + CSV**：
+  5. 新 action `GET_TRENDS`（后台按天聚合浏览/下载/转化率，纯函数 `aggregateDailyTrends` 可单测）
+  6. 新增「📈 行为趋势」区块：SVG 手绘双柱图 + 转化率折线（零依赖，深色主题）
+  7. 三处 CSV 导出（趋势/游戏明细/行为日志全量），UTF-8 BOM 防 Excel 乱码
+- **R6 消息契约化**（安全）：
+  8. 新增 `background/core/message-contract.js` 纯函数校验器，9 个高风险 action 入参白名单：TRACK_EVENT（type 5 值白名单 + gameName 必填 + keywords 数组）、SEARCH_STEAM/REFRESH_STEAM_CACHE（gameName）、GET_STEAM_BY_APPID/SAVE_MANUAL_MAPPING（数字 appId）、CLAIM_FREE_GAME（gameId）、RESTORE/DELETE_BACKUP（backupId）、SAVE_SETTINGS（纯对象）；`handleMessage` 分发前统一校验，违规直接拒绝
+- **R7 推荐信号增强**（SteamSpy 时长/热度）：
+  9. `fetchSteamSpyInfo` 新增原始数值字段 `averageForeverMin`/`ownersLow`/`ownersHigh`（此前转成 "X小时"/区间串丢失数值；嵌套对象入 spy 模块，无缓存迁移，7 天 TTL 自动刷新）
+  10. 引擎新增两分量：`playTimeScore`（平均分钟/600 封顶）、`heatScore`（owners 中点对数/7 封顶），缺数据中性 0.3；`steamspyScores` 纯函数可单测
+  11. **权重重排**（六项和 1.0）：点击 0.15 / 下载 0.30 / 关键词 0.20 / 评分 0.15 / 时长 0.10 / 热度 0.10；设置页新增 2 个权重滑块（旧设置经 deepMerge 自动补默认值）；缓存管理页与详情页浮窗同步（详情页 SteamSpy 面板新增"热度"等级）
+- **质量验证**：375 项单测全过（+47）· E2E 13/13 · eslint 0 errors
+- **升级提示**：大版本建议先在设置页「数据管理」备份数据
+
 ### v3.4.1（小版本：报告建议甄别 + 工程与安全加固）
 - **报告 7/8 章建议甄别**：对《项目进展与统计报告》24 条演进路线逐条核实（代码/CI/git 实测），确认 17 条准确、7 处不准确（如"chrome.storage 加密区"API 无此能力、LLM 本地化/规则 schema 校验已实现、内容脚本 ESM 化与 v3.3.9 决策矛盾等）；选择真实缺口路线落地（详见提交信息与下文）
 - **R1 依赖分层单向校验**：

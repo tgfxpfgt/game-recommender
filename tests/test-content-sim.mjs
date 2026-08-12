@@ -147,6 +147,15 @@ globalThis.MutationObserver = class {
   disconnect() {}
 };
 MutationObserver.instances = [];
+// v4.0.0：IntersectionObserver mock（滚动调度；测试通过 fireSentinel() 触发）
+globalThis.IntersectionObserver = class {
+  constructor(cb) { this.cb = cb; IntersectionObserver.instances.push(this); }
+  observe() {}
+  disconnect() {}
+  unobserve() {}
+  fire() { this.cb([{ isIntersecting: true }], this); }
+};
+IntersectionObserver.instances = [];
 
 const DEFAULT_SETTINGS = {
   enabled: true, enableVmFilter: false, enableRatingFilter: false,
@@ -295,6 +304,51 @@ const barEl = documentMock.body.children.find(c => c.id === 'gr-status-bar');
 check('完成统计浮窗已显示', barEl ? barEl.innerHTML.includes('Steam 好评率获取完成') : false, true);
 const batchMsg = sentMessages.find(m => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
 check('下载站网址缓存批量写入（2 条）', batchMsg ? batchMsg.data.entries.length : 0, 2);
+
+// ============ 2b. 批次调度（v4.0.0）/ Batch scheduling ============
+console.log('2b. 批次调度（首屏 60 + 滚动衔接）');
+// 100 个游戏项：首批只应请求 60 个，缓存全命中（pending=0）时自动衔接第二批 40 个
+const manyItems = [];
+for (let i = 1; i <= 100; i++) {
+  const { li, a } = makeItem(`游戏${i}`, i);
+  manyItems.push({ element: li, link: a, name: `游戏${i}`, url: `https://www.xianyudanji.gg/${i}.html`, titleEl: a });
+}
+const batchPreset = presets['GET_STEAM_RATINGS'];
+const batchRequests = [];
+presets['GET_STEAM_RATINGS'] = (msg) => {
+  batchRequests.push((msg.names || []).slice());
+  const ratings = {};
+  (msg.names || []).forEach(n => { ratings[n] = { appId: '999', positiveRate: 90 }; });
+  return { ratings, pending: 0 }; // 全部缓存命中 → 无推送，自动衔接下一批
+};
+GR.list.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
+await new Promise(r => setTimeout(r, 50));
+check('首批请求 60 个名字', batchRequests[0] ? batchRequests[0].length : 0, 60);
+check('自动衔接第二批 40 个名字', batchRequests[1] ? batchRequests[1].length : 0, 40);
+check('两批无重复名字', (() => {
+  if (batchRequests.length < 2) return false;
+  const all = [...batchRequests[0], ...batchRequests[1]];
+  return new Set(all).size === all.length && all.length === 100;
+})(), true);
+const doneBar = documentMock.body.children.find(c => c.id === 'gr-status-bar');
+check('全部批次完成后统计浮窗显示', doneBar ? doneBar.innerHTML.includes('Steam 好评率获取完成') : false, true);
+
+// done 衔接场景：首批部分未命中（pending>0）→ 等后台 done → 衔接第二批
+const batchRequests2 = [];
+presets['GET_STEAM_RATINGS'] = (msg) => {
+  batchRequests2.push((msg.names || []).slice());
+  const ratings = {};
+  (msg.names || []).slice(0, 10).forEach(n => { ratings[n] = { appId: '888', positiveRate: 80 }; });
+  return { ratings, pending: msg.names.length - 10 };
+};
+GR.list.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
+await new Promise(r => setTimeout(r, 30));
+check('done 前仅一批在途', batchRequests2.length, 1);
+// 后台完成 → 推送 done → 应自动发起第二批
+await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
+await new Promise(r => setTimeout(r, 30));
+check('done 后衔接第二批（40 个）', batchRequests2[1] ? batchRequests2[1].length : 0, 40);
+presets['GET_STEAM_RATINGS'] = batchPreset;
 
 // ============ 3. waitForListItems：AJAX 延迟渲染 / AJAX list wait ============
 console.log('3. waitForListItems（AJAX 延迟渲染）');

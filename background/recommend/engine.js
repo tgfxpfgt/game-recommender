@@ -79,9 +79,33 @@ export function findProfile(profiles, name, registryEntry) {
  * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating）
  * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number}, method: string}}
  */
+// v4.0.0：SteamSpy 时长/热度信号归一化（纯函数，可单测）。
+// playTime：平均游玩分钟 / 600（10 小时封顶）；heat：owners 区间中点对数 / 7
+//（千万封顶，热度分布极偏故用对数）。缺数据 → 中性 0.3（对齐 keywordScore
+// 无标签 0.3 的模式），保证有数据游戏的分数可靠超过缺省值。
+// SteamSpy playtime/heat signal normalisation (pure). playTime caps at 600min;
+// heat is log10(owners midpoint)/7 (log scale for skewed distribution). Missing
+// data yields a neutral 0.3, matching the no-tags keywordScore convention.
+export function steamspyScores(spy) {
+  if (!spy || typeof spy !== 'object') return { playTimeScore: 0.3, heatScore: 0.3 };
+  let playTimeScore = 0.3;
+  if (typeof spy.averageForeverMin === 'number' && spy.averageForeverMin > 0) {
+    playTimeScore = Math.min(spy.averageForeverMin / 600, 1);
+  }
+  let heatScore = 0.3;
+  if (typeof spy.ownersLow === 'number' && typeof spy.ownersHigh === 'number' && spy.ownersHigh > 0) {
+    const mid = (spy.ownersLow + spy.ownersHigh) / 2;
+    if (mid > 0) heatScore = Math.min(Math.log10(mid) / 7, 1);
+  }
+  return { playTimeScore, heatScore };
+}
+
+// v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
+// 权重六项（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
 export function computeGameScore({
   profile = null, globalStats = {}, tags = null,
-  keywordWeights = {}, positiveRate = null, chineseSupported = false, weights = {}
+  keywordWeights = {}, positiveRate = null, chineseSupported = false, weights = {},
+  playTimeScore = null, heatScore = null
 }) {
   const views = profile ? (profile.views || 0) : 0;
   const downloads = profile ? (profile.downloads || 0) : 0;
@@ -96,18 +120,25 @@ export function computeGameScore({
   if (positiveRate !== null && positiveRate !== undefined) {
     steamScore = Math.min((positiveRate / 100) * 0.7 + (chineseSupported ? 0.3 : 0), 1);
   }
+  // 4. SteamSpy 信号：时长/热度（缺省中性 0.3）
+  const pTime = playTimeScore !== null && playTimeScore !== undefined ? playTimeScore : 0.3;
+  const heat = heatScore !== null && heatScore !== undefined ? heatScore : 0.3;
   const finalScore =
     clickScore * (weights.clickRate || 0) +
     downloadScore * (weights.downloadRate || 0) +
     keywordScore * (weights.keywordMatch || 0) +
-    steamScore * (weights.steamRating || 0);
+    steamScore * (weights.steamRating || 0) +
+    pTime * (weights.playTime || 0) +
+    heat * (weights.heat || 0);
   return {
     score: Math.round(finalScore * 100) / 100,
     breakdown: {
       clickScore: Math.round(clickScore * 100) / 100,
       downloadScore: Math.round(downloadScore * 100) / 100,
       keywordScore: Math.round(keywordScore * 100) / 100,
-      steamScore: Math.round(steamScore * 100) / 100
+      steamScore: Math.round(steamScore * 100) / 100,
+      playTimeScore: Math.round(pTime * 100) / 100,
+      heatScore: Math.round(heat * 100) / 100
     },
     method: 'builtin'
   };
@@ -156,6 +187,9 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   };
   // v3.3.7：缓存为模块结构，用合并视图读字段
   const steamData = steamEntry ? getMergedData(steamEntry) : null;
+  // v4.0.0：SteamSpy 时长/热度信号（spy 模块可能为 null，steamspyScores 兜底）
+  const { playTimeScore, heatScore } = steamspyScores(
+    steamData && steamData.steamspy ? steamData.steamspy : null);
 
   return computeGameScore({
     profile,
@@ -164,6 +198,8 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
     keywordWeights,
     positiveRate: steamData ? steamData.positiveRate : null,
     chineseSupported: steamData ? !!steamData.chineseSupported : false,
+    playTimeScore,
+    heatScore,
     weights
   });
 }

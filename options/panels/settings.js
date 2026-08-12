@@ -51,6 +51,11 @@
     document.getElementById('weightKeywordVal').textContent = pct2(w.keywordMatch);
     document.getElementById('weightSteam').value = pct2(w.steamRating);
     document.getElementById('weightSteamVal').textContent = pct2(w.steamRating);
+    // v4.0.0：SteamSpy 时长/热度权重（旧设置缺 key 时经 deepMerge 补默认值）
+    document.getElementById('weightPlayTime').value = pct2(w.playTime);
+    document.getElementById('weightPlayTimeVal').textContent = pct2(w.playTime);
+    document.getElementById('weightHeat').value = pct2(w.heat);
+    document.getElementById('weightHeatVal').textContent = pct2(w.heat);
     updateWeightSum();
 
     // LLM 设置 / LLM settings
@@ -166,7 +171,8 @@
 
   // ============ Weight Sum Indicator / 权重总和指示器 ============
   function updateWeightSum() {
-    const ids = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam'];
+    // v4.0.0：新增 playTime/heat 滑块
+    const ids = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam', 'weightPlayTime', 'weightHeat'];
     const sum = ids.reduce((acc, id) => acc + (parseInt(document.getElementById(id).value, 10) || 0), 0) / 100;
     const el = document.getElementById('weightSum');
     if (!el) return;
