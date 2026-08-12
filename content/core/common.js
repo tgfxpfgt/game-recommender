@@ -65,11 +65,22 @@
     }).catch(() => {});
   }
 
+  // v5.0.0：页面标题清洗链（detail-page 与 tracker 此前逐字重复两份）——
+  // 去尾部"|中文|下载"等噪声段，返回清洗后的标题（空则原样）
+  // Page-title cleaning chain (was duplicated verbatim in detail-page/tracker).
+  function cleanPageTitle(title) {
+    return (title || '')
+      .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
+      .replace(/(下载|游戏下载|免费下载|破解版|汉化版|中文版|绿色版|免安装).*$/i, '')
+      .trim();
+  }
+
   GR.common = {
     getCurrentDomain,
     escapeHtml,
     escapeAttr,
     formatRelativeTime,
+    cleanPageTitle,
     trackEvent,
     trackDownloadSiteVisit
   };

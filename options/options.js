@@ -15,6 +15,17 @@
 
   // ============ 共享状态 / Shared State ============
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
+  // v5.0.0：TTL 字段单源（绑定/保存/渲染三处共用）
+  OPTS.TTL_FIELDS = [
+    { id: 'ttlSteamDynamic', key: 'steamDynamic', defaultUnit: 'hours' },
+    { id: 'ttlDetailSteam', key: 'detailSteam', defaultUnit: 'hours' },
+    { id: 'ttlSpySteam', key: 'spySteam', defaultUnit: 'days' },
+    { id: 'ttlMetaSteam', key: 'metaSteam', defaultUnit: 'days' },
+    { id: 'ttlRegistryConfirm', key: 'registryConfirm', defaultUnit: 'days' },
+    { id: 'ttlDownloadUrls', key: 'downloadUrls', defaultUnit: 'days' },
+    { id: 'ttlNegativeCache', key: 'negativeCache', defaultUnit: 'hours' }
+  ];
+
   OPTS.currentSettings = null;
   OPTS.saveTimer = null; // 防抖定时器 / debounce timer
   OPTS.cacheCurrentPage = 1;
@@ -173,7 +184,7 @@
     });
 
     // 缓存有效期输入（变更即自动保存；v3.3.7 补全 ttlDetailSteam/ttlSpySteam/ttlMetaSteam）
-    ['ttlSteamDynamic', 'ttlDetailSteam', 'ttlSpySteam', 'ttlMetaSteam', 'ttlRegistryConfirm', 'ttlDownloadUrls', 'ttlNegativeCache'].forEach(id => {
+    OPTS.TTL_FIELDS.forEach(f => { const id = f.id;
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('change', () => scheduleAutoSave());
@@ -274,15 +285,13 @@
 
     // 缓存有效期（value + 单位，0 = 长期有效；v3.3.7 模块化：每模块独立 TTL）
     // Cache TTLs (value + unit; 0 = keep forever; per-module since v3.3.7)
-    OPTS.currentSettings.cacheTtls = {
-      steamDynamic: { value: parseInt(document.getElementById('ttlSteamDynamic').value) || 0, unit: document.getElementById('ttlSteamDynamicUnit').value },
-      detailSteam: { value: parseInt(document.getElementById('ttlDetailSteam').value) || 0, unit: document.getElementById('ttlDetailSteamUnit').value },
-      spySteam: { value: parseInt(document.getElementById('ttlSpySteam').value) || 0, unit: document.getElementById('ttlSpySteamUnit').value },
-      metaSteam: { value: parseInt(document.getElementById('ttlMetaSteam').value) || 0, unit: document.getElementById('ttlMetaSteamUnit').value },
-      registryConfirm: { value: parseInt(document.getElementById('ttlRegistryConfirm').value) || 0, unit: document.getElementById('ttlRegistryConfirmUnit').value },
-      downloadUrls: { value: parseInt(document.getElementById('ttlDownloadUrls').value) || 0, unit: document.getElementById('ttlDownloadUrlsUnit').value },
-      negativeCache: { value: parseInt(document.getElementById('ttlNegativeCache').value) || 0, unit: document.getElementById('ttlNegativeCacheUnit').value }
-    };
+    OPTS.currentSettings.cacheTtls = {};
+    OPTS.TTL_FIELDS.forEach(f => {
+      OPTS.currentSettings.cacheTtls[f.key] = {
+        value: parseInt(document.getElementById(f.id).value) || 0,
+        unit: document.getElementById(f.id + 'Unit').value
+      };
+    });
 
     // 日志配置
     OPTS.currentSettings.enableLog = document.getElementById('logEnabled').checked;

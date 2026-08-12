@@ -164,10 +164,8 @@
         detail.injectDownloadHistoryPanel(gameName);
       } else if (appIdFromImg) {
         // 仅有 appId 无游戏名：用 document.title 作为回退名，仅注入 Steam 浮窗
-        const fallbackName = (document.title || '')
-          .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
-          .replace(/(下载|游戏下载|免费下载|破解版|汉化版|中文版|绿色版|免安装).*$/i, '')
-          .trim();
+        // v5.0.0：清洗链收敛至 GR.common.cleanPageTitle
+        const fallbackName = GR.common.cleanPageTitle(document.title);
         debug.DEBUG.gameName = fallbackName || `(appId:${appIdFromImg})`;
         dbg(`详情页游戏名为空，但图片含 appId: ${appIdFromImg}，使用回退名注入 Steam 浮窗`);
         detail.injectSteamButton(fallbackName || '');

@@ -249,6 +249,24 @@ node --check options/options.js
 
 ## 更新日志
 
+### v5.0.0（大版本：三大目录模块化重构 + 类型化基建）
+- **background 拆分与解耦**：
+  1. **handlers.js（960 行）按领域拆 5 子模块**（`background/handlers/`）：steam（搜索/直取/报错/自愈）、cache-manager（缓存管理 5 handler）、data-modules（导出/导入/备份）、stats（统计/趋势/推荐）、download-sites；handlers.js 保留核心 handler 与 MESSAGE_HANDLERS 聚合
+  2. **steam/api.js（858 行）按职能拆 6 子块 + barrel**：api-search / api-details / api-reviews / api-supplement / api-assemble / api-registry-heal；api.js 保留为再导出（调用方与测试零改动）
+  3. **去重收敛**：isPlainObject 统一至 core/utils（3 份重复）、flushAllCaches 聚合（6 处 flush 三连）、readProfiles/readKeywordWeights（4 处手写并行读）、orchestrator 缓存命中块抽 applyCacheHit（2 处逐字重复）
+  4. **缺陷修复**：resetInMemoryCaches 补 behavior 偏好节流重置（此前导入/恢复后残留）；handleGetSteamRecommendations 内嵌裸 fetch 下沉 api-search
+- **content 拆分与去重**：
+  5. **list 徽章拆分为 `GR.badges` 模块**（content/list/badges.js，list-page 823 → 590 行）；prependBadge 的 settings 参数化（脱离 ratingsJob 闭包）；manifest 注入顺序 + tracker 完整性自检键同步
+  6. **颜色分级单源**：options.html 加载 shared/patterns.js + cache.js 改用 `__GR_PATTERNS__`（消除第 3 份内联色阶）
+  7. **title 清洗链收敛**至 `GR.common.cleanPageTitle`（detail-page 与 tracker 逐字重复消除）
+- **options 重构**：
+  8. **TTL 字段单源** `OPTS.TTL_FIELDS`（绑定/保存/渲染三份 id 列表 → 1 份配置）
+- **类型化基建（编译期，零运行时）**：
+  9. 新增 `background/core/types.js`（SteamCacheEntry/MessagePayload/AppSettings/TrendBucket/AuditEntry @typedef）+ chrome 全局声明
+  10. `npm i -D typescript` + tsconfig.json（allowJs + **checkJs core/ 层**）+ `npm run typecheck`（tsc --noEmit 0 错误）
+- **质量**：484 项单测 · E2E 16/16 · lint 0 problems · **tsc --noEmit 0 错误** · 深度扫描 0 findings
+- **说明**：content 的批次调度（list-batch）与 detail 模板拆分因与闭包状态机/按钮绑定深度交织，留待后续专项（详见 README 测试目录结构）
+
 ### v4.2.0（中版本：测试体系重构）
 - **重新排列组合（按领域分组）**：`tests/unit/`（纯函数单测，11 个套件）+ `tests/integration/`（内容脚本模拟/Steam 编排器/项目完整性，3 个套件）——原"名实不符"的 test-cleanup 拆分为 test-api-pure（Steam API 纯函数 93 项）与 test-rules-cleanup（规则与清理 38 项）；test-security 静态扫描节（TDZ/语法/manifest/双源）并入新 test-integrity；test-layers（5 项）与 test-wrong-reports（9 项）并入大套件（文件数 9 → 14，覆盖更清晰）
 - **精简**：

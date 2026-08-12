@@ -208,12 +208,14 @@
   }
 
   // 好评率徽章（颜色分级；无数据显示灰色"暂无"）
+  // v5.0.0：颜色单源 __GR_PATTERNS__（options.html 已加载 shared/patterns.js）
   function formatRatingBadge(rate) {
     if (rate === null || rate === undefined) {
       return `<span class="rating-badge" style="color:#8f98a0;background:rgba(143,152,160,0.12);border-color:#3a3a4a;">暂无</span>`;
     }
-    const color = rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00';
-    const bg = rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
+    const P = globalThis.__GR_PATTERNS__ || {};
+    const color = P.ratingColorFor ? P.ratingColorFor(rate) : (rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00');
+    const bg = P.ratingBgFor ? P.ratingBgFor(rate) : (rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)');
     return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">${rate}%</span>`;
   }
 

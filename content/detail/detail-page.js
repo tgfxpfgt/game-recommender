@@ -81,13 +81,11 @@
       if (enMatch && enMatch[0].length > 3 && enMatch[0].length < 200) return enMatch[0].trim();
     }
     // 从 title 获取
-    let title = document.title || '';
+    const title = document.title || '';
     if (title) {
-      title = title
-        .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
-        .replace(/(下载|游戏下载|免费下载|破解版|汉化版|中文版|绿色版|免安装).*$/i, '')
-        .trim();
-      return title || document.title;
+      // v5.0.0：清洗链收敛至 GR.common.cleanPageTitle
+      const cleaned = GR.common.cleanPageTitle(title);
+      return cleaned || document.title;
     }
     return '';
   }
