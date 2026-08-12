@@ -9,6 +9,7 @@
  * active and help clean future search variants (never mislearn subtitles).
  */
 import { dataStore } from '../../data/data-store.js';
+import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS } from '../core/constants.js';
 
 // 同一词被确认多少次后生效 / times a word must be confirmed to become active
@@ -20,30 +21,28 @@ const WRITE_DEBOUNCE = 2000;
 
 let noiseMemory = null;
 let loaded = false;
-let writeTimer = null;
 
 async function load() {
   if (loaded) return;
   try {
     const stored = await dataStore.readModule(DB_KEYS.LEARNED_NOISE);
-    noiseMemory = (stored && typeof stored === 'object' && !Array.isArray(stored)) ? stored : {};
+    noiseMemory = stored && typeof stored === 'object' && !Array.isArray(stored) ? stored : {};
   } catch {
     noiseMemory = {};
   }
   loaded = true;
 }
 
-function scheduleWrite() {
-  if (writeTimer) clearTimeout(writeTimer);
-  writeTimer = setTimeout(async () => {
-    writeTimer = null;
-    try {
-      await dataStore.writeModule(DB_KEYS.LEARNED_NOISE, noiseMemory);
-    } catch (e) {
-      console.error('噪声词表写入失败:', e.message);
-    }
-  }, WRITE_DEBOUNCE);
-}
+// v5.1.0：防抖写入收敛至 debounced-store 工厂
+const writer = createDebouncedStore({
+  name: '噪声词表',
+  debounceMs: WRITE_DEBOUNCE,
+  save: async () => {
+    await dataStore.writeModule(DB_KEYS.LEARNED_NOISE, noiseMemory);
+  }
+});
+const scheduleWrite = writer.scheduleWrite;
+export const flushLearnedNoise = writer.flush;
 
 // 当前生效的动态噪声词（计数达到阈值）/ active learned noise words
 export async function getActiveNoiseWords() {
@@ -58,7 +57,7 @@ export async function getActiveNoiseWords() {
 export async function recordNoiseCandidates(words) {
   await load();
   let changed = false;
-  for (const w of (words || [])) {
+  for (const w of words || []) {
     const key = String(w).toLowerCase().trim();
     if (!key || key.length < 2 || key.length > 12) continue;
     noiseMemory[key] = (noiseMemory[key] || 0) + 1;
@@ -75,9 +74,9 @@ export async function recordNoiseCandidates(words) {
   if (changed) scheduleWrite();
 }
 
-// 重置（备份恢复/导入/清除后调用）/ Reset
+// 重置（备份恢复/导入/清除后调用）/ Reset（v5.1.0：writer.reset 收敛）
 export function resetLearnedNoise() {
   noiseMemory = null;
   loaded = false;
-  if (writeTimer) { clearTimeout(writeTimer); writeTimer = null; }
+  writer.reset();
 }

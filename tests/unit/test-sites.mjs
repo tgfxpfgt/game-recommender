@@ -36,7 +36,11 @@ check('百度网盘链接', meta.panUrl, 'https://pan.baidu.com/s/1AbCdEfGhIjK')
 check('提取码', meta.panCode, 'abcd');
 
 console.log('2. 边界与防御');
-check('空 HTML 返回空元信息', JSON.stringify(extractDetailMeta('', 'gamer520')), JSON.stringify({ updateDate: '', version: '', size: '', panUrl: '', panCode: '' }));
+check(
+  '空 HTML 返回空元信息',
+  JSON.stringify(extractDetailMeta('', 'gamer520')),
+  JSON.stringify({ updateDate: '', version: '', size: '', panUrl: '', panCode: '' })
+);
 check('null HTML 返回空元信息', extractDetailMeta(null, 'gamer520').updateDate, '');
 check('无网盘链接时 panUrl 为空', extractDetailMeta('<html><body>无内容</body></html>', 'gamer520').panUrl, '');
 // 日期变体（斜杠分隔 + 全角冒号；版本标签支持"游戏版本/版本号"）

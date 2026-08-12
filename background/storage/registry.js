@@ -13,7 +13,7 @@ import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
 let registryMemory = null;
 let registryMemoryLoaded = false;
 let registryWriteTimer = null;
-let registryDirty = false;          // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
+let registryDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载注册表到内存 / Load registry into memory (once)
 async function loadRegistryToMemory() {
@@ -37,7 +37,10 @@ export async function getGameRegistryEntry(appId) {
 }
 
 // 记录/更新游戏到注册表 / Record/update a game in the registry
-export async function recordGameInRegistry(appId, { cnName = '', enName = '', gameName = '', tags = null, coverImage = null, type = null }) {
+export async function recordGameInRegistry(
+  appId,
+  { cnName = '', enName = '', gameName = '', tags = null, coverImage = null, type = null }
+) {
   if (!appId) return;
   await loadRegistryToMemory();
   const key = String(appId);
@@ -82,7 +85,10 @@ function scheduleRegistryWrite() {
 
 // 强制立即写入 / Force flush
 export async function flushRegistry() {
-  if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
+  if (registryWriteTimer) {
+    clearTimeout(registryWriteTimer);
+    registryWriteTimer = null;
+  }
   // v3.4.1：无未落盘修改时跳过整次全量序列化
   if (!registryMemory || !registryDirty) return;
   registryDirty = false;
@@ -98,5 +104,8 @@ export function resetRegistry() {
   registryMemory = null;
   registryMemoryLoaded = false;
   registryDirty = false;
-  if (registryWriteTimer) { clearTimeout(registryWriteTimer); registryWriteTimer = null; }
+  if (registryWriteTimer) {
+    clearTimeout(registryWriteTimer);
+    registryWriteTimer = null;
+  }
 }

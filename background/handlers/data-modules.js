@@ -12,7 +12,6 @@ import { resetInMemoryCaches } from '../storage/reset.js';
  * handlers.js 注册表内联改为本模块具名函数。
  */
 
-
 // --- 数据清除 / Data clearing ---
 // v3.4.0：语义统一——"清除学习数据"同时删除 learnedNoise 存储（此前仅清
 // 内存、存储保留导致下次加载恢复）；wrongReports（人工纠正知识库）为有意
@@ -35,7 +34,6 @@ export async function handleClearData() {
 
 // --- 适配规则管理（v3.0.0 规则编辑器支撑）---
 
-
 // --- 数据模块：清单/导出/导入 ---
 export function countModuleItems(value) {
   if (value === undefined || value === null) return 0;
@@ -43,8 +41,6 @@ export function countModuleItems(value) {
   if (typeof value === 'object') return Object.keys(value).length;
   return 1;
 }
-
-
 
 export async function handleGetDataModules() {
   const modules = [];
@@ -55,12 +51,9 @@ export async function handleGetDataModules() {
   return { modules };
 }
 
-
-
 export async function handleExportData(message) {
-  const moduleKeys = (message.moduleKeys && message.moduleKeys.length > 0)
-    ? message.moduleKeys
-    : DATA_MODULES.map(m => m.key);
+  const moduleKeys =
+    message.moduleKeys && message.moduleKeys.length > 0 ? message.moduleKeys : DATA_MODULES.map((m) => m.key);
   const modules = {};
   for (const mod of DATA_MODULES) {
     if (!moduleKeys.includes(mod.key)) continue;
@@ -86,8 +79,6 @@ export async function handleExportData(message) {
   };
 }
 
-
-
 export async function handleImportData(message) {
   const payload = message.data;
   if (!payload || typeof payload !== 'object') return { success: false, error: '数据格式不正确' };
@@ -95,14 +86,13 @@ export async function handleImportData(message) {
   if (payload.version !== EXPORT_VERSION) return { success: false, error: '导出文件版本不兼容: ' + payload.version };
   if (!payload.modules || typeof payload.modules !== 'object') return { success: false, error: '导出文件缺少模块数据' };
 
-  const moduleKeys = (message.moduleKeys && message.moduleKeys.length > 0)
-    ? message.moduleKeys
-    : Object.keys(payload.modules);
+  const moduleKeys =
+    message.moduleKeys && message.moduleKeys.length > 0 ? message.moduleKeys : Object.keys(payload.modules);
   try {
     const imported = [];
     let totalBytes = 0;
     for (const key of moduleKeys) {
-      const mod = DATA_MODULES.find(m => m.key === key);
+      const mod = DATA_MODULES.find((m) => m.key === key);
       if (!mod) continue;
       const raw = payload.modules[key];
       if (raw === undefined) continue;

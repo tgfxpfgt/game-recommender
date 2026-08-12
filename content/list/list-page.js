@@ -18,20 +18,20 @@
   // 注意：/game/数字/ 是分类页，不是详情页
   function isDetailPageByUrl() {
     const path = window.location.pathname;
-    return /\/\d+\.html?$/.test(path) ||
-           /\/game\/\d+\.html?$/i.test(path) ||
-           /\/\d+\.s?html?$/i.test(path);
+    return /\/\d+\.html?$/.test(path) || /\/game\/\d+\.html?$/i.test(path) || /\/\d+\.s?html?$/i.test(path);
   }
 
   // 列表页URL特征：首页、分类页、list页
   function isListPageByUrl() {
     if (isDetailPageByUrl()) return false;
     const path = window.location.pathname;
-    return path === '/' ||
-           path === '' ||
-           /^\/[a-z0-9_-]+\/?$/i.test(path) ||
-           /\/list\//i.test(path) ||
-           /\/page\/\d+/i.test(path);
+    return (
+      path === '/' ||
+      path === '' ||
+      /^\/[a-z0-9_-]+\/?$/i.test(path) ||
+      /\/list\//i.test(path) ||
+      /\/page\/\d+/i.test(path)
+    );
   }
 
   // 智能获取列表项：优先适配器，回退通用链接提取（v3.3.9：回退扫描受
@@ -40,8 +40,11 @@
     const items = adapter.getListItems ? adapter.getListItems() : [];
     if (items.length === 0) {
       const seen = new Set();
-      const links = Array.from(document.querySelectorAll('a')).slice(0, GR.builder.getScanLimit ? GR.builder.getScanLimit() : 500);
-      links.forEach(a => {
+      const links = Array.from(document.querySelectorAll('a')).slice(
+        0,
+        GR.builder.getScanLimit ? GR.builder.getScanLimit() : 500
+      );
+      links.forEach((a) => {
         const href = a.href || '';
         let p;
         try {
@@ -79,7 +82,10 @@
       };
       const check = () => {
         const its = getListItemsSmart(adapter);
-        if (its.length > 0) { finish(its); return; }
+        if (its.length > 0) {
+          finish(its);
+          return;
+        }
         lastItems = its;
       };
       observer = new MutationObserver(() => {
@@ -102,7 +108,7 @@
       filteredItems = applyVmFilter(items, settings.vmFilterKeywords);
     }
 
-    filteredItems.forEach(item => {
+    filteredItems.forEach((item) => {
       item.link.addEventListener('click', () => {
         GR.common.trackEvent('click_detail', { gameName: item.name, gameUrl: item.url });
       });
@@ -119,12 +125,12 @@
 
   // 虚拟机版过滤：从 items 中移除标题命中关键词的游戏项，并从 DOM 删除对应元素
   function applyVmFilter(items, keywords) {
-    const kws = (keywords && keywords.length > 0) ? keywords : ['虚拟机板', '虚拟机'];
+    const kws = keywords && keywords.length > 0 ? keywords : ['虚拟机板', '虚拟机'];
     const kept = [];
     let removed = 0;
     for (const item of items) {
       const name = (item.name || '').toLowerCase();
-      const hit = kws.some(kw => kw && name.includes(kw.toLowerCase()));
+      const hit = kws.some((kw) => kw && name.includes(kw.toLowerCase()));
       if (hit) {
         // 从 DOM 移除（优先移除栅格列容器以避免留空，与好评率过滤共用逻辑）
         GR.badges.removeItemFromDom(item);
@@ -150,7 +156,10 @@
     setTimeout(async () => {
       try {
         const nextUrl = findNextPageUrl();
-        if (!nextUrl) { dbg('预载：未找到下一页链接'); return; }
+        if (!nextUrl) {
+          dbg('预载：未找到下一页链接');
+          return;
+        }
 
         dbg(`预载下一页: ${nextUrl}`);
 
@@ -170,23 +179,32 @@
         } finally {
           clearTimeout(timer);
         }
-        if (!response.ok) { dbg(`预载：HTTP ${response.status}`); return; }
+        if (!response.ok) {
+          dbg(`预载：HTTP ${response.status}`);
+          return;
+        }
         const html = await response.text();
 
         const doc = new DOMParser().parseFromString(html, 'text/html');
         const { names: gameNames, appIds, covers } = extractGameNamesFromDoc(doc);
-        if (gameNames.length === 0) { dbg('预载：未提取到游戏名'); return; }
+        if (gameNames.length === 0) {
+          dbg('预载：未提取到游戏名');
+          return;
+        }
 
         dbg(`预载：提取到 ${gameNames.length} 个游戏名，开始预热 Steam 缓存`);
 
-        chrome.runtime.sendMessage({
-          action: 'PREFETCH_STEAM_RATINGS',
-          names: gameNames,
-          appIds,
-          covers
-        }).then(() => {
-          dbg(`✅ 预载完成：已预热 ${gameNames.length} 个游戏的 Steam 缓存`);
-        }).catch(() => {});
+        chrome.runtime
+          .sendMessage({
+            action: 'PREFETCH_STEAM_RATINGS',
+            names: gameNames,
+            appIds,
+            covers
+          })
+          .then(() => {
+            dbg(`✅ 预载完成：已预热 ${gameNames.length} 个游戏的 Steam 缓存`);
+          })
+          .catch(() => {});
       } catch (e) {
         dbg('预载下一页失败: ' + e.message);
       }
@@ -197,9 +215,13 @@
   function findNextPageUrl() {
     const selectors = [
       'a[rel="next"]',
-      'a.next', 'a.next-page', 'a.nextpost',
-      '.pagination .next a', '.pager .next a',
-      '.page-nav .next a', '.wp-pagenavi .next a',
+      'a.next',
+      'a.next-page',
+      'a.nextpost',
+      '.pagination .next a',
+      '.pager .next a',
+      '.page-nav .next a',
+      '.wp-pagenavi .next a',
       'a[aria-label*="next" i]'
     ];
     for (const sel of selectors) {
@@ -225,7 +247,7 @@
     const covers = {};
     const domain = window.location.hostname;
 
-    const rule = (GR.builder.getSITE_RULES() || []).find(r => r.domains.some(d => domain.includes(d)));
+    const rule = (GR.builder.getSITE_RULES() || []).find((r) => r.domains.some((d) => domain.includes(d)));
     if (rule) {
       const cfg = rule.listItem || {};
       const containers = cfg.containers || [];
@@ -234,7 +256,7 @@
       const minLen = cfg.minLen ?? 2;
       const maxLen = cfg.maxLen ?? 200;
       for (const sel of containers) {
-        doc.querySelectorAll(sel).forEach(el => {
+        doc.querySelectorAll(sel).forEach((el) => {
           const t = titleLink ? el.querySelector(titleLink) : el.querySelector(titleEls.join(','));
           if (t) {
             const text = (t.textContent || '').trim().replace(/\s+/g, ' ');
@@ -258,7 +280,7 @@
     // 通用回退：指向详情页且有文本的链接
     if (names.size === 0) {
       const baseUrl = window.location.href;
-      doc.querySelectorAll('a[href]').forEach(a => {
+      doc.querySelectorAll('a[href]').forEach((a) => {
         const href = a.getAttribute('href') || '';
         if (!href) return;
         try {
@@ -282,15 +304,18 @@
 
   function createRatingsJob(processItems, settings, uniqueNames) {
     GR.list._state.ratingsJob = {
-      processItems, settings, uniqueNames,
+      processItems,
+      settings,
+      uniqueNames,
       processed: new Set(), // 已出结果的游戏名（徽章已显示）/ names already resolved
-      shown: 0, filtered: 0, notFoundNames: [],
+      shown: 0,
+      filtered: 0,
+      notFoundNames: [],
       urlEntries: [], // appId → 下载页地址批量写入 / download-URL batch entries
       finished: false,
       forceTimer: null // 强制收尾定时器 / force-finish timer
     };
   }
-
 
   // 应用一波查询结果。mode='first'：未命中的跳过（等待推送），不插"未找到"徽章；
   // mode='final'：波内仍未命中的按"未找到"处理。
@@ -303,9 +328,9 @@
     // v3.3.8：关闭"全部好评率"徽章 → 好评率过滤停用（数据获取不受影响）
     const bv = (job.settings && job.settings.badgeVisibility) || {};
     const filterEnabled = job.settings?.enableRatingFilter && bv.all !== false;
-    const minRating = filterEnabled ? (job.settings.minSteamRatingFilter || 0) : 0;
+    const minRating = filterEnabled ? job.settings.minSteamRatingFilter || 0 : 0;
     let changed = false;
-    job.processItems.forEach(item => {
+    job.processItems.forEach((item) => {
       if (job.processed.has(item.name)) return;
       const rating = ratings[item.name];
       if (rating && rating.appId) {
@@ -343,24 +368,35 @@
     GR.list._state.ratingsJob.finished = true;
     clearTimeout(GR.list._state.ratingsJob.forceTimer);
     const job = GR.list._state.ratingsJob;
-    const unresolved = job.processItems.filter(i => !job.processed.has(i.name)).length;
+    const unresolved = job.processItems.filter((i) => !job.processed.has(i.name)).length;
     // 批量写入下载站网址缓存（fire-and-forget）
     const siteKey = GR.builder.getAdapterKey();
     if (siteKey && job.urlEntries.length > 0) {
-      chrome.runtime.sendMessage({
-        action: 'RECORD_DOWNLOAD_URLS_BATCH',
-        data: { siteKey, siteName: GR.builder.getAdapter().name, domain: window.location.hostname, entries: job.urlEntries }
-      }).catch(() => {});
+      chrome.runtime
+        .sendMessage({
+          action: 'RECORD_DOWNLOAD_URLS_BATCH',
+          data: {
+            siteKey,
+            siteName: GR.builder.getAdapter().name,
+            domain: window.location.hostname,
+            entries: job.urlEntries
+          }
+        })
+        .catch(() => {});
     }
-    dbg(`列表页: 显示 ${job.shown} 个好评率, 过滤 ${job.filtered} 个, 未找到 ${job.notFoundNames.length} 个` +
+    dbg(
+      `列表页: 显示 ${job.shown} 个好评率, 过滤 ${job.filtered} 个, 未找到 ${job.notFoundNames.length} 个` +
         (job.notFoundNames.length > 0 ? ` [${job.notFoundNames.slice(0, 5).join('、')}]` : '') +
-        (unresolved > 0 ? `, 未返回 ${unresolved} 个` : ''));
+        (unresolved > 0 ? `, 未返回 ${unresolved} 个` : '')
+    );
     GR.status.showStats({
       title: 'Steam 好评率获取完成',
       summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（刷新页面可重试）` : ''}`,
       rows: [
         `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
-        job.notFoundNames.length > 0 ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}` : ''
+        job.notFoundNames.length > 0
+          ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}`
+          : ''
       ].filter(Boolean)
     });
   }
@@ -386,7 +422,10 @@
     if (!GR.list._state.ratingsJob) return false;
     // 后台全部批次完成标记 / background completion marker
     if (ratings === null && done) {
-      if (!batchState) { if (!GR.list._state.ratingsJob.finished) finishRatings(); return true; }
+      if (!batchState) {
+        if (!GR.list._state.ratingsJob.finished) finishRatings();
+        return true;
+      }
       batchState.pendingDone = true;
       if (batchState.inflight) batchState.inflight = false; // 当前批结束
       const fired = GR.listBatch.maybeFetchNextBatch(); // 队列非空 → 衔接下一批（串行）
@@ -398,8 +437,10 @@
     // 未请求名字对应 item 必未 processed，等 done 衔接下一批）
     // all discovered games resolved → finish (queued names' items are never
     // processed yet, so the check only passes when nothing is left queued)
-    if (!GR.list._state.ratingsJob.finished &&
-        GR.list._state.ratingsJob.processItems.every(i => GR.list._state.ratingsJob.processed.has(i.name))) {
+    if (
+      !GR.list._state.ratingsJob.finished &&
+      GR.list._state.ratingsJob.processItems.every((i) => GR.list._state.ratingsJob.processed.has(i.name))
+    ) {
       if (!batchState || batchState.queue.length === 0) {
         finishRatings();
       }
@@ -415,7 +456,8 @@
     getListItemsSmart,
     trackListView,
     applyVmFilter,
-    requestRecommendations: (items, settings, nameToImage) => GR.listBatch.requestRecommendations(items, settings, nameToImage),
+    requestRecommendations: (items, settings, nameToImage) =>
+      GR.listBatch.requestRecommendations(items, settings, nameToImage),
     waitForListItems,
     applySteamRatingsUpdate,
     _internal: {

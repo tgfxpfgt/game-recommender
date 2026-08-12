@@ -8,7 +8,6 @@ import { Logger } from '../storage/logger.js';
  * v5.0.0：由 steam/api.js 按职能拆分。
  */
 
-
 // 缓存条目是否为"好评率获取失败固化"（positiveRate 与 ratingDesc 均为空）。
 // 网络失败/限流时若把 null 写入缓存会固化"只显示 AppID"，命中时需重新获取。
 // Is a cached entry a "failed-rating snapshot" (both positiveRate and ratingDesc
@@ -24,7 +23,6 @@ export function isFailedRatingEntry(cachedData) {
 // list refresh, which would amplify API rate limiting). 10→5 minutes since
 // v3.3.2: review growth happens over hours, so 5 minutes still stops refresh
 // storms while reflecting newly published reviews sooner.
-
 
 // 无好评率重试冷却期（确认 0 评测后，避免每次刷新列表页都请求 Steam）。
 // v3.3.2：10 分钟 → 5 分钟——游戏评测增长通常以小时计，5 分钟已能防刷新
@@ -44,7 +42,6 @@ export const RATING_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 // entries (appId/name/rating etc.) would render a broken detail page, so they
 // count as a miss and trigger a full fetch. Pure function, unit-testable.
 
-
 // 详情页缓存数据完整性判定（v3.3.3）：详情页渲染需要的关键字段齐全才可
 // 直接命中缓存——列表页写入的轻量缓存（appId/name/好评率等 7 字段）不含
 // 标签/中文支持/开发商/描述等，命中会导致详情页渲染残缺，必须视为未命中
@@ -55,7 +52,8 @@ export const RATING_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 // count as a miss and trigger a full fetch. Pure function, unit-testable.
 export function isCompleteCacheData(data) {
   if (!data || typeof data !== 'object') return false;
-  return !!data.url &&
+  return (
+    !!data.url &&
     !!data.name &&
     Array.isArray(data.genres) &&
     Array.isArray(data.userTags) &&
@@ -63,7 +61,8 @@ export function isCompleteCacheData(data) {
     data.chineseSupported !== undefined &&
     data.releaseDate !== undefined &&
     data.description !== undefined &&
-    !!data.headerImage;
+    !!data.headerImage
+  );
 }
 
 // 列表页缓存命中判定（v3.3.1）：缓存无好评率（0 评测/失败固化）时重新获取——
@@ -73,7 +72,6 @@ export function isCompleteCacheData(data) {
 // Cache-hit check: a cache entry without a positive rate is refetched — failed
 // snapshots immediately, confirmed zero-review entries after the cooldown.
 // Accepts both a legacy entry ({data}) and the merged-view data object.
-
 
 // 列表页缓存命中判定（v3.3.1）：缓存无好评率（0 评测/失败固化）时重新获取——
 // 失败固化立即重试；已确认 0 评测的按冷却期重试（默认 5 分钟）。
@@ -87,13 +85,12 @@ export function needsRatingRefetch(cached) {
   const d = cached.data || cached;
   if (d.positiveRate !== null && d.positiveRate !== undefined) return false;
   if (isFailedRatingEntry(d)) return true;
-  if (d.ratingRetriedAt && (Date.now() - d.ratingRetriedAt < RATING_RETRY_COOLDOWN_MS)) return false;
+  if (d.ratingRetriedAt && Date.now() - d.ratingRetriedAt < RATING_RETRY_COOLDOWN_MS) return false;
   return true;
 }
 
 // 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
 // Cover URL: keep the provided cover, else build the Steam CDN header URL
-
 
 // --- 评测获取 ---
 
@@ -112,7 +109,6 @@ export const RECENT_REVIEW_WINDOW_SEC = 30 * 24 * 3600;
  * @returns {{total: number, positive: number, rate: number|null}} rate=null 表示窗口内 0 条
  */
 
-
 /**
  * 从最近评测列表中统计 30 天窗口内好评率（纯函数，可单测）。
  * appreviews 的 query_summary 恒为全时段统计（filter=recent 不影响），
@@ -126,19 +122,17 @@ export const RECENT_REVIEW_WINDOW_SEC = 30 * 24 * 3600;
  */
 export function summarizeRecentReviews(reviews, cutoffSec = Date.now() / 1000 - RECENT_REVIEW_WINDOW_SEC) {
   const list = Array.isArray(reviews) ? reviews : [];
-  const inWindow = list.filter(r => r && typeof r.timestamp_created === 'number' && r.timestamp_created >= cutoffSec);
+  const inWindow = list.filter((r) => r && typeof r.timestamp_created === 'number' && r.timestamp_created >= cutoffSec);
   if (inWindow.length === 0) {
     return { total: 0, positive: 0, rate: null };
   }
-  const positive = inWindow.filter(r => r.voted_up === true).length;
+  const positive = inWindow.filter((r) => r.voted_up === true).length;
   return {
     total: inWindow.length,
     positive,
-    rate: Math.round(positive / inWindow.length * 100)
+    rate: Math.round((positive / inWindow.length) * 100)
   };
 }
-
-
 
 export async function fetchReviewSummary(appId) {
   // 网络失败/限流时重试一次（列表页批量场景 Steam API 限流常见）。
@@ -177,7 +171,6 @@ export async function fetchReviewSummary(appId) {
 // Last-update date: Steam exposes no such field; the newest announcement date
 // approximates it (GetNewsForApp is keyless). Null on failure (UI hides it).
 
-
 // 最近更新日期（v3.3.6）：Steam 官方无"最近更新"字段，用最新公告日期近似
 // （GetNewsForApp 免费无 key；持续更新/抢先体验游戏即最新更新公告，完成品
 // 显示发行日附近——语义"无后续更新"）。失败返回 null（UI 隐藏该部分）。
@@ -200,8 +193,6 @@ export async function fetchLastUpdate(appId) {
   }
 }
 
-
-
 export async function fetchChineseReviews(appId) {
   let cnReviewSummary = null;
   let chineseReviews = [];
@@ -211,7 +202,7 @@ export async function fetchChineseReviews(appId) {
     const data = await resp.json();
     if (data.success === 1) {
       if (data.reviews && data.reviews.length > 0) {
-        chineseReviews = data.reviews.slice(0, 5).map(r => ({
+        chineseReviews = data.reviews.slice(0, 5).map((r) => ({
           recommended: r.voted_up === true,
           text: r.review.substring(0, 200),
           author: r.author?.steamid || '匿名',
@@ -226,9 +217,7 @@ export async function fetchChineseReviews(appId) {
           negative: qs.total_negative,
           score: qs.review_score,
           desc: qs.review_score_desc,
-          positiveRate: qs.total_reviews > 0
-            ? Math.round(qs.total_positive / qs.total_reviews * 100)
-            : null
+          positiveRate: qs.total_reviews > 0 ? Math.round((qs.total_positive / qs.total_reviews) * 100) : null
         };
       }
     }
@@ -238,13 +227,8 @@ export async function fetchChineseReviews(appId) {
   return { cnReviewSummary, chineseReviews };
 }
 
-
-
 export async function fetchSteamReviews(appId) {
-  const [reviewSummary, cnData] = await Promise.all([
-    fetchReviewSummary(appId),
-    fetchChineseReviews(appId)
-  ]);
+  const [reviewSummary, cnData] = await Promise.all([fetchReviewSummary(appId), fetchChineseReviews(appId)]);
   return {
     reviewSummary,
     cnReviewSummary: cnData.cnReviewSummary,
@@ -253,4 +237,3 @@ export async function fetchSteamReviews(appId) {
 }
 
 // --- SteamDB 信息 ---
-

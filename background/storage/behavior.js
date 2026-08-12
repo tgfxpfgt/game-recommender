@@ -33,10 +33,10 @@ export async function getBehaviorLog() {
 // v5.0.0：画像/关键词权重读取辅助（此前 handlers/engine 4 处手写并行读取）
 // Profile / keyword-weight read helpers (was hand-written in 4 call sites)
 export async function readProfiles() {
-  return dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {});
+  return dataStore.readModule(DB_KEYS.GAME_PROFILES).then((v) => v || {});
 }
 export async function readKeywordWeights() {
-  return dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {});
+  return dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then((v) => v || {});
 }
 
 // --- 游戏画像 / Game Profiles ---
@@ -102,14 +102,14 @@ async function updateUserPreferences() {
 
   // 关键词用 Set 去重，避免重复查看放大信号
   const gameEvents = {};
-  log.forEach(entry => {
+  log.forEach((entry) => {
     if (!gameEvents[entry.gameName]) {
       gameEvents[entry.gameName] = { viewed: false, downloaded: false, keywords: new Set() };
     }
     if (entry.type === 'view_detail') {
       gameEvents[entry.gameName].viewed = true;
       if (entry.keywords) {
-        entry.keywords.forEach(kw => gameEvents[entry.gameName].keywords.add(kw));
+        entry.keywords.forEach((kw) => gameEvents[entry.gameName].keywords.add(kw));
       }
     }
     if (entry.type === 'click_download') {
@@ -117,8 +117,8 @@ async function updateUserPreferences() {
     }
   });
 
-  Object.values(gameEvents).forEach(game => {
-    game.keywords.forEach(kw => {
+  Object.values(gameEvents).forEach((game) => {
+    game.keywords.forEach((kw) => {
       if (game.downloaded) {
         positiveKeywords[kw] = (positiveKeywords[kw] || 0) + 2;
       } else if (game.viewed) {
@@ -127,7 +127,7 @@ async function updateUserPreferences() {
     });
   });
 
-  Object.keys(positiveKeywords).forEach(kw => {
+  Object.keys(positiveKeywords).forEach((kw) => {
     const pos = positiveKeywords[kw] || 0;
     const neg = negativeKeywords[kw] || 0;
     keywordWeights[kw] = pos / (pos + neg + 1);

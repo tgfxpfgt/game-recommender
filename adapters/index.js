@@ -21,13 +21,11 @@
 
   // 站点规则列表：合并基础规则，站点配置覆盖默认值
   // Site rules: merged over the defaults, site values win
-  const siteKeys = [
-    'XDGAME', 'XIANYUDANJI', 'GAMER520', '3DMGAME', 'ALI213', 'GAMERSKY'
-  ];
+  const siteKeys = ['XDGAME', 'XIANYUDANJI', 'GAMER520', '3DMGAME', 'ALI213', 'GAMERSKY'];
   const sites = siteKeys
-    .map(k => global['__GAME_RECOMMENDER_SITE_' + k + '__'])
+    .map((k) => global['__GAME_RECOMMENDER_SITE_' + k + '__'])
     .filter(Boolean)
-    .map(rule => ({ ...defaults, ...rule }));
+    .map((rule) => ({ ...defaults, ...rule }));
 
   // 站点规则聚合结果（兼容原 sites.js 的全局结构）
   // Aggregated site rules (compatible with the legacy sites.js global)

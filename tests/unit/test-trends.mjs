@@ -29,7 +29,11 @@ check('按天分桶为 3 天', daily.length, 3);
 check('首条日期 2026-08-11', daily[0].date, '2026-08-11');
 check('8-11 view 计入', daily[0].views, 1);
 check('8-12 download 计入', daily[1].downloads, 1);
-check('按日期升序', daily.map(d => d.date), ['2026-08-11', '2026-08-12', '2026-08-17']);
+check(
+  '按日期升序',
+  daily.map((d) => d.date),
+  ['2026-08-11', '2026-08-12', '2026-08-17']
+);
 // 同日双事件 → 转化率
 const sameDay = aggregateDailyTrends([
   { type: 'view_detail', timestamp: TUE },
@@ -49,7 +53,14 @@ check('周转化率', weekly[0].rate, 100);
 console.log('3. 边界与防御');
 check('空日志返回空数组', aggregateDailyTrends([]).length, 0);
 check('null 日志返回空数组', aggregateDailyTrends(null).length, 0);
-check('无效时间戳忽略', aggregateDailyTrends([{ type: 'view_detail', timestamp: 'bad' }, { type: 'view_detail', timestamp: null }]).length, 0);
+check(
+  '无效时间戳忽略',
+  aggregateDailyTrends([
+    { type: 'view_detail', timestamp: 'bad' },
+    { type: 'view_detail', timestamp: null }
+  ]).length,
+  0
+);
 // 未知 type 会建空桶（不计数）——断言为空桶而非无桶
 const unknownBucket = aggregateDailyTrends([{ type: 'steam_tags_update', timestamp: TUE }])[0];
 check('未知 type 建空桶（不计入）', [unknownBucket.views, unknownBucket.downloads], [0, 0]);

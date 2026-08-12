@@ -21,21 +21,21 @@ import { NDJSON } from '../lib/ndjson.js';
 // 模块 → 文件与格式映射（模块键与 storage.local 键一致，便于降级与迁移）
 // Module → file/format mapping (module keys equal the storage.local keys)
 const MODULE_FILES = {
-  settings:        { file: 'settings.json',         format: 'json' },
-  behaviorLog:     { file: 'behavior-log.ndjson',   format: 'ndjson' },
-  gameProfiles:    { file: 'game-profiles.json',    format: 'json' },
-  keywordWeights:  { file: 'keyword-weights.json',  format: 'json' },
-  steamCache:      { file: 'steam-cache.json',      format: 'json' },
-  gameRegistry:    { file: 'game-registry.json',    format: 'json' },
-  nameIndex:       { file: 'name-index.json',       format: 'json' },
-  downloadUrls:    { file: 'download-urls.json',    format: 'json' },
-  freeGames:       { file: 'free-games.json',       format: 'json' },
-  runtimeLog:      { file: 'runtime-log.ndjson',    format: 'ndjson' },
+  settings: { file: 'settings.json', format: 'json' },
+  behaviorLog: { file: 'behavior-log.ndjson', format: 'ndjson' },
+  gameProfiles: { file: 'game-profiles.json', format: 'json' },
+  keywordWeights: { file: 'keyword-weights.json', format: 'json' },
+  steamCache: { file: 'steam-cache.json', format: 'json' },
+  gameRegistry: { file: 'game-registry.json', format: 'json' },
+  nameIndex: { file: 'name-index.json', format: 'json' },
+  downloadUrls: { file: 'download-urls.json', format: 'json' },
+  freeGames: { file: 'free-games.json', format: 'json' },
+  runtimeLog: { file: 'runtime-log.ndjson', format: 'ndjson' },
   downloadHistory: { file: 'download-history.json', format: 'json' },
-  adapterRules:    { file: 'adapter-rules.json',    format: 'json' },
-  backups:         { file: 'backups.json',          format: 'json' },
-  learnedNoise:    { file: 'learned-noise.json',    format: 'json' },
-  wrongReports:    { file: 'wrong-reports.json',    format: 'json' }
+  adapterRules: { file: 'adapter-rules.json', format: 'json' },
+  backups: { file: 'backups.json', format: 'json' },
+  learnedNoise: { file: 'learned-noise.json', format: 'json' },
+  wrongReports: { file: 'wrong-reports.json', format: 'json' }
 };
 
 class DataStore {
@@ -53,7 +53,10 @@ class DataStore {
   _serialize(moduleKey, task) {
     const prev = this._writeQueues[moduleKey] || Promise.resolve();
     const run = prev.then(() => task());
-    this._writeQueues[moduleKey] = run.then(() => undefined, () => undefined);
+    this._writeQueues[moduleKey] = run.then(
+      () => undefined,
+      () => undefined
+    );
     return run;
   }
 
@@ -158,7 +161,11 @@ class DataStore {
       // NDJSON 内部已跳过损坏行）
       console.warn(`[DataStore] ${fileHandle.name} 数据损坏，备份后重置:`, e.message);
       await this._backupCorruptFile(fileHandle, file);
-      try { await this._resetFile(fileHandle); } catch { /* 重置失败下次再试 */ }
+      try {
+        await this._resetFile(fileHandle);
+      } catch {
+        /* 重置失败下次再试 */
+      }
       return format === 'ndjson' ? [] : null;
     }
   }
@@ -241,7 +248,11 @@ class DataStore {
   async removeModule(moduleKey) {
     const cfg = MODULE_FILES[moduleKey];
     if (this.opfsAvailable && cfg) {
-      try { await this.dir.removeEntry(cfg.file); } catch { /* 文件不存在忽略 */ }
+      try {
+        await this.dir.removeEntry(cfg.file);
+      } catch {
+        /* 文件不存在忽略 */
+      }
     }
     await chrome.storage.local.remove(moduleKey);
   }

@@ -28,7 +28,10 @@ export function collectExpiredSteamCache(entries) {
   let removed = 0;
   for (const [key, entry] of map) {
     const migrated = migrateEntry(entry);
-    if (allModulesExpired(migrated, now)) { map.delete(key); removed++; }
+    if (allModulesExpired(migrated, now)) {
+      map.delete(key);
+      removed++;
+    }
   }
   return { removed, map };
 }
@@ -43,9 +46,7 @@ export function collectExpiredNegativeNames(entries, ttlMs) {
     const isNegative = entry && (entry.appId === null || entry.appId === undefined);
     if (!isNegative) continue;
     // 0 = 长期有效：仅清理无时间戳的异常条目；否则按 TTL 判定（无时间戳视为过期）
-    const expired = ttlMs === Infinity
-      ? !entry.lastSearched
-      : (!entry.lastSearched || (now - entry.lastSearched >= ttlMs));
+    const expired = ttlMs === Infinity ? !entry.lastSearched : !entry.lastSearched || now - entry.lastSearched >= ttlMs;
     if (expired) {
       map.delete(key);
       removed++;
@@ -63,8 +64,11 @@ export function collectExpiredDownloadUrls(store, ttlMs) {
   for (const [siteKey, bucket] of Object.entries((store && store.sites) || {})) {
     const kept = {};
     for (const [appId, entry] of Object.entries(bucket || {})) {
-      const expired = ttlMs !== Infinity && (now - (entry && entry.lastRefreshed || 0) >= ttlMs);
-      if (expired) { removed++; continue; }
+      const expired = ttlMs !== Infinity && now - ((entry && entry.lastRefreshed) || 0) >= ttlMs;
+      if (expired) {
+        removed++;
+        continue;
+      }
       kept[appId] = entry;
     }
     if (Object.keys(kept).length > 0) sites[siteKey] = kept;

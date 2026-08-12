@@ -12,10 +12,10 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE } from '../core/constants.js';
+import { createDebouncedStore } from './debounced-store.js';
 
-let wrongReportsMemory = null;   // Map: gameName(原文) → { wrongAppId, correctAppId, count, reportedAt, correctedAt }
+let wrongReportsMemory = null; // Map: gameName(原文) → { wrongAppId, correctAppId, count, reportedAt, correctedAt }
 let wrongReportsLoaded = false;
-let wrongReportsWriteTimer = null;
 
 // 加载记录到内存（首次从存储读取）/ Load into memory (once)
 async function loadWrongReports() {
@@ -39,11 +39,11 @@ export async function recordWrongReport(gameName, info = {}) {
   const now = Date.now();
   const existing = wrongReportsMemory.get(name) || {};
   const entry = {
-    wrongAppId: info.wrongAppId !== undefined ? String(info.wrongAppId) : (existing.wrongAppId || null),
-    correctAppId: info.correctAppId !== undefined ? String(info.correctAppId) : (existing.correctAppId || null),
+    wrongAppId: info.wrongAppId !== undefined ? String(info.wrongAppId) : existing.wrongAppId || null,
+    correctAppId: info.correctAppId !== undefined ? String(info.correctAppId) : existing.correctAppId || null,
     count: (existing.count || 0) + 1,
     reportedAt: existing.reportedAt || now,
-    correctedAt: info.correctAppId !== undefined ? now : (existing.correctedAt || null)
+    correctedAt: info.correctAppId !== undefined ? now : existing.correctedAt || null
   };
   wrongReportsMemory.set(name, entry);
   scheduleWrite();
@@ -65,28 +65,25 @@ export async function lookupWrongReportCorrection(gameName) {
   return { correctAppId: String(entry.correctAppId), wrongAppId: entry.wrongAppId ? String(entry.wrongAppId) : null };
 }
 
-// 防抖写入 / Debounced write
-function scheduleWrite() {
-  if (wrongReportsWriteTimer) clearTimeout(wrongReportsWriteTimer);
-  wrongReportsWriteTimer = setTimeout(flushWrongReports, NAME_INDEX_WRITE_DEBOUNCE);
-}
+// v5.1.0：防抖写入收敛至 debounced-store 工厂
+const writer = createDebouncedStore({
+  name: '报错记录',
+  debounceMs: NAME_INDEX_WRITE_DEBOUNCE,
+  save: async () => {
+    if (!wrongReportsMemory) return;
+    await dataStore.writeModule(DB_KEYS.WRONG_REPORTS, Object.fromEntries(wrongReportsMemory));
+  }
+});
+const scheduleWrite = writer.scheduleWrite;
 
 // 强制立即写入 / Force flush
-export async function flushWrongReports() {
-  if (wrongReportsWriteTimer) { clearTimeout(wrongReportsWriteTimer); wrongReportsWriteTimer = null; }
-  if (!wrongReportsMemory) return;
-  try {
-    await dataStore.writeModule(DB_KEYS.WRONG_REPORTS, Object.fromEntries(wrongReportsMemory));
-  } catch (e) {
-    console.error('报错记录写入失败:', e.message);
-  }
-}
+export const flushWrongReports = writer.flush;
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetWrongReports() {
   wrongReportsMemory = null;
   wrongReportsLoaded = false;
-  if (wrongReportsWriteTimer) { clearTimeout(wrongReportsWriteTimer); wrongReportsWriteTimer = null; }
+  writer.reset();
 }
 
 // 供测试/管理页读取的内存引用 / In-memory reference (tests/management)

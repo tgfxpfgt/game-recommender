@@ -18,15 +18,15 @@
   function initBatchState(settings) {
     GR.list._state.batchState = {
       settings,
-      processItems: [],    // 全部已发现 item（追加式）/ all discovered items
+      processItems: [], // 全部已发现 item（追加式）/ all discovered items
       itemsByName: new Map(), // name → item（同名取首个，按名回填/惰性提取用）
-      nameToImage: {},     // name → {appId, cover}（惰性填充）/ lazy cover info
-      requested: new Set(),// 已请求过的名字 / names already requested
-      queue: [],           // 待请求名字（FIFO）/ names awaiting a batch
-      inflight: false,     // 有在途批次（等待 resolve/done）/ batch in flight
-      pendingDone: false,  // 后台已推送 done / background done received
-      forceTimer: null,    // 强制收尾定时器 / force-finish timer
-      observer: null,      // MutationObserver（新增项发现）/ discovery observer
+      nameToImage: {}, // name → {appId, cover}（惰性填充）/ lazy cover info
+      requested: new Set(), // 已请求过的名字 / names already requested
+      queue: [], // 待请求名字（FIFO）/ names awaiting a batch
+      inflight: false, // 有在途批次（等待 resolve/done）/ batch in flight
+      pendingDone: false, // 后台已推送 done / background done received
+      forceTimer: null, // 强制收尾定时器 / force-finish timer
+      observer: null, // MutationObserver（新增项发现）/ discovery observer
       sentinelObserver: null // IntersectionObserver（滚动调度）/ scroll sentinel
     };
   }
@@ -38,7 +38,9 @@
     if (batchState.nameToImage[name] !== undefined) return batchState.nameToImage[name];
     const item = batchState.itemsByName.get(name);
     batchState.nameToImage[name] = item
-      ? (GR.builder.isImageAppIdEnabled() ? GR.builder.extractSteamImageInfo(item.element) : null)
+      ? GR.builder.isImageAppIdEnabled()
+        ? GR.builder.extractSteamImageInfo(item.element)
+        : null
       : null;
     return batchState.nameToImage[name];
   }
@@ -46,7 +48,7 @@
   // 追加 item 入队（url 去重；名字未请求过才入队）/ enqueue new items (url-dedup)
   function enqueueItems(items) {
     const batchState = GR.list._state.batchState;
-    const seen = new Set(batchState.processItems.map(i => i.url));
+    const seen = new Set(batchState.processItems.map((i) => i.url));
     for (const item of items || []) {
       if (!item || !item.name || item.name.length < 2 || seen.has(item.url)) continue;
       seen.add(item.url);
@@ -62,10 +64,10 @@
   function maybeFetchNextBatch() {
     const batchState = GR.list._state.batchState;
     if (!batchState || batchState.inflight) return false;
-    const names = batchState.queue.filter(n => !batchState.requested.has(n)).slice(0, RATINGS_BATCH_SIZE);
+    const names = batchState.queue.filter((n) => !batchState.requested.has(n)).slice(0, RATINGS_BATCH_SIZE);
     if (names.length === 0) return false;
-    names.forEach(n => batchState.requested.add(n));
-    batchState.queue = batchState.queue.filter(n => !batchState.requested.has(n));
+    names.forEach((n) => batchState.requested.add(n));
+    batchState.queue = batchState.queue.filter((n) => !batchState.requested.has(n));
     batchState.inflight = true;
     batchState.pendingDone = false;
     fireBatch(names);
@@ -78,11 +80,17 @@
     const batchState = GR.list._state.batchState;
     const total = batchState.processItems.length;
     const doneCount = batchState.requested.size - names.length;
-    GR.status.showStatus('正在获取 Steam 好评率', doneCount, total,
-      batchState.queue.length > 0 ? `已排队 ${batchState.queue.length} 个，缓存优先检索中...` : '缓存优先检索中...');
+    GR.status.showStatus(
+      '正在获取 Steam 好评率',
+      doneCount,
+      total,
+      batchState.queue.length > 0 ? `已排队 ${batchState.queue.length} 个，缓存优先检索中...` : '缓存优先检索中...'
+    );
     // 惰性提取批内封面（不再全量扫描）；评分与推荐共用同一 imageData
     const imageData = {};
-    names.forEach(n => { imageData[n] = ensureNameToImage(n) || null; });
+    names.forEach((n) => {
+      imageData[n] = ensureNameToImage(n) || null;
+    });
     // 推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
     fetchRecommendationsForBatch(names, imageData);
     try {
@@ -95,8 +103,12 @@
       if (!job || job.finished) return;
       if (pendingCount > 0) {
         // 后台正在拉取：等推送 done 衔接下一批（45s 兜底随批次重置）
-        GR.status.showStatus('正在从 Steam 更新缓存', job.processed.size, total,
-          `${pendingCount} 个未命中缓存，后台拉取中...`);
+        GR.status.showStatus(
+          '正在从 Steam 更新缓存',
+          job.processed.size,
+          total,
+          `${pendingCount} 个未命中缓存，后台拉取中...`
+        );
         GR.list._internal.scheduleFallbacks();
       } else {
         // 本批全部命中缓存，无推送会来：立即衔接下一批
@@ -115,7 +127,7 @@
   // Per-batch recommendation request (fire-and-forget; failures don't block ratings)
   async function fetchRecommendationsForBatch(names, imageData) {
     try {
-      const games = names.map(n => {
+      const games = names.map((n) => {
         const img = imageData[n];
         return { name: n, url: '', appId: img && img.appId ? img.appId : null };
       });
@@ -171,12 +183,15 @@
       scanTimer = setTimeout(() => {
         const nodes = pendingNodes;
         pendingNodes = [];
-        const known = new Set(batchState.processItems.map(i => i.url));
+        const known = new Set(batchState.processItems.map((i) => i.url));
         const newItems = [];
         for (const node of nodes) {
           const found = GR.builder.findItemsInContainer(node);
           for (const it of found) {
-            if (!known.has(it.url)) { known.add(it.url); newItems.push(it); }
+            if (!known.has(it.url)) {
+              known.add(it.url);
+              newItems.push(it);
+            }
           }
         }
         if (newItems.length > 0) {
@@ -189,9 +204,12 @@
     const sentinel = document.createElement('div');
     sentinel.style.cssText = 'height:1px;width:1px;opacity:0;pointer-events:none;';
     (document.body || document.documentElement).appendChild(sentinel);
-    batchState.sentinelObserver = new IntersectionObserver((entries) => {
-      if (entries.some(e => e.isIntersecting)) maybeFetchNextBatch();
-    }, { rootMargin: '400px 0px' });
+    batchState.sentinelObserver = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((e) => e.isIntersecting)) maybeFetchNextBatch();
+      },
+      { rootMargin: '400px 0px' }
+    );
     batchState.sentinelObserver.observe(sentinel);
   }
 
@@ -202,12 +220,17 @@
     initBatchState(settings);
     enqueueItems(items);
     // 名字全集来自 processItems（nameToImage 已惰性化）
-    const jobNames = GR.list._state.batchState.processItems.map(i => i.name).filter(n => n && n.length > 1);
+    const jobNames = GR.list._state.batchState.processItems.map((i) => i.name).filter((n) => n && n.length > 1);
     if (jobNames.length === 0) {
       GR.status.hide();
       return;
     }
-    GR.status.showStatus('正在获取 Steam 好评率', 0, GR.list._state.batchState.processItems.length, '缓存优先检索中...');
+    GR.status.showStatus(
+      '正在获取 Steam 好评率',
+      0,
+      GR.list._state.batchState.processItems.length,
+      '缓存优先检索中...'
+    );
     GR.list._internal.createRatingsJob(GR.list._state.batchState.processItems, settings, jobNames);
     maybeFetchNextBatch();
     startListScan();
@@ -221,10 +244,12 @@
   async function requestRecommendations(items, settings, nameToImage) {
     const batchState = GR.list._state.batchState;
     if (!batchState || !items || items.length === 0) return;
-    const names = items.map(i => i.name).filter(n => n && n.length > 1);
+    const names = items.map((i) => i.name).filter((n) => n && n.length > 1);
     if (names.length === 0) return;
     const imageData = {};
-    names.forEach(n => { imageData[n] = ensureNameToImage(n) || null; });
+    names.forEach((n) => {
+      imageData[n] = ensureNameToImage(n) || null;
+    });
     await fetchRecommendationsForBatch(names, imageData);
   }
 

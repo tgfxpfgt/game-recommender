@@ -30,5 +30,7 @@ export function createFetchMock(handlers) {
 export function installFetchMock(mock) {
   const prev = globalThis.fetch;
   globalThis.fetch = mock;
-  return () => { globalThis.fetch = prev; };
+  return () => {
+    globalThis.fetch = prev;
+  };
 }

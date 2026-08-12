@@ -34,10 +34,24 @@
   // 任一模块缺失即说明加载顺序/文件遗漏，尽早报错指明问题
   // Namespace integrity check: content scripts load in manifest order; a
   // missing module means a broken order or a dropped file — fail loudly.
-  const REQUIRED_KEYS = ['common', 'float', 'status', 'debug', 'builder', 'badges', 'listBatch', 'list', 'detail', 'detailTemplates', 'tracking'];
-  const missing = REQUIRED_KEYS.filter(k => !GR[k]);
+  const REQUIRED_KEYS = [
+    'common',
+    'float',
+    'status',
+    'debug',
+    'builder',
+    'badges',
+    'listBatch',
+    'list',
+    'detail',
+    'detailTemplates',
+    'tracking'
+  ];
+  const missing = REQUIRED_KEYS.filter((k) => !GR[k]);
   if (missing.length > 0) {
-    console.error(`[Game Recommender] 内容脚本模块缺失（检查 manifest content_scripts 加载顺序）: ${missing.join(', ')}`);
+    console.error(
+      `[Game Recommender] 内容脚本模块缺失（检查 manifest content_scripts 加载顺序）: ${missing.join(', ')}`
+    );
   }
 
   const dbg = (...a) => debug.dbg(...a);
@@ -51,11 +65,15 @@
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       settings = resp?.settings;
-    } catch { /* 后台不可达时 init 会自行重试 */ }
+    } catch {
+      /* 后台不可达时 init 会自行重试 */
+    }
     try {
       await builder.loadSiteRules();
       builder.buildSiteAdapters(builder.getSITE_RULES());
-    } catch { /* 规则加载失败时回退内置规则 */ }
+    } catch {
+      /* 规则加载失败时回退内置规则 */
+    }
     return settings;
   })();
 
@@ -69,7 +87,9 @@
       try {
         const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
         settings = resp?.settings;
-      } catch { /* 仍失败则放弃本页 */ }
+      } catch {
+        /* 仍失败则放弃本页 */
+      }
     }
     if (!settings || !settings.enabled) return;
 
@@ -84,7 +104,7 @@
 
     const domain = common.getCurrentDomain();
     const trackedSites = settings.trackedSites || [];
-    const isTracked = trackedSites.length === 0 || trackedSites.some(s => domain.includes(s));
+    const isTracked = trackedSites.length === 0 || trackedSites.some((s) => domain.includes(s));
     const isSteamPage = domain.includes('store.steampowered.com');
 
     // 调试模式：开启时统一浮窗在统计显示 3 秒后切换为诊断视图
@@ -111,8 +131,12 @@
       const appIdMatch = window.location.pathname.match(/\/app\/(\d+)/);
       if (appIdMatch) {
         const nameEl = document.querySelector('.apphub_AppName');
-        const pageName = (nameEl ? nameEl.textContent : document.title.replace(/^Steam 上的\s*|\s*on Steam$/i, '')).trim();
-        chrome.runtime.sendMessage({ action: 'CACHE_STEAM_PAGE', appId: appIdMatch[1], gameName: pageName }).catch(() => {});
+        const pageName = (
+          nameEl ? nameEl.textContent : document.title.replace(/^Steam 上的\s*|\s*on Steam$/i, '')
+        ).trim();
+        chrome.runtime
+          .sendMessage({ action: 'CACHE_STEAM_PAGE', appId: appIdMatch[1], gameName: pageName })
+          .catch(() => {});
       }
       if (!isTracked) return; // Steam页只注入下载站浮窗，不做行为追踪
     }
@@ -197,7 +221,10 @@
         try {
           const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
           const settings = resp?.settings;
-          if (!settings) { sendResponse({ success: false }); return; }
+          if (!settings) {
+            sendResponse({ success: false });
+            return;
+          }
           const adapter = builder.getAdapter();
           if (list.isListPageByUrl() || adapter.isListPage()) {
             let items = list.getListItemsSmart(adapter);
@@ -244,7 +271,7 @@
           } else {
             const adapter = builder.getAdapter();
             if (list.isListPageByUrl() || adapter.isListPage()) {
-              list.getListItemsSmart(adapter).forEach(item => {
+              list.getListItemsSmart(adapter).forEach((item) => {
                 if (item.name) names.add(item.name);
                 const info = builder.extractSteamImageInfo(item.element);
                 if (info) appIds.add(info.appId);

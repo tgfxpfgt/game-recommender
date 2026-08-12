@@ -27,9 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 平台筛选 / Platform filter
-  document.querySelectorAll('.filter-btn').forEach(btn => {
+  document.querySelectorAll('.filter-btn').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.dataset.platform;
       renderGames();
@@ -37,9 +37,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 领取方式筛选 / Claim-type filter
-  document.querySelectorAll('.claim-btn-filter').forEach(btn => {
+  document.querySelectorAll('.claim-btn-filter').forEach((btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.claim-btn-filter').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.claim-btn-filter').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentClaimFilter = btn.dataset.claim;
       renderGames();
@@ -81,14 +81,14 @@ function renderGames() {
   if (currentFilter === 'all') {
     filtered = allGames;
   } else if (currentFilter === 'other') {
-    filtered = allGames.filter(g => !mainPlatforms.includes(g.platform));
+    filtered = allGames.filter((g) => !mainPlatforms.includes(g.platform));
   } else {
-    filtered = allGames.filter(g => g.platform === currentFilter);
+    filtered = allGames.filter((g) => g.platform === currentFilter);
   }
 
   // 领取方式筛选（官方直领 vs 第三方）
   if (currentClaimFilter !== 'all') {
-    filtered = filtered.filter(g => (g.claimType || 'direct') === currentClaimFilter);
+    filtered = filtered.filter((g) => (g.claimType || 'direct') === currentClaimFilter);
   }
 
   if (filtered.length === 0) {
@@ -99,19 +99,21 @@ function renderGames() {
   // 未领取的排在前面
   const sorted = [...filtered].sort((a, b) => (a.claimed ? 1 : 0) - (b.claimed ? 1 : 0));
 
-  listEl.innerHTML = sorted.map(game => renderGameCard(game)).join('');
+  listEl.innerHTML = sorted.map((game) => renderGameCard(game)).join('');
 
   // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
   // Hide failed images (addEventListener instead of inline onerror for extension-page CSP)
-  listEl.querySelectorAll('.game-card-img').forEach(img => {
-    img.addEventListener('error', () => { img.style.display = 'none'; });
+  listEl.querySelectorAll('.game-card-img').forEach((img) => {
+    img.addEventListener('error', () => {
+      img.style.display = 'none';
+    });
   });
 
   // 绑定领取按钮（所有按钮均可重复点击）
-  listEl.querySelectorAll('.claim-btn').forEach(btn => {
+  listEl.querySelectorAll('.claim-btn').forEach((btn) => {
     btn.addEventListener('click', async (e) => {
       const gameId = btn.dataset.id;
-      const game = allGames.find(g => g.id === gameId);
+      const game = allGames.find((g) => g.id === gameId);
       // 链接始终会在新标签打开（<a target=_blank> 默认行为）
       // 若尚未领取，标记已领取并更新角标
       if (game && !game.claimed) {
@@ -130,18 +132,15 @@ function renderGames() {
 // 渲染单个游戏卡片 / Render a single game card
 function renderGameCard(game) {
   const platformClass = game.platform;
-  const endTimeHtml = game.endTime
-    ? `<span class="game-endtime">截止: ${formatDate(game.endTime)}</span>`
-    : '';
+  const endTimeHtml = game.endTime ? `<span class="game-endtime">截止: ${formatDate(game.endTime)}</span>` : '';
 
-  const priceHtml = game.originalPrice && game.originalPrice !== '免费'
-    ? `<span class="game-price"><span class="original">${escapeHtml(game.originalPrice)}</span>免费</span>`
-    : `<span class="game-price">免费</span>`;
+  const priceHtml =
+    game.originalPrice && game.originalPrice !== '免费'
+      ? `<span class="game-price"><span class="original">${escapeHtml(game.originalPrice)}</span>免费</span>`
+      : `<span class="game-price">免费</span>`;
 
   // 今日新增标识
-  const newTodayHtml = isToday(game.firstSeen)
-    ? `<span class="new-today">🆕 今日新增</span>`
-    : '';
+  const newTodayHtml = isToday(game.firstSeen) ? `<span class="new-today">🆕 今日新增</span>` : '';
 
   // 领取方式标识：官方直领（无门槛） vs 第三方领取（需条件）
   const isThirdParty = game.claimType === 'thirdparty';
@@ -153,12 +152,12 @@ function renderGameCard(game) {
   // v3.4.1：仅渲染合法 http(s) 链接，否则降级为无跳转按钮（防 javascript: 伪协议）
   const safeUrl = /^https?:\/\//i.test(game.url || '') ? game.url : '';
   const claimBtn = game.claimed
-    ? (safeUrl
-        ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 再次打开</a>`
-        : `<span class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 无外链</span>`)
-    : (safeUrl
-        ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</a>`
-        : `<span class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</span>`);
+    ? safeUrl
+      ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 再次打开</a>`
+      : `<span class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 无外链</span>`
+    : safeUrl
+      ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</a>`
+      : `<span class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</span>`;
 
   return `
     <div class="game-card ${game.claimed ? 'claimed' : ''}">
@@ -189,9 +188,7 @@ function isToday(timestamp) {
   if (!timestamp) return false;
   const d = new Date(timestamp);
   const now = new Date();
-  return d.getFullYear() === now.getFullYear() &&
-         d.getMonth() === now.getMonth() &&
-         d.getDate() === now.getDate();
+  return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
 }
 
 // 格式化截止日期（如 "8月15日"）；非法日期回退原文 / Format end date; invalid dates fall back

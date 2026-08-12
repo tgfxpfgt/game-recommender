@@ -37,14 +37,16 @@
       const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       // 防御：后台未就绪时 response 可能为 undefined
       if (!response || !response.settings) {
-        document.body.insertAdjacentHTML('afterbegin',
-          '<div style="padding:16px;margin:16px auto;max-width:760px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;">⚠️ 无法加载设置，请刷新页面或重新启用扩展。</div>');
+        document.body.insertAdjacentHTML(
+          'afterbegin',
+          '<div style="padding:16px;margin:16px auto;max-width:760px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;">⚠️ 无法加载设置，请刷新页面或重新启用扩展。</div>'
+        );
         return;
       }
       OPTS.currentSettings = response.settings;
       OPTS.renderSettings(OPTS.currentSettings);
       bindEvents();
-      bindTabEvents();   // 侧边栏分类切换
+      bindTabEvents(); // 侧边栏分类切换
       OPTS.bindCacheEvents(); // 游戏缓存管理
       OPTS.bindRulesEvents(); // 规则管理（v3.0.0）
       OPTS.populateCacheSiteFilter(); // 缓存页下载站筛选
@@ -58,12 +60,12 @@
   // ============ 侧边栏分类切换 / Sidebar Category Switching ============
   // Chrome 设置页风格：左侧分类导航 + 右侧内容面板
   function bindTabEvents() {
-    document.querySelectorAll('.nav-item').forEach(btn => {
+    document.querySelectorAll('.nav-item').forEach((btn) => {
       btn.addEventListener('click', () => {
         const panelId = btn.dataset.panel;
-        document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        document.querySelectorAll('.settings-panel').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach((p) => p.classList.remove('active'));
         const panel = document.getElementById('panel-' + panelId);
         if (panel) panel.classList.add('active');
         // 切换到缓存面板时自动加载数据
@@ -101,7 +103,7 @@
 
     // 权重滑块（v4.0.0：新增 playTime/heat）
     const weightIds = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam', 'weightPlayTime', 'weightHeat'];
-    weightIds.forEach(id => {
+    weightIds.forEach((id) => {
       document.getElementById(id).addEventListener('input', (e) => {
         document.getElementById(`${id}Val`).textContent = (e.target.value / 100).toFixed(2);
         OPTS.updateWeightSum();
@@ -134,7 +136,7 @@
     });
 
     // LLM 文本输入（防抖自动保存）
-    ['llmEndpoint', 'llmApiKey', 'llmModel'].forEach(id => {
+    ['llmEndpoint', 'llmApiKey', 'llmModel'].forEach((id) => {
       document.getElementById(id).addEventListener('input', () => scheduleAutoSave());
     });
 
@@ -179,12 +181,16 @@
 
     // 手动保存（立即保存）
     document.getElementById('saveBtn').addEventListener('click', () => {
-      if (OPTS.saveTimer) { clearTimeout(OPTS.saveTimer); OPTS.saveTimer = null; }
+      if (OPTS.saveTimer) {
+        clearTimeout(OPTS.saveTimer);
+        OPTS.saveTimer = null;
+      }
       saveSettings();
     });
 
     // 缓存有效期输入（变更即自动保存；v3.3.7 补全 ttlDetailSteam/ttlSpySteam/ttlMetaSteam）
-    OPTS.TTL_FIELDS.forEach(f => { const id = f.id;
+    OPTS.TTL_FIELDS.forEach((f) => {
+      const id = f.id;
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('change', () => scheduleAutoSave());
@@ -245,9 +251,10 @@
 
     // 虚拟机过滤
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
-    const vmKeywordsRaw = document.getElementById('vmFilterKeywords').value
-      .split(/[,，]/)
-      .map(s => s.trim())
+    const vmKeywordsRaw = document
+      .getElementById('vmFilterKeywords')
+      .value.split(/[,，]/)
+      .map((s) => s.trim())
       .filter(Boolean);
     OPTS.currentSettings.vmFilterKeywords = vmKeywordsRaw.length > 0 ? vmKeywordsRaw : ['虚拟机板', '虚拟机'];
 
@@ -274,19 +281,19 @@
 
     // 下载站与追踪管理（合并后的统一配置入口）
     const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
-    const customSites = (OPTS.currentSettings.trackedSites || []).filter(d =>
-      !rules.some(s => s.domains.some(x => d === x || d.includes(x)))
+    const customSites = (OPTS.currentSettings.trackedSites || []).filter(
+      (d) => !rules.some((s) => s.domains.some((x) => d === x || d.includes(x)))
     );
-    const ruleTracked = [...document.querySelectorAll('.track-site-check:checked')]
-      .map(cb => cb.dataset.domain);
+    const ruleTracked = [...document.querySelectorAll('.track-site-check:checked')].map((cb) => cb.dataset.domain);
     OPTS.currentSettings.trackedSites = [...new Set([...customSites, ...ruleTracked])];
-    OPTS.currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')]
-      .map(cb => cb.dataset.site);
+    OPTS.currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')].map(
+      (cb) => cb.dataset.site
+    );
 
     // 缓存有效期（value + 单位，0 = 长期有效；v3.3.7 模块化：每模块独立 TTL）
     // Cache TTLs (value + unit; 0 = keep forever; per-module since v3.3.7)
     OPTS.currentSettings.cacheTtls = {};
-    OPTS.TTL_FIELDS.forEach(f => {
+    OPTS.TTL_FIELDS.forEach((f) => {
       OPTS.currentSettings.cacheTtls[f.key] = {
         value: parseInt(document.getElementById(f.id).value) || 0,
         unit: document.getElementById(f.id + 'Unit').value

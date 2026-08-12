@@ -18,13 +18,14 @@ const ONE_DAY = 24 * 3600 * 1000;
 // Protocol whitelist for giveaway links/images (http(s) only, blocks javascript:)
 const SAFE_URL_RE = /^https?:\/\//i;
 function sanitizeGameUrl(url) {
-  return (typeof url === 'string' && SAFE_URL_RE.test(url)) ? url : '';
+  return typeof url === 'string' && SAFE_URL_RE.test(url) ? url : '';
 }
 
 async function fetchEpicFreeGames() {
   const games = [];
   try {
-    const url = 'https://store-site-backend-official.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN';
+    const url =
+      'https://store-site-backend-official.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN';
     const resp = await fetchWithTimeout(url);
     const data = await resp.json();
     const elements = data?.data?.Catalog?.searchStore?.elements || [];
@@ -36,8 +37,7 @@ async function fetchEpicFreeGames() {
       const end = new Date(promo.endDate).getTime();
       if (now < start || now > end) continue;
 
-      const img = el.keyImages?.find(i => i.type === 'OfferImageWide')?.url ||
-                  el.keyImages?.[0]?.url || '';
+      const img = el.keyImages?.find((i) => i.type === 'OfferImageWide')?.url || el.keyImages?.[0]?.url || '';
       games.push({
         id: 'epic-' + el.id,
         platform: 'epic',
@@ -63,7 +63,7 @@ async function fetchGogFreeGames() {
   const games = [];
   try {
     const resp = await fetchWithTimeout('https://www.gog.com/games/ajax/filtered?mediaType=game&price=free&limit=25', {
-      headers: { 'Accept': 'application/json' }
+      headers: { Accept: 'application/json' }
     });
     if (!resp.ok) return games;
     const data = await resp.json();
@@ -130,11 +130,20 @@ export function classifyGamerPowerGiveaway(item) {
 
   const hasKeyInTitle = /\bkey\b/.test(title);
   const thirdPartySignals = [
-    'alienware', 'unlock your key', 'get your key', 'redeem the key',
-    'redeem your key', 'indiegala', 'humble bundle', 'fanatical',
-    'grabfree', 'key giveaway', 'claim your key', 'your free key'
+    'alienware',
+    'unlock your key',
+    'get your key',
+    'redeem the key',
+    'redeem your key',
+    'indiegala',
+    'humble bundle',
+    'fanatical',
+    'grabfree',
+    'key giveaway',
+    'claim your key',
+    'your free key'
   ];
-  const hasThirdPartyInstruction = thirdPartySignals.some(kw => instructions.includes(kw));
+  const hasThirdPartyInstruction = thirdPartySignals.some((kw) => instructions.includes(kw));
 
   if (hasKeyInTitle || hasThirdPartyInstruction) return 'thirdparty';
   return 'direct';
@@ -162,14 +171,28 @@ async function fetchGamerPowerFreeGames() {
       const platforms = (item.platforms || '').toLowerCase();
       let platform = 'other';
       let platformName = '其他';
-      if (platforms.includes('epic')) { platform = 'epic'; platformName = 'Epic Games'; }
-      else if (platforms.includes('steam')) { platform = 'steam'; platformName = 'Steam'; }
-      else if (platforms.includes('gog')) { platform = 'gog'; platformName = 'GOG'; }
-      else if (platforms.includes('itch')) { platform = 'itch'; platformName = 'Itch.io'; }
+      if (platforms.includes('epic')) {
+        platform = 'epic';
+        platformName = 'Epic Games';
+      } else if (platforms.includes('steam')) {
+        platform = 'steam';
+        platformName = 'Steam';
+      } else if (platforms.includes('gog')) {
+        platform = 'gog';
+        platformName = 'GOG';
+      } else if (platforms.includes('itch')) {
+        platform = 'itch';
+        platformName = 'Itch.io';
+      }
       // v4.1.0：微软商店（GamerPower 的 platforms 可能出现 "Microsoft Store"，
       // 此前无关键字落入 other 被丢弃）
-      else if (platforms.includes('microsoft')) { platform = 'microsoft'; platformName = 'Microsoft Store'; }
-      else if (platforms.includes('drm-free') || platforms.includes('pc')) { platform = 'pc'; platformName = 'PC'; }
+      else if (platforms.includes('microsoft')) {
+        platform = 'microsoft';
+        platformName = 'Microsoft Store';
+      } else if (platforms.includes('drm-free') || platforms.includes('pc')) {
+        platform = 'pc';
+        platformName = 'PC';
+      }
 
       if (platform === 'other') continue;
 
@@ -187,7 +210,7 @@ async function fetchGamerPowerFreeGames() {
         image: item.image || '',
         url: item.open_giveaway_url || item.giveaway_url || '',
         originalPrice: item.worth || '',
-        endTime: (item.end_date && item.end_date !== 'N/A') ? item.end_date : '',
+        endTime: item.end_date && item.end_date !== 'N/A' ? item.end_date : '',
         claimed: false
       });
     }
@@ -206,7 +229,7 @@ async function fetchAllFreeGames() {
   ]);
 
   const merged = [...epic, ...gog, ...steam];
-  const seenNames = new Set(merged.map(g => normalizeGameName(g.name)));
+  const seenNames = new Set(merged.map((g) => normalizeGameName(g.name)));
 
   for (const gp of gamerpower) {
     const norm = normalizeGameName(gp.name);
@@ -226,7 +249,8 @@ async function fetchAllFreeGames() {
 }
 
 function normalizeGameName(name) {
-  return (name || '').toLowerCase()
+  return (name || '')
+    .toLowerCase()
     .replace(/\(.*?\)|\[.*?\]/g, '')
     .replace(/giveaway|free|限免|领取/gi, '')
     .replace(/[^a-z0-9\u4e00-\u9fff]/g, '')
@@ -238,15 +262,15 @@ export async function refreshFreeGames(force = false) {
   const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
   const existing = stored || { lastUpdate: 0, games: [] };
 
-  if (!force && existing.lastUpdate && (Date.now() - existing.lastUpdate < ONE_DAY)) {
+  if (!force && existing.lastUpdate && Date.now() - existing.lastUpdate < ONE_DAY) {
     await updateFreeGamesBadge();
     return existing;
   }
 
   const newGames = await fetchAllFreeGames();
-  const existingMap = new Map(existing.games.map(g => [g.id, g]));
+  const existingMap = new Map(existing.games.map((g) => [g.id, g]));
   const now = Date.now();
-  newGames.forEach(g => {
+  newGames.forEach((g) => {
     const old = existingMap.get(g.id);
     if (old) {
       g.claimed = old.claimed || false;
@@ -270,7 +294,7 @@ async function updateFreeGamesBadge() {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayStartMs = todayStart.getTime();
-    const newToday = games.filter(g => g.firstSeen && g.firstSeen >= todayStartMs).length;
+    const newToday = games.filter((g) => g.firstSeen && g.firstSeen >= todayStartMs).length;
     chrome.action.setBadgeText({ text: newToday > 0 ? String(newToday) : '' });
     chrome.action.setBadgeBackgroundColor({ color: '#e74c3c' });
   } catch (e) {
@@ -280,8 +304,8 @@ async function updateFreeGamesBadge() {
 
 // 标记领取 / Mark a game as claimed
 export async function claimFreeGame(gameId) {
-  const fg = await dataStore.readModule(DB_KEYS.FREE_GAMES) || { games: [] };
-  const game = fg.games.find(g => g.id === gameId);
+  const fg = (await dataStore.readModule(DB_KEYS.FREE_GAMES)) || { games: [] };
+  const game = fg.games.find((g) => g.id === gameId);
   if (game) {
     game.claimed = true;
     await dataStore.writeModule(DB_KEYS.FREE_GAMES, fg);

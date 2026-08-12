@@ -15,8 +15,10 @@ export function createReporter() {
   const failures = []; // v4.1.2：失败明细（run-tests.js 汇总输出）
   const check = (name, actual, expected) => {
     const ok = JSON.stringify(actual) === JSON.stringify(expected);
-    if (ok) { pass++; console.log('  ✅', name); }
-    else {
+    if (ok) {
+      pass++;
+      console.log('  ✅', name);
+    } else {
       fail++;
       failures.push({ name, actual, expected });
       console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected));
@@ -26,10 +28,17 @@ export function createReporter() {
   const assertThrows = (name, fn, pattern) => {
     let threw = false;
     let message = '';
-    try { fn(); } catch (e) { threw = true; message = e && e.message ? e.message : String(e); }
+    try {
+      fn();
+    } catch (e) {
+      threw = true;
+      message = e && e.message ? e.message : String(e);
+    }
     const ok = threw && (!pattern || (pattern.test ? pattern.test(message) : message.includes(pattern)));
-    if (ok) { pass++; console.log('  ✅', name); }
-    else {
+    if (ok) {
+      pass++;
+      console.log('  ✅', name);
+    } else {
       fail++;
       const detail = threw ? `（抛了但消息不匹配: ${message}）` : '（未抛错）';
       failures.push({ name, actual: threw ? message : 'no-throw', expected: String(pattern || 'throws') });
@@ -40,13 +49,23 @@ export function createReporter() {
   const assertAsync = async (name, fn, expected) => {
     let actual;
     let err = null;
-    try { actual = await fn(); } catch (e) { err = e; }
+    try {
+      actual = await fn();
+    } catch (e) {
+      err = e;
+    }
     const ok = !err && JSON.stringify(actual) === JSON.stringify(expected);
-    if (ok) { pass++; console.log('  ✅', name); }
-    else {
+    if (ok) {
+      pass++;
+      console.log('  ✅', name);
+    } else {
       fail++;
       failures.push({ name, actual: err ? 'THREW: ' + err.message : actual, expected });
-      console.log('  ❌', name, err ? `→ 抛错: ${err.message}` : `→ 实际: ${JSON.stringify(actual)} 期望: ${JSON.stringify(expected)}`);
+      console.log(
+        '  ❌',
+        name,
+        err ? `→ 抛错: ${err.message}` : `→ 实际: ${JSON.stringify(actual)} 期望: ${JSON.stringify(expected)}`
+      );
     }
   };
   const getResult = () => ({ pass, fail, ok: fail === 0, failures });

@@ -7,7 +7,6 @@ import { Logger } from '../storage/logger.js';
  * v5.0.0：由 steam/api.js 按职能拆分。
  */
 
-
 // --- SteamDB 信息 ---
 
 export async function fetchSteamDbInfo(appId) {
@@ -15,21 +14,24 @@ export async function fetchSteamDbInfo(appId) {
   try {
     const resp = await fetchWithTimeout(steamdbUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'zh-CN,zh;q=0.9,en;q=0.8'
       }
     });
     const html = await resp.text();
-    const isBlocked = !resp.ok ||
+    const isBlocked =
+      !resp.ok ||
       /Just a moment|cf-browser-verification|challenge-platform|Checking your browser|Attention Required/i.test(html);
 
     if (isBlocked) {
       return { url: steamdbUrl, available: false, blocked: true };
     }
 
-    const ratingMatch = html.match(/<div[^>]*class="[^"]*header-rating[^"]*"[^>]*>\s*<span[^>]*>([\d.]+)%?<\/span>/i) ||
-                        html.match(/([\d.]+)%\s*(?:positive|好评)/i);
+    const ratingMatch =
+      html.match(/<div[^>]*class="[^"]*header-rating[^"]*"[^>]*>\s*<span[^>]*>([\d.]+)%?<\/span>/i) ||
+      html.match(/([\d.]+)%\s*(?:positive|好评)/i);
     const playersMatch = html.match(/([\d,]+)\s*(?:players|人在玩)/i);
     const priceMatch = html.match(/Lowest Price[\s\S]*?([\d.,]+\s*(?:¥|\$|USD|CNY))/i);
     const reviewCountMatch = html.match(/([\d,]+)\s*(?:reviews|评测|评价)/i);
@@ -58,7 +60,6 @@ export async function fetchSteamDbInfo(appId) {
 // average_forever; the previously-read players_2weeks/players_forever never
 // exist and were always null.
 
-
 // --- SteamSpy 信息（SteamDB 被拦截时的补充数据） ---
 
 // v3.3.6：实测 SteamSpy 响应的可用字段为 positive/negative/ccu(当前在线)/
@@ -84,10 +85,10 @@ export async function fetchSteamSpyInfo(appId) {
     // string, losing the numbers. Nested in the spy module, so no cache
     // migration; stale entries refresh after the 7-day TTL.
     const avgMin = typeof data.average_forever === 'number' ? data.average_forever : null;
-    const ownersMatch = typeof data.owners === 'string'
-      ? data.owners.replace(/,/g, '').match(/(\d+)\s*\.\.\s*(\d+)/) : null;
+    const ownersMatch =
+      typeof data.owners === 'string' ? data.owners.replace(/,/g, '').match(/(\d+)\s*\.\.\s*(\d+)/) : null;
     return {
-      positiveRate: total > 0 ? Math.round(data.positive / total * 100) : null,
+      positiveRate: total > 0 ? Math.round((data.positive / total) * 100) : null,
       reviewCount: total > 0 ? total.toLocaleString() : null,
       currentPlayers: data.ccu ? data.ccu.toLocaleString() : null,
       owners: data.owners || null,
@@ -103,4 +104,3 @@ export async function fetchSteamSpyInfo(appId) {
 }
 
 // --- 组装最终结果对象 ---
-

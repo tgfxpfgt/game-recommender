@@ -16,7 +16,8 @@
 // Noise keywords in download-site titles. AUTHORITATIVE SOURCE: shared/patterns.js
 // (shared with content scripts); this copy must stay byte-identical — the
 // consistency assertion in tests/test-security.mjs guards against drift.
-const noisePattern = /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520\.com|Switch520|520\.com|\s+The\s+Game\s*)/i;
+const noisePattern =
+  /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520\.com|Switch520|520\.com|\s+The\s+Game\s*)/i;
 // v3.4.1：去掉全局标志 g——该正则会被 noisePattern.test()（learnNoise）复用，
 // 带 g 时 lastIndex 状态残留导致奇偶次调用结果交替（已实测复现）。
 // 但 replace() 需要 g 才能清掉**每一处**噪声（无 g 只替换第一处匹配，
@@ -37,10 +38,14 @@ function isPureNoise(text) {
 // and download sites only match either half, so colons must split).
 function splitTitleSegments(rawName) {
   if (!rawName) return [];
-  const name = rawName.trim()
+  const name = rawName
+    .trim()
     .replace(/[\(\[\【].*?[\)\]\】]/g, '')
     .replace(/[《》]/g, '');
-  return name.split(/[|]+|\s+[-–—]\s+|[×•·]|[:：]/).map(s => s.trim()).filter(s => s.length > 1);
+  return name
+    .split(/[|]+|\s+[-–—]\s+|[×•·]|[:：]/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 1);
 }
 
 /**
@@ -80,33 +85,38 @@ export function parseGameTitle(rawName) {
     // 2) 英文子串作为补充候选（v3.3.8：去除尾随冒号等标点——贪婪匹配会把
     //    "Windrose: 风启之旅" 抽出 "Windrose:"，下载站搜不到）
     const en = part.match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
-    if (en) en.forEach(m => {
-      const cleanedEn = m.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim()
-        .replace(/[:：\s\-]+$/g, '');
-      if (cleanedEn.length >= 2) addCandidate(cleanedEn);
-    });
+    if (en)
+      en.forEach((m) => {
+        const cleanedEn = m
+          .replace(noisePatternAll, ' ')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .replace(/[:：\s\-]+$/g, '');
+        if (cleanedEn.length >= 2) addCandidate(cleanedEn);
+      });
 
     // 3) 中文子串作为补充候选（同样清洗噪声词，避免"抢先试玩"等污染搜索词）
     //    CN substring candidates (also noise-cleaned to keep search terms clean)
     const cn = part.match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
-    if (cn) cn.forEach(m => {
-      const cleanedCn = m.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
-      if (cleanedCn.length >= 2) addCandidate(cleanedCn);
-    });
+    if (cn)
+      cn.forEach((m) => {
+        const cleanedCn = m.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
+        if (cleanedCn.length >= 2) addCandidate(cleanedCn);
+      });
   }
 
   if (candidates.length === 0) {
     // 兜底：整名清理后仍须是有效名称（纯噪声/仅残留分隔符时不生成候选）
     // Fallback: the cleaned whole name must still be a valid title; pure-noise
     // or separator-only leftovers produce no candidates
-    const fallback = splitTitleSegments(rawName).join(' ')
-      .replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
+    const fallback = splitTitleSegments(rawName).join(' ').replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
     const strippedFallback = fallback.replace(/[\s\|\-:：、]+/g, '');
     if (strippedFallback.length >= 2) addCandidate(fallback);
   }
 
-  const junkPattern = /^(豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|修改器|加速器|作弊|全季票|季票|pc|vr|3d|hd|build[.\s]*\d+|\d+[\d.]*|v[\d.]+)$/i;
-  const filtered = candidates.filter(c => !junkPattern.test(c.trim()));
+  const junkPattern =
+    /^(豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|修改器|加速器|作弊|全季票|季票|pc|vr|3d|hd|build[.\s]*\d+|\d+[\d.]*|v[\d.]+)$/i;
+  const filtered = candidates.filter((c) => !junkPattern.test(c.trim()));
   const finalCandidates = filtered.length > 0 ? filtered : candidates;
 
   // 无任何有效候选时返回空数组 / Return [] when no valid candidates exist
@@ -137,7 +147,7 @@ export function cleanGameName(name) {
 // Pick the registry EN name: the EN segment from the download-site title first,
 // falling back to the Steam official EN name (may be ALL-CAPS).
 export function pickRegistryEnName(gameName, steamEnName) {
-  const enFromTitle = parseGameTitle(gameName || '').find(t => /^[A-Za-z]/.test(t));
+  const enFromTitle = parseGameTitle(gameName || '').find((t) => /^[A-Za-z]/.test(t));
   return enFromTitle || steamEnName || '';
 }
 
@@ -151,8 +161,8 @@ export function pickRegistryEnName(gameName, steamEnName) {
 // deduped; ≤4 per segment, ≤8 in total.
 export function generateSearchVariants(rawName, extraNoiseWords = []) {
   const extra = (extraNoiseWords || [])
-    .filter(w => typeof w === 'string' && w.length >= 2)
-    .map(w => w.toLowerCase());
+    .filter((w) => typeof w === 'string' && w.length >= 2)
+    .map((w) => w.toLowerCase());
   const variants = [];
   const seen = new Set();
   const add = (text) => {
@@ -165,7 +175,7 @@ export function generateSearchVariants(rawName, extraNoiseWords = []) {
   };
   for (const seg of splitTitleSegments(rawName)) {
     if (isPureNoise(seg)) continue;
-    const words = seg.split(/\s+/).filter(w => w.length >= 2);
+    const words = seg.split(/\s+/).filter((w) => w.length >= 2);
     if (words.length < 2) continue;
     // a. 尾部逐词删除（噪声多在尾部，如"抢先试玩/解压即撸"）
     for (let i = 1; i <= Math.min(3, words.length - 1); i++) {
@@ -174,7 +184,7 @@ export function generateSearchVariants(rawName, extraNoiseWords = []) {
     // b. 头部删 1 词（防前置噪声）
     add(words.slice(1).join(' '));
     // c. 动态噪声词移除（已学习确认的词直接删除）
-    const kept = words.filter(w => !extra.includes(w.toLowerCase()));
+    const kept = words.filter((w) => !extra.includes(w.toLowerCase()));
     if (kept.length > 0 && kept.length < words.length) add(kept.join(' '));
     if (variants.length >= 8) break;
   }
@@ -191,12 +201,15 @@ export function extractNoiseCandidates(rawName, successTerm) {
   const found = [];
   for (const seg of splitTitleSegments(rawName)) {
     if (!seg.includes(successTerm) || seg.length <= successTerm.length) continue;
-    const remainder = seg.replace(successTerm, '').replace(/[\s\|\-:：、]+/g, ' ').trim();
+    const remainder = seg
+      .replace(successTerm, '')
+      .replace(/[\s\|\-:：、]+/g, ' ')
+      .trim();
     if (!remainder) continue;
     for (const w of remainder.split(/\s+/)) {
       if (w.length < 2 || w.length > 10) continue;
-      if (!/[\u4e00-\u9fff]/.test(w)) continue;   // 主要学习中文修饰词 / CN modifiers
-      if (noisePattern.test(w)) continue;          // 静态表已覆盖的不学
+      if (!/[\u4e00-\u9fff]/.test(w)) continue; // 主要学习中文修饰词 / CN modifiers
+      if (noisePattern.test(w)) continue; // 静态表已覆盖的不学
       if (!found.includes(w)) found.push(w);
     }
   }

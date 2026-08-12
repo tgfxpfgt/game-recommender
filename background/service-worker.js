@@ -38,15 +38,17 @@ import { createBackup } from './storage/backups.js';
 
 // ============ 消息监听 / Message Listener ============
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  handleMessage(message, sender).then(sendResponse).catch(err => {
-    console.error('消息处理错误:', err);
-    sendResponse({ error: err.message });
-  });
+  handleMessage(message, sender)
+    .then(sendResponse)
+    .catch((err) => {
+      console.error('消息处理错误:', err);
+      sendResponse({ error: err.message });
+    });
   return true; // 保持消息通道开放 / keep the message channel open
 });
 
 // ============ 初始化 / Initialization ============
-initStorage().catch(e => console.error('初始化失败:', e));
+initStorage().catch((e) => console.error('初始化失败:', e));
 
 // 定时器幂等创建：MV3 SW 每次冷启动都会重跑顶层代码，`alarms.create`
 // 对同名 alarm 是替换（重新起算周期）——重复创建会让 24h 任务永远不触发。
@@ -73,21 +75,21 @@ async function setupBackupAlarm() {
   const intervalMinutes = (settings.backupIntervalHours || 24) * 60;
   await ensureAlarm('autoBackup', intervalMinutes);
 }
-setupBackupAlarm().catch(e => console.error('自动备份定时器初始化失败:', e.message));
+setupBackupAlarm().catch((e) => console.error('自动备份定时器初始化失败:', e.message));
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {
-    refreshFreeGames(true).catch(e => console.error('限免刷新失败:', e.message));
+    refreshFreeGames(true).catch((e) => console.error('限免刷新失败:', e.message));
   }
   if (alarm.name === 'autoBackup') {
-    getSettings().then(settings => {
-      if (settings.autoBackup) createBackup(false).catch(e => console.error('自动备份失败:', e.message));
+    getSettings().then((settings) => {
+      if (settings.autoBackup) createBackup(false).catch((e) => console.error('自动备份失败:', e.message));
     });
   }
 });
 
 // 启动时刷新限免游戏并更新 badge / Refresh free games on startup
-refreshFreeGames(false).catch(e => console.error('启动限免刷新失败:', e.message));
+refreshFreeGames(false).catch((e) => console.error('启动限免刷新失败:', e.message));
 
 // 启动日志（含版本号，便于确认浏览器加载的是否为最新版本）
 // Startup log with the version, to verify the browser loaded the latest build

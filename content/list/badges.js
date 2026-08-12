@@ -15,7 +15,7 @@
   function removeItemFromDom(item) {
     if (!item.element || !item.element.parentNode) return;
     const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
-    const toRemove = (colContainer && colContainer !== item.element) ? colContainer : item.element;
+    const toRemove = colContainer && colContainer !== item.element ? colContainer : item.element;
     if (toRemove.parentNode) toRemove.remove();
   }
 
@@ -50,7 +50,7 @@
     } else {
       const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
       const firstTextNode = walker.nextNode();
-      const ref = (firstTextNode && firstTextNode.textContent.trim().length > 1) ? firstTextNode : link.firstChild;
+      const ref = firstTextNode && firstTextNode.textContent.trim().length > 1 ? firstTextNode : link.firstChild;
       for (let i = badges.length - 1; i >= 0; i--) link.insertBefore(badges[i], ref);
     }
   }
@@ -75,70 +75,119 @@
 
     const badges = [];
     if (isNotFound) {
-      badges.push(createBadge(link, {
-        text: '未找到', color: '#666', bg: 'rgba(102,102,102,0.08)',
-        cls: 'gr-rating-badge gr-not-found',
-        title: '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）', dashed: true
-      }));
+      badges.push(
+        createBadge(link, {
+          text: '未找到',
+          color: '#666',
+          bg: 'rgba(102,102,102,0.08)',
+          cls: 'gr-rating-badge gr-not-found',
+          title: '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）',
+          dashed: true
+        })
+      );
     } else if (isTypeBadge) {
-      badges.push(createBadge(link, {
-        text: rating.type, color: '#b48ce0', bg: 'rgba(180,140,224,0.12)',
-        cls: 'gr-rating-badge gr-type-badge',
-        title: `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
-      }));
+      badges.push(
+        createBadge(link, {
+          text: rating.type,
+          color: '#b48ce0',
+          bg: 'rgba(180,140,224,0.12)',
+          cls: 'gr-rating-badge gr-type-badge',
+          title: `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
+        })
+      );
     } else if (rate === null || rate === undefined) {
-      badges.push(createBadge(link, {
-        text: rating.appId ? `#${rating.appId}` : '暂无', color: '#8f98a0', bg: 'rgba(143,152,160,0.15)',
-        cls: 'gr-rating-badge',
-        title: rating.failed
-          ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），下次访问自动重试`
-          : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
-        clickable: true, appId: rating.appId
-      }));
+      badges.push(
+        createBadge(link, {
+          text: rating.appId ? `#${rating.appId}` : '暂无',
+          color: '#8f98a0',
+          bg: 'rgba(143,152,160,0.15)',
+          cls: 'gr-rating-badge',
+          title: rating.failed
+            ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），下次访问自动重试`
+            : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
+          clickable: true,
+          appId: rating.appId
+        })
+      );
     } else {
       // 段1：近 30 天好评率（浅蓝固定色；无近期评测 → 灰 —）
       if (showRecent) {
         const recentRate = rating.recentPositiveRate;
         const recentTotal = rating.recentTotalReviews || 0;
         if (recentRate === null || recentRate === undefined) {
-          badges.push(createBadge(link, {
-            text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
-            cls: 'gr-rating-badge gr-recent-badge', title: '近30天暂无评测'
-          }));
+          badges.push(
+            createBadge(link, {
+              text: '—',
+              color: '#8f98a0',
+              bg: 'rgba(143,152,160,0.1)',
+              cls: 'gr-rating-badge gr-recent-badge',
+              title: '近30天暂无评测'
+            })
+          );
         } else {
-          badges.push(createBadge(link, {
-            text: `${recentRate}%`, color: '#66c0f4', bg: 'rgba(102,192,244,0.12)',
-            cls: 'gr-rating-badge gr-recent-badge',
-            title: `最近30天好评率: ${recentRate}% · ${recentTotal.toLocaleString()} 条评测`
-          }));
+          badges.push(
+            createBadge(link, {
+              text: `${recentRate}%`,
+              color: '#66c0f4',
+              bg: 'rgba(102,192,244,0.12)',
+              cls: 'gr-rating-badge gr-recent-badge',
+              title: `最近30天好评率: ${recentRate}% · ${recentTotal.toLocaleString()} 条评测`
+            })
+          );
         }
       }
       // 段2：全部好评率（分级色，可点击跳转；v3.4.0 颜色单源 shared/patterns.js）
       if (showAll) {
         const P = globalThis.__GR_PATTERNS__ || {};
-        const color = P.ratingColorFor ? P.ratingColorFor(rate) : (rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00');
-        const bg = P.ratingBgFor ? P.ratingBgFor(rate) : (rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)');
-        badges.push(createBadge(link, {
-          text: `${rate}%`, color, bg, cls: 'gr-rating-badge',
-          title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
-          clickable: true, appId: rating.appId
-        }));
+        const color = P.ratingColorFor
+          ? P.ratingColorFor(rate)
+          : rate >= 80
+            ? '#66c0f4'
+            : rate >= 60
+              ? '#a3cf06'
+              : '#ff7b00';
+        const bg = P.ratingBgFor
+          ? P.ratingBgFor(rate)
+          : rate >= 80
+            ? 'rgba(102,192,244,0.15)'
+            : rate >= 60
+              ? 'rgba(163,207,6,0.15)'
+              : 'rgba(255,123,0,0.15)';
+        badges.push(
+          createBadge(link, {
+            text: `${rate}%`,
+            color,
+            bg,
+            cls: 'gr-rating-badge',
+            title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
+            clickable: true,
+            appId: rating.appId
+          })
+        );
       }
       // 段3：最近更新日期（悬停显示发行日期；无数据 → 灰 —，列表页独立获取）
       if (showUpdate) {
         const update = rating.lastUpdate || '';
         if (update) {
-          badges.push(createBadge(link, {
-            text: `🛠 ${update.length >= 10 ? update.slice(5) : update}`, color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
-            cls: 'gr-rating-badge gr-update-badge',
-            title: `最近更新: ${update}${rating.releaseDate ? ' · 发行: ' + rating.releaseDate : ''}`
-          }));
+          badges.push(
+            createBadge(link, {
+              text: `🛠 ${update.length >= 10 ? update.slice(5) : update}`,
+              color: '#8f98a0',
+              bg: 'rgba(143,152,160,0.1)',
+              cls: 'gr-rating-badge gr-update-badge',
+              title: `最近更新: ${update}${rating.releaseDate ? ' · 发行: ' + rating.releaseDate : ''}`
+            })
+          );
         } else {
-          badges.push(createBadge(link, {
-            text: '—', color: '#8f98a0', bg: 'rgba(143,152,160,0.1)',
-            cls: 'gr-rating-badge gr-update-badge',
-            title: '最近更新获取中...'
-          }));
+          badges.push(
+            createBadge(link, {
+              text: '—',
+              color: '#8f98a0',
+              bg: 'rgba(143,152,160,0.1)',
+              cls: 'gr-rating-badge gr-update-badge',
+              title: '最近更新获取中...'
+            })
+          );
         }
       }
     }
@@ -164,10 +213,17 @@
 
     const pct = Math.round(score * 100);
     const color = pct >= 80 ? '#e74c3c' : pct >= 60 ? '#ff7b00' : pct >= 40 ? '#a3cf06' : '#8f98a0';
-    const bg = pct >= 80 ? 'rgba(231,76,60,0.12)' : pct >= 60 ? 'rgba(255,123,0,0.12)' : pct >= 40 ? 'rgba(163,207,6,0.12)' : 'rgba(143,152,160,0.1)';
+    const bg =
+      pct >= 80
+        ? 'rgba(231,76,60,0.12)'
+        : pct >= 60
+          ? 'rgba(255,123,0,0.12)'
+          : pct >= 40
+            ? 'rgba(163,207,6,0.12)'
+            : 'rgba(143,152,160,0.1)';
 
     const b = recommendation.breakdown || {};
-    const fmt = v => Math.round((v || 0) * 100) + '%';
+    const fmt = (v) => Math.round((v || 0) * 100) + '%';
     const badge = document.createElement('span');
     badge.className = 'gr-rec-badge';
     badge.textContent = `🎯 ${pct}%`;

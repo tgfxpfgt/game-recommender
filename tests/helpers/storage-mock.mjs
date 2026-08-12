@@ -28,12 +28,16 @@ export function createStorageMock(initial = {}) {
       }
     },
     remove: async (keys) => {
-      for (const k of (Array.isArray(keys) ? keys : [keys])) data.delete(k);
+      for (const k of Array.isArray(keys) ? keys : [keys]) data.delete(k);
     },
     // 测试辅助 / test helpers
     _data: data,
     _writes: writes,
-    _reset: (next = {}) => { data.clear(); for (const [k, v] of Object.entries(next)) data.set(k, v); writes.length = 0; },
+    _reset: (next = {}) => {
+      data.clear();
+      for (const [k, v] of Object.entries(next)) data.set(k, v);
+      writes.length = 0;
+    },
     _dump: () => Object.fromEntries(data)
   };
   return api;

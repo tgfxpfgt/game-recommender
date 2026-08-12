@@ -12,8 +12,8 @@
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
 // 判定阈值 / thresholds
 const FAIL_RATE_THRESHOLD = 0.4; // 失败率 > 40% 视为异常
-const MIN_SAMPLES = 8;           // 至少 8 次采样才判定（避免小样本误报）
-const MAX_SAMPLES = 200;         // 窗口内样本上限（防内存膨胀）
+const MIN_SAMPLES = 8; // 至少 8 次采样才判定（避免小样本误报）
+const MAX_SAMPLES = 200; // 窗口内样本上限（防内存膨胀）
 
 let calls = []; // [{t, ok, status}]
 
@@ -25,7 +25,7 @@ export function recordSteamCall(ok, status = 0) {
   const now = Date.now();
   calls.push({ t: now, ok: !!ok, status: status || 0 });
   if (calls.length > MAX_SAMPLES + 64) {
-    calls = calls.filter(c => now - c.t < WINDOW_MS).slice(-MAX_SAMPLES);
+    calls = calls.filter((c) => now - c.t < WINDOW_MS).slice(-MAX_SAMPLES);
   }
 }
 
@@ -35,18 +35,21 @@ export function getSteamApiStatus() {
   const now = Date.now();
   let recent = calls;
   if (calls.length > 0 && now - calls[0].t >= WINDOW_MS) {
-    calls = calls.filter(c => now - c.t < WINDOW_MS);
+    calls = calls.filter((c) => now - c.t < WINDOW_MS);
     recent = calls;
   }
   const total = recent.length;
-  const failed = recent.filter(c => !c.ok).length;
+  const failed = recent.filter((c) => !c.ok).length;
   // 限流迹象：HTTP 429/503（0 = 网络异常，不并入限流）
-  const limited = recent.filter(c => c.status === 429 || c.status === 503).length;
+  const limited = recent.filter((c) => c.status === 429 || c.status === 503).length;
   const failRate = total >= MIN_SAMPLES ? failed / total : 0;
   const anomaly = total >= MIN_SAMPLES && failRate > FAIL_RATE_THRESHOLD;
   let lastFailedAt = null;
   for (let i = recent.length - 1; i >= 0; i--) {
-    if (!recent[i].ok) { lastFailedAt = recent[i].t; break; }
+    if (!recent[i].ok) {
+      lastFailedAt = recent[i].t;
+      break;
+    }
   }
   return {
     total,

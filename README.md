@@ -249,6 +249,14 @@ node --check options/options.js
 
 ## 更新日志
 
+### v5.1.0（中版本：拆分与工具链——用户决策的架构/工程类未做项落地）
+- **detail 模板拆分**：detail-page.js 805 → 505 行，新 `GR.detailTemplates.steamSidebar`（纯 HTML 模板，依赖仅 GR.common；评级色顺带单源 __GR_PATTERNS__）
+- **list-batch 拆分**：list-page.js 590 → 416 行，新 `GR.listBatch`（批次调度全套）；**状态容器 `GR.list._state`** 替代闭包捕获（ratingsJob/batchState 由 list-page 与 list-batch 共享），`GR.list._internal` 导出状态机函数；GR.list 尾部导出改合并展开（防覆盖 _state）
+- **防抖工厂**：新 `storage/debounced-store.js`（scheduleWrite/flush/reset）；wrong-reports 与 learned-noise 已迁移（其余 steam-cache/registry/name-index/logger 因复合 flush 语义留待专项）
+- **E2E_FAST 离线开关**：`E2E_FAST=1 npm run e2e` 跳过真实 Steam 网络段（详情页报错），CI/本地快速冒烟
+- **prettier 全库格式化**：.prettierrc（2 空格/单引号/120 列）+ 一次性全库格式化（双源一致性提取正则健壮化支持跨行）
+- **质量**：484 项单测 · E2E 16/16（E2E_FAST 10 项）· lint 0 · typecheck 0 · 深度扫描 0 findings
+
 ### v5.0.0（大版本：三大目录模块化重构 + 类型化基建）
 - **background 拆分与解耦**：
   1. **handlers.js（960 行）按领域拆 5 子模块**（`background/handlers/`）：steam（搜索/直取/报错/自愈）、cache-manager（缓存管理 5 handler）、data-modules（导出/导入/备份）、stats（统计/趋势/推荐）、download-sites；handlers.js 保留核心 handler 与 MESSAGE_HANDLERS 聚合

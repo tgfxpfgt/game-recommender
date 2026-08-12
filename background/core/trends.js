@@ -25,13 +25,16 @@ export function aggregateTrends(log, granularity = 'day') {
     if (Number.isNaN(d.getTime())) continue;
     const key = granularity === 'week' ? mondayKey(d) : dayKey(d);
     let bucket = byBucket.get(key);
-    if (!bucket) { bucket = { date: key, views: 0, downloads: 0 }; byBucket.set(key, bucket); }
+    if (!bucket) {
+      bucket = { date: key, views: 0, downloads: 0 };
+      byBucket.set(key, bucket);
+    }
     if (e.type === 'view_detail') bucket.views++;
     else if (e.type === 'click_download') bucket.downloads++;
   }
   return [...byBucket.values()]
     .sort((a, b) => a.date.localeCompare(b.date))
-    .map(b => ({
+    .map((b) => ({
       date: b.date,
       views: b.views,
       downloads: b.downloads,
@@ -40,9 +43,7 @@ export function aggregateTrends(log, granularity = 'day') {
 }
 
 function dayKey(d) {
-  return d.getFullYear() + '-' +
-    String(d.getMonth() + 1).padStart(2, '0') + '-' +
-    String(d.getDate()).padStart(2, '0');
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 // 该日期所在周的周一日期（周桶键）/ Monday of the week containing d

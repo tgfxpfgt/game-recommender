@@ -15,9 +15,9 @@
 
   // 浮窗区域 / Float zones
   const ZONE = {
-    TOP_RIGHT: 'top-right',      // 右上：Steam 信息等主浮窗 / main info floats
+    TOP_RIGHT: 'top-right', // 右上：Steam 信息等主浮窗 / main info floats
     BOTTOM_RIGHT: 'bottom-right', // 右下：状态/统计/诊断栏 / status-debug bar
-    BOTTOM_LEFT: 'bottom-left'   // 左下：辅助浮窗（下载站资源/历史）/ auxiliary floats
+    BOTTOM_LEFT: 'bottom-left' // 左下：辅助浮窗（下载站资源/历史）/ auxiliary floats
   };
 
   // 区域基准位置 / Zone base positions
@@ -30,7 +30,7 @@
   // 底部堆叠的间距 / stacking gap for bottom zones
   const STACK_GAP = 12;
 
-  const floats = {};          // id → item
+  const floats = {}; // id → item
   const zoneStack = { 'top-right': [], 'bottom-right': [], 'bottom-left': [] };
 
   // 是否底部堆叠区域 / is a bottom-stacking zone?
@@ -45,7 +45,7 @@
     let offset = 0;
     for (const item of zoneStack[zone]) {
       if (!item.root.parentNode) continue;
-      item.root.style.bottom = (parseInt(BASE_POS[zone].bottom, 10) + offset) + 'px';
+      item.root.style.bottom = parseInt(BASE_POS[zone].bottom, 10) + offset + 'px';
       offset += (item.lastHeight || 0) + STACK_GAP;
     }
   }

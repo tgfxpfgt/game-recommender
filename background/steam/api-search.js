@@ -7,7 +7,8 @@ import { fetchSteamAppDetails } from './api-details.js';
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
-export const ADDON_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b|prologue|序章|序幕|\bsoundtrack\b|\bost\b|\bartbook\b|\bdlc\b|supporter pack|支持者包|fan pack|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包/i;
+export const ADDON_NAME_PATTERN =
+  /\bdemo\b|试玩|\btrial\b|prologue|序章|序幕|\bsoundtrack\b|\bost\b|\bartbook\b|\bdlc\b|supporter pack|支持者包|fan pack|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包/i;
 // Demo/试玩版（单独用于 isDemo 标识）/ Demo/trial edition (for the isDemo badge)
 export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 
@@ -20,19 +21,21 @@ export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
 // languages; mixed-language pairs with no shared token are unrelated. Guards
 // cache hits against sticky name-index entries that pin the wrong appId.
 export function namesRelated(title, cachedName) {
-  const norm = s => String(s || '').toLowerCase();
+  const norm = (s) => String(s || '').toLowerCase();
   // 中文词（连续 2+ 汉字）/ CJK tokens
-  const cjkWords = s => (norm(s).match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || []);
+  const cjkWords = (s) => norm(s).match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
   // 英文词（≥4 字符，排除 of/the/and/ii 等短词）/ EN tokens (≥4 chars)
-  const enWords = s => (norm(s).match(/[a-z][a-z0-9']{3,}/g) || []);
-  const tCjk = cjkWords(title), tEn = enWords(title);
-  const cCjk = cjkWords(cachedName), cEn = enWords(cachedName);
-  const hasCommon = (a, b) => a.some(w => b.includes(w));
+  const enWords = (s) => norm(s).match(/[a-z][a-z0-9']{3,}/g) || [];
+  const tCjk = cjkWords(title),
+    tEn = enWords(title);
+  const cCjk = cjkWords(cachedName),
+    cEn = enWords(cachedName);
+  const hasCommon = (a, b) => a.some((w) => b.includes(w));
   if (hasCommon(tCjk, cCjk) || hasCommon(tEn, cEn)) return true;
   // 跨语言信任：双方均单语言且语言不同（纯英文标题 vs 纯中文缓存名等）
   const tSingle = tCjk.length === 0 || tEn.length === 0;
   const cSingle = cCjk.length === 0 || cEn.length === 0;
-  if (tSingle && cSingle && (tCjk.length > 0) !== (cCjk.length > 0)) return true;
+  if (tSingle && cSingle && tCjk.length > 0 !== cCjk.length > 0) return true;
   return false;
 }
 
@@ -41,8 +44,6 @@ export function namesRelated(title, cachedName) {
  *
  * v5.0.0：由 steam/api.js 按职能拆分。
  */
-
-
 
 // v5.0.0：偏好标签推荐（由 handlers/stats.js 内嵌裸 fetch 下沉）——按用户
 // 偏好关键词在 Steam 商店搜索 + 取价格概览，返回候选游戏列表
@@ -56,7 +57,7 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
 
     if (data.total > 0 && data.items) {
       for (const item of data.items.slice(0, 4)) {
-        if (recGames.some(g => g.appId === item.id)) continue;
+        if (recGames.some((g) => g.appId === item.id)) continue;
 
         let detail = null;
         try {
@@ -66,7 +67,9 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
           if (detData[item.id]?.success) {
             detail = detData[item.id].data;
           }
-        } catch { /* 详情失败用搜索条目兜底 */ }
+        } catch {
+          /* 详情失败用搜索条目兜底 */
+        }
 
         recGames.push({
           appId: item.id,
@@ -99,7 +102,10 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
  * @returns {boolean} 是否相关
  */
 export function nameMatchesSearch(resultName, term, rawName) {
-  const norm = s => String(s || '').toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）×•·]/g, '');
+  const norm = (s) =>
+    String(s || '')
+      .toLowerCase()
+      .replace(/[\s\-_:：|.'!！?？\[\]()（）×•·]/g, '');
   const rn = norm(resultName);
   const tn = norm(term);
   if (!rn || !tn || rn.length < 2 || tn.length < 2) return false;
@@ -119,14 +125,13 @@ export function nameMatchesSearch(resultName, term, rawName) {
   // 条目"Gladiator Guild Manager"→"角斗士公会经理"），信任 storesearch 索引
   // 匹配；数字差异（1代/2代）仍拒绝。
   if (digitGap) return false;
-  const cnOf = s => /[\u4e00-\u9fff]/.test(s);
+  const cnOf = (s) => /[\u4e00-\u9fff]/.test(s);
   if (cnOf(tn) !== cnOf(rn)) return true;
   return false;
 }
 
 // 名称校验：中文名含中文、英文名含英文、不命中附属内容关键词
 // Name validation for zero-review verification and registry writes
-
 
 // --- 搜索 ---
 
@@ -140,14 +145,22 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
     let enData = null;
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
-        cnData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
+        cnData = await (
+          await fetchWithTimeout(
+            `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
+          )
+        ).json();
         recordSteamCall(true);
       } catch {
         recordSteamCall(false); /* 中文搜索失败不阻断流程 */
       }
     }
     try {
-      enData = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`)).json();
+      enData = await (
+        await fetchWithTimeout(
+          `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=english&cc=cn`
+        )
+      ).json();
       recordSteamCall(true);
     } catch {
       recordSteamCall(false); /* 英文搜索失败回退中文名 */
@@ -160,13 +173,15 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
     if (cnItems.length > 0) {
       // 名称相关性校验：优先非 Demo/附属且与搜索词相关的项；无相关项则尝试下一词
       // v3.3.13：排除曾报错的错误 appid（人工纠正知识库的"黑名单"项）
-      const related = cnItems.find(i =>
-        String(i.id) !== String(excludeAppId) &&
-        !ADDON_NAME_PATTERN.test(i.name || '') &&
-        nameMatchesSearch(i.name, term, rawName));
+      const related = cnItems.find(
+        (i) =>
+          String(i.id) !== String(excludeAppId) &&
+          !ADDON_NAME_PATTERN.test(i.name || '') &&
+          nameMatchesSearch(i.name, term, rawName)
+      );
       if (!related) continue;
       const enItems = (enData && enData.items) || [];
-      const pickedEn = enItems.find(i => i.id === related.id) || enItems[0] || null;
+      const pickedEn = enItems.find((i) => i.id === related.id) || enItems[0] || null;
       return {
         appId: related.id,
         name: related.name,
@@ -186,7 +201,6 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
 // static candidates fail, an extended combination search runs automatically;
 // skipped words are then learned. excludeAppId skips a user-reported-wrong app.
 
-
 // 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）。
 // 静态候选全部失败时自动进入"扩展组合搜索"（删词变体 + 动态噪声词清洗），
 // 成功后把跳过的词作为候选噪声词自动学习（自适应检索，v3.1.2）。
@@ -201,7 +215,9 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
       const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId);
       if (result) return result;
       break; // 网络正常但未找到：不重试
-    } catch { /* 网络失败：重试一次 */ }
+    } catch {
+      /* 网络失败：重试一次 */
+    }
   }
 
   // 扩展组合搜索：删词变体 + 已生效的动态噪声词清洗
@@ -216,7 +232,10 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
         const noiseWords = extractNoiseCandidates(rawName, variant);
         if (noiseWords.length > 0) {
           await recordNoiseCandidates(noiseWords);
-          Logger.info('Steam', `扩展搜索命中: "${rawName}" → "${variant}" (appId ${result.appId})，候选噪声词: ${noiseWords.join('、')}`);
+          Logger.info(
+            'Steam',
+            `扩展搜索命中: "${rawName}" → "${variant}" (appId ${result.appId})，候选噪声词: ${noiseWords.join('、')}`
+          );
         }
         return result;
       }
@@ -235,9 +254,14 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
 // legacy cover 271590 → "Grand Theft Auto V Enhanced" → 3240220). The result
 // must carry the EN suffix and pass the name-relevance check.
 const VERSION_SUFFIX_PAIRS = [
-  ['增强版', 'Enhanced'], ['重制版', 'Remastered'], ['复刻版', 'Remake'],
-  ['豪华版', 'Deluxe'], ['终极版', 'Ultimate'], ['年度版', 'Game of the Year'],
-  ['典藏版', 'Collector'], ['黄金版', 'Gold']
+  ['增强版', 'Enhanced'],
+  ['重制版', 'Remastered'],
+  ['复刻版', 'Remake'],
+  ['豪华版', 'Deluxe'],
+  ['终极版', 'Ultimate'],
+  ['年度版', 'Game of the Year'],
+  ['典藏版', 'Collector'],
+  ['黄金版', 'Gold']
 ];
 
 export async function findVersionVariant(appId, title) {
@@ -268,20 +292,25 @@ export async function findVersionVariant(appId, title) {
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
 
-
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
 async function searchSteamAppIdLight(term, rawName, excludeAppId) {
   try {
-    const data = await (await fetchWithTimeout(`https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)).json();
+    const data = await (
+      await fetchWithTimeout(
+        `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
+      )
+    ).json();
     const items = (data && data.items) || [];
     if (items.length === 0) return null;
     // 名称相关性校验：变体词较短，要求结果包含变体词且与原始标题相关；
     // v3.3.13：排除曾报错的错误 appid
-    const related = items.find(i =>
-      String(i.id) !== String(excludeAppId) &&
-      !ADDON_NAME_PATTERN.test(i.name || '') &&
-      nameMatchesSearch(i.name, term, rawName));
+    const related = items.find(
+      (i) =>
+        String(i.id) !== String(excludeAppId) &&
+        !ADDON_NAME_PATTERN.test(i.name || '') &&
+        nameMatchesSearch(i.name, term, rawName)
+    );
     if (!related) return null;
     return { appId: related.id, name: related.name, englishName: related.name };
   } catch {

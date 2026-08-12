@@ -62,13 +62,19 @@ check('空输入', ndjson.NDJSON.decode(''), []);
 
 // 2.5 regexExecAll（Symbol.matchAll 标准符号，v3.2.5 修复）
 console.log('2.5 regexExecAll');
-check('迭代提取', utils.regexExecAll('a1 b22 c333', /\d+/g).map(m => m[0]), ['1', '22', '333']);
+check(
+  '迭代提取',
+  utils.regexExecAll('a1 b22 c333', /\d+/g).map((m) => m[0]),
+  ['1', '22', '333']
+);
 check('自动补 g 标志', utils.regexExecAll('a1 b2', /\d+/).length, 2);
 check('无匹配返回空', utils.regexExecAll('abc', /\d+/g).length, 0);
 
 // 3. TDZ 静态扫描（全部 JS 文件）
 console.log('6. 缓存 TTL 单位解析');
-const constants = await import(new URL('../../background/core/constants.js', import.meta.url).href + '?t=' + Date.now());
+const constants = await import(
+  new URL('../../background/core/constants.js', import.meta.url).href + '?t=' + Date.now()
+);
 check('24 小时 → 24h', constants.resolveTtlMs('steamDynamic', { value: 24, unit: 'hours' }), 24 * 3600e3);
 check('30 天 → 30d', constants.resolveTtlMs('registryConfirm', { value: 30, unit: 'days' }), 30 * 86400e3);
 check('1 月 → 30d', constants.resolveTtlMs('steamDynamic', { value: 1, unit: 'months' }), 30 * 86400e3);

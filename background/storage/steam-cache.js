@@ -25,20 +25,40 @@ import { DB_KEYS, STEAM_CACHE_WRITE_DEBOUNCE, STEAM_CACHE_MAX_ENTRIES, moduleTtl
 // Field → module routing (modular since v3.3.7; unknown fields go to detail)
 const FIELD_MODULES = {
   // meta：基础信息（几乎不变）
-  appId: 'meta', type: 'meta', name: 'meta', englishName: 'meta', headerImage: 'meta',
+  appId: 'meta',
+  type: 'meta',
+  name: 'meta',
+  englishName: 'meta',
+  headerImage: 'meta',
   // rating：好评率（变化快）
-  positiveRate: 'rating', ratingDesc: 'rating', totalReviews: 'rating',
-  recentPositiveRate: 'rating', recentTotalReviews: 'rating', ratingRetriedAt: 'rating',
+  positiveRate: 'rating',
+  ratingDesc: 'rating',
+  totalReviews: 'rating',
+  recentPositiveRate: 'rating',
+  recentTotalReviews: 'rating',
+  ratingRetriedAt: 'rating',
   // detail：详情页完整信息（变化慢）
-  url: 'detail', steamdbUrl: 'detail', isDemo: 'detail', rating: 'detail',
-  genres: 'detail', userTags: 'detail',
-  chineseSupported: 'detail', simplifiedChinese: 'detail',
-  chineseHasAudio: 'detail', chineseHasSubtitles: 'detail',
-  releaseDate: 'detail', developers: 'detail', description: 'detail',
-  lastUpdate: 'detail', cnRatingDesc: 'detail', cnPositiveRate: 'detail',
-  cnTotalReviews: 'detail', reviews: 'detail',
+  url: 'detail',
+  steamdbUrl: 'detail',
+  isDemo: 'detail',
+  rating: 'detail',
+  genres: 'detail',
+  userTags: 'detail',
+  chineseSupported: 'detail',
+  simplifiedChinese: 'detail',
+  chineseHasAudio: 'detail',
+  chineseHasSubtitles: 'detail',
+  releaseDate: 'detail',
+  developers: 'detail',
+  description: 'detail',
+  lastUpdate: 'detail',
+  cnRatingDesc: 'detail',
+  cnPositiveRate: 'detail',
+  cnTotalReviews: 'detail',
+  reviews: 'detail',
   // spy：第三方补充数据（SteamSpy/SteamDB）
-  steamdb: 'spy', steamspy: 'spy'
+  steamdb: 'spy',
+  steamspy: 'spy'
 };
 const DEFAULT_MODULE = 'detail';
 
@@ -47,17 +67,17 @@ function moduleOf(field) {
   return FIELD_MODULES[field] || DEFAULT_MODULE;
 }
 
-let steamCacheMemory = null;        // Map: appId -> entry（modules 结构）
+let steamCacheMemory = null; // Map: appId -> entry（modules 结构）
 let steamCacheMemoryLoaded = false;
 let steamCacheWriteTimer = null;
-let steamCacheDirty = false;        // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
+let steamCacheDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
 // Is one module valid? (exists and not past its own TTL)
 export function isModuleValid(entry, moduleKey, ttlMs) {
   const mod = entry && entry.modules && entry.modules[moduleKey];
   if (!mod || !mod.data) return false;
-  return (Date.now() - (mod.ts || 0)) < (ttlMs !== undefined ? ttlMs : moduleTtlMs(moduleKey));
+  return Date.now() - (mod.ts || 0) < (ttlMs !== undefined ? ttlMs : moduleTtlMs(moduleKey));
 }
 
 // 获取模块数据（无模块返回 null）/ Get a module's data (null when absent)
@@ -99,7 +119,7 @@ export function isSteamCacheValid(entry) {
   const now = Date.now();
   for (const key of Object.keys(entry.modules)) {
     const mod = entry.modules[key];
-    if (mod && mod.data && (now - (mod.ts || 0)) < moduleTtlMs(key)) return true;
+    if (mod && mod.data && now - (mod.ts || 0) < moduleTtlMs(key)) return true;
   }
   return false;
 }
@@ -224,7 +244,7 @@ export function allModulesExpired(entry, now = Date.now()) {
   for (const key of Object.keys(entry.modules)) {
     const mod = entry.modules[key];
     if (!mod || !mod.data) continue;
-    if ((now - (mod.ts || 0)) < moduleTtlMs(key)) return false; // 任一模块有效
+    if (now - (mod.ts || 0) < moduleTtlMs(key)) return false; // 任一模块有效
   }
   return true; // 全部过期或无任何模块
 }
@@ -238,7 +258,7 @@ export function getSteamCacheMemory() {
 export async function deleteSteamCacheEntry(appId) {
   await loadSteamCacheToMemory();
   if (steamCacheMemory && steamCacheMemory.delete(String(appId))) {
-    steamCacheDirty = true;   // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
+    steamCacheDirty = true; // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
   }
 }
 
@@ -247,5 +267,8 @@ export function resetSteamCache() {
   steamCacheMemory = null;
   steamCacheMemoryLoaded = false;
   steamCacheDirty = false;
-  if (steamCacheWriteTimer) { clearTimeout(steamCacheWriteTimer); steamCacheWriteTimer = null; }
+  if (steamCacheWriteTimer) {
+    clearTimeout(steamCacheWriteTimer);
+    steamCacheWriteTimer = null;
+  }
 }

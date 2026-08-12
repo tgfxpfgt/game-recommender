@@ -11,7 +11,13 @@ import { DEFAULT_SETTINGS } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
 import { saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
-import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, readProfiles, readKeywordWeights } from './storage/behavior.js';
+import {
+  addBehaviorLog,
+  updateGameProfile,
+  maybeUpdatePreferences,
+  readProfiles,
+  readKeywordWeights
+} from './storage/behavior.js';
 import { recordDownloadHistory } from './storage/history.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { calculateRecommendation } from './recommend/engine.js';
@@ -21,22 +27,39 @@ import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
 import { validateMessage } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
 import {
-  handleSearchSteam, handleRefreshSteamCache, handleGetSteamByAppId,
-  handleSaveManualMapping, handleSearchSteamCandidates,
-  handleClearCacheForPage, handleCacheSteamPage, handleReportWrongAppId, handleHealRegistryNames
+  handleSearchSteam,
+  handleRefreshSteamCache,
+  handleGetSteamByAppId,
+  handleSaveManualMapping,
+  handleSearchSteamCandidates,
+  handleClearCacheForPage,
+  handleCacheSteamPage,
+  handleReportWrongAppId,
+  handleHealRegistryNames
 } from './handlers/steam.js';
 import {
-  handleCleanExpiredCache, handleGetGameCacheList,
-  handleDeleteGameCacheEntry, handleClearGameCache, handleRefreshGameCacheEntry
+  handleCleanExpiredCache,
+  handleGetGameCacheList,
+  handleDeleteGameCacheEntry,
+  handleClearGameCache,
+  handleRefreshGameCacheEntry
 } from './handlers/cache-manager.js';
 import {
-  handleClearData, handleGetDataModules, handleExportData, handleImportData,
-  handleCreateBackup, handleGetBackups, handleRestoreBackup, handleDeleteBackup
+  handleClearData,
+  handleGetDataModules,
+  handleExportData,
+  handleImportData,
+  handleCreateBackup,
+  handleGetBackups,
+  handleRestoreBackup,
+  handleDeleteBackup
 } from './handlers/data-modules.js';
 import { handleGetStats, handleGetTrends, handleGetSteamRecommendations } from './handlers/stats.js';
 import {
-  handleSearchDownloadSites, handleGetDownloadHistory,
-  handleTrackDownloadSiteVisit, handleRecordDownloadUrlsBatch
+  handleSearchDownloadSites,
+  handleGetDownloadHistory,
+  handleTrackDownloadSiteVisit,
+  handleRecordDownloadUrlsBatch
 } from './handlers/download-sites.js';
 
 // --- 行为追踪 / Behavior tracking ---
@@ -50,7 +73,10 @@ async function handleTrackEvent(message) {
       keywords: message.data.keywords
     });
     await recordDownloadHistory(message.data);
-    Logger.info('Download', `下载"${message.data.gameName}"`, { method: message.data.method, domain: message.data.domain });
+    Logger.info('Download', `下载"${message.data.gameName}"`, {
+      method: message.data.method,
+      domain: message.data.domain
+    });
   }
   if (message.data.type === 'view_detail') {
     await updateGameProfile({
@@ -81,16 +107,17 @@ async function handleGetRecommendations(message) {
   // 一次，避免每款游戏各读两次盘（此前 N 款游戏 = 2N 次模块读取）
   // Shared read for batch mode: profiles/keyword weights/settings loaded once
   // (previously N games triggered 2N module reads)
-  const shared = games.length > 1
-    ? await (async () => {
-        const [profiles, keywordWeights, settings] = await Promise.all([
-          readProfiles(),
-          readKeywordWeights(),
-          getSettings()
-        ]);
-        return { profiles, keywordWeights, settings };
-      })()
-    : null;
+  const shared =
+    games.length > 1
+      ? await (async () => {
+          const [profiles, keywordWeights, settings] = await Promise.all([
+            readProfiles(),
+            readKeywordWeights(),
+            getSettings()
+          ]);
+          return { profiles, keywordWeights, settings };
+        })()
+      : null;
   const results = [];
   for (const game of games) {
     const score = await calculateRecommendation(game, useBuiltinOnly, shared);
@@ -136,53 +163,59 @@ async function handleGetApiStatus() {
 
 // --- 消息分发映射表 / Message dispatch map ---
 export const MESSAGE_HANDLERS = {
-  TRACK_EVENT:            handleTrackEvent,
-  GET_RECOMMENDATIONS:    handleGetRecommendations,
-  SEARCH_STEAM:           handleSearchSteam,
-  REFRESH_STEAM_CACHE:    handleRefreshSteamCache,
-  GET_STEAM_BY_APPID:     handleGetSteamByAppId,
-  SAVE_MANUAL_MAPPING:    handleSaveManualMapping,
+  TRACK_EVENT: handleTrackEvent,
+  GET_RECOMMENDATIONS: handleGetRecommendations,
+  SEARCH_STEAM: handleSearchSteam,
+  REFRESH_STEAM_CACHE: handleRefreshSteamCache,
+  GET_STEAM_BY_APPID: handleGetSteamByAppId,
+  SAVE_MANUAL_MAPPING: handleSaveManualMapping,
   SEARCH_STEAM_CANDIDATES: handleSearchSteamCandidates,
-  GET_STEAM_RATINGS:      handleGetSteamRatings,
+  GET_STEAM_RATINGS: handleGetSteamRatings,
   PREFETCH_STEAM_RATINGS: handlePrefetchSteamRatings,
-  GET_SETTINGS:           handleGetSettings,
-  SAVE_SETTINGS:          handleSaveSettings,
-  RESET_SETTINGS:         handleResetSettings,
-  GET_STATS:              handleGetStats,
-  GET_TRENDS:             handleGetTrends,
+  GET_SETTINGS: handleGetSettings,
+  SAVE_SETTINGS: handleSaveSettings,
+  RESET_SETTINGS: handleResetSettings,
+  GET_STATS: handleGetStats,
+  GET_TRENDS: handleGetTrends,
   GET_STEAM_RECOMMENDATIONS: handleGetSteamRecommendations,
-  CLEAR_DATA:             handleClearData,
-  SEARCH_DOWNLOAD_SITES:  handleSearchDownloadSites,
-  GET_FREE_GAMES:         async (msg) => getFreeGamesData(msg.force === true),
-  CLAIM_FREE_GAME:        async (msg) => claimFreeGame(msg.gameId),
-  GET_DOWNLOAD_HISTORY:   handleGetDownloadHistory,
+  CLEAR_DATA: handleClearData,
+  SEARCH_DOWNLOAD_SITES: handleSearchDownloadSites,
+  GET_FREE_GAMES: async (msg) => getFreeGamesData(msg.force === true),
+  CLAIM_FREE_GAME: async (msg) => claimFreeGame(msg.gameId),
+  GET_DOWNLOAD_HISTORY: handleGetDownloadHistory,
   TRACK_DOWNLOAD_SITE_VISIT: handleTrackDownloadSiteVisit,
   RECORD_DOWNLOAD_URLS_BATCH: handleRecordDownloadUrlsBatch,
-  GET_GAME_CACHE_LIST:    handleGetGameCacheList,
+  GET_GAME_CACHE_LIST: handleGetGameCacheList,
   DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,
-  CLEAR_GAME_CACHE:       handleClearGameCache,
+  CLEAR_GAME_CACHE: handleClearGameCache,
   REFRESH_GAME_CACHE_ENTRY: handleRefreshGameCacheEntry,
-  GET_RUNTIME_LOGS:       async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
-  CLEAR_RUNTIME_LOGS:     async () => { await clearRuntimeLogs(); return { success: true }; },
-  EXPORT_LOGS:            async () => ({ logs: await getRuntimeLogs() }),
-  GET_DATA_MODULES:       handleGetDataModules,
-  EXPORT_DATA:            handleExportData,
-  IMPORT_DATA:            handleImportData,
-  CREATE_BACKUP:          handleCreateBackup,
-  GET_BACKUPS:            handleGetBackups,
-  RESTORE_BACKUP:         handleRestoreBackup,
-  DELETE_BACKUP:          handleDeleteBackup,
-  GET_ADAPTER_RULES:      handleGetAdapterRules,
-  SAVE_ADAPTER_RULES:     handleSaveAdapterRules,
-  DELETE_ADAPTER_RULES:   handleDeleteAdapterRules,
-  CLEAN_EXPIRED_CACHE:    handleCleanExpiredCache,
-  CLEAR_CACHE_FOR_PAGE:   handleClearCacheForPage,
-  CACHE_STEAM_PAGE:       handleCacheSteamPage,
-  REPORT_WRONG_APPID:     handleReportWrongAppId,
-  HEAL_REGISTRY_NAMES:    handleHealRegistryNames,
-  GET_API_STATUS:         handleGetApiStatus,
-  GET_OUTBOUND_AUDIT:     async (msg) => getOutboundAudit(msg && msg.limit),
-  CLEAR_OUTBOUND_AUDIT:   async () => { resetOutboundAudit(); return { success: true }; }
+  GET_RUNTIME_LOGS: async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
+  CLEAR_RUNTIME_LOGS: async () => {
+    await clearRuntimeLogs();
+    return { success: true };
+  },
+  EXPORT_LOGS: async () => ({ logs: await getRuntimeLogs() }),
+  GET_DATA_MODULES: handleGetDataModules,
+  EXPORT_DATA: handleExportData,
+  IMPORT_DATA: handleImportData,
+  CREATE_BACKUP: handleCreateBackup,
+  GET_BACKUPS: handleGetBackups,
+  RESTORE_BACKUP: handleRestoreBackup,
+  DELETE_BACKUP: handleDeleteBackup,
+  GET_ADAPTER_RULES: handleGetAdapterRules,
+  SAVE_ADAPTER_RULES: handleSaveAdapterRules,
+  DELETE_ADAPTER_RULES: handleDeleteAdapterRules,
+  CLEAN_EXPIRED_CACHE: handleCleanExpiredCache,
+  CLEAR_CACHE_FOR_PAGE: handleClearCacheForPage,
+  CACHE_STEAM_PAGE: handleCacheSteamPage,
+  REPORT_WRONG_APPID: handleReportWrongAppId,
+  HEAL_REGISTRY_NAMES: handleHealRegistryNames,
+  GET_API_STATUS: handleGetApiStatus,
+  GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
+  CLEAR_OUTBOUND_AUDIT: async () => {
+    resetOutboundAudit();
+    return { success: true };
+  }
 };
 
 // 消息统一入口 / Message entry

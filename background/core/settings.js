@@ -51,7 +51,7 @@ export async function initStorage() {
 // 读取设置（带缓存）/ Read settings (cached)
 export async function getSettings() {
   const now = Date.now();
-  if (settingsCache && (now - settingsCacheTime < SETTINGS_CACHE_TTL)) {
+  if (settingsCache && now - settingsCacheTime < SETTINGS_CACHE_TTL) {
     return settingsCache;
   }
   const stored = await dataStore.readModule(DB_KEYS.SETTINGS);
@@ -73,7 +73,9 @@ export async function refreshTtlConfig() {
   try {
     const s = await getSettings();
     setTtlConfig(s.cacheTtls);
-  } catch { /* 使用默认值 */ }
+  } catch {
+    /* 使用默认值 */
+  }
 }
 
 // 重置设置缓存（备份恢复/导入后调用）/ Reset the settings cache

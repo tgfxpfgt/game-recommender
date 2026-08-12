@@ -41,7 +41,8 @@
 
   // 构建诊断视图 HTML / Build the debug-view HTML
   function buildDebugHtml() {
-    const statusColor = (s) => s.startsWith('✅') ? '#2ecc71' : s.startsWith('❌') ? '#e74c3c' : s.startsWith('⚠️') ? '#f39c12' : '#66c0f4';
+    const statusColor = (s) =>
+      s.startsWith('✅') ? '#2ecc71' : s.startsWith('❌') ? '#e74c3c' : s.startsWith('⚠️') ? '#f39c12' : '#66c0f4';
     return `
       <div style="margin-top:6px;font-size:11px;color:#aaa;">
         <div>页面类型: <span style="color:${statusColor(DEBUG.pageType === '未检测' ? '⚠️' : '✅')}">${GR.common.escapeHtml(DEBUG.pageType)}</span></div>
@@ -51,7 +52,10 @@
         <div>Steam: <span style="color:${statusColor(DEBUG.steamStatus)}">${GR.common.escapeHtml(DEBUG.steamStatus)}</span></div>
         <div>下载事件: <span style="color:${DEBUG.downloadEvents > 0 ? '#2ecc71' : '#aaa'}">${DEBUG.downloadEvents}</span></div>
         <div style="margin-top:6px;border-top:1px solid #333;padding-top:4px;color:#666;font-size:10px;">
-          ${(DEBUG.logs || []).slice(0, 8).map(l => `<div>${GR.common.escapeHtml(l)}</div>`).join('')}
+          ${(DEBUG.logs || [])
+            .slice(0, 8)
+            .map((l) => `<div>${GR.common.escapeHtml(l)}</div>`)
+            .join('')}
         </div>
       </div>
     `;

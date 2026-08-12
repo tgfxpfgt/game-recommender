@@ -7,15 +7,37 @@
  * Demo self-heal, zero-review verification, 3-layer cache writes.
  */
 import {
-  searchSteamAppId, fetchSteamFullDetailsByAppId, fetchSteamAppDetails,
-  fetchReviewSummary, fetchLastUpdate, validateSteamNames, DEMO_NAME_PATTERN,
-  ADDON_NAME_PATTERN, ensureRegistryEntry, ensureValidRegistryNames, coverImageFor,
-  isDemoAppId, baseAppIdFromDetails, needsRatingRefetch,
-  isCompleteCacheData, namesRelated
+  searchSteamAppId,
+  fetchSteamFullDetailsByAppId,
+  fetchSteamAppDetails,
+  fetchReviewSummary,
+  fetchLastUpdate,
+  validateSteamNames,
+  DEMO_NAME_PATTERN,
+  ADDON_NAME_PATTERN,
+  ensureRegistryEntry,
+  ensureValidRegistryNames,
+  coverImageFor,
+  isDemoAppId,
+  baseAppIdFromDetails,
+  needsRatingRefetch,
+  isCompleteCacheData,
+  namesRelated
 } from './api.js';
-import { isModuleValid, getModuleData, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
+import {
+  isModuleValid,
+  getModuleData,
+  getMergedData,
+  getSteamCacheEntry,
+  setSteamCacheEntry
+} from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
-import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound, deleteNameIndexEntry } from '../storage/name-index.js';
+import {
+  lookupAppIdByName,
+  recordNameIndex,
+  isRecentlySearchedNotFound,
+  deleteNameIndexEntry
+} from '../storage/name-index.js';
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
@@ -58,15 +80,28 @@ export async function searchSteamGame(gameName) {
     const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
     const merged = getMergedData(cached) || {};
     // 无好评率条目（0 评测/失败固化）按冷却期重新获取
-    if (detail && merged.appId && merged.name && isCompleteCacheData(detail) && !needsRatingRefetch(merged) &&
-        namesRelated(gameName, merged.name)) {
+    if (
+      detail &&
+      merged.appId &&
+      merged.name &&
+      isCompleteCacheData(detail) &&
+      !needsRatingRefetch(merged) &&
+      namesRelated(gameName, merged.name)
+    ) {
       // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
       if (isDemoCacheWithoutRating(merged)) {
         appId = null;
       } else {
         // 缓存命中：幂等补写注册表（含封面），防止缓存管理页缺失条目/封面；
         // 中英文名异常（占位/缺失）时自动按 appId 重新获取（自愈）
-        await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
+        await ensureRegistryEntry(
+          merged.appId || appId,
+          merged.name,
+          merged.englishName,
+          gameName,
+          merged.headerImage || '',
+          merged.type
+        );
         await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
         return merged;
       }
@@ -119,7 +154,14 @@ export async function searchSteamGame(gameName) {
 // getSteamRatingsFromCacheOnly 与 getSteamPositiveRate 两处重复收敛于此
 // Unified cache-hit result (registry backfill + name self-heal + 3-badge fields).
 async function applyCacheHit(merged, appId, gameName) {
-  await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
+  await ensureRegistryEntry(
+    merged.appId || appId,
+    merged.name,
+    merged.englishName,
+    gameName,
+    merged.headerImage || '',
+    merged.type
+  );
   await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
   return {
     positiveRate: merged.positiveRate,
@@ -231,7 +273,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let appType = null;
     if (foundAppId) {
       // v3.3.7：缓存 type 从合并视图读取（meta 模块）
-      const cachedType = usableAppId ? ((await getSteamCacheEntry(usableAppId)) || null) : null;
+      const cachedType = usableAppId ? (await getSteamCacheEntry(usableAppId)) || null : null;
       const cachedTypeVal = cachedType ? (getMergedData(cachedType) || {}).type : null;
       if (cachedTypeVal) {
         appType = cachedTypeVal;
@@ -241,7 +283,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           appType = baseCheck.type || 'game';
           const baseId = baseAppIdFromDetails(baseCheck);
           if (baseId && baseId !== String(foundAppId)) {
-            Logger.warn('Steam', `appId ${foundAppId} 为 DLC/非本体，自动解析为本体 ${baseId}（${(baseCheck.fullgame && baseCheck.fullgame.name) || ''}）`);
+            Logger.warn(
+              'Steam',
+              `appId ${foundAppId} 为 DLC/非本体，自动解析为本体 ${baseId}（${(baseCheck.fullgame && baseCheck.fullgame.name) || ''}）`
+            );
             foundAppId = baseId;
             foundName = (baseCheck.fullgame && baseCheck.fullgame.name) || foundName;
           } else if (!baseId) {
@@ -259,7 +304,14 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     const reviewSummary = await fetchReviewSummary(foundAppId);
     if (!reviewSummary) {
       Logger.warn('Steam', `好评率获取失败: ${gameName} (appId ${foundAppId})，不写缓存待重试`);
-      return { positiveRate: null, ratingDesc: null, appId: foundAppId, name: foundName, failed: true, type: appType || 'game' };
+      return {
+        positiveRate: null,
+        ratingDesc: null,
+        appId: foundAppId,
+        name: foundName,
+        failed: true,
+        type: appType || 'game'
+      };
     }
     let positiveRate = null;
     let ratingDesc = null;
@@ -268,7 +320,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     if (reviewSummary) {
       ratingDesc = reviewSummary.desc || null;
       if (reviewSummary.total > 0) {
-        positiveRate = Math.round(reviewSummary.positive / reviewSummary.total * 100);
+        positiveRate = Math.round((reviewSummary.positive / reviewSummary.total) * 100);
       }
       if (reviewSummary.recent) {
         recentRate = reviewSummary.recent.rate;
@@ -280,7 +332,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //     并验证 Demo/附属内容（校验失败 → 重搜本体）。
     //     v3.3.2：officialEn 已有可靠英文名时仅请求 schinese（省 1 请求/0 评测游戏）
     let officialCn = foundName;
-    let officialEn = searchResult ? (searchResult.englishName || foundName) : pickRegistryEnName(gameName, foundName);
+    let officialEn = searchResult ? searchResult.englishName || foundName : pickRegistryEnName(gameName, foundName);
     if (positiveRate === null) {
       // 英文名缺失时才并行补英文（避免 validateSteamNames 误判重搜）
       const needsEn = !/[A-Za-z]{2,}/.test(officialEn);
@@ -303,7 +355,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           const rs2 = await fetchReviewSummary(foundAppId);
           if (rs2) {
             ratingDesc = rs2.desc || null;
-            if (rs2.total > 0) positiveRate = Math.round(rs2.positive / rs2.total * 100);
+            if (rs2.total > 0) positiveRate = Math.round((rs2.positive / rs2.total) * 100);
             if (rs2.recent) {
               recentRate = rs2.recent.rate;
               recentTotal = rs2.recent.total;
@@ -320,17 +372,24 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //    只更新 meta/rating 模块，detail/spy 保留）。
     //    v3.3.8：列表页独立获取最近更新日期（不依赖详情页访问；缓存已有则复用；
     //    GetNewsForApp 在 api.steampowered.com 独立限流域，不影响商店 API 配额）。
-    const existing = usableAppId ? (getMergedData(await getSteamCacheEntry(usableAppId)) || {}) : {};
+    const existing = usableAppId ? getMergedData(await getSteamCacheEntry(usableAppId)) || {} : {};
     const headerImage = coverImageFor(foundAppId, options.cover);
     let lastUpdate = existing.lastUpdate || null;
     if (!lastUpdate) {
       lastUpdate = await fetchLastUpdate(foundAppId).catch(() => null);
     }
     const mergedData = {
-      ...existing, appId: foundAppId, name: foundName, englishName: officialEn,
-      positiveRate, ratingDesc, headerImage, type: appType || 'game',
+      ...existing,
+      appId: foundAppId,
+      name: foundName,
+      englishName: officialEn,
+      positiveRate,
+      ratingDesc,
+      headerImage,
+      type: appType || 'game',
       totalReviews: reviewSummary ? reviewSummary.total : 0,
-      recentPositiveRate: recentRate, recentTotalReviews: recentTotal,
+      recentPositiveRate: recentRate,
+      recentTotalReviews: recentTotal,
       lastUpdate: lastUpdate || existing.lastUpdate || null,
       ratingRetriedAt: positiveRate === null ? Date.now() : existing.ratingRetriedAt
     };
@@ -347,9 +406,13 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     await recordNameIndex(gameName, foundAppId);
 
     return {
-      positiveRate, ratingDesc, appId: foundAppId, name: foundName,
+      positiveRate,
+      ratingDesc,
+      appId: foundAppId,
+      name: foundName,
       totalReviews: reviewSummary ? reviewSummary.total : 0,
-      recentPositiveRate: recentRate, recentTotalReviews: recentTotal,
+      recentPositiveRate: recentRate,
+      recentTotalReviews: recentTotal,
       lastUpdate: lastUpdate || existing.lastUpdate || null,
       releaseDate: existing.releaseDate || ''
     };

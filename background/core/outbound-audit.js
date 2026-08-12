@@ -16,9 +16,9 @@
 export const AUDIT_MAX = 300;
 // 限速窗口与每主机上限 / rate-limit window & per-host cap
 export const RATE_WINDOW_MS = 10000; // 10s
-export const RATE_MAX = 100;         // 每窗口每主机 100 次（10/s 兜底）
+export const RATE_MAX = 100; // 每窗口每主机 100 次（10/s 兜底）
 
-let audit = [];              // [{t, host, ok, ms, status}]
+let audit = []; // [{t, host, ok, ms, status}]
 const rateCalls = new Map(); // host -> [t, ...]（窗口内时间戳）
 
 // 记录一次出站请求（fetchWithTimeout 调用；含被拦截/限速/网络错误路径）
@@ -33,7 +33,7 @@ export function recordOutbound(host, ok, ms, status = 0, t = Date.now()) {
 // Get audit entries (newest first) plus aggregate stats.
 export function getOutboundAudit(limit = 100) {
   const total = audit.length;
-  const failed = audit.filter(e => !e.ok).length;
+  const failed = audit.filter((e) => !e.ok).length;
   const hosts = new Map();
   for (const e of audit) {
     const h = hosts.get(e.host) || { host: e.host, count: 0, failed: 0 };
@@ -66,7 +66,7 @@ export function checkRateLimit(host, now = Date.now()) {
   if (!key) return true;
   let ts = rateCalls.get(key) || [];
   const cutoff = now - RATE_WINDOW_MS;
-  ts = ts.filter(t => t > cutoff);
+  ts = ts.filter((t) => t > cutoff);
   if (ts.length >= RATE_MAX) {
     rateCalls.set(key, ts);
     return false;

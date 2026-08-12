@@ -13,7 +13,7 @@ import { cleanGameName } from '../core/title-parser.js';
 let nameIndexMemory = null;
 let nameIndexMemoryLoaded = false;
 let nameIndexWriteTimer = null;
-let nameIndexDirty = false;         // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
+let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载名称索引到内存（顺手清理过期负缓存）
 // Load the name index into memory (also purges expired negative entries)
@@ -48,10 +48,12 @@ export async function isRecentlySearchedNotFound(gameName) {
   if (!name) return false;
   await loadNameIndexToMemory();
   const entry = nameIndexMemory.get(name);
-  return !!entry &&
+  return (
+    !!entry &&
     (entry.appId === null || entry.appId === undefined) &&
     entry.lastSearched &&
-    (Date.now() - entry.lastSearched < nameNegativeCacheTtlMs());
+    Date.now() - entry.lastSearched < nameNegativeCacheTtlMs()
+  );
 }
 
 // 正缓存条目上限（v3.4.0：防无界增长——仅负缓存曾有清理，正缓存
@@ -97,7 +99,10 @@ export async function recordNameIndex(gameName, appId) {
 
 // 强制立即写入 / Force flush
 export async function flushNameIndex() {
-  if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
+  if (nameIndexWriteTimer) {
+    clearTimeout(nameIndexWriteTimer);
+    nameIndexWriteTimer = null;
+  }
   // v3.4.1：无未落盘修改时跳过整次全量序列化
   if (!nameIndexMemory || !nameIndexDirty) return;
   nameIndexDirty = false;
@@ -115,8 +120,11 @@ function cleanupExpiredNegativeEntries() {
   const now = Date.now();
   let removed = 0;
   for (const [key, entry] of nameIndexMemory) {
-    if ((entry.appId === null || entry.appId === undefined) &&
-        entry.lastSearched && (now - entry.lastSearched >= nameNegativeCacheTtlMs())) {
+    if (
+      (entry.appId === null || entry.appId === undefined) &&
+      entry.lastSearched &&
+      now - entry.lastSearched >= nameNegativeCacheTtlMs()
+    ) {
       nameIndexMemory.delete(key);
       removed++;
     }
@@ -141,14 +149,14 @@ export async function deleteNameIndexEntries(appId, names) {
   await loadNameIndexToMemory();
   const key = String(appId);
   let removed = false;
-  for (const name of (names || [])) {
+  for (const name of names || []) {
     const entry = nameIndexMemory.get(name);
     if (entry && String(entry.appId) === key) {
       nameIndexMemory.delete(name);
       removed = true;
     }
   }
-  if (removed) nameIndexDirty = true;   // v3.4.1：dirty 检查下必须显式标记
+  if (removed) nameIndexDirty = true; // v3.4.1：dirty 检查下必须显式标记
 }
 
 // 删除指定名字的索引条目（强制刷新页用：正/负缓存条目都删——负缓存
@@ -179,5 +187,8 @@ export function resetNameIndex() {
   nameIndexMemory = null;
   nameIndexMemoryLoaded = false;
   nameIndexDirty = false;
-  if (nameIndexWriteTimer) { clearTimeout(nameIndexWriteTimer); nameIndexWriteTimer = null; }
+  if (nameIndexWriteTimer) {
+    clearTimeout(nameIndexWriteTimer);
+    nameIndexWriteTimer = null;
+  }
 }

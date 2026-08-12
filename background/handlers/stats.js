@@ -11,27 +11,26 @@ import { Logger } from '../storage/logger.js';
  * v5.0.0：由 handlers.js 拆分——统计/趋势/偏好推荐。
  */
 
-
 // --- 统计 / Stats ---
 export async function handleGetStats() {
-  const log = await getBehaviorLog();  const [profiles, keywordWeights] = await Promise.all([
-    readProfiles(),
-    readKeywordWeights()
-  ]);
+  const log = await getBehaviorLog();
+  const [profiles, keywordWeights] = await Promise.all([readProfiles(), readKeywordWeights()]);
 
-  const viewDetailCount = log.filter(e => e.type === 'view_detail').length;
-  const downloadCount = log.filter(e => e.type === 'click_download').length;
-  const listViewCount = log.filter(e => e.type === 'view_list').length;
+  const viewDetailCount = log.filter((e) => e.type === 'view_detail').length;
+  const downloadCount = log.filter((e) => e.type === 'click_download').length;
+  const listViewCount = log.filter((e) => e.type === 'view_list').length;
 
   const gameList = Object.values(profiles)
     .sort((a, b) => b.downloads - a.downloads || b.views - a.views)
     .slice(0, 50);
 
   const downloadMethods = {};
-  log.filter(e => e.type === 'click_download').forEach(e => {
-    const method = e.method || 'unknown';
-    downloadMethods[method] = (downloadMethods[method] || 0) + 1;
-  });
+  log
+    .filter((e) => e.type === 'click_download')
+    .forEach((e) => {
+      const method = e.method || 'unknown';
+      downloadMethods[method] = (downloadMethods[method] || 0) + 1;
+    });
 
   return {
     totalEvents: log.length,
@@ -39,7 +38,7 @@ export async function handleGetStats() {
     viewDetailCount,
     downloadCount,
     listViewCount,
-    downloadRate: viewDetailCount > 0 ? Math.round(downloadCount / viewDetailCount * 100) : 0,
+    downloadRate: viewDetailCount > 0 ? Math.round((downloadCount / viewDetailCount) * 100) : 0,
     topKeywords: Object.entries(keywordWeights)
       .sort((a, b) => b[1] - a[1])
       .slice(0, 30)
@@ -52,7 +51,6 @@ export async function handleGetStats() {
 
 // 行为趋势（按天/周浏览·下载·转化率，v4.0.0 起；v4.1.0 支持周粒度）
 // Behavior trends (daily/weekly views · downloads · rate)
-
 
 // 行为趋势（按天/周浏览·下载·转化率，v4.0.0 起；v4.1.0 支持周粒度）
 // Behavior trends (daily/weekly views · downloads · rate)

@@ -20,11 +20,11 @@ export const DB_KEYS = {
   DOWNLOAD_HISTORY: 'downloadHistory',
   MANUAL_MAPPINGS: 'manualMappings', // 旧版手动映射（兼容保留，新逻辑改用 NAME_INDEX）
   GAME_REGISTRY: 'gameRegistry', // appId → {cnName, enName, names[], firstSeen, lastConfirmed} 永久，30天重确认
-  NAME_INDEX: 'nameIndex',       // name_lower → {appId, lastSearched} 名称反查 appId 的索引
+  NAME_INDEX: 'nameIndex', // name_lower → {appId, lastSearched} 名称反查 appId 的索引
   DOWNLOAD_URLS: 'downloadUrls', // 下载站网址缓存（按站点分桶 v2）
-  ADAPTER_RULES: 'adapterRules',  // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
-  LEARNED_NOISE: 'learnedNoise',  // 动态学习的标题噪声词（自适应检索，v3.1.2）
-  WRONG_REPORTS: 'wrongReports'   // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
+  ADAPTER_RULES: 'adapterRules', // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
+  LEARNED_NOISE: 'learnedNoise', // 动态学习的标题噪声词（自适应检索，v3.1.2）
+  WRONG_REPORTS: 'wrongReports' // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
 };
 
 // 默认设置 / Default settings
@@ -47,16 +47,22 @@ export const DEFAULT_SETTINGS = {
     // v4.0.0：新增 SteamSpy 时长/热度信号（playTime/heat），四项原有权重
     // 同步下调，六项和保持 1.0（徽章百分比不超 100%）
     clickRate: 0.15,
-    downloadRate: 0.30,
-    keywordMatch: 0.20,
+    downloadRate: 0.3,
+    keywordMatch: 0.2,
     steamRating: 0.15,
-    playTime: 0.10,
-    heat: 0.10
+    playTime: 0.1,
+    heat: 0.1
   },
   trackedSites: [
-    '3dmgame.com', 'ali213.net', 'gamersky.com', 'yystv.cn',
-    'fitgirl-repacks.site', 'rutracker.org',
-    'gamer520.com', 'xianyudanji.gg', 'xdgame.com'
+    '3dmgame.com',
+    'ali213.net',
+    'gamersky.com',
+    'yystv.cn',
+    'fitgirl-repacks.site',
+    'rutracker.org',
+    'gamer520.com',
+    'xianyudanji.gg',
+    'xdgame.com'
   ],
   enableLog: true,
   maxRuntimeLog: 300,
@@ -77,18 +83,18 @@ export const DEFAULT_SETTINGS = {
   // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
   // Cache TTLs (customizable in settings; value 0 = keep forever)
   cacheTtls: {
-    steamDynamic: { value: 24, unit: 'hours' },    // 好评率缓存（rating 模块）/ hours
-    detailSteam: { value: 72, unit: 'hours' },     // 详情页完整缓存（detail 模块）/ hours
-    spySteam: { value: 7, unit: 'days' },          // SteamSpy/SteamDB 补充数据（spy 模块）/ days
-    metaSteam: { value: 30, unit: 'days' },        // Steam 基础信息（meta 模块）/ days
-    registryConfirm: { value: 30, unit: 'days' },  // 游戏注册表重确认 / days
-    downloadUrls: { value: 30, unit: 'days' },     // 下载站网址缓存 / days
-    negativeCache: { value: 2, unit: 'hours' }     // 名称搜索负缓存 / hours
+    steamDynamic: { value: 24, unit: 'hours' }, // 好评率缓存（rating 模块）/ hours
+    detailSteam: { value: 72, unit: 'hours' }, // 详情页完整缓存（detail 模块）/ hours
+    spySteam: { value: 7, unit: 'days' }, // SteamSpy/SteamDB 补充数据（spy 模块）/ days
+    metaSteam: { value: 30, unit: 'days' }, // Steam 基础信息（meta 模块）/ days
+    registryConfirm: { value: 30, unit: 'days' }, // 游戏注册表重确认 / days
+    downloadUrls: { value: 30, unit: 'days' }, // 下载站网址缓存 / days
+    negativeCache: { value: 2, unit: 'hours' } // 名称搜索负缓存 / hours
   },
   // 日志配置 / Logging configuration
-  logLevel: 'info',       // 记录级别：debug|info|warn|error
-  logRetentionDays: 7,    // 日志保留天数（0 = 不清理）
-  logStorage: 'ndjson'    // 存储形式：ndjson(OPFS 文件) | local(storage.local)
+  logLevel: 'info', // 记录级别：debug|info|warn|error
+  logRetentionDays: 7, // 日志保留天数（0 = 不清理）
+  logStorage: 'ndjson' // 存储形式：ndjson(OPFS 文件) | local(storage.local)
 };
 
 // 日志级别 / Log levels
@@ -115,12 +121,22 @@ export function setTtlConfig(ttls) {
 const UNIT_MS = { hours: 3600e3, days: 86400e3, months: 30 * 86400e3, years: 365 * 86400e3 };
 // 默认值与默认单位（旧格式数字兼容）/ Defaults and default units (legacy-number compatible)
 const TTL_DEFAULTS = {
-  steamDynamic: 24, detailSteam: 72, spySteam: 7, metaSteam: 30,
-  registryConfirm: 30, downloadUrls: 30, negativeCache: 2
+  steamDynamic: 24,
+  detailSteam: 72,
+  spySteam: 7,
+  metaSteam: 30,
+  registryConfirm: 30,
+  downloadUrls: 30,
+  negativeCache: 2
 };
 const TTL_UNITS = {
-  steamDynamic: 'hours', detailSteam: 'hours', spySteam: 'days', metaSteam: 'days',
-  registryConfirm: 'days', downloadUrls: 'days', negativeCache: 'hours'
+  steamDynamic: 'hours',
+  detailSteam: 'hours',
+  spySteam: 'days',
+  metaSteam: 'days',
+  registryConfirm: 'days',
+  downloadUrls: 'days',
+  negativeCache: 'hours'
 };
 
 function toMs(value, unit) {
@@ -131,9 +147,9 @@ function toMs(value, unit) {
 // 解析某缓存类型的 TTL 为毫秒（支持 {value, unit} 与旧数字格式；0 = 长期）
 // Resolve a cache type's TTL to ms ({value,unit} or legacy number; 0 = forever)
 export function resolveTtlMs(key, value) {
-  const raw = (value === null || value === undefined) ? TTL_DEFAULTS[key] : value;
-  const num = (typeof raw === 'object') ? raw.value : raw;
-  const unit = (typeof raw === 'object') ? (raw.unit || TTL_UNITS[key]) : TTL_UNITS[key];
+  const raw = value === null || value === undefined ? TTL_DEFAULTS[key] : value;
+  const num = typeof raw === 'object' ? raw.value : raw;
+  const unit = typeof raw === 'object' ? raw.unit || TTL_UNITS[key] : TTL_UNITS[key];
   if (num === undefined || num === null) return toMs(TTL_DEFAULTS[key], TTL_UNITS[key]);
   return toMs(num, unit);
 }
@@ -192,20 +208,20 @@ export const PREF_UPDATE_INTERVAL = 60000;
 // storageKey 使用字符串字面量，彻底免疫顶层初始化顺序依赖（TDZ 防御）。
 // Data-module registry (string-literal keys; TDZ-proof).
 export const DATA_MODULES = [
-  { key: 'settings',        name: '扩展配置',      desc: 'Settings',        storageKey: 'settings' },
-  { key: 'behaviorLog',     name: '浏览记录',      desc: 'Behavior Log',    storageKey: 'behaviorLog' },
-  { key: 'gameProfiles',    name: '游戏画像',      desc: 'Game Profiles',   storageKey: 'gameProfiles' },
-  { key: 'keywordWeights',  name: '推荐模型',      desc: 'Keyword Weights', storageKey: 'keywordWeights' },
-  { key: 'steamCache',      name: 'Steam 缓存',    desc: 'Steam Cache',     storageKey: 'steamCache' },
-  { key: 'gameRegistry',    name: '游戏注册表',    desc: 'Game Registry',   storageKey: 'gameRegistry' },
-  { key: 'nameIndex',       name: '名称索引',      desc: 'Name Index',      storageKey: 'nameIndex' },
-  { key: 'downloadUrls',    name: '下载站网址缓存', desc: 'Download URLs',  storageKey: 'downloadUrls' },
-  { key: 'freeGames',       name: '限免游戏',      desc: 'Free Games',      storageKey: 'freeGames' },
-  { key: 'runtimeLog',      name: '运行日志',      desc: 'Runtime Logs',    storageKey: 'runtimeLog' },
-  { key: 'downloadHistory', name: '下载历史',      desc: 'Download History', storageKey: 'downloadHistory' },
-  { key: 'adapterRules',    name: '适配规则',      desc: 'Adapter Rules',   storageKey: 'adapterRules' },
-  { key: 'learnedNoise',    name: '标题噪声词',    desc: 'Learned Noise',   storageKey: 'learnedNoise' },
-  { key: 'wrongReports',    name: '报错纠正记录',  desc: 'Wrong Reports',   storageKey: 'wrongReports' }
+  { key: 'settings', name: '扩展配置', desc: 'Settings', storageKey: 'settings' },
+  { key: 'behaviorLog', name: '浏览记录', desc: 'Behavior Log', storageKey: 'behaviorLog' },
+  { key: 'gameProfiles', name: '游戏画像', desc: 'Game Profiles', storageKey: 'gameProfiles' },
+  { key: 'keywordWeights', name: '推荐模型', desc: 'Keyword Weights', storageKey: 'keywordWeights' },
+  { key: 'steamCache', name: 'Steam 缓存', desc: 'Steam Cache', storageKey: 'steamCache' },
+  { key: 'gameRegistry', name: '游戏注册表', desc: 'Game Registry', storageKey: 'gameRegistry' },
+  { key: 'nameIndex', name: '名称索引', desc: 'Name Index', storageKey: 'nameIndex' },
+  { key: 'downloadUrls', name: '下载站网址缓存', desc: 'Download URLs', storageKey: 'downloadUrls' },
+  { key: 'freeGames', name: '限免游戏', desc: 'Free Games', storageKey: 'freeGames' },
+  { key: 'runtimeLog', name: '运行日志', desc: 'Runtime Logs', storageKey: 'runtimeLog' },
+  { key: 'downloadHistory', name: '下载历史', desc: 'Download History', storageKey: 'downloadHistory' },
+  { key: 'adapterRules', name: '适配规则', desc: 'Adapter Rules', storageKey: 'adapterRules' },
+  { key: 'learnedNoise', name: '标题噪声词', desc: 'Learned Noise', storageKey: 'learnedNoise' },
+  { key: 'wrongReports', name: '报错纠正记录', desc: 'Wrong Reports', storageKey: 'wrongReports' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

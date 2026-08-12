@@ -20,7 +20,9 @@ installChromeStorageMock(storage);
 // 注意：cache/name-index 必须不带 ?t= 导入——orchestrator 以静态 import 引用
 // 它们（无参数 URL），带 ?t= 会生成独立实例，写入的状态互不可见
 // （与 test-outbound 的 outbound-audit 教训相同）。
-const orchMod = await import(new URL('../../background/steam/orchestrator.js', import.meta.url).href + '?t=' + Date.now());
+const orchMod = await import(
+  new URL('../../background/steam/orchestrator.js', import.meta.url).href + '?t=' + Date.now()
+);
 const cacheMod = await import(new URL('../../background/storage/steam-cache.js', import.meta.url).href);
 const { getSteamRatingsFromCacheOnly, getSteamPositiveRate } = orchMod;
 
@@ -31,9 +33,15 @@ check('无索引无缓存返回 null', await getSteamRatingsFromCacheOnly('不�
 // 预置缓存：名称索引 + rating 模块（用真实 setSteamCacheEntry 写入）
 await cacheMod.loadSteamCacheToMemory();
 await cacheMod.setSteamCacheEntry('275850', {
-  appId: '275850', name: '无人深空', type: 'game',
-  positiveRate: 85, ratingDesc: '特别好评', totalReviews: 1000,
-  recentPositiveRate: 80, recentTotalReviews: 100, lastUpdate: '2026-08-01'
+  appId: '275850',
+  name: '无人深空',
+  type: 'game',
+  positiveRate: 85,
+  ratingDesc: '特别好评',
+  totalReviews: 1000,
+  recentPositiveRate: 80,
+  recentTotalReviews: 100,
+  lastUpdate: '2026-08-01'
 });
 await cacheMod.flushSteamCache();
 // 名称索引：写入 名称→appId（同样不带 ?t=，共享实例）
@@ -51,16 +59,28 @@ console.log('2. 全流程拉取（getSteamPositiveRate：缓存优先 → 搜索
 const fetchMock = createFetchMock({
   '/api/storesearch': { items: [{ id: 1245620, name: '艾尔登法环', type: 'app' }] },
   '/api/appdetails': {
-    '1245620': {
+    1245620: {
       success: true,
       data: {
-        steam_appid: 1245620, name: '艾尔登法环', type: 'game',
+        steam_appid: 1245620,
+        name: '艾尔登法环',
+        type: 'game',
         genres: [{ id: 1, description: 'RPG' }],
         supported_languages: { schinese: { full_audio: true, subtitles: true } }
       }
     }
   },
-  '/appreviews': { success: 1, query_summary: { total_reviews: 1000, total_positive: 900, total_negative: 100, review_score: 9, review_score_desc: '特别好评' }, reviews: [] },
+  '/appreviews': {
+    success: 1,
+    query_summary: {
+      total_reviews: 1000,
+      total_positive: 900,
+      total_negative: 100,
+      review_score: 9,
+      review_score_desc: '特别好评'
+    },
+    reviews: []
+  },
   '/api/ISteamNews': { appnews: { newsitems: [{ date: 1754900000 }] } }
 });
 const restoreFetch = installFetchMock(fetchMock);
@@ -69,9 +89,9 @@ const result = await getSteamPositiveRate('艾尔登法环', { ignoreNegativeCac
 check('搜索+详情链路返回 appId', result && String(result.appId), '1245620');
 check('好评率计算正确（900/1000）', result && result.positiveRate, 90);
 // 写缓存后：二次查询应缓存命中（不再发起 storesearch 搜索）
-const searchCallsBefore = fetchMock._calls.filter(u => u.includes('/api/storesearch')).length;
+const searchCallsBefore = fetchMock._calls.filter((u) => u.includes('/api/storesearch')).length;
 const cached2 = await getSteamPositiveRate('艾尔登法环', { ignoreNegativeCache: true });
-const searchCallsAfter = fetchMock._calls.filter(u => u.includes('/api/storesearch')).length;
+const searchCallsAfter = fetchMock._calls.filter((u) => u.includes('/api/storesearch')).length;
 check('二次查询缓存命中（无新增搜索请求）', searchCallsAfter === searchCallsBefore, true);
 check('缓存命中好评率一致', cached2 && cached2.positiveRate, 90);
 

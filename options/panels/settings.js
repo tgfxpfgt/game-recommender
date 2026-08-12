@@ -37,7 +37,9 @@
 
     // 虚拟机标题过滤 / VM title filter
     document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
-    document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');
+    document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(
+      ', '
+    );
 
     // 权重设置 / Algorithm weights
     // v3.4.1：畸形/缺失权重不再崩溃（toFixed 前兜底为 0）
@@ -78,7 +80,7 @@
     // 缓存有效期（value + 单位，兼容旧数字格式；0 = 长期有效；v3.3.7 每模块独立）
     // Cache TTLs (value + unit; legacy numbers supported; 0 = forever; per-module)
     const ttls = settings.cacheTtls || {};
-    OPTS.TTL_FIELDS.forEach(f => setTtlControl(f.id, ttls[f.key], f.defaultUnit));
+    OPTS.TTL_FIELDS.forEach((f) => setTtlControl(f.id, ttls[f.key], f.defaultUnit));
 
     // 日志配置 / Logging config
     document.getElementById('logEnabled').checked = settings.enableLog !== false;
@@ -89,9 +91,10 @@
 
   // 设置单个 TTL 控件（value + 单位）/ Set a TTL control (value + unit)
   function setTtlControl(inputId, val, defaultUnit) {
-    const v = (typeof val === 'object' && val !== null)
-      ? val
-      : { value: (val === null || val === undefined) ? 0 : val, unit: defaultUnit };
+    const v =
+      typeof val === 'object' && val !== null
+        ? val
+        : { value: val === null || val === undefined ? 0 : val, unit: defaultUnit };
     const input = document.getElementById(inputId);
     const unitSel = document.getElementById(inputId + 'Unit');
     if (input) input.value = v.value ?? 0;
@@ -106,25 +109,31 @@
     const tracked = settings.trackedSites || [];
     const steamSearch = settings.steamSiteSearch || [];
 
-    container.innerHTML = rules.map(s => {
-      const isTracked = s.domains.some(d => tracked.includes(d));
-      const canSearch = !!s.searchUrl;
-      return `
+    container.innerHTML = rules
+      .map((s) => {
+        const isTracked = s.domains.some((d) => tracked.includes(d));
+        const canSearch = !!s.searchUrl;
+        return `
         <div class="site-manage-row">
           <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0])}</small></span>
           <label class="check-item" title="追踪该站点的浏览行为">
             <input type="checkbox" class="track-site-check" data-domain="${escapeAttr(s.domains[0])}" ${isTracked ? 'checked' : ''}>
             <span>追踪行为</span>
           </label>
-          ${canSearch ? `
+          ${
+            canSearch
+              ? `
             <label class="check-item" title="在 Steam 详情页与缓存更新中检索该站点资源">
               <input type="checkbox" class="steam-site-check" data-site="${escapeAttr(s.key)}" ${steamSearch.includes(s.key) ? 'checked' : ''}>
               <span>Steam 检索</span>
             </label>
-          ` : '<span class="no-search-hint">无站内搜索</span>'}
+          `
+              : '<span class="no-search-hint">无站内搜索</span>'
+          }
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     renderCustomSiteList(tracked, rules);
   }
@@ -133,19 +142,23 @@
   function renderCustomSiteList(tracked, rules) {
     const container = document.getElementById('siteList');
     if (!container) return;
-    const isRuleDomain = (d) => rules.some(s => s.domains.some(x => d === x || d.includes(x)));
-    const custom = tracked.filter(d => !isRuleDomain(d));
-    container.innerHTML = custom.map(site => `
+    const isRuleDomain = (d) => rules.some((s) => s.domains.some((x) => d === x || d.includes(x)));
+    const custom = tracked.filter((d) => !isRuleDomain(d));
+    container.innerHTML = custom
+      .map(
+        (site) => `
       <div class="site-item">
         <span>${escapeHtml(site)}</span>
         <button class="remove-site" data-domain="${escapeAttr(site)}">✕</button>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
-    container.querySelectorAll('.remove-site').forEach(btn => {
+    container.querySelectorAll('.remove-site').forEach((btn) => {
       btn.addEventListener('click', () => {
         const domain = btn.dataset.domain;
-        OPTS.currentSettings.trackedSites = (OPTS.currentSettings.trackedSites || []).filter(d => d !== domain);
+        OPTS.currentSettings.trackedSites = (OPTS.currentSettings.trackedSites || []).filter((d) => d !== domain);
         renderSiteManagement(OPTS.currentSettings);
         OPTS.scheduleAutoSave();
       });
@@ -197,11 +210,11 @@
         if (response.ok) {
           const data = await response.json();
           const models = data.models || [];
-          const hasModel = models.some(m => m.name.includes(model));
+          const hasModel = models.some((m) => m.name.includes(model));
           if (hasModel) {
             resultEl.textContent = `✅ 连接成功，模型 ${model} 可用`;
           } else {
-            resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map(m => m.name).join(', ')}`;
+            resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map((m) => m.name).join(', ')}`;
           }
           resultEl.className = 'test-result success';
         } else {
@@ -213,7 +226,7 @@
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`
+            Authorization: `Bearer ${apiKey}`
           },
           body: JSON.stringify({
             model: model,

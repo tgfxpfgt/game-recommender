@@ -8,7 +8,7 @@
 'use strict';
 
 // v4.2.0：--grep 子集运行（按套件名/文件名关键词过滤）
-const grepArg = process.argv.find(a => a.startsWith('--grep='));
+const grepArg = process.argv.find((a) => a.startsWith('--grep='));
 const grepFilter = grepArg ? grepArg.slice('--grep='.length).toLowerCase() : null;
 
 const tests = [
@@ -62,7 +62,9 @@ for (const t of tests) {
       // v4.1.2：失败明细汇总（前 10 条，含实际/期望）
       const failures = result.failures || [];
       for (const f of failures.slice(0, 10)) {
-        console.log(`    ✘ ${f.name}\n      实际: ${JSON.stringify(f.actual)}\n      期望: ${JSON.stringify(f.expected)}`);
+        console.log(
+          `    ✘ ${f.name}\n      实际: ${JSON.stringify(f.actual)}\n      期望: ${JSON.stringify(f.expected)}`
+        );
       }
       if (failures.length > 10) console.log(`    ... 另有 ${failures.length - 10} 条失败`);
       allPass = false;
@@ -79,7 +81,9 @@ for (const t of tests) {
 
 console.log('\n' + '='.repeat(50));
 const skipNote = skipped > 0 ? `（--grep 跳过 ${skipped} 个套件）` : '';
-console.log(allPass
-  ? `✅ 全部测试通过（${totalPass} 项, 总耗时 ${(performance.now() - startedAt).toFixed(0)}ms）${skipNote}`
-  : `❌ 存在失败的测试（通过 ${totalPass} 项, 失败 ${totalFail} 项, 总耗时 ${(performance.now() - startedAt).toFixed(0)}ms）${skipNote}`);
+console.log(
+  allPass
+    ? `✅ 全部测试通过（${totalPass} 项, 总耗时 ${(performance.now() - startedAt).toFixed(0)}ms）${skipNote}`
+    : `❌ 存在失败的测试（通过 ${totalPass} 项, 失败 ${totalFail} 项, 总耗时 ${(performance.now() - startedAt).toFixed(0)}ms）${skipNote}`
+);
 process.exit(allPass ? 0 : 1);

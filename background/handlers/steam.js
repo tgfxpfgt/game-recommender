@@ -2,13 +2,29 @@ import { dataStore } from '../../data/data-store.js';
 import { flushAllCaches } from '../storage/flush.js';
 import { DB_KEYS, detailSteamCacheTtlMs } from '../core/constants.js';
 import { parseGameTitle } from '../core/title-parser.js';
-import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated, findVersionVariant } from '../steam/api.js';
+import {
+  searchSteamAppId,
+  fetchSteamFullDetailsByAppId,
+  scanAndHealRegistry,
+  isCompleteCacheData,
+  namesRelated,
+  findVersionVariant
+} from '../steam/api.js';
 import { searchSteamGame } from '../steam/orchestrator.js';
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntry } from '../storage/name-index.js';
 import { flushRegistry, recordGameInRegistry } from '../storage/registry.js';
-import { flushSteamCache, getSteamCacheEntry, setSteamCacheEntry, deleteSteamCacheEntry, isModuleValid, getModuleData, getMergedData, latestModuleTs } from '../storage/steam-cache.js';
+import {
+  flushSteamCache,
+  getSteamCacheEntry,
+  setSteamCacheEntry,
+  deleteSteamCacheEntry,
+  isModuleValid,
+  getModuleData,
+  getMergedData,
+  latestModuleTs
+} from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
 
 /**
@@ -17,12 +33,14 @@ import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.j
  * v5.0.0：由 handlers.js 拆分——搜索/直取/手动映射/候选/预热/报错/自愈。
  */
 
-
 // --- Steam 查询 / Steam lookups ---
 export async function handleSearchSteam(message) {
   const steamResult = await searchSteamGame(message.gameName);
   if (steamResult) {
-    Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, { appId: steamResult.appId, rating: steamResult.ratingDesc });
+    Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, {
+      appId: steamResult.appId,
+      rating: steamResult.ratingDesc
+    });
   } else {
     Logger.warn('Steam', `未找到"${message.gameName}"`);
   }
@@ -31,8 +49,6 @@ export async function handleSearchSteam(message) {
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
 }
-
-
 
 export async function handleRefreshSteamCache(message) {
   // 通过名称索引查找 appId，以 appId 为键删除缓存
@@ -55,7 +71,6 @@ export async function handleRefreshSteamCache(message) {
 // v3.3.14：图片提取的 appId 可能与页面标题无关（gamer520 侧边推荐图是 Steam
 // CDN 封面，会被全页图提取误取）——有 gameName 时校验名称相关性，不相关
 // 拒绝并转标题搜索；manual=true（手动选择候选）跳过校验（用户主动确认）。
-
 
 // 直接通过 appId 获取 Steam 详情（绕过名称搜索；图片 URL 含 appId 时使用）
 // v3.3.7：缓存命中要求"detail 模块未过期（详情页独立 TTL）+ 数据完整"——
@@ -98,7 +113,10 @@ export async function handleGetSteamByAppId(message) {
       if (variant && String(variant.appId) !== String(appId)) {
         const variantResult = await fetchSteamFullDetailsByAppId(variant.appId);
         if (variantResult) {
-          Logger.info('Steam', `版本后缀补搜: "${gameName}" 封面 ${appId} 为旧版 → 升级 ${variant.appId} ${variantResult.name}`);
+          Logger.info(
+            'Steam',
+            `版本后缀补搜: "${gameName}" 封面 ${appId} 为旧版 → 升级 ${variant.appId} ${variantResult.name}`
+          );
           target = variantResult;
         }
       }
@@ -126,7 +144,6 @@ export async function handleGetSteamByAppId(message) {
 
 // 保存用户手动选择的"游戏名→appId"映射
 
-
 // 保存用户手动选择的"游戏名→appId"映射
 export async function handleSaveManualMapping(message) {
   const gameName = (message.gameName || '').trim();
@@ -146,7 +163,6 @@ export async function handleSaveManualMapping(message) {
 
 // 搜索候选游戏列表（手动选择浮窗）
 
-
 // 搜索候选游戏列表（手动选择浮窗）
 export async function handleSearchSteamCandidates(message) {
   const searchTerms = parseGameTitle(message.gameName || '');
@@ -162,7 +178,9 @@ export async function handleSearchSteamCandidates(message) {
           candidates.push({ appId: item.appId, name: item.name, price: null, image: '' });
         }
       }
-    } catch { /* 单个词失败继续 */ }
+    } catch {
+      /* 单个词失败继续 */
+    }
   }
   return { candidates: candidates.slice(0, 10) };
 }
@@ -179,7 +197,11 @@ export async function handleClearCacheForPage(message) {
   let cleared = 0;
   for (const id of appIds) {
     const key = String(id);
-    if (!seen.has(key)) { seen.add(key); await deleteSteamCacheEntry(key); cleared++; }
+    if (!seen.has(key)) {
+      seen.add(key);
+      await deleteSteamCacheEntry(key);
+      cleared++;
+    }
   }
   for (const name of names) {
     const appId = await lookupAppIdByName(name);
@@ -234,7 +256,6 @@ export async function handleCacheSteamPage(message) {
 // download-URL mappings; the registry is kept (it holds official Steam info,
 // only the title→appId mapping was wrong).
 
-
 // 人工报错重检索（v3.3.11）：详情页浮窗"报错"按钮——用户发现检索到错误的
 // appid 时，清除该 appId 的 Steam 缓存/名称索引（正/负缓存都删，防负缓存
 // 拦截重检索）/下载站网址映射（30 天错误映射一并清除），随后重新检索。
@@ -268,11 +289,13 @@ export async function handleReportWrongAppId(message) {
 
 // --- 缓存过期清理（v3.0.0）---
 
-
 // --- 名称批量自愈（v3.1.0）---
 export async function handleHealRegistryNames(message) {
-  const result = await scanAndHealRegistry(Math.min(50, message && message.limit || 20));
-  Logger.info('Steam', `名称批量自愈: 扫描 ${result.scanned} 条, 修复 ${result.healed} 条, 剩余 ${result.remaining} 条`);
+  const result = await scanAndHealRegistry(Math.min(50, (message && message.limit) || 20));
+  Logger.info(
+    'Steam',
+    `名称批量自愈: 扫描 ${result.scanned} 条, 修复 ${result.healed} 条, 剩余 ${result.remaining} 条`
+  );
   return result;
 }
 

@@ -9,7 +9,6 @@ import { ADDON_NAME_PATTERN } from './api-search.js';
  * v5.0.0：由 steam/api.js 按职能拆分。
  */
 
-
 // 名称校验：中文名含中文、英文名含英文、不命中附属内容关键词
 // Name validation for zero-review verification and registry writes
 export function validateSteamNames(cnName, enName) {
@@ -36,7 +35,6 @@ export function validateSteamNames(cnName, enName) {
 // every other non-base type (bundle/mod/music/video/software/hardware...) → null.
 // Note: the real appdetails payload names the app id `steam_appid` (there is no
 // `appid` field); both are accepted (tests/mock data may use `appid`).
-
 
 // 从 appdetails 数据解析"游戏本体" appId（v3.2.6+，v3.2.10 补 demo，v3.3.4 兼容真实字段）：
 //   - type=game → 自身
@@ -73,7 +71,6 @@ export function baseAppIdFromDetails(data) {
 // Is a cached entry a "failed-rating snapshot" (both positiveRate and ratingDesc
 // empty)? Such entries must be re-fetched instead of served from cache.
 
-
 // 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
 // Cover URL: keep the provided cover, else build the Steam CDN header URL
 export function coverImageFor(appId, fallback) {
@@ -88,7 +85,6 @@ export function coverImageFor(appId, fallback) {
 // 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
 // One search pass (throws on total network failure for outer retry; null = not
 // found). Results must pass the name-relevance check.
-
 
 // --- 应用详情 ---
 
@@ -109,8 +105,6 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
 
 // --- 商店页面 HTML ---
 
-
-
 // --- 商店页面 HTML ---
 
 export async function fetchStorePageHtml(appId) {
@@ -125,8 +119,6 @@ export async function fetchStorePageHtml(appId) {
 }
 
 // --- 中文语言支持解析 ---
-
-
 
 // --- 中文语言支持解析 ---
 
@@ -148,7 +140,7 @@ export function parseChineseLanguageSupport(storeHtml, gameData) {
         if (isSimplifiedRow || isChineseRow) {
           const hasCheck = /✓|&#10003;|class="[^"]*check/i.test(row);
           const cells = row.match(/<td[\s\S]*?<\/td>/gi) || [];
-          if (hasCheck || cells.some(c => /✓|&#10003;|check/i.test(c))) {
+          if (hasCheck || cells.some((c) => /✓|&#10003;|check/i.test(c))) {
             chineseSupported = true;
             if (isSimplifiedRow) simplifiedChinese = true;
             if (cells.length >= 3) {
@@ -179,7 +171,6 @@ export function parseChineseLanguageSupport(storeHtml, gameData) {
 // Parse store-page user tags; when the store HTML is unavailable fall back to
 // the official categories so the tag section never disappears entirely.
 
-
 // --- 用户标签解析 ---
 
 // 解析商店页用户标签；商店页被拦截/抓取失败时降级为官方分类
@@ -192,12 +183,14 @@ export function parseUserTags(storeHtml, gameData) {
     if (tagMatches && tagMatches.length > 0) {
       const seenTags = new Set();
       return tagMatches
-        .map(m => m
-          .replace(/<[^>]+>/g, '')
-          .replace(/&[a-z]+;/gi, ' ')
-          .replace(/\s+/g, ' ')
-          .trim())
-        .filter(t => {
+        .map((m) =>
+          m
+            .replace(/<[^>]+>/g, '')
+            .replace(/&[a-z]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim()
+        )
+        .filter((t) => {
           if (t.length < 1 || t.length > 30) return false;
           const lower = t.toLowerCase();
           if (seenTags.has(lower)) return false;
@@ -208,8 +201,11 @@ export function parseUserTags(storeHtml, gameData) {
     }
   }
   // 降级：官方分类（Single-player/多人等）作为标签兜底 / fallback: official categories
-  return (gameData && Array.isArray(gameData.categories))
-    ? gameData.categories.map(c => c.description).filter(Boolean).slice(0, 10)
+  return gameData && Array.isArray(gameData.categories)
+    ? gameData.categories
+        .map((c) => c.description)
+        .filter(Boolean)
+        .slice(0, 10)
     : [];
 }
 

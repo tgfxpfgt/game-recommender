@@ -18,9 +18,10 @@ export async function getSiteRules() {
   if (siteRulesCache) return siteRulesCache;
   try {
     const imported = await dataStore.readModule(DB_KEYS.ADAPTER_RULES);
-    siteRulesCache = (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0)
-      ? imported
-      : (globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] });
+    siteRulesCache =
+      imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0
+        ? imported
+        : globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] };
   } catch {
     siteRulesCache = globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] };
   }
@@ -32,11 +33,11 @@ export async function getDownloadSites() {
   if (downloadSitesCache) return downloadSitesCache;
   const rules = await getSiteRules();
   downloadSitesCache = (rules.sites || [])
-    .filter(s => s.searchUrl)
-    .map(s => ({
+    .filter((s) => s.searchUrl)
+    .map((s) => ({
       key: s.key,
       name: s.name,
-      searchUrl: q => s.searchUrl.replace('{q}', encodeURIComponent(q)),
+      searchUrl: (q) => s.searchUrl.replace('{q}', encodeURIComponent(q)),
       base: s.base
     }));
   return downloadSitesCache;
@@ -53,20 +54,26 @@ export function resetRulesCache() {
 // 站点规则允许的字段与类型白名单（纯数据，拒绝函数/未知类型，防注入）
 // Allowed rule fields with type whitelist (pure data; functions rejected)
 const SITE_FIELD_TYPES = {
-  key: 'string', name: 'string', domains: 'array', base: 'string',
-  searchUrl: 'string', detailUrlPatterns: 'array', imageAppId: 'boolean',
-  listPage: 'object', listItem: 'object'
+  key: 'string',
+  name: 'string',
+  domains: 'array',
+  base: 'string',
+  searchUrl: 'string',
+  detailUrlPatterns: 'array',
+  imageAppId: 'boolean',
+  listPage: 'object',
+  listItem: 'object'
 };
 
 // 规则规模上限（防止异常输入导致内容脚本/后台资源滥用）
 // Size limits to prevent abusive rule payloads
 const RULE_LIMITS = {
-  maxSites: 50,           // 站点数上限 / max sites
-  maxDomains: 10,         // 每站域名上限 / max domains per site
-  maxPatterns: 20,        // 每站 URL 正则上限 / max regex patterns per site
-  maxSelectors: 20,       // 每站选择器上限 / max selectors per site
-  maxFieldLen: 500,       // 单个字符串字段长度上限 / max string-field length
-  maxDepth: 6             // 嵌套深度上限 / max nesting depth
+  maxSites: 50, // 站点数上限 / max sites
+  maxDomains: 10, // 每站域名上限 / max domains per site
+  maxPatterns: 20, // 每站 URL 正则上限 / max regex patterns per site
+  maxSelectors: 20, // 每站选择器上限 / max selectors per site
+  maxFieldLen: 500, // 单个字符串字段长度上限 / max string-field length
+  maxDepth: 6 // 嵌套深度上限 / max nesting depth
 };
 
 // 校验嵌套对象（listPage/listItem 等）：类型白名单 + 深度限制 + 数组条目检查
@@ -106,7 +113,8 @@ function validateSiteRule(site, depth) {
   if (!Array.isArray(site.domains) || site.domains.length === 0) {
     return `站点 "${site.key}" 缺少 domains 数组`;
   }
-  if (site.domains.length > RULE_LIMITS.maxDomains) return `站点 "${site.key}" domains 超过 ${RULE_LIMITS.maxDomains} 个`;
+  if (site.domains.length > RULE_LIMITS.maxDomains)
+    return `站点 "${site.key}" domains 超过 ${RULE_LIMITS.maxDomains} 个`;
   for (const d of site.domains) {
     if (typeof d !== 'string' || !d || d.length > RULE_LIMITS.maxFieldLen) {
       return `站点 "${site.key}" domains 含非法项`;
@@ -122,7 +130,9 @@ function validateSiteRule(site, depth) {
   ];
   for (const p of regexFields) {
     if (typeof p !== 'string') return `站点 "${site.key}" 正则字段含非字符串项`;
-    try { new RegExp(p, 'i'); } catch {
+    try {
+      new RegExp(p, 'i');
+    } catch {
       return `站点 "${site.key}" 含非法正则: ${String(p).substring(0, 60)}`;
     }
   }
@@ -135,7 +145,7 @@ function validateSiteRule(site, depth) {
       if (err) return err;
       continue;
     }
-    const typeOk = (allowed === 'array') ? Array.isArray(value) : typeof value === allowed;
+    const typeOk = allowed === 'array' ? Array.isArray(value) : typeof value === allowed;
     if (!typeOk) return `站点 "${site.key}" 字段 ${field} 类型错误（应为 ${allowed}）`;
     if (allowed === 'string' && String(value).length > RULE_LIMITS.maxFieldLen) {
       return `站点 "${site.key}" 字段 ${field} 超长`;
@@ -161,7 +171,8 @@ export function validateAdapterRules(rules) {
   if (typeof rules.version !== 'number') return { ok: false, error: '缺少 version 字段（数字）' };
   if (!Array.isArray(rules.sites)) return { ok: false, error: '缺少 sites 数组' };
   if (rules.sites.length === 0) return { ok: false, error: 'sites 不能为空（至少保留一个站点规则）' };
-  if (rules.sites.length > RULE_LIMITS.maxSites) return { ok: false, error: `sites 超过 ${RULE_LIMITS.maxSites} 个上限` };
+  if (rules.sites.length > RULE_LIMITS.maxSites)
+    return { ok: false, error: `sites 超过 ${RULE_LIMITS.maxSites} 个上限` };
   const seen = new Set();
   for (const site of rules.sites) {
     const err = validateSiteRule(site, 0);
@@ -198,7 +209,9 @@ export async function getAllRules() {
   try {
     const stored = await dataStore.readModule(DB_KEYS.ADAPTER_RULES);
     if (stored && stored.version && Array.isArray(stored.sites)) imported = stored;
-  } catch { /* 读取失败按无导入处理 */ }
+  } catch {
+    /* 读取失败按无导入处理 */
+  }
   const merged = imported || builtin;
   return { builtin, imported, merged };
 }
@@ -214,7 +227,7 @@ export async function getAllRules() {
 // limits (settings keys whitelisted, API keys blanked, endpoint http(s) only;
 // adapterRules via validateAdapterRules; others must be pure JSON within caps).
 export const IMPORT_MODULE_BYTES_LIMIT = 16 * 1024 * 1024; // 单模块 16MB
-export const IMPORT_TOTAL_BYTES_LIMIT = 64 * 1024 * 1024;  // 总量 64MB
+export const IMPORT_TOTAL_BYTES_LIMIT = 64 * 1024 * 1024; // 总量 64MB
 
 function isPureJsonSafe(value) {
   if (value === null || value === undefined) return false;
@@ -226,7 +239,9 @@ function isPureJsonSafe(value) {
     if (json === undefined || json.length > IMPORT_MODULE_BYTES_LIMIT) return false;
     JSON.parse(json);
     return true;
-  } catch { return false; }
+  } catch {
+    return false;
+  }
 }
 
 // settings 模块清洗：已知字段白名单 + 密钥清空 + endpoint 协议校验
@@ -237,14 +252,20 @@ function sanitizeImportedSettings(raw) {
   for (const [key, def] of Object.entries(DEFAULT_SETTINGS)) {
     const v = raw[key];
     if (v === undefined) continue;
-    if (key === 'steamApiKey') { out[key] = ''; continue; } // 密钥永不导入 / never import secrets
+    if (key === 'steamApiKey') {
+      out[key] = '';
+      continue;
+    } // 密钥永不导入 / never import secrets
     if (key === 'llmConfig') {
       if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
       const llm = {};
       for (const [lk, ld] of Object.entries(def)) {
         const lv = v[lk];
         if (lv === undefined) continue;
-        if (lk === 'apiKey') { llm.apiKey = ''; continue; }
+        if (lk === 'apiKey') {
+          llm.apiKey = '';
+          continue;
+        }
         if (lk === 'endpoint') {
           if (typeof lv === 'string' && /^https?:\/\//i.test(lv)) llm.endpoint = lv;
           continue;

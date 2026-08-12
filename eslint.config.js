@@ -14,20 +14,36 @@ export default [
       sourceType: 'module',
       globals: {
         // 浏览器环境 / browser globals
-        window: 'readonly', document: 'readonly', navigator: 'readonly',
-        location: 'readonly', globalThis: 'readonly', console: 'readonly',
-        setTimeout: 'readonly', clearTimeout: 'readonly', setInterval: 'readonly',
-        clearInterval: 'readonly', fetch: 'readonly', URL: 'readonly',
-        DOMParser: 'readonly', MutationObserver: 'readonly', NodeFilter: 'readonly',
-        ResizeObserver: 'readonly', IntersectionObserver: 'readonly',
-        AbortController: 'readonly', Element: 'readonly',
-        alert: 'readonly', confirm: 'readonly',
-        Blob: 'readonly', FileReader: 'readonly', TextEncoder: 'readonly',
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        location: 'readonly',
+        globalThis: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        clearTimeout: 'readonly',
+        setInterval: 'readonly',
+        clearInterval: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        DOMParser: 'readonly',
+        MutationObserver: 'readonly',
+        NodeFilter: 'readonly',
+        ResizeObserver: 'readonly',
+        IntersectionObserver: 'readonly',
+        AbortController: 'readonly',
+        Element: 'readonly',
+        alert: 'readonly',
+        confirm: 'readonly',
+        Blob: 'readonly',
+        FileReader: 'readonly',
+        TextEncoder: 'readonly',
         crypto: 'readonly',
         // 扩展 API / extension APIs
         chrome: 'readonly',
         // 内容脚本全局命名空间 / content-script namespaces
-        __GR__: 'readonly', __OPTS__: 'readonly',
+        __GR__: 'readonly',
+        __OPTS__: 'readonly',
         __GAME_RECOMMENDER_SITES__: 'readonly',
         __GAME_RECOMMENDER_PLATFORMS__: 'readonly',
         __GAME_RECOMMENDER_SITE_XDGAME__: 'readonly',
@@ -38,9 +54,13 @@ export default [
         __GAME_RECOMMENDER_SITE_GAMERSKY__: 'readonly',
         __GAME_RECOMMENDER_PLATFORM_STEAM__: 'readonly',
         __GR_PATTERNS__: 'readonly',
-        escapeHtml: 'readonly', escapeAttr: 'readonly',
+        escapeHtml: 'readonly',
+        escapeAttr: 'readonly',
         // Node 测试环境 / Node test env
-        process: 'readonly', module: 'readonly', require: 'readonly', __dirname: 'readonly',
+        process: 'readonly',
+        module: 'readonly',
+        require: 'readonly',
+        __dirname: 'readonly',
         performance: 'readonly'
       }
     },
@@ -57,10 +77,10 @@ export default [
       // v4.1.2 增强：未使用变量升 error（代码已 0 警告，防新污染）
       'no-unused-vars': ['error', { args: 'none', varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
       // v4.1.2：零风险风格规则 / zero-risk style rules
-      'eqeqeq': ['error', 'smart'],       // 强制 ===（== null 除外）
-      'no-var': 'error',                  // 禁止 var（全库已是 let/const）
-      'prefer-const': 'error',            // 未再赋值变量用 const
-      'no-extra-semi': 'error'            // 禁止多余分号
+      eqeqeq: ['error', 'smart'], // 强制 ===（== null 除外）
+      'no-var': 'error', // 禁止 var（全库已是 let/const）
+      'prefer-const': 'error', // 未再赋值变量用 const
+      'no-extra-semi': 'error' // 禁止多余分号
       // 注：curly 未启用——项目单行语句花括号风格混合（约 196 处），
       // 强制规则需大规模自动修复制造 diff 噪音，暂以现状为准
     }
@@ -69,10 +89,18 @@ export default [
     files: ['tests/**/*.mjs'],
     languageOptions: {
       globals: {
-        process: 'readonly', console: 'readonly', setTimeout: 'readonly',
-        fetch: 'readonly', URL: 'readonly', globalThis: 'readonly',
-        navigator: 'readonly', document: 'readonly', window: 'readonly',
-        MutationObserver: 'readonly', NodeFilter: 'readonly', location: 'readonly',
+        process: 'readonly',
+        console: 'readonly',
+        setTimeout: 'readonly',
+        fetch: 'readonly',
+        URL: 'readonly',
+        globalThis: 'readonly',
+        navigator: 'readonly',
+        document: 'readonly',
+        window: 'readonly',
+        MutationObserver: 'readonly',
+        NodeFilter: 'readonly',
+        location: 'readonly',
         performance: 'readonly'
       }
     }

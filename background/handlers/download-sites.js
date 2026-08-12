@@ -13,12 +13,11 @@ import { getGameRegistryEntry } from '../storage/registry.js';
  * v5.0.0：由 handlers.js 拆分——下载站搜索/历史/访问/批量记录。
  */
 
-
 // --- 下载站搜索（Steam 页浮窗）---
 export async function handleSearchDownloadSites(message) {
   const settings = await getSettings();
   const allSites = await getDownloadSites();
-  const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
+  const enabledKeys = settings.steamSiteSearch || allSites.map((s) => s.key);
   const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
 
   // 兜底 1：缓存优先。全部未命中且提供 appId 时，优先使用下载站网址缓存
@@ -26,7 +25,7 @@ export async function handleSearchDownloadSites(message) {
   // 标题跨语言不匹配导致的漏检（如 Gothic 1 Remake → 哥特王朝 重制版）。
   // Fallback 1: the download-URL cache (recorded from list/detail visits) — it
   // bridges cross-language mismatches between EN official names and CN titles.
-  if (sites.every(s => !s.found) && message.appId) {
+  if (sites.every((s) => !s.found) && message.appId) {
     const cached = await getDownloadUrls(message.appId);
     for (const s of sites) {
       const entry = cached[s.key];
@@ -38,12 +37,20 @@ export async function handleSearchDownloadSites(message) {
           const dResp = await fetchWithTimeout(entry.url, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
           if (dResp.ok) {
             const meta = extractDetailMeta(await dResp.text(), s.key);
-            Object.assign(s, { updateDate: meta.updateDate, version: meta.version, size: meta.size, panUrl: meta.panUrl, panCode: meta.panCode });
+            Object.assign(s, {
+              updateDate: meta.updateDate,
+              version: meta.version,
+              size: meta.size,
+              panUrl: meta.panUrl,
+              panCode: meta.panCode
+            });
           }
-        } catch { /* 元信息失败忽略 */ }
+        } catch {
+          /* 元信息失败忽略 */
+        }
       }
     }
-    if (sites.some(s => s.found)) {
+    if (sites.some((s) => s.found)) {
       Logger.info('DownloadSites', `缓存命中: "${message.gameName}" (appId ${message.appId}) 下载站网址缓存直接返回`);
     }
   }
@@ -52,30 +59,29 @@ export async function handleSearchDownloadSites(message) {
   // 下载站标题变体重新搜索（跨语言桥接）。
   // Fallback 2: retry with the registry's official CN/EN names AND download-site
   // title variants (cross-language bridge).
-  if (sites.every(s => !s.found) && message.appId) {
+  if (sites.every((s) => !s.found) && message.appId) {
     const entry = await getGameRegistryEntry(message.appId);
-    const officialNames = [...new Set([
-      entry && entry.cnName, entry && entry.enName, ...(entry && entry.names || [])
-    ].filter(Boolean))].filter(n => n && n !== message.gameName);
+    const officialNames = [
+      ...new Set([entry && entry.cnName, entry && entry.enName, ...((entry && entry.names) || [])].filter(Boolean))
+    ].filter((n) => n && n !== message.gameName);
     for (const name of officialNames) {
       const retry = await searchDownloadSites(name, message.appId, enabledKeys);
-      retry.forEach(r => {
-        const target = sites.find(s => s.key === r.key);
+      retry.forEach((r) => {
+        const target = sites.find((s) => s.key === r.key);
         if (r.found && target && !target.found) Object.assign(target, r);
       });
-      if (sites.some(s => s.found)) break;
+      if (sites.some((s) => s.found)) break;
     }
-    if (sites.some(s => s.found)) {
+    if (sites.some((s) => s.found)) {
       Logger.info('DownloadSites', `兜底重试命中: "${message.gameName}" → 注册表名重搜`);
     }
   }
 
-  Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter(s => s.found).map(s => s.key) });
+  Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter((s) => s.found).map((s) => s.key) });
   return { sites };
 }
 
 // --- 下载历史 ---
-
 
 // --- 下载历史 ---
 export async function handleGetDownloadHistory(message) {
@@ -87,7 +93,6 @@ export async function handleGetDownloadHistory(message) {
 }
 
 // 详情页访问记录（更新下载站网址缓存 lastAccessed）
-
 
 // 详情页访问记录（更新下载站网址缓存 lastAccessed）
 export async function handleTrackDownloadSiteVisit(message) {
@@ -102,7 +107,6 @@ export async function handleTrackDownloadSiteVisit(message) {
 }
 
 // 列表页批量记录下载页地址
-
 
 // 列表页批量记录下载页地址
 export async function handleRecordDownloadUrlsBatch(message) {

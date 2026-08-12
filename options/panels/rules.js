@@ -44,17 +44,23 @@
     const el = document.getElementById('ruleSource');
     const importedCount = data.imported ? data.imported.sites.length : 0;
     const builtinCount = data.builtin ? data.builtin.sites.length : 0;
-    el.innerHTML = importedCount > 0
-      ? `📥 已导入规则 <b>${importedCount}</b> 个站点（覆盖内置 ${builtinCount} 个）`
-      : `📦 内置规则 <b>${builtinCount}</b> 个站点`;
+    el.innerHTML =
+      importedCount > 0
+        ? `📥 已导入规则 <b>${importedCount}</b> 个站点（覆盖内置 ${builtinCount} 个）`
+        : `📦 内置规则 <b>${builtinCount}</b> 个站点`;
   }
 
   // 规则列表（纯展示，全部转义）/ Rule list (display only, escaped)
   function renderRuleList(merged) {
     const el = document.getElementById('ruleList');
     const sites = (merged && merged.sites) || [];
-    if (sites.length === 0) { el.innerHTML = '<div class="no-data">无规则</div>'; return; }
-    el.innerHTML = sites.map(s => `
+    if (sites.length === 0) {
+      el.innerHTML = '<div class="no-data">无规则</div>';
+      return;
+    }
+    el.innerHTML = sites
+      .map(
+        (s) => `
       <div class="rule-item">
         <div class="rule-item-head">
           <span class="rule-item-key">${escapeHtml(s.key)}</span>
@@ -64,7 +70,9 @@
         <div class="rule-item-meta">域名: ${escapeHtml((s.domains || []).join(', '))}</div>
         ${s.detailUrlPatterns ? `<div class="rule-item-meta">详情: ${escapeHtml(s.detailUrlPatterns.join(' | '))}</div>` : ''}
         ${s.listItem && s.listItem.containers ? `<div class="rule-item-meta">容器: ${escapeHtml(s.listItem.containers.join(' | '))}</div>` : ''}
-      </div>`).join('');
+      </div>`
+      )
+      .join('');
   }
 
   // ============ 编辑器操作 / Editor actions ============
@@ -116,7 +124,7 @@
         setRuleStatus(`✅ 已保存 ${parsed.sites.length} 个站点规则（覆盖内置）；刷新已打开的下载站页面后生效`, 'ok');
         await loadRules();
       } else {
-        setRuleStatus('保存失败: ' + (resp && resp.error || '校验未通过'), 'error');
+        setRuleStatus('保存失败: ' + ((resp && resp.error) || '校验未通过'), 'error');
       }
     } catch (e) {
       setRuleStatus('保存失败: ' + e.message, 'error');
@@ -139,7 +147,10 @@
   // ============ 导出 / 导入 / Export & import ============
   function exportRules() {
     const data = (OPTS.ruleData && OPTS.ruleData.merged) || null;
-    if (!data) { setRuleStatus('暂无规则可导出', 'error'); return; }
+    if (!data) {
+      setRuleStatus('暂无规则可导出', 'error');
+      return;
+    }
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -165,7 +176,7 @@
         setRuleStatus(`✅ 导入成功：${parsed2.sites.length} 个站点规则已生效；刷新已打开的下载站页面后生效`, 'ok');
         await loadRules();
       } else {
-        setRuleStatus('导入失败: ' + (resp && resp.error || '校验未通过'), 'error');
+        setRuleStatus('导入失败: ' + ((resp && resp.error) || '校验未通过'), 'error');
       }
     } catch (err) {
       setRuleStatus('导入文件解析失败: ' + err.message, 'error');

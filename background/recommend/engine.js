@@ -24,7 +24,7 @@ export function calculateKeywordScore(keywords, keywordWeights) {
   if (!keywords || keywords.length === 0) return null;
   let matchScore = 0;
   let matchCount = 0;
-  keywords.forEach(kw => {
+  keywords.forEach((kw) => {
     if (keywordWeights[kw] !== undefined) {
       matchScore += keywordWeights[kw];
       matchCount++;
@@ -49,13 +49,13 @@ export function findProfile(profiles, name, registryEntry) {
   }
   if (cleaned && cleaned.length >= 2) {
     // 模糊匹配前规范化（去标点/空格/斜杠），兼容记录名与列表标题的格式差异
-    const normKey = s => s.toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）\/]/g, '');
+    const normKey = (s) => s.toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）\/]/g, '');
     const normCleaned = normKey(cleaned);
     let best = null;
     for (const [k, p] of Object.entries(profiles)) {
       const nk = normKey(k);
       if (nk.includes(normCleaned) || normCleaned.includes(nk)) {
-        if (!best || (p.views + p.downloads) > (best.views + best.downloads)) best = p;
+        if (!best || p.views + p.downloads > best.views + best.downloads) best = p;
       }
     }
     if (best) return best;
@@ -103,12 +103,18 @@ export function steamspyScores(spy) {
 // v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
 // 权重六项（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
 export function computeGameScore({
-  profile = null, globalStats = {}, tags = null,
-  keywordWeights = {}, positiveRate = null, chineseSupported = false, weights = {},
-  playTimeScore = null, heatScore = null
+  profile = null,
+  globalStats = {},
+  tags = null,
+  keywordWeights = {},
+  positiveRate = null,
+  chineseSupported = false,
+  weights = {},
+  playTimeScore = null,
+  heatScore = null
 }) {
-  const views = profile ? (profile.views || 0) : 0;
-  const downloads = profile ? (profile.downloads || 0) : 0;
+  const views = profile ? profile.views || 0 : 0;
+  const downloads = profile ? profile.downloads || 0 : 0;
   // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）
   const clickScore = globalStats.maxViews > 0 ? Math.min(views / globalStats.maxViews, 1) : 0;
   const downloadScore = globalStats.maxDownloads > 0 ? Math.min(downloads / globalStats.maxDownloads, 1) : 0;
@@ -163,12 +169,10 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   }
 
   // 内置算法：聚合该游戏所需数据（行为画像/偏好/注册表/Steam 缓存）
-  const [profiles, keywordWeights] = (shared && shared.profiles)
-    ? [shared.profiles, shared.keywordWeights || {}]
-    : await Promise.all([
-        readProfiles(),
-        readKeywordWeights()
-      ]);
+  const [profiles, keywordWeights] =
+    shared && shared.profiles
+      ? [shared.profiles, shared.keywordWeights || {}]
+      : await Promise.all([readProfiles(), readKeywordWeights()]);
 
   // 解析 appId：列表页封面直取优先，否则名称索引
   let appId = gameInfo.appId || null;
@@ -182,14 +186,13 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   const profile = findProfile(profiles, gameInfo.name, registryEntry);
   const allProfiles = Object.values(profiles);
   const globalStats = {
-    maxViews: Math.max(1, ...allProfiles.map(p => p.views || 0)),
-    maxDownloads: Math.max(1, ...allProfiles.map(p => p.downloads || 0))
+    maxViews: Math.max(1, ...allProfiles.map((p) => p.views || 0)),
+    maxDownloads: Math.max(1, ...allProfiles.map((p) => p.downloads || 0))
   };
   // v3.3.7：缓存为模块结构，用合并视图读字段
   const steamData = steamEntry ? getMergedData(steamEntry) : null;
   // v4.0.0：SteamSpy 时长/热度信号（spy 模块可能为 null，steamspyScores 兜底）
-  const { playTimeScore, heatScore } = steamspyScores(
-    steamData && steamData.steamspy ? steamData.steamspy : null);
+  const { playTimeScore, heatScore } = steamspyScores(steamData && steamData.steamspy ? steamData.steamspy : null);
 
   return computeGameScore({
     profile,
@@ -224,37 +227,49 @@ async function calculateWithLLM(gameInfo, settings) {
   const LLM_FETCH_TIMEOUT = 30000;
   if (llmConfig.provider === 'local') {
     // Ollama 本地模型
-    response = await fetchWithTimeout(llmConfig.endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      allowPrivateHosts: true,
-      body: JSON.stringify({
-        model: llmConfig.model,
-        prompt,
-        stream: false,
-        options: { temperature: llmConfig.temperature }
-      })
-    }, LLM_FETCH_TIMEOUT);
+    response = await fetchWithTimeout(
+      llmConfig.endpoint,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        allowPrivateHosts: true,
+        body: JSON.stringify({
+          model: llmConfig.model,
+          prompt,
+          stream: false,
+          options: { temperature: llmConfig.temperature }
+        })
+      },
+      LLM_FETCH_TIMEOUT
+    );
     const data = await response.json();
     return parseLLMResponse(data.response);
   } else {
     // OpenAI兼容接口
-    response = await fetchWithTimeout(llmConfig.endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${llmConfig.apiKey}`
+    response = await fetchWithTimeout(
+      llmConfig.endpoint,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${llmConfig.apiKey}`
+        },
+        allowPrivateHosts: true,
+        body: JSON.stringify({
+          model: llmConfig.model,
+          messages: [
+            {
+              role: 'system',
+              content:
+                '你是一个游戏推荐评分系统。根据用户的游戏偏好和游戏信息，给出0-1之间的下载概率评分。只返回JSON格式：{"score": 0.85, "reason": "简短理由"}'
+            },
+            { role: 'user', content: prompt }
+          ],
+          temperature: llmConfig.temperature
+        })
       },
-      allowPrivateHosts: true,
-      body: JSON.stringify({
-        model: llmConfig.model,
-        messages: [
-          { role: 'system', content: '你是一个游戏推荐评分系统。根据用户的游戏偏好和游戏信息，给出0-1之间的下载概率评分。只返回JSON格式：{"score": 0.85, "reason": "简短理由"}' },
-          { role: 'user', content: prompt }
-        ],
-        temperature: llmConfig.temperature
-      })
-    }, LLM_FETCH_TIMEOUT);
+      LLM_FETCH_TIMEOUT
+    );
     const data = await response.json();
     return parseLLMResponse(data.choices[0].message.content);
   }

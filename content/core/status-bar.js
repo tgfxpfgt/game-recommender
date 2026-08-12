@@ -19,8 +19,8 @@
   let statusEl = null;
   let hideTimer = null;
   let lastStats = null; // 最近一次统计（供 popup 重新显示）/ latest stats
-  let startTime = 0;    // 本次任务开始时间（计时器）/ task start time
-  let enabled = true;   // 总开关（showStatusBar）/ master switch
+  let startTime = 0; // 本次任务开始时间（计时器）/ task start time
+  let enabled = true; // 总开关（showStatusBar）/ master switch
   let debugMode = false; // 调试模式（showDebugPanel）/ debug mode
 
   // 格式化耗时 / Format elapsed time
@@ -46,10 +46,11 @@
     if (!enabled) return;
     if (!startTime) startTime = Date.now();
     const el = ensureEl();
-    const pct = total > 0 ? Math.round(current / total * 100) : null;
-    const progressHtml = pct === null
-      ? `<div style="height:4px;background:#2a475e;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:40%;height:100%;background:#66c0f4;border-radius:2px;animation:gr-status-slide 1.2s ease-in-out infinite;"></div></div>`
-      : `<div style="height:4px;background:#2a475e;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:#66c0f4;border-radius:2px;transition:width 0.3s;"></div></div>`;
+    const pct = total > 0 ? Math.round((current / total) * 100) : null;
+    const progressHtml =
+      pct === null
+        ? `<div style="height:4px;background:#2a475e;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:40%;height:100%;background:#66c0f4;border-radius:2px;animation:gr-status-slide 1.2s ease-in-out infinite;"></div></div>`
+        : `<div style="height:4px;background:#2a475e;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:#66c0f4;border-radius:2px;transition:width 0.3s;"></div></div>`;
     ensureKeyframes();
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:bold;font-size:12px;">
@@ -69,12 +70,13 @@
     startTime = 0;
     if (!enabled) return;
     const el = ensureEl();
-    const rows = (stats && stats.rows && stats.rows.length > 0)
-      ? stats.rows.map(r => `<div style="font-size:11px;color:#8f98a0;">${GR.common.escapeHtml(r)}</div>`).join('')
-      : '';
+    const rows =
+      stats && stats.rows && stats.rows.length > 0
+        ? stats.rows.map((r) => `<div style="font-size:11px;color:#8f98a0;">${GR.common.escapeHtml(r)}</div>`).join('')
+        : '';
     el.innerHTML = `
       <div style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:bold;font-size:12px;">
-        <span>✅</span><span>${GR.common.escapeHtml(stats ? (stats.title || '完成') : '完成')}</span>
+        <span>✅</span><span>${GR.common.escapeHtml(stats ? stats.title || '完成' : '完成')}</span>
         ${elapsed ? `<span style="margin-left:auto;font-size:10px;color:#8f98a0;">⏱ ${GR.common.escapeHtml(elapsed)}</span>` : ''}
       </div>
       ${stats && stats.summary ? `<div style="font-size:12px;color:#66c0f4;margin-top:4px;">${GR.common.escapeHtml(stats.summary)}</div>` : ''}
@@ -106,7 +108,10 @@
       chrome: true,
       width: 380,
       title: '🔧 Game Recommender 调试',
-      onClose: () => { debugDismissed = true; statusEl = null; }
+      onClose: () => {
+        debugDismissed = true;
+        statusEl = null;
+      }
     });
     statusEl.innerHTML = html;
     clearTimeout(hideTimer); // 诊断视图常驻 / persistent
@@ -146,8 +151,13 @@
   }
 
   GR.status = {
-    showStatus, showStats, showLastStats, hide,
-    setEnabled: (v) => { enabled = !!v; },
+    showStatus,
+    showStats,
+    showLastStats,
+    hide,
+    setEnabled: (v) => {
+      enabled = !!v;
+    },
     setDebugMode,
     showDebugView
   };

@@ -12,8 +12,8 @@ import { getSettings } from '../core/settings.js';
 
 let logBuffer = [];
 let logFlushTimer = null;
-let logConfig = null;       // 日志配置缓存（v3.4.1：高频 writeLog 不再每次读设置）
-let logConfigChecked = 0;   // 上次刷新时间戳
+let logConfig = null; // 日志配置缓存（v3.4.1：高频 writeLog 不再每次读设置）
+let logConfigChecked = 0; // 上次刷新时间戳
 
 // 日志配置（10 秒缓存；开关/级别调整最多延迟 10s 生效——flush 仍实时读设置兜底）
 // Logging config with a 10s cache (flush still reads settings live as a fallback)
@@ -34,7 +34,10 @@ async function getLogConfig() {
 
 // 立即将缓冲区合并写入存储 / Flush buffered logs into storage immediately
 export async function flushLogBuffer() {
-  if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
+  if (logFlushTimer) {
+    clearTimeout(logFlushTimer);
+    logFlushTimer = null;
+  }
   if (logBuffer.length === 0) return;
 
   const pending = logBuffer;
@@ -53,7 +56,7 @@ export async function flushLogBuffer() {
     const retentionMs = (settings.logRetentionDays || 0) * 24 * 3600 * 1000;
     if (retentionMs > 0) {
       const cutoff = Date.now() - retentionMs;
-      logs = logs.filter(l => l && l.timestamp >= cutoff);
+      logs = logs.filter((l) => l && l.timestamp >= cutoff);
     }
 
     const max = settings.maxRuntimeLog || 300;
@@ -83,7 +86,9 @@ async function writeLog(level, module, message, data) {
       try {
         const s = typeof data === 'string' ? data : JSON.stringify(data);
         entry.data = s.length > 1000 ? s.substring(0, 1000) + '...' : s;
-      } catch { entry.data = String(data); }
+      } catch {
+        entry.data = String(data);
+      }
     }
 
     logBuffer.push(entry);
@@ -97,8 +102,8 @@ async function writeLog(level, module, message, data) {
 // 日志对象（各模块统一使用）/ Logger facade
 export const Logger = {
   debug: (module, msg, data) => writeLog('debug', module, msg, data),
-  info:  (module, msg, data) => writeLog('info', module, msg, data),
-  warn:  (module, msg, data) => writeLog('warn', module, msg, data),
+  info: (module, msg, data) => writeLog('info', module, msg, data),
+  warn: (module, msg, data) => writeLog('warn', module, msg, data),
   error: (module, msg, data) => writeLog('error', module, msg, data)
 };
 
@@ -120,7 +125,10 @@ export async function getRuntimeLogs(limit) {
 // 清空日志 / Clear runtime logs
 export async function clearRuntimeLogs() {
   logBuffer = [];
-  if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
+  if (logFlushTimer) {
+    clearTimeout(logFlushTimer);
+    logFlushTimer = null;
+  }
   const settings = await getSettings();
   if (settings.logStorage === 'local') {
     await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
@@ -134,5 +142,8 @@ export function resetLogBuffer() {
   logBuffer = [];
   logConfig = null;
   logConfigChecked = 0;
-  if (logFlushTimer) { clearTimeout(logFlushTimer); logFlushTimer = null; }
+  if (logFlushTimer) {
+    clearTimeout(logFlushTimer);
+    logFlushTimer = null;
+  }
 }

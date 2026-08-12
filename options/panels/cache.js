@@ -34,7 +34,7 @@
       }, 300);
     });
     // 好评率 / 标签 / 站点 / 类型筛选：变更即搜索（防抖 300ms）
-    ['cacheMinRating', 'cacheTagInput', 'cacheSiteFilter', 'cacheTypeFilter'].forEach(id => {
+    ['cacheMinRating', 'cacheTagInput', 'cacheSiteFilter', 'cacheTypeFilter'].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
       el.addEventListener('input', () => {
@@ -116,12 +116,14 @@
     const select = document.getElementById('cacheSiteFilter');
     if (!select) return;
     const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
-    rules.filter(s => s.searchUrl).forEach(s => {
-      const opt = document.createElement('option');
-      opt.value = s.key;
-      opt.textContent = s.name;
-      select.appendChild(opt);
-    });
+    rules
+      .filter((s) => s.searchUrl)
+      .forEach((s) => {
+        const opt = document.createElement('option');
+        opt.value = s.key;
+        opt.textContent = s.name;
+        select.appendChild(opt);
+      });
   }
 
   // 加载游戏缓存列表
@@ -163,12 +165,16 @@
       }
 
       // 渲染表格行（封面缩略图 + 好评率徽章 + 可点击 appId + 手动更新按钮）
-      tbody.innerHTML = resp.games.map(g => `
+      tbody.innerHTML = resp.games
+        .map(
+          (g) => `
         <tr>
           <td class="col-cover">
-            ${g.coverImage
-              ? `<img src="${escapeAttr(g.coverImage)}" class="cache-cover" loading="lazy" alt="" title="${escapeAttr(g.cnName || g.appId)}">`
-              : '—'}
+            ${
+              g.coverImage
+                ? `<img src="${escapeAttr(g.coverImage)}" class="cache-cover" loading="lazy" alt="" title="${escapeAttr(g.cnName || g.appId)}">`
+                : '—'
+            }
           </td>
           <td class="col-appid">
             ${formatRatingBadge(g.positiveRate)}
@@ -184,20 +190,24 @@
           <td class="col-time">${formatTime(g.lastAccessed)}</td>
           <td><button class="cache-delete-btn" data-appid="${escapeAttr(g.appId)}">删除</button></td>
         </tr>
-      `).join('');
+      `
+        )
+        .join('');
 
       // 绑定删除按钮事件
-      tbody.querySelectorAll('.cache-delete-btn').forEach(btn => {
+      tbody.querySelectorAll('.cache-delete-btn').forEach((btn) => {
         btn.addEventListener('click', () => deleteCacheEntry(btn.dataset.appid));
       });
 
       // 封面图加载失败时隐藏（MV3 CSP 合规：addEventListener 而非内联 onerror）
-      tbody.querySelectorAll('.cache-cover').forEach(img => {
-        img.addEventListener('error', () => { img.style.display = 'none'; });
+      tbody.querySelectorAll('.cache-cover').forEach((img) => {
+        img.addEventListener('error', () => {
+          img.style.display = 'none';
+        });
       });
 
       // 绑定手动更新按钮事件
-      tbody.querySelectorAll('.cache-refresh-btn').forEach(btn => {
+      tbody.querySelectorAll('.cache-refresh-btn').forEach((btn) => {
         btn.addEventListener('click', () => refreshCacheEntry(btn.dataset.appid, btn));
       });
 
@@ -214,8 +224,20 @@
       return `<span class="rating-badge" style="color:#8f98a0;background:rgba(143,152,160,0.12);border-color:#3a3a4a;">暂无</span>`;
     }
     const P = globalThis.__GR_PATTERNS__ || {};
-    const color = P.ratingColorFor ? P.ratingColorFor(rate) : (rate >= 80 ? '#66c0f4' : rate >= 60 ? '#a3cf06' : '#ff7b00');
-    const bg = P.ratingBgFor ? P.ratingBgFor(rate) : (rate >= 80 ? 'rgba(102,192,244,0.15)' : rate >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)');
+    const color = P.ratingColorFor
+      ? P.ratingColorFor(rate)
+      : rate >= 80
+        ? '#66c0f4'
+        : rate >= 60
+          ? '#a3cf06'
+          : '#ff7b00';
+    const bg = P.ratingBgFor
+      ? P.ratingBgFor(rate)
+      : rate >= 80
+        ? 'rgba(102,192,244,0.15)'
+        : rate >= 60
+          ? 'rgba(163,207,6,0.15)'
+          : 'rgba(255,123,0,0.15)';
     return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">${rate}%</span>`;
   }
 
@@ -223,7 +245,11 @@
   function formatTypeBadge(type) {
     if (!type) return '—';
     const t = type.toLowerCase();
-    const map = { game: ['#66c0f4', 'rgba(102,192,244,0.12)'], dlc: ['#ff7b00', 'rgba(255,123,0,0.12)'], bundle: ['#b48ce0', 'rgba(180,140,224,0.12)'] };
+    const map = {
+      game: ['#66c0f4', 'rgba(102,192,244,0.12)'],
+      dlc: ['#ff7b00', 'rgba(255,123,0,0.12)'],
+      bundle: ['#b48ce0', 'rgba(180,140,224,0.12)']
+    };
     const [color, bg] = map[t] || ['#8f98a0', 'rgba(143,152,160,0.1)'];
     return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">${escapeHtml(type)}</span>`;
   }
@@ -233,14 +259,21 @@
     if (score === null || score === undefined) return '—';
     const pct = Math.round(score * 100);
     const color = pct >= 80 ? '#e74c3c' : pct >= 60 ? '#ff7b00' : pct >= 40 ? '#a3cf06' : '#8f98a0';
-    const bg = pct >= 80 ? 'rgba(231,76,60,0.12)' : pct >= 60 ? 'rgba(255,123,0,0.12)' : pct >= 40 ? 'rgba(163,207,6,0.12)' : 'rgba(143,152,160,0.1)';
+    const bg =
+      pct >= 80
+        ? 'rgba(231,76,60,0.12)'
+        : pct >= 60
+          ? 'rgba(255,123,0,0.12)'
+          : pct >= 40
+            ? 'rgba(163,207,6,0.12)'
+            : 'rgba(143,152,160,0.1)';
     return `<span class="rating-badge" style="color:${color};background:${bg};border-color:${color};">🎯 ${pct}%</span>`;
   }
 
   // 推荐值组成说明（悬停）/ Recommendation breakdown tooltip
   function formatRecDetail(g) {
     const b = g.recommendationDetail || {};
-    const fmt = v => Math.round((v || 0) * 100) + '%';
+    const fmt = (v) => Math.round((v || 0) * 100) + '%';
     return `推荐度: ${Math.round((g.recommendation || 0) * 100)}%\n点击率: ${fmt(b.clickScore)} · 下载率: ${fmt(b.downloadScore)}\n关键词: ${fmt(b.keywordScore)} · Steam: ${fmt(b.steamScore)}`;
   }
 
@@ -254,16 +287,25 @@
       const resp = await chrome.runtime.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId });
       if (resp && resp.success) {
         btn.textContent = '✅';
-        setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1200);
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 1200);
         loadGameCache();
       } else {
         btn.textContent = '❌';
-        setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+        setTimeout(() => {
+          btn.textContent = originalText;
+          btn.disabled = false;
+        }, 1500);
         alert('更新失败: ' + (resp ? resp.error : '未知错误'));
       }
     } catch (e) {
       btn.textContent = '❌';
-      setTimeout(() => { btn.textContent = originalText; btn.disabled = false; }, 1500);
+      setTimeout(() => {
+        btn.textContent = originalText;
+        btn.disabled = false;
+      }, 1500);
       alert('更新失败: ' + e.message);
     }
   }
@@ -301,7 +343,7 @@
 
     container.innerHTML = html;
 
-    container.querySelectorAll('button[data-page]').forEach(btn => {
+    container.querySelectorAll('button[data-page]').forEach((btn) => {
       if (btn.disabled) return;
       btn.addEventListener('click', () => {
         OPTS.cacheCurrentPage = parseInt(btn.dataset.page);
@@ -327,7 +369,12 @@
 
   // 清空全部游戏缓存
   async function clearAllCache() {
-    if (!confirm('确定要清空全部游戏缓存吗？此操作不可恢复。\n\n将清除：\n· 游戏注册表（中英文名映射）\n· Steam 动态缓存（好评率/评论）\n· 下载站详情页网址缓存\n· 名称索引')) return;
+    if (
+      !confirm(
+        '确定要清空全部游戏缓存吗？此操作不可恢复。\n\n将清除：\n· 游戏注册表（中英文名映射）\n· Steam 动态缓存（好评率/评论）\n· 下载站详情页网址缓存\n· 名称索引'
+      )
+    )
+      return;
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'CLEAR_GAME_CACHE' });
       if (resp && resp.success) {
@@ -358,14 +405,20 @@
   // 格式化下载站网址（主网址 + 展开链接）
   function formatDownloadUrls(downloadUrls, primaryUrl) {
     if (!downloadUrls || downloadUrls.length === 0) {
-      return primaryUrl ? `<a href="${escapeAttr(primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(primaryUrl))}</a>` : '—';
+      return primaryUrl
+        ? `<a href="${escapeAttr(primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(primaryUrl))}</a>`
+        : '—';
     }
-    return downloadUrls.map(u => `
+    return downloadUrls
+      .map(
+        (u) => `
       <div style="margin-bottom:2px;">
         <span style="color:#8f98a0;font-size:10px;">${escapeHtml(u.siteName)}:</span>
         <a href="${escapeAttr(u.url)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(u.url))}</a>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
   }
 
   // 截断过长 URL

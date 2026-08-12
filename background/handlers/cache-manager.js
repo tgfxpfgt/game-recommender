@@ -7,20 +7,30 @@ import { getSettings } from '../core/settings.js';
 import { computeGameScore, findProfile, steamspyScores } from '../recommend/engine.js';
 import { searchDownloadSites } from '../sites/search.js';
 import { fetchSteamFullDetailsByAppId } from '../steam/api.js';
-import { collectExpiredSteamCache, collectExpiredNegativeNames, collectExpiredDownloadUrls } from '../storage/cleanup.js';
+import {
+  collectExpiredSteamCache,
+  collectExpiredNegativeNames,
+  collectExpiredDownloadUrls
+} from '../storage/cleanup.js';
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, deleteNameIndexEntries } from '../storage/name-index.js';
 import { flushRegistry, getGameRegistry, recordGameInRegistry } from '../storage/registry.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
-import { flushSteamCache, setSteamCacheEntry, deleteSteamCacheEntry, getSteamCacheMemory, loadSteamCacheToMemory, getMergedData } from '../storage/steam-cache.js';
+import {
+  flushSteamCache,
+  setSteamCacheEntry,
+  deleteSteamCacheEntry,
+  getSteamCacheMemory,
+  loadSteamCacheToMemory,
+  getMergedData
+} from '../storage/steam-cache.js';
 
 /**
  * Game Recommender - 消息处理：游戏缓存管理 / Cache Manager Handlers
  *
  * v5.0.0：由 handlers.js 拆分——缓存列表/删除/清空/单条刷新/过期清理。
  */
-
 
 // --- 缓存过期清理（v3.0.0）---
 export async function handleCleanExpiredCache() {
@@ -53,7 +63,6 @@ export async function handleCleanExpiredCache() {
 
 // --- 名称批量自愈（v3.1.0）---
 
-
 // --- 游戏缓存管理 / Game cache management ---
 export async function handleGetGameCacheList(message) {
   const keyword = (message.keyword || '').toLowerCase().trim();
@@ -73,14 +82,11 @@ export async function handleGetGameCacheList(message) {
   const steamCacheMemory = getSteamCacheMemory();
 
   // 推荐值（appId 维度个性化）：批量计算一次取齐画像/偏好，循环复用
-  const [gameProfiles, keywordWeights] = await Promise.all([
-    readProfiles(),
-    readKeywordWeights()
-  ]);
+  const [gameProfiles, keywordWeights] = await Promise.all([readProfiles(), readKeywordWeights()]);
   const allProfiles = Object.values(gameProfiles);
   const globalStats = {
-    maxViews: Math.max(1, ...allProfiles.map(p => p.views || 0)),
-    maxDownloads: Math.max(1, ...allProfiles.map(p => p.downloads || 0))
+    maxViews: Math.max(1, ...allProfiles.map((p) => p.views || 0)),
+    maxDownloads: Math.max(1, ...allProfiles.map((p) => p.downloads || 0))
   };
 
   let games = Object.entries(registry).map(([appId, entry]) => {
@@ -88,20 +94,19 @@ export async function handleGetGameCacheList(message) {
     for (const [sk, bucket] of Object.entries(urlStore.sites)) {
       if (bucket[appId]) urls[sk] = bucket[appId];
     }
-    const primaryUrl = Object.values(urls).find(u => u && u.url) || null;
+    const primaryUrl = Object.values(urls).find((u) => u && u.url) || null;
     const cachedEntry = steamCacheMemory ? steamCacheMemory.get(String(appId)) || null : null;
     const cachedData = cachedEntry ? getMergedData(cachedEntry) : null;
     // 推荐值计算（纯函数，行为/Steam 信息动态反映）
     const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
     // v4.0.0：SteamSpy 时长/热度信号（与 calculateRecommendation 两处评分一致）
-    const { playTimeScore, heatScore } = steamspyScores(
-      cachedData && cachedData.steamspy ? cachedData.steamspy : null);
+    const { playTimeScore, heatScore } = steamspyScores(cachedData && cachedData.steamspy ? cachedData.steamspy : null);
     const rec = computeGameScore({
       profile,
       globalStats,
       tags: entry.tags || null,
       keywordWeights,
-      positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
+      positiveRate: cachedData && cachedData.positiveRate !== undefined ? cachedData.positiveRate : null,
       chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
       playTimeScore,
       heatScore,
@@ -116,7 +121,7 @@ export async function handleGetGameCacheList(message) {
       coverImage: entry.coverImage || null,
       firstSeen: entry.firstSeen || null,
       lastConfirmed: entry.lastConfirmed || null,
-      positiveRate: (cachedData && cachedData.positiveRate !== undefined) ? cachedData.positiveRate : null,
+      positiveRate: cachedData && cachedData.positiveRate !== undefined ? cachedData.positiveRate : null,
       recommendation: rec.score,
       recommendationDetail: rec.breakdown,
       type: entry.type || (cachedData && cachedData.type) || '',
@@ -134,24 +139,25 @@ export async function handleGetGameCacheList(message) {
   });
 
   if (keyword) {
-    games = games.filter(g =>
-      String(g.appId).includes(keyword) ||
-      (g.cnName && g.cnName.toLowerCase().includes(keyword)) ||
-      (g.enName && g.enName.toLowerCase().includes(keyword)) ||
-      g.names.some(n => n.includes(keyword))
+    games = games.filter(
+      (g) =>
+        String(g.appId).includes(keyword) ||
+        (g.cnName && g.cnName.toLowerCase().includes(keyword)) ||
+        (g.enName && g.enName.toLowerCase().includes(keyword)) ||
+        g.names.some((n) => n.includes(keyword))
     );
   }
   if (minRating > 0) {
-    games = games.filter(g => g.positiveRate !== null && g.positiveRate !== undefined && g.positiveRate >= minRating);
+    games = games.filter((g) => g.positiveRate !== null && g.positiveRate !== undefined && g.positiveRate >= minRating);
   }
   if (tag) {
-    games = games.filter(g => (g.tags || []).some(t => t.toLowerCase().includes(tag)));
+    games = games.filter((g) => (g.tags || []).some((t) => t.toLowerCase().includes(tag)));
   }
   if (siteKey) {
-    games = games.filter(g => g.downloadUrls.some(u => u.siteKey === siteKey && u.url));
+    games = games.filter((g) => g.downloadUrls.some((u) => u.siteKey === siteKey && u.url));
   }
   if (typeFilter) {
-    games = games.filter(g => (g.type || '').toLowerCase() === typeFilter);
+    games = games.filter((g) => (g.type || '').toLowerCase() === typeFilter);
   }
 
   games.sort((a, b) => (b.lastConfirmed || 0) - (a.lastConfirmed || 0));
@@ -164,15 +170,13 @@ export async function handleGetGameCacheList(message) {
   return { games: pageItems, total, page, pageSize, totalPages };
 }
 
-
-
 export async function handleDeleteGameCacheEntry(message) {
   const appId = String(message.appId || '');
   if (!appId) return { success: false, error: 'appId required' };
 
   const registry = await getGameRegistry();
   const entry = registry[appId];
-  const namesToClean = entry ? (entry.names || []) : [];
+  const namesToClean = entry ? entry.names || [] : [];
 
   delete registry[appId];
   await flushRegistry();
@@ -193,8 +197,6 @@ export async function handleDeleteGameCacheEntry(message) {
   return { success: true };
 }
 
-
-
 export async function handleClearGameCache() {
   await Promise.all([
     dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
@@ -207,8 +209,6 @@ export async function handleClearGameCache() {
   Logger.info('Cache', '清空全部游戏缓存');
   return { success: true };
 }
-
-
 
 export async function handleRefreshGameCacheEntry(message) {
   const appId = String(message.appId || '');
@@ -227,7 +227,7 @@ export async function handleRefreshGameCacheEntry(message) {
 
     const settings = await getSettings();
     const allSites = await getDownloadSites();
-    const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
+    const enabledKeys = settings.steamSiteSearch || allSites.map((s) => s.key);
     const sites = await searchDownloadSites(result.name, appId, enabledKeys);
 
     await flushAllCaches();
@@ -238,7 +238,7 @@ export async function handleRefreshGameCacheEntry(message) {
       name: result.name,
       englishName: result.englishName || '',
       positiveRate: result.positiveRate,
-      sites: sites.map(s => ({ key: s.key, found: s.found, detailUrl: s.detailUrl }))
+      sites: sites.map((s) => ({ key: s.key, found: s.found, detailUrl: s.detailUrl }))
     };
   } catch (e) {
     Logger.error('Cache', `手动刷新缓存条目失败: ${e.message}`);

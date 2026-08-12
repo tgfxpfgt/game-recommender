@@ -40,7 +40,7 @@
 
     if (h1) {
       // 移除徽章/角标元素（如咸鱼单机的"新游发布" span）
-      h1.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach(b => b.remove());
+      h1.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach((b) => b.remove());
 
       // 策略1：优先从 h1 子元素中提取纯英文标题
       const enChild = h1.querySelector('span, div, p, em, strong, small');
@@ -55,12 +55,16 @@
       // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，v3.4.0
       // 移除降级副本——权威源由 manifest 保证在内容脚本加载时已注入）
       const noisePattern = new RegExp(
-        (globalThis.__GR_PATTERNS__ && globalThis.__GR_PATTERNS__.noisePatternSource) || '(中文|汉化|破解|下载|游戏下载|免费下载|支持手柄|手柄|支持|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|DLC.*|全DLC|整合|硬盘|免DVD)',
+        (globalThis.__GR_PATTERNS__ && globalThis.__GR_PATTERNS__.noisePatternSource) ||
+          '(中文|汉化|破解|下载|游戏下载|免费下载|支持手柄|手柄|支持|版|v[\\d.]+|V[\\d.]+|\\d+\\.\\d+[\\d.]*|Build[.\\s]*\\d+|DLC.*|全DLC|整合|硬盘|免DVD)',
         'gi'
       );
       let text = h1.textContent.trim();
-      const parts = text.split(/[|]+|\s+[-–—]\s+|[×•·]/).map(s => s.trim()).filter(s => s.length > 1);
-      const keptParts = parts.filter(p => {
+      const parts = text
+        .split(/[|]+|\s+[-–—]\s+|[×•·]/)
+        .map((s) => s.trim())
+        .filter((s) => s.length > 1);
+      const keptParts = parts.filter((p) => {
         const stripped = p.replace(noisePattern, '').replace(/[\s\|\-:：、]+/g, '');
         return stripped.length > 0;
       });
@@ -130,11 +134,14 @@
         if (resp && resp.sites) {
           renderDownloadSitePanel(panel, resp.sites, gameName);
           // 工作状态浮窗：完成统计 / Completion stats
-          const found = resp.sites.filter(s => s.found).length;
+          const found = resp.sites.filter((s) => s.found).length;
           GR.status.showStats({
             title: '下载站资源检索完成',
             summary: `${found}/${resp.sites.length} 个下载站找到资源`,
-            rows: resp.sites.filter(s => s.found).map(s => `${s.name}: ${s.detailUrl}`).slice(0, 3)
+            rows: resp.sites
+              .filter((s) => s.found)
+              .map((s) => `${s.name}: ${s.detailUrl}`)
+              .slice(0, 3)
           });
         } else {
           panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
@@ -210,27 +217,29 @@
       document.head.appendChild(style);
     }
 
-    chrome.runtime.sendMessage({
-      action: 'GET_DOWNLOAD_HISTORY',
-      gameName: gameName
-    }).then(resp => {
-      if (!resp || !resp.record) return; // 没有历史记录就不显示
+    chrome.runtime
+      .sendMessage({
+        action: 'GET_DOWNLOAD_HISTORY',
+        gameName: gameName
+      })
+      .then((resp) => {
+        if (!resp || !resp.record) return; // 没有历史记录就不显示
 
-      const record = resp.record;
-      dbg(`下载历史: ${record.lastDownloadSiteName}, ${new Date(record.lastDownloadTime).toLocaleString()}`);
+        const record = resp.record;
+        dbg(`下载历史: ${record.lastDownloadSiteName}, ${new Date(record.lastDownloadTime).toLocaleString()}`);
 
-      // 浮窗容器经 GR.float 统一管理（左下区域）
-      const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-history-float', {
-        chrome: true,
-        width: 280,
-        title: '📥 下载记录'
-      });
+        // 浮窗容器经 GR.float 统一管理（左下区域）
+        const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-history-float', {
+          chrome: true,
+          width: 280,
+          title: '📥 下载记录'
+        });
 
-      const timeStr = GR.common.formatRelativeTime(record.lastDownloadTime);
-      const siteName = record.lastDownloadSiteName || '未知站点';
+        const timeStr = GR.common.formatRelativeTime(record.lastDownloadTime);
+        const siteName = record.lastDownloadSiteName || '未知站点';
 
-      panel.style.padding = '12px 14px';
-      panel.innerHTML = `
+        panel.style.padding = '12px 14px';
+        panel.innerHTML = `
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
           <span style="font-size:16px;">📥</span>
           <span style="font-weight:bold;color:#66c0f4;font-size:13px;">下载记录</span>
@@ -244,7 +253,8 @@
         ${record.totalDownloads && record.totalDownloads > 1 ? `<div style="color:#666;margin-top:6px;font-size:11px;">共下载 ${record.totalDownloads} 次</div>` : ''}
         ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${GR.common.escapeAttr(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
       `;
-    }).catch(() => {});
+      })
+      .catch(() => {});
   }
 
   // ============ Steam详情浮窗（仿Steam右侧信息栏） ============
@@ -258,7 +268,8 @@
       title: '🎮 Steam 信息'
     });
     // 初始隐藏，数据就绪后滑入显示（保留原动画语义）
-    panel.style.cssText += 'opacity:0;transform:translateX(20px);pointer-events:none;transition:opacity 0.3s,transform 0.3s;';
+    panel.style.cssText +=
+      'opacity:0;transform:translateX(20px);pointer-events:none;transition:opacity 0.3s,transform 0.3s;';
     panel.innerHTML = `
       <div style="padding:16px;text-align:center;color:#8f98a0;">
         <div style="font-size:24px;margin-bottom:8px;">🎮</div>
@@ -286,11 +297,14 @@
     let reportIssue = null;
     function makeReportIssue(name) {
       return async () => {
-        const wrongAppId = steamData && steamData.appId ? String(steamData.appId) : (GR.builder.extractSteamAppIdFromImages() || '');
+        const wrongAppId =
+          steamData && steamData.appId ? String(steamData.appId) : GR.builder.extractSteamAppIdFromImages() || '';
         dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
         try {
           await chrome.runtime.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
-        } catch { /* 后台不可达不阻断重检索 */ }
+        } catch {
+          /* 后台不可达不阻断重检索 */
+        }
         // 重新检索：有封面 appId 直取，否则名称搜索
         const imgAppId = GR.builder.extractSteamAppIdFromImages();
         let resp = null;
@@ -301,8 +315,7 @@
           resp = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM', gameName: name });
         }
         // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
-        const sameAppId = resp && resp.data && wrongAppId &&
-          String(resp.data.appId) === wrongAppId;
+        const sameAppId = resp && resp.data && wrongAppId && String(resp.data.appId) === wrongAppId;
         if (resp && resp.data && !sameAppId) {
           steamData = resp.data;
           const newCachedAt = resp.cachedAt || Date.now();
@@ -310,12 +323,14 @@
           renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
           showPanel();
         } else {
-          dbg(sameAppId
-            ? `⚠️ 报错重检索仍是同一 appId ${wrongAppId}，进入手动选择`
-            : '⚠️ 报错重检索未找到，进入手动选择');
+          dbg(
+            sameAppId ? `⚠️ 报错重检索仍是同一 appId ${wrongAppId}，进入手动选择` : '⚠️ 报错重检索未找到，进入手动选择'
+          );
           renderManualSelectPanel(panel, name, hidePanel, (selData, selAppId) => {
             renderAndShow(selData, Date.now(), name);
-            chrome.runtime.sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId }).catch(() => {});
+            chrome.runtime
+              .sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId })
+              .catch(() => {});
           });
         }
       };
@@ -356,18 +371,20 @@
 
       // 回写Steam标签
       if (data.genres && data.genres.length > 0) {
-        chrome.runtime.sendMessage({
-          action: 'TRACK_EVENT',
-          data: {
-            type: 'steam_tags_update',
-            gameName: name,
-            keywords: data.genres,
-            steamAppId: data.appId,
-            steamRating: data.rating,
-            url: window.location.href,
-            domain: window.location.hostname
-          }
-        }).catch(() => {});
+        chrome.runtime
+          .sendMessage({
+            action: 'TRACK_EVENT',
+            data: {
+              type: 'steam_tags_update',
+              gameName: name,
+              keywords: data.genres,
+              steamAppId: data.appId,
+              steamRating: data.rating,
+              url: window.location.href,
+              domain: window.location.hostname
+            }
+          })
+          .catch(() => {});
       }
     }
 
@@ -380,7 +397,9 @@
         // v3.3.14：appId 提取限定主内容区——gamer520 侧边推荐图是 Steam CDN
         // 封面，全页提取会误取推荐游戏的 appId（如 16598 页右侧推荐 2001760）；
         // 主内容区无图时回退全页（后台另有 namesRelated 校验兜底）
-        const mainEl = document.querySelector('article, .entry-content, .post-content, .main-content, #main-content, main, .single-content');
+        const mainEl = document.querySelector(
+          'article, .entry-content, .post-content, .main-content, #main-content, main, .single-content'
+        );
         const appId = GR.builder.extractSteamAppIdFromImages(mainEl || document);
         let response = null;
         if (appId) {
@@ -398,18 +417,23 @@
           GR.status.showStats({
             title: 'Steam 信息获取完成',
             summary: `${response.data.ratingDesc || '暂无评价'} ${response.data.positiveRate != null ? response.data.positiveRate + '%' : ''}`,
-            rows: [`AppID ${response.data.appId} · ${response.data.name}`, response.data.chineseSupported ? '✓ 支持中文' : '✗ 暂不支持中文']
+            rows: [
+              `AppID ${response.data.appId} · ${response.data.name}`,
+              response.data.chineseSupported ? '✓ 支持中文' : '✗ 暂不支持中文'
+            ]
           });
         } else {
           GR.debug.DEBUG.steamStatus = '❌ 未找到';
           dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
           renderManualSelectPanel(panel, gameName, hidePanel, (selectedData, selectedAppId) => {
             renderAndShow(selectedData, Date.now(), gameName);
-            chrome.runtime.sendMessage({
-              action: 'SAVE_MANUAL_MAPPING',
-              gameName,
-              appId: selectedAppId
-            }).catch(() => {});
+            chrome.runtime
+              .sendMessage({
+                action: 'SAVE_MANUAL_MAPPING',
+                gameName,
+                appId: selectedAppId
+              })
+              .catch(() => {});
           });
           showPanel();
         }
@@ -462,7 +486,9 @@
           return;
         }
 
-        listEl.innerHTML = candidates.map(c => `
+        listEl.innerHTML = candidates
+          .map(
+            (c) => `
           <div class="gr-candidate-item" data-appid="${c.appId}" style="
             display:flex;align-items:center;gap:10px;padding:8px;margin:4px 0;
             background:rgba(0,0,0,0.2);border:1px solid #2a475e;border-radius:3px;
@@ -474,10 +500,12 @@
               <div style="font-size:10px;color:#8f98a0;">App ID: ${c.appId}${c.price !== null && c.price !== undefined ? ` · ¥${c.price}` : ''}</div>
             </div>
           </div>
-        `).join('');
+        `
+          )
+          .join('');
 
         // 绑定事件（hover 高亮与点击用 addEventListener，规避页面 CSP）
-        listEl.querySelectorAll('.gr-candidate-item').forEach(item => {
+        listEl.querySelectorAll('.gr-candidate-item').forEach((item) => {
           item.addEventListener('mouseenter', () => {
             item.style.background = 'rgba(102,192,244,0.1)';
             item.style.borderColor = '#66c0f4';
@@ -487,7 +515,10 @@
             item.style.borderColor = '#2a475e';
           });
           const img = item.querySelector('img');
-          if (img) img.addEventListener('error', () => { img.style.display = 'none'; });
+          if (img)
+            img.addEventListener('error', () => {
+              img.style.display = 'none';
+            });
           item.addEventListener('click', async () => {
             const selectedAppId = item.getAttribute('data-appid');
             listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">⏳ 正在获取详情...</div>`;
@@ -548,7 +579,10 @@
             await onRefresh();
           } catch {
             refreshBtn.textContent = '❌ 更新失败';
-            setTimeout(() => { refreshBtn.textContent = originalText; refreshBtn.disabled = false; }, 1500);
+            setTimeout(() => {
+              refreshBtn.textContent = originalText;
+              refreshBtn.disabled = false;
+            }, 1500);
           }
         });
       }
@@ -566,7 +600,10 @@
             await onReport();
           } catch {
             reportBtn.textContent = '❌ 重检索失败';
-            setTimeout(() => { reportBtn.textContent = originalText; reportBtn.disabled = false; }, 1500);
+            setTimeout(() => {
+              reportBtn.textContent = originalText;
+              reportBtn.disabled = false;
+            }, 1500);
           }
         });
       }
@@ -574,7 +611,10 @@
 
     // 头部图片加载失败时隐藏（addEventListener 替代内联 onerror）
     const headerImg = panel.querySelector('#gr-header-image');
-    if (headerImg) headerImg.addEventListener('error', () => { headerImg.style.display = 'none'; });
+    if (headerImg)
+      headerImg.addEventListener('error', () => {
+        headerImg.style.display = 'none';
+      });
   }
 
   GR.detail = {

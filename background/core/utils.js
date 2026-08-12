@@ -37,7 +37,7 @@ function isSafeIpv6Host(host) {
   const halves = h.split('::');
   if (halves.length > 2) return false;
   const left = halves[0] ? halves[0].split(':') : [];
-  const right = (halves.length === 2 && halves[1]) ? halves[1].split(':') : [];
+  const right = halves.length === 2 && halves[1] ? halves[1].split(':') : [];
   const groups = [];
   for (const g of left) {
     if (!/^[0-9a-f]{1,4}$/i.test(g)) return false;
@@ -53,7 +53,8 @@ function isSafeIpv6Host(host) {
   if (groups.length !== 8) return false;
   const [g0, g1, g2, g3, g4, g5, g6, g7] = groups;
   // 未指定 :: 与环回 ::1（含长格式 0:0:...:1）
-  if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0 && g6 === 0 && (g7 === 0 || g7 === 1)) return false;
+  if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && g5 === 0 && g6 === 0 && (g7 === 0 || g7 === 1))
+    return false;
   // IPv4-mapped（::ffff:a.b.c.d）与 IPv4-compatible（::a.b.c.d）嵌入
   if (g0 === 0 && g1 === 0 && g2 === 0 && g3 === 0 && g4 === 0 && (g5 === 0 || g5 === 0xffff)) {
     return isSafeIpv4Octets(g6 >> 8, g6 & 0xff, g7 >> 8, g7 & 0xff);
@@ -76,8 +77,7 @@ function isSafeIpv6Host(host) {
 // v5.0.0：纯对象判定（settings/rules/message-contract 三处重复收敛于此）
 // Plain-object predicate (unified from three duplicated copies).
 export function isPlainObject(v) {
-  return !!v && typeof v === 'object' && !Array.isArray(v) &&
-    Object.getPrototypeOf(v) === Object.prototype;
+  return !!v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 }
 
 // 中英文名有效性谓词（v3.4.1）：注册表名称自愈（api.js）与安全测试共用，
@@ -91,9 +91,14 @@ export function hasLatinLetters(text, min = 2) {
   return new RegExp('[A-Za-z]{' + min + ',}').test(text || '');
 }
 
-export function isSafeFetchUrl(url) {  if (typeof url !== 'string') return false;
+export function isSafeFetchUrl(url) {
+  if (typeof url !== 'string') return false;
   let parsed;
-  try { parsed = new URL(url); } catch { return false; }
+  try {
+    parsed = new URL(url);
+  } catch {
+    return false;
+  }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
   let host = parsed.hostname.toLowerCase();
   // FQDN 尾点形式（localhost./127.0.0.1.）可绕过域名检查，先剥除
@@ -127,7 +132,11 @@ const MAX_REDIRECTS = 5;
 // errors included) and per-host rate-limited as a safety net.
 export async function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIMEOUT) {
   let host = 'invalid';
-  try { host = new URL(String(url)).hostname; } catch { /* URL 非法时保持 invalid */ }
+  try {
+    host = new URL(String(url)).hostname;
+  } catch {
+    /* URL 非法时保持 invalid */
+  }
   const allowPrivate = !!(options && options.allowPrivateHosts === true && /^https?:\/\//i.test(String(url)));
   const t0 = Date.now();
   if (!checkRateLimit(host)) {

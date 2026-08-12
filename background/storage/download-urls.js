@@ -20,7 +20,9 @@ let storeLock = Promise.resolve();
 function withStoreLock(task) {
   const prev = storeLock;
   let release;
-  storeLock = new Promise(res => { release = res; });
+  storeLock = new Promise((res) => {
+    release = res;
+  });
   return prev.then(() => task()).finally(release);
 }
 

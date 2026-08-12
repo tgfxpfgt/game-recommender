@@ -21,11 +21,8 @@ import { fileURLToPath } from 'node:url';
 // second module instance whose audit state the tests cannot see.
 const mod = await import(new URL('../../background/core/outbound-audit.js', import.meta.url).href);
 const utils = await import(new URL('../../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
-const {
-  AUDIT_MAX, RATE_WINDOW_MS, RATE_MAX,
-  recordOutbound, getOutboundAudit, resetOutboundAudit, checkRateLimit
-} = mod;
-
+const { AUDIT_MAX, RATE_WINDOW_MS, RATE_MAX, recordOutbound, getOutboundAudit, resetOutboundAudit, checkRateLimit } =
+  mod;
 
 resetOutboundAudit();
 
@@ -34,10 +31,18 @@ recordOutbound('api.steampowered.com', true, 120, 200);
 recordOutbound('store.steampowered.com', false, 0, 0);
 recordOutbound('store.steampowered.com', true, 80, 200);
 let r = getOutboundAudit();
-check('entries 倒序（最新在前）', r.entries.map(e => e.host), ['store.steampowered.com', 'store.steampowered.com', 'api.steampowered.com']);
+check(
+  'entries 倒序（最新在前）',
+  r.entries.map((e) => e.host),
+  ['store.steampowered.com', 'store.steampowered.com', 'api.steampowered.com']
+);
 check('统计 total/failed', [r.stats.total, r.stats.failed], [3, 1]);
 check('统计 failRate（33%）', r.stats.failRate, 33);
-check('每主机聚合（按次数排序）', r.stats.hosts.map(h => h.host + ':' + h.count), ['store.steampowered.com:2', 'api.steampowered.com:1']);
+check(
+  '每主机聚合（按次数排序）',
+  r.stats.hosts.map((h) => h.host + ':' + h.count),
+  ['store.steampowered.com:2', 'api.steampowered.com:1']
+);
 check('主机失败计数', r.stats.hosts[0].failed, 1);
 check('limit 截断（取最近 2 条）', getOutboundAudit(2).entries.length, 2);
 
@@ -73,16 +78,26 @@ try {
   check('成功路径审计（host/ok/status）', [a.host, a.ok, a.status], ['api.example.com', true, 200]);
 
   // 网络错误路径
-  globalThis.fetch = async () => { throw new Error('network down'); };
+  globalThis.fetch = async () => {
+    throw new Error('network down');
+  };
   let threw = false;
-  try { await utils.fetchWithTimeout('https://api.example.com/games', {}, 2000); } catch (e) { threw = /network down/.test(e.message); }
+  try {
+    await utils.fetchWithTimeout('https://api.example.com/games', {}, 2000);
+  } catch (e) {
+    threw = /network down/.test(e.message);
+  }
   check('网络错误上抛', threw, true);
   a = getOutboundAudit().entries[0];
   check('失败路径审计（ok=false）', [a.host, a.ok], ['api.example.com', false]);
 
   // 被拦截路径（SSRF 校验拒绝，无真实请求）
   threw = false;
-  try { await utils.fetchWithTimeout('http://localhost:11434/api/generate', {}, 2000); } catch (e) { threw = /blocked-url/.test(e.message); }
+  try {
+    await utils.fetchWithTimeout('http://localhost:11434/api/generate', {}, 2000);
+  } catch (e) {
+    threw = /blocked-url/.test(e.message);
+  }
   check('内网地址被拦截', threw, true);
   a = getOutboundAudit().entries[0];
   check('拦截路径审计（ok=false, host=localhost）', [a.host, a.ok], ['localhost', false]);
@@ -92,7 +107,11 @@ try {
   globalThis.fetch = async () => fakeResp(200);
   for (let i = 0; i < RATE_MAX; i++) await utils.fetchWithTimeout('https://rate.example.com/games', {}, 2000);
   threw = false;
-  try { await utils.fetchWithTimeout('https://rate.example.com/games', {}, 2000); } catch (e) { threw = /rate-limited/.test(e.message); }
+  try {
+    await utils.fetchWithTimeout('https://rate.example.com/games', {}, 2000);
+  } catch (e) {
+    threw = /rate-limited/.test(e.message);
+  }
   check('超限请求被拒绝', threw, true);
   a = getOutboundAudit().entries[0];
   check('限速路径审计（ok=false）', a.ok, false);

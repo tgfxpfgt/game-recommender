@@ -14,17 +14,45 @@ const mod = await import(new URL('../../background/freegames/manager.js', import
 const { classifyGamerPowerGiveaway, extractThirdPartySource } = mod;
 
 console.log('1. 官方直领 vs 第三方（classifyGamerPowerGiveaway）');
-check('无 key 标记 → direct', classifyGamerPowerGiveaway({ title: '某游戏', instructions: '登录 Epic 领取' }), 'direct');
-check('标题含 key → thirdparty', classifyGamerPowerGiveaway({ title: 'Free Game Key', instructions: '' }), 'thirdparty');
-check('instructions 含 alienware → thirdparty', classifyGamerPowerGiveaway({ title: 'X', instructions: 'Get your key at Alienware Arena' }), 'thirdparty');
-check('instructions 含 redeem your key → thirdparty', classifyGamerPowerGiveaway({ title: 'X', instructions: 'Redeem your key on Steam' }), 'thirdparty');
-check('instructions 含 humble bundle → thirdparty', classifyGamerPowerGiveaway({ title: 'X', instructions: 'Claim on Humble Bundle' }), 'thirdparty');
-check('instructions 含 fanatical → thirdparty', classifyGamerPowerGiveaway({ title: 'X', instructions: 'Your free key at Fanatical' }), 'thirdparty');
+check(
+  '无 key 标记 → direct',
+  classifyGamerPowerGiveaway({ title: '某游戏', instructions: '登录 Epic 领取' }),
+  'direct'
+);
+check(
+  '标题含 key → thirdparty',
+  classifyGamerPowerGiveaway({ title: 'Free Game Key', instructions: '' }),
+  'thirdparty'
+);
+check(
+  'instructions 含 alienware → thirdparty',
+  classifyGamerPowerGiveaway({ title: 'X', instructions: 'Get your key at Alienware Arena' }),
+  'thirdparty'
+);
+check(
+  'instructions 含 redeem your key → thirdparty',
+  classifyGamerPowerGiveaway({ title: 'X', instructions: 'Redeem your key on Steam' }),
+  'thirdparty'
+);
+check(
+  'instructions 含 humble bundle → thirdparty',
+  classifyGamerPowerGiveaway({ title: 'X', instructions: 'Claim on Humble Bundle' }),
+  'thirdparty'
+);
+check(
+  'instructions 含 fanatical → thirdparty',
+  classifyGamerPowerGiveaway({ title: 'X', instructions: 'Your free key at Fanatical' }),
+  'thirdparty'
+);
 check('空对象 → direct', classifyGamerPowerGiveaway({}), 'direct');
 check('大小写不敏感', classifyGamerPowerGiveaway({ title: 'FREE GAME KEY', instructions: '' }), 'thirdparty');
 
 console.log('2. 第三方来源识别（extractThirdPartySource）');
-check('alienware → Alienware Arena', extractThirdPartySource({ instructions: 'claim at Alienware' }), 'Alienware Arena');
+check(
+  'alienware → Alienware Arena',
+  extractThirdPartySource({ instructions: 'claim at Alienware' }),
+  'Alienware Arena'
+);
 check('indiegala → IndieGala', extractThirdPartySource({ instructions: 'get key at IndieGala' }), 'IndieGala');
 check('humble → Humble Bundle', extractThirdPartySource({ instructions: 'redeem on humble bundle' }), 'Humble Bundle');
 check('fanatical → Fanatical', extractThirdPartySource({ instructions: 'key via Fanatical' }), 'Fanatical');

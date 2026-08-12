@@ -47,9 +47,7 @@ export async function recordDownloadHistory(data) {
   // 限制历史记录数量（最多保留 200 条）
   const keys = Object.keys(history);
   if (keys.length > MAX_HISTORY_ENTRIES) {
-    const sorted = keys.sort((a, b) =>
-      (history[b].lastDownloadTime || 0) - (history[a].lastDownloadTime || 0)
-    );
+    const sorted = keys.sort((a, b) => (history[b].lastDownloadTime || 0) - (history[a].lastDownloadTime || 0));
     for (let i = MAX_HISTORY_ENTRIES; i < sorted.length; i++) {
       delete history[sorted[i]];
     }

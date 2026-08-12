@@ -17,7 +17,7 @@ import { Logger } from '../storage/logger.js';
 // 链接匹配度评分（0-100）：规范化后全等/包含/分段/跨语言独立比较
 // Link match score (0-100): normalized equality/inclusion/segments/cross-language
 export function calcLinkMatchScore(linkText, searchName) {
-  const norm = s => (s || '').toLowerCase().replace(/[\s\-_:：|\/\.''!！?？\[\]()（）]/g, '');
+  const norm = (s) => (s || '').toLowerCase().replace(/[\s\-_:：|\/\.''!！?？\[\]()（）]/g, '');
   const nt = norm(linkText);
   const ns = norm(searchName);
   if (!nt || !ns || nt.length < 2 || ns.length < 2) return 0;
@@ -26,7 +26,10 @@ export function calcLinkMatchScore(linkText, searchName) {
   if (ns.includes(nt) && nt.length >= 4) return 70;
 
   // 分段比较（按 | 和 / 拆分）/ Segment comparison
-  const segments = linkText.split(/[|\/]/).map(s => norm(s)).filter(s => s.length >= 2);
+  const segments = linkText
+    .split(/[|\/]/)
+    .map((s) => norm(s))
+    .filter((s) => s.length >= 2);
   for (const seg of segments) {
     if (seg === ns) return 95;
     if (seg.includes(ns)) return 80;
@@ -41,8 +44,11 @@ export function calcLinkMatchScore(linkText, searchName) {
   // search segment carries a digit the link segment lacks, the pair is rejected.
   function splitLang(s) {
     const text = String(s || '');
-    const en = text.split(/[^a-z0-9\s']+/i).map(norm).filter(m => m.length >= 2);
-    const cn = text.split(/[^\u4e00-\u9fff\u3400-\u4dbf]+/).filter(m => m.length >= 2);
+    const en = text
+      .split(/[^a-z0-9\s']+/i)
+      .map(norm)
+      .filter((m) => m.length >= 2);
+    const cn = text.split(/[^\u4e00-\u9fff\u3400-\u4dbf]+/).filter((m) => m.length >= 2);
     return { en, cn };
   }
 
@@ -63,9 +69,13 @@ export function calcLinkMatchScore(linkText, searchName) {
     for (const se of searchLang.en) {
       for (const le of linkLang.en) {
         if (digitGapRejects(se, le)) continue;
-        if (le === se) { bestEn = Math.max(bestEn, 100); }
-        else if (le.includes(se) && se.length >= 4) { bestEn = Math.max(bestEn, 85); }
-        else if (se.includes(le) && le.length >= 4) { bestEn = Math.max(bestEn, 75); }
+        if (le === se) {
+          bestEn = Math.max(bestEn, 100);
+        } else if (le.includes(se) && se.length >= 4) {
+          bestEn = Math.max(bestEn, 85);
+        } else if (se.includes(le) && le.length >= 4) {
+          bestEn = Math.max(bestEn, 75);
+        }
       }
     }
     enScore = bestEn;
@@ -76,9 +86,13 @@ export function calcLinkMatchScore(linkText, searchName) {
     for (const sc of searchLang.cn) {
       for (const lc of linkLang.cn) {
         if (digitGapRejects(sc, lc)) continue;
-        if (lc === sc) { bestCn = Math.max(bestCn, 100); }
-        else if (lc.includes(sc) && sc.length >= 2) { bestCn = Math.max(bestCn, 85); }
-        else if (sc.includes(lc) && lc.length >= 2) { bestCn = Math.max(bestCn, 75); }
+        if (lc === sc) {
+          bestCn = Math.max(bestCn, 100);
+        } else if (lc.includes(sc) && sc.length >= 2) {
+          bestCn = Math.max(bestCn, 85);
+        } else if (sc.includes(lc) && lc.length >= 2) {
+          bestCn = Math.max(bestCn, 75);
+        }
       }
     }
     cnScore = bestCn;
@@ -100,7 +114,10 @@ export function extractDetailMeta(html, siteKey) {
   const h1Text = h1Match ? h1Match[1].replace(/<[^>]+>/g, '').trim() : '';
 
   // 更新日期
-  const dateLabelMatch = regexMatch(html, /(?:更新时间|最近更新|发布日期)[^0-9]{0,15}([0-9]{4}[-\/年][0-9]{1,2}[-\/月][0-9]{1,2})/);
+  const dateLabelMatch = regexMatch(
+    html,
+    /(?:更新时间|最近更新|发布日期)[^0-9]{0,15}([0-9]{4}[-\/年][0-9]{1,2}[-\/月][0-9]{1,2})/
+  );
   if (dateLabelMatch) {
     meta.updateDate = dateLabelMatch[1].replace(/[年月]/g, '-').replace(/日$/, '');
   }
@@ -136,7 +153,8 @@ export function extractDetailMeta(html, siteKey) {
   }
 
   // 提取网盘链接（百度/阿里/115/夸克/微云），支持 <a href> 与纯文本
-  const panUrlPattern = /https?:\/\/(?:pan\.baidu\.com\/(?:s\/[\w-]+|share\/init\?surl=[\w-]+)|aliyundrive\.com\/s\/[\w]+|alipan\.com\/s\/[\w]+|115\.com\/s\/[\w-]+|quark\.cn\/s\/[\w]+|weiyun\.com\/[\w]+)/i;
+  const panUrlPattern =
+    /https?:\/\/(?:pan\.baidu\.com\/(?:s\/[\w-]+|share\/init\?surl=[\w-]+)|aliyundrive\.com\/s\/[\w]+|alipan\.com\/s\/[\w]+|115\.com\/s\/[\w-]+|quark\.cn\/s\/[\w]+|weiyun\.com\/[\w]+)/i;
   const panUrlMatch = regexMatch(html, panUrlPattern);
   if (panUrlMatch) {
     meta.panUrl = panUrlMatch[0].replace(/&amp;/g, '&');
@@ -157,9 +175,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
   const results = [];
   // 仅检索指定的站点
   const allSites = await getDownloadSites();
-  const sitesToSearch = siteKeys
-    ? allSites.filter(s => siteKeys.includes(s.key))
-    : allSites;
+  const sitesToSearch = siteKeys ? allSites.filter((s) => siteKeys.includes(s.key)) : allSites;
 
   // 生成多个搜索词，按优先级排序：清洗主名 → parseGameTitle 候选 → 原始名
   const searchTerms = [];
@@ -172,15 +188,22 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
     }
   }
   addTerm(cleanGameName(gameName) || gameName);
-  parseGameTitle(gameName).forEach(t => addTerm(t));
+  parseGameTitle(gameName).forEach((t) => addTerm(t));
   addTerm(gameName);
 
   for (const site of sitesToSearch) {
     const primaryTerm = searchTerms[0];
     const result = {
-      key: site.key, name: site.name, found: false,
-      detailUrl: '', searchUrl: site.searchUrl(primaryTerm),
-      updateDate: '', version: '', size: '', panUrl: '', panCode: ''
+      key: site.key,
+      name: site.name,
+      found: false,
+      detailUrl: '',
+      searchUrl: site.searchUrl(primaryTerm),
+      updateDate: '',
+      version: '',
+      size: '',
+      panUrl: '',
+      panCode: ''
     };
     try {
       // 依次尝试每个搜索词，找到匹配就停止
@@ -200,12 +223,24 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
         // Candidate detail links; fall back to the title attribute when the
         // link text is empty (WordPress image-only links)
         const candidates = [];
-        const linkMatches = regexExecAll(html, /<a([^>]*)href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"([^>]*)>([\s\S]*?)<\/a>/gi);
+        const linkMatches = regexExecAll(
+          html,
+          /<a([^>]*)href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"([^>]*)>([\s\S]*?)<\/a>/gi
+        );
         for (const lm of linkMatches) {
           const href = lm[2];
-          const text = lm[4].replace(/<[^>]+>/g, '').replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim();
+          const text = lm[4]
+            .replace(/<[^>]+>/g, '')
+            .replace(/&[a-z]+;/gi, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
           const titleAttr = regexMatch(lm[1] + lm[3], /title="([^"]*)"/i);
-          const titleText = titleAttr ? titleAttr[1].replace(/&[a-z]+;/gi, ' ').replace(/\s+/g, ' ').trim() : '';
+          const titleText = titleAttr
+            ? titleAttr[1]
+                .replace(/&[a-z]+;/gi, ' ')
+                .replace(/\s+/g, ' ')
+                .trim()
+            : '';
           candidates.push({ href, text: text || titleText });
         }
 
@@ -231,7 +266,9 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
       result.searchUrl = site.searchUrl(usedTerm);
 
       if (bestUrl && bestScore >= 60) {
-        const detailUrl = bestUrl.startsWith('http') ? bestUrl : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
+        const detailUrl = bestUrl.startsWith('http')
+          ? bestUrl
+          : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
         // v3.4.1：详情页链接同域白名单——搜索结果页 HTML 里的链接若被
         // 植入外站/伪协议地址（站点被黑或恶意规则），一律丢弃。
         // SSRF 校验（fetch/缓存写入）是第二道防线，这里拦在数据源头。
@@ -244,7 +281,9 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
           if (detailHost === baseHost || detailHost.endsWith('.' + baseHost)) {
             safeDetailUrl = detailUrl;
           }
-        } catch { /* 无法解析即丢弃 */ }
+        } catch {
+          /* 无法解析即丢弃 */
+        }
         if (!safeDetailUrl) {
           Logger.debug('Sites', `丢弃非本域详情链接: ${detailUrl.substring(0, 80)}`);
         }

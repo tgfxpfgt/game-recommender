@@ -20,7 +20,7 @@
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_DATA_MODULES' });
       dataModules = (resp && resp.modules) || [];
-      selectedModules = new Set(dataModules.map(m => m.key)); // 默认全选
+      selectedModules = new Set(dataModules.map((m) => m.key)); // 默认全选
       renderModuleChecks();
     } catch (e) {
       console.error('加载数据模块失败:', e);
@@ -31,14 +31,18 @@
   function renderModuleChecks() {
     const container = document.getElementById('moduleCheckList');
     if (!container) return;
-    container.innerHTML = dataModules.map(m => `
+    container.innerHTML = dataModules
+      .map(
+        (m) => `
       <label class="module-check-item">
         <input type="checkbox" class="module-check" data-module="${escapeAttr(m.key)}" ${selectedModules.has(m.key) ? 'checked' : ''}>
         <span class="module-check-name">${escapeHtml(m.name)}</span>
         <small class="module-check-desc">${escapeHtml(m.desc)}${m.count ? ` · ${m.count} 条` : ''}</small>
       </label>
-    `).join('');
-    container.querySelectorAll('.module-check').forEach(cb => {
+    `
+      )
+      .join('');
+    container.querySelectorAll('.module-check').forEach((cb) => {
       cb.addEventListener('change', () => {
         if (cb.checked) selectedModules.add(cb.dataset.module);
         else selectedModules.delete(cb.dataset.module);
@@ -57,16 +61,24 @@
     if (!el) return;
     el.textContent = text;
     el.className = 'data-op-status ' + (isError ? 'error' : 'ok');
-    setTimeout(() => { el.textContent = ''; }, 4000);
+    setTimeout(() => {
+      el.textContent = '';
+    }, 4000);
   }
 
   // ============ Data Management / 数据管理 ============
   async function exportData() {
     const keys = getSelectedModuleKeys();
-    if (keys.length === 0) { alert('请先勾选要导出的数据类型'); return; }
+    if (keys.length === 0) {
+      alert('请先勾选要导出的数据类型');
+      return;
+    }
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'EXPORT_DATA', moduleKeys: keys });
-      if (!resp || !resp.success || !resp.data) { showDataOpStatus('导出失败', true); return; }
+      if (!resp || !resp.success || !resp.data) {
+        showDataOpStatus('导出失败', true);
+        return;
+      }
       const blob = new Blob([JSON.stringify(resp.data, null, 2)], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
@@ -118,7 +130,10 @@
   // 创建备份（所选模块）
   async function createDataBackup() {
     const keys = getSelectedModuleKeys();
-    if (keys.length === 0) { alert('请先勾选要备份的数据类型'); return; }
+    if (keys.length === 0) {
+      alert('请先勾选要备份的数据类型');
+      return;
+    }
     const resp = await chrome.runtime.sendMessage({ action: 'CREATE_BACKUP', moduleKeys: keys });
     if (resp && resp.success) {
       showDataOpStatus('✅ 备份成功 (' + keys.length + ' 个模块)');
@@ -136,11 +151,15 @@
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_BACKUPS' });
       const backups = (resp && resp.backups) || [];
-      select.innerHTML = '<option value="">选择备份...</option>' + backups.map(b => {
-        const time = new Date(b.timestamp).toLocaleString('zh-CN');
-        const modCount = b.modules ? b.modules.length : '全部';
-        return `<option value="${escapeAttr(b.id)}">${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)</option>`;
-      }).join('');
+      select.innerHTML =
+        '<option value="">选择备份...</option>' +
+        backups
+          .map((b) => {
+            const time = new Date(b.timestamp).toLocaleString('zh-CN');
+            const modCount = b.modules ? b.modules.length : '全部';
+            return `<option value="${escapeAttr(b.id)}">${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)</option>`;
+          })
+          .join('');
       btn.disabled = backups.length === 0;
     } catch {
       select.innerHTML = '<option value="">备份加载失败</option>';
@@ -150,9 +169,15 @@
   // 恢复所选模块
   async function restoreDataBackup() {
     const backupId = document.getElementById('restoreBackupSelect').value;
-    if (!backupId) { alert('请先选择要恢复的备份'); return; }
+    if (!backupId) {
+      alert('请先选择要恢复的备份');
+      return;
+    }
     const keys = getSelectedModuleKeys();
-    if (keys.length === 0) { alert('请先勾选要恢复的数据类型'); return; }
+    if (keys.length === 0) {
+      alert('请先勾选要恢复的数据类型');
+      return;
+    }
     if (!confirm('恢复将覆盖当前所选模块的数据（系统会先自动备份当前状态）。确定继续？')) return;
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'RESTORE_BACKUP', backupId, moduleKeys: keys });
@@ -199,7 +224,7 @@
 
   // 全选/全不选模块 / Select all / none
   function moduleCheckAll() {
-    selectedModules = new Set(dataModules.map(m => m.key));
+    selectedModules = new Set(dataModules.map((m) => m.key));
     renderModuleChecks();
   }
   function moduleCheckNone() {

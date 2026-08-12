@@ -84,25 +84,29 @@ function renderTrendChart(daily) {
   const totalDl = daily.reduce((s, d) => s + d.downloads, 0);
   statsEl.textContent = `近 ${daily.length} 天 · 浏览 ${totalViews} · 下载 ${totalDl}`;
 
-  const W = 640, H = 200, PAD = { l: 42, r: 42, t: 12, b: 26 };
-  const iw = W - PAD.l - PAD.r, ih = H - PAD.t - PAD.b;
-  const maxCount = Math.max(1, ...daily.map(d => Math.max(d.views, d.downloads)));
+  const W = 640,
+    H = 200,
+    PAD = { l: 42, r: 42, t: 12, b: 26 };
+  const iw = W - PAD.l - PAD.r,
+    ih = H - PAD.t - PAD.b;
+  const maxCount = Math.max(1, ...daily.map((d) => Math.max(d.views, d.downloads)));
   const n = daily.length;
   const slot = iw / n;
   const barW = Math.min(10, slot * 0.36);
-  const x = i => PAD.l + i * slot + slot / 2;
-  const y = v => PAD.t + ih - (v / maxCount) * ih;
+  const x = (i) => PAD.l + i * slot + slot / 2;
+  const y = (v) => PAD.t + ih - (v / maxCount) * ih;
 
   let bars = '';
   daily.forEach((d, i) => {
-    bars += `<rect x="${(x(i) - barW - 1).toFixed(1)}" y="${y(d.views).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.views)).toFixed(1)}" fill="#66c0f4" opacity="0.75"/>` +
-            `<rect x="${(x(i) + 1).toFixed(1)}" y="${y(d.downloads).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.downloads)).toFixed(1)}" fill="#a3cf06" opacity="0.85"/>`;
+    bars +=
+      `<rect x="${(x(i) - barW - 1).toFixed(1)}" y="${y(d.views).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.views)).toFixed(1)}" fill="#66c0f4" opacity="0.75"/>` +
+      `<rect x="${(x(i) + 1).toFixed(1)}" y="${y(d.downloads).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.downloads)).toFixed(1)}" fill="#a3cf06" opacity="0.85"/>`;
   });
   let line = '';
   daily.forEach((d, i) => {
     const px = x(i).toFixed(1);
     const py = (PAD.t + ih - (d.rate / 100) * ih).toFixed(1);
-    line += (i === 0 ? `M${px},${py}` : `L${px},${py}`);
+    line += i === 0 ? `M${px},${py}` : `L${px},${py}`;
   });
   // 横轴刻度：最多 10 个 / x ticks: at most 10
   const step = Math.max(1, Math.ceil(n / 10));
@@ -111,15 +115,18 @@ function renderTrendChart(daily) {
   if (ticks[ticks.length - 1] !== n - 1) ticks.push(n - 1);
   let yTicks = '';
   for (let g = 0; g <= 4; g++) {
-    const v = Math.round(maxCount * g / 4);
-    yTicks += `<text x="${PAD.l - 6}" y="${(y(maxCount * g / 4) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8f98a0">${v}</text>`;
+    const v = Math.round((maxCount * g) / 4);
+    yTicks += `<text x="${PAD.l - 6}" y="${(y((maxCount * g) / 4) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8f98a0">${v}</text>`;
   }
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="行为趋势图">
     <g>${bars}</g>
     <path d="${line}" fill="none" stroke="#ff7b00" stroke-width="2"/>
-    <g>${ticks.map(i =>
-      `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#8f98a0">${escapeHtml(daily[i].date.slice(5))}</text>`
-    ).join('')}</g>
+    <g>${ticks
+      .map(
+        (i) =>
+          `<text x="${x(i).toFixed(1)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="#8f98a0">${escapeHtml(daily[i].date.slice(5))}</text>`
+      )
+      .join('')}</g>
     <g>${yTicks}</g>
     <rect x="${W - 168}" y="5" width="12" height="10" fill="#66c0f4"/><text x="${W - 152}" y="14" font-size="10" fill="#c9d4e0">浏览</text>
     <rect x="${W - 112}" y="5" width="12" height="10" fill="#a3cf06"/><text x="${W - 96}" y="14" font-size="10" fill="#c9d4e0">下载</text>
@@ -131,11 +138,11 @@ function renderTrendChart(daily) {
 // CSV 转义（引号/逗号/换行）；值含特殊字符时加引号并双写引号
 // CSV escaping: quote values containing commas/quotes/newlines ("" doubling)
 function toCsv(headers, rows) {
-  const esc = v => {
+  const esc = (v) => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
-  return [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\r\n');
+  return [headers.map(esc).join(','), ...rows.map((r) => r.map(esc).join(','))].join('\r\n');
 }
 
 // Blob 下载（BOM 防 Excel 中文乱码）/ Blob download with UTF-8 BOM for Excel
@@ -151,21 +158,40 @@ function downloadCsv(filename, csv) {
 
 // 导出趋势 CSV（按天）/ Export daily trends as CSV
 function exportTrendsCsv() {
-  if (cachedTrends.length === 0) { alert('暂无趋势数据'); return; }
-  downloadCsv(`game-recommender-trends-${new Date().toISOString().slice(0, 10)}.csv`,
-    toCsv(['日期', '浏览', '下载', '转化率%'],
-      cachedTrends.map(d => [d.date, d.views, d.downloads, d.rate])));
+  if (cachedTrends.length === 0) {
+    alert('暂无趋势数据');
+    return;
+  }
+  downloadCsv(
+    `game-recommender-trends-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(
+      ['日期', '浏览', '下载', '转化率%'],
+      cachedTrends.map((d) => [d.date, d.views, d.downloads, d.rate])
+    )
+  );
 }
 
 // 导出游戏明细 CSV（当前 GET_STATS 返回的前 50 画像）/ Export game profiles as CSV
 function exportGamesCsv() {
-  if (cachedGameList.length === 0) { alert('暂无游戏数据'); return; }
-  downloadCsv(`game-recommender-games-${new Date().toISOString().slice(0, 10)}.csv`,
-    toCsv(['游戏名称', '浏览', '下载', 'Steam标签', 'AppID', '评分', '最后时间'],
-      cachedGameList.map(g => [
-        g.name, g.views ?? 0, g.downloads ?? 0,
-        (g.keywords || []).join('; '), g.steamAppId || '', g.steamRating ?? '', g.lastSeen || ''
-      ])));
+  if (cachedGameList.length === 0) {
+    alert('暂无游戏数据');
+    return;
+  }
+  downloadCsv(
+    `game-recommender-games-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(
+      ['游戏名称', '浏览', '下载', 'Steam标签', 'AppID', '评分', '最后时间'],
+      cachedGameList.map((g) => [
+        g.name,
+        g.views ?? 0,
+        g.downloads ?? 0,
+        (g.keywords || []).join('; '),
+        g.steamAppId || '',
+        g.steamRating ?? '',
+        g.lastSeen || ''
+      ])
+    )
+  );
 }
 
 // 导出行为日志 CSV（全量，经 EXPORT_DATA 获取）/ Export the full behavior log as CSV
@@ -173,13 +199,24 @@ async function exportLogsCsv() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'EXPORT_DATA', moduleKeys: ['behaviorLog'] });
     const entries = (response && response.data && response.data.modules && response.data.modules.behaviorLog) || [];
-    if (!entries || entries.length === 0) { alert('暂无行为日志'); return; }
-    downloadCsv(`game-recommender-behavior-${new Date().toISOString().slice(0, 10)}.csv`,
-      toCsv(['时间', '类型', '游戏', '方式', '网站', 'URL'],
-        entries.map(e => [
-          new Date(e.timestamp).toLocaleString('zh-CN'), e.type,
-          e.gameName || '', e.method || '', e.domain || '', e.url || ''
-        ])));
+    if (!entries || entries.length === 0) {
+      alert('暂无行为日志');
+      return;
+    }
+    downloadCsv(
+      `game-recommender-behavior-${new Date().toISOString().slice(0, 10)}.csv`,
+      toCsv(
+        ['时间', '类型', '游戏', '方式', '网站', 'URL'],
+        entries.map((e) => [
+          new Date(e.timestamp).toLocaleString('zh-CN'),
+          e.type,
+          e.gameName || '',
+          e.method || '',
+          e.domain || '',
+          e.url || ''
+        ])
+      )
+    );
   } catch (e) {
     alert('导出失败: ' + e.message);
   }
@@ -225,13 +262,15 @@ function renderTagCloud(keywords) {
     return;
   }
 
-  container.innerHTML = keywords.map(kw => {
-    const level = kw.weight >= 0.6 ? 'high' : kw.weight >= 0.3 ? 'medium' : 'low';
-    const size = Math.max(12, Math.min(20, 12 + kw.weight * 10));
-    return `<span class="tag-item ${level}" style="font-size:${size}px" title="匹配度: ${Math.round(kw.weight * 100)}%">
+  container.innerHTML = keywords
+    .map((kw) => {
+      const level = kw.weight >= 0.6 ? 'high' : kw.weight >= 0.3 ? 'medium' : 'low';
+      const size = Math.max(12, Math.min(20, 12 + kw.weight * 10));
+      return `<span class="tag-item ${level}" style="font-size:${size}px" title="匹配度: ${Math.round(kw.weight * 100)}%">
       ${escapeHtml(kw.keyword)} <small>${Math.round(kw.weight * 100)}%</small>
     </span>`;
-  }).join('');
+    })
+    .join('');
 }
 
 // 下载方式分布 / Download-method breakdown
@@ -243,22 +282,25 @@ function renderDownloadMethods(methods) {
   }
 
   const methodNames = {
-    'link_click': '链接点击',
-    'window_open': '弹窗打开',
-    'delegate_click': '按钮点击',
-    'copy_link': '复制链接',
-    'dynamic_link': '动态链接',
-    'unknown': '其他方式'
+    link_click: '链接点击',
+    window_open: '弹窗打开',
+    delegate_click: '按钮点击',
+    copy_link: '复制链接',
+    dynamic_link: '动态链接',
+    unknown: '其他方式'
   };
 
   container.innerHTML = Object.entries(methods)
     .sort((a, b) => b[1] - a[1])
-    .map(([method, count]) => `
+    .map(
+      ([method, count]) => `
       <div class="method-item">
         <div class="method-count">${count}</div>
         <div class="method-name">${methodNames[method] || escapeHtml(method)}</div>
       </div>
-    `).join('');
+    `
+    )
+    .join('');
 }
 
 // 游戏明细表（按下载数/查看数降序） / Per-game table (sorted by downloads/views)
@@ -269,14 +311,17 @@ function renderGameTable(games) {
     return;
   }
 
-  tbody.innerHTML = games.map(game => {
-    const tags = (game.keywords || []).slice(0, 4)
-      .map(t => `<span class="tag-small">${escapeHtml(t)}</span>`).join('');
-    const rating = game.steamRating ? `${game.steamRating}/10` : '-';
-    const time = game.lastSeen ? new Date(game.lastSeen).toLocaleDateString('zh-CN') : '-';
-    const dlClass = game.downloads > 0 ? 'downloaded' : '';
+  tbody.innerHTML = games
+    .map((game) => {
+      const tags = (game.keywords || [])
+        .slice(0, 4)
+        .map((t) => `<span class="tag-small">${escapeHtml(t)}</span>`)
+        .join('');
+      const rating = game.steamRating ? `${game.steamRating}/10` : '-';
+      const time = game.lastSeen ? new Date(game.lastSeen).toLocaleDateString('zh-CN') : '-';
+      const dlClass = game.downloads > 0 ? 'downloaded' : '';
 
-    return `<tr>
+      return `<tr>
       <td>${escapeHtml(game.name)}</td>
       <td>${game.views}</td>
       <td class="${dlClass}">${game.downloads > 0 ? '⬇ ' + game.downloads : '0'}</td>
@@ -284,7 +329,8 @@ function renderGameTable(games) {
       <td>${rating}</td>
       <td>${time}</td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
 }
 
 // 最近行为日志表 / Recent behavior log table
@@ -296,29 +342,36 @@ function renderLogTable(logs) {
   }
 
   const typeNames = {
-    'view_list': ['浏览列表', 'list'],
-    'view_detail': ['查看详情', 'view'],
-    'click_detail': ['点击详情', 'view'],
-    'click_download': ['下载游戏', 'download'],
-    'steam_tags_update': ['Steam标签', 'steam']
+    view_list: ['浏览列表', 'list'],
+    view_detail: ['查看详情', 'view'],
+    click_detail: ['点击详情', 'view'],
+    click_download: ['下载游戏', 'download'],
+    steam_tags_update: ['Steam标签', 'steam']
   };
 
-  tbody.innerHTML = logs.map(log => {
-    const [typeName, typeClass] = typeNames[log.type] || [escapeHtml(String(log.type || '未知')), 'list'];
-    const time = log.timestamp ? new Date(log.timestamp).toLocaleString('zh-CN', {
-      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-    }) : '-';
-    // v3.4.1：日志内容不可信，method 与未知 type 必须转义（防 innerHTML 注入）
-    const method = escapeHtml(log.method || '-');
+  tbody.innerHTML = logs
+    .map((log) => {
+      const [typeName, typeClass] = typeNames[log.type] || [escapeHtml(String(log.type || '未知')), 'list'];
+      const time = log.timestamp
+        ? new Date(log.timestamp).toLocaleString('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '-';
+      // v3.4.1：日志内容不可信，method 与未知 type 必须转义（防 innerHTML 注入）
+      const method = escapeHtml(log.method || '-');
 
-    return `<tr>
+      return `<tr>
       <td>${time}</td>
       <td><span class="event-type ${typeClass}">${typeName}</span></td>
       <td>${escapeHtml(log.gameName || '-')}</td>
       <td>${method}</td>
       <td>${escapeHtml(log.domain || '-')}</td>
     </tr>`;
-  }).join('');
+    })
+    .join('');
 }
 
 // 基于用户偏好标签向 Steam 搜索推荐游戏
@@ -327,14 +380,14 @@ async function loadSteamRecommendations() {
   const section = document.getElementById('steamRecSection');
   const listEl = document.getElementById('steamRecList');
   const basedOnEl = document.getElementById('recBasedOn');
-  
+
   section.style.display = 'block';
   listEl.innerHTML = '<span class="no-data">正在获取Steam推荐...</span>';
   basedOnEl.textContent = '';
 
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RECOMMENDATIONS' });
-    
+
     if (response.message) {
       listEl.innerHTML = `<span class="no-data">${escapeHtml(response.message)}</span>`;
       return;
@@ -354,7 +407,9 @@ async function loadSteamRecommendations() {
       return;
     }
 
-    listEl.innerHTML = response.games.map(game => `
+    listEl.innerHTML = response.games
+      .map(
+        (game) => `
       <div class="rec-card">
         ${game.image ? `<img class="rec-card-img" src="${escapeAttr(game.image)}" alt="${escapeHtml(game.name)}"/>` : ''}
         <div class="rec-card-body">
@@ -364,17 +419,21 @@ async function loadSteamRecommendations() {
             ${game.reviewSummary ? ` | ${game.reviewSummary}` : ''}
           </div>
           <div class="rec-card-tags">
-            ${(game.matchTags || []).map(t => `<span>${escapeHtml(t)}</span>`).join('')}
+            ${(game.matchTags || []).map((t) => `<span>${escapeHtml(t)}</span>`).join('')}
           </div>
           <a href="${escapeAttr(game.url)}" target="_blank">🔗 在Steam查看</a>
         </div>
       </div>
-    `).join('');
+    `
+      )
+      .join('');
 
     // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
     // Hide images that fail to load (addEventListener instead of inline onerror for CSP)
-    listEl.querySelectorAll('.rec-card-img').forEach(img => {
-      img.addEventListener('error', () => { img.style.display = 'none'; });
+    listEl.querySelectorAll('.rec-card-img').forEach((img) => {
+      img.addEventListener('error', () => {
+        img.style.display = 'none';
+      });
     });
 
     // 滚动到推荐区域
@@ -405,30 +464,37 @@ async function loadRuntimeLogs() {
 function renderRuntimeLogs() {
   const container = document.getElementById('runtimeLogList');
   const filter = document.getElementById('logLevelFilter').value;
-  
+
   let logs = cachedLogs;
   if (filter !== 'all') {
-    logs = logs.filter(l => l.level === filter);
+    logs = logs.filter((l) => l.level === filter);
   }
-  
+
   if (logs.length === 0) {
     container.innerHTML = '<div class="no-data">暂无日志</div>';
     return;
   }
-  
+
   // 倒序显示（最新在前）
-  container.innerHTML = [...logs].reverse().map(log => {
-    const time = new Date(log.timestamp).toLocaleString('zh-CN', {
-      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-    return `<div class="log-entry log-${log.level}">
+  container.innerHTML = [...logs]
+    .reverse()
+    .map((log) => {
+      const time = new Date(log.timestamp).toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      return `<div class="log-entry log-${log.level}">
       <span class="log-time">${time}</span>
       <span class="log-level">${log.level.toUpperCase()}</span>
       <span class="log-module">[${escapeHtml(log.module)}]</span>
       <span class="log-msg">${escapeHtml(log.message)}</span>
       ${log.data ? `<span class="log-data">${escapeHtml(log.data)}</span>` : ''}
     </div>`;
-  }).join('');
+    })
+    .join('');
 }
 
 // 导出日志为 JSON 文件 / Export logs as a JSON file
@@ -476,39 +542,47 @@ function renderOutboundAudit() {
   const container = document.getElementById('auditList');
   const stats = cachedAudit.stats || {};
   const statsEl = document.getElementById('auditStats');
-  statsEl.textContent = stats.total > 0
-    ? `共 ${stats.total} 次 · 失败 ${stats.failed}（${stats.failRate}%）`
-    : '';
+  statsEl.textContent = stats.total > 0 ? `共 ${stats.total} 次 · 失败 ${stats.failed}（${stats.failRate}%）` : '';
   const filter = (document.getElementById('auditHostFilter').value || '').trim().toLowerCase();
-  const entries = (cachedAudit.entries || []).filter(e => !filter || (e.host || '').toLowerCase().includes(filter));
+  const entries = (cachedAudit.entries || []).filter((e) => !filter || (e.host || '').toLowerCase().includes(filter));
   if (entries.length === 0) {
     container.innerHTML = '<div class="no-data">' + (filter ? '无匹配主机记录' : '暂无请求记录') + '</div>';
     return;
   }
-  container.innerHTML = entries.map(e => {
-    const time = new Date(e.t).toLocaleString('zh-CN', {
-      month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit'
-    });
-    const detail = e.status ? `HTTP ${e.status}` : (e.ok ? '成功' : '异常');
-    return `<div class="log-entry ${e.ok ? '' : 'log-error'}">
+  container.innerHTML = entries
+    .map((e) => {
+      const time = new Date(e.t).toLocaleString('zh-CN', {
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit'
+      });
+      const detail = e.status ? `HTTP ${e.status}` : e.ok ? '成功' : '异常';
+      return `<div class="log-entry ${e.ok ? '' : 'log-error'}">
       <span class="log-time">${time}</span>
       <span class="log-module">[${escapeHtml(e.host)}]</span>
       <span class="log-msg">${e.ok ? '✓' : '✗'} ${escapeHtml(detail)} · ${e.ms}ms</span>
     </div>`;
-  }).join('');
+    })
+    .join('');
 }
 
 // v4.1.0：导出审计 CSV（含筛选结果）/ Export the (filtered) audit as CSV
 function exportAuditCsv() {
   const filter = (document.getElementById('auditHostFilter').value || '').trim().toLowerCase();
-  const entries = (cachedAudit.entries || []).filter(e => !filter || (e.host || '').toLowerCase().includes(filter));
-  if (entries.length === 0) { alert('暂无审计记录'); return; }
-  downloadCsv(`game-recommender-audit-${new Date().toISOString().slice(0, 10)}.csv`,
-    toCsv(['时间', '主机', '成功', '状态', '耗时ms'],
-      entries.map(e => [
-        new Date(e.t).toLocaleString('zh-CN'), e.host,
-        e.ok ? '是' : '否', e.status || '', e.ms
-      ])));
+  const entries = (cachedAudit.entries || []).filter((e) => !filter || (e.host || '').toLowerCase().includes(filter));
+  if (entries.length === 0) {
+    alert('暂无审计记录');
+    return;
+  }
+  downloadCsv(
+    `game-recommender-audit-${new Date().toISOString().slice(0, 10)}.csv`,
+    toCsv(
+      ['时间', '主机', '成功', '状态', '耗时ms'],
+      entries.map((e) => [new Date(e.t).toLocaleString('zh-CN'), e.host, e.ok ? '是' : '否', e.status || '', e.ms])
+    )
+  );
 }
 
 // 清空出站请求审计 / Clear outbound request audit
@@ -525,17 +599,18 @@ async function loadBackups() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_BACKUPS' });
     const backups = (response && response.backups) || [];
-    
+
     if (backups.length === 0) {
       container.innerHTML = '<div class="no-data">暂无备份，点击“立即备份”创建</div>';
       return;
     }
-    
-    container.innerHTML = backups.map(b => {
-      const time = new Date(b.timestamp).toLocaleString('zh-CN');
-      const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
-      const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
-      return `<div class="backup-item">
+
+    container.innerHTML = backups
+      .map((b) => {
+        const time = new Date(b.timestamp).toLocaleString('zh-CN');
+        const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
+        const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
+        return `<div class="backup-item">
         <div class="backup-info">
           <span class="backup-type">${b.manual ? '🔧 手动' : '⏰ 自动'}</span>
           <span class="backup-time">${time}</span>
@@ -546,14 +621,15 @@ async function loadBackups() {
           <button class="btn btn-sm btn-danger backup-delete-btn" data-id="${escapeAttr(b.id)}">删除</button>
         </div>
       </div>`;
-    }).join('');
+      })
+      .join('');
 
     // 绑定恢复/删除按钮（内联 onclick 在 MV3 扩展页被 CSP 禁止，必须用 addEventListener）
     // Bind restore/delete buttons (inline onclick is blocked by MV3 extension-page CSP)
-    container.querySelectorAll('.backup-restore-btn').forEach(btn => {
+    container.querySelectorAll('.backup-restore-btn').forEach((btn) => {
       btn.addEventListener('click', () => restoreBackup(btn.dataset.id));
     });
-    container.querySelectorAll('.backup-delete-btn').forEach(btn => {
+    container.querySelectorAll('.backup-delete-btn').forEach((btn) => {
       btn.addEventListener('click', () => deleteBackup(btn.dataset.id));
     });
   } catch (e) {
@@ -576,7 +652,9 @@ async function createBackup() {
   } catch (e) {
     statusEl.textContent = '❌ ' + e.message;
   }
-  setTimeout(() => { statusEl.textContent = ''; }, 3000);
+  setTimeout(() => {
+    statusEl.textContent = '';
+  }, 3000);
 }
 
 // 恢复备份（后台会先自动备份当前状态作为安全网）

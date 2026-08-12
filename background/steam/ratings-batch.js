@@ -29,21 +29,23 @@ export async function handleGetSteamRatings(message, sender) {
 
   // 阶段1：仅查缓存（无网络），命中即时返回 / Phase 1: cache-only, instant hits
   try {
-    await Promise.all(ratingNames.map(async (name) => {
-      try {
-        const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
-        const r = await getSteamRatingsFromCacheOnly(name, {
-          appId: img ? img.appId : null,
-          cover: img ? img.cover : null
-        });
-        if (r) ratings[name] = r;
-        else pending.push(name);
-      } catch {
-        pending.push(name);
-      }
-    }));
+    await Promise.all(
+      ratingNames.map(async (name) => {
+        try {
+          const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
+          const r = await getSteamRatingsFromCacheOnly(name, {
+            appId: img ? img.appId : null,
+            cover: img ? img.cover : null
+          });
+          if (r) ratings[name] = r;
+          else pending.push(name);
+        } catch {
+          pending.push(name);
+        }
+      })
+    );
   } catch {
-    pending.push(...ratingNames.filter(n => !ratings[n]));
+    pending.push(...ratingNames.filter((n) => !ratings[n]));
   }
 
   // 阶段2：未命中 → 后台继续从 Steam 拉取（忽略负缓存），**按批落盘并推送
@@ -80,22 +82,24 @@ export async function handleGetSteamRatings(message, sender) {
           queue = queue.slice(batchSize);
           const wave = {};
           const retryBatch = [];
-          await Promise.all(batch.map(async (name) => {
-            try {
-              const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
-              const r = await getSteamPositiveRate(name, {
-                ignoreNegativeCache: true,
-                appId: img ? img.appId : null,
-                cover: img ? img.cover : null
-              });
-              wave[name] = r;
-              // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
-              if (!r || r.failed) retryBatch.push(name);
-            } catch {
-              wave[name] = null;
-              retryBatch.push(name);
-            }
-          }));
+          await Promise.all(
+            batch.map(async (name) => {
+              try {
+                const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
+                const r = await getSteamPositiveRate(name, {
+                  ignoreNegativeCache: true,
+                  appId: img ? img.appId : null,
+                  cover: img ? img.cover : null
+                });
+                wave[name] = r;
+                // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
+                if (!r || r.failed) retryBatch.push(name);
+              } catch {
+                wave[name] = null;
+                retryBatch.push(name);
+              }
+            })
+          );
           // v3.4.0：每 5 批落盘一次 + 循环结束兜底（写放大 ~80% 下降）
           batchCount++;
           if (batchCount % 5 === 0 || queue.length === 0) {
@@ -106,7 +110,7 @@ export async function handleGetSteamRatings(message, sender) {
           if (getSteamApiStatus().anomaly) {
             consecutiveAnomaly++;
             const wait = consecutiveAnomaly >= 2 ? 30000 : 5000;
-            if (queue.length > 0 || retryBatch.length > 0) await new Promise(r => setTimeout(r, wait));
+            if (queue.length > 0 || retryBatch.length > 0) await new Promise((r) => setTimeout(r, wait));
           } else {
             consecutiveAnomaly = 0;
           }
@@ -166,19 +170,21 @@ export async function handlePrefetchSteamRatings(message) {
     const batchSize = 4;
     for (let i = 0; i < needsPrefetch.length; i += batchSize) {
       const batch = needsPrefetch.slice(i, i + batchSize);
-      await Promise.all(batch.map(async (name) => {
-        try {
-          const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
-          await getSteamPositiveRate(name, {
-            ignoreNegativeCache: true,
-            appId: img ? img.appId : null,
-            cover: img ? img.cover : null
-          });
-        } catch {}
-      }));
+      await Promise.all(
+        batch.map(async (name) => {
+          try {
+            const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
+            await getSteamPositiveRate(name, {
+              ignoreNegativeCache: true,
+              appId: img ? img.appId : null,
+              cover: img ? img.cover : null
+            });
+          } catch {}
+        })
+      );
       // 预载同样限流降速 / same rate-limit slowdown as the main flow
       if (getSteamApiStatus().anomaly) {
-        await new Promise(r => setTimeout(r, 3000));
+        await new Promise((r) => setTimeout(r, 3000));
       }
     }
     await flushAllCaches();

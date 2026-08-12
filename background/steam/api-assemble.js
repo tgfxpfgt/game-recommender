@@ -1,5 +1,11 @@
 import { Logger } from '../storage/logger.js';
-import { baseAppIdFromDetails, fetchSteamAppDetails, fetchStorePageHtml, parseChineseLanguageSupport, parseUserTags } from './api-details.js';
+import {
+  baseAppIdFromDetails,
+  fetchSteamAppDetails,
+  fetchStorePageHtml,
+  parseChineseLanguageSupport,
+  parseUserTags
+} from './api-details.js';
 import { fetchLastUpdate, fetchSteamReviews } from './api-reviews.js';
 import { DEMO_NAME_PATTERN } from './api-search.js';
 import { fetchSteamDbInfo, fetchSteamSpyInfo } from './api-supplement.js';
@@ -10,10 +16,19 @@ import { fetchSteamDbInfo, fetchSteamSpyInfo } from './api-supplement.js';
  * v5.0.0：由 steam/api.js 按职能拆分。
  */
 
-
 // --- 组装最终结果对象 ---
 
-export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData, lastUpdate = null) {
+export function buildSteamResult(
+  appId,
+  gameData,
+  langInfo,
+  userTags,
+  reviews,
+  steamdbInfo,
+  steamspyInfo,
+  enGameData,
+  lastUpdate = null
+) {
   const { reviewSummary, cnReviewSummary, chineseReviews } = reviews;
   const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;
   // 近 30 天好评率（v3.3.6，来自 filter=recent 评测数组统计）
@@ -28,17 +43,19 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
     // 是否为 Demo/试玩版（详情页浮窗显示标识用）
     // 优先用 appdetails 的 type 权威信号；名称判定带词边界（\b），
     // 避免 Trials/Demons 等合法游戏名被误判（v3.4.2）。
-    isDemo: gameData.type === 'demo'
-      || (enGameData && enGameData.type === 'demo')
-      || DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
+    isDemo:
+      gameData.type === 'demo' ||
+      (enGameData && enGameData.type === 'demo') ||
+      DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
     url: `https://store.steampowered.com/app/${appId}/`,
     steamdbUrl: steamdbInfo?.url || `https://steamdb.info/app/${appId}/`,
     rating: reviewSummary ? reviewSummary.score : null,
     ratingDesc: reviewSummary ? reviewSummary.desc : null,
     totalReviews: reviewSummary ? reviewSummary.total : 0,
-    positiveRate: reviewSummary && reviewSummary.total > 0
-      ? Math.round(reviewSummary.positive / reviewSummary.total * 100)
-      : null,
+    positiveRate:
+      reviewSummary && reviewSummary.total > 0
+        ? Math.round((reviewSummary.positive / reviewSummary.total) * 100)
+        : null,
     // 近 30 天评价（v3.3.6）：好评率 + 条数（0 条 → rate null）
     recentPositiveRate: recent ? recent.rate : null,
     recentTotalReviews: recent ? recent.total : 0,
@@ -48,7 +65,7 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
     cnPositiveRate: cnReviewSummary ? cnReviewSummary.positiveRate : null,
     cnTotalReviews: cnReviewSummary ? cnReviewSummary.total : 0,
     reviews: chineseReviews,
-    genres: (gameData.genres || []).map(g => g.description),
+    genres: (gameData.genres || []).map((g) => g.description),
     userTags,
     chineseSupported,
     simplifiedChinese,
@@ -68,7 +85,6 @@ export function buildSteamResult(appId, gameData, langInfo, userTags, reviews, s
 // Fetch full Steam details by appId (details/language/tags/reviews/SteamDB/
 // SteamSpy). The appId is validated first: a DLC resolves to its base game.
 
-
 // 通过 appId 获取完整的 Steam 详情（组装：详情/语言/标签/评测/SteamDB/SteamSpy）
 // 先校验 appId：DLC 等非游戏本体自动解析为所属本体（fullgame）。
 // Fetch full Steam details by appId (details/language/tags/reviews/SteamDB/
@@ -85,7 +101,10 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     const baseId = baseAppIdFromDetails(gameData);
     if (baseId && baseId !== String(appId)) {
       const reason = gameData.type === 'dlc' ? 'DLC' : gameData.type === 'demo' ? 'Demo' : gameData.type;
-      Logger.warn('Steam', `appId ${appId} 为 ${reason}，自动解析为本体 ${baseId}（${(gameData.fullgame && gameData.fullgame.name) || ''}）`);
+      Logger.warn(
+        'Steam',
+        `appId ${appId} 为 ${reason}，自动解析为本体 ${baseId}（${(gameData.fullgame && gameData.fullgame.name) || ''}）`
+      );
       appId = baseId;
       [gameData, enGameData] = await Promise.all([
         fetchSteamAppDetails(appId, 'schinese'),
@@ -113,7 +132,17 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     fetchLastUpdate(appId).catch(() => null)
   ]);
 
-  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamdbInfo, steamspyInfo, enGameData, lastUpdate);
+  return buildSteamResult(
+    appId,
+    gameData,
+    langInfo,
+    userTags,
+    reviews,
+    steamdbInfo,
+    steamspyInfo,
+    enGameData,
+    lastUpdate
+  );
 }
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）

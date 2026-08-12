@@ -12,7 +12,9 @@
   const GR = (global.__GR__ = global.__GR__ || {});
 
   // 当前站点域名 / Current site domain
-  function getCurrentDomain() { return window.location.hostname; }
+  function getCurrentDomain() {
+    return window.location.hostname;
+  }
 
   // HTML 转义（动态内容安全）。v3.3.9：shared/escape.js 已由 manifest 注入
   // 内容脚本（单点维护）——存在全局实现时复用，缺失时回退本地实现。
@@ -27,8 +29,8 @@
   function escapeAttrLocal(text) {
     return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
-  const escapeHtml = (typeof global.escapeHtml === 'function') ? global.escapeHtml : escapeHtmlLocal;
-  const escapeAttr = (typeof global.escapeAttr === 'function') ? global.escapeAttr : escapeAttrLocal;
+  const escapeHtml = typeof global.escapeHtml === 'function' ? global.escapeHtml : escapeHtmlLocal;
+  const escapeAttr = typeof global.escapeAttr === 'function' ? global.escapeAttr : escapeAttrLocal;
 
   // 相对时间格式化（内容脚本统一实现，替代各浮窗独立实现）
   // Relative-time formatting (shared by all content floats)
@@ -44,25 +46,29 @@
 
   // 发送行为追踪消息 / Send a behavior-tracking message
   function trackEvent(type, data) {
-    chrome.runtime.sendMessage({
-      action: 'TRACK_EVENT',
-      data: { type, url: window.location.href, domain: getCurrentDomain(), ...data }
-    }).catch(() => {});
+    chrome.runtime
+      .sendMessage({
+        action: 'TRACK_EVENT',
+        data: { type, url: window.location.href, domain: getCurrentDomain(), ...data }
+      })
+      .catch(() => {});
   }
 
   // 记录下载站详情页访问（写入下载站网址缓存并更新"上次调用"时间）
   // Record a detail-page visit (writes the URL cache + lastAccessed)
   function trackDownloadSiteVisit(appId, gameName) {
     if (!appId) return;
-    chrome.runtime.sendMessage({
-      action: 'TRACK_DOWNLOAD_SITE_VISIT',
-      data: {
-        appId: String(appId),
-        gameName: gameName || '',
-        url: window.location.href,
-        domain: getCurrentDomain()
-      }
-    }).catch(() => {});
+    chrome.runtime
+      .sendMessage({
+        action: 'TRACK_DOWNLOAD_SITE_VISIT',
+        data: {
+          appId: String(appId),
+          gameName: gameName || '',
+          url: window.location.href,
+          domain: getCurrentDomain()
+        }
+      })
+      .catch(() => {});
   }
 
   // v5.0.0：页面标题清洗链（detail-page 与 tracker 此前逐字重复两份）——

@@ -10,7 +10,6 @@ import { DEMO_NAME_PATTERN } from './api-search.js';
  * v5.0.0：由 steam/api.js 按职能拆分。
  */
 
-
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）
 // Determine from the registry whether an appId is a Demo/trial edition
 export async function isDemoAppId(appId) {
@@ -23,7 +22,6 @@ export async function isDemoAppId(appId) {
 
 // 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名（含封面/type）
 // Idempotent registry fill when serving from cache (cover + type included)
-
 
 // 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名（含封面/type）
 // Idempotent registry fill when serving from cache (cover + type included)
@@ -54,7 +52,6 @@ export async function ensureRegistryEntry(appId, cnName, enName, gameName, cover
 // Self-heal abnormal CN/EN names by appId (parallel fetch, one pass). The CN
 // name is overwritten only when Steam itself provides a Chinese name.
 
-
 // 按 appId 修复注册表中异常的中英文名（并行获取官方名，一次修复两个字段）。
 // 中文名异常时仅当 Steam 官方确实有中文名才覆盖（Steam 无中文名的游戏保持原值）。
 // Self-heal abnormal CN/EN names by appId (parallel fetch, one pass). The CN
@@ -71,15 +68,18 @@ export async function healRegistryNames(appId, { cnName, enName, gameName }) {
     ]);
     const officialCn = (cnData && cnData.name) || '';
     const officialEn = (enData && enData.name) || '';
-    const newCn = (!cnOk && officialCn && /[\u4e00-\u9fff]/.test(officialCn)) ? officialCn : cnName;
-    const newEn = (!enOk && officialEn && /[A-Za-z]{2,}/.test(officialEn)) ? officialEn : (enName || cnName);
+    const newCn = !cnOk && officialCn && /[\u4e00-\u9fff]/.test(officialCn) ? officialCn : cnName;
+    const newEn = !enOk && officialEn && /[A-Za-z]{2,}/.test(officialEn) ? officialEn : enName || cnName;
     if (newCn !== cnName || newEn !== enName) {
       await recordGameInRegistry(appId, {
         cnName: newCn || '',
         enName: newEn || '',
         gameName: gameName || ''
       });
-      Logger.warn('Steam', `名称异常自愈: appId ${appId} cn "${cnName || '空'}"→"${newCn || '空'}" en "${enName || '空'}"→"${newEn || '空'}"`);
+      Logger.warn(
+        'Steam',
+        `名称异常自愈: appId ${appId} cn "${cnName || '空'}"→"${newCn || '空'}" en "${enName || '空'}"→"${newEn || '空'}"`
+      );
       return true;
     }
   } catch {
@@ -91,7 +91,6 @@ export async function healRegistryNames(appId, { cnName, enName, gameName }) {
 // 缓存命中路径的名称自愈入口（兼容旧调用语义）
 // Self-heal entry for cache-hit paths (keeps the old call shape)
 
-
 // 缓存命中路径的名称自愈入口（兼容旧调用语义）
 // Self-heal entry for cache-hit paths (keeps the old call shape)
 export async function ensureValidRegistryNames(appId, cnName, enName, gameName) {
@@ -100,7 +99,6 @@ export async function ensureValidRegistryNames(appId, cnName, enName, gameName) 
 
 // 批量自愈：扫描注册表中名称异常（中文名无中文/英文名无英文）的条目，分批修复
 // Batch self-heal: scan the registry for abnormal names and fix them in batches
-
 
 // 批量自愈：扫描注册表中名称异常（中文名无中文/英文名无英文）的条目，分批修复
 // Batch self-heal: scan the registry for abnormal names and fix them in batches
@@ -115,11 +113,15 @@ export async function scanAndHealRegistry(limit = 20) {
   let healed = 0;
   for (let i = 0; i < targets.length; i += 3) {
     const batch = targets.slice(i, i + 3);
-    await Promise.all(batch.map(async ([appId, e]) => {
-      try {
-        if (await healRegistryNames(appId, { cnName: e.cnName, enName: e.enName, gameName: '' })) healed++;
-      } catch { /* 单条失败不阻断 */ }
-    }));
+    await Promise.all(
+      batch.map(async ([appId, e]) => {
+        try {
+          if (await healRegistryNames(appId, { cnName: e.cnName, enName: e.enName, gameName: '' })) healed++;
+        } catch {
+          /* 单条失败不阻断 */
+        }
+      })
+    );
   }
   if (healed > 0) await flushRegistry();
   return { scanned: targets.length, healed, remaining: abnormal.length - targets.length };
@@ -128,4 +130,3 @@ export async function scanAndHealRegistry(limit = 20) {
 // 选择注册表英文名：优先下载站标题中的英文段，回退 Steam 官方英文名
 // （实现在 title-parser.js，此处不重复定义）
 // (EN-name picking lives in title-parser.js; not duplicated here)
-

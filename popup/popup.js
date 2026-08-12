@@ -30,8 +30,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('[Game Recommender] 加载设置失败:', e);
   }
   if (!settings) {
-    document.body.insertAdjacentHTML('afterbegin',
-      '<div style="padding:12px;margin:12px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;font-size:13px;">⚠️ 扩展后台未就绪，请稍后重试。</div>');
+    document.body.insertAdjacentHTML(
+      'afterbegin',
+      '<div style="padding:12px;margin:12px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;font-size:13px;">⚠️ 扩展后台未就绪，请稍后重试。</div>'
+    );
     return;
   }
 
@@ -88,7 +90,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // Algorithm mode switch / 算法模式切换
-  document.querySelectorAll('input[name="algoMode"]').forEach(radio => {
+  document.querySelectorAll('input[name="algoMode"]').forEach((radio) => {
     radio.addEventListener('change', async (e) => {
       settings.useLLM = e.target.value === 'llm';
       await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
@@ -107,7 +109,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Button feedback / 按钮反馈
     const btn = document.getElementById('refreshBtn');
     btn.textContent = '✅ 已刷新';
-    setTimeout(() => { btn.textContent = '🔄 刷新'; }, 1500);
+    setTimeout(() => {
+      btn.textContent = '🔄 刷新';
+    }, 1500);
   });
 
   // Force refresh page / 强制刷新当前页（清除当前页 Steam 缓存后重载，忽视缓存有效期）
@@ -230,7 +234,7 @@ async function loadFreeGamesCount() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
-      const newToday = response.data.games.filter(g => g.firstSeen && g.firstSeen >= todayStartMs).length;
+      const newToday = response.data.games.filter((g) => g.firstSeen && g.firstSeen >= todayStartMs).length;
       const countEl = document.getElementById('freeCount');
       if (newToday > 0) {
         countEl.textContent = newToday;
@@ -262,7 +266,7 @@ async function loadStats() {
       // 关键词来自用户浏览记录，需转义防 XSS / Keywords come from browsing data; escape to prevent XSS
       container.innerHTML = topKeywords
         .slice(0, 5)
-        .map(kw => `<span class="keyword-tag">${escapeHtml(kw.keyword)}</span>`)
+        .map((kw) => `<span class="keyword-tag">${escapeHtml(kw.keyword)}</span>`)
         .join('');
     }
   } catch (e) {
