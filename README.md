@@ -113,7 +113,7 @@ game-recommender/
 │   └── data-store.js          # OPFS 数据存储层
 ├── lib/
 │   └── ndjson.js              # ND-JSON 编解码库
-├── tests/                     # 自动化测试套件（双 runner：vitest 9 套件 + node 直跑 5 套件）
+├── tests/                     # 自动化测试套件（vitest 13 套件 + content-sim 直跑）
 ├── styles/content.css
 ├── popup/                     # 工具栏弹窗
 ├── options/                   # 设置页（入口 + panels/ 四面板）
@@ -228,12 +228,12 @@ flowchart LR
 # 一键验证（lint + 单测）/ full check (lint + unit tests)
 npm run check
 
-# 单测双 runner（v6.1.0）：vitest 覆盖 9 个 describe/test 套件；test:node 直跑
-# 5 个线性状态敏感套件（api-pure/rules-cleanup/storage/outbound + content-sim）
-npm test          # vitest run（243 项）
-npm run test:node # node tests/run-tests.js（241 项）
-npm run test:sim  # 仅 content-sim 快速子集（--grep）
-npm run coverage  # vitest 覆盖率；coverage:node 为 c8（node 套件）
+# 单测（v6.1.1 起单 runner 为主）：vitest 覆盖全部 13 套件（414 test，
+# 断言点 484 与原 check 全量等价）；仅 content-sim（eval+动态 import 模拟
+# 与 vite-node 不兼容）由 node 直跑
+npm test          # vitest run（13 套件 414 test）
+npm run test:sim  # node tests/run-tests.js（content-sim 65 项）
+npm run coverage  # vitest 覆盖率；coverage:node 为 c8（content-sim）
 
 # 安装 git 钩子（提交信息格式校验 + 暂存 JS 语法检查，v4.1.2）
 npm run install-hooks
@@ -255,6 +255,12 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v6.1.1（小版本：4 个状态敏感套件结构化重写，双体系合并）
+- **根因定位**：此前"vitest 与 check 双体系"实为**检查点错位**而非实例分裂——check 线性脚本的顶层准备（reset/数据写入）在 vitest 收集阶段全部提前执行，断言延迟到运行阶段，读到的是全部准备完成后的最终状态（探针验证：单 test 场景实例一致，多检查点场景中间状态丢失）
+- **结构化重写 4 套件**（api-pure/rules-cleanup/storage/outbound）：顶层状态准备移入各 test（自包含：准备→断言），共享对象原地修改（steam-cache 内存引用）改为 test 内重新获取，storage mock 残留用 `_reset()` 隔离——**断言点 484 与原 check 全量完全等价**（vitest 13 套件 414 test + content-sim 65 项）
+- **双体系合并**：`run-tests.js` 注册表仅剩 content-sim；`test:node` 删除（语义并入 `test:sim`）；CI 改 `npm test` + `npm run test:sim`
+- **质量**：vitest 13/13 · content-sim 65 项 · lint 0 · typecheck 0
 
 ### v6.1.0（中版本：防抖工厂全量迁移 + vitest 断言全量重写）
 - **防抖工厂全量迁移**（v5.1.0 仅 wrong-reports/learned-noise 2 个）：steam-cache / registry / name-index / logger 4 个内联防抖块全部改用 `storage/debounced-store.js`（`scheduleWrite`/`flush`/`reset`），每模块删除自维护 timer 与复合 flush 主体；name-index 修复迁移中暴露的缺失 import 与残留 flush 主体

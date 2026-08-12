@@ -9,6 +9,8 @@
  *
  * v6.1.0：include 显式列出 `test-` 前缀套件（vitest 默认 include 只匹配
  * `.test.` 后缀）；content-sim 排除（eval 模拟与 vite-node 不兼容，node 直跑）。
+ * v6.1.1：13 套件全部纳入 vitest（4 个线性状态敏感套件结构化重写后
+ * 兼容）；run-tests.js 仅剩 content-sim。
  */
 import { defineConfig } from 'vitest/config';
 
@@ -18,11 +20,11 @@ export default defineConfig({
     pool: 'forks',
     // v6.1.0：文件级串行 + 关闭隔离——测试依赖顺序执行与模块缓存共享
     //（跨文件共享 TTL 配置/审计缓冲等全局状态，与 node legacy 语义一致）
+    // v6.1.1：4 个状态敏感套件结构化重写后 test 已自包含，串行保留稳妥
     fileParallelism: false,
     isolate: false,
     include: [
-      // v6.1.0：9 个转换文件（check→test）；4 个线性状态敏感文件
-      //（api-pure/outbound/storage/rules-cleanup）+ content-sim 由 node 直跑
+      // v6.1.1：13 个套件全部由 vitest 收集；content-sim 由 test:sim 直跑
       'tests/unit/test-title-parser.mjs',
       'tests/unit/test-engine.mjs',
       'tests/unit/test-contract.mjs',
@@ -30,8 +32,12 @@ export default defineConfig({
       'tests/unit/test-freegames.mjs',
       'tests/unit/test-sites.mjs',
       'tests/unit/test-security.mjs',
+      'tests/unit/test-api-pure.mjs',
+      'tests/unit/test-rules-cleanup.mjs',
+      'tests/unit/test-storage.mjs',
+      'tests/unit/test-outbound.mjs',
       'tests/integration/test-orchestrator.mjs',
-      'tests/integration/test-integrity.mjs'
+      'tests/integration/test-integrity.mjs',
     ],
     server: {
       deps: {

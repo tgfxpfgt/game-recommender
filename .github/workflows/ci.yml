@@ -25,10 +25,10 @@ jobs:
         run: npm ci
       - name: 运行 Lint / Run ESLint
         run: npm run lint
-      - name: 运行测试套件（vitest 9 套件 + node 直跑 5 套件）/ Run test suites
+      - name: 运行测试套件（vitest 13 套件 + content-sim 直跑）/ Run test suites
         run: |
           npm test
-          npm run test:node
+          npm run test:sim
 
   e2e:
     # v3.4.1：浏览器端 E2E 冒烟（安装微软官方 Edge，xvfb 虚拟显示跑非无头）

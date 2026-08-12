@@ -11,13 +11,9 @@
 const grepArg = process.argv.find((a) => a.startsWith('--grep='));
 const grepFilter = grepArg ? grepArg.slice('--grep='.length).toLowerCase() : null;
 
-// v6.1.0：node 直跑套件（5 个）——线性脚本 + 共享模块状态语义，
-// 与 vitest 的模块执行模型不兼容；其余 9 套件由 vitest run 覆盖
+// v6.1.1：仅 content-sim 由 node 直跑（其 eval+动态 import 模拟与
+// vite-node 运行器不兼容）；其余 13 套件全部由 vitest run 覆盖
 const tests = [
-  { name: 'Steam API 纯函数 Steam API Pure', file: './unit/test-api-pure.mjs' },
-  { name: '规则与清理 Rules & Cleanup', file: './unit/test-rules-cleanup.mjs' },
-  { name: '存储层 Storage Layer', file: './unit/test-storage.mjs' },
-  { name: '出站审计与限速 Outbound Audit', file: './unit/test-outbound.mjs' },
   { name: '内容脚本模拟 Content Script Sim', file: './integration/test-content-sim.mjs' }
 ];
 
