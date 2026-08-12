@@ -12,11 +12,16 @@
 export function createReporter() {
   let pass = 0;
   let fail = 0;
+  const failures = []; // v4.1.2：失败明细（run-tests.js 汇总输出）
   const check = (name, actual, expected) => {
     const ok = JSON.stringify(actual) === JSON.stringify(expected);
     if (ok) { pass++; console.log('  ✅', name); }
-    else { fail++; console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected)); }
+    else {
+      fail++;
+      failures.push({ name, actual, expected });
+      console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected));
+    }
   };
-  const getResult = () => ({ pass, fail, ok: fail === 0 });
+  const getResult = () => ({ pass, fail, ok: fail === 0, failures });
   return { check, getResult };
 }

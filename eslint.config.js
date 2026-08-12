@@ -1,8 +1,9 @@
 /**
- * Game Recommender - ESLint 配置（v3.3.9）
+ * Game Recommender - ESLint 配置（v3.3.9 起；v4.1.2 增强）
  *
  * 浏览器扩展无构建体系：经典内容脚本（IIFE + 全局命名空间）与后台 ES module
  * 并存，故关闭未使用变量/全局命名空间相关规则，聚焦语法错误与常见隐患。
+ * v4.1.2：no-unused-vars 升 error（当前代码 0 警告）；补零风险风格规则。
  * Run: npm run lint
  */
 export default [
@@ -39,7 +40,8 @@ export default [
         __GR_PATTERNS__: 'readonly',
         escapeHtml: 'readonly', escapeAttr: 'readonly',
         // Node 测试环境 / Node test env
-        process: 'readonly', module: 'readonly', require: 'readonly', __dirname: 'readonly'
+        process: 'readonly', module: 'readonly', require: 'readonly', __dirname: 'readonly',
+        performance: 'readonly'
       }
     },
     rules: {
@@ -52,8 +54,15 @@ export default [
       'no-constant-condition': ['error', { checkLoops: false }],
       'no-func-assign': 'error',
       'no-cond-assign': ['error', 'except-parens'],
-      // 风格（宽松）/ style (lenient)
-      'no-unused-vars': ['warn', { args: 'none', varsIgnorePattern: '^_', argsIgnorePattern: '^_' }]
+      // v4.1.2 增强：未使用变量升 error（代码已 0 警告，防新污染）
+      'no-unused-vars': ['error', { args: 'none', varsIgnorePattern: '^_', argsIgnorePattern: '^_' }],
+      // v4.1.2：零风险风格规则 / zero-risk style rules
+      'eqeqeq': ['error', 'smart'],       // 强制 ===（== null 除外）
+      'no-var': 'error',                  // 禁止 var（全库已是 let/const）
+      'prefer-const': 'error',            // 未再赋值变量用 const
+      'no-extra-semi': 'error'            // 禁止多余分号
+      // 注：curly 未启用——项目单行语句花括号风格混合（约 196 处），
+      // 强制规则需大规模自动修复制造 diff 噪音，暂以现状为准
     }
   },
   {
@@ -63,7 +72,8 @@ export default [
         process: 'readonly', console: 'readonly', setTimeout: 'readonly',
         fetch: 'readonly', URL: 'readonly', globalThis: 'readonly',
         navigator: 'readonly', document: 'readonly', window: 'readonly',
-        MutationObserver: 'readonly', NodeFilter: 'readonly', location: 'readonly'
+        MutationObserver: 'readonly', NodeFilter: 'readonly', location: 'readonly',
+        performance: 'readonly'
       }
     }
   }

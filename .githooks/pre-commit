@@ -1,0 +1,19 @@
+#!/bin/sh
+# Game Recommender pre-commit 钩子（v4.1.2）
+# 快速校验：仅对本次暂存的 .js/.mjs 改动做 node --check 语法检查
+# （不跑全量测试/lint，避免拖慢提交；完整验证由 npm run check 负责）
+# pre-commit hook: syntax-check staged JS files only (fast path)
+
+FAIL=0
+for FILE in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$'); do
+  if ! node --check "$FILE" >/dev/null 2>&1; then
+    echo "❌ 语法错误: $FILE" >&2
+    node --check "$FILE" 2>&1 >/dev/null | head -3 >&2
+    FAIL=1
+  fi
+done
+if [ "$FAIL" -ne 0 ]; then
+  echo "  请修复后重新提交（完整验证: npm run check）" >&2
+  exit 1
+fi
+exit 0

@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [main]
 
+# v4.1.2：重复推送自动取消旧运行 / cancel stale runs on new pushes
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -14,10 +19,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: 运行测试套件 / Run test suite
-        run: node tests/run-tests.js
+          cache: npm
+      # v4.1.2 修复：此前缺少 npm ci，lint 无 eslint 必然失败（CI 曾 8 次全红）
+      - name: 安装依赖 / Install dependencies
+        run: npm ci
       - name: 运行 Lint / Run ESLint
         run: npm run lint
+      - name: 运行测试套件 / Run test suite
+        run: node tests/run-tests.js
 
   e2e:
     # v3.4.1：浏览器端 E2E 冒烟（安装微软官方 Edge，xvfb 虚拟显示跑非无头）
@@ -30,6 +39,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
+          cache: npm
       - name: 安装 Microsoft Edge / Install Microsoft Edge
         run: |
           curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | sudo gpg --dearmor -o /usr/share/keyrings/microsoft-edge.gpg

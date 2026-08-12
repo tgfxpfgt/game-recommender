@@ -279,7 +279,7 @@
 
     const maxButtons = 7;
     let start = Math.max(1, OPTS.cacheCurrentPage - 3);
-    let end = Math.min(totalPages, start + maxButtons - 1);
+    const end = Math.min(totalPages, start + maxButtons - 1);
     start = Math.max(1, end - maxButtons + 1);
 
     if (start > 1) {

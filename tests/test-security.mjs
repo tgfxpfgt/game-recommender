@@ -136,7 +136,7 @@ if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter(r => !fs.existsSync(path.join(ROOT, r)));
 check('manifest 引用缺失', missing.length, 0);
-check('manifest 版本', manifest.version, '4.1.1');
+check('manifest 版本', manifest.version, '4.1.2');
 // v4.1.0：版本三源一致（manifest / package.json / 本测试）——发布时手改易漏
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
 check('package.json 版本与 manifest 一致', pkg.version, manifest.version);

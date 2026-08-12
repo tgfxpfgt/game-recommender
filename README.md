@@ -225,6 +225,12 @@ flowchart LR
 
 ### 本地开发
 ```bash
+# 一键验证（lint + 单测）/ full check (lint + unit tests)
+npm run check
+
+# 安装 git 钩子（提交信息格式校验 + 暂存 JS 语法检查，v4.1.2）
+npm run install-hooks
+
 # 语法检查
 node --check background/service-worker.js
 node --check content/tracker.js
@@ -235,10 +241,28 @@ node --check options/options.js
 # 访问 chrome://extensions/ → 开发者模式 → 加载已解压的扩展程序
 ```
 
+### 发布前深度扫描（Mimosa）
+完整发布（大版本/中版本/触发线达标）前执行 Mimosa 深度安全扫描（`security_scan` 工具，focusFiles 覆盖本次改动文件），将返回的 **seal**（`sha256:...`）记录到 release notes 与项目记忆，作为可复核的封印标识；历史扫描存放于仓库外 `~/.mimosa/security-scans/`（仓库内 `.mimosa/` 产物已 gitignore）。
+
 ### 缓存版本控制
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v4.1.2（小版本：测试 / lint / 扫描 / git 规则自动优化）
+- **git 规则**：
+  1. `.gitignore` 重写（原文件 GBK+BOM+混合 EOL 编码损坏，Read 工具无法解析）→ UTF-8 LF，新增忽略 `GameRecommender-*.html`（根目录报告附件）、`.tmp-*.mjs`、`coverage/`
+  2. 新增 `.gitattributes`（`* text=auto eol=lf` + bat/ps1 保留 CRLF + 二进制标记）+ `git add --renormalize`——根治 LF/CRLF 警告（此前 system 级 autocrlf=true 叠加导致每次 add 噪音）
+  3. 新增轻量 git 钩子 `.githooks/`（commit-msg 提交信息格式校验 + pre-commit 暂存 JS 语法检查）+ `npm run install-hooks` 一键安装（core.hooksPath，零依赖替代 husky/commitlint）
+- **测试规则**：
+  4. 失败明细可观测：`tests/helpers/assert.mjs` 收集 `failures`（名称/实际/期望），`run-tests.js` 失败时汇总输出前 10 条 + 每套件/总耗时
+  5. `package.json` 补 `engines: node >=18` + `npm run check`（lint + test 聚合入口）
+- **CI 修复（此前 8 次全红）**：
+  6. **致命缺陷**：test job 缺 `npm ci` 却跑 lint（无 eslint 必失败）→ 补上
+  7. setup-node 加 `cache: npm`；`concurrency` 取消组（重复推送自动取消旧运行）
+- **lint 增强**：`no-unused-vars` warn → error；补 `eqeqeq(smart)` / `no-var` / `prefer-const`（顺带修 2 处 let）`/ no-extra-semi`；新增 `.editorconfig`（utf-8/lf/2 空格）；curly 因项目单行花括号风格混合未启用
+- **扫描**：README 开发说明补"发布前深度扫描"流程（Mimosa seal 记录惯例）
+- **质量**：413 项单测 · E2E 16/16 · lint 0 problems
 
 ### v4.1.1（小版本：版本后缀补搜修复）
 - **修复**：`https://www.gamer520.com/40746.html` 等"增强版/重制版"标题无法正确检索新版 Steam 条目（如 GTA5 增强版 3240220）：

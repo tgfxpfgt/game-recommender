@@ -1,0 +1,21 @@
+#!/bin/sh
+# Game Recommender commit-msg 钩子（v4.1.2）
+# 校验提交信息格式：类型前缀 + 冒号 + 描述（中文惯例，与历史提交一致）
+# commit-message hook: enforce "type: subject" (Chinese convention)
+
+MSG_FILE="$1"
+MSG=$(cat "$MSG_FILE")
+# 跳过 merge/revert 等自动提交
+case "$MSG" in
+  Merge*|Revert*|merge*|revert*) exit 0 ;;
+esac
+# 去掉首行尾部空白后校验
+FIRST_LINE=$(printf '%s' "$MSG" | head -n1 | sed 's/[[:space:]]*$//')
+if ! printf '%s' "$FIRST_LINE" | grep -qE '^(feat|fix|refactor|docs|chore|test|style|perf|build|ci)(\([^)]*\))?: .+'; then
+  echo "❌ 提交信息格式不符合规范（v4.1.2 .githooks/commit-msg）" >&2
+  echo "   期望: feat|fix|refactor|docs|chore|test|style|perf|build|ci(scope)?: 描述" >&2
+  echo "   实际: $FIRST_LINE" >&2
+  echo "   示例: fix: 修复详情页检索失败" >&2
+  exit 1
+fi
+exit 0

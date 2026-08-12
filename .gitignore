@@ -1,57 +1,60 @@
-# ===== ²Ù×÷ÏµÍ³Éú³ÉÎÄ¼ş ===== 
-.DS_Store 
-Thumbs.db 
-ehthumbs.db 
-Desktop.ini 
-$RECYCLE.BIN/ 
- 
-# ===== ±à¼­Æ÷/IDE ===== 
-.vscode/ 
-.idea/ 
-*.swp 
-*.swo 
-*~ 
-.qoder/ 
- 
-# ===== ÈÕÖ¾ÓëÁÙÊ±ÎÄ¼ş ===== 
-*.log 
-*.tmp 
-*.temp 
-npm-debug.log* 
-yarn-debug.log* 
-yarn-error.log* 
- 
-# ===== ÒÀÀµÄ¿Â¼ ===== 
-node_modules/ 
-bower_components/ 
- 
-# ===== ¹¹½¨²úÎï ===== 
-dist/ 
-build/ 
-*.zip 
-*.crx 
-*.pem 
- 
-# ===== »·¾³±äÁ¿ÓëÃÜÔ¿ ===== 
-.env 
-.env.local 
-*.key 
-secrets.json 
- 
-# ===== AI ÖúÊÖ¹¤×÷Ä¿Â¼ ===== 
-.workbuddy/ 
-.mimosa/ 
- 
-# ===== ±¸·İÓë»º´æÊı¾İ ===== 
-*.bak 
-backup-*.json 
- 
-# ===== AI ÖúÊÖ»á»°/¼Æ»®ÎÄ¼ş ===== 
-.zcode/
+# ===== æ“ä½œç³»ç»Ÿç”Ÿæˆæ–‡ä»¶ / OS generated files =====
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
 
-# extension.js local session state
+# ===== ç¼–è¾‘å™¨/IDE / Editors & IDEs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.qoder/
+
+# ===== æ—¥å¿—ä¸ä¸´æ—¶æ–‡ä»¶ / Logs & temp files =====
+*.log
+*.tmp
+*.temp
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# ===== ä¾èµ–ç›®å½• / Dependencies =====
+node_modules/
+bower_components/
+
+# ===== æ„å»ºäº§ç‰© / Build output =====
+dist/
+build/
+*.zip
+*.crx
+*.pem
+
+# ===== ç¯å¢ƒå˜é‡ä¸å¯†é’¥ / Env & secrets =====
+.env
+.env.local
+*.key
+secrets.json
+
+# ===== AI åŠ©æ‰‹å·¥ä½œç›®å½• / AI-assistant workspaces =====
+.workbuddy/
+.mimosa/
+.zcode/
 .extension-js
 
-# ===== E2E æµ‹è¯•ç”Ÿæˆç‰©ï¼ˆv3.3.9ï¼‰ =====
+# ===== å¤‡ä»½ä¸ç¼“å­˜æ•°æ® / Backups & caches =====
+*.bak
+backup-*.json
+
+# ===== E2E æµ‹è¯•ç”Ÿæˆç‰©ï¼ˆv3.3.9ï¼‰/ E2E artifacts =====
 tests/.e2e-profile/
 tests/fixtures/
+
+# ===== æ ¹ç›®å½•æŠ¥å‘Šé™„ä»¶ï¼ˆä¸å…¥åº“ï¼‰/ Root-level report attachments =====
+GameRecommender-*.html
+
+# ===== è°ƒè¯•ä¸´æ—¶æ–‡ä»¶ / Debug temp files =====
+.tmp-*.mjs
+coverage/
