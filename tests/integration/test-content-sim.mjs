@@ -201,6 +201,7 @@ const SCRIPT_FILES = [
   'content/core/status-bar.js',
   'content/core/debug.js',
   'content/adapters/builder.js',
+  'content/list/badges.js',
   'content/list/list-page.js',
   'content/detail/detail-page.js',
   'content/tracking/download-tracking.js',
