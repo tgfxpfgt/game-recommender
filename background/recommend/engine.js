@@ -10,6 +10,7 @@
  * positive rate and Chinese support — distinct per game. LLM stays.
  */
 import { dataStore } from '../../data/data-store.js';
+import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
 import { DB_KEYS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { lookupAppIdByName } from '../storage/name-index.js';
@@ -165,8 +166,8 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   const [profiles, keywordWeights] = (shared && shared.profiles)
     ? [shared.profiles, shared.keywordWeights || {}]
     : await Promise.all([
-        dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
-        dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
+        readProfiles(),
+        readKeywordWeights()
       ]);
 
   // 解析 appId：列表页封面直取优先，否则名称索引

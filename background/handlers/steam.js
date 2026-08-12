@@ -1,4 +1,5 @@
 import { dataStore } from '../../data/data-store.js';
+import { flushAllCaches } from '../storage/flush.js';
 import { DB_KEYS, detailSteamCacheTtlMs } from '../core/constants.js';
 import { parseGameTitle } from '../core/title-parser.js';
 import { searchSteamAppId, fetchSteamFullDetailsByAppId, scanAndHealRegistry, isCompleteCacheData, namesRelated, findVersionVariant } from '../steam/api.js';
@@ -25,9 +26,7 @@ export async function handleSearchSteam(message) {
   } else {
     Logger.warn('Steam', `未找到"${message.gameName}"`);
   }
-  await flushSteamCache();
-  await flushNameIndex();
-  await flushRegistry();
+  await flushAllCaches();
   // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"（模块化：取最近模块时间）
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
@@ -42,9 +41,7 @@ export async function handleRefreshSteamCache(message) {
     await deleteSteamCacheEntry(appId);
   }
   const steamResult = await searchSteamGame(message.gameName);
-  await flushSteamCache();
-  await flushNameIndex();
-  await flushRegistry();
+  await flushAllCaches();
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   if (steamResult) {
     Logger.info('Steam', `手动刷新缓存"${message.gameName}" → ${steamResult.name}`, { appId: steamResult.appId });
@@ -117,9 +114,7 @@ export async function handleGetSteamByAppId(message) {
     });
     if (gameName) await recordNameIndex(gameName, target.appId);
 
-    await flushSteamCache();
-    await flushNameIndex();
-    await flushRegistry();
+    await flushAllCaches();
     const newEntry = await getSteamCacheEntry(target.appId);
     Logger.info('Steam', `通过 appId ${target.appId} 直接获取: ${target.name}`);
     return { data: target, cachedAt: newEntry ? latestModuleTs(newEntry) : null };

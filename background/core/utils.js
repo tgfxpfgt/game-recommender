@@ -73,6 +73,13 @@ function isSafeIpv6Host(host) {
   return true;
 }
 
+// v5.0.0：纯对象判定（settings/rules/message-contract 三处重复收敛于此）
+// Plain-object predicate (unified from three duplicated copies).
+export function isPlainObject(v) {
+  return !!v && typeof v === 'object' && !Array.isArray(v) &&
+    Object.getPrototypeOf(v) === Object.prototype;
+}
+
 // 中英文名有效性谓词（v3.4.1）：注册表名称自愈（api.js）与安全测试共用，
 // 单一实现避免测试复制被测逻辑（tests 直接导入本函数）。
 // CN/EN name validity predicates shared by registry self-heal and the tests,

@@ -30,6 +30,15 @@ export async function getBehaviorLog() {
   return stored || [];
 }
 
+// v5.0.0：画像/关键词权重读取辅助（此前 handlers/engine 4 处手写并行读取）
+// Profile / keyword-weight read helpers (was hand-written in 4 call sites)
+export async function readProfiles() {
+  return dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {});
+}
+export async function readKeywordWeights() {
+  return dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {});
+}
+
 // --- 游戏画像 / Game Profiles ---
 // 更新游戏画像（view/download 事件） / Update a game profile
 export async function updateGameProfile(gameInfo) {
@@ -67,6 +76,12 @@ export async function updateGameProfile(gameInfo) {
 // 偏好模型更新节流：高频事件（view_list）限制为每 60s 最多一次
 // Preference-model throttle: at most once per 60s
 let lastPrefUpdate = 0;
+
+// v5.0.0：重置偏好节流状态（导入/恢复备份后调用——此前不在重置清单内，
+// 恢复后 60s 内偏好模型可能残留旧节流不更新）
+export function resetBehaviorState() {
+  lastPrefUpdate = 0;
+}
 
 export async function maybeUpdatePreferences(force = false) {
   const now = Date.now();

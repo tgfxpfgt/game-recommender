@@ -1,4 +1,6 @@
 import { dataStore } from '../../data/data-store.js';
+import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
+import { flushAllCaches } from '../storage/flush.js';
 import { DB_KEYS, resolveTtlMs } from '../core/constants.js';
 import { getDownloadSites } from '../core/rules.js';
 import { getSettings } from '../core/settings.js';
@@ -72,8 +74,8 @@ export async function handleGetGameCacheList(message) {
 
   // 推荐值（appId 维度个性化）：批量计算一次取齐画像/偏好，循环复用
   const [gameProfiles, keywordWeights] = await Promise.all([
-    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
-    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
+    readProfiles(),
+    readKeywordWeights()
   ]);
   const allProfiles = Object.values(gameProfiles);
   const globalStats = {
@@ -228,9 +230,7 @@ export async function handleRefreshGameCacheEntry(message) {
     const enabledKeys = settings.steamSiteSearch || allSites.map(s => s.key);
     const sites = await searchDownloadSites(result.name, appId, enabledKeys);
 
-    await flushSteamCache();
-    await flushNameIndex();
-    await flushRegistry();
+    await flushAllCaches();
 
     Logger.info('Cache', `手动刷新缓存条目: appId ${appId} → ${result.name}`);
     return {

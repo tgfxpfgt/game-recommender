@@ -10,9 +10,9 @@
  * Keep-alive, rate-limit slowdown, retry and debounced persistence live here.
  */
 import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrator.js';
-import { flushSteamCache, getSteamCacheEntry, isModuleValid, getModuleData } from '../storage/steam-cache.js';
-import { flushNameIndex, lookupAppIdByName } from '../storage/name-index.js';
-import { flushRegistry } from '../storage/registry.js';
+import { flushAllCaches } from '../storage/flush.js';
+import { getSteamCacheEntry, isModuleValid, getModuleData } from '../storage/steam-cache.js';
+import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
 import { getSteamApiStatus } from '../core/api-monitor.js';
 
@@ -99,9 +99,7 @@ export async function handleGetSteamRatings(message, sender) {
           // v3.4.0：每 5 批落盘一次 + 循环结束兜底（写放大 ~80% 下降）
           batchCount++;
           if (batchCount % 5 === 0 || queue.length === 0) {
-            await flushSteamCache();
-            await flushNameIndex();
-            await flushRegistry();
+            await flushAllCaches();
           }
           push({ ratings: wave });
           // 限流降速：Steam API 异常状态时拉大批次间隔；连续异常暂停 30s 等窗口恢复
@@ -183,9 +181,7 @@ export async function handlePrefetchSteamRatings(message) {
         await new Promise(r => setTimeout(r, 3000));
       }
     }
-    await flushSteamCache();
-    await flushNameIndex();
-    await flushRegistry();
+    await flushAllCaches();
     return { success: true };
   } finally {
     clearInterval(keepAlive);

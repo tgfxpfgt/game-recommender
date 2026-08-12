@@ -5,6 +5,7 @@
  * Settings read (5s in-memory cache), save, init, and cache-TTL refresh.
  */
 import { dataStore } from '../../data/data-store.js';
+import { isPlainObject } from './utils.js';
 import { DEFAULT_SETTINGS, DB_KEYS, setTtlConfig } from './constants.js';
 
 let settingsCache = null;
@@ -17,11 +18,6 @@ const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
 // Deep merge: nested keys added in newer versions are back-filled from the
 // defaults so stale stored settings never crash the UI; malformed values with
 // a mismatched type fall back to the default.
-function isPlainObject(v) {
-  return !!v && typeof v === 'object' && !Array.isArray(v) &&
-    Object.getPrototypeOf(v) === Object.prototype;
-}
-
 // v4.2.0：导出供单测（纯函数）
 export function deepMergeSettings(base, stored) {
   // v4.2.0：null 存储同样回退默认（此前仅 undefined 回退，直接调用方传

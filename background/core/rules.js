@@ -7,6 +7,7 @@
  * otherwise the built-in adapters/ files (side-effect imported globals).
  */
 import { dataStore } from '../../data/data-store.js';
+import { isPlainObject } from './utils.js';
 import { DB_KEYS, DEFAULT_SETTINGS } from './constants.js';
 
 let siteRulesCache = null;
@@ -67,11 +68,6 @@ const RULE_LIMITS = {
   maxFieldLen: 500,       // 单个字符串字段长度上限 / max string-field length
   maxDepth: 6             // 嵌套深度上限 / max nesting depth
 };
-
-function isPlainObject(v) {
-  return !!v && typeof v === 'object' && !Array.isArray(v) &&
-    Object.getPrototypeOf(v) === Object.prototype;
-}
 
 // 校验嵌套对象（listPage/listItem 等）：类型白名单 + 深度限制 + 数组条目检查
 // Validate nested objects: type whitelist + depth limit + array-item checks

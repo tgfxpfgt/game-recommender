@@ -7,12 +7,11 @@
  * Message handlers split by domain (v5.0.0); this file keeps the core handlers,
  * the aggregated dispatch map and the unified message entry.
  */
-import { dataStore } from '../data/data-store.js';
-import { DB_KEYS, DEFAULT_SETTINGS } from './core/constants.js';
+import { DEFAULT_SETTINGS } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
 import { saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
-import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences } from './storage/behavior.js';
+import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences, readProfiles, readKeywordWeights } from './storage/behavior.js';
 import { recordDownloadHistory } from './storage/history.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { calculateRecommendation } from './recommend/engine.js';
@@ -85,8 +84,8 @@ async function handleGetRecommendations(message) {
   const shared = games.length > 1
     ? await (async () => {
         const [profiles, keywordWeights, settings] = await Promise.all([
-          dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
-          dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {}),
+          readProfiles(),
+          readKeywordWeights(),
           getSettings()
         ]);
         return { profiles, keywordWeights, settings };

@@ -43,6 +43,47 @@ export function namesRelated(title, cachedName) {
  */
 
 
+
+// v5.0.0：偏好标签推荐（由 handlers/stats.js 内嵌裸 fetch 下沉）——按用户
+// 偏好关键词在 Steam 商店搜索 + 取价格概览，返回候选游戏列表
+// Tag-based Steam store recommendations (sunk from the stats handler).
+export async function fetchSteamTagRecommendations(tags, limit = 9) {
+  const recGames = [];
+  for (const tag of tags.slice(0, 3)) {
+    const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
+    const resp = await fetchWithTimeout(searchUrl);
+    const data = await resp.json();
+
+    if (data.total > 0 && data.items) {
+      for (const item of data.items.slice(0, 4)) {
+        if (recGames.some(g => g.appId === item.id)) continue;
+
+        let detail = null;
+        try {
+          const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
+          const detResp = await fetchWithTimeout(detUrl);
+          const detData = await detResp.json();
+          if (detData[item.id]?.success) {
+            detail = detData[item.id].data;
+          }
+        } catch { /* 详情失败用搜索条目兜底 */ }
+
+        recGames.push({
+          appId: item.id,
+          name: detail?.name || item.name,
+          image: detail?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${item.id}/header.jpg`,
+          price: detail?.price_overview ? detail.price_overview.final_formatted : '免费',
+          reviewSummary: '',
+          url: `https://store.steampowered.com/app/${item.id}/`,
+          matchTags: [tag]
+        });
+      }
+    }
+    if (recGames.length >= limit) break;
+  }
+  return recGames.slice(0, limit);
+}
+
 /**
  * 名称相关性校验（v3.2.2）：防止下载站噪声词/删词变体匹配到无关游戏或续作。
  * 规范化后要求"结果名包含搜索词"；若原始标题中搜索词之后紧跟数字（如

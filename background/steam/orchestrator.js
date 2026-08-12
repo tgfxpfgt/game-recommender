@@ -115,6 +115,27 @@ export async function searchSteamGame(gameName) {
   }
 }
 
+// v5.0.0：缓存命中统一返回（幂等补写注册表 + 中英文名自愈 + 三段式字段构造），
+// getSteamRatingsFromCacheOnly 与 getSteamPositiveRate 两处重复收敛于此
+// Unified cache-hit result (registry backfill + name self-heal + 3-badge fields).
+async function applyCacheHit(merged, appId, gameName) {
+  await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
+  await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
+  return {
+    positiveRate: merged.positiveRate,
+    ratingDesc: merged.ratingDesc || null,
+    appId: merged.appId || appId,
+    name: merged.name || gameName,
+    type: merged.type || 'game',
+    // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
+    totalReviews: merged.totalReviews || 0,
+    recentPositiveRate: merged.recentPositiveRate ?? null,
+    recentTotalReviews: merged.recentTotalReviews ?? 0,
+    lastUpdate: merged.lastUpdate || null,
+    releaseDate: merged.releaseDate || ''
+  };
+}
+
 /**
  * 仅缓存命中查询（列表页第一波，无网络请求）。
  * 缓存命中（含 Demo 自愈跳过）即返回，否则返回 null → 调用方转入 Steam 拉取。
@@ -135,22 +156,8 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (!isModuleValid(cached, 'rating') || merged.positiveRate === undefined || needsRatingRefetch(merged)) return null;
   if (isDemoCacheWithoutRating(merged)) return null;
 
-  // 与完整路径一致：幂等补写注册表（含封面/type）+ 中英文名异常自愈（缓存命中时同步）
-  await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
-  await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
-  return {
-    positiveRate: merged.positiveRate,
-    ratingDesc: merged.ratingDesc || null,
-    appId: merged.appId || appId,
-    name: merged.name || gameName,
-    type: merged.type || 'game',
-    // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
-    totalReviews: merged.totalReviews || 0,
-    recentPositiveRate: merged.recentPositiveRate ?? null,
-    recentTotalReviews: merged.recentTotalReviews ?? 0,
-    lastUpdate: merged.lastUpdate || null,
-    releaseDate: merged.releaseDate || ''
-  };
+  // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
+  return applyCacheHit(merged, appId, gameName);
 }
 
 /**
@@ -175,22 +182,8 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     if (isModuleValid(cached, 'rating') && merged.positiveRate !== undefined && !needsRatingRefetch(merged)) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(merged)) {
-        // 缓存命中：幂等补写注册表（含封面/type）；中英文名异常时自愈
-        await ensureRegistryEntry(merged.appId || appId, merged.name, merged.englishName, gameName, merged.headerImage || '', merged.type);
-        await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
-        return {
-          positiveRate: merged.positiveRate,
-          ratingDesc: merged.ratingDesc || null,
-          appId: merged.appId || appId,
-          name: merged.name || gameName,
-          type: merged.type || 'game',
-          // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
-          totalReviews: merged.totalReviews || 0,
-          recentPositiveRate: merged.recentPositiveRate ?? null,
-          recentTotalReviews: merged.recentTotalReviews ?? 0,
-          lastUpdate: merged.lastUpdate || null,
-          releaseDate: merged.releaseDate || ''
-        };
+        // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
+        return applyCacheHit(merged, appId, gameName);
       }
       usableAppId = null;
     } else if (await isDemoAppId(appId)) {

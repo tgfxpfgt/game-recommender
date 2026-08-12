@@ -1,8 +1,9 @@
 import { dataStore } from '../../data/data-store.js';
+import { readProfiles, readKeywordWeights, getBehaviorLog } from '../storage/behavior.js';
 import { DB_KEYS } from '../core/constants.js';
 import { aggregateTrends } from '../core/trends.js';
-import { fetchWithTimeout } from '../core/utils.js';
-import { getBehaviorLog } from '../storage/behavior.js';
+import { fetchSteamTagRecommendations } from '../steam/api-search.js';
+import { Logger } from '../storage/logger.js';
 
 /**
  * Game Recommender - 消息处理：统计与趋势 / Stats Handlers
@@ -14,8 +15,8 @@ import { getBehaviorLog } from '../storage/behavior.js';
 // --- 统计 / Stats ---
 export async function handleGetStats() {
   const log = await getBehaviorLog();  const [profiles, keywordWeights] = await Promise.all([
-    dataStore.readModule(DB_KEYS.GAME_PROFILES).then(v => v || {}),
-    dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then(v => v || {})
+    readProfiles(),
+    readKeywordWeights()
   ]);
 
   const viewDetailCount = log.filter(e => e.type === 'view_detail').length;
@@ -62,9 +63,7 @@ export async function handleGetTrends(message) {
 }
 
 // 基于用户偏好标签的 Steam 推荐
-
-
-// 基于用户偏好标签的 Steam 推荐
+// v5.0.0：网络逻辑下沉至 api-search.js 的 fetchSteamTagRecommendations
 export async function handleGetSteamRecommendations() {
   const kwData = await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS);
   const weights = kwData || {};
@@ -78,43 +77,10 @@ export async function handleGetSteamRecommendations() {
   }
 
   try {
-    const recGames = [];
-    for (const tag of topTags.slice(0, 3)) {
-      const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
-      const resp = await fetchWithTimeout(searchUrl);
-      const data = await resp.json();
-
-      if (data.total > 0 && data.items) {
-        for (const item of data.items.slice(0, 4)) {
-          if (recGames.some(g => g.appId === item.id)) continue;
-
-          let detail = null;
-          try {
-            const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
-            const detResp = await fetchWithTimeout(detUrl);
-            const detData = await detResp.json();
-            if (detData[item.id]?.success) {
-              detail = detData[item.id].data;
-            }
-          } catch {}
-
-          recGames.push({
-            appId: item.id,
-            name: detail?.name || item.name,
-            image: detail?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${item.id}/header.jpg`,
-            price: detail?.price_overview ? detail.price_overview.final_formatted : '免费',
-            reviewSummary: '',
-            url: `https://store.steampowered.com/app/${item.id}/`,
-            matchTags: [tag]
-          });
-        }
-      }
-      if (recGames.length >= 9) break;
-    }
-
-    return { games: recGames.slice(0, 9), basedOnTags: topTags };
+    const recGames = await fetchSteamTagRecommendations(topTags, 9);
+    return { games: recGames, basedOnTags: topTags };
   } catch (e) {
-    console.error('Steam推荐失败:', e);
+    Logger.error('Steam', '标签推荐失败', e.message);
     return { games: [], error: '获取Steam推荐失败: ' + e.message };
   }
 }

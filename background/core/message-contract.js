@@ -1,3 +1,4 @@
+import { isPlainObject } from './utils.js';
 /**
  * Game Recommender - 消息契约校验 / Message Contract Validation
  *
@@ -20,9 +21,6 @@ function isName(v) {
 }
 function isNonEmpty(v, max = 100) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= max;
-}
-function isPlainObj(v) {
-  return !!v && typeof v === 'object' && !Array.isArray(v);
 }
 // 字符串数组（可空；元素 ≤maxLen）/ string array (may be empty; items ≤maxLen)
 function isStrArray(v, maxLen = 200) {
@@ -71,7 +69,7 @@ const RULES = {
   // 最高频：内容脚本每页加载即发，此前零校验直接入库
   TRACK_EVENT: (m) => {
     const data = m && m.data;
-    if (!isPlainObj(data)) return { error: 'TRACK_EVENT.data 必须是对象' };
+    if (!isPlainObject(data)) return { error: 'TRACK_EVENT.data 必须是对象' };
     if (!TRACK_TYPES.has(data.type)) return { error: 'TRACK_EVENT.data.type 不在白名单' };
     if (NAME_REQUIRED_TYPES.has(data.type) && !isName(data.gameName)) {
       return { error: `TRACK_EVENT.data.gameName 必填（type=${data.type}）且不超过 200 字符` };
@@ -98,7 +96,7 @@ const RULES = {
   },
   DELETE_BACKUP: idRule('DELETE_BACKUP.backupId'),
   // 设置透传：必须是纯对象（避免数组/null 入库）
-  SAVE_SETTINGS: (m) => isPlainObj(m && m.settings)
+  SAVE_SETTINGS: (m) => isPlainObject(m && m.settings)
     ? { ok: true } : { error: 'SAVE_SETTINGS.settings 必须是对象' },
   // ---- v4.1.0 第二批（读字段但此前零校验 + 有崩溃风险）----
   GET_RECOMMENDATIONS: (m) => {
@@ -122,7 +120,7 @@ const RULES = {
   SEARCH_DOWNLOAD_SITES: nameRule('SEARCH_DOWNLOAD_SITES.gameName'),
   RECORD_DOWNLOAD_URLS_BATCH: (m) => {
     const data = m && m.data;
-    if (!isPlainObj(data) || !Array.isArray(data.entries)) {
+    if (!isPlainObject(data) || !Array.isArray(data.entries)) {
       return { error: 'RECORD_DOWNLOAD_URLS_BATCH.data.entries 必须是数组' };
     }
     if (data.entries.some(e => !e || !APP_ID_RE.test(String(e.appId == null ? '' : e.appId)) || typeof e.url !== 'string')) {
