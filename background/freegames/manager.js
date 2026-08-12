@@ -123,7 +123,8 @@ async function fetchSteamFreeGames() {
 
 // 判断 GamerPower 条目为官方直领还是第三方领取（需条件）
 // Classify a GamerPower giveaway: official direct vs third-party (key-based)
-function classifyGamerPowerGiveaway(item) {
+// v4.2.0：导出供单测（纯函数）
+export function classifyGamerPowerGiveaway(item) {
   const title = (item.title || '').toLowerCase();
   const instructions = (item.instructions || '').toLowerCase();
 
@@ -139,7 +140,8 @@ function classifyGamerPowerGiveaway(item) {
   return 'direct';
 }
 
-function extractThirdPartySource(item) {
+// v4.2.0：导出供单测（纯函数）
+export function extractThirdPartySource(item) {
   const instructions = (item.instructions || '').toLowerCase();
   if (instructions.includes('alienware')) return 'Alienware Arena';
   if (instructions.includes('indiegala')) return 'IndieGala';

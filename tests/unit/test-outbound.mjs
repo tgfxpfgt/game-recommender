@@ -8,7 +8,7 @@
  */
 'use strict';
 
-import { createReporter } from './helpers/assert.mjs';
+import { createReporter } from '../helpers/assert.mjs';
 const reporter = createReporter();
 const { check } = reporter;
 
@@ -19,8 +19,8 @@ import { fileURLToPath } from 'node:url';
 // The audit module must be imported WITHOUT a cache-busting query — utils.js
 // references it via a static (parameter-less) import; a ?t= URL would create a
 // second module instance whose audit state the tests cannot see.
-const mod = await import(new URL('../background/core/outbound-audit.js', import.meta.url).href);
-const utils = await import(new URL('../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
+const mod = await import(new URL('../../background/core/outbound-audit.js', import.meta.url).href);
+const utils = await import(new URL('../../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
 const {
   AUDIT_MAX, RATE_WINDOW_MS, RATE_MAX,
   recordOutbound, getOutboundAudit, resetOutboundAudit, checkRateLimit

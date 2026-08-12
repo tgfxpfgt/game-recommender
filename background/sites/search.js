@@ -122,6 +122,14 @@ export function extractDetailMeta(html, siteKey) {
     if (h1Ver) meta.version = h1Ver[1];
   }
 
+  // v4.2.0：通用"版本标签"提取（gamer520 等站的"游戏版本：V1.2.3"——
+  // 此前仅 xdgame 的"版本介绍"段落与 h1 回退，其他站版本恒为空）
+  // Generic version-label extraction (e.g. gamer520 "游戏版本：V1.2.3").
+  if (!meta.version) {
+    const verLabelMatch = regexMatch(html, /(?:游戏版本|版本号|游戏版本号)[：:]\s*([Vv]?\d+(?:\.\d+)+|Build\.?\d+)/i);
+    if (verLabelMatch) meta.version = verLabelMatch[1];
+  }
+
   if (!meta.size) {
     const sizeLabelMatch = regexMatch(html, /(?:容量|游戏大小|文件大小|资源大小)[^0-9]{0,10}([0-9.]+\s*(?:GB|MB|TB))/i);
     if (sizeLabelMatch) meta.size = sizeLabelMatch[1].trim();

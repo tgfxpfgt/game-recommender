@@ -8,11 +8,11 @@
  */
 'use strict';
 
-import { createReporter } from './helpers/assert.mjs';
+import { createReporter } from '../helpers/assert.mjs';
 const reporter = createReporter();
 const { check } = reporter;
 
-const mod = await import(new URL('../background/core/message-contract.js', import.meta.url).href + '?t=' + Date.now());
+const mod = await import(new URL('../../background/core/message-contract.js', import.meta.url).href + '?t=' + Date.now());
 const { validateMessage } = mod;
 
 
@@ -59,6 +59,7 @@ check('未知 action 放行（由分发层拒绝）', validateMessage('NO_SUCH_A
 check('null 消息放行到分发层（missing action）', validateMessage('GET_STATS', null).ok, true);
 
 console.log('6. 第二批契约（v4.1.0：批量/列表/日志/备份类）');
+console.log('6a. 批量与推荐类（GET_RECOMMENDATIONS/GET_STEAM_RATINGS/PREFETCH）');
 check('GET_RECOMMENDATIONS 合法', validateMessage('GET_RECOMMENDATIONS', { games: [{ name: '游戏A', url: 'x', appId: 1 }] }).ok, true);
 check('GET_RECOMMENDATIONS 空数组合法', validateMessage('GET_RECOMMENDATIONS', { games: [] }).ok, true);
 check('GET_RECOMMENDATIONS 非数组拒绝', validateMessage('GET_RECOMMENDATIONS', {}).ok, false);
@@ -69,6 +70,7 @@ check('GET_STEAM_RATINGS 非数组拒绝', validateMessage('GET_STEAM_RATINGS', 
 check('PREFETCH_STEAM_RATINGS 合法', validateMessage('PREFETCH_STEAM_RATINGS', { names: ['A'], appIds: {} }).ok, true);
 check('CLEAR_CACHE_FOR_PAGE 合法', validateMessage('CLEAR_CACHE_FOR_PAGE', { names: ['A'], appIds: ['123'] }).ok, true);
 check('CLEAR_CACHE_FOR_PAGE 缺 appIds 拒绝', validateMessage('CLEAR_CACHE_FOR_PAGE', { names: [] }).ok, false);
+console.log('6b. 列表与搜索类（CLEAR_CACHE_FOR_PAGE/GET_GAME_CACHE_LIST/SEARCH_*）');
 check('GET_GAME_CACHE_LIST 合法', validateMessage('GET_GAME_CACHE_LIST', { keyword: 'RPG', minRating: 70, page: 1 }).ok, true);
 check('GET_GAME_CACHE_LIST 空参合法', validateMessage('GET_GAME_CACHE_LIST', {}).ok, true);
 check('GET_GAME_CACHE_LIST 非法 minRating 拒绝', validateMessage('GET_GAME_CACHE_LIST', { minRating: 'x' }).ok, false);
@@ -81,6 +83,7 @@ check('RECORD_DOWNLOAD_URLS_BATCH 空 entries 合法', validateMessage('RECORD_D
 check('RECORD_DOWNLOAD_URLS_BATCH 缺 data 拒绝', validateMessage('RECORD_DOWNLOAD_URLS_BATCH', {}).ok, false);
 check('GET_DOWNLOAD_HISTORY 空参合法', validateMessage('GET_DOWNLOAD_HISTORY', {}).ok, true);
 check('GET_DOWNLOAD_HISTORY 带名合法', validateMessage('GET_DOWNLOAD_HISTORY', { gameName: '游戏' }).ok, true);
+console.log('6c. 日志/限免/备份类（limit/moduleKeys/force）');
 check('GET_RUNTIME_LOGS limit 合法', validateMessage('GET_RUNTIME_LOGS', { limit: 200 }).ok, true);
 check('GET_RUNTIME_LOGS limit 超界拒绝', validateMessage('GET_RUNTIME_LOGS', { limit: 99999 }).ok, false);
 check('GET_OUTBOUND_AUDIT 空参合法', validateMessage('GET_OUTBOUND_AUDIT', {}).ok, true);

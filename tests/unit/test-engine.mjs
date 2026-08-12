@@ -7,12 +7,12 @@
  */
 'use strict';
 
-import { createReporter } from './helpers/assert.mjs';
+import { createReporter } from '../helpers/assert.mjs';
 const reporter = createReporter();
 const { check } = reporter;
 
 
-const mod = await import(new URL('../background/recommend/engine.js', import.meta.url).href + '?t=' + Date.now());
+const mod = await import(new URL('../../background/recommend/engine.js', import.meta.url).href + '?t=' + Date.now());
 const { computeGameScore, findProfile, calculateKeywordScore, steamspyScores } = mod;
 
 // v4.0.0：六项权重（与 DEFAULT_SETTINGS 默认一致，和 1.0）

@@ -249,6 +249,26 @@ node --check options/options.js
 
 ## 更新日志
 
+### v4.2.0（中版本：测试体系重构）
+- **重新排列组合（按领域分组）**：`tests/unit/`（纯函数单测，11 个套件）+ `tests/integration/`（内容脚本模拟/Steam 编排器/项目完整性，3 个套件）——原"名实不符"的 test-cleanup 拆分为 test-api-pure（Steam API 纯函数 93 项）与 test-rules-cleanup（规则与清理 38 项）；test-security 静态扫描节（TDZ/语法/manifest/双源）并入新 test-integrity；test-layers（5 项）与 test-wrong-reports（9 项）并入大套件（文件数 9 → 14，覆盖更清晰）
+- **精简**：
+  1. **版本断言去硬编码**：manifest 为唯一权威 + 与 package.json 互比（**发版不再需要改测试**）
+  2. 修复 test-cleanup 的 `globalThis.chrome` 泄漏（try/finally 与统一 mock）
+  3. test-contract §6 按 action 类别分节（6a 批量/6b 列表搜索/6c 日志限免备份）
+- **新增测试项目（6 个新套件 +71 项断言）**：
+  4. **test-trends**（18 项）：行为趋势 day/week 粒度、周一桶键、无效时间戳、转化率
+  5. **test-storage**（21 项）：wrong-reports 吸收 + learned-noise 阈值 3 + registry + behavior 500 上限 + **settings deepMerge 权重 backfill**
+  6. **test-freegames**（14 项）：限免平台门优先级 + 第三方来源识别（需导出 manager 纯函数）
+  7. **test-sites**（10 项）：详情页元信息提取（fixture HTML 驱动，**顺带修复 gamer520 等站版本标签提取缺失**）
+  8. **test-orchestrator**（10 项）：**两波好评率流程真实后台集成**（此前 content-sim 用 presets 绕过后台，orchestrator 零覆盖）——mock fetch + storage mock 驱动缓存命中/搜索/写缓存链路
+  9. **test-integrity**（16 项）：依赖分层 + TDZ + 语法 + manifest + 噪声双源
+- **新工具与方式**：
+  10. `helpers/storage-mock.mjs` / `helpers/fetch-mock.mjs`：统一 chrome.storage 与 Steam API fetch mock（消除 3 份重复）
+  11. `assertThrows` / `assertAsync`：断言助手增强（消除内联 try/catch）
+  12. **`--grep` 子集运行**：`node tests/run-tests.js --grep trends` 只跑匹配套件
+  13. **覆盖率工具 c8**：`npm run coverage`（当前 67.45% 行覆盖，core 92%）
+- **质量**：**484 项单测全过**（+71）· E2E 16/16 · lint 0 problems · 深度扫描 0 findings
+
 ### v4.1.2（小版本：测试 / lint / 扫描 / git 规则自动优化）
 - **git 规则**：
   1. `.gitignore` 重写（原文件 GBK+BOM+混合 EOL 编码损坏，Read 工具无法解析）→ UTF-8 LF，新增忽略 `GameRecommender-*.html`（根目录报告附件）、`.tmp-*.mjs`、`coverage/`

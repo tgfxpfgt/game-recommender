@@ -22,9 +22,12 @@ function isPlainObject(v) {
     Object.getPrototypeOf(v) === Object.prototype;
 }
 
-function deepMergeSettings(base, stored) {
+// v4.2.0：导出供单测（纯函数）
+export function deepMergeSettings(base, stored) {
+  // v4.2.0：null 存储同样回退默认（此前仅 undefined 回退，直接调用方传
+  // null 会得到 null；getSettings 内部有 `|| {}` 保护，此处更健壮）
   if (!isPlainObject(base) || !isPlainObject(stored)) {
-    return stored === undefined ? base : stored;
+    return stored === undefined || stored === null ? base : stored;
   }
   const out = { ...base };
   for (const [k, v] of Object.entries(stored)) {

@@ -22,6 +22,33 @@ export function createReporter() {
       console.log('  ❌', name, '→ 实际:', JSON.stringify(actual), '期望:', JSON.stringify(expected));
     }
   };
+  // v4.2.0：断言函数抛错（pattern 为正则/子串，缺省只要抛即可）
+  const assertThrows = (name, fn, pattern) => {
+    let threw = false;
+    let message = '';
+    try { fn(); } catch (e) { threw = true; message = e && e.message ? e.message : String(e); }
+    const ok = threw && (!pattern || (pattern.test ? pattern.test(message) : message.includes(pattern)));
+    if (ok) { pass++; console.log('  ✅', name); }
+    else {
+      fail++;
+      const detail = threw ? `（抛了但消息不匹配: ${message}）` : '（未抛错）';
+      failures.push({ name, actual: threw ? message : 'no-throw', expected: String(pattern || 'throws') });
+      console.log('  ❌', name, detail);
+    }
+  };
+  // v4.2.0：异步断言（fn 为 async，实际值与期望深比较）
+  const assertAsync = async (name, fn, expected) => {
+    let actual;
+    let err = null;
+    try { actual = await fn(); } catch (e) { err = e; }
+    const ok = !err && JSON.stringify(actual) === JSON.stringify(expected);
+    if (ok) { pass++; console.log('  ✅', name); }
+    else {
+      fail++;
+      failures.push({ name, actual: err ? 'THREW: ' + err.message : actual, expected });
+      console.log('  ❌', name, err ? `→ 抛错: ${err.message}` : `→ 实际: ${JSON.stringify(actual)} 期望: ${JSON.stringify(expected)}`);
+    }
+  };
   const getResult = () => ({ pass, fail, ok: fail === 0, failures });
-  return { check, getResult };
+  return { check, assertThrows, assertAsync, getResult };
 }

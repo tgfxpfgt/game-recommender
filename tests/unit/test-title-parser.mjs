@@ -6,12 +6,12 @@
  */
 'use strict';
 
-import { createReporter } from './helpers/assert.mjs';
+import { createReporter } from '../helpers/assert.mjs';
 const reporter = createReporter();
 const { check } = reporter;
 
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖）
-const mod = await import(new URL('../background/core/title-parser.js', import.meta.url).href + '?t=' + Date.now());
+const mod = await import(new URL('../../background/core/title-parser.js', import.meta.url).href + '?t=' + Date.now());
 const { parseGameTitle, cleanGameName, pickRegistryEnName, generateSearchVariants, extractNoiseCandidates } = mod;
 
 

@@ -12,14 +12,14 @@
  */
 'use strict';
 
-import { createReporter } from './helpers/assert.mjs';
+import { createReporter } from '../helpers/assert.mjs';
 const reporter = createReporter();
 const { check } = reporter;
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'node:url';
 
-const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 
 // ============ Fake DOM / Fake DOM ============
 class FakeEl {
