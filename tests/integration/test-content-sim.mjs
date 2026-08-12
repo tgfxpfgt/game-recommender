@@ -203,6 +203,7 @@ const SCRIPT_FILES = [
   'content/adapters/builder.js',
   'content/list/badges.js',
   'content/list/list-page.js',
+  'content/detail/detail-templates.js',
   'content/detail/detail-page.js',
   'content/tracking/download-tracking.js',
   'content/tracker.js'
@@ -529,10 +530,12 @@ check('详情页真实发起 Steam 检索（第9节流程执行）', searchCalls
 // （\b），避免 Trials/Demons 等合法游戏名子串被误标为 Demo；后台 isDemo
 // 以 appdetails type=demo 为权威信号，名称兜底同样带边界。
 // v5.0.0：api.js 已拆分为 api-*.js 子块，聚合读取全部子块源码
+// v5.1.0：detail 模板已拆至 detail-templates.js，聚合读取
 const steamApiSrc = fs.readFileSync(path.join(ROOT, 'background/steam/api.js'), 'utf-8') +
   fs.readdirSync(path.join(ROOT, 'background/steam')).filter(f => /^api-.+\.js$/.test(f))
     .map(f => fs.readFileSync(path.join(ROOT, 'background/steam', f), 'utf-8')).join('\n');
-check('浮窗 demo 徽标正则带词边界（源码级）', detailSrc.includes('\\b(demo|trial)\\b'), true);
+const detailAllSrc = detailSrc + fs.readFileSync(path.join(ROOT, 'content/detail/detail-templates.js'), 'utf-8');
+check('浮窗 demo 徽标正则带词边界（源码级）', detailAllSrc.includes('\\b(demo|trial)\\b'), true);
 check('后台 isDemo 优先用 type 权威信号（源码级）', steamApiSrc.includes("gameData.type === 'demo'"), true);
 
 console.log('\n===== 内容脚本模拟测试结果 =====');

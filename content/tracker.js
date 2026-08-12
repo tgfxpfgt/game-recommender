@@ -34,7 +34,7 @@
   // 任一模块缺失即说明加载顺序/文件遗漏，尽早报错指明问题
   // Namespace integrity check: content scripts load in manifest order; a
   // missing module means a broken order or a dropped file — fail loudly.
-  const REQUIRED_KEYS = ['common', 'float', 'status', 'debug', 'builder', 'badges', 'list', 'detail', 'tracking'];
+  const REQUIRED_KEYS = ['common', 'float', 'status', 'debug', 'builder', 'badges', 'list', 'detail', 'detailTemplates', 'tracking'];
   const missing = REQUIRED_KEYS.filter(k => !GR[k]);
   if (missing.length > 0) {
     console.error(`[Game Recommender] 内容脚本模块缺失（检查 manifest content_scripts 加载顺序）: ${missing.join(', ')}`);

@@ -44,6 +44,7 @@
         "content/adapters/builder.js",
         "content/list/badges.js",
         "content/list/list-page.js",
+        "content/detail/detail-templates.js",
         "content/detail/detail-page.js",
         "content/tracking/download-tracking.js",
         "content/tracker.js"
