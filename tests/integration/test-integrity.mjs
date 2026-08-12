@@ -26,7 +26,7 @@ function layerOf(relPath) {
   if (p.startsWith('../lib/')) return 'lib';
   if (p.startsWith('../adapters/')) return 'adapters';
   if (p === 'service-worker.js') return 'entry';
-  if (p === 'handlers.js') return 'handlers';
+  if (p === 'handlers.js' || p.startsWith('handlers/')) return 'handlers'; // v5.0.0：handlers/ 子目录
   const first = p.split('/')[0];
   if (first === 'core') return 'core';
   if (first === 'storage') return 'storage';
