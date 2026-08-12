@@ -1,19 +1,13 @@
 /**
  * Game Recommender - 内容脚本入口 / Content Script Entry
  *
- * 模块化架构（经典脚本顺序加载，经 globalThis.__GR__ 共享）：
- *   core/common.js      通用工具（转义/消息/站点）
- *   core/floats.js      统一浮窗管理器（v3.1.0）
- *   core/status-bar.js  工作状态/诊断统一浮窗
- *   core/debug.js       调试状态/面板/诊断条
- *   adapters/builder.js 适配规则加载与适配器构建
- *   list/list-page.js   列表页功能（徽章/过滤/预载）
- *   detail/detail-page.js 详情页功能（Steam 浮窗/历史/手动选择）
- *   tracking/download-tracking.js 下载追踪
+ * v6.0.0：内容脚本 ESM 化（动态 import 路径）——Chrome content_scripts 官方
+ * 不支持原生 ESM，本入口保持经典脚本，内部 await import() 并行加载模块
+ *（模块间依赖由 ESM import 图显式表达，替代旧 __GR__ 全局命名空间）。
+ * Since v6.0.0 modules load via dynamic import() from this classic entry;
+ * module-to-module dependencies are explicit ESM imports (no __GR__ namespace).
  *
- * 本文件仅负责：预热（并行唤醒后台/加载规则）、主流程（init）、启动与消息监听。
- * This entry only wires warm-up (parallel SW wake-up & rule loading), the main
- * flow (init), startup and message listening.
+ * 本文件仅负责：模块加载（boot）、预热、主流程（init）、启动与消息监听。
  */
 (function () {
   'use strict';
@@ -21,46 +15,34 @@
   if (window.__gameRecommenderTracker) return;
   window.__gameRecommenderTracker = true;
 
-  // 模块依赖（经命名空间访问）/ Module access via the shared namespace
-  const GR = window.__GR__ || {};
-  const common = GR.common || {};
-  const debug = GR.debug || {};
-  const builder = GR.builder || {};
-  const list = GR.list || {};
-  const detail = GR.detail || {};
-  const tracking = GR.tracking || {};
-
-  // 命名空间完整性自检（v3.3.9）：内容脚本靠 manifest 数组顺序加载，
-  // 任一模块缺失即说明加载顺序/文件遗漏，尽早报错指明问题
-  // Namespace integrity check: content scripts load in manifest order; a
-  // missing module means a broken order or a dropped file — fail loudly.
-  const REQUIRED_KEYS = [
-    'common',
-    'float',
-    'status',
-    'debug',
-    'builder',
-    'badges',
-    'listBatch',
-    'list',
-    'detail',
-    'detailTemplates',
-    'tracking'
-  ];
-  const missing = REQUIRED_KEYS.filter((k) => !GR[k]);
-  if (missing.length > 0) {
-    console.error(
-      `[Game Recommender] 内容脚本模块缺失（检查 manifest content_scripts 加载顺序）: ${missing.join(', ')}`
-    );
+  // ============ 模块加载（动态 import，零构建） ============
+  let MODULES = null;
+  async function ensureModules() {
+    if (MODULES) return MODULES;
+    // 逐模块 getURL（动态 import 的 URL 由浏览器解析；测试环境 getURL 可 mock）
+    const m = (p) => chrome.runtime.getURL('content/' + p);
+    const [common, floats, status, debug, builder, badges, listBatch, list, detailTemplates, detail, tracking] =
+      await Promise.all([
+        import(m('core/common.js')),
+        import(m('core/floats.js')),
+        import(m('core/status-bar.js')),
+        import(m('core/debug.js')),
+        import(m('adapters/builder.js')),
+        import(m('list/badges.js')),
+        import(m('list/list-batch.js')),
+        import(m('list/list-page.js')),
+        import(m('detail/detail-templates.js')),
+        import(m('detail/detail-page.js')),
+        import(m('tracking/download-tracking.js'))
+      ]);
+    MODULES = { common, floats, status, debug, builder, badges, listBatch, list, detailTemplates, detail, tracking };
+    return MODULES;
   }
 
-  const dbg = (...a) => debug.dbg(...a);
-
-  // ============ 预热（document_start 立即执行，与页面加载并行） ============
-  // Warm-up: run immediately at document_start, in parallel with page loading.
-  // 1) 唤醒后台 Service Worker（MV3 冷启动需数秒，提前唤醒可隐藏该延迟）；
-  // 2) 并行加载设置与适配规则。init 直接复用本结果，DOM 就绪时立即开始工作。
-  const warmupPromise = (async () => {
+  // ============ 预热（模块加载 + 设置/规则并行） ============
+  // Warm-up: module load, settings and site rules all run in parallel.
+  const bootPromise = (async () => {
+    const M = await ensureModules();
     let settings = null;
     try {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
@@ -69,18 +51,20 @@
       /* 后台不可达时 init 会自行重试 */
     }
     try {
-      await builder.loadSiteRules();
-      builder.buildSiteAdapters(builder.getSITE_RULES());
+      await M.builder.loadSiteRules();
+      M.builder.buildSiteAdapters(M.builder.getSITE_RULES());
     } catch {
       /* 规则加载失败时回退内置规则 */
     }
-    return settings;
+    return { M, settings };
   })();
 
   // ============ 核心初始化（URL检测页面类型） ============
   async function init() {
+    const { M, settings: bootSettings } = await bootPromise;
+    const { common, debug, builder, list, detail, tracking, status } = M;
     // 复用预热结果（通常已就绪，立即返回；否则等待剩余时间）
-    let settings = await warmupPromise;
+    let settings = bootSettings;
     // SW 冷启动失败兜底：重试一次获取设置，避免整页功能静默失效
     // Fallback when the warm-up failed (e.g. SW cold start): retry once
     if (!settings) {
@@ -94,7 +78,7 @@
     if (!settings || !settings.enabled) return;
 
     // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
-    if (GR.status) GR.status.setEnabled(settings.showStatusBar !== false);
+    status.setEnabled(settings.showStatusBar !== false);
 
     // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
     await builder.loadSiteRules();
@@ -110,13 +94,14 @@
     // 调试模式：开启时统一浮窗在统计显示 3 秒后切换为诊断视图
     // Debug mode: with it on, the unified bar switches to the debug view after stats
     debug.DEBUG.siteTracked = isTracked;
-    if (GR.status) GR.status.setDebugMode(settings.showDebugPanel && (isTracked || isSteamPage));
+    status.setDebugMode(settings.showDebugPanel && (isTracked || isSteamPage));
 
     // === 功能4：非追踪网站且非Steam页 → 尽早退出，节省资源 ===
     if (!isTracked && !isSteamPage) {
       return;
     }
 
+    const dbg = (...a) => debug.dbg(...a);
     dbg('插件初始化...');
     dbg(`域名: ${domain}, 追踪: ${isTracked ? '是' : '否'}, Steam: ${isSteamPage ? '是' : '否'}`);
 
@@ -166,7 +151,7 @@
       } else {
         // 适配器未提取到游戏：统一浮窗提示（页面结构可能已变化）
         dbg('⚠️ 适配器未提取到游戏项');
-        GR.status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
+        status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
       }
     }
 
@@ -188,8 +173,8 @@
         detail.injectDownloadHistoryPanel(gameName);
       } else if (appIdFromImg) {
         // 仅有 appId 无游戏名：用 document.title 作为回退名，仅注入 Steam 浮窗
-        // v5.0.0：清洗链收敛至 GR.common.cleanPageTitle
-        const fallbackName = GR.common.cleanPageTitle(document.title);
+        // v5.0.0：清洗链收敛至 common.cleanPageTitle
+        const fallbackName = common.cleanPageTitle(document.title);
         debug.DEBUG.gameName = fallbackName || `(appId:${appIdFromImg})`;
         dbg(`详情页游戏名为空，但图片含 appId: ${appIdFromImg}，使用回退名注入 Steam 浮窗`);
         detail.injectSteamButton(fallbackName || '');
@@ -204,35 +189,36 @@
   }
 
   // ============ Startup / 启动 ============
-  // document_start 注入：预热已在顶层并行执行，DOM 就绪立即 init（无额外延迟）
-  // Injected at document_start: warm-up already runs in parallel; init fires as
-  // soon as the DOM is ready (no extra delay).
+  // document_start 注入：boot（模块加载+预热）已在顶层并行执行，DOM 就绪立即
+  // init（无额外延迟）。Injected at document_start: boot (module load + warm-up)
+  // already runs in parallel; init fires as soon as the DOM is ready.
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     void init();
   } else {
     window.addEventListener('DOMContentLoaded', () => void init(), { once: true });
   }
 
-  // Message listener / 消息监听
+  // Message listener / 消息监听（模块句柄惰性获取）
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === 'REFRESH_RECOMMENDATIONS') {
       // 刷新推荐需要 settings 来读取高亮阈值，并应用虚拟机过滤
       (async () => {
         try {
+          const { M } = await bootPromise;
           const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
           const settings = resp?.settings;
           if (!settings) {
             sendResponse({ success: false });
             return;
           }
-          const adapter = builder.getAdapter();
-          if (list.isListPageByUrl() || adapter.isListPage()) {
-            let items = list.getListItemsSmart(adapter);
+          const adapter = M.builder.getAdapter();
+          if (M.list.isListPageByUrl() || adapter.isListPage()) {
+            let items = M.list.getListItemsSmart(adapter);
             // 应用虚拟机过滤（若已启用）
             if (settings.enableVmFilter) {
-              items = list.applyVmFilter(items, settings.vmFilterKeywords);
+              items = M.list.applyVmFilter(items, settings.vmFilterKeywords);
             }
-            list.requestRecommendations(items, settings);
+            M.list.requestRecommendations(items, settings);
           }
           sendResponse({ success: true });
         } catch (e) {
@@ -243,14 +229,17 @@
     }
     if (message.action === 'SHOW_LAST_STATS') {
       // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats
-      if (GR.status) GR.status.showLastStats();
+      if (MODULES) MODULES.status.showLastStats();
+      else bootPromise.then(({ M }) => M.status.showLastStats()).catch(() => {});
       sendResponse({ success: true });
       return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }
     if (message.action === 'STEAM_RATINGS_UPDATE') {
       // 后台推送：缓存未命中的游戏已从 Steam 拉取完成（多波增量，done 标记收尾）
       // Background push: cache misses fetched from Steam (incremental waves + done)
-      if (GR.list) GR.list.applySteamRatingsUpdate(message.ratings, message.done === true);
+      // 模块已就绪时同步应用（徽章即时渲染）；否则等 boot 完成后处理
+      if (MODULES) MODULES.list.applySteamRatingsUpdate(message.ratings, message.done === true);
+      else bootPromise.then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true)).catch(() => {});
       sendResponse({ success: true });
       return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }
@@ -261,19 +250,20 @@
       // cache (ignoring TTLs and the zero-review cooldown) → reload to re-fetch
       (async () => {
         try {
+          const { M } = await bootPromise;
           const names = new Set();
           const appIds = new Set();
-          if (list.isDetailPageByUrl()) {
-            const gn = detail.detectGameName();
+          if (M.list.isDetailPageByUrl()) {
+            const gn = M.detail.detectGameName();
             if (gn && gn.length > 1) names.add(gn);
-            const img = builder.extractSteamImageInfo(document);
+            const img = M.builder.extractSteamImageInfo(document);
             if (img) appIds.add(img.appId);
           } else {
-            const adapter = builder.getAdapter();
-            if (list.isListPageByUrl() || adapter.isListPage()) {
-              list.getListItemsSmart(adapter).forEach((item) => {
+            const adapter = M.builder.getAdapter();
+            if (M.list.isListPageByUrl() || adapter.isListPage()) {
+              M.list.getListItemsSmart(adapter).forEach((item) => {
                 if (item.name) names.add(item.name);
-                const info = builder.extractSteamImageInfo(item.element);
+                const info = M.builder.extractSteamImageInfo(item.element);
                 if (info) appIds.add(info.appId);
               });
             }
@@ -283,7 +273,7 @@
             names: [...names],
             appIds: [...appIds]
           });
-          dbg(`♻️ 强制刷新：已清除 ${resp && resp.cleared} 条缓存，重载页面`);
+          M.debug.dbg(`♻️ 强制刷新：已清除 ${resp && resp.cleared} 条缓存，重载页面`);
           sendResponse({ success: true, cleared: resp && resp.cleared });
           location.reload();
         } catch (e) {

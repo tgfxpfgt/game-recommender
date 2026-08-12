@@ -8,39 +8,34 @@
  * download history) are created through GR.float: zoned placement, vertical
  * stacking within a zone (no overlap), unified fold/close, and close-all.
  */
-(function (global) {
-  'use strict';
-
-  const GR = (global.__GR__ = global.__GR__ || {});
-
-  // 浮窗区域 / Float zones
-  const ZONE = {
+// 浮窗区域 / Float zones
+export const ZONE = {
     TOP_RIGHT: 'top-right', // 右上：Steam 信息等主浮窗 / main info floats
     BOTTOM_RIGHT: 'bottom-right', // 右下：状态/统计/诊断栏 / status-debug bar
     BOTTOM_LEFT: 'bottom-left' // 左下：辅助浮窗（下载站资源/历史）/ auxiliary floats
-  };
+};
 
-  // 区域基准位置 / Zone base positions
-  const BASE_POS = {
+// 区域基准位置 / Zone base positions
+const BASE_POS = {
     'top-right': { top: '80px', right: '16px' },
     'bottom-right': { right: '12px', bottom: '12px' },
     'bottom-left': { left: '16px', bottom: '12px' }
-  };
+};
 
-  // 底部堆叠的间距 / stacking gap for bottom zones
-  const STACK_GAP = 12;
+// 底部堆叠的间距 / stacking gap for bottom zones
+const STACK_GAP = 12;
 
-  const floats = {}; // id → item
-  const zoneStack = { 'top-right': [], 'bottom-right': [], 'bottom-left': [] };
+const floats = {}; // id → item
+const zoneStack = { 'top-right': [], 'bottom-right': [], 'bottom-left': [] };
 
-  // 是否底部堆叠区域 / is a bottom-stacking zone?
-  function isBottomZone(zone) {
+// 是否底部堆叠区域 / is a bottom-stacking zone?
+function isBottomZone(zone) {
     return zone === ZONE.BOTTOM_RIGHT || zone === ZONE.BOTTOM_LEFT;
-  }
+}
 
-  // 重新排列区域内的浮窗（从底部向上堆叠，防重叠）
-  // Re-stack floats in a bottom zone (bottom-up, no overlap)
-  function refreshZone(zone) {
+// 重新排列区域内的浮窗（从底部向上堆叠，防重叠）
+// Re-stack floats in a bottom zone (bottom-up, no overlap)
+function refreshZone(zone) {
     if (!isBottomZone(zone)) return;
     let offset = 0;
     for (const item of zoneStack[zone]) {
@@ -48,12 +43,12 @@
       item.root.style.bottom = parseInt(BASE_POS[zone].bottom, 10) + offset + 'px';
       offset += (item.lastHeight || 0) + STACK_GAP;
     }
-  }
+}
 
-  // 创建浮窗容器：返回内容区元素（chrome=false 时返回容器本身）
-  // Create a float container; returns the content area (or the container when
-  // chrome is disabled)
-  function create(zone, id, opts = {}) {
+// 创建浮窗容器：返回内容区元素（chrome=false 时返回容器本身）
+// Create a float container; returns the content area (or the container when
+// chrome is disabled)
+export function create(zone, id, opts = {}) {
     remove(id); // 幂等：先移除同 id 旧实例 / idempotent: drop a stale instance
 
     const root = document.createElement('div');
@@ -134,10 +129,10 @@
     }
 
     return body;
-  }
+}
 
-  // 关闭单个浮窗 / Close a single float
-  function remove(id) {
+// 关闭单个浮窗 / Close a single float
+export function remove(id) {
     const item = floats[id];
     if (!item) return;
     if (item.observer) item.observer.disconnect();
@@ -146,17 +141,10 @@
     if (item.root.parentNode) item.root.parentNode.removeChild(item.root);
     delete floats[id];
     refreshZone(item.zone);
-  }
+}
 
-  // 关闭全部浮窗 / Close all floats
-  function closeAll() {
+// 关闭全部浮窗 / Close all floats
+export function closeAll() {
     for (const id of Object.keys(floats)) remove(id);
-  }
+}
 
-  GR.float = {
-    ZONE,
-    create,
-    remove,
-    closeAll
-  };
-})(typeof globalThis !== 'undefined' ? globalThis : this);

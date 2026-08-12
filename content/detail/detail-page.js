@@ -6,16 +6,19 @@
  * Name extraction, the Steam info panel, manual-select panel, download-history
  * panel and the Steam-page download-site resource panel.
  */
-(function (global) {
-  'use strict';
+import * as detailTemplates from './detail-templates.js';
+import * as float from '../core/floats.js';
+import * as status from '../core/status-bar.js';
+import * as debug from '../core/debug.js';
+import * as common from '../core/common.js';
+import * as builder from '../adapters/builder.js';
 
-  const GR = (global.__GR__ = global.__GR__ || {});
-  const dbg = (...a) => GR.debug.dbg(...a);
-  const esc = (...a) => GR.common.escapeHtml(...a);
+const dbg = (...a) => debug.dbg(...a);
+const esc = (...a) => common.escapeHtml(...a);
 
-  // 从 Steam 图片的 alt 属性提取英文游戏名（"XXX on Steam" 模式）
-  // Extract the EN name from a Steam image alt ("XXX on Steam")
-  function extractEnglishFromSteamImage() {
+// 从 Steam 图片的 alt 属性提取英文游戏名（"XXX on Steam" 模式）
+// Extract the EN name from a Steam image alt ("XXX on Steam")
+function extractEnglishFromSteamImage() {
     const imgs = document.querySelectorAll('img');
     for (const img of imgs) {
       const alt = (img.getAttribute('alt') || '').trim();
@@ -28,12 +31,12 @@
       }
     }
     return null;
-  }
+}
 
-  // 从页面提取游戏名称（不依赖适配器）
-  // 先移除 h1 徽章元素，再按分隔符分段移除纯噪声段（中英文名段都保留）
-  // 汇总贴/索引页（顶置汇总、索引）不是单个游戏，直接返回空（跳过详情处理）
-  function detectGameName() {
+// 从页面提取游戏名称（不依赖适配器）
+// 先移除 h1 徽章元素，再按分隔符分段移除纯噪声段（中英文名段都保留）
+// 汇总贴/索引页（顶置汇总、索引）不是单个游戏，直接返回空（跳过详情处理）
+export function detectGameName() {
     const h1 = document.querySelector('h1');
     const pageTitle = (document.title || '') + ' ' + (h1 ? h1.textContent : '');
     if (/顶置|置顶|汇总贴|汇总|索引/.test(pageTitle)) return '';
@@ -87,16 +90,16 @@
     // 从 title 获取
     const title = document.title || '';
     if (title) {
-      // v5.0.0：清洗链收敛至 GR.common.cleanPageTitle
-      const cleaned = GR.common.cleanPageTitle(title);
+      // v5.0.0：清洗链收敛至 common.cleanPageTitle
+      const cleaned = common.cleanPageTitle(title);
       return cleaned || document.title;
     }
     return '';
-  }
+}
 
-  // ============ 功能3：Steam页面下载站资源浮窗 ============
-  // 显示下载站搜索结果，提供详情页跳转链接（v1.1 起不再提供网盘直链）。
-  function injectDownloadSitePanel() {
+// ============ 功能3：Steam页面下载站资源浮窗 ============
+// 显示下载站搜索结果，提供详情页跳转链接（v1.1 起不再提供网盘直链）。
+export function injectDownloadSitePanel() {
     const appIdMatch = window.location.pathname.match(/\/app\/(\d+)/);
     const appId = appIdMatch ? appIdMatch[1] : '';
     const gameNameEl = document.querySelector('.apphub_AppName, .page_title');
@@ -114,10 +117,10 @@
     if (!gameName) return;
     dbg(`Steam游戏: ${gameName} (appId=${appId})`);
     // 工作状态浮窗：开始搜索 / Work status bar: searching
-    GR.status.showStatus('正在搜索下载站资源', null, null, `${gameName}`);
+    status.showStatus('正在搜索下载站资源', null, null, `${gameName}`);
 
     // 浮窗容器经 GR.float 统一管理（左下区域）
-    const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-site-panel', {
+    const panel = float.create(float.ZONE.BOTTOM_LEFT, 'gr-download-site-panel', {
       chrome: true,
       width: 320,
       title: '📥 下载站资源'
@@ -135,7 +138,7 @@
           renderDownloadSitePanel(panel, resp.sites, gameName);
           // 工作状态浮窗：完成统计 / Completion stats
           const found = resp.sites.filter((s) => s.found).length;
-          GR.status.showStats({
+          status.showStats({
             title: '下载站资源检索完成',
             summary: `${found}/${resp.sites.length} 个下载站找到资源`,
             rows: resp.sites
@@ -145,16 +148,16 @@
           });
         } else {
           panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
-          GR.status.showStats({ title: '下载站资源检索完成', summary: '未找到匹配资源' });
+          status.showStats({ title: '下载站资源检索完成', summary: '未找到匹配资源' });
         }
       } catch {
         panel.innerHTML = `<div style="padding:14px;text-align:center;color:#e74c3c;">搜索失败</div>`;
       }
     })();
-  }
+}
 
-  // 渲染下载站结果（仅显示详情页链接）
-  function renderDownloadSitePanel(panel, sites, gameName) {
+// 渲染下载站结果（仅显示详情页链接）
+function renderDownloadSitePanel(panel, sites, gameName) {
     const siteNames = { xdgame: 'XDGame', xianyudanji: '咸鱼单机', gamer520: 'Gamer520' };
     let html = `
       <div style="padding:12px 14px 6px 14px;">
@@ -170,7 +173,7 @@
           <div data-site-key="${site.key}" style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <span style="font-size:12px;font-weight:bold;color:#67c1f5;">${name}</span>
-              <a href="${GR.common.escapeAttr(site.detailUrl)}" target="_blank" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>
+              <a href="${common.escapeAttr(site.detailUrl)}" target="_blank" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#acb2b8;">
               ${site.updateDate ? `<div>📅 更新: ${esc(site.updateDate)}</div>` : ''}
@@ -185,7 +188,7 @@
           <div style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.15);border:1px solid #222;border-radius:3px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <span style="font-size:12px;color:#666;">${name}</span>
-              <a href="${GR.common.escapeAttr(site.searchUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">去搜索 ↗</a>
+              <a href="${common.escapeAttr(site.searchUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">去搜索 ↗</a>
             </div>
             <div style="font-size:11px;color:#555;margin-top:3px;">未直接找到该游戏</div>
           </div>
@@ -194,10 +197,10 @@
     }
 
     panel.innerHTML = html;
-  }
+}
 
-  // ============ 下载历史浮窗（详情页显示上次下载记录） ============
-  function injectDownloadHistoryPanel(gameName) {
+// ============ 下载历史浮窗（详情页显示上次下载记录） ============
+export function injectDownloadHistoryPanel(gameName) {
     if (!gameName) return;
 
     // 注入CSS动画（仅一次）
@@ -229,13 +232,13 @@
         dbg(`下载历史: ${record.lastDownloadSiteName}, ${new Date(record.lastDownloadTime).toLocaleString()}`);
 
         // 浮窗容器经 GR.float 统一管理（左下区域）
-        const panel = GR.float.create(GR.float.ZONE.BOTTOM_LEFT, 'gr-download-history-float', {
+        const panel = float.create(float.ZONE.BOTTOM_LEFT, 'gr-download-history-float', {
           chrome: true,
           width: 280,
           title: '📥 下载记录'
         });
 
-        const timeStr = GR.common.formatRelativeTime(record.lastDownloadTime);
+        const timeStr = common.formatRelativeTime(record.lastDownloadTime);
         const siteName = record.lastDownloadSiteName || '未知站点';
 
         panel.style.padding = '12px 14px';
@@ -251,18 +254,18 @@
           下载站点：<span style="color:#66c0f4;">${esc(siteName)}</span>
         </div>
         ${record.totalDownloads && record.totalDownloads > 1 ? `<div style="color:#666;margin-top:6px;font-size:11px;">共下载 ${record.totalDownloads} 次</div>` : ''}
-        ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${GR.common.escapeAttr(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
+        ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${common.escapeAttr(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
       `;
       })
       .catch(() => {});
-  }
+}
 
-  // ============ Steam详情浮窗（仿Steam右侧信息栏） ============
-  // 容器经 GR.float 统一管理（右上区域，chrome 标题栏含折叠/关闭）
-  function injectSteamButton(gameName) {
+// ============ Steam详情浮窗（仿Steam右侧信息栏） ============
+// 容器经 GR.float 统一管理（右上区域，chrome 标题栏含折叠/关闭）
+export function injectSteamButton(gameName) {
     dbg('注入Steam浮窗...');
 
-    const panel = GR.float.create(GR.float.ZONE.TOP_RIGHT, 'gr-steam-float', {
+    const panel = float.create(float.ZONE.TOP_RIGHT, 'gr-steam-float', {
       chrome: true,
       width: 320,
       title: '🎮 Steam 信息'
@@ -298,7 +301,7 @@
     function makeReportIssue(name) {
       return async () => {
         const wrongAppId =
-          steamData && steamData.appId ? String(steamData.appId) : GR.builder.extractSteamAppIdFromImages() || '';
+          steamData && steamData.appId ? String(steamData.appId) : builder.extractSteamAppIdFromImages() || '';
         dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
         try {
           await chrome.runtime.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
@@ -306,7 +309,7 @@
           /* 后台不可达不阻断重检索 */
         }
         // 重新检索：有封面 appId 直取，否则名称搜索
-        const imgAppId = GR.builder.extractSteamAppIdFromImages();
+        const imgAppId = builder.extractSteamAppIdFromImages();
         let resp = null;
         if (imgAppId) {
           resp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
@@ -339,7 +342,7 @@
     // 手动更新缓存回调（成功获取数据后复用渲染逻辑）
     function makeOnRefresh(name) {
       return async () => {
-        const appId = GR.builder.extractSteamAppIdFromImages();
+        const appId = builder.extractSteamAppIdFromImages();
         let refreshResp;
         if (appId) {
           refreshResp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName: name });
@@ -361,13 +364,13 @@
     function renderAndShow(data, cachedAt, name) {
       steamData = data;
       reportIssue = makeReportIssue(name);
-      GR.debug.DEBUG.steamStatus = `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
+      debug.DEBUG.steamStatus = `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
       dbg(`Steam: ${data.name} - ${data.ratingDesc} ${data.positiveRate}%`);
       renderSteamSidebar(panel, data, hidePanel, cachedAt, makeOnRefresh(name), reportIssue);
       showPanel();
 
       // 记录下载站详情页访问（Steam 匹配成功后补充记录）
-      GR.common.trackDownloadSiteVisit(data.appId, name);
+      common.trackDownloadSiteVisit(data.appId, name);
 
       // 回写Steam标签
       if (data.genres && data.genres.length > 0) {
@@ -390,9 +393,9 @@
 
     // 自动加载Steam数据：优先 appId 直取，回退名称搜索，都失败显示手动选择浮窗
     (async () => {
-      GR.debug.DEBUG.steamStatus = '查询中...';
-      GR.debug.scheduleDebugUpdate();
-      GR.status.showStatus('正在查询 Steam 信息', null, null, gameName); // 工作状态浮窗
+      debug.DEBUG.steamStatus = '查询中...';
+      debug.scheduleDebugUpdate();
+      status.showStatus('正在查询 Steam 信息', null, null, gameName); // 工作状态浮窗
       try {
         // v3.3.14：appId 提取限定主内容区——gamer520 侧边推荐图是 Steam CDN
         // 封面，全页提取会误取推荐游戏的 appId（如 16598 页右侧推荐 2001760）；
@@ -400,7 +403,7 @@
         const mainEl = document.querySelector(
           'article, .entry-content, .post-content, .main-content, #main-content, main, .single-content'
         );
-        const appId = GR.builder.extractSteamAppIdFromImages(mainEl || document);
+        const appId = builder.extractSteamAppIdFromImages(mainEl || document);
         let response = null;
         if (appId) {
           dbg(`从图片URL提取到 appId: ${appId}，直接获取 Steam 详情`);
@@ -414,7 +417,7 @@
         if (response && response.data) {
           renderAndShow(response.data, response.cachedAt || null, gameName);
           // 工作状态浮窗：完成统计 / Completion stats
-          GR.status.showStats({
+          status.showStats({
             title: 'Steam 信息获取完成',
             summary: `${response.data.ratingDesc || '暂无评价'} ${response.data.positiveRate != null ? response.data.positiveRate + '%' : ''}`,
             rows: [
@@ -423,14 +426,13 @@
             ]
           });
         } else {
-          GR.debug.DEBUG.steamStatus = '❌ 未找到';
+          debug.DEBUG.steamStatus = '❌ 未找到';
           dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
           renderManualSelectPanel(panel, gameName, hidePanel, (selectedData, selectedAppId) => {
             renderAndShow(selectedData, Date.now(), gameName);
             chrome.runtime
               .sendMessage({
                 action: 'SAVE_MANUAL_MAPPING',
-                gameName,
                 appId: selectedAppId
               })
               .catch(() => {});
@@ -438,18 +440,18 @@
           showPanel();
         }
       } catch (e) {
-        GR.debug.DEBUG.steamStatus = '❌ ' + e.message;
+        debug.DEBUG.steamStatus = '❌ ' + e.message;
         dbg('Steam查询错误: ' + e.message);
         panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(e.message)}</div>`;
         showPanel();
-        GR.status.showStats({ title: 'Steam 信息查询失败', summary: e.message });
+        status.showStats({ title: 'Steam 信息查询失败', summary: e.message });
       }
-      GR.debug.scheduleDebugUpdate();
+      debug.scheduleDebugUpdate();
     })();
-  }
+}
 
-  // 手动选择浮窗：自动搜索失败时显示候选游戏列表供用户选择
-  function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
+// 手动选择浮窗：自动搜索失败时显示候选游戏列表供用户选择
+function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
     panel.innerHTML = `
       <div style="padding:16px;">
         <div style="font-size:15px;font-weight:bold;color:#fff;margin-bottom:8px;">🎮 手动选择游戏</div>
@@ -494,7 +496,7 @@
             background:rgba(0,0,0,0.2);border:1px solid #2a475e;border-radius:3px;
             cursor:pointer;transition:background 0.2s,border-color 0.2s;
           ">
-            ${c.image ? `<img src="${GR.common.escapeAttr(c.image)}" style="width:46px;height:17px;border-radius:2px;flex-shrink:0;">` : ''}
+            ${c.image ? `<img src="${common.escapeAttr(c.image)}" style="width:46px;height:17px;border-radius:2px;flex-shrink:0;">` : ''}
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;color:#c7d5e0;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
               <div style="font-size:10px;color:#8f98a0;">App ID: ${c.appId}${c.price !== null && c.price !== undefined ? ` · ¥${c.price}` : ''}</div>
@@ -526,7 +528,6 @@
               const detailResp = await chrome.runtime.sendMessage({
                 action: 'GET_STEAM_BY_APPID',
                 appId: parseInt(selectedAppId),
-                gameName,
                 manual: true // v3.3.14：手动选择候选跳过名称相关性校验（用户主动确认）
               });
               if (detailResp && detailResp.data) {
@@ -558,14 +559,14 @@
         searchTimer = setTimeout(() => searchAndRender(keyword), 300);
       });
     }
-  }
+}
 
-  // 仿Steam右侧信息栏渲染（v5.1.0：模板拆至 GR.detailTemplates.steamSidebar，
-  // 本函数保留 DOM 绑定；模板按元素 id 约定输出）
-  // Steam-style info sidebar (template in GR.detailTemplates since v5.1.0;
-  // this function keeps the DOM bindings).
-  function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport) {
-    panel.innerHTML = GR.detailTemplates.steamSidebar(data, cachedAt, !!onRefresh, !!onReport);
+// 仿Steam右侧信息栏渲染（v5.1.0：模板拆至 detailTemplates.steamSidebar，
+// 本函数保留 DOM 绑定；模板按元素 id 约定输出）
+// Steam-style info sidebar (template in GR.detailTemplates since v5.1.0;
+// this function keeps the DOM bindings).
+function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport) {
+    panel.innerHTML = detailTemplates.steamSidebar(data, cachedAt, !!onRefresh, !!onReport);
 
     // 绑定手动更新按钮事件
     if (onRefresh) {
@@ -615,12 +616,5 @@
       headerImg.addEventListener('error', () => {
         headerImg.style.display = 'none';
       });
-  }
+}
 
-  GR.detail = {
-    detectGameName,
-    injectSteamButton,
-    injectDownloadSitePanel,
-    injectDownloadHistoryPanel
-  };
-})(typeof globalThis !== 'undefined' ? globalThis : this);

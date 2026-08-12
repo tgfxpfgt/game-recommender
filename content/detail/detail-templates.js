@@ -4,18 +4,16 @@
  * v5.1.0：由 detail-page.js 拆分——纯 HTML 模板函数（无 DOM 绑定），
  * 依赖仅 GR.common（转义/相对时间）。按钮绑定由逻辑层按元素 id 约定完成。
  * Pure HTML template functions split from detail-page.js (v5.1.0); only
- * depends on GR.common. Button binding stays in the logic layer via id
+ * depends on common. Button binding stays in the logic layer via id
  * conventions.
  */
-(function (global) {
-  'use strict';
+import * as common from '../core/common.js';
 
-  const GR = (global.__GR__ = global.__GR__ || {});
-  const esc = (...a) => GR.common.escapeHtml(...a);
+const esc = (...a) => common.escapeHtml(...a);
 
-  // Steam 信息栏完整模板（数据 + 缓存时间 + 按钮开关 → HTML）
-  // Full Steam-info sidebar template (data + cachedAt + button flags → HTML)
-  function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
+// Steam 信息栏完整模板（数据 + 缓存时间 + 按钮开关 → HTML）
+// Full Steam-info sidebar template (data + cachedAt + button flags → HTML)
+export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
     // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__）
     const P = globalThis.__GR_PATTERNS__ || {};
     const rate = data.positiveRate || 0;
@@ -34,7 +32,7 @@
           ? 'rgba(163,207,6,0.1)'
           : 'rgba(255,123,0,0.1)';
 
-    const cacheAgeText = GR.common.formatRelativeTime(cachedAt);
+    const cacheAgeText = common.formatRelativeTime(cachedAt);
 
     // 中文评测
     let reviewsHtml = '';
@@ -90,7 +88,7 @@
       <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.25);border-radius:3px;border:1px solid #2a475e;">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <span style="font-size:12px;font-weight:bold;color:#fff;">📊 SteamSpy</span>
-          ${data.steamdbUrl ? `<a href="${GR.common.escapeAttr(data.steamdbUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">SteamDB 查看 ↗</a>` : ''}
+          ${data.steamdbUrl ? `<a href="${common.escapeAttr(data.steamdbUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">SteamDB 查看 ↗</a>` : ''}
         </div>
         ${spyBody}
       </div>
@@ -102,7 +100,7 @@
         data.headerImage
           ? `
         <div style="position:relative;">
-          <img id="gr-header-image" src="${GR.common.escapeAttr(data.headerImage)}" style="width:100%;display:block;border-radius:4px 4px 0 0;"/>
+          <img id="gr-header-image" src="${common.escapeAttr(data.headerImage)}" style="width:100%;display:block;border-radius:4px 4px 0 0;"/>
         </div>
       `
           : ''
@@ -133,7 +131,7 @@
         <!-- 跳转Steam按钮 -->
         ${
           data.url
-            ? `<a href="${GR.common.escapeAttr(data.url)}" target="_blank" style="
+            ? `<a href="${common.escapeAttr(data.url)}" target="_blank" style="
           display:block;margin-bottom:12px;padding:9px 0;text-align:center;
           background:linear-gradient(to right,#75b022,#588a1b);
           color:#d2efa9;border-radius:3px;text-decoration:none;
@@ -293,9 +291,5 @@
         </div>
       </div>
     `;
-  }
+}
 
-  GR.detailTemplates = {
-    steamSidebar
-  };
-})(typeof globalThis !== 'undefined' ? globalThis : this);

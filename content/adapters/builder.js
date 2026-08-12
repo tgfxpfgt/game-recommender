@@ -6,15 +6,12 @@
  * Builds the adapter table from rules (user-imported storage first, built-in
  * adapters/ otherwise); site lookup and image-appId extraction utilities.
  */
-(function (global) {
-  'use strict';
+import * as common from '../core/common.js';
 
-  const GR = (global.__GR__ = global.__GR__ || {});
+let SITE_RULES = null;
 
-  let SITE_RULES = null;
-
-  // 异步加载适配规则（内容脚本可访问 storage）/ Load rules async (storage-aware)
-  async function loadSiteRules() {
+// 异步加载适配规则（内容脚本可访问 storage）/ Load rules async (storage-aware)
+export async function loadSiteRules() {
     if (SITE_RULES) return SITE_RULES;
     try {
       const data = await chrome.storage.local.get('adapterRules');
@@ -27,18 +24,18 @@
       SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
     }
     return SITE_RULES;
-  }
+}
 
-  // 当前站点是否启用图片 appId 直取（规则可配置，默认启用）
-  // Is image-appId lookup enabled for the current site? (default on)
-  function isImageAppIdEnabled() {
-    const domain = GR.common.getCurrentDomain();
+// 当前站点是否启用图片 appId 直取（规则可配置，默认启用）
+// Is image-appId lookup enabled for the current site? (default on)
+export function isImageAppIdEnabled() {
+    const domain = common.getCurrentDomain();
     const rule = (SITE_RULES || []).find((r) => r.domains.some((d) => domain.includes(d)));
     return rule ? rule.imageAppId !== false : true;
-  }
+}
 
-  // 根据规则构建站点适配器 / Build a site adapter from its rules
-  function buildAdapter(rule) {
+// 根据规则构建站点适配器 / Build a site adapter from its rules
+function buildAdapter(rule) {
     // 非法正则跳过（防御旧版本/手工写入的坏规则；后台 rules.js 也有同款校验）
     const detailPatterns = [];
     for (const p of rule.detailUrlPatterns || []) {
@@ -204,12 +201,12 @@
         return items;
       }
     };
-  }
+}
 
-  // 通用适配器（所有站点兜底）/ Generic adapter (fallback for every site)
-  // 常见下载站路径特征（v3.3.9 提为常量便于扩展；新站点路径风格不同时可在此追加）
-  const GENERIC_DETAIL_PATHS = ['/game/', '/down/', '/soft/'];
-  const DEFAULT_ADAPTER = {
+// 通用适配器（所有站点兜底）/ Generic adapter (fallback for every site)
+// 常见下载站路径特征（v3.3.9 提为常量便于扩展；新站点路径风格不同时可在此追加）
+const GENERIC_DETAIL_PATHS = ['/game/', '/down/', '/soft/'];
+const DEFAULT_ADAPTER = {
     name: '通用',
     isListPage: () => {
       let gameLinks = 0;
@@ -260,57 +257,57 @@
         });
       return items;
     }
-  };
+};
 
-  // 列表页链接扫描上限（大列表页性能保护；v3.3.9 可由设置 maxScanLinks 调整，
-  // tracker init 时注入） / link-scan limit for list detection (tunable since v3.3.9)
-  let SCAN_LIMIT = 500;
-  function setScanLimit(n) {
+// 列表页链接扫描上限（大列表页性能保护；v3.3.9 可由设置 maxScanLinks 调整，
+// tracker init 时注入） / link-scan limit for list detection (tunable since v3.3.9)
+let SCAN_LIMIT = 500;
+export function setScanLimit(n) {
     if (typeof n === 'number' && n > 0) SCAN_LIMIT = n;
-  }
-  function getScanLimit() {
+}
+export function getScanLimit() {
     return SCAN_LIMIT;
-  }
+}
 
-  // 站点适配器表（init 时构建；规则导入/更新后重建）
-  let SITE_ADAPTERS = { _default: DEFAULT_ADAPTER };
-  function buildSiteAdapters(rules) {
+// 站点适配器表（init 时构建；规则导入/更新后重建）
+let SITE_ADAPTERS = { _default: DEFAULT_ADAPTER };
+export function buildSiteAdapters(rules) {
     const adapters = {};
     for (const rule of rules || []) {
       adapters[rule.key] = buildAdapter(rule);
     }
     adapters['_default'] = DEFAULT_ADAPTER;
     SITE_ADAPTERS = adapters;
-  }
+}
 
-  // 获取当前站点适配器 / Get the current site's adapter
-  function getAdapter() {
-    const domain = GR.common.getCurrentDomain();
+// 获取当前站点适配器 / Get the current site's adapter
+export function getAdapter() {
+    const domain = common.getCurrentDomain();
     for (const [key, adapter] of Object.entries(SITE_ADAPTERS)) {
       // v3.3.9：域名段匹配（www.xianyudanji.gg → xianyudanji），
       // 比子串匹配严格——xdgame2.com 不再误配 xdgame
       if (key !== '_default' && domain.split('.').includes(key)) return adapter;
     }
     return SITE_ADAPTERS['_default'];
-  }
+}
 
-  // 当前站点的适配器 key（下载站网址缓存上报用）/ The current site's adapter key
-  function getAdapterKey() {
-    const domain = GR.common.getCurrentDomain();
+// 当前站点的适配器 key（下载站网址缓存上报用）/ The current site's adapter key
+export function getAdapterKey() {
+    const domain = common.getCurrentDomain();
     for (const key of Object.keys(SITE_ADAPTERS)) {
       if (key !== '_default' && domain.split('.').includes(key)) return key;
     }
     return '';
-  }
+}
 
-  // 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）。
-  // lazyload 站点真实图在 data-* 属性：gamer520 用 data-src/data-lazy-src，
-  // xdgame 用 data-original（jQuery lazy），故 data-* 属性优先，最后回退 src。
-  // Extract appId and cover URL from Steam images (optional element scope).
-  // Lazyload sites keep the real image in data-* attributes: data-src /
-  // data-lazy-src (gamer520) and data-original (xdgame, jQuery lazy), so the
-  // data-* attributes are checked first, then src.
-  function extractSteamImageInfo(scope) {
+// 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）。
+// lazyload 站点真实图在 data-* 属性：gamer520 用 data-src/data-lazy-src，
+// xdgame 用 data-original（jQuery lazy），故 data-* 属性优先，最后回退 src。
+// Extract appId and cover URL from Steam images (optional element scope).
+// Lazyload sites keep the real image in data-* attributes: data-src /
+// data-lazy-src (gamer520) and data-original (xdgame, jQuery lazy), so the
+// data-* attributes are checked first, then src.
+export function extractSteamImageInfo(scope) {
     const imgs = (scope || document).querySelectorAll('img');
     for (const img of imgs) {
       const src =
@@ -323,34 +320,21 @@
       if (match) return { appId: match[1], cover: src };
     }
     return null;
-  }
+}
 
-  // 仅提取 appId（兼容旧调用）/ Extract just the appId
-  function extractSteamAppIdFromImages(scope) {
+// 仅提取 appId（兼容旧调用）/ Extract just the appId
+export function extractSteamAppIdFromImages(scope) {
     const info = extractSteamImageInfo(scope);
     return info ? info.appId : null;
-  }
+}
 
-  // v4.1.0：容器级增量提取（MutationObserver 新增节点用）——按当前站点
-  // 适配器规则只扫传入容器，item 结构与 getListItems 一致
-  // Container-scoped incremental extraction for MutationObserver-added nodes.
-  function findItemsInContainer(container) {
+// v4.1.0：容器级增量提取（MutationObserver 新增节点用）——按当前站点
+// 适配器规则只扫传入容器，item 结构与 getListItems 一致
+// Container-scoped incremental extraction for MutationObserver-added nodes.
+export function findItemsInContainer(container) {
     const adapter = getAdapter();
     if (!adapter || typeof adapter.extractFromContainer !== 'function') return [];
     return adapter.extractFromContainer(container);
-  }
+}
 
-  GR.builder = {
-    loadSiteRules,
-    isImageAppIdEnabled,
-    buildSiteAdapters,
-    getAdapter,
-    getAdapterKey,
-    extractSteamImageInfo,
-    extractSteamAppIdFromImages,
-    findItemsInContainer, // v4.1.0：增量提取
-    setScanLimit,
-    getScanLimit,
-    getSITE_RULES: () => SITE_RULES
-  };
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+export const getSITE_RULES = () => SITE_RULES;

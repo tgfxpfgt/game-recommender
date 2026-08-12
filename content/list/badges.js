@@ -6,22 +6,17 @@
  * Badge rendering split from list-page.js (v5.0.0); pure DOM, no scheduler
  * state (prependBadge takes settings as a parameter).
  */
-(function (global) {
-  'use strict';
-
-  const GR = (global.__GR__ = global.__GR__ || {});
-
-  // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
-  function removeItemFromDom(item) {
+// 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
+export function removeItemFromDom(item) {
     if (!item.element || !item.element.parentNode) return;
     const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
     const toRemove = colContainer && colContainer !== item.element ? colContainer : item.element;
     if (toRemove.parentNode) toRemove.remove();
-  }
+}
 
-  // 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）
-  // Create one badge span (shared styling; clickable badges open the store)
-  function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed }) {
+// 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）
+// Create one badge span (shared styling; clickable badges open the store)
+export function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed }) {
     const badge = document.createElement('span');
     badge.className = cls || 'gr-rating-badge';
     badge.textContent = text;
@@ -36,11 +31,11 @@
       });
     }
     return badge;
-  }
+}
 
-  // 批量插入徽章组（从后往前插保证从左到右顺序；标题元素优先，回退链接文本节点）
-  // Insert a badge group (reverse-order insert keeps left-to-right order)
-  function insertBadges(item, link, badges) {
+// 批量插入徽章组（从后往前插保证从左到右顺序；标题元素优先，回退链接文本节点）
+// Insert a badge group (reverse-order insert keeps left-to-right order)
+export function insertBadges(item, link, badges) {
     let targetEl = item.titleEl || null;
     if (!targetEl && item.element) {
       targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
@@ -53,14 +48,14 @@
       const ref = firstTextNode && firstTextNode.textContent.trim().length > 1 ? firstTextNode : link.firstChild;
       for (let i = badges.length - 1; i >= 0; i--) link.insertBefore(badges[i], ref);
     }
-  }
+}
 
-  // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
-  // 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
-  // v3.3.8：徽章显示开关（badgeVisibility）——关闭某徽章仅跳过渲染，
-  // 后台数据获取不受影响；关闭"全部好评率"同时停用好评率过滤。
-  // v5.0.0：settings 参数化（此前读 ratingsJob 闭包）
-  function prependBadge(item, rating, settings) {
+// 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
+// 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
+// v3.3.8：徽章显示开关（badgeVisibility）——关闭某徽章仅跳过渲染，
+// 后台数据获取不受影响；关闭"全部好评率"同时停用好评率过滤。
+// v5.0.0：settings 参数化（此前读 ratingsJob 闭包）
+export function prependBadge(item, rating, settings) {
     const link = item.link;
     if (!link) return;
     if (link.querySelector('.gr-rating-badge')) return; // 防重复 / no duplicates
@@ -192,16 +187,16 @@
       }
     }
     if (badges.length > 0) insertBadges(item, link, badges);
-  }
+}
 
-  // 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；
-  // 按推荐值分级着色（≥80% 红 / ≥60% 橙 / ≥40% 黄绿 / 其余灰）。
-  // v3.3.8：插入到**最后一个**好评率/更新徽章之后（此前插到第一个 rating 徽章
-  // 后，三段式下顺序错乱）；受 badgeVisibility.rec 开关控制（关闭同时停用高亮）。
-  // Recommendation badge (after the rating badges): shows the score, tooltip with
-  // the breakdown, and a score-graded color. Inserted after the LAST rating badge
-  // (the old nextSibling logic broke ordering with three badges).
-  function prependRecBadge(item, recommendation, settings) {
+// 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；
+// 按推荐值分级着色（≥80% 红 / ≥60% 橙 / ≥40% 黄绿 / 其余灰）。
+// v3.3.8：插入到**最后一个**好评率/更新徽章之后（此前插到第一个 rating 徽章
+// 后，三段式下顺序错乱）；受 badgeVisibility.rec 开关控制（关闭同时停用高亮）。
+// Recommendation badge (after the rating badges): shows the score, tooltip with
+// the breakdown, and a score-graded color. Inserted after the LAST rating badge
+// (the old nextSibling logic broke ordering with three badges).
+export function prependRecBadge(item, recommendation, settings) {
     const link = item.link;
     if (!link || !recommendation) return;
     // v4.1.0：防重复（REFRESH 强制刷新/多批回填场景）
@@ -247,19 +242,10 @@
     } else if (!link.querySelector('.gr-rec-badge')) {
       link.insertBefore(badge, link.firstChild);
     }
-  }
+}
 
-  function highlightItem(item) {
+export function highlightItem(item) {
     const el = item.element;
     el.classList.add('gr-highlighted');
-  }
+}
 
-  GR.badges = {
-    createBadge,
-    insertBadges,
-    prependBadge,
-    prependRecBadge,
-    highlightItem,
-    removeItemFromDom
-  };
-})(typeof globalThis !== 'undefined' ? globalThis : this);

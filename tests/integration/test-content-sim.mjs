@@ -267,24 +267,47 @@ const SITE_RULES = [
 globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: SITE_RULES };
 
 // ============ 按 manifest 顺序加载内容脚本 / Load content scripts in order ============
-const SCRIPT_FILES = [
-  'content/core/common.js',
-  'content/core/floats.js',
-  'content/core/status-bar.js',
-  'content/core/debug.js',
-  'content/adapters/builder.js',
-  'content/list/badges.js',
-  'content/list/list-batch.js',
-  'content/list/list-page.js',
-  'content/detail/detail-templates.js',
-  'content/detail/detail-page.js',
-  'content/tracking/download-tracking.js',
-  'content/tracker.js'
+// v6.0.0：内容脚本 ESM 化——经典入口 tracker.js eval + 模块动态 import
+const SCRIPT_FILES = ['content/tracker.js'];
+// 模块加载（动态 import + GR shim 兼容层；固定 ?t= 与 tracker 的 getURL 共享实例）
+let MODULE_T = Date.now();
+const MODULE_FILES = [
+  'content/core/common.js', 'content/core/floats.js', 'content/core/status-bar.js',
+  'content/core/debug.js', 'content/adapters/builder.js', 'content/list/badges.js',
+  'content/list/list-batch.js', 'content/list/list-page.js',
+  'content/detail/detail-templates.js', 'content/detail/detail-page.js',
+  'content/tracking/download-tracking.js'
 ];
+const MODULE_KEYS = ['common', 'float', 'status', 'debug', 'builder', 'badges', 'listBatch', 'list', 'detailTemplates', 'detail', 'tracking'];
+
+async function loadModules() {
+  // getURL mock：映射 content/... → file:// URL + ?t=（与 tracker 共享模块实例）
+  globalThis.chrome.runtime.getURL = (path) =>
+    new URL('../../' + path, import.meta.url).href;
+  const mods = await Promise.all(MODULE_FILES.map((f) => import(new URL('../../' + f, import.meta.url).href)));
+  // GR shim：模块句柄挂回 __GR__（测试体 GR.x.y 引用零改动）
+  const GR = (globalThis.__GR__ = globalThis.__GR__ || {});
+  MODULE_KEYS.forEach((k, i) => { GR[k] = mods[i]; });
+  return GR;
+}
+
+// 重载内容脚本（模拟页面重载：新模块实例 + 重置 tracker 守卫）
+async function reloadContentScripts() {
+  docReadyCallbacks.length = 0;
+  globalThis.__gameRecommenderTracker = false;
+  // v6.0.0：vitest 环境下重置模块缓存实现重载；node 直跑复用实例（DOM 共享）
+  if (typeof vi !== 'undefined') vi.resetModules();
+  await loadModules();
+  for (const f of SCRIPT_FILES) {
+    const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+    (0, eval)(code);
+  }
+}
 
 console.log('1. 顶层加载与预热');
 let loadError = null;
 try {
+  await loadModules();
   for (const f of SCRIPT_FILES) {
     const code = fs.readFileSync(path.join(ROOT, f), 'utf-8');
     (0, eval)(code);
@@ -296,9 +319,9 @@ check('内容脚本链加载无异常（含 warmup 顶层执行）', loadError ?
 
 const GR = globalThis.__GR__;
 check(
-  'GR 命名空间完整',
-  ['common', 'status', 'debug', 'builder', 'list', 'detail', 'tracking', 'float'].filter((k) => GR && GR[k]).length,
-  8
+  'GR 命名空间完整（ESM 模块全部挂载）',
+  MODULE_KEYS.filter((k) => GR && GR[k]).length,
+  MODULE_KEYS.length
 );
 
 // ============ 2. 列表页两波流程 / Two-wave rating flow ============
@@ -408,6 +431,8 @@ await msgListener(
   {},
   () => {}
 );
+// v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底），等待微任务
+await new Promise((r) => setTimeout(r, 0));
 
 check(
   '第二波（增量1）：游戏B 好评率徽章已插入',
@@ -644,8 +669,7 @@ check('已触发页面重载', reloaded, true);
 // ============ 8. 徽章开关与过滤/高亮联动（v3.3.8） ============
 console.log('8. 徽章开关与过滤/高亮联动');
 // 重新加载内容脚本（新 warmupPromise 读新设置；清空旧回调 + 清除 tracker 防重复守卫）
-docReadyCallbacks.length = 0;
-globalThis.__gameRecommenderTracker = false;
+await reloadContentScripts();
 const badgeSettings = {
   ...DEFAULT_SETTINGS,
   enableRatingFilter: true,
@@ -709,8 +733,7 @@ check('好评率过滤仍生效（88% ≥ 70 保留）', itemE.a.children.some(i
 
 // 8b：关闭"全部好评率"→ 好评率过滤停用（低好评率游戏不再被移除）
 console.log('8b. 关全部好评率徽章 → 过滤停用');
-docReadyCallbacks.length = 0;
-globalThis.__gameRecommenderTracker = false;
+await reloadContentScripts();
 const badgeSettings2 = {
   ...DEFAULT_SETTINGS,
   enableRatingFilter: true,
@@ -783,8 +806,7 @@ check(
 
 // ============ 9. 详情页报错按钮（v3.3.11） ============
 console.log('9. 详情页报错按钮（人工纠错重新检索）');
-docReadyCallbacks.length = 0;
-globalThis.__gameRecommenderTracker = false;
+await reloadContentScripts();
 presets['GET_SETTINGS'] = () => ({
   settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
 });

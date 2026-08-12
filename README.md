@@ -249,6 +249,16 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.0.0（大版本：内容脚本 ESM 化 + vitest runner）
+- **内容脚本 ESM 化（动态 import 路径，零构建）**：
+  1. **11 个内容模块转 ES module**（去 IIFE 壳 + `__GR__` 全局命名空间退场，模块间依赖由 ESM import 图显式表达）；两个循环依赖（list-page↔list-batch、status-bar↔debug）以调用期引用处理并注释标注
+  2. **tracker.js 经典入口重写**：`ensureModules()` 动态 `import(chrome.runtime.getURL('content/...'))` 并行加载 11 模块（Chrome content_scripts 官方不支持原生 ESM——动态 import 是零构建唯一路径）；REQUIRED_KEYS 自检删除（import 失败自然抛错）
+  3. **manifest**：content_scripts 裁剪为 shared×2 + adapters×8 + tracker.js；新增 `web_accessible_resources`（content/*.js）
+  4. **content-sim 加载器重写**：模块无参动态 import + GR shim 兼容层（测试体 GR.* 引用零改动）+ getURL mock 共享实例；**关键教训**：带 `?t=` 的入口其静态依赖解析为无参 URL 导致实例分裂——必须全部无参导入
+- **vitest runner 接入**：
+  5. `npm i -D vitest` + vitest.config（pool forks）+ `tests/all.test.mjs` 聚合 13 套件（check 断言体系保留）；`npm test` = vitest run；`npm run test:sim`（content-sim 直跑——其 eval+动态 import 模拟与 vite-node 运行器不兼容，保持 node 直跑）；`test:legacy`（run-tests.js 全 14 套件）；CI 同步
+- **质量**：484 项单测全过（node legacy）· vitest 13/13 · E2E 16/16（真实浏览器验证动态 import + WAR）· lint 0 · typecheck 0 · 深度扫描 0 findings
+
 ### v5.1.0（中版本：拆分与工具链——用户决策的架构/工程类未做项落地）
 - **detail 模板拆分**：detail-page.js 805 → 505 行，新 `GR.detailTemplates.steamSidebar`（纯 HTML 模板，依赖仅 GR.common；评级色顺带单源 __GR_PATTERNS__）
 - **list-batch 拆分**：list-page.js 590 → 416 行，新 `GR.listBatch`（批次调度全套）；**状态容器 `GR.list._state`** 替代闭包捕获（ratingsJob/batchState 由 list-page 与 list-batch 共享），`GR.list._internal` 导出状态机函数；GR.list 尾部导出改合并展开（防覆盖 _state）

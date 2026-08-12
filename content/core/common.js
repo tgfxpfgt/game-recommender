@@ -6,13 +6,9 @@
  * Namespace init + common utilities (escaping, site, messaging) shared across
  * content-script modules via globalThis.__GR__ (classic scripts, not modules).
  */
-(function (global) {
-  'use strict';
-
-  const GR = (global.__GR__ = global.__GR__ || {});
 
   // 当前站点域名 / Current site domain
-  function getCurrentDomain() {
+function getCurrentDomain() {
     return window.location.hostname;
   }
 
@@ -21,20 +17,22 @@
   // HTML escape (safe dynamic content). Since v3.3.9 shared/escape.js is
   // injected into content scripts (single maintenance point); reuse the global
   // implementation when present, fall back to the local one otherwise.
-  const escapeDiv = document.createElement('div');
-  function escapeHtmlLocal(text) {
-    escapeDiv.textContent = text || '';
-    return escapeDiv.innerHTML;
-  }
-  function escapeAttrLocal(text) {
-    return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  }
-  const escapeHtml = typeof global.escapeHtml === 'function' ? global.escapeHtml : escapeHtmlLocal;
-  const escapeAttr = typeof global.escapeAttr === 'function' ? global.escapeAttr : escapeAttrLocal;
+// v6.0.0：escapeDiv 惰性创建（模块顶层在 Node 测试环境无 document）
+let escapeDiv = null;
+function escapeHtmlLocal(text) {
+  escapeDiv = escapeDiv || document.createElement('div');
+  escapeDiv.textContent = text || '';
+  return escapeDiv.innerHTML;
+}
+function escapeAttrLocal(text) {
+  return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+const escapeHtml = typeof globalThis.escapeHtml === 'function' ? globalThis.escapeHtml : escapeHtmlLocal;
+const escapeAttr = typeof globalThis.escapeAttr === 'function' ? globalThis.escapeAttr : escapeAttrLocal;
 
   // 相对时间格式化（内容脚本统一实现，替代各浮窗独立实现）
   // Relative-time formatting (shared by all content floats)
-  function formatRelativeTime(timestamp) {
+function formatRelativeTime(timestamp) {
     if (!timestamp) return '未知';
     const diff = Date.now() - timestamp;
     if (diff < 60000) return '刚刚';
@@ -45,7 +43,7 @@
   }
 
   // 发送行为追踪消息 / Send a behavior-tracking message
-  function trackEvent(type, data) {
+function trackEvent(type, data) {
     chrome.runtime
       .sendMessage({
         action: 'TRACK_EVENT',
@@ -56,7 +54,7 @@
 
   // 记录下载站详情页访问（写入下载站网址缓存并更新"上次调用"时间）
   // Record a detail-page visit (writes the URL cache + lastAccessed)
-  function trackDownloadSiteVisit(appId, gameName) {
+function trackDownloadSiteVisit(appId, gameName) {
     if (!appId) return;
     chrome.runtime
       .sendMessage({
@@ -74,20 +72,19 @@
   // v5.0.0：页面标题清洗链（detail-page 与 tracker 此前逐字重复两份）——
   // 去尾部"|中文|下载"等噪声段，返回清洗后的标题（空则原样）
   // Page-title cleaning chain (was duplicated verbatim in detail-page/tracker).
-  function cleanPageTitle(title) {
+function cleanPageTitle(title) {
     return (title || '')
       .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
       .replace(/(下载|游戏下载|免费下载|破解版|汉化版|中文版|绿色版|免安装).*$/i, '')
       .trim();
   }
 
-  GR.common = {
-    getCurrentDomain,
-    escapeHtml,
-    escapeAttr,
-    formatRelativeTime,
-    cleanPageTitle,
-    trackEvent,
-    trackDownloadSiteVisit
-  };
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+export {
+  getCurrentDomain,
+  escapeHtml,
+  escapeAttr,
+  formatRelativeTime,
+  cleanPageTitle,
+  trackEvent,
+  trackDownloadSiteVisit
+};
