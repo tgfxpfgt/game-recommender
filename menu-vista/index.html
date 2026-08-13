@@ -114,14 +114,21 @@
             </div>
           </div>
           <div class="aero-section">
-            <h3>虚拟机版过滤</h3>
+            <h3>关键词过滤（通用，v6.4.7）</h3>
             <div class="aero-row">
-              <span class="label">启用虚拟机过滤<small>Enable VM filter</small></span>
+              <span class="label">启用关键词过滤<small>Enable keyword filter</small></span>
               <label class="vista-switch"><input type="checkbox" id="vVmFilter"><span class="track"></span></label>
             </div>
             <div class="aero-row">
               <span class="label">关键词<small>Keywords（逗号分隔）</small></span>
-              <input type="text" id="vVmKeywords" class="vista-input" style="flex:1" placeholder="虚拟机板, 虚拟机">
+              <input type="text" id="vVmKeywords" class="vista-input" style="flex:1" placeholder="虚拟机板, 重制版, 测试版">
+            </div>
+            <div class="aero-row">
+              <span class="label">匹配模式<small>Match mode（防误报）</small></span>
+              <select id="vFilterMatch" class="vista-input">
+                <option value="contains">包含（子串匹配）</option>
+                <option value="exact">整段（标题分段完全相等，防误报）</option>
+              </select>
             </div>
           </div>
         </section>
@@ -145,7 +152,13 @@
               <input type="range" id="vLlmTemp" class="vista-range" min="0" max="100" step="5">
               <span id="vLlmTempVal" class="vista-value">30%</span>
             </div>
-            <div class="aero-row"><span class="label">ITAD API Key（可选）<small>限免二次校验</small></span><input type="password" id="vItadKey" class="vista-input" style="flex:1"></div>
+            <div class="aero-row">
+              <span class="label">ITAD API Key（可选）<small>限免二次校验（保存后脱敏显示）</small></span>
+              <input type="text" id="vItadKey" class="vista-input" style="flex:1" placeholder="isthereanydeal.com 获取" autocomplete="off">
+              <button class="vista-btn" id="vItadSave">💾 保存</button>
+              <button class="vista-btn gray" id="vItadTest">🧪 测试</button>
+            </div>
+            <div class="aero-row"><span id="vItadMsg" style="font-size:11px;color:var(--aero-text-dim);"></span></div>
             <div class="aero-row"><button class="vista-btn" id="vTestLlm">⚡ 测试连接</button><span id="vLlmResult" style="font-size:11px;color:var(--aero-text-dim);"></span></div>
           </div>
         </section>

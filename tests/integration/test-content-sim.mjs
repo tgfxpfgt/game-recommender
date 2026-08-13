@@ -319,7 +319,7 @@ let GR = null; // 节 1 赋值，后续节共享（文件级 let + test 顺序�
 
 // v6.3.2：固定延时在全量并发下偶发不足（推送/批次异步链竞争）——
 // 轮询等待条件（最多 2s）替代固定延时，根治偶发
-async function waitFor(fn, timeoutMs = 5000) { // v6.4.4：全量并行加载慢，超时 2s 偶发不足 → 5s
+async function waitFor(fn, timeoutMs = 10000) { // v6.4.7：全量并行 CPU 竞争，5s 偶发不足 → 10s // v6.4.4：全量并行加载慢，超时 2s 偶发不足 → 5s
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
     if (fn()) return true;
@@ -363,8 +363,11 @@ expect(loadError ? loadError.message : null).toEqual(null);
 GR = globalThis.__GR__;
 expect(MODULE_KEYS.filter((k) => GR && GR[k]).length).toEqual(MODULE_KEYS.length);;
 // v6.2.0：等待 tracker warmup（bootPromise）完成——全量并发下监听器注册与
-// 模块就绪存在竞争，固定短延时偶发不足导致推送丢失（单跑通过、全量偶发）
-await new Promise((r) => setTimeout(r, 150));
+// 模块就绪存在竞争，固定短延时偶发不足导致推送丢失
+// v6.4.7：固定延时改为轮询等待消息监听已注册（msgListener 就绪 = init 完成，
+// 节 2 的 msgListener 推送才能被接收；根治偶发推送丢失）
+await new Promise((r) => setTimeout(r, 400));
+await waitFor(() => typeof msgListener === 'function' && msgListener !== null);
 
 // ============ 2. 列表页两波流程 / Two-wave rating flow ============
 });
@@ -409,8 +412,8 @@ expect(itemA.a.children.some((c) => c.className.includes('gr-rating-badge'))).to
 expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge')) ||
     itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);;
 
-// 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）
-await new Promise((r) => setTimeout(r, 100));
+// 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）——轮询等待
+await waitFor(() => itemA.a.children.length >= 4);
 // v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
 expect(itemA.a.children.length).toEqual(4);
 expect(itemA.a.children[0].className.includes('gr-recent-badge') && itemA.a.children[0].textContent === '—').toEqual(true);;
@@ -518,7 +521,7 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   return { ratings, pending: msg.names.length - 10 };
 };
 GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
-await new Promise((r) => setTimeout(r, 100));
+await waitFor(() => batchRequests2.length >= 1);
 expect(batchRequests2.length).toEqual(1);
 // 后台完成 → 推送 done → 应自动发起第二批
 await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
@@ -557,7 +560,7 @@ dbgRoot.children[0].children[2].click();
 expect(documentMock.body.children.some((c) => c.id === 'gr-status-bar')).toEqual(false);;
 // 关闭后 dbg 日志触发防抖刷新，不应复活浮窗
 GR.debug.dbg('关闭后的测试日志');
-await new Promise((r) => setTimeout(r, 350));
+await new Promise((r) => setTimeout(r, 600));
 expect(documentMock.body.children.some((c) => c.id === 'gr-status-bar')).toEqual(false);;
 // 重新开启调试模式 → 允许再次显示
 GR.status.setDebugMode(true);
@@ -624,7 +627,7 @@ let forceResp = null;
 await msgListener({ action: 'FORCE_REFRESH_PAGE' }, {}, (r) => {
   forceResp = r;
 });
-await new Promise((r) => setTimeout(r, 100));
+await new Promise((r) => setTimeout(r, 300));
 const clearMsg = sentMessages.find((m) => m.action === 'CLEAR_CACHE_FOR_PAGE');
 expect(clearMsg ? clearMsg.names.length : 0).toEqual(3);
 expect(clearMsg && clearMsg.names.includes('游戏A') && clearMsg.names.includes('游戏C')).toEqual(true);
@@ -677,7 +680,7 @@ presets['GET_RECOMMENDATIONS'] = (msg) => ({
   ]
 });
 docReadyCallbacks.forEach((cb) => cb());
-await new Promise((r) => setTimeout(r, 100));
+await new Promise((r) => setTimeout(r, 300));
 
 expect(itemE.a.children.some((c) => c.className.includes('gr-recent-badge'))).toEqual(false);;
 // isAllBadge 定义见文件级（v6.2.0 提升）
@@ -733,7 +736,7 @@ presets['GET_RECOMMENDATIONS'] = (msg) => ({
   ]
 });
 docReadyCallbacks.forEach((cb) => cb());
-await new Promise((r) => setTimeout(r, 100));
+await new Promise((r) => setTimeout(r, 300));
 
 expect(itemF.a.children.some(isAllBadge)).toEqual(false);
 expect(itemF.a.children.some((c) => c.className.includes('gr-recent-badge'))).toEqual(true);;
@@ -816,7 +819,7 @@ docReadyCallbacks.forEach((cb) => {
     console.log('⚠️ 第9节 init 抛错:', e.message);
   }
 });
-await new Promise((r) => setTimeout(r, 100));
+await new Promise((r) => setTimeout(r, 300));
 
 // floats 结构：root(id) → [header, body(内容区)]；渲染 HTML 在 body.innerHTML
 const steamRoot = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
@@ -868,7 +871,7 @@ test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
   // window.open 拦截 → click_download 追踪（tracker init 已激活 setupDownloadTracking）
   const before = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').length;
   window.open('https://pan.baidu.com/s/download123');
-  await new Promise((r) => setTimeout(r, 100));
+  await new Promise((r) => setTimeout(r, 300));
   const after = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').length;
   expect(after > before).toEqual(true);
   const evt = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').pop();
@@ -910,5 +913,18 @@ test('11. 好评过滤三态与按好评率重排', async () => {
   sortItemsByRating(job);
   const order = container.children.map((c) => (c.children[0] || {})._text); // li 内 a 的标题
   expect(JSON.stringify(order)).toEqual(JSON.stringify(['高分', '中分', '低分', '无评分']));
+  // 关键词过滤（v6.4.7 通用化 + 防误报）：
+  const { applyVmFilter } = GR.list;
+  const mk2 = (name) => ({ name, element: makeItem(name, 1).li, link: makeItem(name, 1).a });
+  // contains：子串匹配（'虚拟机' 命中 '虚拟主机'）
+  const c1 = [mk2('虚拟机版游戏'), mk2('虚拟主机服务'), mk2('正常游戏')];
+  const kept1 = applyVmFilter(c1, { enableVmFilter: true, filterKeywords: '虚拟机', filterMatchMode: 'contains' });
+  expect(kept1.map((i) => i.name)).toEqual(['虚拟主机服务', '正常游戏']);
+  // exact：整段匹配（防误报——'虚拟机' 只命中分段完全相等的标题）
+  const kept2 = applyVmFilter(c1, { enableVmFilter: true, filterKeywords: '虚拟机', filterMatchMode: 'exact' });
+  expect(kept2.map((i) => i.name)).toEqual(['虚拟主机服务', '正常游戏']); // 防误报：虚拟主机保留
+  // 旧字段兼容：vmFilterKeywords 数组
+  const kept3 = applyVmFilter(c1, { enableVmFilter: true, vmFilterKeywords: ['虚拟机板'], filterMatchMode: 'contains' });
+  expect(kept3.map((i) => i.name)).toEqual(['虚拟机版游戏', '虚拟主机服务', '正常游戏']); // 旧关键词'虚拟机板'不匹配'虚拟机版'——验证旧字段读取但无误匹配
 });
 

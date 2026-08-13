@@ -103,10 +103,10 @@ function waitForListItems(adapter, timeoutMs) {
 function trackListView(adapter, items, settings) {
     common.trackEvent('view_list', { itemCount: items.length, page: window.location.href });
 
-    // 虚拟机版过滤：在请求推荐/好评率之前移除标题命中关键词的游戏项
+    // 关键词过滤（v6.4.7 通用化）：请求推荐/好评率之前移除标题命中关键词的游戏
     let filteredItems = items;
     if (settings.enableVmFilter) {
-      filteredItems = applyVmFilter(items, settings.vmFilterKeywords);
+      filteredItems = applyVmFilter(items, settings);
     }
 
     filteredItems.forEach((item) => {
@@ -124,14 +124,33 @@ function trackListView(adapter, items, settings) {
     preloadNextPage();
 }
 
-// 虚拟机版过滤：从 items 中移除标题命中关键词的游戏项，并从 DOM 删除对应元素
-function applyVmFilter(items, keywords) {
-    const kws = keywords && keywords.length > 0 ? keywords : ['虚拟机板', '虚拟机'];
+// v6.4.7：通用关键词过滤（旧虚拟机版过滤扩展）——从 items 移除标题命中
+// 关键词的游戏项并从 DOM 删除。防误报：exact 模式要求关键词与标题的某个
+// 分段完全相等（按分隔符拆分），避免虚拟机误伤虚拟主机类子串。
+// Generic title-keyword filter (exact mode avoids false positives).
+function applyVmFilter(items, settings) {
+    const raw = settings.filterKeywords || (Array.isArray(settings.vmFilterKeywords) ? settings.vmFilterKeywords.join(',') : '') || '虚拟机板,虚拟机';
+    const kws = String(raw)
+      .split(/[,，、;；\s]+/)
+      .map((s) => s.trim().toLowerCase())
+      .filter((s) => s.length > 0);
+    const mode = settings.filterMatchMode || 'contains';
     const kept = [];
     let removed = 0;
     for (const item of items) {
       const name = (item.name || '').toLowerCase();
-      const hit = kws.some((kw) => kw && name.includes(kw.toLowerCase()));
+      const hit = kws.some((kw) => {
+        if (mode === 'exact') {
+          // 防误报：关键词必须是标题的完整分段/前缀/后缀——
+          // 虚拟机命中虚拟机版游戏但不误伤虚拟主机
+          return (
+            name.split(/[|｜×•·\-\s]+/).some((seg) => seg === kw) ||
+            name.startsWith(kw) ||
+            name.endsWith(kw)
+          );
+        }
+        return name.includes(kw);
+      });
       if (hit) {
         // 从 DOM 移除（优先移除栅格列容器以避免留空，与好评率过滤共用逻辑）
         badges.removeItemFromDom(item);
@@ -141,7 +160,7 @@ function applyVmFilter(items, keywords) {
       }
     }
     if (removed > 0) {
-      dbg(`🚫 虚拟机过滤：移除 ${removed} 个游戏项，保留 ${kept.length} 个`);
+      dbg(`🚫 关键词过滤：移除 ${removed} 个游戏项，保留 ${kept.length} 个`);
     }
     return kept;
 }

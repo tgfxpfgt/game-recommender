@@ -82,8 +82,10 @@ export const DEFAULT_SETTINGS = {
   ratingFilterMode: 'and',
   // v6.4.4：列表页按好评率降序重排（默认关闭——会打乱页面浏览顺序）
   enableSortByRating: false,
-  enableVmFilter: false, // 是否启用虚拟机标题过滤
-  vmFilterKeywords: ['虚拟机板', '虚拟机'], // 虚拟机过滤关键词列表
+  enableVmFilter: false, // 是否启用标题关键词过滤（v6.4.7 通用化，旧名保留兼容）
+  vmFilterKeywords: ['虚拟机板', '虚拟机'], // 旧字段（兼容；新字段 filterKeywords 优先）
+  filterKeywords: '虚拟机板,虚拟机', // v6.4.7：通用关键词过滤（逗号分隔）
+  filterMatchMode: 'contains', // v6.4.7：contains 子串 / exact 整段（防误报）
   // 列表页徽章显示开关（v3.3.8，默认全开）。关闭不影响后台数据获取；
   // 关闭"全部好评率"→ 好评率过滤停用；关闭"推荐值"→ 推荐高亮停用
   // List-page badge toggles (all on by default). Data fetching keeps running;

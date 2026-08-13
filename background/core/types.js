@@ -77,6 +77,8 @@
  * @property {boolean} [enableRecentFilter] - 30 天好评率过滤（v6.4.4）
  * @property {number} [minRecentSteamRatingFilter] - 30 天好评率阈值
  * @property {string} [ratingFilterMode] - and|or|not（总/30天组合关系）
+ * @property {string} [filterKeywords] - 通用标题关键词过滤（逗号分隔，v6.4.7）
+ * @property {string} [filterMatchMode] - contains|exact（防误报整段匹配）
  * @property {string} [itadApiKey] - ITAD 二次校验 key（限免通知候选确认，v6.3.3）
  * @property {number} [maxBehaviorLog] - 行为日志上限
  * @property {boolean} enableLog

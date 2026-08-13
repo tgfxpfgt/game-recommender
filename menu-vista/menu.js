@@ -61,7 +61,8 @@ bindToggle('vVmFilter', 'enableVmFilter');
 bindToggle('vUseLLM', 'useLLM');
 bindToggle('vLogEnabled', 'enableLog');
 bindInput('vMaxScan', 'maxScanLinks', Number);
-bindInput('vVmKeywords', 'vmFilterKeywords');
+bindInput('vVmKeywords', 'filterKeywords');
+$('vFilterMatch').addEventListener('change', (e) => savePatch({ filterMatchMode: e.target.value }));
 bindInput('vLlmEndpoint', 'llmConfig.endpoint');
 bindInput('vLlmApiKey', 'llmConfig.apiKey');
 bindInput('vLlmModel', 'llmConfig.model');
@@ -282,6 +283,42 @@ $('vTestLlm').addEventListener('click', async () => {
   }
 });
 
+// ============ ITAD Key：脱敏显示 + 保存 + 测试 ============
+function maskKey(key) {
+  if (!key) return '';
+  return '••••' + String(key).slice(-4);
+}
+async function renderItad() {
+  const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+  const key = (resp && resp.settings && resp.settings.itadApiKey) || '';
+  settings = resp.settings;
+  $('vItadKey').value = key ? maskKey(key) : '';
+  $('vItadKey').dataset.masked = key ? '1' : '';
+}
+// 聚焦时清空掩码便于重输（保存后恢复掩码）
+$('vItadKey').addEventListener('focus', () => {
+  if ($('vItadKey').dataset.masked === '1') { $('vItadKey').value = ''; $('vItadKey').dataset.masked = ''; }
+});
+$('vItadSave').addEventListener('click', async () => {
+  const val = $('vItadKey').value.trim();
+  if (!val) { $('vItadMsg').textContent = '请输入 ITAD API Key'; return; }
+  await savePatch({ itadApiKey: val });
+  renderItad();
+  $('vItadMsg').textContent = '✅ 已保存（脱敏显示）';
+});
+$('vItadTest').addEventListener('click', async () => {
+  const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+  const key = (resp && resp.settings && resp.settings.itadApiKey) || '';
+  if (!key) { $('vItadMsg').textContent = '⚠️ 请先保存 ITAD API Key'; return; }
+  $('vItadMsg').textContent = '测试中...';
+  try {
+    const r = await fetch('https://api.isthereanydeal.com/v02/game/prices/?key=' + encodeURIComponent(key) + '&appids=steam/730');
+    $('vItadMsg').textContent = r.status === 200 ? '✅ Key 有效' : r.status === 401 || r.status === 403 ? '❌ Key 无效（' + r.status + '）' : '⚠️ 服务异常（' + r.status + '）';
+  } catch (err) {
+    $('vItadMsg').textContent = '❌ 网络错误';
+  }
+});
+
 // ============ 经典菜单切换 ============
 $('toggleClassic').addEventListener('click', () => {
   chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') });
@@ -317,7 +354,8 @@ async function init() {
   $('vMinRecentRatingVal').textContent = $('vMinRecentRating').value + '%';
   $('vFilterMode').value = settings.ratingFilterMode || 'and';
   $('vVmFilter').checked = !!settings.enableVmFilter;
-  $('vVmKeywords').value = settings.vmFilterKeywords || '';
+  $('vVmKeywords').value = settings.filterKeywords || (Array.isArray(settings.vmFilterKeywords) ? settings.vmFilterKeywords.join(',') : '') || '';
+  $('vFilterMatch').value = settings.filterMatchMode || 'contains';
   renderWeights(settings.weights || {});
   const llm = settings.llmConfig || {};
   $('vUseLLM').checked = !!settings.useLLM;
@@ -327,7 +365,7 @@ async function init() {
   $('vLlmModel').value = llm.model || '';
   $('vLlmTemp').value = Math.round((llm.temperature || 0.3) * 100);
   $('vLlmTempVal').textContent = $('vLlmTemp').value + '%';
-  $('vItadKey').value = settings.itadApiKey || '';
+  renderItad();
   $('vLogEnabled').checked = settings.enableLog !== false;
   $('vLogLevel').value = settings.logLevel || 'info';
   $('vLogRetention').value = settings.logRetentionDays ?? 7;

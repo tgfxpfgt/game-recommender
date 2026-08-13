@@ -57,7 +57,35 @@
       OPTS.bindCacheEvents(); // 游戏缓存管理
       OPTS.bindRulesEvents(); // 规则管理（v3.0.0）
       OPTS.populateCacheSiteFilter(); // 缓存页下载站筛选
-      OPTS.loadDataModules(); // 数据模块清单（勾选 UI）
+      // v6.4.7：ITAD Key 脱敏显示 + 测试按钮
+    const itadInput = document.getElementById('itadApiKey');
+    if (itadInput && OPTS.currentSettings.itadApiKey) {
+      itadInput.value = '••••' + String(OPTS.currentSettings.itadApiKey).slice(-4);
+      itadInput.dataset.masked = '1';
+      itadInput.addEventListener('focus', () => {
+        if (itadInput.dataset.masked === '1') { itadInput.value = ''; itadInput.dataset.masked = ''; }
+      });
+    }
+    const itadTestBtn = document.getElementById('itadTestBtn');
+    if (itadTestBtn) {
+      itadTestBtn.addEventListener('click', async () => {
+        let key = itadInput.value.trim();
+        const result = document.getElementById('itadTestResult');
+        if (itadInput.dataset.masked === '1') {
+          const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+          key = (resp && resp.settings && resp.settings.itadApiKey) || '';
+        }
+        if (!key) { result.textContent = '⚠️ 请先输入/保存 ITAD Key'; return; }
+        result.textContent = '测试中...';
+        try {
+          const r = await fetch('https://api.isthereanydeal.com/v02/game/prices/?key=' + encodeURIComponent(key) + '&appids=steam/730');
+          result.textContent = r.status === 200 ? '✅ Key 有效' : r.status === 401 || r.status === 403 ? '❌ Key 无效' : '⚠️ 服务异常（' + r.status + '）';
+        } catch (e) {
+          result.textContent = '❌ 网络错误';
+        }
+      });
+    }
+    OPTS.loadDataModules(); // 数据模块清单（勾选 UI）
       OPTS.loadBackupsSelect(); // 备份列表（恢复下拉）
     } catch (e) {
       console.error('【游戏雷达】 设置页加载失败:', e);
@@ -111,6 +139,7 @@
     });
     document.getElementById('ratingFilterMode').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('sortByRatingEnabled').addEventListener('change', () => scheduleAutoSave());
+    document.getElementById('filterMatchMode').addEventListener('change', () => scheduleAutoSave());
 
     // 虚拟机过滤
     document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
@@ -273,6 +302,8 @@
 
     // 虚拟机过滤
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
+    OPTS.currentSettings.filterKeywords = document.getElementById('vmFilterKeywords').value;
+    OPTS.currentSettings.filterMatchMode = document.getElementById('filterMatchMode').value;
     const vmKeywordsRaw = document
       .getElementById('vmFilterKeywords')
       .value.split(/[,，]/)
