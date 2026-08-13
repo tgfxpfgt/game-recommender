@@ -258,11 +258,11 @@ node --check options/options.js
 
 ### v6.4.3（小版本：缓存范围扩充——下载站搜索 / LLM 评分 / Steam 判定）
 - **在线数据梳理与扩充**（此前 Steam 数据/限免已有缓存；本次补齐三处未缓存请求）：
-  - **下载站搜索结果缓存**（新模块 ，24h TTL，LRU 200）：搜索是高频操作，此前每次逐站逐词重复请求——命中免请求；siteKeys 变更自动失效
-  - **LLM 推荐评分缓存**（新模块 ，7d TTL，LRU 300）：列表批量场景每游戏调用 LLM（慢且贵）——命中免计算
-  - **Steam 官方判定缓存**（ 内存缓存，12h TTL）：通知去重，防重复 appdetails+商店页请求
+  - **下载站搜索结果缓存**（新模块 `storage/search-cache.js`，24h TTL，LRU 200）：搜索是高频操作，此前每次逐站逐词重复请求——命中免请求；siteKeys 变更自动失效
+  - **LLM 推荐评分缓存**（新模块 `storage/llm-cache.js`，7d TTL，LRU 300）：列表批量场景每游戏调用 LLM（慢且贵）——命中免计算
+  - **Steam 官方判定缓存**（`determineSteamFreeType` 内存缓存，12h TTL）：通知去重，防重复 appdetails+商店页请求
 - 新缓存纳入 DATA_MODULES（备份/导出/清除覆盖）+ OPFS MODULE_FILES + resetInMemoryCaches
-- **质量**：vitest 516 test 全过 · lint 0 · typecheck 0
+- **质量**：vitest 515 test 全过 · lint 0 · typecheck 0
 
 ### v6.4.2（小版本：限免判定升级——Steam 官方接口区分喜加一 vs 免费周末）
 - **determineSteamFreeType**（导出纯函数 + 通知路径接入）：Steam 官方 appdetails 判定 100% OFF 类型——
