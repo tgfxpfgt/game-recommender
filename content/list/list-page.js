@@ -380,7 +380,10 @@ function applyRatingsResponse(ratings, mode) {
         const isTypeBadge = rating.type && rating.type !== 'game' && rating.type !== 'demo';
         if (item.url && !isTypeBadge) job.urlEntries.push({ appId: rating.appId, url: item.url });
         // 好评率过滤（v6.4.4：总 + 30 天 + 与/或/非）：不达标的从 DOM 移除
-        if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
+        // v6.4.10 修复：30 天过滤（enableRecentFilter）在 positiveRate 为 null 时
+        // 被外层检查跳过——过滤判定独立于 positiveRate（任一过滤启用即判定）
+        const doFilter = filterEnabled || !!job.settings?.enableRecentFilter;
+        if (doFilter && (rating.positiveRate != null || rating.recentPositiveRate != null)) {
           if (!ratingFilterPass(rating, { ...job.settings, enableRatingFilter: filterEnabled, minSteamRatingFilter: minRating })) {
             badges.removeItemFromDom(item);
             job.filtered++;

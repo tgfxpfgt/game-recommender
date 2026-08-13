@@ -447,7 +447,9 @@ await msgListener(
 );
 // v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底）
 // v6.3.2：固定延时偶发不足 → 轮询等待徽章出现
-await waitFor(() => itemB.a.children.some((c) => c.className.includes('gr-rating-badge')));
+if (!(await waitFor(() => itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))))) {
+  console.log('[DIA] itemB 徽章超时——sentMessages:', JSON.stringify(sentMessages.map((m) => m.action + ':' + (m.ratings ? Object.keys(m.ratings).join(',') : m.done ? 'done' : ''))));
+}
 
 expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);;
 expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);;
@@ -926,5 +928,12 @@ test('11. 好评过滤三态与按好评率重排', async () => {
   // 旧字段兼容：vmFilterKeywords 数组
   const kept3 = applyVmFilter(c1, { enableVmFilter: true, vmFilterKeywords: ['虚拟机板'], filterMatchMode: 'contains' });
   expect(kept3.map((i) => i.name)).toEqual(['虚拟机版游戏', '虚拟主机服务', '正常游戏']); // 旧关键词'虚拟机板'不匹配'虚拟机版'——验证旧字段读取但无误匹配
+  // v6.4.10 修复：30 天过滤在 positiveRate null 时仍生效（此前被外层检查跳过）
+  expect(ratingFilterPass({ positiveRate: null, recentPositiveRate: 40 }, { enableRatingFilter: false, enableRecentFilter: true, minRecentSteamRatingFilter: 60, ratingFilterMode: 'not' })).toEqual(false);
+  expect(ratingFilterPass({ positiveRate: null, recentPositiveRate: 80 }, { enableRatingFilter: false, enableRecentFilter: true, minRecentSteamRatingFilter: 60, ratingFilterMode: 'not' })).toEqual(true);
+  // 规则排除词：{keyword:'虚拟机', exclude:'非虚拟机'} → '非虚拟机'标题不过滤
+  const c4 = [mk2('虚拟机版'), mk2('非虚拟机内容')];
+  const kept4 = applyVmFilter(c4, { enableVmFilter: true, filterRules: [{ keyword: '虚拟机', exclude: '非虚拟机' }], filterMatchMode: 'contains' });
+  expect(kept4.map((i) => i.name)).toEqual(['非虚拟机内容']);
 });
 

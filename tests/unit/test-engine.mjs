@@ -154,3 +154,35 @@ test('LLM 评分缓存命中（二次调用不再请求 LLM）', async () => {
     globalThis.fetch = realFetch;
   }
 });
+
+// ============ 8. 权重归一化（v6.4.10：权重和超 1 正常运行） ============
+console.log('8. 权重归一化（权重和 > 1 → 按比例缩放）');
+test('权重和 1.0 → 评分不变（默认语义）', () => {
+  const r = mod.computeGameScore({
+    profile: { views: 100, downloads: 50 },
+    globalStats: { maxViews: 200, maxDownloads: 100 },
+    tags: ['RPG'],
+    keywordWeights: { RPG: 1 },
+    positiveRate: 95,
+    chineseSupported: true,
+    weights: { clickRate: 0.15, downloadRate: 0.3, keywordMatch: 0.2, steamRating: 0.15, playTime: 0.1, heat: 0.1 },
+    playTimeScore: 1,
+    heatScore: 1
+  });
+  expect(r.score).toBeLessThanOrEqual(1);
+});
+test('权重和 2.0 → 归一化（评分不超 100%）', () => {
+  const r = mod.computeGameScore({
+    profile: { views: 100, downloads: 50 },
+    globalStats: { maxViews: 200, maxDownloads: 100 },
+    tags: ['RPG'],
+    keywordWeights: { RPG: 1 },
+    positiveRate: 95,
+    chineseSupported: true,
+    weights: { clickRate: 0.4, downloadRate: 0.4, keywordMatch: 0.4, steamRating: 0.4, playTime: 0.2, heat: 0.2 }, // 和 2.0
+    playTimeScore: 1,
+    heatScore: 1
+  });
+  expect(r.score).toBeLessThanOrEqual(1); // 归一后不超 1
+  expect(r.score).toBeGreaterThan(0);
+});

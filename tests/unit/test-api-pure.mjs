@@ -340,3 +340,22 @@ test('storeHtml 异常标签 → 过滤非法标签且不抛错', () => {
   expect(tags.includes('RPG')).toEqual(true);
   expect(tags.every((t) => t.length >= 1 && t.length <= 30)).toEqual(true);
 });
+
+// ============ 0.16 好评率重试机制（v6.4.10：刷新重试上限 3 次） ============
+console.log('0.16 好评率重试机制（失败固化上限 3 次）');
+test('失败固化 count 0 → 需重取（首次刷新）', () => {
+  const d = { positiveRate: null, ratingDesc: null };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(true);
+});
+test('失败固化 count 2 → 仍重取（第 3 次刷新）', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 2 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(true);
+});
+test('失败固化 count 3 → 停止重试（上限）', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 3 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);
+});
+test('失败固化冷却期内不重取（防同次刷新连打）', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingRetriedAt: Date.now() - 1000 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);
+});

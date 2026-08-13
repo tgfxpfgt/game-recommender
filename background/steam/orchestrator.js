@@ -135,6 +135,14 @@ export async function searchSteamGame(gameName) {
 
     // 6. 写入三层缓存：Steam 动态缓存(24h) + 游戏注册表(永久) + 名称索引
     //    注册表以 Steam 官方中英文名为准，下载站标题入 names 变体，封面一并缓存
+    // v6.4.10：好评率重试计数——获取失败（positiveRate null）→ +1（刷新重试
+    // 上限 3 次），成功 → 归零
+    {
+      const oldCached = await getSteamCacheEntry(appId);
+      const oldRating = oldCached ? getModuleData(oldCached, 'rating') : null;
+      const oldCount = (oldRating && oldRating.ratingFailCount) || 0;
+      result.ratingFailCount = result.positiveRate == null ? oldCount + 1 : 0;
+    }
     await setSteamCacheEntry(appId, result);
     await recordGameInRegistry(appId, {
       cnName: result.name,

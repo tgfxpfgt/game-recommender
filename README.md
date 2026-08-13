@@ -256,6 +256,14 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.10（小版本：四项 bug 修复——API 状态/重试机制/过滤/权重归一）
+- **修复 Steam API 状态失效**：GET_API_STATUS handler 返回 `{status: {...}}` 嵌套而 popup 读顶层字段——永远显示"采样中"；扁平化返回修复（E2E +1 断言）
+- **好评率失败重试机制**：缓存条目新增 `ratingFailCount`——获取失败 +1 / 成功归零；`needsRatingRefetch` 失败固化重试**上限 3 次**（页面刷新触发一次 + 冷却防连打，3 次后停止避免无限请求）
+- **修复好评率过滤失效**：30 天过滤（enableRecentFilter）在 `positiveRate` 为 null 时被外层检查整块跳过——过滤判定独立于 positiveRate（任一过滤启用且任一评分有值即判定）
+- **推荐权重超 1 归一化**：六项权重和 > 1 时按比例缩放（保证评分 0-100% 有意义；默认 1.0 不变）
+- **content-sim 偶发根治**：推送处理错误不再静默（catch 可见）；vitest 串行化（content-sim 高负载与并行竞争）——20 次连跑 0 失败
+- **质量**：vitest 522 test · lint 0 · typecheck 0 · E2E 28/28
+
 ### v6.4.9（小版本：全面审查修复——菜单一致性 + 交互覆盖）
 - **全面审查**（大规模重构后）：基线 516 test + E2E 24/24 + typecheck/lint 全绿确认；代码审查新功能边界（filterRules 空列表兜底/ITAD 脱敏回显/日志空态）无缺陷
 - **菜单一致性修复**：**Vista 菜单补齐"追踪站点管理"**（此前 options 有 trackedSites 管理、Vista 遗漏——添加/移除自定义站点 + 权限回收）；**popup 的"虚拟机版过滤"标签改为"关键词过滤"**（通用化语义同步）；规则列表标注"优先于简单关键词"

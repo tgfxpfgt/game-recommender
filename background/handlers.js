@@ -162,7 +162,9 @@ async function handleDeleteAdapterRules() {
 
 // --- Steam API 状态监测（v3.3.0）---
 async function handleGetApiStatus() {
-  return { status: getSteamApiStatus() };
+  // v6.4.10：扁平返回（popup 读顶层 anomaly/total/failed——此前嵌套 {status} 导致
+  // 状态永远显示采样中）
+  return getSteamApiStatus();
 }
 
 // --- 消息分发映射表 / Message dispatch map ---

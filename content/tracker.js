@@ -239,7 +239,13 @@
       // Background push: cache misses fetched from Steam (incremental waves + done)
       // 模块已就绪时同步应用（徽章即时渲染）；否则等 boot 完成后处理
       if (MODULES) MODULES.list.applySteamRatingsUpdate(message.ratings, message.done === true);
-      else bootPromise.then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true)).catch(() => {});
+      else
+        bootPromise
+          .then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true))
+          .catch((e) => {
+            // v6.4.10：推送处理错误可见（此前静默吞错——偶发状态下徽章丢失难排查）
+            console.warn('【游戏雷达】 好评率推送处理失败:', e);
+          });
       sendResponse({ success: true });
       return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }

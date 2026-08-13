@@ -149,8 +149,17 @@ export function computeGameScore({
     steamScore * (weights.steamRating || 0) +
     pTime * (weights.playTime || 0) +
     heat * (weights.heat || 0);
+  // v6.4.10：权重和超 1 时归一化（用户可配置任意权重，保证评分不超 100%）
+  const weightSum =
+    (weights.clickRate || 0) +
+    (weights.downloadRate || 0) +
+    (weights.keywordMatch || 0) +
+    (weights.steamRating || 0) +
+    (weights.playTime || 0) +
+    (weights.heat || 0);
+  const normalized = weightSum > 1 ? finalScore / weightSum : finalScore;
   return {
-    score: Math.round(finalScore * 100) / 100,
+    score: Math.round(normalized * 100) / 100,
     breakdown: {
       clickScore: Math.round(clickScore * 100) / 100,
       downloadScore: Math.round(downloadScore * 100) / 100,

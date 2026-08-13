@@ -84,7 +84,10 @@ export function needsRatingRefetch(cached) {
   if (!cached) return true;
   const d = cached.data || cached;
   if (d.positiveRate !== null && d.positiveRate !== undefined) return false;
-  if (isFailedRatingEntry(d)) return true;
+  if (isFailedRatingEntry(d)) {
+    // v6.4.10：失败固化重试上限 3 次（页面刷新触发一次；冷却防同次刷新连打）
+    return (d.ratingFailCount || 0) < 3 && (!d.ratingRetriedAt || Date.now() - d.ratingRetriedAt >= RATING_RETRY_COOLDOWN_MS);
+  }
   if (d.ratingRetriedAt && Date.now() - d.ratingRetriedAt < RATING_RETRY_COOLDOWN_MS) return false;
   return true;
 }

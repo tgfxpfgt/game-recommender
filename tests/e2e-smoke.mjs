@@ -132,6 +132,7 @@ async function runChecks() {
     await page.waitForTimeout(800);
     check('popup 标题渲染', (await page.textContent('h1'))?.includes('游戏智能推荐') ?? false);
     check('popup 版本号显示', (await page.textContent('#extVersion'))?.includes('v') ?? false);
+    check('popup API 状态（v6.4.10 扁平修复后非失效）', ((await page.textContent('#apiStatusInfo')) ?? '').includes('无法获取') === false);
     check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
     await page.close();
 
