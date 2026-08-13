@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "6.4.5",
+  "version": "6.4.6",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,

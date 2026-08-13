@@ -256,6 +256,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.6（小版本触发完整发布：Vista Aero 全新菜单 + 新老一键切换）
+- **全新 Vista Aero 菜单** `menu-vista/`（零历史包袱独立实现）：Aero 毛玻璃（backdrop-filter）主窗口 + 光泽渐变按钮 + 蓝绿配色 + 高光边缘
+- **不遗漏任何功能**（8 面板）：常规（启用/阈值/状态浮窗/调试/扫描上限/徽章×4/重排）、过滤（总+30天+与或非/虚拟机）、推荐（六项权重/AI 全参数/ITAD）、限免（列表/刷新/类型标记/领取）、缓存（TTL×7/缓存管理）、数据（导出/备份/导入/清空）、日志（全参数）、统计（概览/命中率/最近行为）
+- **新老菜单一键切换**（双向）：新菜单标题栏"🎨 经典菜单"→ options；经典侧边栏"✨ 新菜单（Vista Aero）"→ menu-vista
+- 全新 menu.js（保存前重读合并防快照覆盖）；E2E +3（Vista 渲染/全功能/无错误）
+- **质量**：vitest 516 test 全过 · lint 0 · typecheck 0 · E2E 24/24
+
 ### v6.4.5（小版本：全 UI 重构——Steam 主页美术风格设计系统）
 - **Steam 设计系统** `styles/ui-theme.css`：CSS 变量驱动（深蓝黑背景 #1b2838 / Steam 蓝强调 #66c0f4 / 渐变按钮 #588fe3→#2f6db3 / 卡片 #2a475e / 圆角阴影）+ 组件类（gr-btn/gr-card/gr-tag/gr-switch/gr-range/gr-input）
 - **popup 重构**：渐变头部 + 统计卡片（蓝色辉光数字）+ Steam 滑块式开关 + 折叠区块 hover 高亮

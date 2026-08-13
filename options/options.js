@@ -32,7 +32,14 @@
   OPTS.CACHE_PAGE_SIZE = 20;
   OPTS.cacheSearchTimer = null;
 
+  // v6.4.6：切换到 Vista Aero 新菜单
   document.addEventListener('DOMContentLoaded', async () => {
+    const vistaBtn = document.getElementById('openVistaMenu');
+    if (vistaBtn) {
+      vistaBtn.addEventListener('click', () => {
+        chrome.tabs.create({ url: chrome.runtime.getURL('menu-vista/index.html') });
+      });
+    }
     try {
       const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       // 防御：后台未就绪时 response 可能为 undefined

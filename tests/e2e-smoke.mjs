@@ -177,6 +177,27 @@ async function runChecks() {
     await popup3.close();
     await optPage.close();
 
+    // 2c. Vista Aero 新菜单（v6.4.6）
+    console.log('2c. Vista 新菜单冒烟');
+    const vista = await context.newPage();
+    const vistaErrors = [];
+    vista.on('console', (msg) => { if (msg.type() === 'error') vistaErrors.push(msg.text()); });
+    vista.on('pageerror', (e) => vistaErrors.push(String(e)));
+    await vista.goto(`chrome-extension://${extId}/menu-vista/index.html`);
+    await vista.waitForTimeout(1200);
+    const vistaState = await vista.evaluate(() => ({
+      title: document.title,
+      version: document.getElementById('extVersion').textContent,
+      enabled: document.getElementById('vEnabled').checked,
+      weights: document.querySelectorAll('[data-w]').length,
+      panels: document.querySelectorAll('.aero-panel').length,
+      classicBtn: !!document.getElementById('toggleClassic')
+    }));
+    check('Vista 菜单渲染（标题/版本/启用开关）', vistaState.title.includes('Vista') && vistaState.version.includes('v') && vistaState.enabled === true);
+    check('Vista 菜单全功能（8 面板 + 6 权重滑块 + 切换按钮）', vistaState.panels === 8 && vistaState.weights === 6 && vistaState.classicBtn);
+    check('Vista 菜单无 console error', vistaErrors.length === 0, `(${vistaErrors.slice(0, 3).join(' | ')})`);
+    await vista.close();
+
     // 3. 内容脚本注入 fixture 页。v3.3.15：状态/诊断浮窗默认禁用——先验证
     //    默认不渲染，再通过 popup 开启后验证渲染与列表页流程
     console.log('3. 内容脚本注入（默认禁用状态浮窗，v3.3.15）');
