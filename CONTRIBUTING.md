@@ -50,4 +50,6 @@ npm run coverage       # vitest 覆盖率
 - 规则/备份导入均过模块白名单校验（`sanitizeImportedModule`）；备份剔除 API 密钥。
 - 不引入运行期框架；TypeScript 仅编译期（noEmit）。
 - **MV3 Service Worker 不支持动态 import()**（v6.3.0 E2E 验证）——后台模块必须静态 import；内容脚本的动态 import 走 chrome.runtime.getURL。
+- **content-sim 用自研 FakeEl**（v6.3.2 评估：jsdom 迁移收益有限——测试聚焦流程逻辑，FakeEl 已工作正常；若未来需标准 DOM 语义（选择器/事件冒泡）再评估 jsdom）
+- **UI 层 DOM 类型宽松化**（globals.d.ts）：document 返回 any（元素存在性由浏览器保证），类型化聚焦业务字段与消息形状
 - 发布前 Mimosa 深度扫描必须 0 findings。

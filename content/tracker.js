@@ -222,7 +222,7 @@
           }
           sendResponse({ success: true });
         } catch (e) {
-          sendResponse({ success: false, error: e.message });
+          sendResponse({ success: false, error: String(e) });
         }
       })();
       return true; // 异步响应 / Async response
@@ -277,7 +277,7 @@
           sendResponse({ success: true, cleared: resp && resp.cleared });
           location.reload();
         } catch (e) {
-          sendResponse({ success: false, error: e.message });
+          sendResponse({ success: false, error: String(e) });
         }
       })();
       return true; // 异步响应 / Async response

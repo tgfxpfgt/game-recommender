@@ -35,7 +35,7 @@
       document.getElementById('ruleEditor').value = JSON.stringify(resp.merged, null, 2);
       setRuleStatus(resp.imported ? '已加载用户导入规则，编辑后保存将覆盖' : '当前使用内置规则', 'info');
     } catch (e) {
-      setRuleStatus('加载规则失败: ' + e.message, 'error');
+      setRuleStatus('加载规则失败: ' + String(e), 'error');
     }
   }
 
@@ -84,7 +84,7 @@
     try {
       parsed = JSON.parse(raw);
     } catch (e) {
-      setRuleStatus('JSON 解析失败: ' + e.message, 'error');
+      setRuleStatus('JSON 解析失败: ' + String(e), 'error');
       return null;
     }
     if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
@@ -127,7 +127,7 @@
         setRuleStatus('保存失败: ' + ((resp && resp.error) || '校验未通过'), 'error');
       }
     } catch (e) {
-      setRuleStatus('保存失败: ' + e.message, 'error');
+      setRuleStatus('保存失败: ' + String(e), 'error');
     }
   }
 
@@ -140,7 +140,7 @@
         await loadRules();
       }
     } catch (e) {
-      setRuleStatus('恢复失败: ' + e.message, 'error');
+      setRuleStatus('恢复失败: ' + String(e), 'error');
     }
   }
 
@@ -179,7 +179,7 @@
         setRuleStatus('导入失败: ' + ((resp && resp.error) || '校验未通过'), 'error');
       }
     } catch (err) {
-      setRuleStatus('导入文件解析失败: ' + err.message, 'error');
+      setRuleStatus('导入文件解析失败: ' + String(err), 'error');
     }
   }
 

@@ -317,6 +317,17 @@ function evalWithGrImport(code) {
 
 let GR = null; // 节 1 赋值，后续节共享（文件级 let + test 顺序执行）
 
+// v6.3.2：固定延时在全量并发下偶发不足（推送/批次异步链竞争）——
+// 轮询等待条件（最多 2s）替代固定延时，根治偶发
+async function waitFor(fn, timeoutMs = 2000) {
+  const t0 = Date.now();
+  while (Date.now() - t0 < timeoutMs) {
+    if (fn()) return true;
+    await new Promise((r) => setTimeout(r, 20));
+  }
+  return fn();
+}
+
 // 构建列表页 DOM 项（Fake DOM）/ build a list item
 // v6.2.0：makeItem 提升至文件级（节 2/2b/6/7/8b 共享）
 function makeItem(name, id) {
@@ -392,7 +403,7 @@ presets['GET_RECOMMENDATIONS'] = (msg) => ({
 
 // 触发 DOMContentLoaded → init（warmup 已 resolve）
 docReadyCallbacks.forEach((cb) => cb());
-await new Promise((r) => setTimeout(r, 100));
+await waitFor(() => itemA.a.children.length > 0);
 
 expect(itemA.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);;
 expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge')) ||
@@ -431,8 +442,9 @@ await msgListener(
   {},
   () => {}
 );
-// v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底），等待微任务
-await new Promise((r) => setTimeout(r, 100));
+// v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底）
+// v6.3.2：固定延时偶发不足 → 轮询等待徽章出现
+await waitFor(() => itemB.a.children.some((c) => c.className.includes('gr-rating-badge')));
 
 expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);;
 expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);;
@@ -484,7 +496,7 @@ presets['GET_STEAM_RATINGS'] = (msg) => {
   return { ratings, pending: 0 }; // 全部缓存命中 → 无推送，自动衔接下一批
 };
 GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
-await new Promise((r) => setTimeout(r, 50));
+await waitFor(() => batchRequests.length >= 2); // 首批 60 + 全命中自动衔接第二批 40
 expect(batchRequests[0] ? batchRequests[0].length : 0).toEqual(60);
 expect(batchRequests[1] ? batchRequests[1].length : 0).toEqual(40);
 expect((() => {
@@ -510,7 +522,7 @@ await new Promise((r) => setTimeout(r, 100));
 expect(batchRequests2.length).toEqual(1);
 // 后台完成 → 推送 done → 应自动发起第二批
 await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
-await new Promise((r) => setTimeout(r, 100));
+await waitFor(() => batchRequests2.length >= 2);
 expect(batchRequests2[1] ? batchRequests2[1].length : 0).toEqual(40);
 presets['GET_STEAM_RATINGS'] = batchPreset;
 

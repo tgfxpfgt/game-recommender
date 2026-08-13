@@ -62,6 +62,8 @@ export async function updateGameProfile(gameInfo) {
   const profile = profiles[key];
   if (gameInfo.event === 'view') profile.views++;
   if (gameInfo.event === 'download') profile.downloads++;
+  // v6.3.2 C3：不感兴趣负信号（推荐反馈循环）
+  if (gameInfo.event === 'dislike') profile.disliked = true;
   if (gameInfo.keywords) {
     profile.keywords = [...new Set([...profile.keywords, ...gameInfo.keywords])];
   }

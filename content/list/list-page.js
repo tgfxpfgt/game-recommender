@@ -207,7 +207,7 @@ function preloadNextPage() {
           })
           .catch(() => {});
       } catch (e) {
-        dbg('预载下一页失败: ' + e.message);
+        dbg('预载下一页失败: ' + String(e));
       }
     }, 2000);
 }

@@ -9,7 +9,7 @@
  */
 import * as common from '../core/common.js';
 
-const esc = (...a) => common.escapeHtml(...a);
+const esc = (text) => common.escapeHtml(text);
 
 // Steam 信息栏完整模板（数据 + 缓存时间 + 按钮开关 → HTML）
 // Full Steam-info sidebar template (data + cachedAt + button flags → HTML)

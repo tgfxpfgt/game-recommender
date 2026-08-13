@@ -1,5 +1,6 @@
 import { dataStore } from '../../data/data-store.js';
 import { readProfiles, readKeywordWeights, getBehaviorLog } from '../storage/behavior.js';
+import { getCacheStats } from '../storage/steam-cache.js';
 import { DB_KEYS } from '../core/constants.js';
 import { aggregateTrends } from '../core/trends.js';
 import { fetchSteamTagRecommendations } from '../steam/api-search.js';
@@ -45,7 +46,8 @@ export async function handleGetStats() {
       .map(([kw, weight]) => ({ keyword: kw, weight })),
     gameList,
     downloadMethods,
-    recentLog: log.slice(-30).reverse()
+    recentLog: log.slice(-30).reverse(),
+    cacheStats: getCacheStats()
   };
 }
 

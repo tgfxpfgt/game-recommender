@@ -14,7 +14,7 @@ import * as common from '../core/common.js';
 import * as builder from '../adapters/builder.js';
 
 const dbg = (...a) => debug.dbg(...a);
-const esc = (...a) => common.escapeHtml(...a);
+const esc = (text) => common.escapeHtml(text);
 
 // 从 Steam 图片的 alt 属性提取英文游戏名（"XXX on Steam" 模式）
 // Extract the EN name from a Steam image alt ("XXX on Steam")
@@ -437,11 +437,11 @@ export function injectSteamButton(gameName) {
           showPanel();
         }
       } catch (e) {
-        debug.DEBUG.steamStatus = '❌ ' + e.message;
-        dbg('Steam查询错误: ' + e.message);
-        panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(e.message)}</div>`;
+        debug.DEBUG.steamStatus = '❌ ' + String(e);
+        dbg('Steam查询错误: ' + String(e));
+        panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(String(e))}</div>`;
         showPanel();
-        status.showStats({ title: 'Steam 信息查询失败', summary: e.message });
+        status.showStats({ title: 'Steam 信息查询失败', summary: String(e) });
       }
       debug.scheduleDebugUpdate();
     })();
@@ -533,12 +533,12 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
                 listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取详情失败，请重试</div>`;
               }
             } catch (e) {
-              listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取失败: ${esc(e.message)}</div>`;
+              listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取失败: ${esc(String(e))}</div>`;
             }
           });
         });
       } catch (e) {
-        listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">搜索失败: ${esc(e.message)}</div>`;
+        listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">搜索失败: ${esc(String(e))}</div>`;
       }
     }
 

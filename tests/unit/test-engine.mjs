@@ -94,3 +94,35 @@ test('模糊包含匹配', () => { expect(findProfile(profiles, '生化女神 �
 test('无匹配返回 null', () => { expect(findProfile(profiles, '不存在的游戏', null)).toEqual(null); });
 
 
+
+// ============ 6. 不感兴趣负信号（v6.3.2 C3） ============
+console.log('6. 不感兴趣负信号（disliked 归零）');
+test('disliked 画像 → 推荐归零', () => {
+  const r = mod.computeGameScore({
+    profile: { views: 100, downloads: 50, disliked: true },
+    globalStats: { maxViews: 200, maxDownloads: 100 },
+    tags: ['RPG'],
+    keywordWeights: { RPG: 1 },
+    positiveRate: 95,
+    chineseSupported: true,
+    weights: { clickRate: 0.15, downloadRate: 0.3, keywordMatch: 0.2, steamRating: 0.15, playTime: 0.1, heat: 0.1 },
+    playTimeScore: 0.9,
+    heatScore: 0.8
+  });
+  expect(r.score).toEqual(0);
+  expect(r.method).toEqual('disliked');
+});
+test('未标记 disliked → 正常评分不受影响', () => {
+  const r = mod.computeGameScore({
+    profile: { views: 100, downloads: 50 },
+    globalStats: { maxViews: 200, maxDownloads: 100 },
+    tags: ['RPG'],
+    keywordWeights: { RPG: 1 },
+    positiveRate: 95,
+    chineseSupported: true,
+    weights: { clickRate: 0.15, downloadRate: 0.3, keywordMatch: 0.2, steamRating: 0.15, playTime: 0.1, heat: 0.1 },
+    playTimeScore: 0.9,
+    heatScore: 0.8
+  });
+  expect(r.score).toBeGreaterThan(0);
+});

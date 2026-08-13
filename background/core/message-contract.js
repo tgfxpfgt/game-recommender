@@ -13,9 +13,9 @@ import { isPlainObject } from './utils.js';
 
 const APP_ID_RE = /^\d{1,10}$/; // 1-10 位数字 appId
 // 行为日志 type 白名单（与 content 侧发送方一致）
-const TRACK_TYPES = new Set(['view_list', 'view_detail', 'click_detail', 'click_download', 'steam_tags_update']);
+const TRACK_TYPES = new Set(['view_list', 'view_detail', 'click_detail', 'click_download', 'steam_tags_update', 'dislike_game']);
 // 需要 gameName 的 type（view_list 仅计数，无需名称）
-const NAME_REQUIRED_TYPES = new Set(['view_detail', 'click_detail', 'click_download', 'steam_tags_update']);
+const NAME_REQUIRED_TYPES = new Set(['view_detail', 'click_detail', 'click_download', 'steam_tags_update', 'dislike_game']);
 
 function isName(v) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= 200;

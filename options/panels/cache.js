@@ -79,7 +79,7 @@
       }
     } catch (e) {
       const statsEl = document.getElementById('cacheStats');
-      statsEl.textContent = '自愈失败: ' + e.message;
+      statsEl.textContent = '自愈失败: ' + String(e);
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;
@@ -104,7 +104,7 @@
       }
     } catch (e) {
       const statsEl = document.getElementById('cacheStats');
-      statsEl.textContent = '清理失败: ' + e.message;
+      statsEl.textContent = '清理失败: ' + String(e);
     } finally {
       btn.disabled = false;
       btn.textContent = oldText;
@@ -213,7 +213,7 @@
 
       renderPagination(resp.total, resp.totalPages);
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="10" class="cache-empty">加载失败: ${escapeHtml(e.message)}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="10" class="cache-empty">加载失败: ${escapeHtml(String(e))}</td></tr>`;
     }
   }
 
@@ -306,7 +306,7 @@
         btn.textContent = originalText;
         btn.disabled = false;
       }, 1500);
-      alert('更新失败: ' + e.message);
+      alert('更新失败: ' + String(e));
     }
   }
 
@@ -363,7 +363,7 @@
         alert('删除失败: ' + (resp ? resp.error : '未知错误'));
       }
     } catch (e) {
-      alert('删除失败: ' + e.message);
+      alert('删除失败: ' + String(e));
     }
   }
 
@@ -384,7 +384,7 @@
         alert('清空失败，请重试');
       }
     } catch (e) {
-      alert('清空失败: ' + e.message);
+      alert('清空失败: ' + String(e));
     }
   }
 

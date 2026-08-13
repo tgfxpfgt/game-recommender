@@ -66,7 +66,7 @@ async function loadTrends() {
     cachedTrends = (response && response.daily) || [];
     renderTrendChart(cachedTrends);
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载趋势失败: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="no-data">加载趋势失败: ${escapeHtml(String(e))}</div>`;
   }
 }
 
@@ -218,7 +218,7 @@ async function exportLogsCsv() {
       )
     );
   } catch (e) {
-    alert('导出失败: ' + e.message);
+    alert('导出失败: ' + String(e));
   }
 }
 
@@ -236,6 +236,11 @@ async function loadStats() {
     document.getElementById('statViews').textContent = response.viewDetailCount ?? 0;
     document.getElementById('statDownloads').textContent = response.downloadCount ?? 0;
     document.getElementById('statRate').textContent = (response.downloadRate ?? 0) + '%';
+    // v6.3.2 B3：缓存命中率（hits+misses 计数）
+    const cs = response.cacheStats || {};
+    const total = (cs.hits || 0) + (cs.misses || 0);
+    document.getElementById('statCacheHit').textContent =
+      total > 0 ? Math.round((cs.hits / total) * 100) + '% (' + cs.hits + '/' + total + ')' : '无查询';
 
     // 标签偏好 / Tag preference cloud
     renderTagCloud(response.topKeywords);
@@ -388,8 +393,8 @@ async function loadSteamRecommendations() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RECOMMENDATIONS' });
 
-    if (response.message) {
-      listEl.innerHTML = `<span class="no-data">${escapeHtml(response.message)}</span>`;
+    if (response && response.error) {
+      listEl.innerHTML = `<span class="no-data">${escapeHtml(response.error)}</span>`;
       return;
     }
 
@@ -439,7 +444,7 @@ async function loadSteamRecommendations() {
     // 滚动到推荐区域
     section.scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(e.message)}</span>`;
+    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(String(e))}</span>`;
   }
 }
 // （escapeHtml/escapeAttr 由 shared/escape.js 提供全局实现）
@@ -456,7 +461,7 @@ async function loadRuntimeLogs() {
     cachedLogs = (response && response.logs) || [];
     renderRuntimeLogs();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载日志失败: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="no-data">加载日志失败: ${escapeHtml(String(e))}</div>`;
   }
 }
 
@@ -510,7 +515,7 @@ async function exportLogs() {
     a.click();
     URL.revokeObjectURL(url);
   } catch (e) {
-    alert('导出失败: ' + e.message);
+    alert('导出失败: ' + String(e));
   }
 }
 
@@ -532,7 +537,7 @@ async function loadOutboundAudit() {
     cachedAudit = (response && response.audit) || { entries: [], stats: null };
     renderOutboundAudit();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载审计失败: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="no-data">加载审计失败: ${escapeHtml(String(e))}</div>`;
   }
 }
 
@@ -633,7 +638,7 @@ async function loadBackups() {
       btn.addEventListener('click', () => deleteBackup(btn.dataset.id));
     });
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载备份失败: ${escapeHtml(e.message)}</div>`;
+    container.innerHTML = `<div class="no-data">加载备份失败: ${escapeHtml(String(e))}</div>`;
   }
 }
 
@@ -650,7 +655,7 @@ async function createBackup() {
       statusEl.textContent = '❌ 备份失败';
     }
   } catch (e) {
-    statusEl.textContent = '❌ ' + e.message;
+    statusEl.textContent = '❌ ' + String(e);
   }
   setTimeout(() => {
     statusEl.textContent = '';
@@ -670,7 +675,7 @@ async function restoreBackup(id) {
       alert('❌ 恢复失败: ' + (response ? response.error : '未知错误'));
     }
   } catch (e) {
-    alert('❌ 恢复失败: ' + e.message);
+    alert('❌ 恢复失败: ' + String(e));
   }
 }
 

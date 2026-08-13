@@ -121,6 +121,10 @@ export function computeGameScore({
   playTimeScore = null,
   heatScore = null
 }) {
+  // v6.3.2 C3：用户标记不感兴趣 → 推荐归零（负信号优先于一切正信号）
+  if (profile && profile.disliked) {
+    return { score: 0, breakdown: { clickScore: 0, downloadScore: 0, keywordScore: 0, steamScore: 0, playTimeScore: 0, heatScore: 0 }, method: 'disliked' };
+  }
   const views = profile ? profile.views || 0 : 0;
   const downloads = profile ? profile.downloads || 0 : 0;
   // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）

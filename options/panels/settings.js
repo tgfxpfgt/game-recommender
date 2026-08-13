@@ -243,7 +243,7 @@
         }
       }
     } catch (e) {
-      resultEl.textContent = `❌ 连接失败: ${e.message}`;
+      resultEl.textContent = `❌ 连接失败: ${String(e)}`;
       resultEl.className = 'test-result error';
     }
   }

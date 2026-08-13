@@ -256,6 +256,16 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.3.2（中版本：B/C 现代化——UI 类型化 + 可观测 + 限免通知 + 推荐反馈循环）
+- **B1 UI 层类型化**：双 tsconfig（主 strict 全量 + tsconfig.ui.json UI 层 strictNullChecks 关闭——DOM 元素存在性由浏览器保证）；全局 d.ts（chrome/__OPTS__/__GR_PATTERNS__/escapeHtml 等 + DOM 宽松化）；**顺带修复 dashboard 真实拼写 bug**（`responsString` → `response.error`，ReferenceError 崩溃）
+- **B3 可观测面板**：Steam 缓存命中率埋点（steam-cache hits/misses）+ GET_STATS 暴露 + dashboard 命中率卡片
+- **C2 限免推送通知**：manifest `notifications` 权限 + refreshFreeGames 检测新限免聚合通知（防骚扰，+2 test）
+- **C3 推荐反馈循环**：推荐徽章 ✕ 按钮 → TRACK_EVENT `dislike_game`（新契约 type）→ 画像 `disliked` 负信号 → 引擎评分归零（method: 'disliked'）；+4 test
+- **C1 商店上架准备**：PRIVACY.md（数据全本地声明 + 权限/网络请求说明）+ STORE.md（资产清单/文案/流程）
+- **B2 content-sim DOM 评估**：jsdom 迁移收益 < 成本（测试聚焦流程逻辑，FakeEl 工作正常）——决策保留 FakeEl，记录到 CONTRIBUTING
+- **偶发根治**：content-sim 固定延时 → 轮询等待（waitFor，推送/批次异步链竞争消除；6 次连跑稳定）
+- **质量**：vitest 500 test（6 次连跑稳定）· lint 0 · typecheck 0（双配置）· E2E 16/16
+
 ### v6.3.1（小版本：TS strict 全量开启 + 工程护栏）
 - **TS strict 全量开启**（`strict: true`，191 → 0 错误）：background + data 全层 strict 编译期防线（null/undefined 类 bug 前置拦截）；修复过程中发现并规避两个回归：`e.message → String(e)`（catch unknown 安全化，仅日志层）、steam-cache `nextModules` 惰性初始化必须保持（类型标注用 optional 而非预初始化）、data-store 的 guard 会破坏 OPFS 不可用时的 storage.local 回退（改用类型断言）
 - **A1 CI 补 typecheck 门禁**（此前类型回归 CI 不拦截）

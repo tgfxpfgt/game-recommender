@@ -88,7 +88,7 @@
       URL.revokeObjectURL(url);
       showDataOpStatus(`✅ 已导出 ${keys.length} 个模块`);
     } catch (e) {
-      showDataOpStatus('导出失败: ' + e.message, true);
+      showDataOpStatus('导出失败: ' + String(e), true);
     }
   }
 
@@ -122,7 +122,7 @@
         showDataOpStatus('导入失败: ' + (resp ? resp.error : '未知错误'), true);
       }
     } catch (err) {
-      showDataOpStatus('导入失败: ' + err.message, true);
+      showDataOpStatus('导入失败: ' + String(err), true);
     }
     e.target.value = '';
   }
@@ -193,7 +193,7 @@
         showDataOpStatus('恢复失败: ' + (resp ? resp.error : '未知错误'), true);
       }
     } catch (e) {
-      showDataOpStatus('恢复失败: ' + e.message, true);
+      showDataOpStatus('恢复失败: ' + String(e), true);
     }
   }
 
@@ -218,7 +218,7 @@
         alert('恢复默认设置失败，请重试。');
       }
     } catch (e) {
-      alert('恢复默认设置失败: ' + e.message);
+      alert('恢复默认设置失败: ' + String(e));
     }
   }
 

@@ -270,6 +270,8 @@ export async function refreshFreeGames(force = false) {
   const newGames = await fetchAllFreeGames();
   const existingMap = new Map(existing.games.map((g) => [g.id, g]));
   const now = Date.now();
+  /** @type {Array<Object>} */
+  const fresh = []; // 首次出现的游戏（v6.3.2 C2 通知用）/ newly appeared games
   newGames.forEach((g) => {
     const old = existingMap.get(g.id);
     if (old) {
@@ -277,13 +279,36 @@ export async function refreshFreeGames(force = false) {
       g.firstSeen = old.firstSeen || now;
     } else {
       g.firstSeen = now;
+      fresh.push(g);
     }
   });
 
   const result = { lastUpdate: now, games: newGames };
   await dataStore.writeModule(DB_KEYS.FREE_GAMES, result);
   await updateFreeGamesBadge();
+  notifyNewFreeGames(fresh);
   return result;
+}
+
+// v6.3.2 C2：新限免推送通知（聚合一条，防骚扰；通知权限在 manifest）
+// Push notification for new free games (one aggregated notification)
+function notifyNewFreeGames(newOnes) {
+  try {
+    if (!chrome.notifications || newOnes.length === 0) return;
+    const names = newOnes
+      .slice(0, 3)
+      .map((g) => g.name)
+      .join('、');
+    chrome.notifications.create('gr-free-games', {
+      type: 'basic',
+      iconUrl: 'icons/icon128.png',
+      title: `🎮 新增 ${newOnes.length} 款限免游戏`,
+      message: names + (newOnes.length > 3 ? ` 等 ${newOnes.length} 款` : ''),
+      priority: 1
+    });
+  } catch (e) {
+    Logger.debug('FreeGames', '限免通知失败:', String(e));
+  }
 }
 
 // 更新工具栏角标（当天新增数量）/ Update the toolbar badge (today's new count)

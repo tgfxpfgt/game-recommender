@@ -16,6 +16,11 @@ export function removeItemFromDom(item) {
 
 // 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）
 // Create one badge span (shared styling; clickable badges open the store)
+/**
+ * 创建徽章元素
+ * @param {any} link
+ * @param {{text: string, color: string, bg: string, cls: string, title: string, clickable?: boolean, appId?: any, dashed?: boolean}} opts
+ */
 export function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed }) {
     const badge = document.createElement('span');
     badge.className = cls || 'gr-rating-badge';
@@ -224,6 +229,29 @@ export function prependRecBadge(item, recommendation, settings) {
     badge.textContent = `🎯 ${pct}%`;
     badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:default;`;
     badge.title = `推荐度: ${pct}%\n点击率: ${fmt(b.clickScore)} · 下载率: ${fmt(b.downloadScore)}\n关键词: ${fmt(b.keywordMatch)} · Steam: ${fmt(b.steamRating)}`;
+
+    // v6.3.2 C3：不感兴趣按钮（推荐反馈循环）——点击标记负信号并淡化徽章
+    const dislikeBtn = document.createElement('span');
+    dislikeBtn.className = 'gr-dislike-btn';
+    dislikeBtn.textContent = '✕';
+    dislikeBtn.style.cssText = 'margin-left:4px;cursor:pointer;font-size:10px;opacity:0.6;';
+    dislikeBtn.title = '不感兴趣';
+    dislikeBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      badge.style.opacity = '0.3';
+      badge.style.textDecoration = 'line-through';
+      dislikeBtn.remove();
+      try {
+        chrome.runtime.sendMessage({
+          action: 'TRACK_EVENT',
+          data: { type: 'dislike_game', gameName: item.name || '' }
+        });
+      } catch (e) {
+        /* 后台不可达时静默 */
+      }
+    });
+    badge.appendChild(dislikeBtn);
 
     // 与 prependBadge 相同的定位逻辑；插到最后一个徽章之后
     let targetEl = item.titleEl || null;

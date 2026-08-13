@@ -86,6 +86,10 @@ async function handleTrackEvent(message) {
     });
   }
   // Steam标签回写
+  // v6.3.2 C3：不感兴趣标记（推荐反馈循环负信号）
+  if (message.data.type === 'dislike_game') {
+    await updateGameProfile({ name: message.data.gameName, event: 'dislike', keywords: message.data.keywords });
+  }
   if (message.data.type === 'steam_tags_update') {
     await updateGameProfile({
       name: message.data.gameName,

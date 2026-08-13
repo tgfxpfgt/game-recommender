@@ -7,6 +7,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "strict": true,
+    "strictNullChecks": false,
     "noImplicitAny": false,
     "skipLibCheck": true,
     "lib": [
@@ -16,20 +17,20 @@
     ]
   },
   "include": [
-    "background/**/*.js",
-    "data/**/*.js",
-    "lib/**/*.js",
+    "content/**/*.js",
+    "options/**/*.js",
+    "popup/**/*.js",
+    "dashboard/**/*.js",
+    "freegames/**/*.js",
+    "adapters/**/*.js",
+    "shared/**/*.js",
     "**/*.d.ts"
   ],
   "exclude": [
     "node_modules",
     "tests",
-    "content",
-    "options",
-    "popup",
-    "dashboard",
-    "freegames",
-    "adapters",
-    "shared"
+    "background",
+    "data",
+    "lib"
   ]
 }

@@ -128,3 +128,53 @@ test('第三方 URL 协议白名单净化（恶意协议拒绝）', async () => 
     restoreFetch();
   }
 });
+
+// ============ 3. 限免推送通知（v6.3.2 C2） ============
+console.log('3. 新限免推送通知（chrome.notifications）');
+test('新限免触发推送通知（聚合一条）', async () => {
+  storage._reset({
+    freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [{ id: 'epic-old', name: '旧游戏', platform: 'epic' }] }
+  });
+  const notified = [];
+  globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
+  const fetchMock = createFetchMock({
+    'freeGamesPromotions': {
+      data: { Catalog: { searchStore: { elements: [
+        {
+          id: 'new1', title: '新限免A', productSlug: 'new-a',
+          promotions: { promotionalOffers: [{ promotionalOffers: [{ startDate: new Date(Date.now() - 3600e3).toISOString(), endDate: new Date(Date.now() + 86400e3).toISOString() }] }] },
+          keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/new-a.jpg' }]
+        }
+      ] } } }
+    }
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    await mod.refreshFreeGames(true);
+    expect(notified.length).toEqual(1);
+    expect(notified[0].id).toEqual('gr-free-games');
+    expect(notified[0].opts.title).toContain('新增 1 款');
+    expect(notified[0].opts.message).toContain('新限免A');
+  } finally {
+    restoreFetch();
+    delete globalThis.chrome.notifications;
+  }
+});
+test('无新游戏不触发通知', async () => {
+  storage._reset({
+    freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [{ id: 'epic-old', name: '旧游戏', platform: 'epic' }] }
+  });
+  const notified = [];
+  globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
+  const fetchMock = createFetchMock({
+    'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [] } } } }
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    await mod.refreshFreeGames(true);
+    expect(notified.length).toEqual(0);
+  } finally {
+    restoreFetch();
+    delete globalThis.chrome.notifications;
+  }
+});

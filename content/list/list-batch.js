@@ -117,7 +117,7 @@ async function fireBatch(names) {
         if (!fired && !job.finished) list._internal.finishRatings();
       }
     } catch (e) {
-      dbg('Steam好评率检索失败: ' + e.message);
+      dbg('Steam好评率检索失败: ' + String(e));
       batchState.inflight = false;
       list._internal.finishRatings();
     }
@@ -134,7 +134,7 @@ async function fetchRecommendationsForBatch(names, imageData) {
       const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
       applyRecommendationResults(response && response.results);
     } catch (e) {
-      dbg('推荐计算失败: ' + e.message);
+      dbg('推荐计算失败: ' + String(e));
     }
 }
 

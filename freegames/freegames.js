@@ -66,7 +66,7 @@ async function loadFreeGames(force = false) {
       listEl.innerHTML = '<div class="empty">加载失败，请重试</div>';
     }
   } catch (e) {
-    listEl.innerHTML = `<div class="empty">加载失败: ${escapeHtml(e.message)}</div>`;
+    listEl.innerHTML = `<div class="empty">加载失败: ${escapeHtml(String(e))}</div>`;
   }
 }
 

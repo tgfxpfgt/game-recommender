@@ -160,10 +160,22 @@ export function migrateEntry(entry) {
   return null;
 }
 
+// 缓存命中率统计（v6.3.2 B3 可观测：dashboard 展示用）/ cache hit stats
+/** @type {{hits: number, misses: number}} */
+let cacheStats = { hits: 0, misses: 0 };
+
 // 读取缓存条目（返回模块结构）/ Read a cache entry (modular structure)
 export async function getSteamCacheEntry(cacheKey) {
   await loadSteamCacheToMemory();
-  return steamCacheMemory.get(String(cacheKey)) || null;
+  const entry = steamCacheMemory.get(String(cacheKey)) || null;
+  if (entry) cacheStats.hits++;
+  else cacheStats.misses++;
+  return entry;
+}
+
+// 缓存命中率统计（只读快照）/ cache hit-rate snapshot
+export function getCacheStats() {
+  return { ...cacheStats };
 }
 
 // 写入缓存条目（按 FIELD_MODULES 自动路由拆分到各模块；签名不变，调用方零改动）
