@@ -73,6 +73,14 @@
             </div>
           </div>
           <div class="aero-section">
+            <h3>追踪站点（自定义下载站）</h3>
+            <div class="aero-row">
+              <input type="text" id="vNewSite" class="vista-input" placeholder="输入域名，如 mysite.com" style="flex:1">
+              <button class="vista-btn" id="vAddSite">➕ 添加</button>
+            </div>
+            <div id="vSiteList" style="margin-top:8px;"></div>
+          </div>
+          <div class="aero-section">
             <h3>徽章显示</h3>
             <div class="aero-row"><span class="label">近 30 天徽章<small>Recent badge</small></span><label class="vista-switch"><input type="checkbox" id="vBadgeRecent"><span class="track"></span></label></div>
             <div class="aero-row"><span class="label">全部好评率徽章<small>Overall badge</small></span><label class="vista-switch"><input type="checkbox" id="vBadgeAll"><span class="track"></span></label></div>
@@ -131,7 +139,7 @@
               </select>
             </div>
             <div class="aero-row">
-              <span class="label">规则列表<small>每条含排除误报词（如 虚拟机 排除 非虚拟机）</small></span>
+              <span class="label">规则列表（优先于上方简单关键词）<small>每条含排除误报词（如 虚拟机 排除 非虚拟机）</small></span>
               <button class="vista-btn" id="vRuleAdd">➕ 添加规则</button>
             </div>
             <div id="vRuleList"></div>

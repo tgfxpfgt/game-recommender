@@ -355,7 +355,46 @@ $('vTestLlm').addEventListener('click', async () => {
   }
 });
 
-// ============ ITAD Key：脱敏显示 + 保存 + 测试 ============
+// ============ 追踪站点管理（v6.4.9 菜单一致性补齐） ============
+function renderSites() {
+  const box = $('vSiteList');
+  const sites = (settings.trackedSites || []).slice();
+  box.innerHTML = '';
+  if (sites.length === 0) {
+    box.innerHTML = '<div style="color:var(--aero-text-dim);font-size:12px;">暂无自定义站点</div>';
+    return;
+  }
+  sites.forEach((site, idx) => {
+    const row = document.createElement('div');
+    row.className = 'aero-row';
+    row.innerHTML = `<span class="vista-tag blue">${escapeHtml(site)}</span>
+      <span style="flex:1;font-size:12px;color:var(--aero-text-dim);">${idx === 0 ? '（内置）' : ''}</span>
+      <button class="vista-btn gray" data-sdel="${idx}" ${idx === 0 ? 'disabled' : ''}>移除</button>`;
+    box.appendChild(row);
+    row.querySelector('[data-sdel]').addEventListener('click', async () => {
+      const sites2 = (settings.trackedSites || []).slice();
+      const removed = sites2.splice(idx, 1)[0];
+      if (removed && chrome.permissions && chrome.permissions.remove) {
+        chrome.permissions.remove({ origins: ['http://' + removed + '/*', 'https://' + removed + '/*'] }).catch(() => {});
+      }
+      await savePatch({ trackedSites: sites2 });
+      renderSites();
+    });
+  });
+}
+$('vAddSite').addEventListener('click', async () => {
+  const site = $('vNewSite').value.trim().toLowerCase();
+  if (!site || (settings.trackedSites || []).includes(site)) return;
+  if (chrome.permissions && chrome.permissions.request) {
+    await chrome.permissions.request({ origins: ['http://' + site + '/*', 'https://' + site + '/*'] }).catch(() => {});
+  }
+  await savePatch({ trackedSites: [...(settings.trackedSites || []), site] });
+  $('vNewSite').value = '';
+  renderSites();
+});
+$('vNewSite').addEventListener('keypress', (e) => { if (e.key === 'Enter') $('vAddSite').click(); });
+
+// ============ ITAD Key：脱敏显示 + 保存 + 测试 ===========
 function maskKey(key) {
   if (!key) return '';
   return '••••' + String(key).slice(-4);
@@ -429,6 +468,7 @@ async function init() {
   $('vVmKeywords').value = settings.filterKeywords || (Array.isArray(settings.vmFilterKeywords) ? settings.vmFilterKeywords.join(',') : '') || '';
   $('vFilterMatch').value = settings.filterMatchMode || 'contains';
   renderRules(settings.filterRules || []);
+  renderSites();
   renderWeights(settings.weights || {});
   const llm = settings.llmConfig || {};
   $('vUseLLM').checked = !!settings.useLLM;

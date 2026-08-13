@@ -196,6 +196,32 @@ async function runChecks() {
     check('Vista 菜单渲染（标题/版本/启用开关）', vistaState.title.includes('Vista') && vistaState.version.includes('v') && vistaState.enabled === true);
     check('Vista 菜单全功能（8 面板 + 6 权重滑块 + 切换按钮）', vistaState.panels === 8 && vistaState.weights === 6 && vistaState.classicBtn);
     check('Vista 菜单无 console error', vistaErrors.length === 0, `(${vistaErrors.slice(0, 3).join(' | ')})`);
+    // Vista 交互：规则添加 / 站点管理 / ITAD 按钮 / 日志查看（v6.4.9）
+    await vista.evaluate(() => {
+      document.querySelector('.aero-nav .nav-item[data-panel="filters"]').click();
+      document.getElementById('vRuleAdd').click();
+    });
+    await vista.waitForTimeout(500);
+    const ruleRows = await vista.evaluate(() => document.querySelectorAll('#vRuleList .aero-row').length);
+    check('Vista 规则添加（编辑器行出现）', ruleRows >= 1);
+    await vista.evaluate(() => {
+      document.querySelector('.aero-nav .nav-item[data-panel="general"]').click();
+      document.querySelector('.aero-nav .nav-item[data-panel="recommend"]').click();
+    });
+    await vista.waitForTimeout(300);
+    const itadBtns = await vista.evaluate(() => ({
+      save: !!document.getElementById('vItadSave'),
+      test: !!document.getElementById('vItadTest'),
+      siteAdd: !!document.getElementById('vAddSite')
+    }));
+    check('Vista ITAD 保存/测试按钮存在', itadBtns.save && itadBtns.test);
+    await vista.evaluate(() => document.querySelector('.aero-nav .nav-item[data-panel="logging"]').click());
+    await vista.waitForTimeout(500);
+    const logState = await vista.evaluate(() => ({
+      refresh: !!document.getElementById('vLogRefresh'),
+      list: document.getElementById('vLogList').innerHTML.length > 0
+    }));
+    check('Vista 日志查看（刷新按钮 + 列表渲染）', logState.refresh && logState.list);
     await vista.close();
 
     // 3. 内容脚本注入 fixture 页。v3.3.15：状态/诊断浮窗默认禁用——先验证
