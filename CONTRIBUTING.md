@@ -37,6 +37,13 @@ npm run coverage       # vitest 覆盖率
 - 新消息 action 必须加入 `message-contract.js` 的 RULES 表（契约化 100%，v6.3.0 收尾）+ test-contract 同步。
 - 新后台模块注意依赖分层（ALLOWED 矩阵在 test-integrity）。
 
+## 已决策不做的路线（v6.3.3 正式关闭，勿再提议）
+
+- **i18n 国际化**：中文单语种定位（_locales 仅扩展名/描述两键）
+- **跨设备云同步**：数据全本地（OPFS），无云端
+- **跨端适配**（Firefox/移动端）：仅 Chrome/Edge 系
+- **规则市场**：无社区生态假设
+
 ## 版本与发布
 
 - 版本号 X.Y.Z（大=架构级 / 中=功能里程碑 / 小=日常修复）；manifest.json 为唯一权威 + package.json 互比（测试自动校验）。

@@ -178,3 +178,65 @@ test('无新游戏不触发通知', async () => {
     delete globalThis.chrome.notifications;
   }
 });
+
+// ============ 4. 限免类型区分（v6.3.3） ============
+console.log('4. 三类区分 classifyFreeType（limited/weekend/f2p/key）');
+test('标题含 Free Weekend → weekend', () => {
+  expect(mod.classifyFreeType({ title: 'Cyberpunk 2077 Free Weekend', instructions: '' }, true)).toEqual('weekend');
+});
+test('无结束时间 + F2P 特征 → f2p', () => {
+  expect(mod.classifyFreeType({ title: 'Warframe', description: 'Free to Play 游戏', instructions: '' }, false)).toEqual('f2p');
+});
+test('有限时 + 无特征 → limited', () => {
+  expect(mod.classifyFreeType({ title: '古墓丽影', instructions: '登录领取' }, true)).toEqual('limited');
+});
+test('key 活动（instructions 含 redeem key）→ key', () => {
+  expect(mod.classifyFreeType({ title: '某游戏', instructions: 'Redeem your key on Steam' }, true)).toEqual('key');
+});
+test('GamerPower 源：key 活动被过滤（不收录）', async () => {
+  storage._reset();
+  const fetchMock = createFetchMock({
+    'api/giveaways': [
+      { id: 3001, title: '垃圾 Key 活动', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: 'Get your key at Fanatical', end_date: '2026-09-01' },
+      { id: 3002, title: '正当限免', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录 Steam 领取', end_date: '2026-09-01' }
+    ]
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const result = await mod.refreshFreeGames(true);
+    const names = result.games.map((g) => g.name);
+    expect(names.includes('垃圾 Key 活动')).toEqual(false);
+    expect(names.includes('正当限免')).toEqual(true);
+    const good = result.games.find((g) => g.name === '正当限免');
+    expect(good.freeType).toEqual('limited');
+  } finally {
+    restoreFetch();
+  }
+});
+test('通知仅限时领取（weekend/f2p 不推送）', async () => {
+  storage._reset({ freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [] } });
+  const notified = [];
+  globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
+  const fetchMock = createFetchMock({
+    'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [
+      { id: 'w1', title: '周末游戏', productSlug: 'w', promotions: { promotionalOffers: [{ promotionalOffers: [{ startDate: new Date(Date.now() - 3600e3).toISOString(), endDate: new Date(Date.now() + 86400e3).toISOString() }] }] }, keyImages: [] }
+    ] } } } },
+    'ajax/filtered': { products: [] },
+    'featuredcategories': { specials: { items: [] } },
+    'api/giveaways': [
+      { id: 4001, title: '真限免', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录领取', end_date: '2026-09-01' }
+    ]
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    // 预置 weekend/f2p 游戏（旧数据），新抓取只有 limited → 通知仅限时
+    await mod.refreshFreeGames(true);
+    // 通知只应包含 limited 游戏（本场景 GamerPower 真限免）
+    const titles = notified.map((n) => n.opts.title).join('');
+    expect(notified.length).toEqual(1);
+    expect(titles).toContain('新增');
+  } finally {
+    restoreFetch();
+    delete globalThis.chrome.notifications;
+  }
+});

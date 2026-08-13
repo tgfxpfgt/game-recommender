@@ -143,6 +143,13 @@ function renderGameCard(game) {
   const newTodayHtml = isToday(game.firstSeen) ? `<span class="new-today">🆕 今日新增</span>` : '';
 
   // 领取方式标识：官方直领（无门槛） vs 第三方领取（需条件）
+  // v6.3.3：限免类型标记（✅ 限时领取 / ⚠️ 免费周末 / ❌ 永久免费）
+  const freeTypeTag =
+    game.freeType === 'weekend'
+      ? '<span style="color:#ff7b00;font-size:11px;">⚠️ 免费周末</span>'
+      : game.freeType === 'f2p'
+        ? '<span style="color:#8f98a0;font-size:11px;">❌ 永久免费</span>'
+        : '<span style="color:#a3cf06;font-size:11px;">✅ 限时领取</span>';
   const isThirdParty = game.claimType === 'thirdparty';
   const claimTypeHtml = isThirdParty
     ? `<span class="claim-type thirdparty" title="需到第三方平台（${escapeHtml(game.source || '第三方')}）领取，可能有额外条件">🟡 第三方·${escapeHtml(game.source || '需条件')}</span>`
@@ -165,6 +172,7 @@ function renderGameCard(game) {
       <div class="game-card-body">
         <div class="game-tags-row">
           <span class="game-platform ${platformClass}">${escapeHtml(game.platformName)}</span>
+          ${freeTypeTag}
           ${claimTypeHtml}
           ${newTodayHtml}
         </div>

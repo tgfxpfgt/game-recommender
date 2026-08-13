@@ -70,6 +70,8 @@
     const tempPct = Number.isFinite(llm.temperature) ? llm.temperature * 100 : 30;
     document.getElementById('llmTemp').value = tempPct;
     document.getElementById('llmTempVal').textContent = tempPct.toFixed(1);
+    // v6.3.3：ITAD 二次校验 key
+    document.getElementById('itadApiKey').value = settings.itadApiKey || '';
 
     toggleLLMSettings();
     toggleApiKeyRow();

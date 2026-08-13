@@ -256,6 +256,14 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.3.3（小版本：限免功能优化——三类区分 + 垃圾 key 过滤 + ITAD 二次校验）
+- **限免数据源确认**：Epic 已直连官方接口（freeGamesPromotions，非第三方中转）；Steam/GOG 以 **GamerPower 为主源**（其 end_date 字段分类可靠）+ 官方源（featuredcategories / GOG ajax）补充
+- **三类区分**（classifyFreeType 纯函数 + 页面标记）：✅ **limited 限时领取 100% OFF**（通知推送）· ⚠️ **weekend 免费周末**（标记，不推送）· ❌ **f2p 永久免费**（标记，不推送）——GOG 源按原价判定（basePrice=0 永久免费）
+- **垃圾 key 活动过滤**：GamerPower 的 thirdparty（key 领取）活动不收录不推送
+- **ITAD 二次校验**（可选 key，设置页配置）：Steam 限免通知候选经 isthereanydeal.com 确认当前免费（价格 0），防 GamerPower 数据过期误报；无 key/失败容错放行
+- **决策关闭**：i18n / 跨设备云同步 / 跨端适配 / 规则市场——正式不做（记录至 CONTRIBUTING）
+- **质量**：vitest 506 test 全过 · lint 0 · typecheck 0 · E2E 16/16
+
 ### v6.3.2（中版本：B/C 现代化——UI 类型化 + 可观测 + 限免通知 + 推荐反馈循环）
 - **B1 UI 层类型化**：双 tsconfig（主 strict 全量 + tsconfig.ui.json UI 层 strictNullChecks 关闭——DOM 元素存在性由浏览器保证）；全局 d.ts（chrome/__OPTS__/__GR_PATTERNS__/escapeHtml 等 + DOM 宽松化）；**顺带修复 dashboard 真实拼写 bug**（`responsString` → `response.error`，ReferenceError 崩溃）
 - **B3 可观测面板**：Steam 缓存命中率埋点（steam-cache hits/misses）+ GET_STATS 暴露 + dashboard 命中率卡片

@@ -74,6 +74,7 @@
  * @property {Array<string>} trackedSites - 追踪下载站域名
  * @property {Array<string>} steamSiteSearch - Steam 详情页检索的下载站
  * @property {boolean} [useLLM] - 是否启用 LLM 评分
+ * @property {string} [itadApiKey] - ITAD 二次校验 key（限免通知候选确认，v6.3.3）
  * @property {number} [maxBehaviorLog] - 行为日志上限
  * @property {boolean} enableLog
  * @property {number} maxRuntimeLog

@@ -285,6 +285,8 @@
       model: document.getElementById('llmModel').value.trim(),
       temperature: document.getElementById('llmTemp').value / 100
     };
+    // v6.3.3：ITAD 二次校验 key（可选）
+    OPTS.currentSettings.itadApiKey = document.getElementById('itadApiKey').value.trim();
 
     // 下载站与追踪管理（合并后的统一配置入口）
     const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];

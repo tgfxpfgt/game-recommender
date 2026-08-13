@@ -416,6 +416,17 @@
                 </div>
               </div>
             </div>
+            <!-- v6.3.3：ITAD 二次校验 key（可选——限免通知候选免费状态确认） -->
+            <div class="setting-row">
+              <div class="setting-label">
+                <span class="label-text">ITAD API Key（可选）</span>
+                <span class="label-desc">IsThereAnyDeal API Key</span>
+              </div>
+              <div style="flex:1">
+                <input type="password" id="itadApiKey" class="text-input" placeholder="isthereanydeal.com 注册获取">
+                <p class="setting-hint" style="margin:6px 0 0;font-size:12px;color:#8f98a0;">限免通知推送前经 ITAD 二次确认"当前免费"（防 GamerPower 数据过期误报；不填则按 GamerPower 分类直接推送）</p>
+              </div>
+            </div>
           </div>
         </div>
       </section>

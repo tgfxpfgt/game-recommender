@@ -9,6 +9,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { fetchWithTimeout } from '../core/utils.js';
+import { getSettings } from '../core/settings.js';
 import { Logger } from '../storage/logger.js';
 
 const ONE_DAY = 24 * 3600 * 1000;
@@ -44,6 +45,7 @@ async function fetchEpicFreeGames() {
         platformName: 'Epic Games',
         claimType: 'direct',
         source: 'Epic Games Store',
+        freeType: 'limited', // 官方 freeGamesPromotions 天然限时（v6.3.3 确认官方直连）
         name: el.title,
         description: el.description || '',
         image: img,
@@ -69,12 +71,16 @@ async function fetchGogFreeGames() {
     const data = await resp.json();
     const products = data?.products || [];
     for (const p of products.slice(0, 10)) {
+      // v6.3.3：原价 0 = 永久免费（f2p 不推送）；原价 > 0 且现价 0 = 限时领取
+      const basePrice = p.price?.basePrice || 0;
+      const freeType = basePrice > 0 ? 'limited' : classifyFreeType(p, false);
       games.push({
         id: 'gog-' + p.id,
         platform: 'gog',
         platformName: 'GOG',
         claimType: 'direct',
         source: 'GOG',
+        freeType,
         name: p.title,
         description: '',
         image: p.image ? `https:${p.image}.jpg` : '',
@@ -105,6 +111,7 @@ async function fetchSteamFreeGames() {
           platformName: 'Steam',
           claimType: 'direct',
           source: 'Steam',
+          freeType: 'limited',
           name: item.name,
           description: '',
           image: item.large_capsule_image || item.small_capsule_image || '',
@@ -147,6 +154,21 @@ export function classifyGamerPowerGiveaway(item) {
 
   if (hasKeyInTitle || hasThirdPartyInstruction) return 'thirdparty';
   return 'direct';
+}
+
+// v6.3.3：限免三类区分（纯函数，导出供单测）——用户决策：
+// ✅ limited 限时领取 100% OFF（可入库）· ⚠️ weekend 免费周末（不入库）
+// · ❌ f2p 永久免费（不推送）· key 垃圾 key 活动（过滤）
+// Classify free-game type: limited / weekend / f2p / key (filtered)
+export function classifyFreeType(item, hasEndDate = true) {
+  const text = ((item.title || '') + ' ' + (item.description || '') + ' ' + (item.instructions || '')).toLowerCase();
+  // 免费周末：标题/描述明确（Steam Free Weekend）
+  if (/free weekend|免费周末|freeplay weekend|周末免费/i.test(text)) return 'weekend';
+  // 垃圾 key 活动（第三方领取）→ 过滤（不收录不推送）
+  if (classifyGamerPowerGiveaway(item) === 'thirdparty') return 'key';
+  // 永久免费：无结束时间 + 明确 F2P 特征
+  if (!hasEndDate && /free to play|永久免费|f2p|免费畅玩|免费游玩/i.test(text)) return 'f2p';
+  return 'limited';
 }
 
 // v4.2.0：导出供单测（纯函数）
@@ -197,7 +219,11 @@ async function fetchGamerPowerFreeGames() {
       if (platform === 'other') continue;
 
       const claimType = classifyGamerPowerGiveaway(item);
-      const source = claimType === 'thirdparty' ? extractThirdPartySource(item) : platformName;
+      // v6.3.3：垃圾 key 活动过滤（第三方领取，不收录不推送）
+      if (claimType === 'thirdparty') continue;
+      const source = platformName;
+      const hasEndDate = !!item.end_date && item.end_date !== 'N/A';
+      const freeType = classifyFreeType(item, hasEndDate);
 
       games.push({
         id: 'gp-' + item.id,
@@ -205,12 +231,13 @@ async function fetchGamerPowerFreeGames() {
         platformName,
         claimType,
         source,
+        freeType,
         name: item.title || '',
         description: item.description || '',
         image: item.image || '',
         url: item.open_giveaway_url || item.giveaway_url || '',
         originalPrice: item.worth || '',
-        endTime: item.end_date && item.end_date !== 'N/A' ? item.end_date : '',
+        endTime: hasEndDate ? item.end_date : '',
         claimed: false
       });
     }
@@ -286,15 +313,51 @@ export async function refreshFreeGames(force = false) {
   const result = { lastUpdate: now, games: newGames };
   await dataStore.writeModule(DB_KEYS.FREE_GAMES, result);
   await updateFreeGamesBadge();
-  notifyNewFreeGames(fresh);
+  await notifyNewFreeGames(fresh);
   return result;
+}
+
+// v6.3.3：ITAD 二次校验（可选 key）——确认 Steam 游戏当前确实免费（价格 0），
+// 防 GamerPower 数据过期/错误导致的误报；无 key 或失败时容错放行（按原分类）
+// ITAD secondary check: confirm the game is currently free (price 0)
+async function checkItadFree(appId) {
+  try {
+    const key = (await getSettings()).itadApiKey;
+    if (!key || !appId) return null;
+    const resp = await fetchWithTimeout(
+      `https://api.isthereanydeal.com/v02/game/prices/?key=${key}&appids=steam/${appId}`
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const entry = data && data['steam/' + appId];
+    const price = entry && entry.lowest && entry.lowest.price !== undefined ? entry.lowest.price : null;
+    return price === null ? null : price <= 0;
+  } catch (e) {
+    Logger.debug('FreeGames', 'ITAD校验失败:', String(e));
+    return null;
+  }
 }
 
 // v6.3.2 C2：新限免推送通知（聚合一条，防骚扰；通知权限在 manifest）
 // Push notification for new free games (one aggregated notification)
-function notifyNewFreeGames(newOnes) {
+async function notifyNewFreeGames(newOnes) {
   try {
-    if (!chrome.notifications || newOnes.length === 0) return;
+    // v6.3.3：仅推送限时领取（limited）——weekend/f2p/key 不打扰
+    let limited = newOnes.filter((g) => g.freeType !== 'weekend' && g.freeType !== 'f2p' && g.freeType !== 'key');
+    if (!chrome.notifications || limited.length === 0) return;
+    // ITAD 二次校验（steam 平台 + 配置了 key 时）
+    if (limited.some((g) => g.platform === 'steam')) {
+      const checked = await Promise.all(
+        limited.map(async (g) => {
+          if (g.platform !== 'steam') return true;
+          const isFree = await checkItadFree((g.url.match(/\/app\/(\d+)/) || [])[1]);
+          return isFree === null ? true : isFree; // 无 key/失败容错放行
+        })
+      );
+      limited = limited.filter((_, i) => checked[i]);
+    }
+    if (limited.length === 0) return;
+    newOnes = limited;
     const names = newOnes
       .slice(0, 3)
       .map((g) => g.name)

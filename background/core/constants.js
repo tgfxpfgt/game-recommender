@@ -44,6 +44,8 @@ export const DEFAULT_SETTINGS = {
     model: 'qwen2.5:7b',
     temperature: 0.3
   },
+  // v6.3.3：ITAD 二次校验 key（可选——限免通知候选的免费状态确认）
+  itadApiKey: '',
   weights: {
     // v4.0.0：新增 SteamSpy 时长/热度信号（playTime/heat），四项原有权重
     // 同步下调，六项和保持 1.0（徽章百分比不超 100%）
