@@ -96,6 +96,14 @@
       document.getElementById('minRatingVal').textContent = `${e.target.value}%`;
       scheduleAutoSave();
     });
+    // v6.4.4：30 天好评过滤 + 关系模式 + 重排序
+    document.getElementById('recentFilterEnabled').addEventListener('change', () => scheduleAutoSave());
+    document.getElementById('minRecentRating').addEventListener('input', (e) => {
+      document.getElementById('minRecentRatingVal').textContent = `${e.target.value}%`;
+      scheduleAutoSave();
+    });
+    document.getElementById('ratingFilterMode').addEventListener('change', () => scheduleAutoSave());
+    document.getElementById('sortByRatingEnabled').addEventListener('change', () => scheduleAutoSave());
 
     // 虚拟机过滤
     document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());

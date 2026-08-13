@@ -311,6 +311,17 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
             if (dResp.ok) {
               const dHtml = await dResp.text();
               const meta = extractDetailMeta(dHtml, site.key);
+              // v6.4.4：搜索结果元数据合并进网址缓存（与上次调用合并）——
+              // detail 页二次展示免重抓；recordDownloadUrl 同 url 时更新 meta + lastCalled
+              if (appId && bestScore >= 80 && meta && (meta.updateDate || meta.version || meta.size || meta.panUrl)) {
+                await recordDownloadUrl(appId, site.key, site.name, safeDetailUrl, {
+                  updateDate: meta.updateDate,
+                  version: meta.version,
+                  size: meta.size,
+                  panUrl: meta.panUrl,
+                  panCode: meta.panCode
+                });
+              }
               result.updateDate = meta.updateDate;
               result.version = meta.version;
               result.size = meta.size;

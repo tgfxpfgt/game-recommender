@@ -25,6 +25,12 @@
     document.getElementById('ratingFilterEnabled').checked = settings.enableRatingFilter || false;
     document.getElementById('minRating').value = settings.minSteamRatingFilter || 0;
     document.getElementById('minRatingVal').textContent = `${settings.minSteamRatingFilter || 0}%`;
+    // v6.4.4：30 天好评过滤 + 与/或/非 + 重排序
+    document.getElementById('recentFilterEnabled').checked = settings.enableRecentFilter || false;
+    document.getElementById('minRecentRating').value = settings.minRecentSteamRatingFilter || 0;
+    document.getElementById('minRecentRatingVal').textContent = `${settings.minRecentSteamRatingFilter || 0}%`;
+    document.getElementById('ratingFilterMode').value = settings.ratingFilterMode || 'and';
+    document.getElementById('sortByRatingEnabled').checked = settings.enableSortByRating || false;
 
     // 徽章显示开关（v3.3.8，默认全开）
     const bv = settings.badgeVisibility || {};

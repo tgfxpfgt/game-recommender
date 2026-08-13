@@ -257,12 +257,12 @@ export function injectDownloadHistoryPanel(gameName) {
       .catch(() => {});
 }
 
-// ============ Steam详情浮窗（仿Steam右侧信息栏） ============
-// 容器经 GR.float 统一管理（右上区域，chrome 标题栏含折叠/关闭）
+// ============ Steam详情浮窗（v6.4.4 起左侧信息栏） ============
+// 容器经 GR.float 统一管理（左上区域，chrome 标题栏含折叠/关闭）
 export function injectSteamButton(gameName) {
     dbg('注入Steam浮窗...');
 
-    const panel = float.create(float.ZONE.TOP_RIGHT, 'gr-steam-float', {
+    const panel = float.create(float.ZONE.TOP_LEFT, 'gr-steam-float', {
       chrome: true,
       width: 320,
       title: '🎮 Steam 信息'

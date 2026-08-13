@@ -256,6 +256,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.4（小版本：四项功能——浮窗左侧 / 缓存合并 / 重排序 / 30 天过滤三态）
+- **详情页浮窗改左侧**：Steam 信息浮窗从右上 → 左上（floats 新增 TOP_LEFT 分区；下载站面板仍在左下，互不遮挡）
+- **缓存合并**：下载站网址缓存与"上次调用"合并——`recordDownloadUrl` 扩展 meta 参数（更新日期/版本/大小/网盘提取码），搜索命中后写入网址缓存条目（`lastCalled` 记录上次调用时间），detail 页二次展示免重抓
+- **按好评率重排**（默认关闭）：`enableSortByRating` 设置项——列表页好评率获取完成后按 positiveRate 降序重排 DOM（无评分沉底；评分最高在前）
+- **30 天好评率过滤 + 与/或/非关系**：新增 `enableRecentFilter`/`minRecentSteamRatingFilter` + `ratingFilterMode`（and=总与30天都达标 / or=任一达标 / not=仅看30天好评）；`ratingFilterPass` 纯函数导出
+- **质量**：vitest 516 test（4 次连跑稳定）· lint 0 · typecheck 0 · E2E 21/21
+
 ### v6.4.3（小版本：缓存范围扩充——下载站搜索 / LLM 评分 / Steam 判定）
 - **在线数据梳理与扩充**（此前 Steam 数据/限免已有缓存；本次补齐三处未缓存请求）：
   - **下载站搜索结果缓存**（新模块 `storage/search-cache.js`，24h TTL，LRU 200）：搜索是高频操作，此前每次逐站逐词重复请求——命中免请求；siteKeys 变更自动失效

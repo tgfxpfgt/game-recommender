@@ -51,7 +51,16 @@ export async function getDownloadUrls(appId) {
 
 // 记录/更新某 appId 在指定站点的详情页网址（仅操作该站点桶）
 // Record/update a detail-page URL for appId at a site (site-bucket only)
-export async function recordDownloadUrl(appId, siteKey, siteName, url) {
+/**
+ * 记录/更新某 appId 在指定站点的详情页网址（可选 meta：搜索结果合并——
+ * v6.4.4 起下载站网址与上次调用合并：网址缓存携带搜索元数据 + lastCalled）
+ * @param {string|number} appId
+ * @param {string} siteKey
+ * @param {string} siteName
+ * @param {string} url
+ * @param {{updateDate?: string, version?: string, size?: string, panUrl?: string, panCode?: string}} [meta] - 搜索结果元数据
+ */
+export async function recordDownloadUrl(appId, siteKey, siteName, url, meta) {
   // 仅接受 http/https 且非内网地址（SSRF 纵深防御）
   if (!appId || !siteKey || !isSafeFetchUrl(url)) return;
   return withStoreLock(async () => {
@@ -63,13 +72,17 @@ export async function recordDownloadUrl(appId, siteKey, siteName, url) {
 
     if (existing && existing.url === url) {
       existing.lastAccessed = now; // 网址未变，仅更新调用时间 / URL unchanged
+      if (meta) Object.assign(existing, meta); // 合并搜索结果元数据
+      existing.lastCalled = now;
     } else {
       bucket[key] = {
         url,
         siteName: siteName || siteKey,
         firstSeen: existing ? existing.firstSeen : now,
         lastRefreshed: now,
-        lastAccessed: now
+        lastAccessed: now,
+        lastCalled: now, // v6.4.4：上次搜索调用时间 / last search call
+        ...(meta || {})
       };
     }
     await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, store);

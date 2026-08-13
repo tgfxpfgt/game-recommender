@@ -11,6 +11,7 @@
 // 浮窗区域 / Float zones
 export const ZONE = {
     TOP_RIGHT: 'top-right', // 右上：Steam 信息等主浮窗 / main info floats
+    TOP_LEFT: 'top-left', // 左上：Steam 信息浮窗（v6.4.4 起详情页默认左侧）/ left main floats
     BOTTOM_RIGHT: 'bottom-right', // 右下：状态/统计/诊断栏 / status-debug bar
     BOTTOM_LEFT: 'bottom-left' // 左下：辅助浮窗（下载站资源/历史）/ auxiliary floats
 };
@@ -18,6 +19,7 @@ export const ZONE = {
 // 区域基准位置 / Zone base positions
 const BASE_POS = {
     'top-right': { top: '80px', right: '16px' },
+    'top-left': { top: '80px', left: '16px' },
     'bottom-right': { right: '12px', bottom: '12px' },
     'bottom-left': { left: '16px', bottom: '12px' }
 };
@@ -26,7 +28,7 @@ const BASE_POS = {
 const STACK_GAP = 12;
 
 const floats = {}; // id → item
-const zoneStack = { 'top-right': [], 'bottom-right': [], 'bottom-left': [] };
+const zoneStack = { 'top-right': [], 'top-left': [], 'bottom-right': [], 'bottom-left': [] };
 
 // 是否底部堆叠区域 / is a bottom-stacking zone?
 function isBottomZone(zone) {

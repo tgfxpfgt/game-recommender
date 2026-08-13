@@ -308,6 +308,7 @@ function createRatingsJob(processItems, settings, uniqueNames) {
       processItems,
       settings,
       uniqueNames,
+      ratingMap: {}, // v6.4.4：name → positiveRate（重排序用）/ for re-sorting
       processed: new Set(), // 已出结果的游戏名（徽章已显示）/ names already resolved
       shown: 0,
       filtered: 0,
@@ -323,6 +324,23 @@ function createRatingsJob(processItems, settings, uniqueNames) {
 // 收尾后到达的迟到推送仍会应用徽章（只补徽章，不重复统计）。
 // Apply one wave of results. 'first': misses wait for the push; 'final':
 // misses in this wave resolve as "not found". Late pushes still apply badges.
+// v6.4.4：好评率过滤判定（总 + 30 天 + 与/或/非）——纯函数导出供单测
+// and：总≥阈值 且 30天≥阈值；or：任一达标；not：只看 30 天（忽略总好评）
+export function ratingFilterPass(rating, settings = {}) {
+  const totalOk =
+    !settings.enableRatingFilter ||
+    (settings.minSteamRatingFilter || 0) <= 0 ||
+    (rating.positiveRate ?? -1) >= (settings.minSteamRatingFilter || 0);
+  const recentOk =
+    !settings.enableRecentFilter ||
+    (settings.minRecentSteamRatingFilter || 0) <= 0 ||
+    (rating.recentPositiveRate ?? -1) >= (settings.minRecentSteamRatingFilter || 0);
+  const mode = settings.ratingFilterMode || 'and';
+  if (mode === 'or') return totalOk || recentOk;
+  if (mode === 'not') return recentOk; // 非总好评过滤：仅 30 天生效
+  return totalOk && recentOk;
+}
+
 function applyRatingsResponse(ratings, mode) {
     if (!_state.ratingsJob) return false;
     const job = _state.ratingsJob;
@@ -336,13 +354,14 @@ function applyRatingsResponse(ratings, mode) {
       const rating = ratings[item.name];
       if (rating && rating.appId) {
         job.processed.add(item.name);
+        job.ratingMap[item.name] = rating.positiveRate ?? null; // v6.4.4 排序用
         changed = true;
         // 合集等 type 徽章：appId 非本体，不写入下载站网址缓存
         const isTypeBadge = rating.type && rating.type !== 'game' && rating.type !== 'demo';
         if (item.url && !isTypeBadge) job.urlEntries.push({ appId: rating.appId, url: item.url });
-        // 好评率过滤：低于阈值的从 DOM 移除（剩余元素自动重排）
+        // 好评率过滤（v6.4.4：总 + 30 天 + 与/或/非）：不达标的从 DOM 移除
         if (rating.positiveRate !== null && rating.positiveRate !== undefined) {
-          if (minRating > 0 && rating.positiveRate < minRating) {
+          if (!ratingFilterPass(rating, { ...job.settings, enableRatingFilter: filterEnabled, minSteamRatingFilter: minRating })) {
             badges.removeItemFromDom(item);
             job.filtered++;
             return;
@@ -400,6 +419,25 @@ function finishRatings() {
           : ''
       ].filter(Boolean)
     });
+    // v6.4.4：按好评率降序重排（设置开启时）
+    if (job.settings && job.settings.enableSortByRating) {
+      sortItemsByRating(job);
+    }
+}
+
+// v6.4.4：按好评率降序重排列表页 DOM（评分最高的在前；无评分的沉底）
+// Re-sort list items by positive rate descending (unrated sink to the bottom)
+export function sortItemsByRating(job) {
+  const sorted = job.processItems
+    .slice()
+    .sort((a, b) => (job.ratingMap[b.name] ?? -1) - (job.ratingMap[a.name] ?? -1));
+  const container = sorted[0] && sorted[0].element && sorted[0].element.parentNode;
+  if (!container) return;
+  for (const item of sorted) {
+    if (item.element && item.element.parentNode === container) {
+      container.appendChild(item.element); // 按序移到末尾 = 重排
+    }
+  }
 }
 
 // 兜底：45 秒强制收尾。未返回的游戏保持空白（后台已逐批落盘缓存，
@@ -454,7 +492,9 @@ export const _internal = {
   applyRatingsResponse,
   finishRatings,
   scheduleFallbacks,
-  applySteamRatingsUpdate
+  applySteamRatingsUpdate,
+  ratingFilterPass,
+  sortItemsByRating
 };
 export {
   isDetailPageByUrl,

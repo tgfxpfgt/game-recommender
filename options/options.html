@@ -163,6 +163,48 @@
                   <span id="minRatingVal" class="range-value">70%</span>
                 </div>
               </div>
+              <!-- v6.4.4：30 天好评率过滤 + 与/或/非关系 + 重排序 -->
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">30 天好评率过滤</span>
+                  <span class="label-desc">Recent 30-Day Rating Filter</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="recentFilterEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">最低 30 天好评率阈值</span>
+                  <span class="label-desc">Min Recent Rating</span>
+                </div>
+                <div class="range-group">
+                  <input type="range" id="minRecentRating" min="0" max="95" step="5">
+                  <span id="minRecentRatingVal" class="range-value">70%</span>
+                </div>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">过滤关系</span>
+                  <span class="label-desc">Filter Mode（总好评 与 30天好评）</span>
+                </div>
+                <select id="ratingFilterMode" class="text-input" style="max-width:200px">
+                  <option value="and">与（两者都达标）</option>
+                  <option value="or">或（任一达标）</option>
+                  <option value="not">非（仅看 30 天好评）</option>
+                </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">按好评率重排列表</span>
+                  <span class="label-desc">Sort List by Rating（降序）</span>
+                </div>
+                <label class="switch">
+                  <input type="checkbox" id="sortByRatingEnabled">
+                  <span class="slider"></span>
+                </label>
+              </div>
             </div>
           </div>
 

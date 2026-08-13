@@ -76,6 +76,12 @@ export const DEFAULT_SETTINGS = {
   maxBackups: 7,
   minSteamRatingFilter: 0, // 列表页最低Steam好评率过滤（0-100，0表示不过滤）
   enableRatingFilter: false, // 是否启用好评率过滤
+  // v6.4.4：30 天好评率过滤 + 与/或/非关系（ratingFilterMode: and|or|not）
+  enableRecentFilter: false,
+  minRecentSteamRatingFilter: 0,
+  ratingFilterMode: 'and',
+  // v6.4.4：列表页按好评率降序重排（默认关闭——会打乱页面浏览顺序）
+  enableSortByRating: false,
   enableVmFilter: false, // 是否启用虚拟机标题过滤
   vmFilterKeywords: ['虚拟机板', '虚拟机'], // 虚拟机过滤关键词列表
   // 列表页徽章显示开关（v3.3.8，默认全开）。关闭不影响后台数据获取；

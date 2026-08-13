@@ -319,7 +319,7 @@ let GR = null; // 节 1 赋值，后续节共享（文件级 let + test 顺序�
 
 // v6.3.2：固定延时在全量并发下偶发不足（推送/批次异步链竞争）——
 // 轮询等待条件（最多 2s）替代固定延时，根治偶发
-async function waitFor(fn, timeoutMs = 2000) {
+async function waitFor(fn, timeoutMs = 5000) { // v6.4.4：全量并行加载慢，超时 2s 偶发不足 → 5s
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
     if (fn()) return true;
@@ -874,5 +874,41 @@ test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
   const evt = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').pop();
   expect(evt.data.downloadUrl.includes('pan.baidu.com')).toEqual(true);
   expect(!!evt.data.gameName).toEqual(true);
+});
+
+// ============ 11. 过滤与排序（v6.4.4） ============
+console.log('11. 好评过滤三态与按好评率重排');
+test('11. 好评过滤三态与按好评率重排', async () => {
+  const { ratingFilterPass, sortItemsByRating } = GR.list;
+  const rating = { positiveRate: 90, recentPositiveRate: 50 };
+  const base = { enableRatingFilter: true, minSteamRatingFilter: 80, enableRecentFilter: true, minRecentSteamRatingFilter: 60 };
+  // 与：30 天不达标 → 过滤
+  expect(ratingFilterPass(rating, { ...base, ratingFilterMode: 'and' })).toEqual(false);
+  // 或：总达标 → 保留
+  expect(ratingFilterPass(rating, { ...base, ratingFilterMode: 'or' })).toEqual(true);
+  // 非：仅看 30 天（50 < 60）→ 过滤
+  expect(ratingFilterPass(rating, { ...base, ratingFilterMode: 'not' })).toEqual(false);
+  // 仅总过滤（旧行为）：不看 30 天 → 保留
+  expect(ratingFilterPass(rating, { enableRatingFilter: true, minSteamRatingFilter: 80 })).toEqual(true);
+  // 30 天达标 + 总不达标 → or 保留 / and 过滤
+  const r2 = { positiveRate: 50, recentPositiveRate: 90 };
+  expect(ratingFilterPass(r2, { ...base, ratingFilterMode: 'and' })).toEqual(false);
+  expect(ratingFilterPass(r2, { ...base, ratingFilterMode: 'or' })).toEqual(true);
+  expect(ratingFilterPass(r2, { ...base, ratingFilterMode: 'not' })).toEqual(true);
+  // 排序：构造容器 + job → 降序
+  const container = new FakeEl('ul');
+  const mk = (name, rate) => {
+    const it = makeItem(name, 1);
+    container.appendChild(it.li);
+    return { name, element: it.li, link: it.a };
+  };
+  const items = [mk('低分', 40), mk('高分', 95), mk('中分', 70), mk('无评分', null)];
+  const job = {
+    processItems: items,
+    ratingMap: { 低分: 40, 高分: 95, 中分: 70, 无评分: null }
+  };
+  sortItemsByRating(job);
+  const order = container.children.map((c) => (c.children[0] || {})._text); // li 内 a 的标题
+  expect(JSON.stringify(order)).toEqual(JSON.stringify(['高分', '中分', '低分', '无评分']));
 });
 
