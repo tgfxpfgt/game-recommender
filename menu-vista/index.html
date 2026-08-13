@@ -130,6 +130,11 @@
                 <option value="exact">整段（标题分段完全相等，防误报）</option>
               </select>
             </div>
+            <div class="aero-row">
+              <span class="label">规则列表<small>每条含排除误报词（如 虚拟机 排除 非虚拟机）</small></span>
+              <button class="vista-btn" id="vRuleAdd">➕ 添加规则</button>
+            </div>
+            <div id="vRuleList"></div>
           </div>
         </section>
 
@@ -229,6 +234,15 @@
               <span class="label">内存条数上限<small>Max runtime log</small></span>
               <input type="number" id="vMaxLog" class="vista-input" min="100" max="5000" step="100" style="width:110px">
             </div>
+          </div>
+          <div class="aero-section">
+            <h3>日志查看（v6.4.8 在线）</h3>
+            <div class="aero-row">
+              <button class="vista-btn" id="vLogRefresh">🔄 刷新</button>
+              <button class="vista-btn" id="vLogClear">🗑️ 清空</button>
+              <span id="vLogCount" class="vista-tag blue">0 条</span>
+            </div>
+            <div id="vLogList" style="max-height:300px;overflow-y:auto;margin-top:8px;background:rgba(255,255,255,0.35);border-radius:4px;padding:8px;"></div>
           </div>
         </section>
 

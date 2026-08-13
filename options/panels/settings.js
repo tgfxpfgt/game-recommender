@@ -43,9 +43,11 @@
 
     // 虚拟机标题过滤 / VM title filter
     document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
-    document.getElementById('vmFilterKeywords').value = (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(
-      ', '
-    );
+    document.getElementById('vmFilterKeywords').value = settings.filterKeywords || (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');
+    // v6.4.8：filterMatchMode 回显（修复保存被重置 bug）
+    document.getElementById('filterMatchMode').value = settings.filterMatchMode || 'contains';
+    // v6.4.8：规则列表回显（window.__renderRules 由 options.js 注入）
+    if (typeof window['__renderRules'] === 'function') window['__renderRules'](settings.filterRules || []);
 
     // 权重设置 / Algorithm weights
     // v3.4.1：畸形/缺失权重不再崩溃（toFixed 前兜底为 0）

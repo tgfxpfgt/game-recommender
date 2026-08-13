@@ -63,6 +63,45 @@ bindToggle('vLogEnabled', 'enableLog');
 bindInput('vMaxScan', 'maxScanLinks', Number);
 bindInput('vVmKeywords', 'filterKeywords');
 $('vFilterMatch').addEventListener('change', (e) => savePatch({ filterMatchMode: e.target.value }));
+
+// ============ 关键词过滤规则列表（v6.4.8：多条 + 排除误报词） ============
+function renderRules(rules) {
+  const box = $('vRuleList');
+  box.innerHTML = '';
+  (rules || []).forEach((rule, idx) => {
+    const row = document.createElement('div');
+    row.className = 'aero-row';
+    row.innerHTML = `<span class="vista-tag blue">#${idx + 1}</span>
+      <input type="text" class="vista-input" data-rk="${idx}" placeholder="关键词" value="${escapeAttr(rule.keyword || '')}" style="flex:1">
+      <span style="color:var(--aero-text-dim);font-size:11px;">排除</span>
+      <input type="text" class="vista-input" data-rx="${idx}" placeholder="排除误报词（可空）" value="${escapeAttr(rule.exclude || '')}" style="flex:1">
+      <button class="vista-btn gray" data-rdel="${idx}" style="padding:4px 10px;">✕</button>`;
+    box.appendChild(row);
+    row.querySelector('[data-rdel]').addEventListener('click', () => {
+      const rules2 = (settings.filterRules || []).filter((_, i) => i !== idx);
+      savePatch({ filterRules: rules2 });
+      renderRules(rules2);
+    });
+  });
+  if (!rules || rules.length === 0) box.innerHTML = '<div style="color:var(--aero-text-dim);font-size:12px;">暂无规则——添加后生效（关键词命中且不命中排除词才过滤）</div>';
+}
+$('vRuleAdd').addEventListener('click', () => {
+  const rules2 = [...(settings.filterRules || []), { keyword: '', exclude: '' }];
+  savePatch({ filterRules: rules2 });
+  renderRules(rules2);
+});
+// 输入变更（失焦保存）
+document.addEventListener('change', (e) => {
+  const kIdx = e.target.dataset && e.target.dataset.rk;
+  const xIdx = e.target.dataset && e.target.dataset.rx;
+  if (kIdx === undefined && xIdx === undefined) return;
+  const rules2 = (settings.filterRules || []).map((r, i) => {
+    if (String(i) === kIdx) return { ...r, keyword: e.target.value };
+    if (String(i) === xIdx) return { ...r, exclude: e.target.value };
+    return r;
+  });
+  savePatch({ filterRules: rules2 });
+});
 bindInput('vLlmEndpoint', 'llmConfig.endpoint');
 bindInput('vLlmApiKey', 'llmConfig.apiKey');
 bindInput('vLlmModel', 'llmConfig.model');
@@ -180,7 +219,9 @@ async function loadCacheList() {
   list.slice(0, 50).forEach((e) => {
     const row = document.createElement('div');
     row.className = 'aero-row';
-    row.innerHTML = `<span class="label">${escapeHtml(e.name || e.appId)}<small>appId ${escapeHtml(String(e.appId))} · ${e.positiveRate != null ? e.positiveRate + '%' : '无好评'}</small></span>
+    const urlsHtml = (e.downloadUrls || []).map((u) => `<div style="font-size:11px;">${escapeHtml(u.siteName)}: <a href="${escapeAttr(u.url)}" target="_blank" style="color:#1e4a7a;">${escapeHtml(String(u.url).slice(0, 40))}</a> <span style="color:#8a9aac;">调用 ${u.lastCalled ? new Date(u.lastCalled).toLocaleString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '—'}</span></div>`).join('');
+    row.innerHTML = `<span class="label">${escapeHtml(e.name || e.appId)}<small>appId ${escapeHtml(String(e.appId))} · 好评率 ${e.positiveRate != null ? e.positiveRate + '%' : '—'}</small>
+      ${urlsHtml}</span>
       <button class="vista-btn gray" data-del="${e.appId}">删除</button>`;
     box.appendChild(row);
     row.querySelector('[data-del]').addEventListener('click', async () => {
@@ -246,7 +287,38 @@ async function loadBackups() {
   });
 }
 
-// ============ 统计 ============
+// ============ 日志在线查看（v6.4.8） ============
+async function loadRuntimeLogs() {
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
+    const logs = (resp && resp.logs) || [];
+    $('vLogCount').textContent = logs.length + ' 条';
+    const box = $('vLogList');
+    box.innerHTML = '';
+    if (logs.length === 0) {
+      box.innerHTML = '<div style="color:var(--aero-text-dim);font-size:12px;">暂无日志</div>';
+      return;
+    }
+    logs.slice(0, 200).forEach((l) => {
+      const color = l.level === 'error' ? '#c75050' : l.level === 'warn' ? '#c78550' : l.level === 'debug' ? '#8a9aac' : '#1e4a7a';
+      const row = document.createElement('div');
+      row.style.cssText = 'font-size:11px;padding:2px 4px;border-bottom:1px solid rgba(59,110,165,0.15);';
+      row.innerHTML = `<span style="color:#8a9aac;">${new Date(l.t).toLocaleTimeString('zh-CN')}</span>
+        <span style="color:${color};font-weight:600;margin:0 4px;">[${escapeHtml(l.level || 'info')}]</span>
+        <span style="color:#4a5a6a;">${escapeHtml(l.msg || '')}</span>`;
+      box.appendChild(row);
+    });
+  } catch (e) {
+    $('vLogList').innerHTML = '<div style="color:#c75050;font-size:12px;">日志加载失败</div>';
+  }
+}
+$('vLogRefresh').addEventListener('click', loadRuntimeLogs);
+$('vLogClear').addEventListener('click', async () => {
+  await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
+  loadRuntimeLogs();
+});
+
+// ============ 统计 ===========
 async function loadStats() {
   const resp = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
   if (!resp) return;
@@ -356,6 +428,7 @@ async function init() {
   $('vVmFilter').checked = !!settings.enableVmFilter;
   $('vVmKeywords').value = settings.filterKeywords || (Array.isArray(settings.vmFilterKeywords) ? settings.vmFilterKeywords.join(',') : '') || '';
   $('vFilterMatch').value = settings.filterMatchMode || 'contains';
+  renderRules(settings.filterRules || []);
   renderWeights(settings.weights || {});
   const llm = settings.llmConfig || {};
   $('vUseLLM').checked = !!settings.useLLM;
@@ -376,6 +449,7 @@ async function init() {
   loadBackups();
   loadCacheList();
   loadStats();
+  loadRuntimeLogs();
 }
 
 init().catch((e) => console.error('Vista 菜单加载失败:', e));

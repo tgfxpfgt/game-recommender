@@ -415,6 +415,7 @@
       <div style="margin-bottom:2px;">
         <span style="color:#8f98a0;font-size:10px;">${escapeHtml(u.siteName)}:</span>
         <a href="${escapeAttr(u.url)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(u.url))}</a>
+        <span style="color:#8f98a0;font-size:10px;margin-left:6px;">调用 ${formatTime(u.lastCalled)}</span>
       </div>
     `
       )

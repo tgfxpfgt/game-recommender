@@ -79,6 +79,7 @@
  * @property {string} [ratingFilterMode] - and|or|not（总/30天组合关系）
  * @property {string} [filterKeywords] - 通用标题关键词过滤（逗号分隔，v6.4.7）
  * @property {string} [filterMatchMode] - contains|exact（防误报整段匹配）
+ * @property {Array<{keyword: string, exclude: string}>} [filterRules] - 关键词过滤规则（v6.4.8：每条含排除误报词）
  * @property {string} [itadApiKey] - ITAD 二次校验 key（限免通知候选确认，v6.3.3）
  * @property {number} [maxBehaviorLog] - 行为日志上限
  * @property {boolean} enableLog

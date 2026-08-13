@@ -131,7 +131,8 @@ export async function handleGetGameCacheList(message) {
         url: u.url,
         firstSeen: u.firstSeen,
         lastRefreshed: u.lastRefreshed,
-        lastAccessed: u.lastAccessed
+        lastAccessed: u.lastAccessed,
+        lastCalled: u.lastCalled || null // v6.4.8：上次调用时间
       })),
       primaryDownloadUrl: primaryUrl ? primaryUrl.url : '',
       lastAccessed: primaryUrl ? primaryUrl.lastAccessed : null

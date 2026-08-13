@@ -135,22 +135,23 @@ function applyVmFilter(items, settings) {
       .map((s) => s.trim().toLowerCase())
       .filter((s) => s.length > 0);
     const mode = settings.filterMatchMode || 'contains';
+    // v6.4.8：规则列表优先——每条 {keyword, exclude}：命中关键词且不命中
+    // 排除词才过滤（如 {keyword:'虚拟机', exclude:'非虚拟机'}）
+    const rules = Array.isArray(settings.filterRules)
+      ? settings.filterRules
+          .map((r) => ({ k: String(r.keyword || '').trim().toLowerCase(), x: String(r.exclude || '').trim().toLowerCase() }))
+          .filter((r) => r.k)
+      : [];
     const kept = [];
     let removed = 0;
     for (const item of items) {
       const name = (item.name || '').toLowerCase();
-      const hit = kws.some((kw) => {
-        if (mode === 'exact') {
-          // 防误报：关键词必须是标题的完整分段/前缀/后缀——
-          // 虚拟机命中虚拟机版游戏但不误伤虚拟主机
-          return (
-            name.split(/[|｜×•·\-\s]+/).some((seg) => seg === kw) ||
-            name.startsWith(kw) ||
-            name.endsWith(kw)
-          );
-        }
-        return name.includes(kw);
-      });
+      const kwHit = (k) =>
+        mode === 'exact'
+          ? name.split(/[|｜×•·\-\s]+/).some((seg) => seg === k) || name.startsWith(k) || name.endsWith(k)
+          : name.includes(k);
+      // 规则命中（含排除词防误报）；无规则时回退简单关键词列表
+      const hit = rules.length > 0 ? rules.some(({ k, x }) => kwHit(k) && !(x && (name.includes(x) || name.startsWith(x) || name.endsWith(x)))) : kws.some(kwHit);
       if (hit) {
         // 从 DOM 移除（优先移除栅格列容器以避免留空，与好评率过滤共用逻辑）
         badges.removeItemFromDom(item);

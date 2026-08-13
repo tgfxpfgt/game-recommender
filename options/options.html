@@ -127,6 +127,24 @@
               </div>
             </div>
           </div>
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-icon">👁️</span>
+              <div class="section-title">
+                <h3>日志查看（v6.4.8 在线）</h3>
+                <span class="section-subtitle">Runtime Logs</span>
+              </div>
+            </div>
+            <div class="section-body">
+              <div class="setting-row">
+                <button id="logRefreshBtn" class="btn btn-primary">🔄 刷新</button>
+                <button id="logClearBtn" class="btn btn-danger">🗑️ 清空</button>
+                <span id="logCount" class="test-result"></span>
+              </div>
+              <div id="logViewer" style="max-height:320px;overflow-y:auto;background:#10161f;border:1px solid #2f4055;border-radius:4px;padding:8px;margin-top:8px;font-size:12px;"></div>
+            </div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -307,6 +325,16 @@
                   <option value="contains">包含（子串匹配）</option>
                   <option value="exact">整段（标题分段完全相等，防误报）</option>
                 </select>
+              </div>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">过滤规则（v6.4.8）</span>
+                  <span class="label-desc">每条含排除误报词（如 虚拟机 排除 非虚拟机）</span>
+                </div>
+                <div style="flex:1">
+                  <button id="ruleAddBtn" class="btn btn-primary" style="margin-bottom:6px;">➕ 添加规则</button>
+                  <div id="ruleList"></div>
+                </div>
               </div>
             </div>
           </div>

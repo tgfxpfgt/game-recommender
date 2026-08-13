@@ -256,6 +256,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.8（小版本：过滤保存修复 + 关键词规则列表 + 缓存/日志增强）
+- **修复过滤设置无法保存**：`filterMatchMode` 渲染回显缺失（下拉每次打开显示默认值，保存时覆盖掉用户选择）——补回显（settings.js）
+- **关键词过滤规则列表**（v6.4.7 单条升级）：`filterRules` 数组——**每条规则含排除误报词**（如 {keyword:'虚拟机', exclude:'非虚拟机'}：命中关键词且不命中排除词才过滤）；Vista/options 双菜单规则编辑器（添加/删除/失焦保存）；旧 filterKeywords 简单模式兜底
+- **缓存管理增强**：列表条目 `downloadUrls` 每站含 **lastCalled（上次调用时间）**——options 表格按站显示"调用时间"、Vista 缓存列表显示好评率 + 按站网址 + 调用时间
+- **日志在线查看**：Vista 日志面板 + options 日志面板新增查看区（GET_RUNTIME_LOGS 200 条 + 刷新 + 清空，级别着色）
+- **质量**：vitest 516 test · lint 0 · typecheck 0 · E2E 24/24
+
 ### v6.4.7（小版本：通用关键词过滤（防误报）+ ITAD Key 保存/测试/脱敏）
 - **通用关键词过滤**（旧"虚拟机版过滤"扩展）：`filterKeywords`（逗号分隔任意关键词，兼容旧 `vmFilterKeywords` 字段迁移）+ **防误报 `filterMatchMode`**：
   - `contains` 子串匹配（默认）

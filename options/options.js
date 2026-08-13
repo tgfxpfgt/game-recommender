@@ -85,6 +85,66 @@
         }
       });
     }
+    // v6.4.8：关键词过滤规则编辑器（多条 + 排除误报词）
+    function renderRules(rules) {
+      const box = document.getElementById('ruleList');
+      if (!box) return;
+      box.innerHTML = '';
+      (rules || []).forEach((rule, idx) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+        row.innerHTML = `<input type="text" class="text-input" data-rk="${idx}" placeholder="关键词" value="${(rule.keyword || '').replace(/"/g, '&quot;')}" style="flex:1">
+          <span style="font-size:11px;color:#8f98a0;">排除</span>
+          <input type="text" class="text-input" data-rx="${idx}" placeholder="排除误报词（可空）" value="${(rule.exclude || '').replace(/"/g, '&quot;')}" style="flex:1">
+          <button class="btn btn-danger" data-rdel="${idx}" style="padding:4px 10px;">✕</button>`;
+        box.appendChild(row);
+        row.querySelector('[data-rdel]').addEventListener('click', () => {
+          const rules2 = (OPTS.currentSettings.filterRules || []).filter((_, i) => i !== idx);
+          OPTS.currentSettings.filterRules = rules2;
+          renderRules(rules2);
+          scheduleAutoSave();
+        });
+      });
+      if (!rules || rules.length === 0) {
+        box.innerHTML = '<div style="font-size:12px;color:#8f98a0;">暂无规则——添加后生效（关键词命中且不命中排除词才过滤）</div>';
+      }
+    }
+    document.getElementById('ruleAddBtn').addEventListener('click', () => {
+      OPTS.currentSettings.filterRules = [...(OPTS.currentSettings.filterRules || []), { keyword: '', exclude: '' }];
+      renderRules(OPTS.currentSettings.filterRules);
+      scheduleAutoSave();
+    });
+    document.addEventListener('change', (e) => {
+      const el = /** @type {HTMLInputElement} */ (e.target);
+      const kIdx = el && el.dataset && el.dataset.rk;
+      const xIdx = el && el.dataset && el.dataset.rx;
+      if (kIdx === undefined && xIdx === undefined) return;
+      const rules2 = (OPTS.currentSettings.filterRules || []).map((r, i) => {
+        if (String(i) === kIdx) return { ...r, keyword: el.value };
+        if (String(i) === xIdx) return { ...r, exclude: el.value };
+        return r;
+      });
+      OPTS.currentSettings.filterRules = rules2;
+      scheduleAutoSave();
+    });
+    window['__renderRules'] = renderRules;
+    // v6.4.8：日志在线查看
+    async function loadLogViewer() {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
+      const logs = (resp && resp.logs) || [];
+      document.getElementById('logCount').textContent = logs.length + ' 条';
+      const box = document.getElementById('logViewer');
+      box.innerHTML = logs.length === 0 ? '<div style="color:#8f98a0;">暂无日志</div>' : logs.slice(0, 200).map((l) => {
+        const color = l.level === 'error' ? '#c75050' : l.level === 'warn' ? '#c78550' : l.level === 'debug' ? '#8f98a0' : '#66c0f4';
+        return `<div style="padding:2px 4px;border-bottom:1px solid #2f4055;"><span style="color:#8f98a0;">${new Date(l.t).toLocaleTimeString('zh-CN')}</span> <span style="color:${color};font-weight:600;">[${escapeHtml(l.level || 'info')}]</span> ${escapeHtml(l.msg || '')}</div>`;
+      }).join('');
+    }
+    document.getElementById('logRefreshBtn').addEventListener('click', loadLogViewer);
+    document.getElementById('logClearBtn').addEventListener('click', async () => {
+      await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
+      loadLogViewer();
+    });
+    setTimeout(loadLogViewer, 300);
     OPTS.loadDataModules(); // 数据模块清单（勾选 UI）
       OPTS.loadBackupsSelect(); // 备份列表（恢复下拉）
     } catch (e) {
@@ -92,7 +152,12 @@
     }
   });
 
-  // ============ 侧边栏分类切换 / Sidebar Category Switching ============
+  // 工具 / utilities
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// ============ 侧边栏分类切换 / Sidebar Category Switching ============
   // Chrome 设置页风格：左侧分类导航 + 右侧内容面板
   function bindTabEvents() {
     document.querySelectorAll('.nav-item').forEach((btn) => {
@@ -304,6 +369,7 @@
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
     OPTS.currentSettings.filterKeywords = document.getElementById('vmFilterKeywords').value;
     OPTS.currentSettings.filterMatchMode = document.getElementById('filterMatchMode').value;
+    // v6.4.8：规则列表（编辑器已维护 currentSettings.filterRules）
     const vmKeywordsRaw = document
       .getElementById('vmFilterKeywords')
       .value.split(/[,，]/)
