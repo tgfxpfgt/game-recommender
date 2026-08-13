@@ -72,10 +72,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // ============ Event Binding / 事件绑定 ============
 
+  // v6.4.1：保存前重读最新设置（防快照覆盖——后台 saveSettings 替换缓存
+  // 引用，popup 打开期间 options 的改动会被旧快照覆盖）
+  // Reload latest settings before saving to avoid overwriting concurrent edits
+  async function saveSettingsPatch(patch) {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    const latest = resp && resp.settings ? resp.settings : settings;
+    Object.assign(latest, patch);
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+  }
+
   // Enable/Disable toggle / 启用/禁用开关
   document.getElementById('enableToggle').addEventListener('change', async (e) => {
-    settings.enabled = e.target.checked;
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ enabled: e.target.checked });
   });
 
   // Threshold slider / 阈值滑块
@@ -85,15 +94,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('thresholdSlider').addEventListener('change', async (e) => {
-    settings.highlightThreshold = e.target.value / 100;
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ highlightThreshold: e.target.value / 100 });
   });
 
   // Algorithm mode switch / 算法模式切换
   document.querySelectorAll('input[name="algoMode"]').forEach((radio) => {
     radio.addEventListener('change', async (e) => {
-      settings.useLLM = e.target.value === 'llm';
-      await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+      await saveSettingsPatch({ useLLM: e.target.value === 'llm' });
       updateLLMStatus(settings);
     });
   });
@@ -146,21 +153,18 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Debug panel toggle / 调试窗口开关
   document.getElementById('debugToggle').addEventListener('change', async (e) => {
-    settings.showDebugPanel = e.target.checked;
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ showDebugPanel: e.target.checked });
   });
 
   // Status bar toggle（v3.3.15）/ 状态浮窗总开关
   document.getElementById('statusBarToggle').addEventListener('change', async (e) => {
-    settings.showStatusBar = e.target.checked;
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ showStatusBar: e.target.checked });
   });
 
   // Rating filter toggle / 好评率过滤开关
   document.getElementById('ratingFilterToggle').addEventListener('change', async (e) => {
-    settings.enableRatingFilter = e.target.checked;
     document.getElementById('ratingFilterControl').style.display = e.target.checked ? 'flex' : 'none';
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ enableRatingFilter: e.target.checked });
   });
 
   // Rating filter threshold / 好评率过滤阈值
@@ -169,14 +173,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   document.getElementById('ratingFilterSlider').addEventListener('change', async (e) => {
-    settings.minSteamRatingFilter = parseInt(e.target.value);
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ minSteamRatingFilter: parseInt(e.target.value) });
   });
 
   // VM filter toggle / 虚拟机过滤开关
   document.getElementById('vmFilterToggle').addEventListener('change', async (e) => {
-    settings.enableVmFilter = e.target.checked;
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings });
+    await saveSettingsPatch({ enableVmFilter: e.target.checked });
   });
 
   // 显示最近统计（向当前标签页内容脚本请求重显浮窗）

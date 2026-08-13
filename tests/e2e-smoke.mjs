@@ -135,6 +135,48 @@ async function runChecks() {
     check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
     await page.close();
 
+    // 2b. options 设置页 + popup↔options 状态一致性（v6.4.1）
+    console.log('2b. options 设置页与双向状态一致性');
+    const optPage = await context.newPage();
+    const optErrors = [];
+    optPage.on('console', (msg) => { if (msg.type() === 'error') optErrors.push(msg.text()); });
+    optPage.on('pageerror', (e) => optErrors.push(String(e)));
+    await optPage.goto(`chrome-extension://${extId}/options/options.html`);
+    await optPage.waitForTimeout(1200);
+    const optState = await optPage.evaluate(() => ({
+      enabled: document.getElementById('enabled').checked,
+      maxLog: document.getElementById('maxLog').value,
+      title: document.title
+    }));
+    check('options 设置渲染（启用开关+日志上限）', optState.enabled === true && Number(optState.maxLog) > 0);
+    check('options 标题', optState.title.includes('设置'));
+    // options 切 VM 过滤（先切到过滤面板）→ 自动保存（800ms 防抖）→ popup 重开验证一致
+    await optPage.evaluate(() => {
+      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.getElementById('vmFilterEnabled').click();
+    });
+    await optPage.waitForTimeout(2500);
+    const popup3 = await context.newPage();
+    await popup3.goto(`chrome-extension://${extId}/popup/popup.html`);
+    await popup3.waitForTimeout(800);
+    const popupVm = await popup3.evaluate(() => document.getElementById('vmFilterToggle').checked);
+    check('options→popup 状态一致（VM 过滤开启）', popupVm === true);
+    // popup 切回 → options 重开验证一致（防快照覆盖：popup 保存前重读）
+    await popup3.evaluate(() => document.getElementById('vmFilterToggle').click());
+    await popup3.waitForTimeout(800);
+    const opt2 = await context.newPage();
+    await opt2.goto(`chrome-extension://${extId}/options/options.html`);
+    await opt2.waitForTimeout(1200);
+    const optVm2 = await opt2.evaluate(() => {
+      document.querySelector('.nav-item[data-panel="filters"]').click();
+      return document.getElementById('vmFilterEnabled').checked;
+    });
+    check('popup→options 状态一致（VM 过滤回切）', optVm2 === false);
+    check('options 无 console error', optErrors.length === 0, `(${optErrors.slice(0, 3).join(' | ')})`);
+    await opt2.close();
+    await popup3.close();
+    await optPage.close();
+
     // 3. 内容脚本注入 fixture 页。v3.3.15：状态/诊断浮窗默认禁用——先验证
     //    默认不渲染，再通过 popup 开启后验证渲染与列表页流程
     console.log('3. 内容脚本注入（默认禁用状态浮窗，v3.3.15）');

@@ -256,6 +256,11 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.1（小版本：popup/options 状态一致性修复 + options E2E 覆盖）
+- **修复快照覆盖**：popup 的 8 处 SAVE_SETTINGS 由加载时快照改为**保存前重读最新设置**（saveSettingsPatch）——后台 saveSettings 替换缓存引用，popup 打开期间 options 的改动会被旧快照覆盖（双向编辑一致性）
+- **E2E 增强**：新增 options 设置页冒烟（渲染/标题/无 console error）+ **popup↔options 双向状态一致性**（options 切 VM 过滤 → popup 一致；popup 回切 → options 一致）——E2E 16 → 21 项
+- **质量**：vitest 506 test 全过 · lint 0 · typecheck 0 · E2E 21/21
+
 ### v6.4.0（中版本：正式更名 游戏雷达 Game Radar）
 - **品牌更名**：Game Recommender → **游戏雷达 Game Radar**（111 个文件全库替换：扩展名/页面标题/启动日志/文件头注释）
 - 命名结合功能特点：📡 下载站 Steam 好评率徽章（雷达扫描）· 🎯 行为学习智能推荐（雷达锁定）· 🎁 限免监控三类区分（雷达告警）
