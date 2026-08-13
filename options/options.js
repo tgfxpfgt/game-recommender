@@ -155,6 +155,13 @@
       const site = input.value.trim().toLowerCase();
       if (site && !OPTS.currentSettings.trackedSites.includes(site)) {
         OPTS.currentSettings.trackedSites.push(site);
+        // v6.3.0：host_permissions 已收窄到内置域名，自定义站点经
+        // optional_host_permissions 按需请求权限（用户手势内调用）
+        if (chrome.permissions && chrome.permissions.request) {
+          chrome.permissions
+            .request({ origins: [`http://${site}/*`, `https://${site}/*`] })
+            .catch(() => {});
+        }
         OPTS.renderSiteManagement(OPTS.currentSettings);
         input.value = '';
         scheduleAutoSave();

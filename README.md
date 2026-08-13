@@ -125,7 +125,7 @@ game-recommender/
 ## 技术架构
 
 ### 依赖分层（v4.1.0 静态断言 + 自动生成图）
-后台单向分层 `core → storage → 业务层 → handlers → 入口`，由 `tests/test-layers.mjs` 静态扫描全部 import 断言（CI 拦截回归）；`node tests/test-layers.mjs --print` 可重新生成下图：
+后台单向分层 `core → storage → 业务层 → handlers → 入口`，由 `tests/integration/test-integrity.mjs` 静态扫描全部 import 断言（CI 拦截回归，v6.3.0 起 test-layers 并入）；`node tests/integration/test-integrity.mjs --print` 可重新生成下图：
 
 ```mermaid
 flowchart LR
@@ -225,6 +225,9 @@ flowchart LR
 
 ### 本地开发
 ```bash
+# 贡献指南（架构心智模型/测试体系/发布流程）/ contributing guide
+# 见 CONTRIBUTING.md
+
 # 一键验证（lint + 单测）/ full check (lint + unit tests)
 npm run check
 
@@ -252,6 +255,16 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v6.3.0（中版本：报告路线落地——契约 100% + 类型化全层 + 盲区补强 + 权限收窄）
+- **消息契约化 100% 收尾**（52/52）：第四批补 9 个读类 action（GET_TRENDS 校验 granularity day|week）；"渐进式"标签摘除
+- **类型化扩展**（core → background 全层）：tsc include 扩至 `background/**`，storage/steam/handlers/recommend 全层 checkJs；修复 engine.js JSDoc 错位绑定（steamspyScores 抢占 computeGameScore 的 JSDoc——JSDoc 必须紧贴函数）
+- **测试盲区补强**：新增 test-backups.mjs（备份/恢复/密钥剔除/上限裁剪 6 项）+ test-freegames 主体（四源聚合/缓存判定/force/claim/协议白名单 5 项）+ content-sim 节 10（下载追踪：网盘识别 + window.open 拦截 1 项）；**494 test 全过（3 次稳定）**
+- **权限最小化**：host_permissions 从全站收窄到 26 个内置功能域名（Steam API/下载站 9 域/限免源/本地 LLM）+ optional_host_permissions 兜底；options 添加自定义站点时按需请求权限（E2E 16/16 验证）
+- **解析结构化收尾（C）**：supported_languages 兜底加 String() 防御（异常响应不再中断搜索链）+ 5 项解析健壮性测试（空 HTML/异常字段/官方字段降级）
+- **SW 懒加载评估（结论：不可行）**：MV3 Service Worker 官方不支持动态 import()（仅静态 import，Chrome 文档明确）——E2E 实测懒加载后详情页/dashboard 响应失败，回滚维持静态 import；**冷启动优化需另寻路径（如模块合并）**
+- **工程**：CONTRIBUTING.md 新增（架构心智模型/测试体系/代码约定/发布流程/安全基线）；依赖图命令修复（test-layers 并入 test-integrity，`node tests/integration/test-integrity.mjs --print`）
+- **质量**：vitest 494 test（3 次稳定）· lint 0 · typecheck 0 · E2E 16/16
 
 ### v6.2.1（小版本：官方 API 优先 + 直取优先 + 缓存优先三项优化）
 - **移除冗余 english storesearch**（api-search）：schinese 搜索对英文词同样有效，且英文名由 `fetchSteamFullDetailsByAppId` 的 appdetails(english) 官方直取覆盖（buildSteamResult.englishName）——此前每词并行 2 请求，english 结果仅用于被覆盖的英文名占位；**每新游戏搜索省 1 请求**（test-handlers 加防回归断言）

@@ -154,8 +154,10 @@ export function parseChineseLanguageSupport(storeHtml, gameData) {
   }
 
   // 方法2：回退到 supported_languages 字段
+  // v6.3.0：String() 防御——异常响应（对象/数组）下 replace 抛错会中断整个
+  // 搜索链（官方字段优先原则：HTML 解析失败必须有兜底且兜底自身不得抛错）
   if (!chineseSupported) {
-    const supportedLangs = gameData.supported_languages || '';
+    const supportedLangs = String(gameData.supported_languages || '');
     const cleanLangs = supportedLangs.replace(/<[^>]+>/g, ' ');
     chineseSupported = /简体中文|繁体中文|Chinese|中文/i.test(cleanLangs);
     simplifiedChinese = /简体中文|Simplified\s*Chinese/i.test(cleanLangs);

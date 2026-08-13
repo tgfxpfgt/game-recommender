@@ -310,3 +310,33 @@ try {
   globalThis.fetch = realFetch;
 }
 
+
+// ============ 0.15 解析健壮性（v6.3.0 C 收尾）/ Parser robustness ============
+console.log('0.15 解析健壮性（异常输入不抛错 + 官方字段降级）');
+const detailsMod = await import(new URL('../../background/steam/api-details.js', import.meta.url).href + '?t=1');
+test('supported_languages 非字符串（异常响应）不抛错', () => {
+  const r = detailsMod.parseChineseLanguageSupport('', { supported_languages: { schinese: { full_audio: true } } });
+  expect(typeof r.chineseSupported).toEqual('boolean');
+  expect(r.chineseSupported).toEqual(false);
+});
+test('空 storeHtml + 无 supported_languages → 默认不支持', () => {
+  const r = detailsMod.parseChineseLanguageSupport('', {});
+  expect(r.chineseSupported).toEqual(false);
+  expect(r.simplifiedChinese).toEqual(false);
+});
+test('supported_languages 字符串含简体中文 → 识别', () => {
+  const r = detailsMod.parseChineseLanguageSupport('', { supported_languages: '<strong>简体中文</strong><br>界面' });
+  expect(r.chineseSupported).toEqual(true);
+  expect(r.simplifiedChinese).toEqual(true);
+});
+test('storeHtml 为空 → userTags 走 categories 兜底（官方字段）', () => {
+  const gameData = { categories: [{ description: '单人' }, { description: 'RPG' }] };
+  const tags = detailsMod.parseUserTags('', gameData);
+  expect(tags.includes('单人') && tags.includes('RPG')).toEqual(true);
+});
+test('storeHtml 异常标签 → 过滤非法标签且不抛错', () => {
+  const gameData = { categories: [] };
+  const tags = detailsMod.parseUserTags('<a class="app_tag">RPG</a><a class="app_tag">&nbsp;</a>', gameData);
+  expect(tags.includes('RPG')).toEqual(true);
+  expect(tags.every((t) => t.length >= 1 && t.length <= 30)).toEqual(true);
+});

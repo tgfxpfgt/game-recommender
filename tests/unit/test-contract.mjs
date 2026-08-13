@@ -124,3 +124,17 @@ test('REPORT_WRONG_APPID 仅 gameName 合法', () => { expect(validateMessage('R
 test('REPORT_WRONG_APPID 全空拒绝', () => { expect(validateMessage('REPORT_WRONG_APPID', {}).ok).toEqual(false); });
 test('REPORT_WRONG_APPID 非数字 appId 拒绝', () => { expect(validateMessage('REPORT_WRONG_APPID', { appId: 'x', gameName: '游戏' }).ok).toEqual(false); });
 
+
+console.log('8. 第四批契约（v6.3.0：读类 action 全量收尾）');
+test('GET_SETTINGS 合法', () => { expect(validateMessage('GET_SETTINGS', {}).ok).toEqual(true); });
+test('GET_STATS 合法', () => { expect(validateMessage('GET_STATS', {}).ok).toEqual(true); });
+test('GET_STEAM_RECOMMENDATIONS 合法', () => { expect(validateMessage('GET_STEAM_RECOMMENDATIONS', {}).ok).toEqual(true); });
+test('GET_DATA_MODULES 合法', () => { expect(validateMessage('GET_DATA_MODULES', {}).ok).toEqual(true); });
+test('GET_BACKUPS 合法', () => { expect(validateMessage('GET_BACKUPS', {}).ok).toEqual(true); });
+test('GET_ADAPTER_RULES 合法', () => { expect(validateMessage('GET_ADAPTER_RULES', {}).ok).toEqual(true); });
+test('GET_API_STATUS 合法', () => { expect(validateMessage('GET_API_STATUS', {}).ok).toEqual(true); });
+test('EXPORT_LOGS 合法', () => { expect(validateMessage('EXPORT_LOGS', {}).ok).toEqual(true); });
+test('GET_TRENDS day 合法', () => { expect(validateMessage('GET_TRENDS', { granularity: 'day' }).ok).toEqual(true); });
+test('GET_TRENDS week 合法', () => { expect(validateMessage('GET_TRENDS', { granularity: 'week' }).ok).toEqual(true); });
+test('GET_TRENDS 缺参合法（默认 day）', () => { expect(validateMessage('GET_TRENDS', {}).ok).toEqual(true); });
+test('GET_TRENDS 非法 granularity 拒绝', () => { expect(validateMessage('GET_TRENDS', { granularity: 'month' }).ok).toEqual(false); });

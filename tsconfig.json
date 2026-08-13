@@ -9,8 +9,25 @@
     "strict": false,
     "noImplicitAny": false,
     "skipLibCheck": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"]
+    "lib": [
+      "ES2022",
+      "DOM",
+      "DOM.Iterable"
+    ]
   },
-  "include": ["background/core/**/*.js", "background/core/**/*.d.ts"],
-  "exclude": ["node_modules", "tests", "content", "options", "popup", "dashboard", "freegames", "adapters"]
+  "include": [
+    "background/**/*.js",
+    "background/**/*.d.ts",
+    "**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules",
+    "tests",
+    "content",
+    "options",
+    "popup",
+    "dashboard",
+    "freegames",
+    "adapters"
+  ]
 }

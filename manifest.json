@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "6.2.1",
+  "version": "6.3.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -10,6 +10,34 @@
     "alarms"
   ],
   "host_permissions": [
+    "http://3dmgame.com/*",
+    "https://3dmgame.com/*",
+    "http://ali213.net/*",
+    "https://ali213.net/*",
+    "http://gamersky.com/*",
+    "https://gamersky.com/*",
+    "http://yystv.cn/*",
+    "https://yystv.cn/*",
+    "http://fitgirl-repacks.site/*",
+    "https://fitgirl-repacks.site/*",
+    "http://rutracker.org/*",
+    "https://rutracker.org/*",
+    "http://gamer520.com/*",
+    "https://gamer520.com/*",
+    "http://xianyudanji.gg/*",
+    "https://xianyudanji.gg/*",
+    "http://xdgame.com/*",
+    "https://xdgame.com/*",
+    "https://store.steampowered.com/*",
+    "https://api.steampowered.com/*",
+    "https://steamspy.com/*",
+    "https://store-site-backend-official.ak.epicgames.com/*",
+    "https://www.gog.com/*",
+    "https://www.gamerpower.com/*",
+    "http://localhost/*",
+    "http://127.0.0.1/*"
+  ],
+  "optional_host_permissions": [
     "http://*/*",
     "https://*/*"
   ],

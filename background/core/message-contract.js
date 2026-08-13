@@ -189,7 +189,22 @@ const RULES = {
     if (!optStr(m && m.gameName, 200)) return { error: 'REPORT_WRONG_APPID.gameName 可选字符串（≤200）' };
     if (m.appId == null && !m.gameName) return { error: 'REPORT_WRONG_APPID 至少提供 appId 或 gameName 之一' };
     return { ok: true };
-  }
+  },
+  // ---- v6.3.0 第四批：读类 action 全量收尾（契约化 100%）----
+  // 无参读类：显式声明已契约
+  GET_SETTINGS: () => ({ ok: true }),
+  GET_STATS: () => ({ ok: true }),
+  GET_STEAM_RECOMMENDATIONS: () => ({ ok: true }),
+  GET_DATA_MODULES: () => ({ ok: true }),
+  GET_BACKUPS: () => ({ ok: true }),
+  GET_ADAPTER_RULES: () => ({ ok: true }),
+  GET_API_STATUS: () => ({ ok: true }),
+  EXPORT_LOGS: () => ({ ok: true }),
+  // 趋势聚合：granularity 可选 day|week
+  GET_TRENDS: (m) =>
+    m.granularity === undefined || m.granularity === 'day' || m.granularity === 'week'
+      ? { ok: true }
+      : { error: 'GET_TRENDS.granularity 可选 day|week' }
 };
 
 // 统一校验入口：未契约化 action 放行 / unified entry; uncovered actions pass

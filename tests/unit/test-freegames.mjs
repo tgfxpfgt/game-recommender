@@ -29,3 +29,102 @@ test('fanatical → Fanatical', () => { expect(extractThirdPartySource({ instruc
 test('未知来源 → 第三方平台', () => { expect(extractThirdPartySource({ instructions: 'something else' })).toEqual('第三方平台'); });
 test('无 instructions → 第三方平台', () => { expect(extractThirdPartySource({})).toEqual('第三方平台'); });
 
+
+// ============ 2. 限免抓取与领取主体（v6.3.0 盲区补强） ============
+console.log('2. refreshFreeGames / claimFreeGame（mock 四源抓取）');
+import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
+import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
+
+const storage = createStorageMock();
+installChromeStorageMock(storage);
+
+test('refreshFreeGames 聚合四源并去重', async () => {
+  storage._reset();
+  const fetchMock = createFetchMock({
+    'freeGamesPromotions': {
+      data: { Catalog: { searchStore: { elements: [
+        {
+          id: 'epic1', title: '免费游戏A', productSlug: 'game-a',
+          promotions: { promotionalOffers: [{ promotionalOffers: [{ startDate: new Date(Date.now() - 86400e3).toISOString(), endDate: new Date(Date.now() + 86400e3).toISOString() }] }] },
+          keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/a.jpg' }]
+        }
+      ] } } }
+    },
+    'ajax/filtered': { products: [{ title: '免费游戏B', url: '/game/b', image: 'https://img.gog.com/b.jpg' }] },
+    'featuredcategories': { specials: { items: [{ id: 999, name: '免费游戏C', final_price: 0, large_capsule_image: 'https://cdn.steam.com/c.jpg' }] } },
+    'api/giveaways': [
+      { id: 1001, title: '免费游戏D', platforms: 'Epic Games', thumbnail: 'https://img.gp.com/d.jpg', instructions: '登录 Epic 领取', open_giveaway_url: 'https://www.gamerpower.com/click/1001' }
+    ]
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const result = await mod.refreshFreeGames(true);
+    const games = result.games;
+    expect(games.length).toEqual(4);
+    expect(games.some((g) => g.platform === 'epic' && g.name === '免费游戏A')).toEqual(true);
+    expect(games.some((g) => g.platform === 'gog')).toEqual(true);
+    expect(games.some((g) => g.platform === 'steam')).toEqual(true);
+    expect(games.some((g) => g.name === '免费游戏D' && g.platform === 'epic')).toEqual(true); // gamerpower 数据源 → 内容平台 epic
+    expect(!!result.lastUpdate).toEqual(true);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('一天内缓存命中（不重新抓取）', async () => {
+  storage._reset({
+    freeGames: { lastUpdate: Date.now() - 3600e3, games: [{ id: 'epic-1', name: '旧数据', platform: 'epic' }] }
+  });
+  const fetchMock = createFetchMock({});
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const result = await mod.refreshFreeGames(false);
+    expect(result.games[0].name).toEqual('旧数据');
+    expect(fetchMock._calls.length).toEqual(0); // 未触发任何抓取
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('force 强制刷新（突破一天缓存）', async () => {
+  storage._reset({
+    freeGames: { lastUpdate: Date.now() - 3600e3, games: [] }
+  });
+  const fetchMock = createFetchMock({ 'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [] } } } } });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const result = await mod.refreshFreeGames(true);
+    expect(fetchMock._calls.length).toBeGreaterThan(0);
+    expect(result.lastUpdate).toBeGreaterThanOrEqual(Date.now() - 5000);
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('claimFreeGame 标记领取并持久化', async () => {
+  storage._reset({
+    freeGames: { lastUpdate: 1, games: [{ id: 'epic-1', name: '免费游戏A', platform: 'epic', claimed: false }] }
+  });
+  const r = await mod.claimFreeGame('epic-1');
+  expect(r.success).toEqual(true);
+  const stored = storage._dump().freeGames;
+  expect(stored.games[0].claimed).toEqual(true);
+});
+
+test('第三方 URL 协议白名单净化（恶意协议拒绝）', async () => {
+  storage._reset();
+  const fetchMock = createFetchMock({
+    'api/giveaways': [
+      { id: 2001, title: '恶意游戏', platforms: 'Epic Games', thumbnail: 'javascript:alert(1)', instructions: '登录领取', open_giveaway_url: 'javascript:alert(2)' }
+    ]
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const result = await mod.refreshFreeGames(true);
+    const g = result.games.find((x) => x.id === 'gp-2001') || result.games[0];
+    expect(String(g.url).startsWith('javascript')).toEqual(false);
+    expect(String(g.image).startsWith('javascript')).toEqual(false);
+  } finally {
+    restoreFetch();
+  }
+});

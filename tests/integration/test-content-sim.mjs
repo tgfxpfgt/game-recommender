@@ -184,6 +184,8 @@ const documentMock = {
 };
 globalThis.NodeFilter = { SHOW_TEXT: 4 };
 globalThis.window = globalThis;
+// v6.3.0：模拟浏览器 window.open（download-tracking 拦截链需要原始实现转发）
+globalThis.window.open = () => null;
 globalThis.location = { hostname: 'www.xianyudanji.gg', pathname: '/pcdj', href: 'https://www.xianyudanji.gg/pcdj' };
 globalThis.document = documentMock;
 globalThis.addEventListener = (type, cb) => documentMock.addEventListener(type, cb);
@@ -836,3 +838,29 @@ expect(steamApiSrc.includes("gameData.type === 'demo'")).toEqual(true);
 
 
 });
+
+// ============ 10. 下载追踪 / Download tracking ============
+console.log('10. 下载追踪（网盘识别 + window.open 拦截）');
+test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
+  const { isDownloadUrl, isDownloadText } = GR.tracking;
+  // 网盘/下载 URL 识别（纯函数）
+  expect(isDownloadUrl('https://pan.baidu.com/s/abc')).toEqual(true);
+  expect(isDownloadUrl('https://pan.xunlei.com/s/xyz')).toEqual(false);
+  expect(isDownloadUrl('magnet:?xt=urn:btih:abc')).toEqual(true);
+  expect(isDownloadUrl('https://www.example.com/game.html')).toEqual(false);
+  expect(isDownloadUrl(null)).toEqual(false);
+  // 下载相关文本识别
+  expect(isDownloadText('百度网盘提取码')).toEqual(true);
+  expect(isDownloadText('点击下载游戏')).toEqual(true);
+  expect(isDownloadText('游戏介绍与截图')).toEqual(false);
+  // window.open 拦截 → click_download 追踪（tracker init 已激活 setupDownloadTracking）
+  const before = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').length;
+  window.open('https://pan.baidu.com/s/download123');
+  await new Promise((r) => setTimeout(r, 100));
+  const after = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').length;
+  expect(after > before).toEqual(true);
+  const evt = sentMessages.filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download').pop();
+  expect(evt.data.downloadUrl.includes('pan.baidu.com')).toEqual(true);
+  expect(!!evt.data.gameName).toEqual(true);
+});
+

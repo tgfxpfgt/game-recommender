@@ -63,22 +63,6 @@ export function findProfile(profiles, name, registryEntry) {
   return null;
 }
 
-/**
- * 单游戏推荐评分（纯计算，输入为聚合数据，可单测）
- * 信号：行为（详情打开/下载占比，归一化）、标签匹配（Steam 官方标签 vs 用户偏好）、
- * 好评率 + 中文支持。综合加权后返回 score 与 breakdown（徽章悬停展示用）。
- * Pure per-game score computation. Signals: behaviour (normalised view/download
- * shares), tag-preference match, positive rate + Chinese support.
- * @param {Object} params - 聚合输入 / aggregated inputs
- * @param {Object|null} params.profile - 游戏画像（views/downloads/keywords）/ game profile
- * @param {{maxViews?: number, maxDownloads?: number}} params.globalStats - 全站归一化基准
- * @param {string[]|null} params.tags - Steam 官方标签
- * @param {Object} params.keywordWeights - 用户偏好关键词权重表
- * @param {number|null} params.positiveRate - 好评率（0-100，null=未知）
- * @param {boolean} params.chineseSupported - 是否支持中文
- * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating）
- * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number}, method: string}}
- */
 // v4.0.0：SteamSpy 时长/热度信号归一化（纯函数，可单测）。
 // playTime：平均游玩分钟 / 600（10 小时封顶）；heat：owners 区间中点对数 / 7
 //（千万封顶，热度分布极偏故用对数）。缺数据 → 中性 0.3（对齐 keywordScore
@@ -86,6 +70,11 @@ export function findProfile(profiles, name, registryEntry) {
 // SteamSpy playtime/heat signal normalisation (pure). playTime caps at 600min;
 // heat is log10(owners midpoint)/7 (log scale for skewed distribution). Missing
 // data yields a neutral 0.3, matching the no-tags keywordScore convention.
+/**
+ * SteamSpy 时长/热度归一化信号（纯函数，可单测）
+ * @param {Object|null|undefined} spy - SteamSpy 原始数据（averageForeverMin/ownersLow/ownersHigh）
+ * @returns {{playTimeScore: number, heatScore: number}}
+ */
 export function steamspyScores(spy) {
   if (!spy || typeof spy !== 'object') return { playTimeScore: 0.3, heatScore: 0.3 };
   let playTimeScore = 0.3;
@@ -100,6 +89,24 @@ export function steamspyScores(spy) {
   return { playTimeScore, heatScore };
 }
 
+/**
+ * 单游戏推荐评分（纯计算，输入为聚合数据，可单测）
+ * 信号：行为（详情打开/下载占比，归一化）、标签匹配（Steam 官方标签 vs 用户偏好）、
+ * 好评率 + 中文支持。综合加权后返回 score 与 breakdown（徽章悬停展示用）。
+ * Pure per-game score computation. Signals: behaviour (normalised view/download
+ * shares), tag-preference match, positive rate + Chinese support.
+ * @param {Object} params - 聚合输入 / aggregated inputs
+ * @param {Object|null} params.profile - 游戏画像（views/downloads/keywords）/ game profile
+ * @param {{maxViews?: number, maxDownloads?: number}} params.globalStats - 全站归一化基准
+ * @param {string[]|null} params.tags - Steam 官方标签
+ * @param {Object} params.keywordWeights - 用户偏好关键词权重表
+ * @param {number|null} params.positiveRate - 好评率（0-100，null=未知）
+ * @param {boolean} params.chineseSupported - 是否支持中文
+ * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
+ * @param {number|null} params.playTimeScore - SteamSpy 时长信号（0-1，null=缺省中性）
+ * @param {number|null} params.heatScore - SteamSpy 热度信号（0-1，null=缺省中性）
+ * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number}, method: string}}
+ */
 // v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
 // 权重六项（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
 export function computeGameScore({
