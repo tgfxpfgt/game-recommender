@@ -338,6 +338,57 @@ async function checkItadFree(appId) {
   }
 }
 
+// v6.4.2：Steam 官方接口判定 100% OFF 类型——用户决策：
+// appdetails（官方 API）为主：is_free 权威信号 F2P；price_overview 原价>0 现价 0
+// = 喜加一入库（-100% 促销）；无原价免费 = 免费周末（Play Now 模式）。
+// 商店页按钮复核（Play Now vs Add to Cart）——防免费周末误判为喜加一。
+// Steam official judgment: is_free (F2P), price_overview initial>0 & final=0
+// (limited claim), initial=0 free (weekend); store-page button double-check.
+export async function determineSteamFreeType(appId) {
+  try {
+    const resp = await fetchWithTimeout(
+      `https://store.steampowered.com/api/appdetails?appids=${appId}&l=schinese&cc=cn&filters=basic,price_overview`
+    );
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const d = data && data[appId] && data[appId].data;
+    if (!d) return null;
+    // F2P 永久免费：官方 is_free 权威信号（Dota 2 等无价格区）
+    if (d.is_free === true) return 'f2p';
+    const price = d.price_overview;
+    if (!price) return 'f2p';
+    // 促销免费（-100%）：原价 > 0 且现价 0 → 喜加一入库
+    if ((price.initial || 0) > 0 && price.final === 0) {
+      // 商店页按钮复核：Play Now（免费周末）会显示立即游玩而非加入购物车
+      const type = await verifyStorePageButtons(appId);
+      return type === 'weekend' ? 'weekend' : 'limited';
+    }
+    // 现价 0 但无原价：免费周末（Play Now 模式）或数据异常 → weekend 保守处理
+    if (price.final === 0) return 'weekend';
+    return null; // 当前非免费（数据过期）
+  } catch (e) {
+    Logger.debug('FreeGames', 'Steam官方判定失败:', String(e));
+    return null;
+  }
+}
+
+// 商店页按钮复核：Add to Cart（入库）vs Play Now（免费周末）
+// Store-page button check: Add to Cart (claimable) vs Play Now (weekend)
+async function verifyStorePageButtons(appId) {
+  try {
+    const resp = await fetchWithTimeout(`https://store.steampowered.com/app/${appId}/?l=schinese`, {
+      headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
+    });
+    if (!resp.ok) return 'limited'; // 页面失败 → 保持 appdetails 判定（喜加一）
+    const html = await resp.text();
+    if (/立即游玩|play now/i.test(html)) return 'weekend';
+    return 'limited';
+  } catch (e) {
+    Logger.debug('FreeGames', '商店页复核失败:', String(e));
+    return 'limited';
+  }
+}
+
 // v6.3.2 C2：新限免推送通知（聚合一条，防骚扰；通知权限在 manifest）
 // Push notification for new free games (one aggregated notification)
 async function notifyNewFreeGames(newOnes) {
@@ -345,13 +396,19 @@ async function notifyNewFreeGames(newOnes) {
     // v6.3.3：仅推送限时领取（limited）——weekend/f2p/key 不打扰
     let limited = newOnes.filter((g) => g.freeType !== 'weekend' && g.freeType !== 'f2p' && g.freeType !== 'key');
     if (!chrome.notifications || limited.length === 0) return;
-    // ITAD 二次校验（steam 平台 + 配置了 key 时）
+    // Steam 平台候选：ITAD 确认免费（可选 key）+ Steam 官方判定类型（v6.4.2）
     if (limited.some((g) => g.platform === 'steam')) {
       const checked = await Promise.all(
         limited.map(async (g) => {
           if (g.platform !== 'steam') return true;
-          const isFree = await checkItadFree((g.url.match(/\/app\/(\d+)/) || [])[1]);
-          return isFree === null ? true : isFree; // 无 key/失败容错放行
+          const appId = (g.url.match(/\/app\/(\d+)/) || [])[1];
+          // ITAD 二次校验（可选 key；无 key/失败容错放行）
+          const isFree = await checkItadFree(appId);
+          if (isFree === false) return false;
+          // Steam 官方判定：喜加一（limited）才通知——免费周末/F2P 过滤
+          const officialType = await determineSteamFreeType(appId);
+          if (officialType === 'f2p' || officialType === 'weekend') return false;
+          return true; // null（无法判定）→ 按现有分类放行
         })
       );
       limited = limited.filter((_, i) => checked[i]);

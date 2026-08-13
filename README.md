@@ -256,6 +256,15 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.2（小版本：限免判定升级——Steam 官方接口区分喜加一 vs 免费周末）
+- **determineSteamFreeType**（导出纯函数 + 通知路径接入）：Steam 官方 appdetails 判定 100% OFF 类型——
+  -  → **f2p**（永久免费，官方权威信号）
+  - 原价>0 且现价 0 → **喜加一入库候选**（-100% 促销），**商店页按钮复核**（Play Now「立即游玩」→ 免费周末；Add to Cart → 喜加一）
+  - 现价 0 无原价 → **weekend**（Play Now 模式保守处理）
+  - 当前非免费 → null（数据过期）
+- **通知过滤升级**：Steam 平台通知候选经官方判定——仅【喜加一入库】推送；免费周末/F2P 拦截（ITAD 确认免费 + 官方类型判定双重校验）
+- **质量**：vitest 512 test 全过 · lint 0 · typecheck 0
+
 ### v6.4.1（小版本：popup/options 状态一致性修复 + options E2E 覆盖）
 - **修复快照覆盖**：popup 的 8 处 SAVE_SETTINGS 由加载时快照改为**保存前重读最新设置**（saveSettingsPatch）——后台 saveSettings 替换缓存引用，popup 打开期间 options 的改动会被旧快照覆盖（双向编辑一致性）
 - **E2E 增强**：新增 options 设置页冒烟（渲染/标题/无 console error）+ **popup↔options 双向状态一致性**（options 切 VM 过滤 → popup 一致；popup 回切 → options 一致）——E2E 16 → 21 项

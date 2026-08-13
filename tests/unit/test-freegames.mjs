@@ -240,3 +240,86 @@ test('通知仅限时领取（weekend/f2p 不推送）', async () => {
     delete globalThis.chrome.notifications;
   }
 });
+
+// ============ 5. Steam 官方判定（v6.4.2：喜加一 vs 免费周末 vs F2P） ============
+console.log('5. determineSteamFreeType（Steam 官方接口判定）');
+test('is_free=true → f2p（永久免费）', async () => {
+  const fetchMock = createFetchMock({
+    '/api/appdetails': { '999': { success: true, data: { is_free: true } } }
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    expect(await mod.determineSteamFreeType('999')).toEqual('f2p');
+  } finally { restoreFetch(); }
+});
+test('原价>0 现价 0 + 商店页 Add to Cart → limited（喜加一入库）', async () => {
+  const fetchMock = createFetchMock({
+    '/api/appdetails': { '1245620': { success: true, data: { is_free: false, price_overview: { initial: 29800, final: 0, discount_percent: 100 } } } },
+    '/app/1245620/': '<html><body><div class="btn_addtocart">Add to Cart</div></body></html>'
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    expect(await mod.determineSteamFreeType('1245620')).toEqual('limited');
+  } finally { restoreFetch(); }
+});
+test('原价>0 现价 0 + 商店页 Play Now → weekend（免费周末）', async () => {
+  const fetchMock = createFetchMock({
+    '/api/appdetails': { '730': { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 0, discount_percent: 100 } } } },
+    '/app/730/': '<html><body><div class="playbtn">Play Now 立即游玩</div></body></html>'
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    expect(await mod.determineSteamFreeType('730')).toEqual('weekend');
+  } finally { restoreFetch(); }
+});
+test('现价 0 无原价 → weekend（Play Now 模式保守处理）', async () => {
+  const fetchMock = createFetchMock({
+    '/api/appdetails': { '123': { success: true, data: { is_free: false, price_overview: { initial: 0, final: 0 } } } }
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    expect(await mod.determineSteamFreeType('123')).toEqual('weekend');
+  } finally { restoreFetch(); }
+});
+test('当前非免费 → null（数据过期）', async () => {
+  const fetchMock = createFetchMock({
+    '/api/appdetails': { '456': { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 5800 } } } }
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    expect(await mod.determineSteamFreeType('456')).toEqual(null);
+  } finally { restoreFetch(); }
+});
+test('通知：Steam 官方判定 weekend 的候选不推送', async () => {
+  storage._reset({ freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [] } });
+  const notified = [];
+  globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
+  const fetchMock = createFetchMock({
+    'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [] } } } },
+    'ajax/filtered': { products: [] },
+    'featuredcategories': { specials: { items: [] } },
+    'api/giveaways': [
+      // 周末活动：标题无特征词（靠官方判定拦截）
+      { id: 5001, title: '神秘周末游戏', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录 Steam 领取', end_date: '2026-09-01', open_giveaway_url: 'https://store.steampowered.com/app/730/' },
+      // 真喜加一：官方判定 limited
+      { id: 5002, title: '真喜加一', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录 Steam 领取', end_date: '2026-09-01', open_giveaway_url: 'https://store.steampowered.com/app/1245620/' }
+    ],
+    '/api/appdetails': {
+      '730': { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 0, discount_percent: 100 } } },
+      '1245620': { success: true, data: { is_free: false, price_overview: { initial: 29800, final: 0, discount_percent: 100 } } }
+    },
+    '/app/730/': '<html><body><div class="playbtn">Play Now 立即游玩</div></body></html>',
+    '/app/1245620/': '<html><body><div class="btn_addtocart">Add to Cart</div></body></html>'
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const result = await mod.refreshFreeGames(true);
+    // 两个候选都进列表（展示），但通知只发喜加一
+    expect(notified.length).toEqual(1);
+    expect(notified[0].opts.message).toContain('真喜加一');
+    expect(notified[0].opts.message).not.toContain('神秘周末游戏');
+  } finally {
+    restoreFetch();
+    delete globalThis.chrome.notifications;
+  }
+});
