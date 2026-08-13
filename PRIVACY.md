@@ -1,6 +1,6 @@
 # 隐私政策 / Privacy Policy
 
-Game Recommender（游戏智能推荐）Chrome 扩展 —— 数据隐私说明（v6.3.2）
+游戏雷达 Game Radar（游戏智能推荐）Chrome 扩展 —— 数据隐私说明（v6.3.2）
 
 ## 数据收集与存储
 

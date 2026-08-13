@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 测试：Steam API fetch mock / Shared Steam Fetch Mock
+ * 游戏雷达 Game Radar - 测试：Steam API fetch mock / Shared Steam Fetch Mock
  *
  * v4.2.0：按 URL 分发的 fetch mock（appdetails / storesearch 等），
  * 统一 security §8 与 outbound §4 的既有模式。传入 handlers 表

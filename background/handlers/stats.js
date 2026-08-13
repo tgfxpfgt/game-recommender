@@ -7,7 +7,7 @@ import { fetchSteamTagRecommendations } from '../steam/api-search.js';
 import { Logger } from '../storage/logger.js';
 
 /**
- * Game Recommender - 消息处理：统计与趋势 / Stats Handlers
+ * 游戏雷达 Game Radar - 消息处理：统计与趋势 / Stats Handlers
  *
  * v5.0.0：由 handlers.js 拆分——统计/趋势/偏好推荐。
  */

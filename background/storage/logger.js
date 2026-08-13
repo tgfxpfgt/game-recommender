@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 运行日志 / Runtime Logger
+ * 游戏雷达 Game Radar - 运行日志 / Runtime Logger
  *
  * 内存缓冲 + 防抖批量写入；支持级别过滤、保留天数清理、存储形式选择
  * （ND-JSON 文件 / storage.local），由设置控制。

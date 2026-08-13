@@ -8,7 +8,7 @@ import { Logger } from '../storage/logger.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 
 /**
- * Game Recommender - 消息处理：下载站 / Download-Site Handlers
+ * 游戏雷达 Game Radar - 消息处理：下载站 / Download-Site Handlers
  *
  * v5.0.0：由 handlers.js 拆分——下载站搜索/历史/访问/批量记录。
  */

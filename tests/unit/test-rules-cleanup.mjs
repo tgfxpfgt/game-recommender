@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：规则校验与缓存清理 / Rule Validation & Cache Cleanup
+ * 游戏雷达 Game Radar - 测试：规则校验与缓存清理 / Rule Validation & Cache Cleanup
  *
  * v4.2.0：由原 test-cleanup 拆分（1~4 节）——validateAdapterRules（结构/类型
  * 白名单/函数拒绝/规模上限/正则试编译）+ sanitizeImportedModule（导入限额）

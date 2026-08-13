@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：内容脚本模拟 / Content Script Simulation
+ * 游戏雷达 Game Radar - 测试：内容脚本模拟 / Content Script Simulation
  *
  * 在 Node 中模拟浏览器环境（window/document/chrome），按 manifest 顺序加载
  * 全部内容脚本，验证：

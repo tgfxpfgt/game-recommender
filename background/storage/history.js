@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 下载历史 / Download History
+ * 游戏雷达 Game Radar - 下载历史 / Download History
  *
  * 记录每个游戏的下载行为（次数/站点/链接/网盘地址），上限 200 条。
  * Records per-game download behavior (count/site/url/pan-url), max 200 entries.

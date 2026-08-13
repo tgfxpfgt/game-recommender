@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 消息处理 / Message Handlers
+ * 游戏雷达 Game Radar - 消息处理 / Message Handlers
  *
  * v5.0.0：由单文件拆分为按领域子模块（handlers/steam.js · cache-manager.js ·
  * data-modules.js · stats.js · download-sites.js），本文件保留核心 handler

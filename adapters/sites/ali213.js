@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 游侠网 下载站规则 / Ali213 Site Rules
+ * 游戏雷达 Game Radar - 游侠网 下载站规则 / Ali213 Site Rules
  *
  * 选择器式列表页（无 URL 特征），无站内搜索（仅行为追踪）。
  * Selector-based list pages (no URL pattern); no in-site search (tracking only).

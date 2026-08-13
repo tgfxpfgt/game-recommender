@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Dashboard Script
+ * 游戏雷达 Game Radar - Dashboard Script
  * 数据分析仪表盘逻辑 / Dashboard (analytics) logic
  *
  * Features:

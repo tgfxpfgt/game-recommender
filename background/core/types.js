@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 核心类型定义 / Core Type Definitions
+ * 游戏雷达 Game Radar - 核心类型定义 / Core Type Definitions
  *
  * v5.0.0：纯 JSDoc 类型定义（零运行时代码），供 background 各模块以
  * 类型标签标注引用。配合 tsconfig.json 的 checkJs（core/ 层起步）做编译期

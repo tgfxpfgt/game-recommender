@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：项目完整性 / Project Integrity Tests
+ * 游戏雷达 Game Radar - 测试：项目完整性 / Project Integrity Tests
  *
  * v4.2.0：合并原 test-layers（依赖分层单向校验 + Mermaid --print）与
  * test-security 的静态扫描节（TDZ / 噪声双源 / JS 语法 / manifest 引用），

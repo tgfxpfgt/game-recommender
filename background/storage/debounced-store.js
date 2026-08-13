@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 防抖写入工厂 / Debounced-Store Factory
+ * 游戏雷达 Game Radar - 防抖写入工厂 / Debounced-Store Factory
  *
  * v5.1.0：收敛 storage 层"定时器 + flush + 错误打印"同构模式。
  * 工厂返回 { scheduleWrite, flush, reset }；save 由调用方提供

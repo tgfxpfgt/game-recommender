@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：行为趋势聚合 / Trend Aggregation Tests
+ * 游戏雷达 Game Radar - 测试：行为趋势聚合 / Trend Aggregation Tests
  *
  * v4.2.0：aggregateTrends（day/week 粒度）——周桶键=周一、无效时间戳忽略、
  * 转化率计算、排序。background/core/trends.js 为零依赖纯函数。

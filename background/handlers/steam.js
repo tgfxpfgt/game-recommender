@@ -28,7 +28,7 @@ import {
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
 
 /**
- * Game Recommender - 消息处理：Steam 查询 / Steam Message Handlers
+ * 游戏雷达 Game Radar - 消息处理：Steam 查询 / Steam Message Handlers
  *
  * v5.0.0：由 handlers.js 拆分——搜索/直取/手动映射/候选/预热/报错/自愈。
  */

@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 下载站网址缓存 / Download URL Cache
+ * 游戏雷达 Game Radar - 下载站网址缓存 / Download URL Cache
  *
  * 按站点分桶存储（v2）：{ v, sites: { siteKey: { appId: entry } } }。
  * 列表页批量写入、详情页访问更新；新网址替代旧网址，30 天 TTL（设置可调）。

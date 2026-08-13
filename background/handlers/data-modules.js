@@ -6,7 +6,7 @@ import { Logger } from '../storage/logger.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
 
 /**
- * Game Recommender - 消息处理：数据模块与备份 / Data-Module Handlers
+ * 游戏雷达 Game Radar - 消息处理：数据模块与备份 / Data-Module Handlers
  *
  * v5.0.0：由 handlers.js 拆分——导出/导入/模块清单/清数据。备份与日志导出由
  * handlers.js 注册表内联改为本模块具名函数。
@@ -82,7 +82,7 @@ export async function handleExportData(message) {
 export async function handleImportData(message) {
   const payload = message.data;
   if (!payload || typeof payload !== 'object') return { success: false, error: '数据格式不正确' };
-  if (payload.format !== EXPORT_FORMAT) return { success: false, error: '不是有效的 Game Recommender 导出文件' };
+  if (payload.format !== EXPORT_FORMAT) return { success: false, error: '不是有效的 游戏雷达 Game Radar 导出文件' };
   if (payload.version !== EXPORT_VERSION) return { success: false, error: '导出文件版本不兼容: ' + payload.version };
   if (!payload.modules || typeof payload.modules !== 'object') return { success: false, error: '导出文件缺少模块数据' };
 

@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 测试：chrome.storage mock 统一抽象 / Shared Storage Mock
+ * 游戏雷达 Game Radar - 测试：chrome.storage mock 统一抽象 / Shared Storage Mock
  *
  * v4.2.0：消除此前 3 份重复的 chrome.storage mock（test-wrong-reports /
  * test-content-sim / test-cleanup 各写一份）。内存 Map 实现，支持预置数据、

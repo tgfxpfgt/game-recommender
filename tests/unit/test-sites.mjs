@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：下载站详情页元信息提取 / Detail-Meta Extraction
+ * 游戏雷达 Game Radar - 测试：下载站详情页元信息提取 / Detail-Meta Extraction
  *
  * v4.2.0：extractDetailMeta（更新日期/版本/大小/百度网盘链接与提取码），
  * 覆盖 sites/search.js 的 HTML 解析纯函数（fixture HTML 驱动）。

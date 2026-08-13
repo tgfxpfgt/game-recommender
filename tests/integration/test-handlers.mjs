@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeAll, afterAll } from 'vitest';
 /**
- * Game Recommender - 测试：消息处理链路集成 / Message Handler Integration Tests
+ * 游戏雷达 Game Radar - 测试：消息处理链路集成 / Message Handler Integration Tests
  *
  * v6.2.0：覆盖此前完全裸奔的接线层——handlers.js + handlers/ 子模块的真实
  * 消息链路（mock chrome.storage + fetch 驱动 handleMessage）。内容脚本模拟

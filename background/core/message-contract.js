@@ -1,7 +1,7 @@
 // @ts-strict
 import { isPlainObject } from './utils.js';
 /**
- * Game Recommender - 消息契约校验 / Message Contract Validation
+ * 游戏雷达 Game Radar - 消息契约校验 / Message Contract Validation
  *
  * v4.0.0：对高频/高风险 message action 的入参做必填字段与类型校验
  * （纯函数、零依赖，core 层可单测）。未契约化的 action 一律放行——

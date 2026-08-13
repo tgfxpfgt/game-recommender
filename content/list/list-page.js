@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 列表页模块 / List Page Module
+ * 游戏雷达 Game Radar - 列表页模块 / List Page Module
  *
  * 页面类型检测、列表项提取、好评率徽章与过滤、推荐高亮、下一页预载。
  * Page-type detection, list-item extraction, rating badges & filtering,

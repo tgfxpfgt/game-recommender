@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'vitest';
 /**
- * Game Recommender - 测试：备份管理 / Backups Tests
+ * 游戏雷达 Game Radar - 测试：备份管理 / Backups Tests
  *
  * v6.3.0：覆盖此前零测试的备份/恢复完整流程——创建（全量/勾选模块/密钥
  * 剔除/上限裁剪）、恢复（安全网备份 + 模块白名单校验 + 缓存重置）、删除。

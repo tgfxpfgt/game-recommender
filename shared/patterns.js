@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 共享模式/常量（经典脚本）/ Shared Patterns (classic script)
+ * 游戏雷达 Game Radar - 共享模式/常量（经典脚本）/ Shared Patterns (classic script)
  *
  * v3.3.9：下载站标题"噪声词"正则的唯一权威源。内容脚本经
  * `globalThis.__GR_PATTERNS__.noisePatternSource` 构造 RegExp；

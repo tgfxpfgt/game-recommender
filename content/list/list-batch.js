@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 列表页批次调度 / List-Page Batch Scheduling
+ * 游戏雷达 Game Radar - 列表页批次调度 / List-Page Batch Scheduling
  *
  * v5.1.0：由 list-page.js 拆分——首屏优先 + 滚动按需的评分/推荐批次调度。
  * 状态（ratingsJob/batchState）存于 list._state（唯一状态容器），

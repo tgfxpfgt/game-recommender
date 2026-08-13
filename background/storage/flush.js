@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 存储聚合落盘 / Aggregated Cache Flush
+ * 游戏雷达 Game Radar - 存储聚合落盘 / Aggregated Cache Flush
  *
  * v5.0.0：flushSteamCache + flushNameIndex + flushRegistry 三连调用
  * 此前在 handlers/ratings-batch 手写 10 处，收敛为单一聚合函数

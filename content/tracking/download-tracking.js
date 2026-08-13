@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 下载追踪模块 / Download Tracking Module
+ * 游戏雷达 Game Radar - 下载追踪模块 / Download Tracking Module
  *
  * 始终激活：window.open 拦截 + 全局点击委托 + 复制事件捕获。
  * Always active: window.open interception, global click delegation and copy capture.

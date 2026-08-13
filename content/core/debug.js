@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 调试模块 / Debug Module
+ * 游戏雷达 Game Radar - 调试模块 / Debug Module
  *
  * 调试状态与日志；诊断视图渲染到统一状态浮窗（status-bar）中，
  * 开启调试（showDebugPanel）时统计显示 3 秒后自动切换为诊断视图。

@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：存储层 / Storage Layer Tests
+ * 游戏雷达 Game Radar - 测试：存储层 / Storage Layer Tests
  *
  * v4.2.0：吸收原 test-wrong-reports（报错纠正知识库）+ 新增
  * learned-noise（阈值 3 生效）/ registry（记录与查询）/ behavior（500 上限

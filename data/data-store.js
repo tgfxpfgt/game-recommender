@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 数据存储层 / Data Store Layer
+ * 游戏雷达 Game Radar - 数据存储层 / Data Store Layer
  *
  * 基于 OPFS（Origin Private File System）的分文件存储，突破
  * chrome.storage.local 5MB 配额限制。每个数据模块一个文件，文件格式按

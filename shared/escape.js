@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 共享 HTML 转义工具 / Shared HTML Escaping
+ * 游戏雷达 Game Radar - 共享 HTML 转义工具 / Shared HTML Escaping
  *
  * 供所有扩展页面（options/popup/dashboard/freegames）与内容脚本使用，
  * 消除各文件重复定义。动态内容渲染前必须转义（XSS 防护）。

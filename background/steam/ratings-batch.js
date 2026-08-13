@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 列表页批量好评率 / List-Page Rating Batches
+ * 游戏雷达 Game Radar - 列表页批量好评率 / List-Page Rating Batches
  *
  * v3.4.0：从 handlers.js 拆分——列表页两波好评率查询（缓存命中即时返回 +
  * 未命中后台批量拉取并增量推送）与下一页预载预热。SW 保活、限流降速、

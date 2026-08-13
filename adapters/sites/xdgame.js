@@ -1,5 +1,5 @@
 /**
- * Game Recommender - XDGame 下载站规则 / XDGame Site Rules
+ * 游戏雷达 Game Radar - XDGame 下载站规则 / XDGame Site Rules
  *
  * 详情页 URL：/game/数字.html（必须带 .html 后缀，排除 /game/数字/ 分类页）。
  * Detail pages: /game/{digits}.html (.html required; /game/{digits}/ are

@@ -27,7 +27,7 @@ import {
 } from '../storage/steam-cache.js';
 
 /**
- * Game Recommender - 消息处理：游戏缓存管理 / Cache Manager Handlers
+ * 游戏雷达 Game Radar - 消息处理：游戏缓存管理 / Cache Manager Handlers
  *
  * v5.0.0：由 handlers.js 拆分——缓存列表/删除/清空/单条刷新/过期清理。
  */

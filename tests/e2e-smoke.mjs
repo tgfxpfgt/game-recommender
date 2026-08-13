@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 浏览器端轻量冒烟测试（v3.3.9）
+ * 游戏雷达 Game Radar - 浏览器端轻量冒烟测试（v3.3.9）
  * Browser smoke test with playwright-core + system Edge (no browser download).
  *
  * 覆盖：1) 扩展可加载（MV3 manifest 合法）；2) popup 打开且无 console error；

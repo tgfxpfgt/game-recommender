@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 游民星空 下载站规则 / Gamersky Site Rules
+ * 游戏雷达 Game Radar - 游民星空 下载站规则 / Gamersky Site Rules
  *
  * 选择器式列表页（无 URL 特征），无站内搜索（仅行为追踪）。
  * Selector-based list pages (no URL pattern); no in-site search (tracking only).

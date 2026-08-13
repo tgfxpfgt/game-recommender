@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 行为日志 / 游戏画像 / 偏好模型
+ * 游戏雷达 Game Radar - 行为日志 / 游戏画像 / 偏好模型
  * Behavior Log, Game Profiles & User Preference Model
  *
  * 浏览行为（ND-JSON 追加写入）、游戏画像（views/downloads/keywords）、

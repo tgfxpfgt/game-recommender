@@ -1,4 +1,4 @@
-# Game Recommender - 游戏智能推荐
+# 游戏雷达 Game Radar - 游戏智能推荐
 
 基于浏览行为学习的 Chrome 浏览器扩展，自动预判游戏下载概率、集成 Steam 评分系统，并支持多下载站资源智能检索。
 
@@ -256,6 +256,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.0（中版本：正式更名 游戏雷达 Game Radar）
+- **品牌更名**：Game Recommender → **游戏雷达 Game Radar**（111 个文件全库替换：扩展名/页面标题/启动日志/文件头注释）
+- 命名结合功能特点：📡 下载站 Steam 好评率徽章（雷达扫描）· 🎯 行为学习智能推荐（雷达锁定）· 🎁 限免监控三类区分（雷达告警）
+- GitHub 仓库名 game-recommender 保留（技术标识，不影响克隆/URL）
+- **质量**：vitest 506 test 全过 · lint 0 · typecheck 0 · E2E 16/16
+
 ### v6.3.3（小版本：限免功能优化——三类区分 + 垃圾 key 过滤 + ITAD 二次校验）
 - **限免数据源确认**：Epic 已直连官方接口（freeGamesPromotions，非第三方中转）；Steam/GOG 以 **GamerPower 为主源**（其 end_date 字段分类可靠）+ 官方源（featuredcategories / GOG ajax）补充
 - **三类区分**（classifyFreeType 纯函数 + 页面标记）：✅ **limited 限时领取 100% OFF**（通知推送）· ⚠️ **weekend 免费周末**（标记，不推送）· ❌ **f2p 永久免费**（标记，不推送）——GOG 源按原价判定（basePrice=0 永久免费）
@@ -471,7 +477,7 @@ node --check options/options.js
 
 ### v3.3.15
 - **调试/状态浮窗默认禁用 + 开关**：
-  - 根因：`dbg()` 日志的 `scheduleDebugUpdate` → `refreshInBar` → `showDebugView` **无条件显示"🔧 Game Recommender 调试"浮窗**——`showDebugPanel`/`showStatusBar` 开关都关不掉它
+  - 根因：`dbg()` 日志的 `scheduleDebugUpdate` → `refreshInBar` → `showDebugView` **无条件显示"🔧 游戏雷达 Game Radar 调试"浮窗**——`showDebugPanel`/`showStatusBar` 开关都关不掉它
   - 修复：`showDebugView` 仅 **debugMode（showDebugPanel）开启**时显示；`showStatusBar` 默认改为 **false**（状态/诊断浮窗默认禁用）
   - **popup 新增"显示状态浮窗"开关**（调试窗口区，控制 showStatusBar）；设置页既有开关保留
 - E2E：验证默认禁用（页面无调试浮窗）→ popup 开启后浮窗渲染；全套 **264 项** + E2E 13/13 通过
@@ -691,7 +697,7 @@ node --check options/options.js
 - 测试：标题解析新增扩展变体（5 项）与噪声提取（5 项）用例；全套 **104 项**通过
 
 ### v3.1.1
-- **调试浮窗纳入统一管理**："Game Recommender 调试"视图改为经 GR.float 创建（统一 chrome 标题栏，与其他浮窗一致），点击 ✕ 关闭后**不再被日志防抖自动复活**（dismissed 标志）；重新开启调试模式（设置/弹窗）后恢复显示
+- **调试浮窗纳入统一管理**："游戏雷达 Game Radar 调试"视图改为经 GR.float 创建（统一 chrome 标题栏，与其他浮窗一致），点击 ✕ 关闭后**不再被日志防抖自动复活**（dismissed 标志）；重新开启调试模式（设置/弹窗）后恢复显示
 - **修复 gamer520 119668（幻世录 重制版）搜不到 Steam**：根因是标题"抢先试玩"不在噪声词表，parseGameTitle 首候选生成"幻世录 抢先试玩"导致 Steam 搜索空结果；噪声词表补充"抢先试玩/抢先体验/抢先/试玩/体验版"，中文子串候选同步清洗，首候选回归纯净游戏名"幻世录"（实测命中 appId 4030150；该游戏 0 评测，列表页显示灰色 AppID 徽章，详情页浮窗正常）
 - 测试：标题解析新增"抢先试玩噪声"用例（2 项），内容脚本模拟新增"调试视图关闭不复活"用例（4 项）；全套 **94 项**通过
 

@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Service Worker 入口 / Entry Point
+ * 游戏雷达 Game Radar - Service Worker 入口 / Entry Point
  *
  * 模块化架构（按功能分类拆分，便于维护升级）：
  *   core/      常量、工具、设置、适配规则、缓存重置
@@ -95,4 +95,4 @@ refreshFreeGames(false).catch((e) => console.error('启动限免刷新失败:', 
 // Startup log with the version, to verify the browser loaded the latest build
 const MANIFEST_VERSION = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || 'unknown';
 Logger.info('System', `Service Worker 已启动 v${MANIFEST_VERSION}`);
-console.log(`[Game Recommender] Service Worker 已启动 v${MANIFEST_VERSION}`);
+console.log(`【游戏雷达】 Service Worker 已启动 v${MANIFEST_VERSION}`);

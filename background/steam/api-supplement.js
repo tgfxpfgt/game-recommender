@@ -2,7 +2,7 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
 
 /**
- * Game Recommender - Steam API 子模块：api-supplement.js
+ * 游戏雷达 Game Radar - Steam API 子模块：api-supplement.js
  *
  * v5.0.0：由 steam/api.js 按职能拆分。
  * v6.2.1：SteamDB 网页抓取移除（fetchSteamDbInfo 仅产出展示链接且解析字段

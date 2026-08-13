@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 设置面板模块 / Settings Panel
+ * 游戏雷达 Game Radar - 设置面板模块 / Settings Panel
  *
  * 设置渲染、下载站与追踪管理、UI 切换、权重指示、LLM 测试。
  * 共享状态与保存方法经 window.__OPTS__ 访问（普通页面脚本顺序加载）。

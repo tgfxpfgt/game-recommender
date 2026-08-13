@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Steam API 编排器 / Steam API Orchestrator
+ * 游戏雷达 Game Radar - Steam API 编排器 / Steam API Orchestrator
  *
  * 详情页查询（searchSteamGame）与列表页轻量好评率查询（getSteamPositiveRate）：
  * 缓存优先 → Demo 自愈重搜 → 0 评测验证 → 三层缓存写入。

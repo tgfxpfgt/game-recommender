@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Gamer520 下载站规则 / Gamer520 Site Rules
+ * 游戏雷达 Game Radar - Gamer520 下载站规则 / Gamer520 Site Rules
  *
  * WordPress 主题，封面图引用 Steam CDN（queniuqe），列表页可 appId 直取。
  * WordPress theme; covers reference the Steam CDN (queniuqe), so list pages

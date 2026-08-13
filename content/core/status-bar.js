@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 工作状态/诊断统一浮窗 / Unified Status & Debug Bar
+ * 游戏雷达 Game Radar - 工作状态/诊断统一浮窗 / Unified Status & Debug Bar
  *
  * 单一右下角浮窗，按先后关系展示：
  *   1. 进行中：任务标题 + 进度条
@@ -95,7 +95,7 @@ export function showStats(stats) {
 // 渲染诊断视图：经 GR.float 统一管理（chrome 标题栏，✕ 关闭后不再自动复活）。
 // v3.3.15：仅 debugMode（showDebugPanel）开启时显示——此前 dbg 日志的
 // scheduleDebugUpdate 会无条件刷新调试视图，导致 showDebugPanel=false 时
-// 页面仍出现"🔧 Game Recommender 调试"浮窗。
+// 页面仍出现"🔧 游戏雷达 Game Radar 调试"浮窗。
 // Render the debug view (managed by GR.float; once dismissed it stays closed).
 // Since v3.3.15 it only shows when debugMode is on — dbg()'s refresh used to
 // render it regardless of the showDebugPanel setting.
@@ -106,7 +106,7 @@ export function showDebugView(html) {
     statusEl = float.create(float.ZONE.BOTTOM_RIGHT, 'gr-status-bar', {
       chrome: true,
       width: 380,
-      title: '🔧 Game Recommender 调试',
+      title: '🔧 游戏雷达 Game Radar 调试',
       onClose: () => {
         debugDismissed = true;
         statusEl = null;

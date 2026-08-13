@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 详情页模块 / Detail Page Module
+ * 游戏雷达 Game Radar - 详情页模块 / Detail Page Module
  *
  * 游戏名提取（去徽章/噪声分段）、Steam 信息浮窗（仿 Steam 右侧信息栏）、
  * 手动选择浮窗、下载历史浮窗、Steam 页下载站资源浮窗。

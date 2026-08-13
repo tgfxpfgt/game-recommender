@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Steam API 聚合入口 / Steam API Barrel
+ * 游戏雷达 Game Radar - Steam API 聚合入口 / Steam API Barrel
  *
  * v5.0.0：由 858 行单文件按职能拆分（api-search · api-details ·
  * api-reviews · api-supplement · api-assemble · api-registry-heal），

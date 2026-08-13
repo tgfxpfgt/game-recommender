@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 缓存过期清理 / Expired Cache Cleanup
+ * 游戏雷达 Game Radar - 缓存过期清理 / Expired Cache Cleanup
  *
  * v3.0.0：纯函数收集三类过期条目（Steam 动态缓存 / 名称负缓存 / 下载站网址），
  * 由 handlers 组装后写回。0 = 长期有效（Infinity）时全部保留。

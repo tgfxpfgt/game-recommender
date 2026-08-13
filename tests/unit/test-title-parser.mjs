@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：游戏标题解析 / Title Parser Tests
+ * 游戏雷达 Game Radar - 测试：游戏标题解析 / Title Parser Tests
  *
  * 验证 parseGameTitle / cleanGameName / pickRegistryEnName 的核心行为：
  * 噪声移除、分段（|/×•·）、中英文子串、优先级排序、两字游戏名。

@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 适配规则读取 / Adapter Rules
+ * 游戏雷达 Game Radar - 适配规则读取 / Adapter Rules
  *
  * 下载站适配规则与平台规则：用户导入的 storage.adapterRules 优先，
  * 否则使用内置 adapters/ 目录文件（通过副作用 import 挂到 globalThis）。

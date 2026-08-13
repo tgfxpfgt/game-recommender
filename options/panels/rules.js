@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 规则管理面板模块 / Adapter Rules Panel
+ * 游戏雷达 Game Radar - 规则管理面板模块 / Adapter Rules Panel
  *
  * v3.0.0：站点适配规则的查看、JSON 编辑（前端校验 + 后台二次校验）、
  * 保存覆盖内置、恢复内置、独立导出/导入。

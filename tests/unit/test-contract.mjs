@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：消息契约校验 / Message Contract Tests
+ * 游戏雷达 Game Radar - 测试：消息契约校验 / Message Contract Tests
  *
  * v4.0.0：验证 validateMessage 对 9 个高风险 action 的入参校验
  * （白名单 type、必填字段、数字 appId、类型约束），未契约化 action 放行。

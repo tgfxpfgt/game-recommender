@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 限免游戏管理 / Free Games Manager
+ * 游戏雷达 Game Radar - 限免游戏管理 / Free Games Manager
  *
  * 聚合 Epic / GOG / Steam / GamerPower 限免信息，每日刷新并去重；
  * 角标显示当天新增数量；领取状态标记。

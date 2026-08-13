@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 内存缓存重置 / In-Memory Cache Reset
+ * 游戏雷达 Game Radar - 内存缓存重置 / In-Memory Cache Reset
  *
  * 备份恢复/导入/清除数据后调用，聚合重置各存储模块的内存缓存，
  * 避免命中旧数据。

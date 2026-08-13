@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 详情页浮窗模板 / Detail-Page Float Templates
+ * 游戏雷达 Game Radar - 详情页浮窗模板 / Detail-Page Float Templates
  *
  * v5.1.0：由 detail-page.js 拆分——纯 HTML 模板函数（无 DOM 绑定），
  * 依赖仅 GR.common（转义/相对时间）。按钮绑定由逻辑层按元素 id 约定完成。

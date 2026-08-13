@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 内容脚本公共工具 / Content Common
+ * 游戏雷达 Game Radar - 内容脚本公共工具 / Content Common
  *
  * 命名空间 __GR__ 的初始化与通用工具（转义、站点、消息）。
  * 内容脚本各模块通过 globalThis.__GR__ 共享函数（经典脚本，非 module）。

@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Free Games Script
+ * 游戏雷达 Game Radar - Free Games Script
  * 限免游戏页面逻辑 / Free-games page logic
  *
  * Features:

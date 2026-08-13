@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 通用工具 / Utils
+ * 游戏雷达 Game Radar - 通用工具 / Utils
  *
  * 请求安全校验、带超时 fetch、正则提取封装等通用函数（仅依赖同层
  * outbound-audit 的审计/限速；无业务依赖）。

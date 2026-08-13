@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：Steam 编排器集成 / Orchestrator Integration Tests
+ * 游戏雷达 Game Radar - 测试：Steam 编排器集成 / Orchestrator Integration Tests
  *
  * v4.2.0：两波好评率流程的真实后台逻辑（此前 content-sim 用 presets mock
  * 整个后台，orchestrator 零覆盖）。mock fetch（Steam API）+ storage mock

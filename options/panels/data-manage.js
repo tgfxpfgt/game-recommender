@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 数据管理面板模块 / Data Management Panel
+ * 游戏雷达 Game Radar - 数据管理面板模块 / Data Management Panel
  *
  * 数据模块勾选（自定义备份/导入/导出）、导出/导入（JSON 单文件）、
  * 模块化备份创建/恢复、清除数据与恢复默认设置。
@@ -100,7 +100,7 @@
       const payload = JSON.parse(text);
       // 校验导出文件格式
       if (!payload || payload.format !== 'game-recommender-backup') {
-        throw new Error('不是有效的 Game Recommender 导出文件');
+        throw new Error('不是有效的 游戏雷达 Game Radar 导出文件');
       }
       const keys = getSelectedModuleKeys();
       const resp = await chrome.runtime.sendMessage({

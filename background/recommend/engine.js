@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 推荐算法引擎 / Recommendation Engine
+ * 游戏雷达 Game Radar - 推荐算法引擎 / Recommendation Engine
  *
  * v3.2.8 重构：内置算法改为 **appId 维度的个性化概率预测**——每个游戏的
  * 推荐值 = 该游戏的浏览/下载行为信号 + Steam 官方标签与用户偏好匹配 +

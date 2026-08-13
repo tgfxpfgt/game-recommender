@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 列表页徽章渲染 / List-Page Badges
+ * 游戏雷达 Game Radar - 列表页徽章渲染 / List-Page Badges
  *
  * v5.0.0：由 list-page.js 拆分——徽章创建/插入/三段式渲染/推荐徽章/
  * 高亮/DOM 移除。纯 DOM 无调度状态（prependBadge 的 settings 参数化）。

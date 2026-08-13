@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 下载站搜索 / Download Site Search
+ * 游戏雷达 Game Radar - 下载站搜索 / Download Site Search
  *
  * 多搜索词策略 + 跨语言匹配算法 + 链接匹配度评分；详情页元信息提取
  * （更新日期/版本/大小/网盘链接与提取码）；百度网盘链接拼接。

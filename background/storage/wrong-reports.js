@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 报错纠正记录 / Wrong-Report Corrections
+ * 游戏雷达 Game Radar - 报错纠正记录 / Wrong-Report Corrections
  *
  * v3.3.13：详情页检索错误时用户点"报错"/手动选择确认正确 appid 的**长期记录**
  * （独立数据模块，不随缓存清理删除）。检索时人工纠正知识库优先，并排除曾

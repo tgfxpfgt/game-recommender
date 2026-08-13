@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 设置页入口 / Options Entry
+ * 游戏雷达 Game Radar - 设置页入口 / Options Entry
  *
  * 模块化架构（经典脚本顺序加载，经 window.__OPTS__ 共享状态）：
  *   shared/escape.js      全局转义工具
@@ -53,7 +53,7 @@
       OPTS.loadDataModules(); // 数据模块清单（勾选 UI）
       OPTS.loadBackupsSelect(); // 备份列表（恢复下拉）
     } catch (e) {
-      console.error('[Game Recommender] 设置页加载失败:', e);
+      console.error('【游戏雷达】 设置页加载失败:', e);
     }
   });
 

@@ -40,7 +40,7 @@ export function namesRelated(title, cachedName) {
 }
 
 /**
- * Game Recommender - Steam API 子模块：api-search.js
+ * 游戏雷达 Game Radar - Steam API 子模块：api-search.js
  *
  * v5.0.0：由 steam/api.js 按职能拆分。
  */

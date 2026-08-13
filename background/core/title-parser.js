@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 游戏标题解析 / Game Title Parser
+ * 游戏雷达 Game Radar - 游戏标题解析 / Game Title Parser
  *
  * 从下载站标题中解析可用于 Steam 搜索的候选名称（去噪声、分段、
  * 中英文子串提取、优先级排序）。

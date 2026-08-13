@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 出站请求审计与限速 / Outbound Request Audit & Rate Limit
+ * 游戏雷达 Game Radar - 出站请求审计与限速 / Outbound Request Audit & Rate Limit
  *
  * v3.4.1：fetchWithTimeout 唯一出站通道的配套模块——
  *   ① 环形缓冲审计：记录每次出站请求（主机/耗时/状态/成败），供 dashboard

@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 设置管理 / Settings
+ * 游戏雷达 Game Radar - 设置管理 / Settings
  *
  * 扩展配置的读取（5s 内存缓存）、保存、初始化，以及缓存 TTL 配置的动态刷新。
  * Settings read (5s in-memory cache), save, init, and cache-TTL refresh.

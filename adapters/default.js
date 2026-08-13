@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 基础共用适配规则 / Default Shared Adapter Rules
+ * 游戏雷达 Game Radar - 基础共用适配规则 / Default Shared Adapter Rules
  *
  * 所有下载站/平台规则都会合并本文件的基础配置（站点规则中未显式定义的
  * 字段使用这里的默认值）。修改通用行为（如默认标题长度、通用详情页 URL

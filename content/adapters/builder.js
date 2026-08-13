@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 站点适配器构建 / Site Adapter Builder
+ * 游戏雷达 Game Radar - 站点适配器构建 / Site Adapter Builder
  *
  * 从适配规则（用户导入 storage 优先，否则内置 adapters/）构建站点适配器表；
  * 提供站点查询与图片 appId 提取工具。

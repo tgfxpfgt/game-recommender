@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 名称索引 / Name Index
+ * 游戏雷达 Game Radar - 名称索引 / Name Index
  *
  * 游戏名（小写）→ appId 反查索引（O(1)），带清理名键（跨站变体命中）、
  * 24h 级负缓存（appId=null，含过期清理）。内存 Map + 防抖批量写入。

@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Popup Script
+ * 游戏雷达 Game Radar - Popup Script
  * 弹窗逻辑 / Popup logic
  *
  * Features:
@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
     settings = response?.settings;
   } catch (e) {
-    console.warn('[Game Recommender] 加载设置失败:', e);
+    console.warn('【游戏雷达】 加载设置失败:', e);
   }
   if (!settings) {
     document.body.insertAdjacentHTML(

@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 内容脚本入口 / Content Script Entry
+ * 游戏雷达 Game Radar - 内容脚本入口 / Content Script Entry
  *
  * v6.0.0：内容脚本 ESM 化（动态 import 路径）——Chrome content_scripts 官方
  * 不支持原生 ESM，本入口保持经典脚本，内部 await import() 并行加载模块

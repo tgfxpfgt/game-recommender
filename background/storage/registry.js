@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 游戏注册表 / Game Registry
+ * 游戏雷达 Game Radar - 游戏注册表 / Game Registry
  *
  * 以 appId 为唯一标识的游戏信息（中英文名以 Steam 官方为准、名称变体、
  * Steam 标签、封面图）。永久保留，超过重确认周期后重新从 Steam 确认。

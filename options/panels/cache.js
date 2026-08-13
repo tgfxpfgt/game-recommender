@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 游戏缓存面板模块 / Game Cache Panel
+ * 游戏雷达 Game Radar - 游戏缓存面板模块 / Game Cache Panel
  *
  * 缓存管理页：多条件检索（关键词/好评率/标签/站点）、封面缩略图、
  * 好评率徽章、可点击 AppID、手动更新、分页、删除与清空。

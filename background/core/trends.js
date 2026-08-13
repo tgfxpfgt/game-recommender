@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 行为趋势聚合 / Behavior Trend Aggregation
+ * 游戏雷达 Game Radar - 行为趋势聚合 / Behavior Trend Aggregation
  *
  * v4.0.0：将行为日志（ND-JSON ≤500 条）按天分桶，输出"浏览/下载/转化率"
  * 时间序列，供 dashboard 趋势图渲染。纯函数、零依赖（core 层，可单测）。

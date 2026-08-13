@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 咸鱼单机 下载站规则 / Xianyudanji Site Rules
+ * 游戏雷达 Game Radar - 咸鱼单机 下载站规则 / Xianyudanji Site Rules
  *
  * WordPress 主题，文章卡片 class="post post-grid"，标题在 h2.entry-title。
  * 详情页 URL：/数字.html 或 /xxx/ 一级路径。

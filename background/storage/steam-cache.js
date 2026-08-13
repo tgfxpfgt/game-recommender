@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Steam 动态缓存（模块化）/ Steam Dynamic Cache (modular)
+ * 游戏雷达 Game Radar - Steam 动态缓存（模块化）/ Steam Dynamic Cache (modular)
  *
  * v3.3.7 起缓存条目按**字段模块**组织，每模块独立有效期、独立刷新：
  *   entry = { modules: { meta: {data, ts}, rating: {data, ts},

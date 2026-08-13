@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：推荐算法 / Recommendation Engine Tests
+ * 游戏雷达 Game Radar - 测试：推荐算法 / Recommendation Engine Tests
  *
  * v3.2.8：验证 appId 维度个性化评分——不同游戏的推荐值不同，
  * 行为信号/标签匹配/好评率/中文支持各分量正确，画像查找兼容名称变体。

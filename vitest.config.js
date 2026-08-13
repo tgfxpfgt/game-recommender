@@ -1,5 +1,5 @@
 /**
- * Game Recommender - Vitest 配置 / Vitest Config
+ * 游戏雷达 Game Radar - Vitest 配置 / Vitest Config
  *
  * v6.0.0：content 目录模块以原生 Node ESM 加载（inline）——tracker 经典入口
  * 的变量动态 import（import(chrome.runtime.getURL(...))）在 vite-node 转换下

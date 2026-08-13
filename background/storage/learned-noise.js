@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 动态噪声词学习 / Learned Noise Words
+ * 游戏雷达 Game Radar - 动态噪声词学习 / Learned Noise Words
  *
  * v3.1.2：自适应检索的自动学习存储。每次"扩展组合搜索成功且跳过了某词"时
  * 为该词计数；同一词被足够多次（阈值 3）不同标题确认后成为"生效噪声词"，

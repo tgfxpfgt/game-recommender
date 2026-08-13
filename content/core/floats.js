@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 统一浮窗管理器 / Unified Float Manager
+ * 游戏雷达 Game Radar - 统一浮窗管理器 / Unified Float Manager
  *
  * v3.1.0：所有扩展浮窗（状态栏/诊断、Steam 信息、下载站资源、下载历史）
  * 统一经 GR.float 创建与管理：分区定位（右上/右下/左下）、同区纵向堆叠防重叠、
@@ -76,7 +76,7 @@ export function create(zone, id, opts = {}) {
         cursor:default;user-select:none;
       `;
       const title = document.createElement('span');
-      title.textContent = opts.title || 'Game Recommender';
+      title.textContent = opts.title || '游戏雷达 Game Radar';
       title.style.cssText = 'flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
       const foldBtn = document.createElement('span');
       foldBtn.textContent = '▾';

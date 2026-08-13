@@ -11,7 +11,7 @@ import { DEMO_NAME_PATTERN } from './api-search.js';
 import { fetchSteamSpyInfo } from './api-supplement.js';
 
 /**
- * Game Recommender - Steam API 子模块：api-assemble.js
+ * 游戏雷达 Game Radar - Steam API 子模块：api-assemble.js
  *
  * v5.0.0：由 steam/api.js 按职能拆分。
  */

@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：Steam API 纯函数 / Steam API Pure Functions
+ * 游戏雷达 Game Radar - 测试：Steam API 纯函数 / Steam API Pure Functions
  *
  * v4.2.0：由原 test-cleanup 拆分（0~0.14 节）——coverImageFor /
  * nameMatchesSearch / baseAppIdFromDetails / isFailedRatingEntry /

@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：限免平台分类 / Free-Games Classification Tests
+ * 游戏雷达 Game Radar - 测试：限免平台分类 / Free-Games Classification Tests
  *
  * v4.2.0：classifyGamerPowerGiveaway（官方直领 vs 第三方 key 领取）与
  * extractThirdPartySource（来源识别）——v4.1.0 起已导出纯函数。

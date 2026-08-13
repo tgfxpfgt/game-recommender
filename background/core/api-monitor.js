@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - Steam API 状态监测 / Steam API Monitor
+ * 游戏雷达 Game Radar - Steam API 状态监测 / Steam API Monitor
  *
  * v3.3.0：滑动窗口统计 Steam API 调用（成功/失败/限流状态码），
  * 失败率超阈值判定为"异常/限流"状态，供弹窗提醒与批量检索降速。

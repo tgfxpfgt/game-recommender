@@ -1,6 +1,6 @@
 import { test, expect } from 'vitest';
 /**
- * Game Recommender - 测试：安全与工具 / Security & Utility Tests
+ * 游戏雷达 Game Radar - 测试：安全与工具 / Security & Utility Tests
  *
  * v4.2.0：SSRF 校验（isSafeFetchUrl）、ND-JSON 编解码、regexExecAll、
  * 缓存 TTL 解析、中英文名异常谓词。静态扫描节（TDZ/语法/manifest/双源）

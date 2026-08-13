@@ -1,5 +1,5 @@
 /**
- * Game Recommender - 适配规则聚合入口 / Adapter Rules Aggregation Entry
+ * 游戏雷达 Game Radar - 适配规则聚合入口 / Adapter Rules Aggregation Entry
  *
  * 合并基础共用规则（default.js）与各下载站规则（sites/*.js）为统一的
  * __GAME_RECOMMENDER_SITES__，供内容脚本与 Service Worker 使用。

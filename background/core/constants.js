@@ -1,6 +1,6 @@
 // @ts-strict
 /**
- * Game Recommender - 常量与配置 / Constants & Config
+ * 游戏雷达 Game Radar - 常量与配置 / Constants & Config
  *
  * 全局常量集中定义（无依赖模块）。所有模块从这里 import 常量，
  * 保证顶层初始化顺序安全（TDZ 免疫）。

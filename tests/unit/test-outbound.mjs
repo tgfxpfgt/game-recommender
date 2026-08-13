@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeAll, afterAll } from 'vitest';
 /**
- * Game Recommender - 测试：出站审计与限速 / Outbound Audit & Rate Limit Tests
+ * 游戏雷达 Game Radar - 测试：出站审计与限速 / Outbound Audit & Rate Limit Tests
  *
  * v3.4.1：验证 outbound-audit 环形缓冲/统计/限速窗口，以及
  * fetchWithTimeout 的审计接入（成功/网络错误/被拦截/被限速四条路径）。
