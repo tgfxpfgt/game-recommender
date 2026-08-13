@@ -19,7 +19,8 @@ const MAX_WORDS = 200;
 // 防抖写入 / debounced write
 const WRITE_DEBOUNCE = 2000;
 
-let noiseMemory = null;
+/** @type {Object<string, number>} */
+let noiseMemory = {};
 let loaded = false;
 
 async function load() {
@@ -76,7 +77,7 @@ export async function recordNoiseCandidates(words) {
 
 // 重置（备份恢复/导入/清除后调用）/ Reset（v5.1.0：writer.reset 收敛）
 export function resetLearnedNoise() {
-  noiseMemory = null;
+  noiseMemory = {};
   loaded = false;
   writer.reset();
 }

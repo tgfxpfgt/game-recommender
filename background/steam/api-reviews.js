@@ -176,6 +176,11 @@ export async function fetchReviewSummary(appId) {
 // 显示发行日附近——语义"无后续更新"）。失败返回 null（UI 隐藏该部分）。
 // Last-update date: Steam exposes no such field; the newest announcement date
 // approximates it (GetNewsForApp is keyless). Null on failure (UI hides it).
+/**
+ * 获取最近更新日期（最新公告时间戳）
+ * @param {string|number} appId
+ * @returns {Promise<string|null>} - YYYY-MM-DD
+ */
 export async function fetchLastUpdate(appId) {
   try {
     const resp = await fetchWithTimeout(
@@ -194,6 +199,7 @@ export async function fetchLastUpdate(appId) {
 }
 
 export async function fetchChineseReviews(appId) {
+  /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
   let cnReviewSummary = null;
   let chineseReviews = [];
   try {
@@ -222,7 +228,7 @@ export async function fetchChineseReviews(appId) {
       }
     }
   } catch (e) {
-    Logger.debug('Steam', '获取中文评价失败:', e.message);
+    Logger.debug('Steam', '获取中文评价失败:', String(e));
   }
   return { cnReviewSummary, chineseReviews };
 }

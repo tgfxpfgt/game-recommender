@@ -12,6 +12,7 @@ import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 
 let logBuffer = [];
+/** @type {{enableLog: boolean, minLevel: number, logStorage: string, logRetentionDays: number, maxRuntimeLog: number}|null} */
 let logConfig = null; // 日志配置缓存（v3.4.1：高频 writeLog 不再每次读设置）
 let logConfigChecked = 0; // 上次刷新时间戳
 

@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 游戏标题解析 / Game Title Parser
  *

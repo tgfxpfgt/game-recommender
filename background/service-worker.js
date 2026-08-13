@@ -62,7 +62,7 @@ async function ensureAlarm(name, periodInMinutes) {
     if (existing && existing.periodInMinutes === periodInMinutes) return;
     chrome.alarms.create(name, { periodInMinutes });
   } catch (e) {
-    console.error('alarm 创建失败:', name, e.message);
+    console.error('alarm 创建失败:', name, String(e));
   }
 }
 
@@ -75,21 +75,21 @@ async function setupBackupAlarm() {
   const intervalMinutes = (settings.backupIntervalHours || 24) * 60;
   await ensureAlarm('autoBackup', intervalMinutes);
 }
-setupBackupAlarm().catch((e) => console.error('自动备份定时器初始化失败:', e.message));
+setupBackupAlarm().catch((e) => console.error('自动备份定时器初始化失败:', String(e)));
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {
-    refreshFreeGames(true).catch((e) => console.error('限免刷新失败:', e.message));
+    refreshFreeGames(true).catch((e) => console.error('限免刷新失败:', String(e)));
   }
   if (alarm.name === 'autoBackup') {
     getSettings().then((settings) => {
-      if (settings.autoBackup) createBackup(false).catch((e) => console.error('自动备份失败:', e.message));
+      if (settings.autoBackup) createBackup(false).catch((e) => console.error('自动备份失败:', String(e)));
     });
   }
 });
 
 // 启动时刷新限免游戏并更新 badge / Refresh free games on startup
-refreshFreeGames(false).catch((e) => console.error('启动限免刷新失败:', e.message));
+refreshFreeGames(false).catch((e) => console.error('启动限免刷新失败:', String(e)));
 
 // 启动日志（含版本号，便于确认浏览器加载的是否为最新版本）
 // Startup log with the version, to verify the browser loaded the latest build

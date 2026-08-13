@@ -25,7 +25,9 @@ jobs:
         run: npm ci
       - name: 运行 Lint / Run ESLint
         run: npm run lint
-      - name: 运行测试套件（vitest 14 套件全量）/ Run test suites
+      - name: 运行类型检查 / Run TypeScript check
+        run: npm run typecheck
+      - name: 运行测试套件（vitest 16 套件全量）/ Run test suites
         run: npm test
 
   e2e:

@@ -15,6 +15,11 @@ import { Logger } from './logger.js';
 
 // 创建备份（moduleKeys 可选：勾选要备份的模块，默认全部）
 // Create a backup (moduleKeys optional; defaults to all modules)
+/**
+ * 创建备份（moduleKeys 可选）
+ * @param {boolean} [manual]
+ * @param {Array<string>|null} [moduleKeys]
+ */
 export async function createBackup(manual = false, moduleKeys = null) {
   try {
     const modules = moduleKeys ? DATA_MODULES.filter((m) => moduleKeys.includes(m.key)) : DATA_MODULES;
@@ -57,7 +62,7 @@ export async function createBackup(manual = false, moduleKeys = null) {
     });
     return backup;
   } catch (e) {
-    Logger.error('Backup', '创建备份失败', e.message);
+    Logger.error('Backup', '创建备份失败', String(e));
     return null;
   }
 }
@@ -79,6 +84,11 @@ export async function getBackupList() {
 
 // 恢复备份（moduleKeys 可选：勾选要恢复的模块，默认全部）
 // Restore a backup (moduleKeys optional; defaults to all modules)
+/**
+ * 恢复备份
+ * @param {string} backupId
+ * @param {Array<string>|null} [moduleKeys]
+ */
 export async function restoreBackup(backupId, moduleKeys = null) {
   try {
     const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
@@ -110,8 +120,8 @@ export async function restoreBackup(backupId, moduleKeys = null) {
     Logger.info('Backup', `已恢复备份 ${backupId}`, { modules: modules.map((m) => m.key).length });
     return { success: true };
   } catch (e) {
-    Logger.error('Backup', '恢复备份失败', e.message);
-    return { success: false, error: e.message };
+    Logger.error('Backup', '恢复备份失败', String(e));
+    return { success: false, error: String(e) };
   }
 }
 

@@ -41,7 +41,10 @@ const MODULE_FILES = {
 class DataStore {
   constructor() {
     this.opfsAvailable = false;
-    this.dir = null;
+    // opfsAvailable 为 true 时 dir 必已赋值（init 成功后）——类型断言避免
+    // 全文件 guard 破坏 storage.local 回退路径（v6.3.1 strict 教训）
+    /** @type {FileSystemDirectoryHandle} */
+    this.dir = /** @type {FileSystemDirectoryHandle} */ (/** @type {unknown} */ (null));
     this._initPromise = null;
     // v3.4.1：模块级写串行队列（并发追加/写入同一文件时不互相覆盖）
     this._writeQueues = {};
@@ -76,7 +79,7 @@ class DataStore {
       }
     } catch (e) {
       this.opfsAvailable = false;
-      console.warn('[DataStore] OPFS 不可用，降级到 chrome.storage.local:', e.message);
+      console.warn('[DataStore] OPFS 不可用，降级到 chrome.storage.local:', String(e));
     }
     if (this.opfsAvailable) {
       await this._migrateFromStorage();
@@ -103,7 +106,7 @@ class DataStore {
         console.log(`[DataStore] 已迁移 ${migrated} 个模块到 OPFS`);
       }
     } catch (e) {
-      console.warn('[DataStore] 迁移失败:', e.message);
+      console.warn('[DataStore] 迁移失败:', String(e));
     }
   }
 
@@ -133,6 +136,7 @@ class DataStore {
   // Corrupt file recovery: back the raw bytes up as <name>.corrupt-<ts>, reset
   // the module to its empty default (avoids crash-looping on every read)
   async _backupCorruptFile(fileHandle, file) {
+    if (!this.dir) return;
     try {
       const backupName = fileHandle.name + '.corrupt-' + Date.now();
       const backupHandle = await this.dir.getFileHandle(backupName, { create: true });
@@ -140,7 +144,7 @@ class DataStore {
       await writable.write(await file.text());
       await writable.close();
     } catch (e) {
-      console.warn('[DataStore] 损坏文件备份失败:', e.message);
+      console.warn('[DataStore] 损坏文件备份失败:', String(e));
     }
   }
 
@@ -159,7 +163,7 @@ class DataStore {
     } catch (e) {
       // v3.4.1：损坏数据备份后重置为默认值（JSON 解析失败才走恢复路径；
       // NDJSON 内部已跳过损坏行）
-      console.warn(`[DataStore] ${fileHandle.name} 数据损坏，备份后重置:`, e.message);
+      console.warn(`[DataStore] ${fileHandle.name} 数据损坏，备份后重置:`, String(e));
       await this._backupCorruptFile(fileHandle, file);
       try {
         await this._resetFile(fileHandle);
@@ -181,11 +185,12 @@ class DataStore {
         const handle = await this.dir.getFileHandle(cfg.file, { create: false });
         return await this._readHandle(handle, cfg.format);
       } catch (e) {
-        if (e && e.name === 'NotFoundError') {
+        const err = /** @type {{name?: string}} */ (e);
+        if (err && err.name === 'NotFoundError') {
           const stored = await chrome.storage.local.get(moduleKey);
           return stored[moduleKey];
         }
-        console.warn(`[DataStore] 读取 ${moduleKey} 失败:`, e.message);
+        console.warn(`[DataStore] 读取 ${moduleKey} 失败:`, String(e));
       }
     }
     const stored = await chrome.storage.local.get(moduleKey);
@@ -206,7 +211,7 @@ class DataStore {
           await this._writeHandle(handle, value, cfg.format);
           return;
         } catch (e) {
-          console.warn(`[DataStore] 写入 ${moduleKey} 到 OPFS 失败:`, e.message);
+          console.warn(`[DataStore] 写入 ${moduleKey} 到 OPFS 失败:`, String(e));
         }
       }
       await chrome.storage.local.set({ [moduleKey]: value });
@@ -232,7 +237,7 @@ class DataStore {
           await writable.close();
           return;
         } catch (e) {
-          console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, e.message);
+          console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, String(e));
         }
       }
       // 降级：读-改-写 / fallback: read-modify-write

@@ -10,6 +10,7 @@
 'use strict';
 
 export function createDebouncedStore({ name, save, debounceMs }) {
+  /** @type {ReturnType<typeof setTimeout>|null} */
   let timer = null;
 
   // 防抖排程：debounceMs 内重复调用只触发一次写入 / schedule a write
@@ -20,7 +21,7 @@ export function createDebouncedStore({ name, save, debounceMs }) {
       try {
         await save();
       } catch (e) {
-        console.error(`${name}写入失败:`, e.message);
+        console.error(`${name}写入失败:`, String(e));
       }
     }, debounceMs);
   }

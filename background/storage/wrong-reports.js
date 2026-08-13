@@ -14,7 +14,8 @@ import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE } from '../core/constants.js';
 import { createDebouncedStore } from './debounced-store.js';
 
-let wrongReportsMemory = null; // Map: gameName(原文) → { wrongAppId, correctAppId, count, reportedAt, correctedAt }
+/** @type {Map<string, {wrongAppId: string|null, correctAppId: string|null, count: number, reportedAt: number, correctedAt: number|null}>} */
+let wrongReportsMemory = new Map(); // Map: gameName(原文) → { wrongAppId, correctAppId, count, reportedAt, correctedAt }
 let wrongReportsLoaded = false;
 
 // 加载记录到内存（首次从存储读取）/ Load into memory (once)
@@ -37,7 +38,8 @@ export async function recordWrongReport(gameName, info = {}) {
   if (!name) return;
   await loadWrongReports();
   const now = Date.now();
-  const existing = wrongReportsMemory.get(name) || {};
+  /** @type {{wrongAppId: string|null, correctAppId: string|null, count: number, reportedAt: number, correctedAt: number|null}} */
+  const existing = wrongReportsMemory.get(name) || { wrongAppId: null, correctAppId: null, count: 0, reportedAt: 0, correctedAt: null };
   const entry = {
     wrongAppId: info.wrongAppId !== undefined ? String(info.wrongAppId) : existing.wrongAppId || null,
     correctAppId: info.correctAppId !== undefined ? String(info.correctAppId) : existing.correctAppId || null,
@@ -81,7 +83,7 @@ export const flushWrongReports = writer.flush;
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetWrongReports() {
-  wrongReportsMemory = null;
+  wrongReportsMemory = new Map();
   wrongReportsLoaded = false;
   writer.reset();
 }

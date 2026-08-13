@@ -115,8 +115,8 @@ export async function handleImportData(message) {
     Logger.info('Import', `导入数据模块: ${imported.join(', ')}`);
     return { success: true, imported };
   } catch (e) {
-    Logger.error('Import', '导入失败', e.message);
-    return { success: false, error: e.message };
+    Logger.error('Import', '导入失败', String(e));
+    return { success: false, error: String(e) };
   }
 }
 

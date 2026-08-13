@@ -11,7 +11,8 @@ import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
 
-let registryMemory = null;
+/** @type {Record<string, any>} */
+let registryMemory = {};
 let registryMemoryLoaded = false;
 let registryDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
@@ -30,6 +31,11 @@ export async function getGameRegistry() {
 }
 
 // 获取单个游戏注册条目 / Get a single registry entry
+/**
+ * 读取注册表条目
+ * @param {string|number} appId
+ * @returns {Promise<Object|null>}
+ */
 export async function getGameRegistryEntry(appId) {
   if (!appId) return null;
   const registry = await getGameRegistry();
@@ -37,6 +43,11 @@ export async function getGameRegistryEntry(appId) {
 }
 
 // 记录/更新游戏到注册表 / Record/update a game in the registry
+/**
+ * 记录游戏到注册表
+ * @param {string|number} appId
+ * @param {{cnName?: string, enName?: string, gameName?: string, tags?: Array<string>|null, coverImage?: string|null, type?: string|null}} data
+ */
 export async function recordGameInRegistry(
   appId,
   { cnName = '', enName = '', gameName = '', tags = null, coverImage = null, type = null }
@@ -44,7 +55,12 @@ export async function recordGameInRegistry(
   if (!appId) return;
   await loadRegistryToMemory();
   const key = String(appId);
-  const existing = registryMemory[key] || { firstSeen: Date.now(), names: [] };
+  const existing =
+    registryMemory[key] ||
+    /** @type {{firstSeen: number, names: Array<string>, tags?: Array<string>, cnName?: string, enName?: string, coverImage?: string}} */ ({
+      firstSeen: Date.now(),
+      names: /** @type {Array<string>} */ ([])
+    });
 
   if (cnName) existing.cnName = cnName;
   if (enName) existing.enName = enName;
@@ -97,13 +113,13 @@ export async function flushRegistry() {
   try {
     await dataStore.writeModule(DB_KEYS.GAME_REGISTRY, registryMemory);
   } catch (e) {
-    console.error('注册表写入失败:', e.message);
+    console.error('注册表写入失败:', String(e));
   }
 }
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetRegistry() {
-  registryMemory = null;
+  registryMemory = {};
   registryMemoryLoaded = false;
   registryDirty = false;
 }

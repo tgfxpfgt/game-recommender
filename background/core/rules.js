@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 适配规则读取 / Adapter Rules
  *
@@ -11,6 +12,7 @@ import { isPlainObject } from './utils.js';
 import { DB_KEYS, DEFAULT_SETTINGS } from './constants.js';
 
 let siteRulesCache = null;
+/** @type {Array<{key: string, name: string, searchUrl: Function, base: string}>|null} */
 let downloadSitesCache = null;
 
 // 读取下载站适配规则 / Read download-site adapter rules
@@ -31,7 +33,8 @@ export async function getSiteRules() {
 // 下载站配置（含站内搜索的站点，从规则构建）/ Download-site config (searchable sites)
 export async function getDownloadSites() {
   if (downloadSitesCache) return downloadSitesCache;
-  const rules = await getSiteRules();
+  /** @type {{sites: Array<{key: string, name: string, searchUrl: string, base: string}>}} */
+  const rules = (await getSiteRules()) || { sites: [] };
   downloadSitesCache = (rules.sites || [])
     .filter((s) => s.searchUrl)
     .map((s) => ({

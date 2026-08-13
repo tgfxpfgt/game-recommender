@@ -58,11 +58,13 @@ function isDemoCacheWithoutRating(cachedData) {
  */
 export async function searchSteamGame(gameName) {
   // 1. 通过名称索引查找 appId / Lookup appId via name index
+  /** @type {string|number|null} */
   let appId = await lookupAppIdByName(gameName);
 
   // 1.5 人工纠正知识库优先（v3.3.13）：该标题曾报错并手动确认了正确 appid——
   // 用户确认 > 自动匹配；同时清除该名负缓存（纠正名不应被负缓存拦截）
   const correction = await lookupWrongReportCorrection(gameName);
+  /** @type {string|number|null} */
   let excludeAppId = null;
   if (correction) {
     appId = correction.correctAppId;
@@ -243,8 +245,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   try {
     // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取评价；
     //    v3.3.13：排除曾报错的错误 appid）
+    /** @type {string|number|null} */
     let foundAppId = usableAppId;
     let foundName = gameName;
+    /** @type {import('../core/types.js').SteamSearchResult|null} */
     let searchResult = null;
     // 该标题曾报错：错误 appid 作为黑名单排除（全流程复用，含 0 评测重搜）
     const corr = await lookupWrongReportCorrection(gameName);
@@ -270,6 +274,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     // other non-base types (bundle/mod/music) return a type marker. Skipped when
     // the cache already carries a type (already validated/resolved) or the name
     // shows no add-on hints — saves 1 request per game (~20% fewer in batch).
+    /** @type {string|null} */
     let appType = null;
     if (foundAppId) {
       // v3.3.7：缓存 type 从合并视图读取（meta 模块）
@@ -313,8 +318,11 @@ export async function getSteamPositiveRate(gameName, options = {}) {
         type: appType || 'game'
       };
     }
+    /** @type {number|null} */
     let positiveRate = null;
+    /** @type {string|null} */
     let ratingDesc = null;
+    /** @type {number|null} */
     let recentRate = null;
     let recentTotal = 0;
     if (reviewSummary) {
@@ -417,8 +425,8 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       releaseDate: existing.releaseDate || ''
     };
   } catch (e) {
-    Logger.warn('Steam', `获取好评率异常: ${gameName}`, e.message);
-    Logger.debug('Steam', '获取Steam好评率失败:', e.message);
+    Logger.warn('Steam', `获取好评率异常: ${gameName}`, String(e));
+    Logger.debug('Steam', '获取Steam好评率失败:', String(e));
     return null;
   }
 }

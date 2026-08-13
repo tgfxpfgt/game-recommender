@@ -1,3 +1,4 @@
+// @ts-strict
 import { isPlainObject } from './utils.js';
 /**
  * Game Recommender - 消息契约校验 / Message Contract Validation

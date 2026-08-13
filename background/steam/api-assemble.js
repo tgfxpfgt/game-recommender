@@ -26,7 +26,7 @@ export function buildSteamResult(
   reviews,
   steamspyInfo,
   enGameData,
-  lastUpdate = null
+  /** @type {string|null} */ lastUpdate = null
 ) {
   const { reviewSummary, cnReviewSummary, chineseReviews } = reviews;
   const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;

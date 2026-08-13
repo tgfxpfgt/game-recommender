@@ -137,7 +137,7 @@ export async function handleGetSteamByAppId(message) {
     Logger.info('Steam', `通过 appId ${target.appId} 直接获取: ${target.name}`);
     return { data: target, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
   } catch (e) {
-    Logger.error('Steam', `通过 appId ${appId} 获取失败: ${e.message}`);
+    Logger.error('Steam', `通过 appId ${appId} 获取失败: ${String(e)}`);
     return { data: null, cachedAt: null };
   }
 }
@@ -242,7 +242,7 @@ export async function handleCacheSteamPage(message) {
     Logger.info('Steam', `Steam 商品页缓存预取: appId ${appId} (${result.name})`);
     return { success: true, cached: false };
   } catch (e) {
-    Logger.warn('Steam', `Steam 商品页缓存预取失败: appId ${appId}`, e.message);
+    Logger.warn('Steam', `Steam 商品页缓存预取失败: appId ${appId}`, String(e));
     return { success: false };
   }
 }

@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 常量与配置 / Constants & Config
  *

@@ -256,6 +256,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.3.1（小版本：TS strict 全量开启 + 工程护栏）
+- **TS strict 全量开启**（`strict: true`，191 → 0 错误）：background + data 全层 strict 编译期防线（null/undefined 类 bug 前置拦截）；修复过程中发现并规避两个回归：`e.message → String(e)`（catch unknown 安全化，仅日志层）、steam-cache `nextModules` 惰性初始化必须保持（类型标注用 optional 而非预初始化）、data-store 的 guard 会破坏 OPFS 不可用时的 storage.local 回退（改用类型断言）
+- **A1 CI 补 typecheck 门禁**（此前类型回归 CI 不拦截）
+- **A3 adapters 清单一致性断言**（manifest/SW/options.html 三处 + 目录实测防漂移，+2 test）
+- **A4 typedef 补全**：MessagePayload 全字段（limit/force/keyword/tag/granularity/rules 等）、AppSettings 精确化（weights 六项/llmConfig/badgeVisibility/trackedSites/maxBehaviorLog）、新增 SteamSearchResult/GameResult/RecommendResult
+- **质量**：vitest 496 test（3 次稳定）· lint 0 · typecheck 0（strict）· E2E 16/16
+
 ### v6.3.0（中版本：报告路线落地——契约 100% + 类型化全层 + 盲区补强 + 权限收窄）
 - **消息契约化 100% 收尾**（52/52）：第四批补 9 个读类 action（GET_TRENDS 校验 granularity day|week）；"渐进式"标签摘除
 - **类型化扩展**（core → background 全层）：tsc include 扩至 `background/**`，storage/steam/handlers/recommend 全层 checkJs；修复 engine.js JSDoc 错位绑定（steamspyScores 抢占 computeGameScore 的 JSDoc——JSDoc 必须紧贴函数）

@@ -198,3 +198,26 @@ const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8')
 test('package.json 版本与 manifest 一致', () => { expect(pkg.version).toEqual(manifest.version); });
 test('CSP 显式声明（extension_pages 默认基线）', () => { expect(JSON.stringify(manifest.content_security_policy || {})).toEqual(JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" })); });
 
+
+// 6. adapters 清单一致性（v6.3.1：manifest/SW/options.html 三处手写同步防漂移）
+console.log('6. adapters 清单一致性（manifest/SW/options.html + 目录实测）');
+const swSrc2 = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
+const optsHtml = fs.readFileSync(path.join(ROOT, 'options/options.html'), 'utf-8');
+const manifestAdapters = (manifest.content_scripts || [])
+  .flatMap((cs) => cs.js || [])
+  .filter((j) => j.startsWith('adapters/'))
+  .map((j) => j.replace('adapters/', ''));
+const swAdapters = [...swSrc2.matchAll(/import\s+'\.\.\/adapters\/([^']+)'/g)].map((m) => m[1]);
+const htmlAdapters = [...optsHtml.matchAll(/<script src="\.\.\/adapters\/([^"]+)"/g)].map((m) => m[1]);
+const dirAdapters = collectJs(path.join(ROOT, 'adapters'), [])
+  .map((f) => path.relative(path.join(ROOT, 'adapters'), f).replace(/\\/g, '/'))
+  .sort();
+test('adapters 清单三处一致（manifest = SW = options.html）', () => {
+  const norm = (a) => [...a].sort();
+  expect(JSON.stringify(norm(manifestAdapters))).toEqual(JSON.stringify(norm(swAdapters)));
+  expect(JSON.stringify(norm(manifestAdapters))).toEqual(JSON.stringify(norm(htmlAdapters)));
+});
+test('adapters 目录文件全部注册（无漏注册）', () => {
+  const norm = (a) => [...a].sort();
+  expect(JSON.stringify(norm(manifestAdapters))).toEqual(JSON.stringify(norm(dirAdapters)));
+});

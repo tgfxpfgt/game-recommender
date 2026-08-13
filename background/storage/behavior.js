@@ -18,8 +18,9 @@ export async function addBehaviorLog(entry) {
 
   const settings = await getSettings();
   const log = await getBehaviorLog();
-  if (log.length > settings.maxBehaviorLog) {
-    await dataStore.writeModule(DB_KEYS.BEHAVIOR_LOG, log.slice(-settings.maxBehaviorLog));
+  const maxLog = settings.maxBehaviorLog || 500;
+  if (log.length > maxLog) {
+    await dataStore.writeModule(DB_KEYS.BEHAVIOR_LOG, log.slice(-maxLog));
   }
   return log;
 }

@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - Steam API 状态监测 / Steam API Monitor
  *

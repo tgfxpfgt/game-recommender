@@ -68,7 +68,8 @@ function moduleOf(field) {
   return FIELD_MODULES[field] || DEFAULT_MODULE;
 }
 
-let steamCacheMemory = null; // Map: appId -> entry（modules 结构）
+/** @type {Map<string, import('../core/types.js').SteamCacheEntry>} */
+let steamCacheMemory = new Map(); // Map: appId -> entry（modules 结构）
 let steamCacheMemoryLoaded = false;
 let steamCacheDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
@@ -90,6 +91,7 @@ export function getModuleData(entry, moduleKey) {
 // Merged view: all modules' fields combined into one object (legacy access)
 export function getMergedData(entry) {
   if (!entry || !entry.modules) return null;
+  /** @type {Object|null} */
   let merged = null;
   for (const key of Object.keys(entry.modules)) {
     const mod = entry.modules[key];
@@ -104,6 +106,7 @@ export function getMergedData(entry) {
 // Latest module write time (for cachedAt display; null when empty)
 export function latestModuleTs(entry) {
   if (!entry || !entry.modules) return null;
+  /** @type {number|null} */
   let latest = null;
   for (const key of Object.keys(entry.modules)) {
     const ts = entry.modules[key] && entry.modules[key].ts;
@@ -172,6 +175,7 @@ export async function setSteamCacheEntry(cacheKey, data) {
   const now = Date.now();
   const existing = steamCacheMemory.get(cacheKey) || { modules: {} };
   const modules = existing.modules || {};
+  /** @type {{meta?: Object, rating?: Object, detail?: Object, spy?: Object}} */
   const nextModules = {};
   // 保留未涉及的模块（部分更新） / keep untouched modules (partial update)
   for (const key of Object.keys(modules)) nextModules[key] = modules[key];
@@ -214,7 +218,7 @@ export async function flushSteamCache() {
   try {
     await dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steamCacheMemory));
   } catch (e) {
-    console.error('Steam缓存写入失败:', e.message);
+    console.error('Steam缓存写入失败:', String(e));
   }
 }
 
@@ -267,7 +271,7 @@ export async function deleteSteamCacheEntry(appId) {
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetSteamCache() {
-  steamCacheMemory = null;
+  steamCacheMemory = new Map();
   steamCacheMemoryLoaded = false;
   steamCacheDirty = false;
 }

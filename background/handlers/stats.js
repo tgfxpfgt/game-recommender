@@ -78,8 +78,8 @@ export async function handleGetSteamRecommendations() {
     const recGames = await fetchSteamTagRecommendations(topTags, 9);
     return { games: recGames, basedOnTags: topTags };
   } catch (e) {
-    Logger.error('Steam', '标签推荐失败', e.message);
-    return { games: [], error: '获取Steam推荐失败: ' + e.message };
+    Logger.error('Steam', '标签推荐失败', String(e));
+    return { games: [], error: '获取Steam推荐失败: ' + String(e) };
   }
 }
 

@@ -171,6 +171,12 @@ export function extractDetailMeta(html, siteKey) {
 
 // 搜索指定游戏在各下载站的资源（siteKeys 为空时搜索全部）
 // Search download sites for a game (siteKeys = null → all configured sites)
+/**
+ * 搜索指定游戏在各下载站的资源（siteKeys 为空时搜索全部）
+ * @param {string} gameName
+ * @param {string|number|null} [appId]
+ * @param {Array<string>|null} [siteKeys]
+ */
 export async function searchDownloadSites(gameName, appId, siteKeys = null) {
   const results = [];
   // 仅检索指定的站点
@@ -313,12 +319,12 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
             }
           } catch (e) {
             // 详情页元信息抓取失败不影响搜索结果
-            Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, e.message);
+            Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, String(e));
           }
         }
       }
     } catch (e) {
-      Logger.debug('Sites', `搜索${site.name}失败:`, e.message);
+      Logger.debug('Sites', `搜索${site.name}失败:`, String(e));
     }
     results.push(result);
   }

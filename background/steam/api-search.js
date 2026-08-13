@@ -59,6 +59,7 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
       for (const item of data.items.slice(0, 4)) {
         if (recGames.some((g) => g.appId === item.id)) continue;
 
+        /** @type {{name?: string, header_image?: string, price_overview?: {final_formatted?: string}}|null} */
         let detail = null;
         try {
           const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
@@ -141,6 +142,7 @@ export function nameMatchesSearch(resultName, term, rawName) {
 // found). Results must pass the name-relevance check.
 async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
   for (const term of searchTerms) {
+    /** @type {{items: Array<{id: number, name: string, type?: string}>}|null} */
     let cnData = null;
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
@@ -200,6 +202,13 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
 // Parallel CN/EN searches; one whole-pass retry on network flakiness. When all
 // static candidates fail, an extended combination search runs automatically;
 // skipped words are then learned. excludeAppId skips a user-reported-wrong app.
+/**
+ * 并行中英文搜索（strict 类型化，v6.3.1）
+ * @param {Array<string>} searchTerms
+ * @param {string} rawName
+ * @param {string|null} [excludeAppId]
+ * @returns {Promise<import('../core/types.js').SteamSearchResult|null>}
+ */
 export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {

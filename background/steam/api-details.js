@@ -113,7 +113,7 @@ export async function fetchStorePageHtml(appId) {
     const resp = await fetchWithTimeout(storePageUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
     return await resp.text();
   } catch (e) {
-    Logger.debug('Steam', '获取商店页面失败:', e.message);
+    Logger.debug('Steam', '获取商店页面失败:', String(e));
     return '';
   }
 }

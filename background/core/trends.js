@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 行为趋势聚合 / Behavior Trend Aggregation
  *

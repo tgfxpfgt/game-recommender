@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 通用工具 / Utils
  *

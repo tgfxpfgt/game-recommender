@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 出站请求审计与限速 / Outbound Request Audit & Rate Limit
  *

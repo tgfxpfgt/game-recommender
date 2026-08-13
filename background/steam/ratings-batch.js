@@ -123,7 +123,7 @@ export async function handleGetSteamRatings(message, sender) {
         // 全部完成：done 标记（内容脚本据此收尾并显示统计）
         push({ ratings: null, done: true });
       } catch (e) {
-        Logger.warn('Steam', '后台补拉好评率失败', e.message);
+        Logger.warn('Steam', '后台补拉好评率失败', String(e));
       } finally {
         clearInterval(keepAlive);
       }

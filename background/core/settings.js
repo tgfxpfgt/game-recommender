@@ -1,3 +1,4 @@
+// @ts-strict
 /**
  * Game Recommender - 设置管理 / Settings
  *
@@ -8,6 +9,7 @@ import { dataStore } from '../../data/data-store.js';
 import { isPlainObject } from './utils.js';
 import { DEFAULT_SETTINGS, DB_KEYS, setTtlConfig } from './constants.js';
 
+/** @type {import('./types.js').AppSettings|null} */
 let settingsCache = null;
 let settingsCacheTime = 0;
 const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
@@ -48,7 +50,10 @@ export async function initStorage() {
   await refreshTtlConfig(); // 加载缓存 TTL 配置 / Load cache TTL config
 }
 
-// 读取设置（带缓存）/ Read settings (cached)
+/**
+ * 读取设置（带缓存）/ Read settings (cached)
+ * @returns {Promise<import('./types.js').AppSettings>} - 合并默认后的完整设置
+ */
 export async function getSettings() {
   const now = Date.now();
   if (settingsCache && now - settingsCacheTime < SETTINGS_CACHE_TTL) {
@@ -57,7 +62,7 @@ export async function getSettings() {
   const stored = await dataStore.readModule(DB_KEYS.SETTINGS);
   settingsCache = deepMergeSettings(DEFAULT_SETTINGS, stored || {});
   settingsCacheTime = now;
-  return settingsCache;
+  return /** @type {import('./types.js').AppSettings} */ (settingsCache);
 }
 
 // 保存设置（同步刷新 TTL 配置）/ Save settings (refresh TTL config)
@@ -71,7 +76,7 @@ export async function saveSettings(settings) {
 // 从当前设置刷新缓存 TTL 配置 / Refresh cache-TTL config from settings
 export async function refreshTtlConfig() {
   try {
-    const s = await getSettings();
+    const s = (await getSettings()) || { cacheTtls: {} };
     setTtlConfig(s.cacheTtls);
   } catch {
     /* 使用默认值 */

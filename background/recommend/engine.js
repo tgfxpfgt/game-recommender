@@ -51,6 +51,7 @@ export function findProfile(profiles, name, registryEntry) {
     // 模糊匹配前规范化（去标点/空格/斜杠），兼容记录名与列表标题的格式差异
     const normKey = (s) => s.toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）\/]/g, '');
     const normCleaned = normKey(cleaned);
+    /** @type {Object|null} */
     let best = null;
     for (const [k, p] of Object.entries(profiles)) {
       const nk = normKey(k);
@@ -123,8 +124,8 @@ export function computeGameScore({
   const views = profile ? profile.views || 0 : 0;
   const downloads = profile ? profile.downloads || 0 : 0;
   // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）
-  const clickScore = globalStats.maxViews > 0 ? Math.min(views / globalStats.maxViews, 1) : 0;
-  const downloadScore = globalStats.maxDownloads > 0 ? Math.min(downloads / globalStats.maxDownloads, 1) : 0;
+  const clickScore = (globalStats.maxViews || 0) > 0 ? Math.min(views / (globalStats.maxViews || 1), 1) : 0;
+  const downloadScore = (globalStats.maxDownloads || 0) > 0 ? Math.min(downloads / (globalStats.maxDownloads || 1), 1) : 0;
   // 2. 标签匹配：Steam 官方标签与用户偏好关键词的匹配度（无标签给中性值）
   const kw = calculateKeywordScore(tags || [], keywordWeights);
   const keywordScore = kw !== null ? kw : 0.3;
@@ -161,6 +162,13 @@ export function computeGameScore({
 // 只读数据 {settings, profiles, keywordWeights}，由调用方加载一次）
 // Compute a recommendation score (forceBuiltin for batch mode; `shared` carries
 // read-once data {settings, profiles, keywordWeights} loaded by the caller)
+/**
+ * 计算推荐评分（strict 类型化，v6.3.1）
+ * @param {Object} gameInfo - 游戏信息（name/appId/tags/...）
+ * @param {boolean} [forceBuiltin] - 强制内置算法（跳过 LLM）
+ * @param {{settings: import('../core/types.js').AppSettings, profiles: Object, keywordWeights: Object}|null} [shared] - 批量共享只读数据
+ * @returns {Promise<import('../core/types.js').RecommendResult|{score: number}|null>}
+ */
 export async function calculateRecommendation(gameInfo, forceBuiltin = false, shared = null) {
   const settings = shared && shared.settings ? shared.settings : await getSettings();
   const weights = settings.weights;

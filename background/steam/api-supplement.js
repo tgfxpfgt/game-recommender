@@ -57,7 +57,7 @@ export async function fetchSteamSpyInfo(appId) {
       averageForeverMin: avgMin
     };
   } catch (e) {
-    Logger.debug('Steam', 'SteamSpy获取失败:', e.message);
+    Logger.debug('Steam', 'SteamSpy获取失败:', String(e));
     return null;
   }
 }

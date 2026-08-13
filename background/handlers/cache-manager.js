@@ -241,8 +241,8 @@ export async function handleRefreshGameCacheEntry(message) {
       sites: sites.map((s) => ({ key: s.key, found: s.found, detailUrl: s.detailUrl }))
     };
   } catch (e) {
-    Logger.error('Cache', `手动刷新缓存条目失败: ${e.message}`);
-    return { success: false, error: e.message };
+    Logger.error('Cache', `手动刷新缓存条目失败: ${String(e)}`);
+    return { success: false, error: String(e) };
   }
 }
 

@@ -11,7 +11,8 @@ import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE, nameNegativeCacheTtlMs } from '../c
 import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
 
-let nameIndexMemory = null;
+/** @type {Map<string, {appId: string|null, lastSearched: number}>} */
+let nameIndexMemory = new Map();
 let nameIndexMemoryLoaded = false;
 let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
@@ -163,7 +164,7 @@ export async function deleteNameIndexEntry(name) {
 
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetNameIndex() {
-  nameIndexMemory = null;
+  nameIndexMemory = new Map();
   nameIndexMemoryLoaded = false;
   nameIndexDirty = false;
 }
