@@ -1,0 +1,179 @@
+/**
+ * 游戏雷达 Game Radar - Steam 设计系统 / Steam UI Theme
+ *
+ * v6.4.5：参考 Steam 主页美术风格（深蓝黑 + 蓝色强调 + 卡片渐变）——
+ * 所有扩展 UI（popup/options/dashboard/freegames）统一视觉。
+ * CSS 变量驱动：页面在此之后加载自身样式，组件类可直接复用。
+ * Steam-inspired design system: dark blue-black, blue accents, gradient cards.
+ */
+:root {
+  /* 背景层级 / background layers */
+  --gr-bg-deep: #171a21; /* 最深（页面底） */
+  --gr-bg: #1b2838; /* 主背景（Steam 深蓝黑） */
+  --gr-panel: #16202d; /* 面板 */
+  --gr-panel-2: #1b2838; /* 次级面板 */
+  --gr-card: #2a475e; /* 卡片（Steam 蓝灰） */
+  --gr-card-hover: #345774;
+
+  /* 强调色 / accents */
+  --gr-accent: #66c0f4; /* Steam 蓝 */
+  --gr-accent-btn: #1a9fff; /* 按钮亮蓝 */
+  --gr-accent-btn-hover: #54b8ff;
+  --gr-grad-btn: linear-gradient(to right, #588fe3 0%, #2f6db3 100%); /* 按钮渐变 */
+  --gr-green: #a3cf06; /* 正面（好评率） */
+  --gr-red: #c75050; /* 负面 */
+  --gr-orange: #f49e4c; /* 警告 */
+
+  /* 文本 / text */
+  --gr-text: #c7d5e0;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #8f98a0;
+
+  /* 边框与阴影 / borders & shadows */
+  --gr-border: #4b619b;
+  --gr-border-soft: #2f4055;
+  --gr-radius: 8px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  --gr-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+
+  /* 页面背景渐变（Steam 风格：顶部深蓝渐变） */
+  --gr-page-grad: linear-gradient(180deg, #1b2838 0%, #101822 100%);
+}
+
+/* ============ 基础 ============ */
+body {
+  background: var(--gr-page-grad);
+  color: var(--gr-text);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+}
+
+/* ============ 按钮（Steam 蓝色渐变） ============ */
+.gr-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border: none;
+  border-radius: var(--gr-radius-sm);
+  background: var(--gr-grad-btn);
+  color: #d2e4fc;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: filter 0.15s ease;
+}
+.gr-btn:hover { filter: brightness(1.2); }
+.gr-btn:active { filter: brightness(0.9); }
+.gr-btn.primary {
+  background: var(--gr-grad-btn);
+  color: #e5f1ff;
+}
+.gr-btn.ghost {
+  background: transparent;
+  color: var(--gr-accent);
+  border: 1px solid var(--gr-border);
+}
+.gr-btn.ghost:hover { background: rgba(102, 192, 244, 0.1); }
+.gr-btn.danger {
+  background: linear-gradient(to right, #c75050 0%, #a33b3b 100%);
+  color: #ffe5e5;
+}
+.gr-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ============ 卡片 ============ */
+.gr-card {
+  background: var(--gr-card);
+  border-radius: var(--gr-radius);
+  box-shadow: var(--gr-shadow);
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+}
+.gr-card:hover { background: var(--gr-card-hover); box-shadow: var(--gr-shadow-lg); }
+
+/* ============ 开关（Steam 滑块式） ============ */
+.gr-switch { position: relative; display: inline-block; width: 40px; height: 20px; vertical-align: middle; }
+.gr-switch input { opacity: 0; width: 0; height: 0; }
+.gr-switch .gr-slider-ui {
+  position: absolute; inset: 0;
+  background: #3d4450;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.gr-switch .gr-slider-ui::before {
+  content: '';
+  position: absolute; left: 2px; top: 2px;
+  width: 16px; height: 16px;
+  background: #8f98a0;
+  border-radius: 50%;
+  transition: transform 0.2s, background 0.2s;
+}
+.gr-switch input:checked + .gr-slider-ui { background: var(--gr-accent-btn); }
+.gr-switch input:checked + .gr-slider-ui::before {
+  transform: translateX(20px);
+  background: #fff;
+}
+
+/* ============ 滑块（Steam 范围条） ============ */
+.gr-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 3px; background: #3d4450; outline: none; }
+.gr-range::-webkit-slider-thumb {
+  -webkit-appearance: none; appearance: none;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--gr-accent-btn);
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+.gr-range::-moz-range-thumb {
+  width: 14px; height: 14px; border-radius: 50%;
+  background: var(--gr-accent-btn);
+  border: 2px solid #fff;
+  cursor: pointer;
+}
+
+/* ============ 标签 / 徽章 ============ */
+.gr-tag {
+  display: inline-block;
+  padding: 1px 8px;
+  border-radius: var(--gr-radius-sm);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid;
+}
+.gr-tag.blue { color: var(--gr-accent); border-color: rgba(102, 192, 244, 0.5); background: rgba(102, 192, 244, 0.1); }
+.gr-tag.green { color: var(--gr-green); border-color: rgba(163, 207, 6, 0.5); background: rgba(163, 207, 6, 0.1); }
+.gr-tag.red { color: var(--gr-red); border-color: rgba(199, 80, 80, 0.5); background: rgba(199, 80, 80, 0.1); }
+.gr-tag.orange { color: var(--gr-orange); border-color: rgba(244, 158, 76, 0.5); background: rgba(244, 158, 76, 0.1); }
+.gr-tag.gray { color: var(--gr-text-dim); border-color: rgba(143, 152, 160, 0.5); background: rgba(143, 152, 160, 0.1); }
+
+/* ============ 输入框 ============ */
+.gr-input {
+  background: #1e2836;
+  border: 1px solid var(--gr-border-soft);
+  border-radius: var(--gr-radius-sm);
+  color: var(--gr-text);
+  padding: 6px 10px;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+.gr-input:focus { border-color: var(--gr-accent-btn); }
+.gr-input::placeholder { color: var(--gr-text-dim); }
+
+/* ============ 区块标题（Steam 风格下划线蓝条） ============ */
+.gr-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--gr-accent);
+  display: inline-block;
+  margin: 20px 0 12px;
+}
+
+/* ============ 滚动条（Steam 深色） ============ */
+::-webkit-scrollbar { width: 10px; }
+::-webkit-scrollbar-track { background: var(--gr-bg-deep); }
+::-webkit-scrollbar-thumb { background: #3d4450; border-radius: 5px; }
+::-webkit-scrollbar-thumb:hover { background: var(--gr-card); }

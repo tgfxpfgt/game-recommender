@@ -256,6 +256,15 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.5（小版本：全 UI 重构——Steam 主页美术风格设计系统）
+- **Steam 设计系统** `styles/ui-theme.css`：CSS 变量驱动（深蓝黑背景 #1b2838 / Steam 蓝强调 #66c0f4 / 渐变按钮 #588fe3→#2f6db3 / 卡片 #2a475e / 圆角阴影）+ 组件类（gr-btn/gr-card/gr-tag/gr-switch/gr-range/gr-input）
+- **popup 重构**：渐变头部 + 统计卡片（蓝色辉光数字）+ Steam 滑块式开关 + 折叠区块 hover 高亮
+- **freegames 重构**：Steam 商店风格横向游戏卡片（封面图 + 平台/类型标签 + 渐变领取按钮）+ 标签式平台筛选
+- **dashboard 重构**：渐变横幅 + 数据卡片网格 + 表格行 hover 高亮
+- **options 重构**：侧边栏"🔧 高级设置"分组（推荐/缓存/日志归高级）+ 全部设置参数 Steam 化（开关/滑块/输入/按钮）；**常见设置（常规/过滤/网站）直观易得，高级设置（权重/AI/TTL/缓存/日志）一键可达——一切参数可调**
+- **兼容**：全部 DOM id 保留（E2E 21/21 验证）；UI 逻辑零改动，纯视觉层
+- **质量**：vitest 516 test 全过 · lint 0 · typecheck 0 · E2E 21/21
+
 ### v6.4.4（小版本：四项功能——浮窗左侧 / 缓存合并 / 重排序 / 30 天过滤三态）
 - **详情页浮窗改左侧**：Steam 信息浮窗从右上 → 左上（floats 新增 TOP_LEFT 分区；下载站面板仍在左下，互不遮挡）
 - **缓存合并**：下载站网址缓存与"上次调用"合并——`recordDownloadUrl` 扩展 meta 参数（更新日期/版本/大小/网盘提取码），搜索命中后写入网址缓存条目（`lastCalled` 记录上次调用时间），detail 页二次展示免重抓

@@ -1,268 +1,171 @@
-/* ============================================================
-   游戏雷达 Game Radar - Free Games Styles
-   限免游戏页面样式 / Free-games page styles
-   ============================================================ */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/**
+ * 游戏雷达 Game Radar - 限免页样式（v6.4.5 Steam 商店风格重构）
+ * Steam-store-themed free games page: cover cards, blue tags, gradient buttons.
+ * 依赖 styles/ui-theme.css 的 CSS 变量（HTML 中先于本文件加载）。
+ */
 
+/* ============ 整体 ============ */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0f0f1a;
-  color: #e0e0e0;
-  min-height: 100vh;
-  padding: 30px;
+  margin: 0;
+  background: var(--gr-bg);
+  color: var(--gr-text);
+  font-size: 14px;
+  line-height: 1.6;
 }
+.container { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
 
-.container { max-width: 1100px; margin: 0 auto; }
-
+/* ============ 页面头部（Steam 渐变横幅） ============ */
 .page-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-  gap: 16px;
+  justify-content: space-between;
+  padding: 18px 20px;
+  margin-bottom: 16px;
+  border-radius: var(--gr-radius);
+  background: linear-gradient(135deg, #1f3a52 0%, #16202d 60%, #141a24 100%);
+  border: 1px solid var(--gr-border-soft);
+  box-shadow: var(--gr-shadow);
 }
-
-.page-header h1 { font-size: 22px; color: #fff; }
-
+.page-header h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+}
 .header-actions { display: flex; align-items: center; gap: 12px; }
+.last-update { font-size: 12px; color: var(--gr-text-dim); }
 
-.last-update { font-size: 12px; color: #666; }
-
+/* ============ 按钮 ============ */
 .btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 8px 16px;
-  font-size: 13px;
   border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 600;
-}
-
-.btn-primary { background: #66c0f4; color: #1a1a2e; }
-.btn-primary:hover { background: #8dd4f8; }
-
-.page-desc { font-size: 13px; color: #888; margin-bottom: 20px; }
-
-/* 平台筛选 / Platform filter */
-.platform-filter {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 24px;
-  flex-wrap: wrap;
-}
-
-.filter-btn {
-  padding: 6px 16px;
+  border-radius: var(--gr-radius-sm);
   font-size: 13px;
-  background: #1a1a2e;
-  color: #aaa;
-  border: 1px solid #2a2a4a;
-  border-radius: 16px;
+  font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s;
+  text-decoration: none;
+  transition: filter 0.15s;
 }
+.btn-primary { background: var(--gr-grad-btn); color: #d2e4fc; }
+.btn-primary:hover { filter: brightness(1.2); }
 
-.filter-btn:hover { border-color: #66c0f4; color: #66c0f4; }
+.page-desc { font-size: 13px; color: var(--gr-text-dim); margin: 0 0 16px; }
 
+/* ============ 平台筛选（Steam 标签组） ============ */
+.platform-filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.filter-btn {
+  padding: 6px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--gr-border-soft);
+  background: var(--gr-panel);
+  color: var(--gr-text);
+  font-size: 12.5px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.filter-btn:hover { border-color: var(--gr-accent); color: var(--gr-accent); }
 .filter-btn.active {
-  background: rgba(102, 192, 244, 0.15);
-  color: #66c0f4;
-  border-color: #66c0f4;
+  background: var(--gr-grad-btn);
+  border-color: transparent;
+  color: #e5f1ff;
 }
 
-/* 游戏网格 / Game grid */
+/* ============ 游戏网格（Steam 商店横向卡片） ============ */
 .game-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
-
 .loading, .empty {
-  grid-column: 1 / -1;
   text-align: center;
-  color: #666;
-  padding: 60px 0;
+  color: var(--gr-text-dim);
+  padding: 40px 0;
   font-size: 14px;
 }
-
-/* 游戏卡片 / Game cards */
 .game-card {
-  background: #1a1a2e;
-  border: 1px solid #2a2a4a;
-  border-radius: 10px;
+  display: flex;
+  border-radius: var(--gr-radius);
+  background: var(--gr-card);
   overflow: hidden;
-  transition: all 0.2s;
-  display: flex;
-  flex-direction: column;
+  box-shadow: var(--gr-shadow);
+  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
 }
-
 .game-card:hover {
-  border-color: #66c0f4;
   transform: translateY(-2px);
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--gr-shadow-lg);
+  background: var(--gr-card-hover);
 }
-
-.game-card.claimed { opacity: 0.55; }
-
+.game-card.claimed { opacity: 0.65; }
 .game-card img {
-  width: 100%;
-  height: 150px;
+  width: 120px;
+  height: 68px;
   object-fit: cover;
-  background: #16213e;
+  flex-shrink: 0;
 }
+.game-card-body { padding: 8px 12px; flex: 1; min-width: 0; }
 
-.game-card-body {
-  padding: 14px;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
+/* 标签行（平台 + 类型 + 今日新增） */
+.game-tags-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 .game-platform {
   display: inline-block;
-  padding: 2px 10px;
-  font-size: 11px;
+  padding: 1px 8px;
+  border-radius: var(--gr-radius-sm);
+  font-size: 10.5px;
   font-weight: 600;
-  border-radius: 10px;
-  width: fit-content;
+  color: var(--gr-accent);
+  background: rgba(102, 192, 244, 0.1);
+  border: 1px solid rgba(102, 192, 244, 0.4);
 }
-
-/* 平台标签 + 今日新增 同行 / Platform tag + "new today" badge in one row */
-.game-tags-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-bottom: 8px;
-  flex-wrap: wrap;
-}
-.game-tags-row .game-platform { margin-bottom: 0; }
-
-/* 今日新增标识 / "New today" badge */
+.game-tags-row .game-platform { margin-right: 0; }
 .new-today {
   display: inline-block;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  color: #fff;
-  background: linear-gradient(to right, #e74c3c, #c0392b);
-  border-radius: 10px;
-  animation: new-pulse 1.5s ease-in-out infinite;
+  padding: 1px 8px;
+  border-radius: var(--gr-radius-sm);
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--gr-green);
+  background: rgba(163, 207, 6, 0.12);
+  border: 1px solid rgba(163, 207, 6, 0.4);
 }
-@keyframes new-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.7; }
-}
-
-/* 领取方式筛选栏 / Claim-type filter bar */
-.claim-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
-}
-.filter-label {
-  font-size: 13px;
-  color: #888;
-}
-.claim-btn-filter {
-  padding: 5px 14px;
-  font-size: 12px;
-  background: #1a1a2e;
-  color: #aaa;
-  border: 1px solid #2a2a4a;
-  border-radius: 16px;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-.claim-btn-filter:hover { border-color: #66c0f4; color: #66c0f4; }
-.claim-btn-filter.active {
-  background: rgba(102, 192, 244, 0.15);
-  color: #66c0f4;
-  border-color: #66c0f4;
-}
-
-/* 领取方式标识徽章 / Claim-type badges (direct vs third-party) */
-.claim-type {
-  display: inline-block;
-  padding: 2px 8px;
-  font-size: 11px;
-  font-weight: 600;
-  border-radius: 10px;
-  cursor: help;
-}
-.claim-type.direct {
-  background: rgba(46, 204, 113, 0.15);
-  color: #2ecc71;
-  border: 1px solid rgba(46, 204, 113, 0.4);
-}
-.claim-type.thirdparty {
-  background: rgba(243, 156, 18, 0.15);
-  color: #f39c12;
-  border: 1px solid rgba(243, 156, 18, 0.4);
-}
-
-.game-platform.epic { background: rgba(47, 47, 47, 0.8); color: #fff; border: 1px solid #666; }
-.game-platform.steam { background: rgba(102, 192, 244, 0.15); color: #66c0f4; }
-.game-platform.gog { background: rgba(134, 82, 168, 0.2); color: #b08bd9; }
-.game-platform.itch { background: rgba(250, 92, 82, 0.15); color: #fa5c52; }
-.game-platform.pc { background: rgba(163, 207, 6, 0.15); color: #a3cf06; }
-.game-platform.other { background: rgba(255, 255, 255, 0.06); color: #aaa; }
-
 .game-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #fff;
-  margin-bottom: 6px;
-}
-
-.game-desc {
-  font-size: 12px;
-  color: #888;
-  line-height: 1.5;
-  margin-bottom: 10px;
-  max-height: 54px;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+  margin: 6px 0 2px;
+  white-space: nowrap;
   overflow: hidden;
-  flex: 1;
+  text-overflow: ellipsis;
 }
-
-.game-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 12px;
-  margin-bottom: 12px;
-}
-
-.game-price { color: #a3cf06; font-weight: 600; }
-.game-price .original { text-decoration: line-through; color: #666; margin-right: 6px; font-weight: normal; }
-
-.game-endtime { color: #ff7b00; font-size: 11px; }
-
-.game-actions { display: flex; gap: 8px; }
-
+.game-meta { font-size: 11px; color: var(--gr-text-dim); }
+.game-actions { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
 .claim-btn {
-  flex: 1;
-  padding: 8px 0;
-  text-align: center;
-  font-size: 13px;
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: var(--gr-radius-sm);
+  background: var(--gr-grad-btn);
+  color: #d2e4fc;
+  font-size: 12px;
   font-weight: 600;
-  color: #d2efa9;
-  background: linear-gradient(to right, #75b022, #588a1b);
-  border-radius: 4px;
   text-decoration: none;
-  transition: all 0.2s;
+  transition: filter 0.15s;
 }
-
-.claim-btn:hover { background: linear-gradient(to right, #8ed629, #6aa521); }
-
+.claim-btn:hover { filter: brightness(1.2); }
 .claim-btn.claimed {
-  background: #2a2a4a;
-  color: #8f98a0;
-  cursor: pointer;
+  background: transparent;
+  border: 1px solid var(--gr-green);
+  color: var(--gr-green);
 }
-.claim-btn.claimed:hover {
-  background: #33335a;
-  color: #c7d5e0;
+.claim-type { font-size: 11px; }
+.claim-type.direct { color: var(--gr-green); }
+.claim-type.thirdparty { color: var(--gr-orange); }
+
+/* ============ 空态（Steam 风格提示） ============ */
+.empty {
+  background: var(--gr-panel);
+  border: 1px dashed var(--gr-border-soft);
+  border-radius: var(--gr-radius);
 }

@@ -1,303 +1,127 @@
-/* ============================================================
-   游戏雷达 Game Radar - Dashboard Styles
-   数据分析仪表盘样式 / Dashboard (analytics) styles
-   ============================================================ */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/**
+ * 游戏雷达 Game Radar - Dashboard 样式（v6.4.5 Steam 风格重构）
+ * Steam-themed analytics dashboard: gradient header, stat cards, blue charts.
+ * 依赖 styles/ui-theme.css 的 CSS 变量（HTML 中先于本文件加载）。
+ */
 
+/* ============ 整体 ============ */
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #0f0f1a;
-  color: #e0e0e0;
-  min-height: 100vh;
-  padding: 30px;
-}
-
-.dashboard { max-width: 1100px; margin: 0 auto; }
-
-.dash-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 30px;
-  flex-wrap: wrap;
-  gap: 16px;
-}
-
-.dash-header h1 { font-size: 22px; color: #fff; }
-
-.header-actions { display: flex; gap: 10px; }
-
-/* 按钮 / Buttons */
-.btn {
-  padding: 10px 18px;
+  margin: 0;
+  background: var(--gr-bg);
+  color: var(--gr-text);
   font-size: 14px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s;
-  font-weight: 600;
+  line-height: 1.6;
 }
+.container { max-width: 1080px; margin: 0 auto; padding: 20px 16px 60px; }
 
-.btn-primary { background: #66c0f4; color: #1a1a2e; }
-.btn-primary:hover { background: #8dd4f8; transform: translateY(-1px); }
+/* ============ 页面头部（Steam 渐变横幅） ============ */
+.page-header {
+  padding: 20px 24px;
+  margin-bottom: 18px;
+  border-radius: var(--gr-radius);
+  background: linear-gradient(135deg, #1f3a52 0%, #16202d 60%, #141a24 100%);
+  border: 1px solid var(--gr-border-soft);
+  box-shadow: var(--gr-shadow);
+}
+.page-header h1 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+}
+.page-header .subtitle { font-size: 12.5px; color: var(--gr-text-dim); margin-top: 4px; }
 
-.btn-steam { background: linear-gradient(135deg, #1b2838, #2a475e); color: #66c0f4; border: 1px solid #66c0f4; }
-.btn-steam:hover { background: #2a475e; box-shadow: 0 0 12px rgba(102,192,244,0.3); }
-
-/* 统计卡片 / Statistics cards */
+/* ============ 统计卡片（Steam 数据卡片） ============ */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 16px;
-  margin-bottom: 30px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 18px;
 }
-
 .stat-card {
-  background: #1a1a2e;
-  border: 1px solid #2a2a4a;
-  border-radius: 12px;
-  padding: 20px;
+  background: var(--gr-card);
+  border-radius: var(--gr-radius);
+  padding: 14px 16px;
   text-align: center;
+  box-shadow: var(--gr-shadow);
+  transition: background 0.15s, transform 0.15s;
 }
-
-.stat-value { font-size: 28px; font-weight: bold; color: #66c0f4; }
-.stat-label { font-size: 12px; color: #888; margin-top: 6px; }
-
-/* 区块 / Sections */
-.section {
-  background: #1a1a2e;
-  border: 1px solid #2a2a4a;
-  border-radius: 12px;
-  padding: 24px;
-  margin-bottom: 20px;
-}
-
-.section h2 { font-size: 16px; color: #66c0f4; margin-bottom: 12px; }
-.section-desc { font-size: 13px; color: #888; margin-bottom: 16px; }
-
-/* 标签云 / Tag cloud */
-.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; }
-
-.tag-item {
-  padding: 6px 14px;
-  border-radius: 16px;
-  font-size: 13px;
-  font-weight: 500;
-  cursor: default;
-  transition: transform 0.2s;
-}
-
-.tag-item:hover { transform: scale(1.05); }
-
-.tag-item.high { background: rgba(102, 192, 244, 0.25); color: #66c0f4; border: 1px solid #66c0f4; }
-.tag-item.medium { background: rgba(163, 207, 6, 0.15); color: #a3cf06; border: 1px solid rgba(163, 207, 6, 0.4); }
-.tag-item.low { background: rgba(255, 255, 255, 0.05); color: #aaa; border: 1px solid #444; }
-
-/* 下载方式 / Download methods */
-.method-grid { display: flex; flex-wrap: wrap; gap: 12px; }
-
-.method-item {
-  background: #16213e;
-  border-radius: 8px;
-  padding: 12px 18px;
-  text-align: center;
-  min-width: 120px;
-}
-
-.method-item .method-count { font-size: 22px; font-weight: bold; color: #a3cf06; }
-.method-item .method-name { font-size: 12px; color: #888; margin-top: 4px; }
-
-/* 表格 / Data tables */
-.table-wrapper { overflow-x: auto; }
-
-.data-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.data-table th {
-  text-align: left;
-  padding: 10px 12px;
-  background: #16213e;
-  color: #66c0f4;
-  font-weight: 600;
-  border-bottom: 1px solid #2a2a4a;
-}
-
-.data-table td {
-  padding: 10px 12px;
-  border-bottom: 1px solid #1e1e3a;
-  color: #ccc;
-}
-
-.data-table tr:hover td { background: rgba(102, 192, 244, 0.05); }
-
-.data-table .tag-small {
-  display: inline-block;
-  padding: 2px 8px;
-  margin: 2px;
-  font-size: 11px;
-  background: #2a2a4a;
-  border-radius: 8px;
-  color: #66c0f4;
-}
-
-.data-table .downloaded { color: #a3cf06; font-weight: bold; }
-
-/* Steam推荐 / Steam recommendations */
-.rec-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-}
-
-.rec-card {
-  background: #16213e;
-  border: 1px solid #2a2a4a;
-  border-radius: 10px;
-  overflow: hidden;
-  transition: all 0.2s;
-}
-
-.rec-card:hover { border-color: #66c0f4; transform: translateY(-2px); box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-
-.rec-card img { width: 100%; height: 130px; object-fit: cover; }
-
-.rec-card-body { padding: 14px; }
-.rec-card-title { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 6px; }
-.rec-card-meta { font-size: 12px; color: #888; margin-bottom: 8px; }
-.rec-card-tags { display: flex; flex-wrap: wrap; gap: 4px; }
-
-.rec-card-tags span {
-  padding: 2px 8px;
-  font-size: 11px;
-  background: rgba(102, 192, 244, 0.15);
-  color: #66c0f4;
-  border-radius: 8px;
-}
-
-.rec-card a {
-  display: inline-block;
-  margin-top: 10px;
-  padding: 6px 14px;
-  font-size: 12px;
-  color: #66c0f4;
-  text-decoration: none;
-  border: 1px solid #66c0f4;
-  border-radius: 6px;
-  transition: all 0.2s;
-}
-
-.rec-card a:hover { background: rgba(102, 192, 244, 0.15); }
-
-.no-data { color: #666; font-size: 14px; padding: 10px; }
-
-/* 事件类型标签 / Event-type labels */
-.event-type {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 600;
-}
-
-.event-type.view { background: rgba(102, 192, 244, 0.15); color: #66c0f4; }
-.event-type.download { background: rgba(163, 207, 6, 0.15); color: #a3cf06; }
-.event-type.list { background: rgba(255, 255, 255, 0.08); color: #aaa; }
-.event-type.steam { background: rgba(102, 192, 244, 0.2); color: #8dd4f8; }
-
-/* 按钮变体 / Button variants */
-.btn-sm { padding: 6px 12px; font-size: 12px; }
-.btn-danger { background: rgba(231, 76, 60, 0.15); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.4); }
-.btn-danger:hover { background: rgba(231, 76, 60, 0.25); }
-
-/* 工具栏 / Section toolbars */
-.section-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 14px;
-  flex-wrap: wrap;
-}
-
-.log-filter {
-  padding: 6px 10px;
-  background: #16213e;
-  color: #e0e0e0;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
-  font-size: 12px;
-}
-
-.backup-status { font-size: 13px; color: #a3cf06; }
-
-/* 运行日志 / Runtime logs */
-.runtime-log {
-  max-height: 400px;
-  overflow-y: auto;
-  background: #0a0a14;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
-  padding: 8px;
-  font-family: 'Consolas', 'Monaco', monospace;
-  font-size: 12px;
-}
-
-.log-entry {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  padding: 4px 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-  line-height: 1.5;
-}
-
-.log-time { color: #666; flex-shrink: 0; }
-.log-level { font-weight: bold; flex-shrink: 0; width: 48px; }
-.log-module { color: #67c1f5; flex-shrink: 0; }
-.log-msg { color: #c7d5e0; }
-.log-data { color: #888; font-size: 11px; word-break: break-all; }
-
-.log-info .log-level { color: #66c0f4; }
-.log-warn .log-level { color: #f39c12; }
-.log-error .log-level { color: #e74c3c; }
-.log-error { background: rgba(231, 76, 60, 0.06); }
-.log-debug .log-level { color: #888; }
-
-.runtime-log::-webkit-scrollbar { width: 6px; }
-.runtime-log::-webkit-scrollbar-thumb { background: #2a2a4a; border-radius: 3px; }
-
-/* 备份管理 / Backup management */
-.backup-list { display: flex; flex-direction: column; gap: 8px; }
-
-.backup-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 10px 14px;
-  background: #16213e;
-  border: 1px solid #2a2a4a;
-  border-radius: 6px;
-}
-
-.backup-info { display: flex; align-items: center; gap: 12px; font-size: 13px; }
-.backup-type { color: #67c1f5; }
-.backup-time { color: #c7d5e0; }
-.backup-size { color: #888; font-size: 12px; }
-.backup-actions { display: flex; gap: 8px; }
-
-/* v4.0.0：行为趋势图 / Behavior trend chart */
-.trend-chart {
-  background: #141428;
-  border: 1px solid #2a2a4a;
-  border-radius: 8px;
-  padding: 12px;
-  overflow-x: auto;
-}
-.trend-chart svg {
+.stat-card:hover { background: var(--gr-card-hover); transform: translateY(-1px); }
+.stat-value {
   display: block;
-  min-width: 480px;
-  width: 100%;
-  height: auto;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--gr-accent);
+  text-shadow: 0 0 14px rgba(102, 192, 244, 0.35);
 }
+.stat-label { display: block; font-size: 12px; color: var(--gr-text); margin-top: 4px; }
+
+/* ============ 区块 ============ */
+.section {
+  background: var(--gr-panel);
+  border: 1px solid var(--gr-border-soft);
+  border-radius: var(--gr-radius);
+  padding: 16px 20px;
+  margin-bottom: 16px;
+  box-shadow: var(--gr-shadow);
+}
+.section h2 {
+  margin: 0 0 12px;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+  padding-bottom: 6px;
+  border-bottom: 1px solid rgba(102, 192, 244, 0.4);
+  display: inline-block;
+}
+
+/* ============ 图表 ============ */
+.svgbox { background: var(--gr-panel-2); border-radius: var(--gr-radius-sm); padding: 12px; margin-top: 8px; }
+.svgbox svg { max-width: 100%; height: auto; }
+
+/* ============ 表格（Steam 列表风格） ============ */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left;
+  padding: 8px 10px;
+  color: var(--gr-accent);
+  font-weight: 600;
+  border-bottom: 1px solid var(--gr-border-soft);
+  background: rgba(102, 192, 244, 0.05);
+}
+td { padding: 7px 10px; border-bottom: 1px solid rgba(47, 64, 85, 0.5); }
+tr:hover td { background: rgba(102, 192, 244, 0.05); }
+
+/* ============ 标签云 ============ */
+.tag-cloud { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+.tag-item {
+  padding: 3px 12px;
+  border-radius: 14px;
+  background: rgba(102, 192, 244, 0.1);
+  border: 1px solid rgba(102, 192, 244, 0.35);
+  color: var(--gr-text);
+  font-size: 12px;
+  cursor: default;
+  transition: background 0.15s;
+}
+.tag-item:hover { background: rgba(102, 192, 244, 0.2); }
+
+/* ============ 按钮 ============ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 16px;
+  border: none;
+  border-radius: var(--gr-radius-sm);
+  background: var(--gr-grad-btn);
+  color: #d2e4fc;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: filter 0.15s;
+}
+.btn:hover { filter: brightness(1.2); }
+
+/* ============ 空态 ============ */
+.no-data { color: var(--gr-text-dim); text-align: center; padding: 20px 0; font-size: 13px; }
