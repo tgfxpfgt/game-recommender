@@ -126,3 +126,31 @@ test('未标记 disliked → 正常评分不受影响', () => {
   });
   expect(r.score).toBeGreaterThan(0);
 });
+
+// ============ 7. LLM 评分缓存（v6.4.3） ============
+console.log('7. LLM 评分缓存（7d TTL）');
+import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
+
+const llmStorage = createStorageMock({ settings: { enabled: true, useLLM: true } });
+installChromeStorageMock(llmStorage);
+
+test('LLM 评分缓存命中（二次调用不再请求 LLM）', async () => {
+  llmStorage._reset({ settings: { enabled: true, useLLM: true, llmConfig: { provider: 'local', endpoint: 'http://localhost:11434/api/generate', model: 'm', temperature: 0.3 } } });
+  const lcMod = await import(new URL('../../background/storage/llm-cache.js', import.meta.url).href);
+  lcMod.resetLlmCache();
+  let llmCalls = 0;
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = async (url, opts) => {
+    llmCalls++;
+    return { ok: true, status: 200, json: async () => ({ response: '{"score": 0.8, "reason": "好评如潮"}' }), text: async () => '' };
+  };
+  try {
+    const r1 = await mod.calculateRecommendation({ name: '缓存游戏' }, false, null);
+    const r2 = await mod.calculateRecommendation({ name: '缓存游戏' }, false, null);
+    expect(llmCalls).toEqual(1); // 第二次命中缓存
+    expect(r1 && r1.score).toEqual(0.8);
+    expect(r2 && r2.score).toEqual(0.8);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+});

@@ -344,7 +344,15 @@ async function checkItadFree(appId) {
 // 商店页按钮复核（Play Now vs Add to Cart）——防免费周末误判为喜加一。
 // Steam official judgment: is_free (F2P), price_overview initial>0 & final=0
 // (limited claim), initial=0 free (weekend); store-page button double-check.
+// v6.4.3：Steam 官方判定结果内存缓存（12h——通知去重，防重复 appdetails+商店页请求）
+/** @type {Map<string, {type: string|null, ts: number}>} */
+const steamTypeCache = new Map();
+const STEAM_TYPE_CACHE_TTL = 12 * 3600e3;
+
 export async function determineSteamFreeType(appId) {
+  // 缓存命中（含 null 结果）→ 直接返回
+  const hit = steamTypeCache.get(String(appId));
+  if (hit && Date.now() - hit.ts < STEAM_TYPE_CACHE_TTL) return hit.type;
   try {
     const resp = await fetchWithTimeout(
       `https://store.steampowered.com/api/appdetails?appids=${appId}&l=schinese&cc=cn&filters=basic,price_overview`
@@ -354,20 +362,25 @@ export async function determineSteamFreeType(appId) {
     const d = data && data[appId] && data[appId].data;
     if (!d) return null;
     // F2P 永久免费：官方 is_free 权威信号（Dota 2 等无价格区）
-    if (d.is_free === true) return 'f2p';
+    if (d.is_free === true) { steamTypeCache.set(String(appId), { type: 'f2p', ts: Date.now() }); return 'f2p'; }
     const price = d.price_overview;
     if (!price) return 'f2p';
     // 促销免费（-100%）：原价 > 0 且现价 0 → 喜加一入库
     if ((price.initial || 0) > 0 && price.final === 0) {
       // 商店页按钮复核：Play Now（免费周末）会显示立即游玩而非加入购物车
       const type = await verifyStorePageButtons(appId);
-      return type === 'weekend' ? 'weekend' : 'limited';
+      const t = type === 'weekend' ? 'weekend' : 'limited';
+      steamTypeCache.set(String(appId), { type: t, ts: Date.now() });
+      return t;
     }
     // 现价 0 但无原价：免费周末（Play Now 模式）或数据异常 → weekend 保守处理
-    if (price.final === 0) return 'weekend';
-    return null; // 当前非免费（数据过期）
+    if (price.final === 0) { steamTypeCache.set(String(appId), { type: 'weekend', ts: Date.now() }); return 'weekend'; }
+    const result = null; // 当前非免费（数据过期）
+    steamTypeCache.set(String(appId), { type: result, ts: Date.now() });
+    return result;
   } catch (e) {
     Logger.debug('FreeGames', 'Steam官方判定失败:', String(e));
+    steamTypeCache.set(String(appId), { type: null, ts: Date.now() });
     return null;
   }
 }

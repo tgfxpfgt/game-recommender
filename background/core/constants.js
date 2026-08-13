@@ -25,7 +25,9 @@ export const DB_KEYS = {
   DOWNLOAD_URLS: 'downloadUrls', // 下载站网址缓存（按站点分桶 v2）
   ADAPTER_RULES: 'adapterRules', // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
   LEARNED_NOISE: 'learnedNoise', // 动态学习的标题噪声词（自适应检索，v3.1.2）
-  WRONG_REPORTS: 'wrongReports' // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
+  WRONG_REPORTS: 'wrongReports', // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
+  SEARCH_CACHE: 'searchCache', // 下载站搜索结果缓存（v6.4.3，24h TTL）
+  LLM_SCORE: 'llmScore' // LLM 推荐评分缓存（v6.4.3，7d TTL）
 };
 
 // 默认设置 / Default settings
@@ -223,6 +225,8 @@ export const DATA_MODULES = [
   { key: 'runtimeLog', name: '运行日志', desc: 'Runtime Logs', storageKey: 'runtimeLog' },
   { key: 'downloadHistory', name: '下载历史', desc: 'Download History', storageKey: 'downloadHistory' },
   { key: 'adapterRules', name: '适配规则', desc: 'Adapter Rules', storageKey: 'adapterRules' },
+  { key: 'searchCache', name: '下载站搜索缓存', desc: 'Search Cache', storageKey: 'searchCache' },
+  { key: 'llmScore', name: 'LLM 评分缓存', desc: 'LLM Score Cache', storageKey: 'llmScore' },
   { key: 'learnedNoise', name: '标题噪声词', desc: 'Learned Noise', storageKey: 'learnedNoise' },
   { key: 'wrongReports', name: '报错纠正记录', desc: 'Wrong Reports', storageKey: 'wrongReports' }
 ];

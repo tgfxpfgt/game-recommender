@@ -12,6 +12,7 @@ import { getDownloadSites } from '../core/rules.js';
 import { fetchWithTimeout, regexMatch, regexExecAll } from '../core/utils.js';
 import { cleanGameName, parseGameTitle } from '../core/title-parser.js';
 import { recordDownloadUrl } from '../storage/download-urls.js';
+import { getSearchCache, setSearchCache } from '../storage/search-cache.js';
 import { Logger } from '../storage/logger.js';
 
 // 链接匹配度评分（0-100）：规范化后全等/包含/分段/跨语言独立比较
@@ -178,6 +179,9 @@ export function extractDetailMeta(html, siteKey) {
  * @param {Array<string>|null} [siteKeys]
  */
 export async function searchDownloadSites(gameName, appId, siteKeys = null) {
+  // v6.4.3：搜索结果缓存（24h——资源页变化慢，命中免去逐站逐词请求）
+  const cached = await getSearchCache(gameName, appId, siteKeys);
+  if (cached) return cached;
   const results = [];
   // 仅检索指定的站点
   const allSites = await getDownloadSites();
@@ -328,6 +332,8 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
     }
     results.push(result);
   }
+  // v6.4.3：写缓存（结果含 detailUrl/panUrl 等——资源页稳定，缓存安全）
+  await setSearchCache(gameName, appId, siteKeys, results);
   return results;
 }
 

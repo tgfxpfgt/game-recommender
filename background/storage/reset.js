@@ -18,6 +18,8 @@ import { resetLearnedNoise } from './learned-noise.js';
 import { resetWrongReports } from './wrong-reports.js';
 import { resetBehaviorState } from './behavior.js';
 import { resetOutboundAudit } from '../core/outbound-audit.js';
+import { resetSearchCache } from './search-cache.js';
+import { resetLlmCache } from './llm-cache.js';
 
 // 重置所有内存缓存 / Reset all in-memory caches
 export function resetInMemoryCaches() {
@@ -31,4 +33,6 @@ export function resetInMemoryCaches() {
   resetWrongReports(); // v3.4.0：导入/恢复后纠正知识库内存与存储保持一致
   resetBehaviorState(); // v5.0.0：偏好模型节流状态一并重置（此前遗漏）
   resetOutboundAudit(); // v3.4.1：出站请求审计缓冲随清理一并清空
+  resetSearchCache(); // v6.4.3：下载站搜索缓存
+  resetLlmCache(); // v6.4.3：LLM 评分缓存
 }

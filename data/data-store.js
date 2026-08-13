@@ -35,7 +35,9 @@ const MODULE_FILES = {
   adapterRules: { file: 'adapter-rules.json', format: 'json' },
   backups: { file: 'backups.json', format: 'json' },
   learnedNoise: { file: 'learned-noise.json', format: 'json' },
-  wrongReports: { file: 'wrong-reports.json', format: 'json' }
+  wrongReports: { file: 'wrong-reports.json', format: 'json' },
+  searchCache: { file: 'search-cache.json', format: 'json' }, // v6.4.3
+  llmScore: { file: 'llm-score.json', format: 'json' } // v6.4.3
 };
 
 class DataStore {

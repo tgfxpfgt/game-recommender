@@ -17,6 +17,7 @@ import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 import { getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';
 import { fetchWithTimeout } from '../core/utils.js';
+import { getLlmScore, setLlmScore } from '../storage/llm-cache.js';
 import { cleanGameName } from '../core/title-parser.js';
 
 // 关键词评分计算 / Keyword-score calculation
@@ -177,11 +178,16 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   const settings = shared && shared.settings ? shared.settings : await getSettings();
   const weights = settings.weights;
 
-  // LLM 模式（非强制内置时）
+  // LLM 模式（非强制内置时）——v6.4.3：评分缓存（7d，LLM 慢且贵）
   if (settings.useLLM && !forceBuiltin) {
     try {
+      const cachedScore = await getLlmScore(gameInfo.name);
+      if (cachedScore !== null) return cachedScore;
       const llmScore = await calculateWithLLM(gameInfo, settings);
-      if (llmScore !== null) return llmScore;
+      if (llmScore !== null) {
+        await setLlmScore(gameInfo.name, llmScore);
+        return llmScore;
+      }
     } catch (e) {
       console.warn('LLM计算失败，回退到内置算法:', e);
     }

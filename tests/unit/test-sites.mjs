@@ -43,3 +43,59 @@ const variant = extractDetailMeta(variantHtml, 'xdgame');
 test('斜杠日期变体', () => { expect(variant.updateDate).toEqual('2026/08/01'); });
 test('全角冒号版本变体', () => { expect(variant.version).toEqual('1.0'); });
 
+
+// ============ 3. 搜索缓存（v6.4.3） ============
+console.log('3. 下载站搜索缓存（24h TTL）');
+import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
+import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
+
+const sStorage = createStorageMock();
+installChromeStorageMock(sStorage);
+
+test('二次搜索命中缓存（无新增站点请求）', async () => {
+  sStorage._reset();
+  // 注入站点规则（getDownloadSites 回退源）
+  globalThis.__GAME_RECOMMENDER_SITES__ = {
+    version: 1,
+    sites: [{ key: 'xdgame', name: 'XDGame', domains: ['xdgame.com'], base: 'https://xdgame.com', searchUrl: 'https://xdgame.com/so/{q}.html', detailUrlPatterns: ['/game/\d+\.html?$'], listItem: { containers: ['.game-list li'], titleLink: 'a.tit' } }]
+  };
+  const scMod = await import(new URL('../../background/storage/search-cache.js', import.meta.url).href);
+  scMod.resetSearchCache();
+  const fetchMock = createFetchMock({
+    '/so/': '<html><a class="tit" href="/game/1.html">游戏A</a></html>'
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const first = await mod.searchDownloadSites('游戏A', '1', ['xdgame']);
+    const calls1 = fetchMock._calls.length;
+    expect(calls1).toBeGreaterThan(0);
+    const second = await mod.searchDownloadSites('游戏A', '1', ['xdgame']);
+    const calls2 = fetchMock._calls.length;
+    expect(calls2 === calls1).toEqual(true); // 命中缓存无新请求
+    expect(JSON.stringify(first)).toEqual(JSON.stringify(second));
+  } finally {
+    restoreFetch();
+  }
+});
+test('siteKeys 变更 → 缓存失效重查', async () => {
+  sStorage._reset();
+  globalThis.__GAME_RECOMMENDER_SITES__ = {
+    version: 1,
+    sites: [{ key: 'xdgame', name: 'XDGame', domains: ['xdgame.com'], base: 'https://xdgame.com', searchUrl: 'https://xdgame.com/so/{q}.html', detailUrlPatterns: ['/game/\d+\.html?$'], listItem: { containers: ['.game-list li'], titleLink: 'a.tit' } }]
+  };
+  const scMod = await import(new URL('../../background/storage/search-cache.js', import.meta.url).href);
+  scMod.resetSearchCache();
+  const fetchMock = createFetchMock({
+    '/so/': '<html><a class="tit" href="/game/1.html">游戏A</a></html>'
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    await mod.searchDownloadSites('游戏A', '1', ['xdgame']);
+    const calls1 = fetchMock._calls.length;
+    await mod.searchDownloadSites('游戏A', '1', ['xdgame', 'gamer520']);
+    const calls2 = fetchMock._calls.length;
+    expect(calls2 > calls1).toEqual(true); // 站点集合变化 → 重新搜索
+  } finally {
+    restoreFetch();
+  }
+});
