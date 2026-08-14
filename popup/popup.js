@@ -34,12 +34,26 @@ document.addEventListener('DOMContentLoaded', async () => {
   const utils = globalThis.__GR_SETTINGS_UTILS__ || { applyPatch: (o, p) => Object.assign(o, p) };
 
   // ============ 保存（保存前重读最新设置，防快照覆盖） ============
-  async function saveSettingsPatch(patch) {
-    const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-    const latest = resp && resp.settings ? resp.settings : settings;
-    utils.applyPatch(latest, patch);
-    settings = latest;
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+  // v6.4.12：串行队列防竞态——快速连续操作时并发 GET→SAVE 会基于旧快照
+  // 覆盖前次修改（"保存了但部分丢失"）；失败可见（状态栏提示 + console）。
+  // Serial save queue prevents concurrent GET→SAVE overwrites; failures visible.
+  let saveQueue = Promise.resolve();
+  function saveSettingsPatch(patch) {
+    saveQueue = saveQueue.then(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const latest = resp && resp.settings ? resp.settings : settings;
+      utils.applyPatch(latest, patch);
+      settings = latest;
+      await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+    }).catch((err) => {
+      console.warn('【游戏雷达】 设置保存失败:', err);
+      const saveFail = document.getElementById('saveFailHint');
+      if (saveFail) {
+        saveFail.style.display = 'block';
+        setTimeout(() => { saveFail.style.display = 'none'; }, 3000);
+      }
+    });
+    return saveQueue;
   }
 
   // ============ 渲染 / Render ============

@@ -324,6 +324,7 @@ select.vista-input option { background: #eaf2fa; }
 }
 .aero-statusbar .status-saved { color: #d8f0b0; }
 .aero-statusbar .status-saving { color: #ffd8a0; }
+.aero-statusbar .status-error { color: #f0b0a0; }
 
 /* 滚动条 */
 ::-webkit-scrollbar { width: 10px; }

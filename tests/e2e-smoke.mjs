@@ -213,6 +213,52 @@ async function runChecks() {
     await popup3.close();
     await optPage.close();
 
+    // 2b2. 过滤设置全量保存往返 + 快速连续修改（v6.4.12 回归）
+    console.log('2b2. 过滤设置全量保存与并发防覆盖');
+    const optPage2 = await context.newPage();
+    await optPage2.goto(`chrome-extension://${extId}/options/options.html`);
+    await optPage2.waitForTimeout(1200);
+    await optPage2.evaluate(() => {
+      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.getElementById('minRating').value = 65;
+      document.getElementById('minRating').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('ratingFilterMode').value = 'or';
+      document.getElementById('ratingFilterMode').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('vmFilterKeywords').value = '测试版,内测';
+      document.getElementById('vmFilterKeywords').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('saveBtn').click();
+    });
+    await optPage2.waitForTimeout(2000);
+    const filterSaved = await optPage2.evaluate(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = resp.settings;
+      return { min: s.minSteamRatingFilter, mode: s.ratingFilterMode, kw: s.filterKeywords };
+    });
+    check('过滤设置全量保存（阈值65/关系or/关键词）',
+      filterSaved.min === 65 && filterSaved.mode === 'or' && filterSaved.kw === '测试版,内测', JSON.stringify(filterSaved));
+    await optPage2.close();
+    // 快速连续修改（串行队列防竞态：并发 savePatch 曾互相覆盖）
+    const popup4 = await context.newPage();
+    await popup4.goto(`chrome-extension://${extId}/popup/popup.html`);
+    await popup4.waitForTimeout(1000);
+    await popup4.evaluate(() => {
+      document.getElementById('ppMinRecent').value = 40;
+      document.getElementById('ppMinRecent').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('ppFilterMode').value = 'and';
+      document.getElementById('ppFilterMode').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('ppSortByRating').checked = true;
+      document.getElementById('ppSortByRating').dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await popup4.waitForTimeout(2500);
+    const burstSaved = await popup4.evaluate(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = resp.settings;
+      return { min: s.minRecentSteamRatingFilter, mode: s.ratingFilterMode, sort: s.enableSortByRating };
+    });
+    check('快速连续 3 项修改全部保留（阈值40/关系and/重排开）',
+      burstSaved.min === 40 && burstSaved.mode === 'and' && burstSaved.sort === true, JSON.stringify(burstSaved));
+    await popup4.close();
+
     // 2c. Vista Aero 新菜单（v6.4.6）
     console.log('2c. Vista 新菜单冒烟');
     const vista = await context.newPage();

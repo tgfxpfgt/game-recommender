@@ -306,13 +306,14 @@ function escapeHtml(s) {
     document.getElementById('moduleCheckAll').addEventListener('click', OPTS.moduleCheckAll);
     document.getElementById('moduleCheckNone').addEventListener('click', OPTS.moduleCheckNone);
 
-    // 手动保存（立即保存）
-    document.getElementById('saveBtn').addEventListener('click', () => {
+    // 手动保存（立即保存）——v6.4.12：await 完成并反馈（此前 fire-and-forget，
+    // 点击后立即关闭页面可能未送达）
+    document.getElementById('saveBtn').addEventListener('click', async () => {
       if (OPTS.saveTimer) {
         clearTimeout(OPTS.saveTimer);
         OPTS.saveTimer = null;
       }
-      saveSettings();
+      await saveSettings();
     });
 
     // 缓存有效期输入（变更即自动保存；v3.3.7 补全 ttlDetailSteam/ttlSpySteam/ttlMetaSteam）
@@ -360,8 +361,12 @@ function escapeHtml(s) {
   }
 
   // ============ Collect & Save Settings / 收集并保存设置 ============
+  // v6.4.12：串行发送防竞态（并发 SAVE_SETTINGS 后发覆盖先发）；
+  // 失败可见（此前保存异常静默丢失，用户误以为已保存）
+  // Serial send queue; failures surface in the status bar.
+  let saveQueue = Promise.resolve();
   async function saveSettings() {
-    // 从 UI 收集所有值
+    // 从 UI 收集所有值（同步，调用时 DOM 状态）
     OPTS.currentSettings.enabled = document.getElementById('enabled').checked;
     OPTS.currentSettings.showStatusBar = document.getElementById('showStatusBar').checked;
     OPTS.currentSettings.showDebugPanel = document.getElementById('showDebugPanel').checked;
@@ -456,8 +461,16 @@ function escapeHtml(s) {
     OPTS.currentSettings.backupIntervalHours = parseInt(document.getElementById('backupIntervalHours').value) || 24;
     OPTS.currentSettings.maxBackups = parseInt(document.getElementById('maxBackups').value) || 7;
 
-    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: OPTS.currentSettings });
-    showSaveStatus('saved');
+    // 串行发送（快照同一 currentSettings 引用，队列保证顺序写入）
+    const snapshot = OPTS.currentSettings;
+    saveQueue = saveQueue.then(async () => {
+      await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: snapshot });
+      showSaveStatus('saved');
+    }).catch((err) => {
+      console.warn('【游戏雷达】 设置保存失败:', err);
+      showSaveStatus('error');
+    });
+    return saveQueue;
   }
 
   // ============ Save Status Indicator / 保存状态指示器 ============
@@ -473,6 +486,13 @@ function escapeHtml(s) {
         status.textContent = '';
         status.className = 'save-status';
       }, 2000);
+    } else if (state === 'error') {
+      status.textContent = '❌ 保存失败（见控制台）';
+      status.className = 'save-status error';
+      setTimeout(() => {
+        status.textContent = '';
+        status.className = 'save-status';
+      }, 4000);
     }
   }
 

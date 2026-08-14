@@ -18,17 +18,30 @@ async function loadSettings() {
 // v6.4.11：修复点号路径键（badgeVisibility.recent / llmConfig.* 等）被
 // Object.assign 拍平为字面量顶层键、嵌套设置永远无法保存的问题
 // Dotted-path keys are applied via deepSet (shared settings-utils).
-async function savePatch(patch) {
-  const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-  const latest = (resp && resp.settings) || settings;
-  const utils = globalThis.__GR_SETTINGS_UTILS__;
-  if (utils && utils.applyPatch) utils.applyPatch(latest, patch);
-  else Object.assign(latest, patch); // 兜底（settings-utils 未注入时退化为浅合并）
-  settings = latest;
-  await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
-  $('vSaveStatus').textContent = '✓ 已保存';
-  $('vSaveStatus').className = 'status-saved';
-  setTimeout(() => { $('vSaveStatus').textContent = '就绪'; $('vSaveStatus').className = ''; }, 1500);
+// v6.4.12：串行保存队列——快速连续操作时多个 savePatch 并发（GET 旧快照
+// → SAVE 覆盖前次修改）会丢更新；队列保证每个 patch 基于最新设置应用。
+// Serial save queue: concurrent GET→SAVE sequences would overwrite each other.
+let saveQueue = Promise.resolve();
+function savePatch(patch) {
+  saveQueue = saveQueue.then(async () => {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    const latest = (resp && resp.settings) || settings;
+    const utils = globalThis.__GR_SETTINGS_UTILS__;
+    if (utils && utils.applyPatch) utils.applyPatch(latest, patch);
+    else Object.assign(latest, patch); // 兜底（settings-utils 未注入时退化为浅合并）
+    settings = latest;
+    await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+    $('vSaveStatus').textContent = '✓ 已保存';
+    $('vSaveStatus').className = 'status-saved';
+    setTimeout(() => { $('vSaveStatus').textContent = '就绪'; $('vSaveStatus').className = ''; }, 1500);
+  }).catch((err) => {
+    // v6.4.12：保存失败可见（此前静默——用户无法区分"已保存"与"没存上"）
+    console.warn('【游戏雷达】 设置保存失败:', err);
+    $('vSaveStatus').textContent = '✗ 保存失败';
+    $('vSaveStatus').className = 'status-error';
+    setTimeout(() => { $('vSaveStatus').textContent = '就绪'; $('vSaveStatus').className = ''; }, 3000);
+  });
+  return saveQueue;
 }
 
 // ============ 版本 ============
