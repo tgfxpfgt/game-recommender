@@ -247,7 +247,7 @@ export function prependRecBadge(item, recommendation, settings) {
           action: 'TRACK_EVENT',
           data: { type: 'dislike_game', gameName: item.name || '' }
         });
-      } catch (e) {
+      } catch {
         /* 后台不可达时静默 */
       }
     });

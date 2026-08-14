@@ -27,7 +27,7 @@ async function load() {
     if (stored && typeof stored === 'object') {
       searchCacheMemory = new Map(Object.entries(stored));
     }
-  } catch (e) {
+  } catch {
     /* 损坏缓存忽略，重新开始 */
   }
   loaded = true;
@@ -68,7 +68,7 @@ export async function setSearchCache(gameName, appId, siteKeys, results) {
   }
   try {
     await dataStore.writeModule(DB_KEYS.SEARCH_CACHE, Object.fromEntries(searchCacheMemory));
-  } catch (e) {
+  } catch {
     /* 写失败仅丢失缓存，不影响主流程 */
   }
 }

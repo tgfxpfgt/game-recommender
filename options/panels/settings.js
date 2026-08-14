@@ -97,6 +97,11 @@
     document.getElementById('logLevel').value = settings.logLevel || 'info';
     document.getElementById('logRetentionDays').value = settings.logRetentionDays ?? 7;
     document.getElementById('logStorage').value = settings.logStorage || 'ndjson';
+    document.getElementById('maxRuntimeLog').value = settings.maxRuntimeLog || 300;
+    // v6.4.11：自动备份配置回显
+    document.getElementById('autoBackup').checked = settings.autoBackup !== false;
+    document.getElementById('backupIntervalHours').value = settings.backupIntervalHours ?? 24;
+    document.getElementById('maxBackups').value = settings.maxBackups ?? 7;
   }
 
   // 设置单个 TTL 控件（value + 单位）/ Set a TTL control (value + unit)

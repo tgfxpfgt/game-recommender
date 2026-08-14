@@ -133,6 +133,27 @@ async function runChecks() {
     check('popup 标题渲染', (await page.textContent('h1'))?.includes('游戏智能推荐') ?? false);
     check('popup 版本号显示', (await page.textContent('#extVersion'))?.includes('v') ?? false);
     check('popup API 状态（v6.4.10 扁平修复后非失效）', ((await page.textContent('#apiStatusInfo')) ?? '').includes('无法获取') === false);
+    // v6.4.11：popup 全量设置覆盖 + 集中入口（hub 按钮替代原 设置/分析 独立入口）
+    const popupCover = await page.evaluate(() => ({
+      hubBtn: !!document.getElementById('hubBtn'),
+      optionsBtn: !!document.getElementById('optionsBtn'),
+      dashboardBtn: !!document.getElementById('dashboardBtn'),
+      recentFilter: !!document.getElementById('ppRecentFilter'),
+      filterMode: !!document.getElementById('ppFilterMode'),
+      sortByRating: !!document.getElementById('ppSortByRating'),
+      vmKeywords: !!document.getElementById('ppVmKeywords'),
+      filterMatch: !!document.getElementById('ppFilterMatch'),
+      weights: document.querySelectorAll('#ppWeights [data-w]').length,
+      badges: ['ppBadgeRecent', 'ppBadgeAll', 'ppBadgeUpdate', 'ppBadgeRec'].every((id) => !!document.getElementById(id)),
+      autoBackup: !!document.getElementById('ppAutoBackup'),
+      logLevel: !!document.getElementById('ppLogLevel'),
+      freeGamesBtn: !!document.getElementById('freeGamesBtn')
+    }));
+    check('popup 集中入口（设置中心按钮替代独立入口）', popupCover.hubBtn && !popupCover.optionsBtn && !popupCover.dashboardBtn);
+    check('popup 全覆盖设置（30天过滤/模式/重排/关键词/徽章/权重/备份/日志）',
+      popupCover.recentFilter && popupCover.filterMode && popupCover.sortByRating &&
+      popupCover.vmKeywords && popupCover.filterMatch && popupCover.weights === 6 &&
+      popupCover.badges && popupCover.autoBackup && popupCover.logLevel && popupCover.freeGamesBtn);
     check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
     await page.close();
 
@@ -147,23 +168,37 @@ async function runChecks() {
     const optState = await optPage.evaluate(() => ({
       enabled: document.getElementById('enabled').checked,
       maxLog: document.getElementById('maxLog').value,
+      autoBackup: document.getElementById('autoBackup').checked,
+      maxRuntimeLog: document.getElementById('maxRuntimeLog').value,
       title: document.title
     }));
-    check('options 设置渲染（启用开关+日志上限）', optState.enabled === true && Number(optState.maxLog) > 0);
+    check('options 设置渲染（启用开关+日志上限+自动备份）', optState.enabled === true && Number(optState.maxLog) > 0 && optState.autoBackup === true && Number(optState.maxRuntimeLog) > 0);
     check('options 标题', optState.title.includes('设置'));
     // options 切 VM 过滤（先切到过滤面板）→ 自动保存（800ms 防抖）→ popup 重开验证一致
     await optPage.evaluate(() => {
       document.querySelector('.nav-item[data-panel="filters"]').click();
       document.getElementById('vmFilterEnabled').click();
+      // v6.4.11：30 天好评过滤（此前保存时漏读 DOM，永远无法持久化）
+      document.getElementById('recentFilterEnabled').click();
     });
     await optPage.waitForTimeout(2500);
+    const savedFilterState = await optPage.evaluate(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = resp.settings;
+      return { vm: s.enableVmFilter, recent: s.enableRecentFilter, recentMin: s.minRecentSteamRatingFilter };
+    });
+    check('options 30 天过滤设置已保存（v6.4.11 修复）', savedFilterState.recent === true);
     const popup3 = await context.newPage();
     await popup3.goto(`chrome-extension://${extId}/popup/popup.html`);
     await popup3.waitForTimeout(800);
-    const popupVm = await popup3.evaluate(() => document.getElementById('vmFilterToggle').checked);
-    check('options→popup 状态一致（VM 过滤开启）', popupVm === true);
+    const popupVm = await popup3.evaluate(() => ({
+      vm: document.getElementById('ppVmFilter').checked,
+      recent: document.getElementById('ppRecentFilter').checked
+    }));
+    check('options→popup 状态一致（VM 过滤开启）', popupVm.vm === true);
+    check('options→popup 状态一致（30 天过滤开启）', popupVm.recent === true);
     // popup 切回 → options 重开验证一致（防快照覆盖：popup 保存前重读）
-    await popup3.evaluate(() => document.getElementById('vmFilterToggle').click());
+    await popup3.evaluate(() => document.getElementById('ppVmFilter').click());
     await popup3.waitForTimeout(800);
     const opt2 = await context.newPage();
     await opt2.goto(`chrome-extension://${extId}/options/options.html`);
@@ -197,6 +232,23 @@ async function runChecks() {
     check('Vista 菜单渲染（标题/版本/启用开关）', vistaState.title.includes('Vista') && vistaState.version.includes('v') && vistaState.enabled === true);
     check('Vista 菜单全功能（8 面板 + 6 权重滑块 + 切换按钮）', vistaState.panels === 8 && vistaState.weights === 6 && vistaState.classicBtn);
     check('Vista 菜单无 console error', vistaErrors.length === 0, `(${vistaErrors.slice(0, 3).join(' | ')})`);
+    // v6.4.11：Vista 徽章开关嵌套保存（此前 Object.assign 拍平点号键，
+    // badgeVisibility.recent 永远写不进）——切换后经 GET_SETTINGS 验证
+    await vista.evaluate(() => document.getElementById('vBadgeRecent').click());
+    await vista.waitForTimeout(1200);
+    const badgeSaved = await vista.evaluate(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = resp.settings;
+      return { recent: s.badgeVisibility && s.badgeVisibility.recent, noDotted: !('badgeVisibility.recent' in s) };
+    });
+    check('Vista 徽章开关已保存（deepSet 修复嵌套键）', badgeSaved.recent === false && badgeSaved.noDotted);
+    await vista.evaluate(() => document.getElementById('vBadgeRecent').click());
+    await vista.waitForTimeout(1200);
+    const badgeRestored = await vista.evaluate(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      return resp.settings.badgeVisibility && resp.settings.badgeVisibility.recent;
+    });
+    check('Vista 徽章开关回切成功', badgeRestored === true);
     // Vista 交互：规则添加 / 站点管理 / ITAD 按钮 / 日志查看（v6.4.9）
     await vista.evaluate(() => {
       document.querySelector('.aero-nav .nav-item[data-panel="filters"]').click();
@@ -224,6 +276,46 @@ async function runChecks() {
     }));
     check('Vista 日志查看（刷新按钮 + 列表渲染）', logState.refresh && logState.list);
     await vista.close();
+
+    // 2d. 设置中心 hub（v6.4.11：所有页面集中入口 + 一键切换）
+    console.log('2d. 设置中心 hub 集中入口');
+    const hub = await context.newPage();
+    const hubErrors = [];
+    hub.on('console', (msg) => { if (msg.type() === 'error') hubErrors.push(msg.text()); });
+    hub.on('pageerror', (e) => hubErrors.push(String(e)));
+    await hub.goto(`chrome-extension://${extId}/hub/hub.html`);
+    await hub.waitForTimeout(1500);
+    const hubState = await hub.evaluate(() => ({
+      items: document.querySelectorAll('.hub-item').length,
+      frameSrc: document.getElementById('hubFrame').src,
+      active: document.querySelector('.hub-item.active')?.dataset.page || '',
+      version: document.getElementById('hubVersion').textContent
+    }));
+    check('hub 渲染（4 个页面入口 + 默认加载设置页）',
+      hubState.items === 4 && hubState.active === 'options' && hubState.frameSrc.includes('options/options.html') && hubState.version.includes('v'));
+    // 切换：数据分析（iframe 内 dashboard 页面加载；趋势图数据依赖浏览行为，
+    // 本段位于第 4 节之前可能为空 → 仅断言页面结构与标题）
+    await hub.evaluate(() => document.querySelector('.hub-item[data-page="dashboard"]').click());
+    await hub.waitForTimeout(2000);
+    const hubDash = await hub.evaluate(async () => {
+      const f = document.getElementById('hubFrame');
+      const doc = f.contentDocument;
+      return {
+        src: f.src,
+        title: doc ? doc.title : '',
+        hasStats: doc ? !!doc.getElementById('statTotal') : false,
+        hasTrend: doc ? !!doc.getElementById('trendChart') : false
+      };
+    });
+    check('hub 切换到数据分析（iframe 渲染 dashboard）',
+      hubDash.src.includes('dashboard/dashboard.html') && hubDash.title.includes('数据分析') && hubDash.hasStats && hubDash.hasTrend);
+    // 切换：限免游戏
+    await hub.evaluate(() => document.querySelector('.hub-item[data-page="freegames"]').click());
+    await hub.waitForTimeout(1500);
+    const hubFree = await hub.evaluate(() => document.getElementById('hubFrame').src);
+    check('hub 切换到限免游戏', hubFree.includes('freegames/freegames.html'));
+    check('hub 无 console error', hubErrors.length === 0, `(${hubErrors.slice(0, 3).join(' | ')})`);
+    await hub.close();
 
     // 3. 内容脚本注入 fixture 页。v3.3.15：状态/诊断浮窗默认禁用——先验证
     //    默认不渲染，再通过 popup 开启后验证渲染与列表页流程

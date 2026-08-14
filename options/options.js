@@ -34,10 +34,19 @@
 
   // v6.4.6：切换到 Vista Aero 新菜单
   document.addEventListener('DOMContentLoaded', async () => {
+    // v6.4.11：集中入口（hub）——内嵌时切换面板，独立打开时新开标签
+    const hubBtn = document.getElementById('openHubBtn');
+    if (hubBtn) {
+      hubBtn.addEventListener('click', () => {
+        const utils = globalThis.__GR_SETTINGS_UTILS__;
+        if (utils && utils.goHub) utils.goHub('options');
+      });
+    }
     const vistaBtn = document.getElementById('openVistaMenu');
     if (vistaBtn) {
       vistaBtn.addEventListener('click', () => {
-        chrome.tabs.create({ url: chrome.runtime.getURL('menu-vista/index.html') });
+        const utils = globalThis.__GR_SETTINGS_UTILS__;
+        if (utils && utils.goHub) utils.goHub('vista');
       });
     }
     try {
@@ -80,7 +89,7 @@
         try {
           const r = await fetch('https://api.isthereanydeal.com/v02/game/prices/?key=' + encodeURIComponent(key) + '&appids=steam/730');
           result.textContent = r.status === 200 ? '✅ Key 有效' : r.status === 401 || r.status === 403 ? '❌ Key 无效' : '⚠️ 服务异常（' + r.status + '）';
-        } catch (e) {
+        } catch {
           result.textContent = '❌ 网络错误';
         }
       });
@@ -128,6 +137,8 @@
       scheduleAutoSave();
     });
     window['__renderRules'] = renderRules;
+    // v6.4.11：renderSettings 先于本定义执行，首次加载时规则列表缺失 → 补渲染
+    if (OPTS.currentSettings) renderRules(OPTS.currentSettings.filterRules || []);
     // v6.4.8：日志在线查看
     async function loadLogViewer() {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
@@ -318,6 +329,12 @@ function escapeHtml(s) {
     document.getElementById('logLevel').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('logRetentionDays').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('logStorage').addEventListener('change', () => scheduleAutoSave());
+    document.getElementById('maxRuntimeLog').addEventListener('change', () => scheduleAutoSave());
+
+    // v6.4.11：自动备份配置（变更即自动保存）
+    document.getElementById('autoBackup').addEventListener('change', () => scheduleAutoSave());
+    document.getElementById('backupIntervalHours').addEventListener('change', () => scheduleAutoSave());
+    document.getElementById('maxBackups').addEventListener('change', () => scheduleAutoSave());
 
     // v3.4.1：页面关闭兜底——防抖定时器未触发时立即保存，避免设置改动丢失
     //（尽力而为：pagehide 阶段 sendMessage 仍可能发出，总比丢弃强）
@@ -354,6 +371,12 @@ function escapeHtml(s) {
     // 好评率过滤
     OPTS.currentSettings.enableRatingFilter = document.getElementById('ratingFilterEnabled').checked;
     OPTS.currentSettings.minSteamRatingFilter = parseInt(document.getElementById('minRating').value);
+    // v6.4.11：修复 30 天好评过滤/关系模式/重排序无法保存（此前仅在事件
+    // 绑定中 scheduleAutoSave，收集阶段漏读这 4 个 DOM 字段，保存时被旧值覆盖）
+    OPTS.currentSettings.enableRecentFilter = document.getElementById('recentFilterEnabled').checked;
+    OPTS.currentSettings.minRecentSteamRatingFilter = parseInt(document.getElementById('minRecentRating').value);
+    OPTS.currentSettings.ratingFilterMode = document.getElementById('ratingFilterMode').value;
+    OPTS.currentSettings.enableSortByRating = document.getElementById('sortByRatingEnabled').checked;
 
     // 徽章显示开关（v3.3.8）
     OPTS.currentSettings.badgeVisibility = {
@@ -426,6 +449,12 @@ function escapeHtml(s) {
     OPTS.currentSettings.logLevel = document.getElementById('logLevel').value;
     OPTS.currentSettings.logRetentionDays = parseInt(document.getElementById('logRetentionDays').value) || 0;
     OPTS.currentSettings.logStorage = document.getElementById('logStorage').value;
+    OPTS.currentSettings.maxRuntimeLog = parseInt(document.getElementById('maxRuntimeLog').value) || 300;
+
+    // v6.4.11：自动备份配置（此前无 UI，仅 DEFAULT_SETTINGS 默认值生效）
+    OPTS.currentSettings.autoBackup = document.getElementById('autoBackup').checked;
+    OPTS.currentSettings.backupIntervalHours = parseInt(document.getElementById('backupIntervalHours').value) || 24;
+    OPTS.currentSettings.maxBackups = parseInt(document.getElementById('maxBackups').value) || 7;
 
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: OPTS.currentSettings });
     showSaveStatus('saved');

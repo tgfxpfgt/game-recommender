@@ -26,6 +26,15 @@ document.addEventListener('DOMContentLoaded', () => {
   loadRuntimeLogs();
   loadBackups();
 
+  // v6.4.11：返回设置中心（hub 内切面板 / 独立打开新标签）
+  const hubBtn = document.getElementById('hubBtn');
+  if (hubBtn) {
+    hubBtn.addEventListener('click', () => {
+      const utils = globalThis.__GR_SETTINGS_UTILS__;
+      if (utils && utils.goHub) utils.goHub('dashboard');
+    });
+  }
+
   document.getElementById('refreshBtn').addEventListener('click', loadStats);
   document.getElementById('steamRecBtn').addEventListener('click', loadSteamRecommendations);
 

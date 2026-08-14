@@ -256,6 +256,14 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.11（小版本触发完整发布：菜单一致性 + 全量覆盖 + 集中入口 + 过滤保存根治）
+- **修复过滤设置无法保存（根因根治）**：① **options 保存收集漏读 4 个 DOM 字段**——30 天好评过滤开关/阈值、过滤关系（与/或/非）、按好评率重排（仅绑定事件触发保存，收集阶段从未读取，保存时被旧值覆盖）——补齐；② **Vista 菜单 savePatch 点号键 bug**——`Object.assign` 把 `'badgeVisibility.recent'`/`'llmConfig.*'` 拍平为字面量顶层键，嵌套设置永远写不进——新增 `shared/settings-utils.js`（deepSet/getByPath/applyPatch）三处 UI 共用
+- **弹出菜单与设置页一致 + 全覆盖（#1）**：popup 重构为**全量快捷设置**（与设置页同键同名）——常规/好评率过滤（总+30天+关系+重排）/关键词过滤/推荐权重 6 项+LLM/徽章 4 项/自动备份/日志 5 项全部可调；底部"设置/分析"独立入口改为"🏠 设置中心"集中入口
+- **设置页覆盖所有选项（#2）**：classic 设置页新增**自动备份**（开关/间隔/保留份数）与**日志条数上限**；Vista 菜单新增**行为记录上限**与**自动备份配置**（此前仅默认值生效、无 UI）
+- **集中入口 Hub（#3）**：新建 `hub/` 设置中心——侧栏一键切换**设置（经典）/Vista 菜单/数据分析/限免游戏** 四个页面（iframe 内嵌 + hash 直达 + postMessage 面板联动）；各页面新增"🏠 中心"返回按钮；popup 底部统一经 hub 进入
+- **连带修复**：options 规则列表首次加载补渲染（renderSettings 先于 __renderRules 定义）；6 处 `catch (e)` 未用变量 + 1 处 prefer-const（lint 门禁）
+- **质量**：vitest 531 test（+9 settings-utils 深路径套件）· lint 0 · typecheck 0 · E2E 38/38（+30 天过滤保存往返 / Vista 徽章嵌套保存 / hub 切换断言）
+
 ### v6.4.10（小版本：四项 bug 修复——API 状态/重试机制/过滤/权重归一）
 - **修复 Steam API 状态失效**：GET_API_STATUS handler 返回 `{status: {...}}` 嵌套而 popup 读顶层字段——永远显示"采样中"；扁平化返回修复（E2E +1 断言）
 - **好评率失败重试机制**：缓存条目新增 `ratingFailCount`——获取失败 +1 / 成功归零；`needsRatingRefetch` 失败固化重试**上限 3 次**（页面刷新触发一次 + 冷却防连打，3 次后停止避免无限请求）

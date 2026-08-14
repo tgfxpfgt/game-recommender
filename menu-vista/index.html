@@ -22,6 +22,7 @@
       </div>
       <div class="actions">
         <span id="extVersion" class="ext-version"></span>
+        <button class="vista-btn gray" id="openHubBtn" title="返回设置中心">🏠 中心</button>
         <button class="vista-btn gray" id="toggleClassic" title="切换到经典菜单">🎨 经典菜单</button>
       </div>
     </header>
@@ -70,6 +71,10 @@
             <div class="aero-row">
               <span class="label">列表页扫描上限<small>Max scan links</small></span>
               <input type="number" id="vMaxScan" class="vista-input" min="100" max="2000" style="width:110px">
+            </div>
+            <div class="aero-row">
+              <span class="label">行为记录上限<small>Max behavior log</small></span>
+              <input type="number" id="vMaxBehavior" class="vista-input" min="100" max="5000" step="100" style="width:110px">
             </div>
           </div>
           <div class="aero-section">
@@ -209,6 +214,18 @@
         <!-- ===== 数据 ===== -->
         <section class="aero-panel" id="panel-data">
           <div class="aero-section">
+            <h3>自动备份（v6.4.11 可配置）</h3>
+            <div class="aero-row"><span class="label">启用自动备份<small>Auto backup</small></span><label class="vista-switch"><input type="checkbox" id="vAutoBackup"><span class="track"></span></label></div>
+            <div class="aero-row">
+              <span class="label">备份间隔（小时）<small>Interval hours</small></span>
+              <input type="number" id="vBackupInterval" class="vista-input" min="1" max="720" style="width:110px">
+            </div>
+            <div class="aero-row">
+              <span class="label">保留份数<small>Max backups</small></span>
+              <input type="number" id="vMaxBackups" class="vista-input" min="1" max="30" style="width:110px">
+            </div>
+          </div>
+          <div class="aero-section">
             <h3>数据管理</h3>
             <div class="aero-row">
               <button class="vista-btn" id="vExport">📤 导出</button>
@@ -282,6 +299,7 @@
     </footer>
   </div>
 
+  <script src="../shared/settings-utils.js"></script>
   <script src="menu.js"></script>
 </body>
 </html>

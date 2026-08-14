@@ -37,6 +37,7 @@ export default defineConfig({
       'tests/unit/test-security.mjs',
       'tests/unit/test-api-pure.mjs',
       'tests/unit/test-rules-cleanup.mjs',
+      'tests/unit/test-settings-utils.mjs',
       'tests/unit/test-storage.mjs',
       'tests/unit/test-outbound.mjs',
       'tests/unit/test-backups.mjs',

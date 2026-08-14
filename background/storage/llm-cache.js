@@ -25,7 +25,7 @@ async function load() {
     if (stored && typeof stored === 'object') {
       llmCacheMemory = new Map(Object.entries(stored));
     }
-  } catch (e) {
+  } catch {
     /* 损坏缓存忽略 */
   }
   loaded = true;
@@ -63,7 +63,7 @@ export async function setLlmScore(gameName, score) {
   }
   try {
     await dataStore.writeModule(DB_KEYS.LLM_SCORE, Object.fromEntries(llmCacheMemory));
-  } catch (e) {
+  } catch {
     /* 写失败仅丢失缓存 */
   }
 }

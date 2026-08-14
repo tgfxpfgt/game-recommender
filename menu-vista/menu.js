@@ -15,10 +15,15 @@ async function loadSettings() {
   settings = (resp && resp.settings) || {};
 }
 
+// v6.4.11：修复点号路径键（badgeVisibility.recent / llmConfig.* 等）被
+// Object.assign 拍平为字面量顶层键、嵌套设置永远无法保存的问题
+// Dotted-path keys are applied via deepSet (shared settings-utils).
 async function savePatch(patch) {
   const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
   const latest = (resp && resp.settings) || settings;
-  Object.assign(latest, patch);
+  const utils = globalThis.__GR_SETTINGS_UTILS__;
+  if (utils && utils.applyPatch) utils.applyPatch(latest, patch);
+  else Object.assign(latest, patch); // 兜底（settings-utils 未注入时退化为浅合并）
   settings = latest;
   await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
   $('vSaveStatus').textContent = '✓ 已保存';
@@ -61,8 +66,14 @@ bindToggle('vVmFilter', 'enableVmFilter');
 bindToggle('vUseLLM', 'useLLM');
 bindToggle('vLogEnabled', 'enableLog');
 bindInput('vMaxScan', 'maxScanLinks', Number);
+// v6.4.11：行为记录上限（此前仅经典菜单可配）
+bindInput('vMaxBehavior', 'maxBehaviorLog', Number);
 bindInput('vVmKeywords', 'filterKeywords');
 $('vFilterMatch').addEventListener('change', (e) => savePatch({ filterMatchMode: e.target.value }));
+// v6.4.11：自动备份配置（此前仅 DEFAULT_SETTINGS 默认值生效，无 UI）
+bindToggle('vAutoBackup', 'autoBackup');
+bindInput('vBackupInterval', 'backupIntervalHours', Number);
+bindInput('vMaxBackups', 'maxBackups', Number);
 
 // ============ 关键词过滤规则列表（v6.4.8：多条 + 排除误报词） ============
 function renderRules(rules) {
@@ -430,10 +441,15 @@ $('vItadTest').addEventListener('click', async () => {
   }
 });
 
-// ============ 经典菜单切换 ============
+// ============ 经典菜单切换（v6.4.11：经 hub 集中入口，内嵌时切换面板） ============
 $('toggleClassic').addEventListener('click', () => {
-  chrome.tabs.create({ url: chrome.runtime.getURL('options/options.html') });
-  window.close();
+  const utils = globalThis.__GR_SETTINGS_UTILS__;
+  if (utils && utils.goHub) utils.goHub('options');
+  else window.close();
+});
+$('openHubBtn').addEventListener('click', () => {
+  const utils = globalThis.__GR_SETTINGS_UTILS__;
+  if (utils && utils.goHub) utils.goHub('vista');
 });
 
 // ============ 工具 ============
@@ -451,6 +467,10 @@ async function init() {
   $('vStatusBar').checked = settings.showStatusBar !== false;
   $('vDebug').checked = !!settings.showDebugPanel;
   $('vMaxScan').value = settings.maxScanLinks || 500;
+  $('vMaxBehavior').value = settings.maxBehaviorLog || 500;
+  $('vAutoBackup').checked = settings.autoBackup !== false;
+  $('vBackupInterval').value = settings.backupIntervalHours ?? 24;
+  $('vMaxBackups').value = settings.maxBackups ?? 7;
   const bv = settings.badgeVisibility || {};
   $('vBadgeRecent').checked = bv.recent !== false;
   $('vBadgeAll').checked = bv.all !== false;

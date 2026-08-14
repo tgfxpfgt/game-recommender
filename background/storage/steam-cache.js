@@ -162,7 +162,7 @@ export function migrateEntry(entry) {
 
 // 缓存命中率统计（v6.3.2 B3 可观测：dashboard 展示用）/ cache hit stats
 /** @type {{hits: number, misses: number}} */
-let cacheStats = { hits: 0, misses: 0 };
+const cacheStats = { hits: 0, misses: 0 };
 
 // 读取缓存条目（返回模块结构）/ Read a cache entry (modular structure)
 export async function getSteamCacheEntry(cacheKey) {

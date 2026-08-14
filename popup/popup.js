@@ -2,20 +2,14 @@
  * 游戏雷达 Game Radar - Popup Script
  * 弹窗逻辑 / Popup logic
  *
- * Features:
- * - Real-time setting synchronization (saves on every change)
- * - Statistics display (events, games, keywords)
- * - Quick access to dashboard, free games, and options
- *
- * 功能：
- * - 实时同步设置（每次修改即保存）
- * - 统计数据展示（行为记录、游戏数、关键词数）
- * - 快速访问仪表盘、限免游戏和设置页
+ * v6.4.11：全量快捷设置——覆盖设置页全部选项（同键同名），每次修改即保存；
+ * 嵌套路径经 shared/settings-utils.js 的 applyPatch（deepSet）写入。
+ * Full quick settings (same keys/labels as the settings page); every change
+ * saves via dotted-path applyPatch.
  */
 
 document.addEventListener('DOMContentLoaded', async () => {
   // 显示扩展版本号（便于确认加载的是否为最新版本）
-  // Show the extension version (helps confirm the loaded version)
   const versionEl = document.getElementById('extVersion');
   if (versionEl && chrome.runtime && chrome.runtime.getManifest) {
     versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
@@ -37,91 +31,153 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  // Initialize UI state / 初始化 UI 状态
-  document.getElementById('enableToggle').checked = settings.enabled;
-  const threshold = (settings.highlightThreshold ?? 0.6) * 100; // 旧设置缺字段时兜底
-  document.getElementById('thresholdSlider').value = threshold;
-  document.getElementById('thresholdValue').textContent = `${threshold}%`;
-  document.getElementById('debugToggle').checked = settings.showDebugPanel || false;
-  // v3.3.15：状态/诊断浮窗总开关（默认禁用）
-  document.getElementById('statusBarToggle').checked = settings.showStatusBar !== false;
+  const utils = globalThis.__GR_SETTINGS_UTILS__ || { applyPatch: (o, p) => Object.assign(o, p) };
 
-  // Steam rating filter / 好评率过滤
-  document.getElementById('ratingFilterToggle').checked = settings.enableRatingFilter || false;
-  document.getElementById('ratingFilterSlider').value = settings.minSteamRatingFilter || 0;
-  document.getElementById('ratingFilterValue').textContent = `${settings.minSteamRatingFilter || 0}%`;
-  document.getElementById('ratingFilterControl').style.display = settings.enableRatingFilter ? 'flex' : 'none';
-
-  // VM edition filter / 虚拟机版过滤
-  document.getElementById('vmFilterToggle').checked = settings.enableVmFilter || false;
-
-  // Algorithm mode / 算法模式
-  const algoMode = settings.useLLM ? 'llm' : 'builtin';
-  const algoRadio = document.querySelector(`input[name="algoMode"][value="${algoMode}"]`);
-  if (algoRadio) algoRadio.checked = true;
-  updateLLMStatus(settings);
-
-  // Load statistics / 加载统计数据
-  loadStats();
-
-  // Load Steam API status / 加载 Steam API 状态
-  loadApiStatus();
-
-  // Load free games count / 加载限免游戏数量
-  loadFreeGamesCount();
-
-  // ============ Event Binding / 事件绑定 ============
-
-  // v6.4.1：保存前重读最新设置（防快照覆盖——后台 saveSettings 替换缓存
-  // 引用，popup 打开期间 options 的改动会被旧快照覆盖）
-  // Reload latest settings before saving to avoid overwriting concurrent edits
+  // ============ 保存（保存前重读最新设置，防快照覆盖） ============
   async function saveSettingsPatch(patch) {
     const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
     const latest = resp && resp.settings ? resp.settings : settings;
-    Object.assign(latest, patch);
+    utils.applyPatch(latest, patch);
+    settings = latest;
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
   }
 
-  // Enable/Disable toggle / 启用/禁用开关
-  document.getElementById('enableToggle').addEventListener('change', async (e) => {
-    await saveSettingsPatch({ enabled: e.target.checked });
-  });
+  // ============ 渲染 / Render ============
+  document.getElementById('enableToggle').checked = settings.enabled;
+  document.getElementById('ppStatusBar').checked = settings.showStatusBar !== false;
+  document.getElementById('ppDebug').checked = settings.showDebugPanel || false;
+  const threshold = (settings.highlightThreshold ?? 0.6) * 100;
+  document.getElementById('ppThreshold').value = threshold;
+  document.getElementById('ppThresholdVal').textContent = `${threshold}%`;
+  document.getElementById('ppMaxLog').value = settings.maxBehaviorLog || 500;
 
-  // Threshold slider / 阈值滑块
-  document.getElementById('thresholdSlider').addEventListener('input', (e) => {
-    const value = e.target.value;
-    document.getElementById('thresholdValue').textContent = `${value}%`;
-  });
+  // 好评率过滤
+  document.getElementById('ppRatingFilter').checked = settings.enableRatingFilter || false;
+  document.getElementById('ppMinRating').value = settings.minSteamRatingFilter || 0;
+  document.getElementById('ppMinRatingVal').textContent = `${settings.minSteamRatingFilter || 0}%`;
+  document.getElementById('ppRatingControl').style.display = settings.enableRatingFilter ? 'flex' : 'none';
+  document.getElementById('ppRecentFilter').checked = settings.enableRecentFilter || false;
+  document.getElementById('ppMinRecent').value = settings.minRecentSteamRatingFilter || 0;
+  document.getElementById('ppMinRecentVal').textContent = `${settings.minRecentSteamRatingFilter || 0}%`;
+  document.getElementById('ppRecentControl').style.display = settings.enableRecentFilter ? 'flex' : 'none';
+  document.getElementById('ppFilterMode').value = settings.ratingFilterMode || 'and';
+  document.getElementById('ppSortByRating').checked = settings.enableSortByRating || false;
 
-  document.getElementById('thresholdSlider').addEventListener('change', async (e) => {
-    await saveSettingsPatch({ highlightThreshold: e.target.value / 100 });
-  });
+  // 关键词过滤
+  document.getElementById('ppVmFilter').checked = settings.enableVmFilter || false;
+  document.getElementById('ppVmKeywords').value =
+    settings.filterKeywords || (Array.isArray(settings.vmFilterKeywords) ? settings.vmFilterKeywords.join(',') : '') || '';
+  document.getElementById('ppFilterMatch').value = settings.filterMatchMode || 'contains';
 
-  // Algorithm mode switch / 算法模式切换
-  document.querySelectorAll('input[name="algoMode"]').forEach((radio) => {
-    radio.addEventListener('change', async (e) => {
-      await saveSettingsPatch({ useLLM: e.target.value === 'llm' });
-      updateLLMStatus(settings);
+  // 权重（动态 6 项）
+  renderWeights(settings.weights || {});
+
+  // LLM
+  document.getElementById('ppUseLLM').checked = settings.useLLM || false;
+  updateLLMStatus(settings);
+
+  // 徽章
+  const bv = settings.badgeVisibility || {};
+  document.getElementById('ppBadgeRecent').checked = bv.recent !== false;
+  document.getElementById('ppBadgeAll').checked = bv.all !== false;
+  document.getElementById('ppBadgeUpdate').checked = bv.update !== false;
+  document.getElementById('ppBadgeRec').checked = bv.rec !== false;
+  document.getElementById('ppMaxScan').value = settings.maxScanLinks || 500;
+
+  // 数据与备份
+  document.getElementById('ppAutoBackup').checked = settings.autoBackup !== false;
+  document.getElementById('ppBackupInterval').value = settings.backupIntervalHours ?? 24;
+  document.getElementById('ppMaxBackups').value = settings.maxBackups ?? 7;
+
+  // 日志
+  document.getElementById('ppLogEnabled').checked = settings.enableLog !== false;
+  document.getElementById('ppLogLevel').value = settings.logLevel || 'info';
+  document.getElementById('ppLogRetention').value = settings.logRetentionDays ?? 7;
+  document.getElementById('ppLogStorage').value = settings.logStorage || 'ndjson';
+  document.getElementById('ppMaxRuntimeLog').value = settings.maxRuntimeLog || 300;
+
+  // ============ 事件绑定 / Events ============
+  // 开关类（值随事件即时保存）
+  const toggleMap = [
+    ['enableToggle', 'enabled'],
+    ['ppStatusBar', 'showStatusBar'],
+    ['ppDebug', 'showDebugPanel'],
+    ['ppRatingFilter', 'enableRatingFilter'],
+    ['ppRecentFilter', 'enableRecentFilter'],
+    ['ppSortByRating', 'enableSortByRating'],
+    ['ppVmFilter', 'enableVmFilter'],
+    ['ppUseLLM', 'useLLM'],
+    ['ppBadgeRecent', 'badgeVisibility.recent'],
+    ['ppBadgeAll', 'badgeVisibility.all'],
+    ['ppBadgeUpdate', 'badgeVisibility.update'],
+    ['ppBadgeRec', 'badgeVisibility.rec'],
+    ['ppAutoBackup', 'autoBackup'],
+    ['ppLogEnabled', 'enableLog']
+  ];
+  toggleMap.forEach(([id, key]) => {
+    document.getElementById(id).addEventListener('change', async (e) => {
+      await saveSettingsPatch({ [key]: e.target.checked });
+      if (id === 'ppRatingFilter') {
+        document.getElementById('ppRatingControl').style.display = e.target.checked ? 'flex' : 'none';
+      }
+      if (id === 'ppRecentFilter') {
+        document.getElementById('ppRecentControl').style.display = e.target.checked ? 'flex' : 'none';
+      }
+      if (id === 'ppUseLLM') updateLLMStatus(settings);
     });
   });
 
-  // Refresh recommendations / 刷新推荐
+  // 滑块（input 实时更新显示，change 保存）
+  /** @type {Array<[string, string, (v: string) => unknown, string]>} */
+  const sliderMap = [
+    ['ppThreshold', 'highlightThreshold', (v) => Number(v) / 100, 'ppThresholdVal'],
+    ['ppMinRating', 'minSteamRatingFilter', Number, 'ppMinRatingVal'],
+    ['ppMinRecent', 'minRecentSteamRatingFilter', Number, 'ppMinRecentVal']
+  ];
+  sliderMap.forEach(([id, key, parse, valId]) => {
+    const el = document.getElementById(id);
+    el.addEventListener('input', (e) => {
+      document.getElementById(valId).textContent = `${e.target.value}%`;
+    });
+    el.addEventListener('change', async (e) => {
+      await saveSettingsPatch({ [key]: parse(e.target.value) });
+    });
+  });
+
+  // 下拉 / 数字输入（change 保存）
+  /** @type {Array<[string, string, (v: string) => unknown]>} */
+  const inputMap = [
+    ['ppMaxLog', 'maxBehaviorLog', Number],
+    ['ppFilterMode', 'ratingFilterMode', String],
+    ['ppVmKeywords', 'filterKeywords', String],
+    ['ppFilterMatch', 'filterMatchMode', String],
+    ['ppMaxScan', 'maxScanLinks', Number],
+    ['ppBackupInterval', 'backupIntervalHours', Number],
+    ['ppMaxBackups', 'maxBackups', Number],
+    ['ppLogLevel', 'logLevel', String],
+    ['ppLogRetention', 'logRetentionDays', Number],
+    ['ppLogStorage', 'logStorage', String],
+    ['ppMaxRuntimeLog', 'maxRuntimeLog', Number]
+  ];
+  inputMap.forEach(([id, key, parse]) => {
+    document.getElementById(id).addEventListener('change', async (e) => {
+      await saveSettingsPatch({ [key]: parse(e.target.value) });
+    });
+  });
+
+  // ============ 底部操作 / Footer actions ============
+  // 刷新当前页推荐
   document.getElementById('refreshBtn').addEventListener('click', async () => {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
     if (tab) {
-      // v3.4.1：捕获拒绝——无内容脚本注入的页面（如 chrome://、扩展商店）
-      // sendMessage 会 reject，未捕获时中断后续按钮反馈
       chrome.tabs.sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' }).catch(() => {});
     }
-    // Button feedback / 按钮反馈
     const btn = document.getElementById('refreshBtn');
     btn.textContent = '✅ 已刷新';
-    setTimeout(() => {
-      btn.textContent = '🔄 刷新';
-    }, 1500);
+    setTimeout(() => { btn.textContent = '🔄 刷新'; }, 1500);
   });
 
-  // Force refresh page / 强制刷新当前页（清除当前页 Steam 缓存后重载，忽视缓存有效期）
+  // 强制刷新当前页（清除当前页 Steam 缓存后重载）
   document.getElementById('forceRefreshBtn').addEventListener('click', async () => {
     const btn = document.getElementById('forceRefreshBtn');
     btn.disabled = true;
@@ -135,70 +191,83 @@ document.addEventListener('DOMContentLoaded', async () => {
         btn.textContent = '✅ 已刷新';
       }
     } catch {
-      // 内容脚本不可达（chrome:// 等受限页面）/ content script unreachable
       btn.textContent = '⚠️ 页面不支持';
     }
     setTimeout(() => window.close(), 800);
   });
 
-  // Open options page / 打开设置页
-  document.getElementById('optionsBtn').addEventListener('click', () => {
-    chrome.runtime.openOptionsPage();
-  });
-
-  // Open dashboard / 打开数据分析页
-  document.getElementById('dashboardBtn').addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('dashboard/dashboard.html') });
-  });
-
-  // Debug panel toggle / 调试窗口开关
-  document.getElementById('debugToggle').addEventListener('change', async (e) => {
-    await saveSettingsPatch({ showDebugPanel: e.target.checked });
-  });
-
-  // Status bar toggle（v3.3.15）/ 状态浮窗总开关
-  document.getElementById('statusBarToggle').addEventListener('change', async (e) => {
-    await saveSettingsPatch({ showStatusBar: e.target.checked });
-  });
-
-  // Rating filter toggle / 好评率过滤开关
-  document.getElementById('ratingFilterToggle').addEventListener('change', async (e) => {
-    document.getElementById('ratingFilterControl').style.display = e.target.checked ? 'flex' : 'none';
-    await saveSettingsPatch({ enableRatingFilter: e.target.checked });
-  });
-
-  // Rating filter threshold / 好评率过滤阈值
-  document.getElementById('ratingFilterSlider').addEventListener('input', (e) => {
-    document.getElementById('ratingFilterValue').textContent = `${e.target.value}%`;
-  });
-
-  document.getElementById('ratingFilterSlider').addEventListener('change', async (e) => {
-    await saveSettingsPatch({ minSteamRatingFilter: parseInt(e.target.value) });
-  });
-
-  // VM filter toggle / 虚拟机过滤开关
-  document.getElementById('vmFilterToggle').addEventListener('change', async (e) => {
-    await saveSettingsPatch({ enableVmFilter: e.target.checked });
-  });
-
-  // 显示最近统计（向当前标签页内容脚本请求重显浮窗）
-  // Re-show the latest stats on the active tab
-  document.getElementById('showStatsBtn').addEventListener('click', async () => {
-    try {
-      const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (tab && tab.id) {
-        await chrome.tabs.sendMessage(tab.id, { action: 'SHOW_LAST_STATS' });
-      }
-    } catch {
-      // 页面未注入内容脚本时静默 / silently ignore when no content script
-    }
-  });
-
-  // Open free games page / 打开限免提醒页
+  // v6.4.11：集中入口——限免/设置中心均经 hub（hub 内可一键切换所有页面）
   document.getElementById('freeGamesBtn').addEventListener('click', () => {
-    chrome.tabs.create({ url: chrome.runtime.getURL('freegames/freegames.html') });
+    if (utils.goHub) utils.goHub('freegames');
+    else chrome.tabs.create({ url: chrome.runtime.getURL('freegames/freegames.html') });
   });
+  document.getElementById('hubBtn').addEventListener('click', () => {
+    if (utils.goHub) utils.goHub('options');
+    else chrome.runtime.openOptionsPage();
+  });
+  document.getElementById('ppOpenFilterRules').addEventListener('click', () => {
+    if (utils.goHub) utils.goHub('options');
+  });
+  document.getElementById('ppOpenData').addEventListener('click', () => {
+    if (utils.goHub) utils.goHub('options');
+  });
+
+  // ============ 状态加载 / Status loads ============
+  loadStats();
+  loadApiStatus();
+  loadFreeGamesCount();
 });
+
+// ============ 权重渲染 / Weights ============
+function renderWeights(weights) {
+  const box = document.getElementById('ppWeights');
+  if (!box) return;
+  const WEIGHT_KEYS = [
+    ['clickRate', '点击率'],
+    ['downloadRate', '下载率'],
+    ['keywordMatch', '关键词'],
+    ['steamRating', 'Steam 好评'],
+    ['playTime', '游玩时长'],
+    ['heat', '热度']
+  ];
+  box.innerHTML = '';
+  WEIGHT_KEYS.forEach(([key, label]) => {
+    const row = document.createElement('div');
+    row.className = 'ctrl-row';
+    row.innerHTML = `<span class="ctrl-label">${label}</span>
+      <div class="threshold-control">
+        <input type="range" data-w="${key}" min="0" max="100" step="5">
+        <span data-wv="${key}" class="threshold-value">0%</span>
+      </div>`;
+    box.appendChild(row);
+    const slider = row.querySelector('[data-w]');
+    slider.value = Math.round((weights[key] || 0) * 100);
+    row.querySelector('[data-wv]').textContent = slider.value + '%';
+    slider.addEventListener('input', (e) => {
+      row.querySelector('[data-wv]').textContent = e.target.value + '%';
+      updateWeightSum();
+    });
+    slider.addEventListener('change', async (e) => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const latest = resp && resp.settings ? resp.settings : {};
+      latest.weights = { ...(latest.weights || {}), [key]: Number(e.target.value) / 100 };
+      const utils = globalThis.__GR_SETTINGS_UTILS__ || {};
+      if (utils.applyPatch) utils.applyPatch(latest, { weights: latest.weights });
+      await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+      updateWeightSum();
+    });
+  });
+  updateWeightSum();
+}
+
+function updateWeightSum() {
+  const box = document.getElementById('ppWeights');
+  const sumEl = document.getElementById('ppWeightSum');
+  if (!box || !sumEl) return;
+  let sum = 0;
+  box.querySelectorAll('[data-w]').forEach((s) => { sum += Number(s.value) || 0; });
+  sumEl.textContent = (sum / 100).toFixed(2);
+}
 
 // ============ Load Steam API Status / 加载 Steam API 状态 ============
 async function loadApiStatus() {
@@ -210,7 +279,6 @@ async function loadApiStatus() {
       info.innerHTML = '<span class="no-data">无法获取状态</span>';
       return;
     }
-    // 状态点：绿=正常 / 黄=采样不足 / 红=异常（限流/高频失败）
     if (resp.anomaly) {
       dot.className = 'status-dot error';
       info.innerHTML = `<span style="color:#e74c3c;font-size:12px;">⚠️ Steam API 异常：近 ${resp.windowSec / 60} 分钟失败率 <b>${resp.failRate}%</b>（${resp.failed}/${resp.total} 次失败），疑似限流</span>
@@ -232,7 +300,6 @@ async function loadFreeGamesCount() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force: false });
     if (response && response.data && response.data.games) {
-      // Count new free games added today / 统计当天新增的限免游戏
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
@@ -252,7 +319,6 @@ async function loadFreeGamesCount() {
 async function loadStats() {
   try {
     const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
-    // 防御：后台未就绪或返回异常时跳过渲染 / Guard: skip if SW not ready or malformed response
     if (!response) return;
     const totalEvents = response.totalEvents || 0;
     const totalGames = response.totalGames || 0;
@@ -262,10 +328,8 @@ async function loadStats() {
     document.getElementById('statGames').textContent = totalGames;
     document.getElementById('statKeywords').textContent = topKeywords.length;
 
-    // Display top 5 keywords / 显示 TOP5 关键词
     const container = document.getElementById('topKeywords');
     if (topKeywords.length > 0) {
-      // 关键词来自用户浏览记录，需转义防 XSS / Keywords come from browsing data; escape to prevent XSS
       container.innerHTML = topKeywords
         .slice(0, 5)
         .map((kw) => `<span class="keyword-tag">${escapeHtml(kw.keyword)}</span>`)
@@ -278,11 +342,10 @@ async function loadStats() {
 
 // ============ Update LLM Status / 更新大模型状态 ============
 // （escapeHtml 由 shared/escape.js 提供全局实现）
-// (escapeHtml comes from shared/escape.js)
-
 function updateLLMStatus(settings) {
-  const statusDiv = document.getElementById('llmStatus');
-  const statusText = document.getElementById('llmStatusText');
+  const statusDiv = document.getElementById('ppLlmStatus');
+  const statusText = document.getElementById('ppLlmStatusText');
+  if (!statusDiv || !statusText) return;
   const statusDot = statusDiv.querySelector('.status-dot');
 
   if (settings.useLLM) {

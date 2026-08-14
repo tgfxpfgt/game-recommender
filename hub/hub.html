@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>游戏雷达 Game Radar - 设置中心</title>
+  <link rel="stylesheet" href="../styles/ui-theme.css">
+  <link rel="stylesheet" href="hub.css">
+</head>
+<body>
+  <!-- v6.4.11：扩展全部页面的集中入口——侧栏切换所有页面（iframe 内嵌） -->
+  <!-- Central hub: all extension pages switchable via the sidebar (iframes) -->
+  <div class="hub-shell">
+
+    <!-- 侧边导航 -->
+    <aside class="hub-sidebar">
+      <div class="hub-brand">
+        <span class="hub-logo">🎮</span>
+        <div>
+          <div class="hub-title">游戏雷达</div>
+          <div class="hub-sub">Game Radar 设置中心</div>
+        </div>
+      </div>
+      <nav class="hub-nav">
+        <button class="hub-item active" data-page="options"><span>⚙️</span>设置（经典）</button>
+        <button class="hub-item" data-page="vista"><span>✨</span>Vista 菜单</button>
+        <button class="hub-item" data-page="dashboard"><span>📊</span>数据分析</button>
+        <button class="hub-item" data-page="freegames"><span>🎁</span>限免游戏</button>
+      </nav>
+      <div class="hub-sidebar-footer">
+        <span id="hubVersion" class="hub-version"></span>
+        <button id="openInTab" class="hub-btn" title="在当前标签页外部打开当前页面">↗ 新标签打开</button>
+      </div>
+    </aside>
+
+    <!-- 内容区（iframe 承载各页面） -->
+    <main class="hub-content">
+      <iframe id="hubFrame" class="hub-frame" src="about:blank"></iframe>
+    </main>
+
+  </div>
+
+  <script src="hub.js"></script>
+</body>
+</html>
