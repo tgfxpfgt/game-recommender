@@ -220,6 +220,8 @@ async function runChecks() {
     await optPage2.waitForTimeout(1200);
     await optPage2.evaluate(() => {
       document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.getElementById('ratingFilterEnabled').checked = true;
+      document.getElementById('ratingFilterEnabled').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('minRating').value = 65;
       document.getElementById('minRating').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('ratingFilterMode').value = 'or';
@@ -232,11 +234,23 @@ async function runChecks() {
     const filterSaved = await optPage2.evaluate(async () => {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       const s = resp.settings;
-      return { min: s.minSteamRatingFilter, mode: s.ratingFilterMode, kw: s.filterKeywords };
+      return { enable: s.enableRatingFilter, min: s.minSteamRatingFilter, mode: s.ratingFilterMode, kw: s.filterKeywords };
     });
-    check('过滤设置全量保存（阈值65/关系or/关键词）',
-      filterSaved.min === 65 && filterSaved.mode === 'or' && filterSaved.kw === '测试版,内测', JSON.stringify(filterSaved));
+    check('过滤设置全量保存（好评率开+阈值65/关系or/关键词）',
+      filterSaved.enable === true && filterSaved.min === 65 && filterSaved.mode === 'or' && filterSaved.kw === '测试版,内测', JSON.stringify(filterSaved));
+    // 重开设置页回显（好评率过滤开关+阈值）
     await optPage2.close();
+    const optPage3 = await context.newPage();
+    await optPage3.goto(`chrome-extension://${extId}/options/options.html`);
+    await optPage3.waitForTimeout(1200);
+    const filterEcho = await optPage3.evaluate(() => {
+      document.querySelector('.nav-item[data-panel="filters"]').click();
+      return {
+        enable: document.getElementById('ratingFilterEnabled').checked,
+        min: Number(document.getElementById('minRating').value)
+      };
+    });
+    check('重开设置页回显（好评率过滤 开+65）', filterEcho.enable === true && filterEcho.min === 65, JSON.stringify(filterEcho));
     // 快速连续修改（串行队列防竞态：并发 savePatch 曾互相覆盖）
     const popup4 = await context.newPage();
     await popup4.goto(`chrome-extension://${extId}/popup/popup.html`);
