@@ -34,6 +34,27 @@ test('短英文词精确匹配接受', () => { expect(nm('VR', 'VR', 'VR')).toEq
 test('跨语言信任（英文词命中官方中文名本体）', () => { expect(nm('角斗士公会经理', 'Gladiator Guild Manager', '角斗士公会经理/Gladiator Guild Manager')).toEqual(true); });
 test('跨语言信任（星际采矿公司）', () => { expect(nm('星际采矿公司', 'Star Ores Inc', '星际采矿公司/Star Ores Inc')).toEqual(true); });
 test('跨语言+数字差异仍拒绝（装机模拟器2→1代）', () => { expect(nm('装机模拟器 (PC Building Simulator)', '装机模拟器2', '装机模拟器2')).toEqual(false); });
+// v6.4.17：跨语言信任加数字冲突校验
+test('跨语言数字冲突：纯中文标题带系列号 vs 纯英文旧作 → 拒绝', () => {
+  expect(nr2('生化危机9 安魂曲', 'Resident Evil 4')).toEqual(false);
+});
+test('跨语言数字不冲突：候选无数字 → 放行', () => {
+  expect(nr2('生化危机9 安魂曲', 'Resident Evil Requiem')).toEqual(true);
+});
+test('跨语言数字一致：标题与候选同数字 → 放行', () => {
+  expect(nr2('赛博朋克2077', 'Cyberpunk 2077')).toEqual(true);
+});
+// v6.4.17：下载站噪声词（Build 号等）不破坏跨语言信任
+test('标题含 Build 噪声词 → 跨语言信任仍生效（109515 封面直取场景）', () => {
+  expect(nr2('生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器', 'Resident Evil Requiem')).toEqual(true);
+});
+test('digitSetsOverlap 纯函数', () => {
+  const dso = apiMod.digitSetsOverlap;
+  expect(dso('生化危机9', 'Resident Evil 4')).toEqual(false); // {9}∩{4}=∅ 冲突
+  expect(dso('生化危机9', 'Resident Evil Requiem')).toEqual(true); // 候选无数字
+  expect(dso('赛博朋克2077', 'Cyberpunk 2077')).toEqual(true); // 相同数字
+  expect(dso('无数字', 'No digits')).toEqual(true); // 双方无数字
+});
 
 // ============ 0.5b v6.4.16：跨语言收紧 / 删词变体校验 / 候选打分 ============
 console.log('0.5b v6.4.16 跨语言收紧 + 删词变体校验 + 候选打分');

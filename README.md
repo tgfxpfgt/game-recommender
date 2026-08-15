@@ -256,6 +256,13 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.17（搜索引擎兜底 + 直取校验修复——109515 端到端命中 3764200）
+- **搜索引擎兜底**（用户要求）：规则匹配失败时用 **Bing 搜索"标题 steam"**，从结果页提取 `store.steampowered.com/app/{id}` 官方链接 → **appdetails 官方名校验 + 标题相关性校验**（防无关链接）→ 采用；成功缓存 7d / 失败 24h（独立 web: 缓存键，与 LLM 兜底互不阻断）；免费无需配置（manifest 新增 `cn.bing.com` host 权限，权限最小化单域）
+- **修复直取路径误拒**（109515 真正根因）：标题带 **"Build.22898177"** 噪声——"build" 被算作英文词使标题判为"混合语言"，跨语言信任失效，**封面直取的正确 appid（3764200）被误拒**转标题搜索（中文索引无）→ 未找到。修复：词提取排除下载站噪声词（build/plus/full/crack/repack/update）——封面直取直接命中正确游戏
+- **跨语言信任加数字冲突校验**：`namesRelated` 跨语言分支要求双方数字集合不冲突（"生化危机9" vs "Resident Evil 4" 系列旧作被拒；候选无数字放行）
+- **兜底链**：规则匹配 → 搜索引擎兜底（Bing）→ AI/LLM 兜底（用户配置时）→ 全部失败显示"未找到"（可报错纠正入黑名单）
+- **质量**：vitest 566 test · lint 0 · typecheck 0 · E2E 42/42；端到端实测 109515 浮窗显示 store.steampowered.com/app/3764200 ✅
+
 ### v6.4.16（appid 错配根治 + AI/LLM 匹配兜底——真实站点诊断驱动）
 - **错配根因**（gamer520 109515"生化危机9 安魂曲"→ 错误匹配 Jrago III 4021140，正确应为 Resident Evil Requiem 3764200）：扩展组合搜索把标题删词成**通用词"安魂曲"**，storesearch 返回名字含"安魂曲"的无关游戏"Jrago III 夜之安魂曲"；`nameMatchesSearch` 只校验"结果名包含搜索词"、**不校验与完整标题相关** → 错配。实测 storesearch：中文索引无"生化危机 安魂曲"，英文"Resident Evil Requiem"正确返回 3764200
 - **规则层修复（三层）**：①**跨语言信任收紧**——中文搜索词命中英文结果名不再无条件放行（schinese 搜索的中文词英文结果多为索引噪声），仅当标题含共同英文词才放行；②**删词变体校验** `nameMatchesSearchVariant`——变体搜索的结果名须与标题**其余核心词**有交集（拒"安魂曲"→"Jrago III 夜之安魂曲"）；③**多候选打分排序**——`matchCandidateScore` 按与完整标题的共同核心词评分（英文词权重更高），分数 0 不采用

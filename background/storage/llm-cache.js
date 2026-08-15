@@ -79,14 +79,28 @@ export function resetLlmCache() {
 // 复用 score 字段存储（旧数据结构兼容）。
 const LLM_MATCH_FAIL_TTL = 24 * 3600e3;
 
-function matchKey(gameName) {
-  return 'match:' + keyOf(gameName);
-}
-
 // 读取匹配兜底缓存（失败条目按 24h TTL）
 export async function getLlmMatch(gameName) {
+  return getMatchFallback('match:', gameName);
+}
+
+// 写入匹配兜底缓存（value: {ok, appId?, name?}）
+export async function setLlmMatch(gameName, value) {
+  return setMatchFallback('match:', gameName, value);
+}
+
+// ============ v6.4.17：搜索引擎兜底缓存（独立键，防与 LLM 兜底互相阻断） ============
+export async function getWebMatch(gameName) {
+  return getMatchFallback('web:', gameName);
+}
+
+export async function setWebMatch(gameName, value) {
+  return setMatchFallback('web:', gameName, value);
+}
+
+async function getMatchFallback(prefix, gameName) {
   await load();
-  const key = matchKey(gameName);
+  const key = prefix + keyOf(gameName);
   if (!key) return null;
   const entry = llmCacheMemory.get(key);
   if (!entry) return null;
@@ -100,10 +114,9 @@ export async function getLlmMatch(gameName) {
   return value;
 }
 
-// 写入匹配兜底缓存（value: {ok, appId?, name?}）
-export async function setLlmMatch(gameName, value) {
+async function setMatchFallback(prefix, gameName, value) {
   await load();
-  const key = matchKey(gameName);
+  const key = prefix + keyOf(gameName);
   if (!key) return;
   llmCacheMemory.set(key, { score: value, ts: Date.now() });
   if (llmCacheMemory.size > MAX_ENTRIES) {

@@ -17,11 +17,81 @@
 import { getSettings } from '../core/settings.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
-import { getLlmMatch, setLlmMatch } from '../storage/llm-cache.js';
+import { getLlmMatch, setLlmMatch, getWebMatch, setWebMatch } from '../storage/llm-cache.js';
 import { searchSteamAppId, namesRelated } from './api-search.js';
 import { fetchSteamAppDetails } from './api-details.js';
 
 const LLM_FETCH_TIMEOUT = 30000; // LLM 生成较慢 / LLM generation is slow
+
+// ============ v6.4.17：搜索引擎兜底（Bing，免费无需配置） ============
+// 规则匹配失败时用 Bing 搜索"标题 steam"，从结果页提取 store.steampowered.com
+// 官方链接 → appdetails 官方名校验 + 标题相关性校验（防无关链接）→ 采用。
+// 成功缓存 7d / 失败缓存 24h（独立 web: 键，与 LLM 兜底互不阻断）。
+
+// 解析 Bing 搜索结果 HTML → Steam appid 列表（去重保序）。纯函数，可单测。
+// Parse Bing results HTML for store.steampowered.com/app/{id} links.
+export function parseBingSearchAppIds(html) {
+  const ids = [];
+  const seen = new Set();
+  const re = /store\.steampowered\.com\/app\/(\d+)/g;
+  for (const m of String(html || '').matchAll(re)) {
+    const id = m[1];
+    if (!seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+const BING_SEARCH_URL = 'https://cn.bing.com/search?q=';
+const BING_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
+
+/**
+ * 搜索引擎兜底：Bing 搜索 → Steam 官方链接 → appdetails 校验。
+ * @param {string} rawName - 下载站原始标题
+ * @param {string|number|null} [excludeAppId] - 曾报错的错误 appid（黑名单）
+ * @returns {Promise<import('../core/types.js').SteamSearchResult|null>}
+ */
+export async function webSearchFallback(rawName, excludeAppId) {
+  if (!rawName) return null;
+  try {
+    const cached = await getWebMatch(rawName);
+    if (cached) {
+      if (cached.ok && cached.appId) {
+        return { appId: cached.appId, name: cached.name, englishName: cached.name, aiFallback: true };
+      }
+      return null;
+    }
+    // cn.bing.com 为公网域名（fetchWithTimeout 的 SSRF host 校验放行）；
+    // 搜索词经 encodeURIComponent 编码，无注入面
+    const searchUrl = BING_SEARCH_URL + encodeURIComponent(rawName + ' steam');
+    const resp = await fetchWithTimeout(
+      searchUrl,
+      { headers: { 'User-Agent': BING_UA } },
+      15000
+    );
+    const html = await resp.text();
+    const appIds = parseBingSearchAppIds(html)
+      .filter((id) => String(id) !== String(excludeAppId))
+      .slice(0, 5);
+    for (const appId of appIds) {
+      const detail = await fetchSteamAppDetails(String(appId));
+      if (detail && detail.name && namesRelated(rawName, detail.name)) {
+        const numericId = Number(appId);
+        await setWebMatch(rawName, { ok: true, appId: numericId, name: detail.name });
+        Logger.info('搜索兜底', `${rawName} → ${detail.name} (${numericId})`);
+        return { appId: numericId, name: detail.name, englishName: detail.name, aiFallback: true };
+      }
+    }
+    await setWebMatch(rawName, { ok: false });
+    return null;
+  } catch (e) {
+    Logger.warn('搜索兜底', '搜索引擎兜底失败', String(e));
+    return null;
+  }
+}
 
 /**
  * LLM 匹配兜底入口：规则匹配失败后调用；未配置 LLM 或校验失败返回 null。

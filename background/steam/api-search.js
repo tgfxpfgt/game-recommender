@@ -24,8 +24,9 @@ export function namesRelated(title, cachedName) {
   const norm = (s) => String(s || '').toLowerCase();
   // 中文词（连续 2+ 汉字）/ CJK tokens
   const cjkWords = (s) => norm(s).match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
-  // 英文词（≥4 字符，排除 of/the/and/ii 等短词）/ EN tokens (≥4 chars)
-  const enWords = (s) => norm(s).match(/[a-z][a-z0-9']{3,}/g) || [];
+  // 英文词（≥4 字符，排除 of/the/and/ii 等短词与下载站噪声词）/
+  // EN tokens (≥4 chars, excluding short words and download-site noise)
+  const enWords = (s) => (norm(s).match(/[a-z][a-z0-9']{3,}/g) || []).filter((w) => !NOISE_EN_WORDS.has(w));
   const tCjk = cjkWords(title),
     tEn = enWords(title);
   const cCjk = cjkWords(cachedName),
@@ -33,20 +34,40 @@ export function namesRelated(title, cachedName) {
   const hasCommon = (a, b) => a.some((w) => b.includes(w));
   if (hasCommon(tCjk, cCjk) || hasCommon(tEn, cEn)) return true;
   // 跨语言信任：双方均单语言且语言不同（纯英文标题 vs 纯中文缓存名等）
+  // v6.4.17：加数字冲突校验——"生化危机9" 跨语言匹配 "Resident Evil 4"
+  // （系列旧作）被拒；候选无数字（"Resident Evil Requiem"）不冲突
   const tSingle = tCjk.length === 0 || tEn.length === 0;
   const cSingle = cCjk.length === 0 || cEn.length === 0;
-  if (tSingle && cSingle && tCjk.length > 0 !== cCjk.length > 0) return true;
+  if (tSingle && cSingle && tCjk.length > 0 !== cCjk.length > 0) {
+    return digitSetsOverlap(title, cachedName);
+  }
   return false;
 }
 
 // v6.4.16：标题核心词提取（CJK 连续 2+ 汉字 + 英文 ≥4 字符，剔除数字段）——
 // 供删词变体校验与候选打分使用。规范化小写。
 // Core title tokens (CJK runs + EN words) for variant checks and scoring.
+// v6.4.17：英文词排除下载站噪声（Build 号/标签等，官方名几乎不会用）——
+// 否则 "Build.22898177" 的 build 使标题被判"混合语言"，跨语言信任失效，
+// 纯英文官方名（Resident Evil Requiem）被误拒。
+const NOISE_EN_WORDS = new Set(['build', 'plus', 'full', 'crack', 'repack', 'update']);
 function coreTokensOf(text) {
   const norm = String(text || '').toLowerCase();
   const cjk = norm.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
-  const en = norm.match(/[a-z][a-z0-9']{3,}/g) || [];
+  const en = (norm.match(/[a-z][a-z0-9']{3,}/g) || []).filter((w) => !NOISE_EN_WORDS.has(w));
   return [...cjk, ...en];
+}
+
+// v6.4.17：跨语言数字冲突校验——双方数字集合非空且无交集 → 冲突。
+// 用于跨语言信任分支："生化危机9" vs "Resident Evil 4"（{9}∩{4}=∅ 冲突，
+// 系列旧作）；"生化危机9" vs "Resident Evil Requiem"（候选无数字不冲突）。
+// Digit-conflict guard for cross-language trust (blocks same-series old entries).
+export function digitSetsOverlap(a, b) {
+  const nums = (s) => (String(s).match(/\d+/g) || []).map((n) => Number(n));
+  const na = nums(a);
+  const nb = nums(b);
+  if (na.length === 0 || nb.length === 0) return true; // 任一无数字 → 不冲突
+  return na.some((x) => nb.includes(x));
 }
 
 /**

@@ -42,7 +42,7 @@ import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
-import { llmMatchGame } from './ai-fallback.js'; // v6.4.16：规则匹配失败后的 AI 兜底
+import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/17：规则匹配失败后的匹配兜底
 
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
@@ -123,10 +123,11 @@ export async function searchSteamGame(gameName) {
     if (!appId) {
       const searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
       if (!searchResult) {
-        // v6.4.16：规则匹配失败 → AI/LLM 兜底（用户配置 LLM 时）——
-        // LLM 提取官方名经 storesearch/appdetails 校验后采用（防幻觉）；
-        // 未配置 LLM 时静默返回 null（"未找到"而非错误 appid——错配比未找到更糟）
-        const fallback = await llmMatchGame(gameName, excludeAppId);
+        // v6.4.16：规则匹配失败 → 匹配兜底（防幻觉：均经官方数据校验后才采用）
+        // v6.4.17：搜索引擎兜底（Bing，免费无需配置）优先 → AI/LLM 兜底（用户配置时）
+        // 错配比未找到更糟——兜底均失败时返回 null（显示"未找到"，可走报错纠正黑名单）
+        const fallback =
+          (await webSearchFallback(gameName, excludeAppId)) || (await llmMatchGame(gameName, excludeAppId));
         if (fallback) {
           appId = fallback.appId;
         } else {

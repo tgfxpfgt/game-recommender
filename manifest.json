@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "6.4.16",
+  "version": "6.4.17",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -35,6 +35,7 @@
     "https://store-site-backend-official.ak.epicgames.com/*",
     "https://www.gog.com/*",
     "https://www.gamerpower.com/*",
+    "https://cn.bing.com/*",
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
