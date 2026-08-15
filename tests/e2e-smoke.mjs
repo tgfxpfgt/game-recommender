@@ -16,6 +16,75 @@ const ROOT = path.dirname(fileURLToPath(import.meta.url));
 const EXTENSION_DIR = path.resolve(ROOT, '..');
 const FIXTURE = path.join(ROOT, 'fixtures/list-page.html');
 
+// v7.3.0：E2E 网络 mock（录制/回放）——真实 Steam 段离线可跑。
+// E2E_RECORD=1：透传真实请求并保存响应为 fixture；E2E_MOCK=1：只回放 fixture
+//（未命中返回 404，让断言可见失败）。CI 用 E2E_MOCK=1 跑全量，不再依赖
+// 外部网络可用性（此前 E2E_FAST 只能跳过真实网络段）。
+// E2E network mock: record once against the live Steam API (E2E_RECORD=1),
+// then replay offline (E2E_MOCK=1) — CI runs the full suite without
+// depending on external network availability.
+const MOCK = process.env.E2E_MOCK === '1';
+const RECORD = process.env.E2E_RECORD === '1';
+const FIXTURES_DIR = path.join(ROOT, 'fixtures', 'http');
+// 只 mock 后台检索用的 /api/ 路径（storesearch/appdetails/appreviews/steamspy）；
+// 图片等非 API 请求保持直通（缺失不阻塞徽章断言）
+const MOCK_RE = /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\//;
+
+// fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
+function fixtureKey(urlStr) {
+  const u = new URL(urlStr);
+  const pairs = [...u.searchParams].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
+  const qs = new URLSearchParams(pairs).toString();
+  const pathPart = (u.pathname.replace(/[^a-zA-Z0-9]/g, '_') || 'root').slice(0, 120);
+  const qPart = qs ? '__' + qs.replace(/[^a-zA-Z0-9=._-]/g, '_').slice(0, 80) : '';
+  return path.join(u.host, pathPart + qPart + '.json');
+}
+
+async function routeHandler(route) {
+  const req = route.request();
+  const file = path.join(FIXTURES_DIR, fixtureKey(req.url()));
+  if (MOCK) {
+    // 回放：命中 fixture 原样返回；未命中 404（断言可见失败，不静默）
+    try {
+      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      await route.fulfill({
+        status: data.status,
+        contentType: data.contentType || 'application/json',
+        body: data.body
+      });
+    } catch {
+      console.warn('  ⚠️ fixture 未命中:', req.url());
+      await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+    }
+    return;
+  }
+  if (RECORD) {
+    try {
+      const resp = await route.fetch();
+      const body = await resp.text();
+      fs.mkdirSync(path.dirname(file), { recursive: true });
+      fs.writeFileSync(
+        file,
+        JSON.stringify({
+          status: resp.status(),
+          contentType: resp.headers()['content-type'] || 'application/json',
+          body
+        })
+      );
+      await route.fulfill({
+        status: resp.status(),
+        contentType: resp.headers()['content-type'] || 'application/json',
+        body
+      });
+    } catch (e) {
+      console.warn('  ⚠️ 录制失败（上游不可达）:', req.url(), String(e).slice(0, 80));
+      await route.abort();
+    }
+    return;
+  }
+  await route.continue(); // 非 mock/record：直通真实网络
+}
+
 let pass = 0,
   fail = 0;
 function check(name, ok, extra = '') {
@@ -108,7 +177,12 @@ process.exit(fail > 0 ? 1 : 0);
 async function runChecks() {
   // v5.1.0：E2E_FAST=1 离线模式——跳过依赖真实 Steam 网络的详情页段（第 4 节），
   // 用于 CI/本地快速冒烟（不验证真实检索链路）
+  // v7.3.0：E2E_MOCK=1 全量离线回放（第 4 节也跑，网络来自录制 fixture）
   const FAST = process.env.E2E_FAST === '1';
+  // v7.3.0：录制/回放模式安装路由拦截（须在页面打开前）
+  if (MOCK || RECORD) {
+    await context.route(MOCK_RE, routeHandler);
+  }
   let extId = null;
   for (let i = 0; i < 30; i++) {
     const workers = context.serviceWorkers();
@@ -133,7 +207,10 @@ async function runChecks() {
     await page.waitForTimeout(800);
     check('popup 标题渲染', (await page.textContent('h1'))?.includes('游戏智能推荐') ?? false);
     check('popup 版本号显示', (await page.textContent('#extVersion'))?.includes('v') ?? false);
-    check('popup API 状态（v6.4.10 扁平修复后非失效）', ((await page.textContent('#apiStatusInfo')) ?? '').includes('无法获取') === false);
+    check(
+      'popup API 状态（v6.4.10 扁平修复后非失效）',
+      ((await page.textContent('#apiStatusInfo')) ?? '').includes('无法获取') === false
+    );
     // v6.4.11：popup 全量设置覆盖 + 集中入口（hub 按钮替代原 设置/分析 独立入口）
     const popupCover = await page.evaluate(() => ({
       hubBtn: !!document.getElementById('hubBtn'),
@@ -144,16 +221,29 @@ async function runChecks() {
       sortByRating: !!document.getElementById('ppSortByRating'),
       ruleBtn: !!document.getElementById('ppOpenFilterRules'),
       weights: document.querySelectorAll('#ppWeights [data-w]').length,
-      badges: ['ppBadgeRecent', 'ppBadgeAll', 'ppBadgeUpdate', 'ppBadgeRec'].every((id) => !!document.getElementById(id)),
+      badges: ['ppBadgeRecent', 'ppBadgeAll', 'ppBadgeUpdate', 'ppBadgeRec'].every(
+        (id) => !!document.getElementById(id)
+      ),
       autoBackup: !!document.getElementById('ppAutoBackup'),
       logLevel: !!document.getElementById('ppLogLevel'),
       freeGamesBtn: !!document.getElementById('freeGamesBtn')
     }));
-    check('popup 集中入口（设置中心按钮替代独立入口）', popupCover.hubBtn && !popupCover.optionsBtn && !popupCover.dashboardBtn);
-    check('popup 全覆盖设置（30天过滤/模式/重排/规则入口/徽章/权重/备份/日志）',
-      popupCover.recentFilter && popupCover.filterMode && popupCover.sortByRating &&
-      popupCover.ruleBtn && popupCover.weights === 6 &&
-      popupCover.badges && popupCover.autoBackup && popupCover.logLevel && popupCover.freeGamesBtn);
+    check(
+      'popup 集中入口（设置中心按钮替代独立入口）',
+      popupCover.hubBtn && !popupCover.optionsBtn && !popupCover.dashboardBtn
+    );
+    check(
+      'popup 全覆盖设置（30天过滤/模式/重排/规则入口/徽章/权重/备份/日志）',
+      popupCover.recentFilter &&
+        popupCover.filterMode &&
+        popupCover.sortByRating &&
+        popupCover.ruleBtn &&
+        popupCover.weights === 6 &&
+        popupCover.badges &&
+        popupCover.autoBackup &&
+        popupCover.logLevel &&
+        popupCover.freeGamesBtn
+    );
     check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
     await page.close();
 
@@ -161,7 +251,9 @@ async function runChecks() {
     console.log('2b. options 设置页与双向状态一致性');
     const optPage = await context.newPage();
     const optErrors = [];
-    optPage.on('console', (msg) => { if (msg.type() === 'error') optErrors.push(msg.text()); });
+    optPage.on('console', (msg) => {
+      if (msg.type() === 'error') optErrors.push(msg.text());
+    });
     optPage.on('pageerror', (e) => optErrors.push(String(e)));
     await optPage.goto(`chrome-extension://${extId}/options/options.html`);
     await optPage.waitForTimeout(1200);
@@ -172,7 +264,13 @@ async function runChecks() {
       maxRuntimeLog: document.getElementById('maxRuntimeLog').value,
       title: document.title
     }));
-    check('options 设置渲染（启用开关+日志上限+自动备份）', optState.enabled === true && Number(optState.maxLog) > 0 && optState.autoBackup === true && Number(optState.maxRuntimeLog) > 0);
+    check(
+      'options 设置渲染（启用开关+日志上限+自动备份）',
+      optState.enabled === true &&
+        Number(optState.maxLog) > 0 &&
+        optState.autoBackup === true &&
+        Number(optState.maxRuntimeLog) > 0
+    );
     check('options 标题', optState.title.includes('设置'));
     // options 切 VM 过滤（先切到过滤面板）→ 自动保存（800ms 防抖）→ popup 重开验证一致
     await optPage.evaluate(() => {
@@ -235,8 +333,11 @@ async function runChecks() {
       const s = resp.settings;
       return { enable: s.enableRatingFilter, min: s.minSteamRatingFilter, mode: s.ratingFilterMode };
     });
-    check('过滤设置全量保存（好评率开+阈值65/关系or）',
-      filterSaved.enable === true && filterSaved.min === 65 && filterSaved.mode === 'or', JSON.stringify(filterSaved));
+    check(
+      '过滤设置全量保存（好评率开+阈值65/关系or）',
+      filterSaved.enable === true && filterSaved.min === 65 && filterSaved.mode === 'or',
+      JSON.stringify(filterSaved)
+    );
     // 重开设置页回显（好评率过滤开关+阈值）
     await optPage2.close();
     const optPage3 = await context.newPage();
@@ -249,7 +350,11 @@ async function runChecks() {
         min: Number(document.getElementById('minRating').value)
       };
     });
-    check('重开设置页回显（好评率过滤 开+65）', filterEcho.enable === true && filterEcho.min === 65, JSON.stringify(filterEcho));
+    check(
+      '重开设置页回显（好评率过滤 开+65）',
+      filterEcho.enable === true && filterEcho.min === 65,
+      JSON.stringify(filterEcho)
+    );
     // 快速连续修改（串行队列防竞态：并发 savePatch 曾互相覆盖）
     const popup4 = await context.newPage();
     await popup4.goto(`chrome-extension://${extId}/popup/popup.html`);
@@ -268,8 +373,11 @@ async function runChecks() {
       const s = resp.settings;
       return { min: s.minRecentSteamRatingFilter, mode: s.ratingFilterMode, sort: s.enableSortByRating };
     });
-    check('快速连续 3 项修改全部保留（阈值40/关系and/重排开）',
-      burstSaved.min === 40 && burstSaved.mode === 'and' && burstSaved.sort === true, JSON.stringify(burstSaved));
+    check(
+      '快速连续 3 项修改全部保留（阈值40/关系and/重排开）',
+      burstSaved.min === 40 && burstSaved.mode === 'and' && burstSaved.sort === true,
+      JSON.stringify(burstSaved)
+    );
     await popup4.close();
 
     // 2c. Vista Aero 新菜单（v6.4.6）
@@ -277,7 +385,9 @@ async function runChecks() {
     console.log('2c. 皮肤系统（Steam/Vista/Win 历代主题）');
     const skinPage = await context.newPage();
     const skinErrors = [];
-    skinPage.on('console', (msg) => { if (msg.type() === 'error') skinErrors.push(msg.text()); });
+    skinPage.on('console', (msg) => {
+      if (msg.type() === 'error') skinErrors.push(msg.text());
+    });
     skinPage.on('pageerror', (e) => skinErrors.push(String(e)));
     await skinPage.goto(`chrome-extension://${extId}/options/options.html`);
     await skinPage.waitForTimeout(1200);
@@ -287,8 +397,10 @@ async function runChecks() {
       theme: document.body.dataset.theme,
       vistaBtnGone: !document.getElementById('openVistaMenu')
     }));
-    check('皮肤选择器（默认 steam + 10 主题 + Vista 入口移除）',
-      skinState.select === 'steam' && skinState.options.length === 10 && skinState.vistaBtnGone);
+    check(
+      '皮肤选择器（默认 steam + 10 主题 + Vista 入口移除）',
+      skinState.select === 'steam' && skinState.options.length === 10 && skinState.vistaBtnGone
+    );
     // 切换皮肤 → body[data-theme] 立即生效 + 保存往返
     await skinPage.evaluate(() => {
       const sel = document.getElementById('uiTheme');
@@ -323,7 +435,9 @@ async function runChecks() {
     console.log('2d. 设置中心 hub 集中入口');
     const hub = await context.newPage();
     const hubErrors = [];
-    hub.on('console', (msg) => { if (msg.type() === 'error') hubErrors.push(msg.text()); });
+    hub.on('console', (msg) => {
+      if (msg.type() === 'error') hubErrors.push(msg.text());
+    });
     hub.on('pageerror', (e) => hubErrors.push(String(e)));
     await hub.goto(`chrome-extension://${extId}/hub/hub.html`);
     await hub.waitForTimeout(1500);
@@ -333,8 +447,13 @@ async function runChecks() {
       active: document.querySelector('.hub-item.active')?.dataset.page || '',
       version: document.getElementById('hubVersion').textContent
     }));
-    check('hub 渲染（3 个页面入口 + 默认加载设置页）',
-      hubState.items === 3 && hubState.active === 'options' && hubState.frameSrc.includes('options/options.html') && hubState.version.includes('v'));
+    check(
+      'hub 渲染（3 个页面入口 + 默认加载设置页）',
+      hubState.items === 3 &&
+        hubState.active === 'options' &&
+        hubState.frameSrc.includes('options/options.html') &&
+        hubState.version.includes('v')
+    );
     // 切换：数据分析（iframe 内 dashboard 页面加载；趋势图数据依赖浏览行为，
     // 本段位于第 4 节之前可能为空 → 仅断言页面结构与标题）
     await hub.evaluate(() => document.querySelector('.hub-item[data-page="dashboard"]').click());
@@ -349,8 +468,13 @@ async function runChecks() {
         hasTrend: doc ? !!doc.getElementById('trendChart') : false
       };
     });
-    check('hub 切换到数据分析（iframe 渲染 dashboard）',
-      hubDash.src.includes('dashboard/dashboard.html') && hubDash.title.includes('数据分析') && hubDash.hasStats && hubDash.hasTrend);
+    check(
+      'hub 切换到数据分析（iframe 渲染 dashboard）',
+      hubDash.src.includes('dashboard/dashboard.html') &&
+        hubDash.title.includes('数据分析') &&
+        hubDash.hasStats &&
+        hubDash.hasTrend
+    );
     // 切换：限免游戏
     await hub.evaluate(() => document.querySelector('.hub-item[data-page="freegames"]').click());
     await hub.waitForTimeout(1500);
@@ -413,16 +537,38 @@ async function runChecks() {
     check('无 console error', errors2b.length === 0, `(${errors2b.slice(0, 3).join(' | ')})`);
     await page2b.close();
 
+    // 3c. 扩展更新自检（v7.3.0：旧版本问题根治——版本变化提示刷新）
+    console.log('3c. 扩展更新自检（版本变化 → toast 提示）');
+    const updPage = await context.newPage();
+    await updPage.goto(FIXTURE_URL);
+    await updPage.waitForTimeout(600);
+    // 预置旧版本记录（扩展页主世界才有 chrome API）→ 刷新触发更新提示
+    const extPage = await context.newPage();
+    await extPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+    await extPage.evaluate(() => chrome.storage.local.set({ extLastInjectedVersion: '0.0.0' }));
+    await extPage.close();
+    await updPage.reload();
+    await updPage.waitForTimeout(600);
+    const toastSeen = await updPage.evaluate(() => !!document.getElementById('gr-update-toast'));
+    check('旧版本记录 → 更新提示条出现', toastSeen);
+    // 再次加载：版本一致 → 不再提示
+    await updPage.reload();
+    await updPage.waitForTimeout(600);
+    const toastGone = await updPage.evaluate(() => !document.getElementById('gr-update-toast'));
+    check('版本一致 → 不再提示', toastGone);
+    await updPage.close();
+
     // 4. 详情页报错按钮（v3.3.11：真实点击 → 清缓存重检索）
     // v5.1.0：E2E_FAST 离线模式跳过本段（依赖真实 Steam 网络）
-    console.log(FAST ? '4. 详情页报错按钮（E2E_FAST 离线跳过）' : '4. 详情页报错按钮（真实点击）');
+    // v7.3.0：E2E_MOCK=1 时本段也跑（网络来自录制 fixture，离线可复现）
+    console.log(FAST && !MOCK ? '4. 详情页报错按钮（E2E_FAST 离线跳过）' : '4. 详情页报错按钮（真实点击/录制回放）');
     const page3 = await context.newPage();
     const errors3 = [];
     page3.on('console', (msg) => {
       if (msg.type() === 'error') errors3.push(msg.text());
     });
     page3.on('pageerror', (e) => errors3.push(String(e)));
-    if (FAST) {
+    if (FAST && !MOCK) {
       check('E2E_FAST 离线模式跳过真实网络段', true);
       await page3.close();
       return;
@@ -522,7 +668,10 @@ async function runChecks() {
     let extId2 = null;
     for (let i = 0; i < 30; i++) {
       const workers = context.serviceWorkers();
-      if (workers.length > 0) { extId2 = new URL(workers[0].url()).host; break; }
+      if (workers.length > 0) {
+        extId2 = new URL(workers[0].url()).host;
+        break;
+      }
       await new Promise((r) => setTimeout(r, 500));
     }
     const persistPage2 = await context.newPage();

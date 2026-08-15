@@ -283,6 +283,7 @@ const MODULE_FILES = [
   'content/list/badges.js',
   'content/list/list-batch.js',
   'content/list/list-page.js',
+  'content/list/list-state.js',
   'content/detail/detail-templates.js',
   'content/detail/detail-page.js',
   'content/tracking/download-tracking.js'
@@ -296,6 +297,7 @@ const MODULE_KEYS = [
   'badges',
   'listBatch',
   'list',
+  'listState',
   'detailTemplates',
   'detail',
   'tracking'

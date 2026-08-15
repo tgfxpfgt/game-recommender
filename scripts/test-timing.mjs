@@ -4,7 +4,9 @@
  * v7.1.0：运行 vitest 并解析耗时构成（transform/import/tests），追加到
  * tests/.timing.jsonl（不入库），输出最近 10 次趋势——为测试基建提速
  * 提供基线（报告 §5.3：import 占 66%）。
- * Run: npm run test:timed
+ * v7.3.0：--budget <秒> 参数——总耗时超预算时非零退出（CI 性能预算门禁，
+ * 防测试基建随功能增长悄悄退化）。
+ * Run: npm run test:timed [-- --budget 90]
  */
 import { execSync } from 'node:child_process';
 import fs from 'node:fs';
@@ -13,6 +15,9 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const LOG = path.join(ROOT, 'tests', '.timing.jsonl');
+
+const budgetArg = process.argv.indexOf('--budget');
+const budget = budgetArg > -1 ? Number(process.argv[budgetArg + 1]) : null;
 
 const output = execSync('npx vitest run', { cwd: ROOT, encoding: 'utf-8' });
 // 剥离 ANSI 颜色码后解析（vitest 默认彩色输出）
@@ -50,4 +55,14 @@ for (const r of rows) {
   });
   const pct = Math.round((r.imports / r.total) * 100);
   console.log(`  ${d} · ${r.total.toFixed(1)}s · import ${pct}%`);
+}
+
+// 性能预算门禁：超预算非零退出（CI 可见失败）
+// Performance budget gate: exit non-zero when over budget (CI-visible failure)
+if (budget !== null && total > budget) {
+  console.error(`❌ 性能预算超限：全量 ${total.toFixed(1)}s > 预算 ${budget}s`);
+  process.exit(1);
+}
+if (budget !== null) {
+  console.log(`✅ 性能预算内：全量 ${total.toFixed(1)}s ≤ 预算 ${budget}s`);
 }

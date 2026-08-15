@@ -18,13 +18,17 @@
     "coverage:gate": "node scripts/coverage-gate.mjs",
     "audit": "npm audit --audit-level=high",
     "test:timed": "node scripts/test-timing.mjs",
+    "visual": "node tests/visual-regression.mjs",
     "test:changed": "vitest run --changed"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.6",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.0.0",
+    "fast-check": "^4.9.0",
+    "pixelmatch": "^7.2.0",
     "playwright-core": "^1.45.0",
+    "pngjs": "^7.0.0",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

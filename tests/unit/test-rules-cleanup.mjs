@@ -6,8 +6,7 @@ import { test, expect } from 'vitest';
  * 白名单/函数拒绝/规模上限/正则试编译）+ sanitizeImportedModule（导入限额）
  * + 三类过期缓存清理纯函数。
  */
-'use strict';
-
+('use strict');
 
 const rulesMod = await import(new URL('../../background/core/rules.js', import.meta.url).href + '?t=' + Date.now());
 const cleanupMod = await import(
@@ -29,46 +28,86 @@ const validRules = {
     }
   ]
 };
-test('合法规则通过', () => { expect(rulesMod.validateAdapterRules(validRules).ok).toEqual(true); });
-test('非对象拒绝', () => { expect(rulesMod.validateAdapterRules(null).ok).toEqual(false); });
-test('缺 version 拒绝', () => { expect(rulesMod.validateAdapterRules({ sites: [] }).ok).toEqual(false); });
-test('sites 非数组拒绝', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: {} }).ok).toEqual(false); });
-test('sites 为空拒绝', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: [] }).ok).toEqual(false); });
-test('站点缺 key 拒绝', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ name: 'X' }] }).ok).toEqual(false); });
-test('key 非法字符拒绝', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'bad key!', name: 'X', domains: ['x.com'] }] }).ok).toEqual(false); });
-test('缺 domains 拒绝', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X' }] }).ok).toEqual(false); });
-test('domains 为空拒绝', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X', domains: [] }] }).ok).toEqual(false); });
-test('类型错误拒绝（searchUrl 数字）', () => { expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'], searchUrl: 123 }] })
-    .ok).toEqual(false); });
-test('key 重复拒绝', () => { expect(rulesMod.validateAdapterRules({
-    version: 1,
-    sites: [validRules.sites[0], { key: 'xdgame', name: 'B', domains: ['b.com'] }]
-  }).ok).toEqual(false); });
+test('合法规则通过', () => {
+  expect(rulesMod.validateAdapterRules(validRules).ok).toEqual(true);
+});
+test('非对象拒绝', () => {
+  expect(rulesMod.validateAdapterRules(null).ok).toEqual(false);
+});
+test('缺 version 拒绝', () => {
+  expect(rulesMod.validateAdapterRules({ sites: [] }).ok).toEqual(false);
+});
+test('sites 非数组拒绝', () => {
+  expect(rulesMod.validateAdapterRules({ version: 1, sites: {} }).ok).toEqual(false);
+});
+test('sites 为空拒绝', () => {
+  expect(rulesMod.validateAdapterRules({ version: 1, sites: [] }).ok).toEqual(false);
+});
+test('站点缺 key 拒绝', () => {
+  expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ name: 'X' }] }).ok).toEqual(false);
+});
+test('key 非法字符拒绝', () => {
+  expect(
+    rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'bad key!', name: 'X', domains: ['x.com'] }] }).ok
+  ).toEqual(false);
+});
+test('缺 domains 拒绝', () => {
+  expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X' }] }).ok).toEqual(false);
+});
+test('domains 为空拒绝', () => {
+  expect(rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X', domains: [] }] }).ok).toEqual(
+    false
+  );
+});
+test('类型错误拒绝（searchUrl 数字）', () => {
+  expect(
+    rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'], searchUrl: 123 }] })
+      .ok
+  ).toEqual(false);
+});
+test('key 重复拒绝', () => {
+  expect(
+    rulesMod.validateAdapterRules({
+      version: 1,
+      sites: [validRules.sites[0], { key: 'xdgame', name: 'B', domains: ['b.com'] }]
+    }).ok
+  ).toEqual(false);
+});
 
 // 函数注入拒绝（纯数据白名单）/ function injection rejected
 const injected = { version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'], onload: 'alert(1)' }] };
-test('未知字段（含脚本字符串）不导致拒绝', () => { expect(rulesMod.validateAdapterRules(injected).ok).toEqual(true); });
+test('未知字段（含脚本字符串）不导致拒绝', () => {
+  expect(rulesMod.validateAdapterRules(injected).ok).toEqual(true);
+});
 const funcInjected = { version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'], searchUrl: () => 'x' }] };
-test('函数值拒绝（JSON 不可序列化）', () => { expect(rulesMod.validateAdapterRules(funcInjected).ok).toEqual(false); });
+test('函数值拒绝（JSON 不可序列化）', () => {
+  expect(rulesMod.validateAdapterRules(funcInjected).ok).toEqual(false);
+});
 
 // 规模上限 / size limits
 const tooMany = {
   version: 1,
   sites: Array.from({ length: 51 }, (_, i) => ({ key: 's' + i, name: 'S' + i, domains: ['s' + i + '.com'] }))
 };
-test('sites 超 50 拒绝', () => { expect(rulesMod.validateAdapterRules(tooMany).ok).toEqual(false); });
+test('sites 超 50 拒绝', () => {
+  expect(rulesMod.validateAdapterRules(tooMany).ok).toEqual(false);
+});
 const tooManyDomains = {
   version: 1,
   sites: [{ key: 'x', name: 'X', domains: Array.from({ length: 11 }, (_, i) => 'd' + i + '.com') }]
 };
-test('domains 超 10 拒绝', () => { expect(rulesMod.validateAdapterRules(tooManyDomains).ok).toEqual(false); });
+test('domains 超 10 拒绝', () => {
+  expect(rulesMod.validateAdapterRules(tooManyDomains).ok).toEqual(false);
+});
 const tooDeep = {
   version: 1,
   sites: [
     { key: 'x', name: 'X', domains: ['x.com'], listItem: { a: { b: { c: { d: { e: { f: { g: 'deep' } } } } } } } }
   ]
 };
-test('嵌套过深拒绝', () => { expect(rulesMod.validateAdapterRules(tooDeep).ok).toEqual(false); });
+test('嵌套过深拒绝', () => {
+  expect(rulesMod.validateAdapterRules(tooDeep).ok).toEqual(false);
+});
 
 // ============ 2. Steam 缓存过期清理 / Steam-cache cleanup ============
 const now = Date.now();
@@ -85,11 +124,21 @@ const steamEntries = {
   5: { data: { appId: '5', url: 'https://x' }, timestamp: now - 25 * 3600e3, version: 6 }
 };
 let steamResult = cleanupMod.collectExpiredSteamCache(steamEntries);
-test('仅删除全过期条目（2 条）', () => { expect(steamResult.removed).toEqual(2); });
-test('保留全部有效条目', () => { expect(steamResult.map.has('1') && steamResult.map.has('3') && steamResult.map.has('5')).toEqual(true); });
-test('删除仅 rating 过期条目', () => { expect(steamResult.map.has('2')).toEqual(false); });
-test('删除空字段旧结构条目', () => { expect(steamResult.map.has('4')).toEqual(false); });
-test('空输入', () => { expect(cleanupMod.collectExpiredSteamCache(null).removed).toEqual(0); });
+test('仅删除全过期条目（2 条）', () => {
+  expect(steamResult.removed).toEqual(2);
+});
+test('保留全部有效条目', () => {
+  expect(steamResult.map.has('1') && steamResult.map.has('3') && steamResult.map.has('5')).toEqual(true);
+});
+test('删除仅 rating 过期条目', () => {
+  expect(steamResult.map.has('2')).toEqual(false);
+});
+test('删除空字段旧结构条目', () => {
+  expect(steamResult.map.has('4')).toEqual(false);
+});
+test('空输入', () => {
+  expect(cleanupMod.collectExpiredSteamCache(null).removed).toEqual(0);
+});
 
 // ============ 3. 名称负缓存清理 / Negative-name cleanup ============
 const nameEntries = {
@@ -151,29 +200,70 @@ test('0=长期：全保留', () => {
   const r = cleanupMod.collectExpiredDownloadUrls(urlStore, Infinity);
   expect(r.removed).toEqual(0);
 });
-test('空输入', () => { expect(cleanupMod.collectExpiredDownloadUrls(null, 30 * 86400e3).removed).toEqual(0); });
+test('空输入', () => {
+  expect(cleanupMod.collectExpiredDownloadUrls(null, 30 * 86400e3).removed).toEqual(0);
+});
 
 // ============ 5. 导入清洗（v4.2.0）/ sanitizeImportedModule ============
 const cleanSettings = await rulesMod.sanitizeImportedModule('settings', { enabled: true, weights: { clickRate: 0.2 } });
-test('settings 白名单清洗保留已知键', () => { expect(cleanSettings.enabled === true && cleanSettings.weights.clickRate === 0.2).toEqual(true); });
-test('settings 密钥剔除（apiKey 清空）', () => { expect(rulesMod.sanitizeImportedModule('settings', { llmConfig: { apiKey: 'sk-secret' } }).llmConfig.apiKey).toEqual(''); });
-test('adapterRules 走规则校验（非法返回 null）', () => { expect(rulesMod.sanitizeImportedModule('adapterRules', { version: 1, sites: [{ key: 'x' }] })).toEqual(null); });
-test('adapterRules 合法通过', () => { expect(rulesMod.sanitizeImportedModule('adapterRules', validRules) !== null).toEqual(true); });
-test('未知模块非纯 JSON 拒绝', () => { expect(rulesMod.sanitizeImportedModule('steamCache', () => 1)).toEqual(null); });
-test('未知模块纯 JSON 通过', () => { expect(JSON.stringify(rulesMod.sanitizeImportedModule('steamCache', { a: 1 }))).toEqual(JSON.stringify({ a: 1 })); });
-test('null 值未知模块拒绝', () => { expect(rulesMod.sanitizeImportedModule('behaviorLog', null)).toEqual(null); });
-
+test('settings 白名单清洗保留已知键', () => {
+  expect(cleanSettings.enabled === true && cleanSettings.weights.clickRate === 0.2).toEqual(true);
+});
+test('settings 密钥剔除（apiKey 清空）', () => {
+  expect(rulesMod.sanitizeImportedModule('settings', { llmConfig: { apiKey: 'sk-secret' } }).llmConfig.apiKey).toEqual(
+    ''
+  );
+});
+test('adapterRules 走规则校验（非法返回 null）', () => {
+  expect(rulesMod.sanitizeImportedModule('adapterRules', { version: 1, sites: [{ key: 'x' }] })).toEqual(null);
+});
+test('adapterRules 合法通过', () => {
+  expect(rulesMod.sanitizeImportedModule('adapterRules', validRules) !== null).toEqual(true);
+});
+test('未知模块非纯 JSON 拒绝', () => {
+  expect(rulesMod.sanitizeImportedModule('steamCache', () => 1)).toEqual(null);
+});
+test('未知模块纯 JSON 通过', () => {
+  expect(JSON.stringify(rulesMod.sanitizeImportedModule('steamCache', { a: 1 }))).toEqual(JSON.stringify({ a: 1 }));
+});
+test('null 值未知模块拒绝', () => {
+  expect(rulesMod.sanitizeImportedModule('behaviorLog', null)).toEqual(null);
+});
 
 // ============ v7.0.5：正则 ReDoS 风险校验 ============
 const rr = rulesMod.hasReDoSRisk;
-test('嵌套量词 (a+)+ 拒绝', () => { expect(rr('(a+)+$')).toEqual(true); });
-test('嵌套量词 ([0-9]+)* 拒绝', () => { expect(rr('([0-9]+)*x')).toEqual(true); });
-test('交替分组带量词 (a|b)+ 拒绝', () => { expect(rr('(a|b)+')).toEqual(true); });
-test('超长正则拒绝', () => { expect(rr('a'.repeat(300))).toEqual(true); });
-test('正常站点正则放行', () => { expect(rr('/\/\d+\.html$/')).toEqual(false); });
-test('正常分组无重复量词放行', () => { expect(rr('(game|pcgame)/(\d+)/')).toEqual(false); });
+test('嵌套量词 (a+)+ 拒绝', () => {
+  expect(rr('(a+)+$')).toEqual(true);
+});
+test('嵌套量词 ([0-9]+)* 拒绝', () => {
+  expect(rr('([0-9]+)*x')).toEqual(true);
+});
+test('交替分组带量词 (a|b)+ 拒绝', () => {
+  expect(rr('(a|b)+')).toEqual(true);
+});
+test('超长正则拒绝', () => {
+  expect(rr('a'.repeat(300))).toEqual(true);
+});
+test('正常站点正则放行', () => {
+  expect(rr('/\/\d+\.html$/')).toEqual(false);
+});
+test('正常分组无重复量词放行', () => {
+  expect(rr('(game|pcgame)/(\d+)/')).toEqual(false);
+});
+test('字符类内含 + 不误报（字面量）', () => {
+  expect(rr('[a+]+$')).toEqual(false);
+});
+test('转义括号非分组放行', () => {
+  expect(rr('\\(a+\\)+$')).toEqual(false);
+});
+test('非捕获组嵌套量词拒绝', () => {
+  expect(rr('(?:a+)+$')).toEqual(true);
+});
 test('导入含 ReDoS 正则的规则被拒', () => {
-  const simple = { version: 1, sites: [{ key: 'bad', name: 'Bad', domains: ['bad.com'], detailUrlPatterns: ['/(a+)+$'] }] };
+  const simple = {
+    version: 1,
+    sites: [{ key: 'bad', name: 'Bad', domains: ['bad.com'], detailUrlPatterns: ['/(a+)+$'] }]
+  };
   const res = rulesMod.validateAdapterRules(simple);
   expect(res.ok).toEqual(false);
   expect(res.error || '').toContain('ReDoS');

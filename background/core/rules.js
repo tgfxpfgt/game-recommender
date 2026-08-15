@@ -112,10 +112,15 @@ function validateNestedObject(siteKey, field, obj, depth) {
 export function hasReDoSRisk(pattern) {
   const src = String(pattern || '');
   if (src.length > 200) return true;
+  // 转义序列归一为占位符：\( \) \d 等不参与分组/量词判定（避免误报
+  // \(a+\)+ 这类"字面括号+量词"为嵌套量词）
+  // Escaped sequences normalized to placeholders: \( \) \d etc. must not
+  // count as group delimiters/quantifiers in the heuristic below.
+  const normalized = src.replace(/\\./g, '..');
   // 分组内含量词且分组后带量词：(a+)+ / (a*){2,} / ([0-9]+)* 等灾难性回溯
-  if (/\([^()]*[*+][^()]*\)\s*[*+{]/.test(src)) return true;
+  if (/\([^()]*[*+][^()]*\)\s*[*+{]/.test(normalized)) return true;
   // 交替分组带量词：(a|b)+ / (x|y)*（引擎需枚举所有分支组合）
-  if (/\([^()]*\|[^()]*\)\s*[*+]/.test(src)) return true;
+  if (/\([^()]*\|[^()]*\)\s*[*+]/.test(normalized)) return true;
   return false;
 }
 

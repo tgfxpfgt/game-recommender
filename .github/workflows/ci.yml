@@ -30,18 +30,67 @@ jobs:
         run: npm run lint
       - name: 运行类型检查 / Run TypeScript check
         run: npm run typecheck
-      - name: 运行测试套件（vitest 15 套件全量）/ Run test suites
-        run: npm test
-      # v7.0.7 T1：新增业务文件覆盖率门槛（行覆盖 <50% 拒绝）
+      # v7.3.0：vitest 分片并行（test/test-2 各跑一半套件，CI 墙钟减半）
+      - name: 运行测试套件 1/2 / Run test shard 1/2
+        run: npx vitest run --shard=1/2
+
+  test-2:
+    # v7.3.0：vitest 分片并行（与 test job 各跑一半）
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖 / Install dependencies
+        run: npm ci
+      - name: 运行测试套件 2/2 / Run test shard 2/2
+        run: npx vitest run --shard=2/2
+
+  coverage-gate:
+    # v7.0.7 T1：新增业务文件覆盖率门槛（行覆盖 <50% 拒绝）；依赖两个 shard 完成
+    runs-on: ubuntu-latest
+    needs: [test, test-2]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖 / Install dependencies
+        run: npm ci
       - name: 新增文件覆盖率门槛 / Coverage gate
         run: npm run coverage:gate
+
+  perf:
+    # v7.3.0：测试性能预算门禁——全量 vitest 超过 90s（CI 冷机阈值，本地 ~15s）拒绝
+    runs-on: ubuntu-latest
+    needs: [coverage-gate]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖 / Install dependencies
+        run: npm ci
+      - name: 测试耗时预算 / Test timing budget
+        run: npm run test:timed -- --budget 90
 
   e2e:
     # v3.4.1：浏览器端 E2E 冒烟（安装微软官方 Edge，xvfb 虚拟显示跑非无头）
     # Browser E2E smoke: installs Microsoft Edge from the official apt repo,
     # runs the non-headless suite under xvfb.
+    # v7.3.0：E2E_MOCK=1 全量离线回放（含详情页真实检索段——网络来自录制 fixture，
+    # CI 不再依赖外部网络可用性，且第 4 节回归可复现）
     runs-on: ubuntu-latest
-    needs: test
+    needs: [coverage-gate]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -56,10 +105,11 @@ jobs:
           sudo apt-get install -y microsoft-edge-stable
       - name: 安装依赖 / Install dependencies
         run: npm ci
-      # v7.0.7 T2：CI 用 E2E_FAST 离线模式（跳过真实 Steam 网络段——网络不可控
-      # 曾致 CI 偶发红）；本地开发仍跑全量（含真实网络链路）
-      - name: 运行 E2E 冒烟（离线模式）/ Run E2E smoke (offline)
-        run: xvfb-run -a env E2E_FAST=1 npm run e2e
+      - name: 运行 E2E 冒烟（离线回放全量）/ Run E2E smoke (offline replay, full)
+        run: xvfb-run -a env E2E_MOCK=1 npm run e2e
+      # v7.3.0：UI 视觉回归（4 扩展页基线对比；版本/主题变更后需本地 --update 更新基线）
+      - name: 运行视觉回归 / Run visual regression
+        run: xvfb-run -a npm run visual
 
   security:
     # v7.0.7 S1/S2：依赖漏洞审计 + Secret 泄漏扫描（密钥/Token 防泄漏防线）

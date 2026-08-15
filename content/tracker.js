@@ -21,21 +21,47 @@
     if (MODULES) return MODULES;
     // 逐模块 getURL（动态 import 的 URL 由浏览器解析；测试环境 getURL 可 mock）
     const m = (p) => chrome.runtime.getURL('content/' + p);
-    const [common, floats, status, debug, builder, badges, listBatch, list, detailTemplates, detail, tracking] =
-      await Promise.all([
-        import(m('core/common.js')),
-        import(m('core/floats.js')),
-        import(m('core/status-bar.js')),
-        import(m('core/debug.js')),
-        import(m('adapters/builder.js')),
-        import(m('list/badges.js')),
-        import(m('list/list-batch.js')),
-        import(m('list/list-page.js')),
-        import(m('detail/detail-templates.js')),
-        import(m('detail/detail-page.js')),
-        import(m('tracking/download-tracking.js'))
-      ]);
-    MODULES = { common, floats, status, debug, builder, badges, listBatch, list, detailTemplates, detail, tracking };
+    const [
+      common,
+      floats,
+      status,
+      debug,
+      builder,
+      badges,
+      listBatch,
+      list,
+      listState,
+      detailTemplates,
+      detail,
+      tracking
+    ] = await Promise.all([
+      import(m('core/common.js')),
+      import(m('core/floats.js')),
+      import(m('core/status-bar.js')),
+      import(m('core/debug.js')),
+      import(m('adapters/builder.js')),
+      import(m('list/badges.js')),
+      import(m('list/list-batch.js')),
+      import(m('list/list-page.js')),
+      import(m('list/list-state.js')),
+      import(m('detail/detail-templates.js')),
+      import(m('detail/detail-page.js')),
+      import(m('tracking/download-tracking.js'))
+    ]);
+    MODULES = {
+      common,
+      floats,
+      status,
+      debug,
+      builder,
+      badges,
+      listBatch,
+      list,
+      listState,
+      detailTemplates,
+      detail,
+      tracking
+    };
     return MODULES;
   }
 
@@ -197,6 +223,53 @@
   } else {
     window.addEventListener('DOMContentLoaded', () => void init(), { once: true });
   }
+
+  // ============ 扩展更新自检（v7.3.0：旧版本问题根治） ============
+  // Extension update self-check: compare the last injected version against the
+  // manifest version; on change, show a one-time toast asking for a page
+  // refresh. Content scripts of an updated extension do NOT re-inject into
+  // already-open tabs, so a stale page silently runs old logic — the root
+  // cause of many "settings not saving" reports.
+  const EXT_VER_KEY = 'extLastInjectedVersion';
+  function checkExtensionUpdate() {
+    try {
+      const ver = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '';
+      if (!ver) return;
+      chrome.storage.local.get(EXT_VER_KEY, (res) => {
+        const last = res[EXT_VER_KEY];
+        if (last && last !== ver) showUpdateToast(ver);
+        if (last !== ver) chrome.storage.local.set({ [EXT_VER_KEY]: ver });
+      });
+    } catch {
+      /* 存储不可用时静默（不影响主流程） */
+    }
+  }
+
+  function showUpdateToast(ver) {
+    try {
+      if (document.getElementById('gr-update-toast')) return;
+      const toast = document.createElement('div');
+      toast.id = 'gr-update-toast';
+      toast.textContent = `游戏雷达已更新至 v${ver}，刷新页面后生效（当前页仍为旧版本）`;
+      const refresh = document.createElement('button');
+      refresh.type = 'button';
+      refresh.textContent = '刷新';
+      refresh.addEventListener('click', () => window.location.reload());
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'gr-update-close';
+      close.textContent = '✕';
+      close.addEventListener('click', () => toast.remove());
+      toast.appendChild(refresh);
+      toast.appendChild(close);
+      (document.documentElement || document.body).appendChild(toast);
+    } catch {
+      /* DOM 未就绪或样式异常时静默 */
+    }
+  }
+
+  // 顶层立即执行（document_start 阶段 html 元素已存在）
+  checkExtensionUpdate();
 
   // Message listener / 消息监听（模块句柄惰性获取）
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

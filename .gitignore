@@ -50,7 +50,8 @@ backup-*.json
 
 # ===== E2E 测试生成物（v3.3.9）/ E2E artifacts =====
 tests/.e2e-profile/
-tests/fixtures/
+# v7.3.0：list-page.html 运行时重写（不入库）；http/ 为录制 fixture（必须入库供 CI 回放）
+tests/fixtures/list-page.html
 
 # ===== 根目录报告附件（不入库）/ Root-level report attachments =====
 GameRecommender-*.html
