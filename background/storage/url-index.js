@@ -66,6 +66,12 @@ export async function setUrlAppId(url, appId) {
   writer.scheduleWrite();
 }
 
+// v7.1.0：网址索引规模（dashboard 诊断展示）
+export async function getUrlIndexSize() {
+  await load();
+  return Object.keys(urlIndexMemory).length;
+}
+
 // 清空（导入/清除数据时调用）
 export function resetUrlIndex() {
   urlIndexMemory = {};

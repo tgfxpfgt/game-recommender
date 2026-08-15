@@ -256,6 +256,18 @@ node --check options/options.js
 
 ## 更新日志
 
+### v7.1.0（中版本：可观测性与提质增效——报告 v2 方案 P0-P2 全部落地）
+- **P0-1 缓存命中率分模块仪表**：getCacheStats 扩展 meta/rating/detail/spy 四模块命中/未命中计数（getSteamCacheEntry 支持 moduleKey），dashboard 新增四模块命中率卡片（hover 显示查询数与 TTL 建议）
+- **P0-2 ITAD 凭证卫生**：配置记录创建时间；测试 401/403 时提示"Key 已失效，建议轮换"；后台校验失败日志升 warn
+- **P0-3 测试耗时度量**：`npm run test:timed`（scripts/test-timing.mjs）解析 vitest 耗时构成并记录趋势（基线 14.3s，import 占 61%）
+- **P1-1 dashboard 自助诊断**：Steam API 限流状态卡（异常/采样中/正常 + 失败率）、网址索引规模、名称负缓存条数、运行日志级别统计
+- **P1-2 缓存面板建议刷新**："♻️ 刷新本页过期"按钮（任一信息类型过期即批量刷新，≤10 条/次）+ 信息缓存列 hover 显示 TTL 建议
+- **P1-3 测试提速**：新增 `npm run test:changed`（改动相关套件快路径）；**分片实测无收益**（unit 0.64s + integration 13.2s ≈ 全量 14.3s——瓶颈是 content-sim 模块加载，不落地，结论记录 CONTRIBUTING）
+- **P1-4 核心契约类型单源**：MessagePayload 精确化（urls/cacheOnly/entries 等字段）+ ratings-batch/download-sites handler 参数标注
+- **P1-5 限免源核验**：Amazon Prime / Ubisoft 均需登录无公开 API——**不实施**（核验结论记录）
+- **P2-1 正则收敛**：已在 v7.0.2/7.0.3 完成（URL 索引 + 直取优先），无需额外改动；**P2-3 性能预算文档化**（CONTRIBUTING「性能基线」章节：内存换延迟原则/基线数字/分片与限免核验结论）
+- **质量**：vitest 593 test（+2）· lint 0 · typecheck 0 · E2E 38/38 · coverage:gate ✅
+
 ### v7.0.7（全方位规则优化：本地钩子门禁 + CI 加固 + 安全防线 + 半自动发布）
 - **G1 pre-push 门禁**：push 前自动跑 `npm run check`（lint + typecheck + vitest，check 脚本补 typecheck）——坏提交本地拦截，CI 不再首当其冲
 - **G2+E1 pre-commit 升级**：暂存 .js/.mjs 三层校验——语法（node --check）+ **eslint** + **prettier --check**（实测即抓出 scripts 格式问题）

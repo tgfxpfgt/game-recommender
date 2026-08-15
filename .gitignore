@@ -58,3 +58,4 @@ GameRecommender-*.html
 # ===== 调试临时文件 / Debug temp files =====
 .tmp-*.mjs
 coverage/
+tests/.timing.jsonl

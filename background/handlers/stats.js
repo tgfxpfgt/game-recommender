@@ -1,6 +1,8 @@
 import { dataStore } from '../../data/data-store.js';
 import { readProfiles, readKeywordWeights, getBehaviorLog, getDataVersion } from '../storage/behavior.js';
 import { getCacheStats } from '../storage/steam-cache.js';
+import { getUrlIndexSize } from '../storage/url-index.js';
+import { getNegativeCacheCount } from '../storage/name-index.js';
 import { DB_KEYS } from '../core/constants.js';
 import { aggregateTrends } from '../core/trends.js';
 import { fetchSteamTagRecommendations } from '../steam/api-search.js';
@@ -58,6 +60,9 @@ export async function handleGetStats() {
     recentLog: log.slice(-30).reverse(),
     cacheStats: getCacheStats()
   };
+  // v7.1.0：诊断数据（网址索引规模 / 负缓存条数——自助诊断用）
+  result.urlIndexSize = await getUrlIndexSize();
+  result.negativeCacheCount = await getNegativeCacheCount();
   statsCache = { version, result };
   return result;
 }
@@ -73,7 +78,11 @@ export async function handleGetTrends(message) {
   }
   const log = await getBehaviorLog();
   const daily = aggregateTrends(log, granularity);
-  trendsCache = { version, day: granularity === 'day' ? daily : trendsCache.day, week: granularity === 'week' ? daily : trendsCache.week };
+  trendsCache = {
+    version,
+    day: granularity === 'day' ? daily : trendsCache.day,
+    week: granularity === 'week' ? daily : trendsCache.week
+  };
   return { daily, granularity };
 }
 

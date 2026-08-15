@@ -1,1026 +1,1251 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>游戏雷达 Game Radar - 设置</title>
-  <link rel="stylesheet" href="../styles/ui-theme.css">
-  <link rel="stylesheet" href="../styles/themes.css">
-  <link rel="stylesheet" href="options.css">
-  <!-- 下载站适配规则（用于渲染站点勾选/筛选选项）-->
-  <!-- Download-site adapter rules (drives site checkbox/filter options) -->
-  <script src="../adapters/default.js"></script>
-  <script src="../adapters/sites/xdgame.js"></script>
-  <script src="../adapters/sites/xianyudanji.js"></script>
-  <script src="../adapters/sites/gamer520.js"></script>
-  <script src="../adapters/sites/3dmgame.js"></script>
-  <script src="../adapters/sites/ali213.js"></script>
-  <script src="../adapters/sites/gamersky.js"></script>
-  <script src="../adapters/index.js"></script>
-</head>
-<body>
-  <!-- Chrome 设置页风格：左侧分类导航 + 右侧内容区 -->
-  <!-- Chrome-settings style: left category nav + right content area -->
-  <div class="settings-shell">
-    <aside class="settings-sidebar">
-      <div class="sidebar-brand">
-        <span class="sidebar-logo">🎮</span>
-        <div>
-          <div class="sidebar-title">游戏雷达 Game Radar</div>
-          <div class="sidebar-sub">游戏智能推荐设置</div>
-        </div>
-      </div>
-      <nav class="sidebar-nav" id="sidebarNav">
-        <button class="nav-item active" data-panel="general">
-          <span class="nav-icon">⚙️</span><span>常规设置</span>
-        </button>
-        <button class="nav-item" data-panel="filters">
-          <span class="nav-icon">🎯</span><span>过滤</span>
-        </button>
-        <button class="nav-item" data-panel="recommend">
-          <span class="nav-icon">🧠</span><span>推荐算法</span>
-        </button>
-        <button class="nav-item" data-panel="sites">
-          <span class="nav-icon">🌐</span><span>网站</span>
-        </button>
-        <div class="nav-group-label">🔧 高级设置</div>
-        <button class="nav-item" data-panel="rules">
-          <span class="nav-icon">🧩</span><span>规则管理</span>
-        </button>
-        <button class="nav-item" data-panel="cache">
-          <span class="nav-icon">🗄️</span><span>缓存与数据</span>
-        </button>
-        <button class="nav-item" data-panel="logging">
-          <span class="nav-icon">📝</span><span>日志</span>
-        </button>
-      </nav>
-      <div class="sidebar-footer">
-        <!-- v6.4.11：集中入口——hub 内嵌时切 tab，独立打开时新开标签 -->
-        <button id="openHubBtn" class="btn" style="width:100%;margin-bottom:8px;">🏠 设置中心</button>
-        <span id="saveStatus" class="save-status"></span>
-        <button id="saveBtn" class="btn btn-primary btn-lg btn-block">💾 立即保存</button>
-      </div>
-    </aside>
-
-    <main class="settings-content">
-
-      <!-- ============ 面板：常规设置 / Panel: General ============ -->
-      <section class="settings-panel active" id="panel-general">
-        <div class="panel-header">
-          <h2>常规设置</h2>
-          <p>General Settings</p>
-        </div>
-        <div class="panel-body">
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">⚙️</span>
-              <div class="section-title">
-                <h3>基本设置</h3>
-                <span class="section-subtitle">Basic Settings</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用插件</span>
-                  <span class="label-desc">Enable Extension</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="enabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">工作状态浮窗</span>
-                  <span class="label-desc">Status Bar</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="showStatusBar">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">调试浮窗</span>
-                  <span class="label-desc">Debug Panel（列表/详情页诊断视图，默认关闭）</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="showDebugPanel">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">推荐高亮阈值</span>
-                  <span class="label-desc">Highlight Threshold</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="threshold" min="30" max="90" step="5">
-                  <span id="thresholdVal" class="range-value">60%</span>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">最大行为记录数</span>
-                  <span class="label-desc">Max Behavior Log</span>
-                </div>
-                <input type="number" id="maxLog" min="100" max="5000" step="100" value="500" class="text-input">
-              </div>
-              <!-- v6.4.19：界面皮肤（Steam 默认 / Vista / Win31-Win11 历代风格） -->
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">界面皮肤</span>
-                  <span class="label-desc">UI Theme（历史风格可选，切换立即生效）</span>
-                </div>
-                <select id="uiTheme" class="text-input" style="max-width:240px">
-                  <option value="steam">Steam 深蓝（默认）</option>
-                  <option value="vista">Vista Aero 玻璃</option>
-                  <option value="win31">Windows 3.1 经典</option>
-                  <option value="win95">Windows 95</option>
-                  <option value="win98">Windows 98</option>
-                  <option value="winxp">Windows XP</option>
-                  <option value="win7">Windows 7</option>
-                  <option value="win8">Windows 8 Metro</option>
-                  <option value="win10">Windows 10 扁平</option>
-                  <option value="win11">Windows 11 圆角</option>
-                </select>
-              </div>
-              <!-- v7.0.5：自定义主题 CSS（本地导入，覆盖任意主题变量） -->
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">自定义主题 CSS（可选）</span>
-                  <span class="label-desc">导入 .css 覆盖任意主题变量（--gr-bg/--gr-accent 等），本地存储不涉网络</span>
-                </div>
-                <div style="flex:1;display:flex;gap:8px;align-items:center;">
-                  <button id="themeCssImport" class="btn btn-primary btn-sm" style="white-space:nowrap;">📥 导入 CSS</button>
-                  <button id="themeCssClear" class="btn btn-danger btn-sm" style="white-space:nowrap;">🗑️ 清除</button>
-                  <input type="file" id="themeCssFile" accept=".css" class="hidden-file">
-                  <span id="themeCssStatus" class="test-result"></span>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">💾</span>
-              <div class="section-title">
-                <h3>自动备份（v6.4.11 可配置）</h3>
-                <span class="section-subtitle">Auto Backup</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用自动备份</span>
-                  <span class="label-desc">Auto Backup</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="autoBackup">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">备份间隔（小时）</span>
-                  <span class="label-desc">Backup Interval (hours)</span>
-                </div>
-                <input type="number" id="backupIntervalHours" min="1" max="720" step="1" class="text-input" style="width:110px;">
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">保留备份份数</span>
-                  <span class="label-desc">Max Backups（超出自动清理最旧）</span>
-                </div>
-                <input type="number" id="maxBackups" min="1" max="30" step="1" class="text-input" style="width:110px;">
-              </div>
-            </div>
-          </div>
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">👁️</span>
-              <div class="section-title">
-                <h3>日志查看（v6.4.8 在线）</h3>
-                <span class="section-subtitle">Runtime Logs</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <!-- v6.4.19：日志查看增强——级别筛选 + 关键词搜索 + 模块显示 -->
-              <div class="setting-row">
-                <button id="logRefreshBtn" class="btn btn-primary">🔄 刷新</button>
-                <button id="logClearBtn" class="btn btn-danger">🗑️ 清空</button>
-                <select id="logLevelFilter" class="text-input" style="width:120px;">
-                  <option value="">全部级别</option>
-                  <option value="debug">debug</option>
-                  <option value="info">info</option>
-                  <option value="warn">warn</option>
-                  <option value="error">error</option>
-                </select>
-                <input type="text" id="logSearch" class="text-input" style="flex:1;min-width:120px;" placeholder="搜索日志关键词...">
-                <span id="logCount" class="test-result"></span>
-              </div>
-              <div id="logViewer" style="max-height:320px;overflow-y:auto;background:#10161f;border:1px solid #2f4055;border-radius:4px;padding:8px;margin-top:8px;font-size:12px;"></div>
-            </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>游戏雷达 Game Radar - 设置</title>
+    <link rel="stylesheet" href="../styles/ui-theme.css" />
+    <link rel="stylesheet" href="../styles/themes.css" />
+    <link rel="stylesheet" href="options.css" />
+    <!-- 下载站适配规则（用于渲染站点勾选/筛选选项）-->
+    <!-- Download-site adapter rules (drives site checkbox/filter options) -->
+    <script src="../adapters/default.js"></script>
+    <script src="../adapters/sites/xdgame.js"></script>
+    <script src="../adapters/sites/xianyudanji.js"></script>
+    <script src="../adapters/sites/gamer520.js"></script>
+    <script src="../adapters/sites/3dmgame.js"></script>
+    <script src="../adapters/sites/ali213.js"></script>
+    <script src="../adapters/sites/gamersky.js"></script>
+    <script src="../adapters/index.js"></script>
+  </head>
+  <body>
+    <!-- Chrome 设置页风格：左侧分类导航 + 右侧内容区 -->
+    <!-- Chrome-settings style: left category nav + right content area -->
+    <div class="settings-shell">
+      <aside class="settings-sidebar">
+        <div class="sidebar-brand">
+          <span class="sidebar-logo">🎮</span>
+          <div>
+            <div class="sidebar-title">游戏雷达 Game Radar</div>
+            <div class="sidebar-sub">游戏智能推荐设置</div>
           </div>
         </div>
-      </section>
-
-      <!-- ============ 面板：过滤 / Panel: Filters ============ -->
-      <section class="settings-panel" id="panel-filters">
-        <div class="panel-header">
-          <h2>过滤</h2>
-          <p>Filters</p>
+        <nav class="sidebar-nav" id="sidebarNav">
+          <button class="nav-item active" data-panel="general">
+            <span class="nav-icon">⚙️</span><span>常规设置</span>
+          </button>
+          <button class="nav-item" data-panel="filters"><span class="nav-icon">🎯</span><span>过滤</span></button>
+          <button class="nav-item" data-panel="recommend"><span class="nav-icon">🧠</span><span>推荐算法</span></button>
+          <button class="nav-item" data-panel="sites"><span class="nav-icon">🌐</span><span>网站</span></button>
+          <div class="nav-group-label">🔧 高级设置</div>
+          <button class="nav-item" data-panel="rules"><span class="nav-icon">🧩</span><span>规则管理</span></button>
+          <button class="nav-item" data-panel="cache"><span class="nav-icon">🗄️</span><span>缓存与数据</span></button>
+          <button class="nav-item" data-panel="logging"><span class="nav-icon">📝</span><span>日志</span></button>
+        </nav>
+        <div class="sidebar-footer">
+          <!-- v6.4.11：集中入口——hub 内嵌时切 tab，独立打开时新开标签 -->
+          <button id="openHubBtn" class="btn" style="width: 100%; margin-bottom: 8px">🏠 设置中心</button>
+          <span id="saveStatus" class="save-status"></span>
+          <button id="saveBtn" class="btn btn-primary btn-lg btn-block">💾 立即保存</button>
         </div>
-        <div class="panel-body">
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">⭐</span>
-              <div class="section-title">
-                <h3>Steam 好评率过滤</h3>
-                <span class="section-subtitle">Steam Rating Filter</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">好评率过滤：低于条件的游戏从列表页隐藏（条件见"保留条件"）<br><em>Games failing the keep-condition are hidden from list pages</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用好评率过滤</span>
-                  <span class="label-desc">Enable Rating Filter（开启后按下方条件隐藏游戏）</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="ratingFilterEnabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">总好评率下限</span>
-                  <span class="label-desc">Min Overall Rating（低于此值视为不达标）</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="minRating" min="0" max="95" step="5">
-                  <span id="minRatingVal" class="range-value">70%</span>
-                </div>
-              </div>
-              <!-- v6.4.4：30 天好评率过滤 + 与/或/非关系 + 重排序 -->
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用 30 天好评率下限</span>
-                  <span class="label-desc">Enable Recent 30-Day Rating Filter</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="recentFilterEnabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">30 天好评率下限</span>
-                  <span class="label-desc">Min Recent Rating（低于此值视为不达标）</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="minRecentRating" min="0" max="95" step="5">
-                  <span id="minRecentRatingVal" class="range-value">70%</span>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">保留条件</span>
-                  <span class="label-desc">Keep Condition（总好评 与 30天好评如何组合判定）</span>
-                </div>
-                <select id="ratingFilterMode" class="text-input" style="max-width:260px">
-                  <option value="and">与：两项都达标才保留</option>
-                  <option value="or">或：任一达标即保留</option>
-                  <option value="not">非：只按 30 天好评判定</option>
-                  <option value="hybrid">混合：任一≥高值 或 双≥低值</option>
-                </select>
-              </div>
-              <p class="section-note" style="margin:0 0 8px;">混合模式：高值 = 两个下限中的较大者（任一达到即保留），低值 = 较小者（两者都达到才保留）。例：总 90 / 30天 80 → 任一 ≥90 或 双 ≥80 保留，其余隐藏<br><em>Hybrid: either rate ≥ the larger threshold, or both ≥ the smaller one</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">按好评率重排列表</span>
-                  <span class="label-desc">Sort List by Rating（降序）</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="sortByRatingEnabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-            </div>
-          </div>
+      </aside>
 
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🏷️</span>
-              <div class="section-title">
-                <h3>徽章显示</h3>
-                <span class="section-subtitle">Badge Visibility</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">列表页各徽章独立开关。关闭不影响后台数据获取；关闭"全部好评率"同时停用好评率过滤，关闭"推荐值"同时停用推荐高亮<br><em>Per-badge toggles on list pages. Data keeps fetching; "all" also controls the rating filter, "rec" the highlighting</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">近30天好评率</span>
-                  <span class="label-desc">30-day Rating Badge</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="badgeRecent">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">全部好评率</span>
-                  <span class="label-desc">All-time Rating Badge</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="badgeAll">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">最近更新日期</span>
-                  <span class="label-desc">Last Update Badge</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="badgeUpdate">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">推荐值</span>
-                  <span class="label-desc">Recommendation Badge</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="badgeRec">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">链接扫描上限</span>
-                  <span class="label-desc">Link Scan Limit</span>
-                </div>
-                <input type="number" id="maxScanLinks" min="50" max="5000" step="50" class="text-input" style="width:110px;">
-              </div>
-            </div>
+      <main class="settings-content">
+        <!-- ============ 面板：常规设置 / Panel: General ============ -->
+        <section class="settings-panel active" id="panel-general">
+          <div class="panel-header">
+            <h2>常规设置</h2>
+            <p>General Settings</p>
           </div>
-
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🚫</span>
-              <div class="section-title">
-                <h3>关键词过滤规则</h3>
-                <span class="section-subtitle">Keyword Filter Rules（v6.4.19：不内置规则，全部由你逐条添加）</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">在下载站列表页隐藏标题命中规则的游戏。<br>每条规则：<b>关键词</b>（标题含则命中）+ <b>排除误报词</b>（标题也含则不算命中）——如 关键词"虚拟机" 排除"非虚拟机"，则"非虚拟机版"不会被隐藏<br><em>Hide games whose titles match a rule: keyword hit AND no exclude-word hit</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用关键词过滤</span>
-                  <span class="label-desc">Enable Keyword Filter（勾选后规则生效）</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="vmFilterEnabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">规则列表</span>
-                  <span class="label-desc">每条含排除误报词（命中关键词且不命中排除词才隐藏）</span>
-                </div>
-                <div style="flex:1">
-                  <button id="ruleAddBtn" class="btn btn-primary" style="margin-bottom:6px;">➕ 添加规则</button>
-                  <div id="ruleList"></div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">⚙️</span>
+                <div class="section-title">
+                  <h3>基本设置</h3>
+                  <span class="section-subtitle">Basic Settings</span>
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 面板：推荐算法 / Panel: Recommendation ============ -->
-      <section class="settings-panel" id="panel-recommend">
-        <div class="panel-header">
-          <h2>推荐算法</h2>
-          <p>Recommendation</p>
-        </div>
-        <div class="panel-body">
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">⚖️</span>
-              <div class="section-title">
-                <h3>算法权重</h3>
-                <span class="section-subtitle">Algorithm Weights</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">调整各因素在推荐计算中的权重比例（总和建议为 1.0）<br><em>Adjust weight factors (suggested sum ≈ 1.0)</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">点击率权重</span>
-                  <span class="label-desc">Click Rate</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="weightClick" min="0" max="50" step="5">
-                  <span id="weightClickVal" class="range-value">0.20</span>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">下载率权重</span>
-                  <span class="label-desc">Download Rate</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="weightDownload" min="0" max="50" step="5">
-                  <span id="weightDownloadVal" class="range-value">0.35</span>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">关键词匹配权重</span>
-                  <span class="label-desc">Keyword Match</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="weightKeyword" min="0" max="50" step="5">
-                  <span id="weightKeywordVal" class="range-value">0.25</span>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">Steam 评分权重</span>
-                  <span class="label-desc">Steam Rating</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="weightSteam" min="0" max="50" step="5">
-                  <span id="weightSteamVal" class="range-value">0.20</span>
-                </div>
-              </div>
-              <!-- v4.0.0：SteamSpy 时长/热度信号权重 -->
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">游玩时长权重</span>
-                  <span class="label-desc">Play Time (SteamSpy)</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="weightPlayTime" min="0" max="50" step="5">
-                  <span id="weightPlayTimeVal" class="range-value">0.10</span>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">热度权重</span>
-                  <span class="label-desc">Heat (SteamSpy owners)</span>
-                </div>
-                <div class="range-group">
-                  <input type="range" id="weightHeat" min="0" max="50" step="5">
-                  <span id="weightHeatVal" class="range-value">0.10</span>
-                </div>
-              </div>
-              <div class="weight-sum-row">
-                <span class="weight-sum-label">权重总和 / Weight Sum</span>
-                <span id="weightSum" class="weight-sum-value">1.00</span>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🤖</span>
-              <div class="section-title">
-                <h3>AI 大模型</h3>
-                <span class="section-subtitle">AI Model</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">接入本地或云端大模型进行更智能的推荐计算<br><em>Connect a local or cloud LLM for smarter recommendations</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用大模型推荐</span>
-                  <span class="label-desc">Enable LLM</span>
-                </div>
-                <label class="switch">
-                  <input type="checkbox" id="useLLM">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div id="llmSettings" class="llm-settings">
+              <div class="section-body">
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="label-text">模型提供商</span>
-                    <span class="label-desc">Provider</span>
+                    <span class="label-text">启用插件</span>
+                    <span class="label-desc">Enable Extension</span>
                   </div>
-                  <select id="llmProvider" class="text-input">
-                    <option value="local">本地模型 (Ollama)</option>
-                    <option value="openai">OpenAI 兼容接口</option>
-                    <option value="custom">自定义接口</option>
-                  </select>
+                  <label class="switch">
+                    <input type="checkbox" id="enabled" />
+                    <span class="slider"></span>
+                  </label>
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="label-text">API 地址</span>
-                    <span class="label-desc">Endpoint</span>
+                    <span class="label-text">工作状态浮窗</span>
+                    <span class="label-desc">Status Bar</span>
                   </div>
-                  <input type="text" id="llmEndpoint" class="text-input" placeholder="http://localhost:11434/api/generate">
-                </div>
-                <div class="setting-row" id="apiKeyRow">
-                  <div class="setting-label">
-                    <span class="label-text">API Key</span>
-                    <span class="label-desc">API Key</span>
-                  </div>
-                  <div style="flex:1">
-                    <input type="password" id="llmApiKey" class="text-input" placeholder="sk-...">
-                    <!-- v4.1.0：密钥存储知情提示 -->
-                    <p class="setting-hint" style="margin:6px 0 0;font-size:12px;color:#8f98a0;">🔒 密钥仅存储于本机浏览器配置；导出 / 备份 / 导入均会自动剔除</p>
-                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="showStatusBar" />
+                    <span class="slider"></span>
+                  </label>
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="label-text">模型名称</span>
-                    <span class="label-desc">Model Name</span>
+                    <span class="label-text">调试浮窗</span>
+                    <span class="label-desc">Debug Panel（列表/详情页诊断视图，默认关闭）</span>
                   </div>
-                  <input type="text" id="llmModel" class="text-input" placeholder="qwen2.5:7b">
+                  <label class="switch">
+                    <input type="checkbox" id="showDebugPanel" />
+                    <span class="slider"></span>
+                  </label>
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="label-text">Temperature</span>
-                    <span class="label-desc">Sampling Temperature</span>
+                    <span class="label-text">推荐高亮阈值</span>
+                    <span class="label-desc">Highlight Threshold</span>
                   </div>
                   <div class="range-group">
-                    <input type="range" id="llmTemp" min="0" max="100" step="5">
-                    <span id="llmTempVal" class="range-value">0.3</span>
+                    <input type="range" id="threshold" min="30" max="90" step="5" />
+                    <span id="thresholdVal" class="range-value">60%</span>
                   </div>
                 </div>
-                <div class="setting-row llm-test-row">
-                  <button id="testLLM" class="btn btn-primary">⚡ 测试连接</button>
-                  <span id="llmTestResult" class="test-result"></span>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">最大行为记录数</span>
+                    <span class="label-desc">Max Behavior Log</span>
+                  </div>
+                  <input type="number" id="maxLog" min="100" max="5000" step="100" value="500" class="text-input" />
+                </div>
+                <!-- v6.4.19：界面皮肤（Steam 默认 / Vista / Win31-Win11 历代风格） -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">界面皮肤</span>
+                    <span class="label-desc">UI Theme（历史风格可选，切换立即生效）</span>
+                  </div>
+                  <select id="uiTheme" class="text-input" style="max-width: 240px">
+                    <option value="steam">Steam 深蓝（默认）</option>
+                    <option value="vista">Vista Aero 玻璃</option>
+                    <option value="win31">Windows 3.1 经典</option>
+                    <option value="win95">Windows 95</option>
+                    <option value="win98">Windows 98</option>
+                    <option value="winxp">Windows XP</option>
+                    <option value="win7">Windows 7</option>
+                    <option value="win8">Windows 8 Metro</option>
+                    <option value="win10">Windows 10 扁平</option>
+                    <option value="win11">Windows 11 圆角</option>
+                  </select>
+                </div>
+                <!-- v7.0.5：自定义主题 CSS（本地导入，覆盖任意主题变量） -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">自定义主题 CSS（可选）</span>
+                    <span class="label-desc"
+                      >导入 .css 覆盖任意主题变量（--gr-bg/--gr-accent 等），本地存储不涉网络</span
+                    >
+                  </div>
+                  <div style="flex: 1; display: flex; gap: 8px; align-items: center">
+                    <button id="themeCssImport" class="btn btn-primary btn-sm" style="white-space: nowrap">
+                      📥 导入 CSS
+                    </button>
+                    <button id="themeCssClear" class="btn btn-danger btn-sm" style="white-space: nowrap">
+                      🗑️ 清除
+                    </button>
+                    <input type="file" id="themeCssFile" accept=".css" class="hidden-file" />
+                    <span id="themeCssStatus" class="test-result"></span>
+                  </div>
                 </div>
               </div>
             </div>
-            <!-- v6.3.3：ITAD 二次校验 key（可选——限免通知候选免费状态确认）
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">💾</span>
+                <div class="section-title">
+                  <h3>自动备份（v6.4.11 可配置）</h3>
+                  <span class="section-subtitle">Auto Backup</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">启用自动备份</span>
+                    <span class="label-desc">Auto Backup</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="autoBackup" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">备份间隔（小时）</span>
+                    <span class="label-desc">Backup Interval (hours)</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="backupIntervalHours"
+                    min="1"
+                    max="720"
+                    step="1"
+                    class="text-input"
+                    style="width: 110px"
+                  />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">保留备份份数</span>
+                    <span class="label-desc">Max Backups（超出自动清理最旧）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="maxBackups"
+                    min="1"
+                    max="30"
+                    step="1"
+                    class="text-input"
+                    style="width: 110px"
+                  />
+                </div>
+              </div>
+            </div>
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">👁️</span>
+                <div class="section-title">
+                  <h3>日志查看（v6.4.8 在线）</h3>
+                  <span class="section-subtitle">Runtime Logs</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <!-- v6.4.19：日志查看增强——级别筛选 + 关键词搜索 + 模块显示 -->
+                <div class="setting-row">
+                  <button id="logRefreshBtn" class="btn btn-primary">🔄 刷新</button>
+                  <button id="logClearBtn" class="btn btn-danger">🗑️ 清空</button>
+                  <select id="logLevelFilter" class="text-input" style="width: 120px">
+                    <option value="">全部级别</option>
+                    <option value="debug">debug</option>
+                    <option value="info">info</option>
+                    <option value="warn">warn</option>
+                    <option value="error">error</option>
+                  </select>
+                  <input
+                    type="text"
+                    id="logSearch"
+                    class="text-input"
+                    style="flex: 1; min-width: 120px"
+                    placeholder="搜索日志关键词..."
+                  />
+                  <span id="logCount" class="test-result"></span>
+                </div>
+                <div
+                  id="logViewer"
+                  style="
+                    max-height: 320px;
+                    overflow-y: auto;
+                    background: #10161f;
+                    border: 1px solid #2f4055;
+                    border-radius: 4px;
+                    padding: 8px;
+                    margin-top: 8px;
+                    font-size: 12px;
+                  "
+                ></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 面板：过滤 / Panel: Filters ============ -->
+        <section class="settings-panel" id="panel-filters">
+          <div class="panel-header">
+            <h2>过滤</h2>
+            <p>Filters</p>
+          </div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">⭐</span>
+                <div class="section-title">
+                  <h3>Steam 好评率过滤</h3>
+                  <span class="section-subtitle">Steam Rating Filter</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  好评率过滤：低于条件的游戏从列表页隐藏（条件见"保留条件"）<br /><em
+                    >Games failing the keep-condition are hidden from list pages</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">启用好评率过滤</span>
+                    <span class="label-desc">Enable Rating Filter（开启后按下方条件隐藏游戏）</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="ratingFilterEnabled" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">总好评率下限</span>
+                    <span class="label-desc">Min Overall Rating（低于此值视为不达标）</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="minRating" min="0" max="95" step="5" />
+                    <span id="minRatingVal" class="range-value">70%</span>
+                  </div>
+                </div>
+                <!-- v6.4.4：30 天好评率过滤 + 与/或/非关系 + 重排序 -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">启用 30 天好评率下限</span>
+                    <span class="label-desc">Enable Recent 30-Day Rating Filter</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="recentFilterEnabled" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">30 天好评率下限</span>
+                    <span class="label-desc">Min Recent Rating（低于此值视为不达标）</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="minRecentRating" min="0" max="95" step="5" />
+                    <span id="minRecentRatingVal" class="range-value">70%</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">保留条件</span>
+                    <span class="label-desc">Keep Condition（总好评 与 30天好评如何组合判定）</span>
+                  </div>
+                  <select id="ratingFilterMode" class="text-input" style="max-width: 260px">
+                    <option value="and">与：两项都达标才保留</option>
+                    <option value="or">或：任一达标即保留</option>
+                    <option value="not">非：只按 30 天好评判定</option>
+                    <option value="hybrid">混合：任一≥高值 或 双≥低值</option>
+                  </select>
+                </div>
+                <p class="section-note" style="margin: 0 0 8px">
+                  混合模式：高值 = 两个下限中的较大者（任一达到即保留），低值 = 较小者（两者都达到才保留）。例：总 90 /
+                  30天 80 → 任一 ≥90 或 双 ≥80 保留，其余隐藏<br /><em
+                    >Hybrid: either rate ≥ the larger threshold, or both ≥ the smaller one</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">按好评率重排列表</span>
+                    <span class="label-desc">Sort List by Rating（降序）</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="sortByRatingEnabled" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🏷️</span>
+                <div class="section-title">
+                  <h3>徽章显示</h3>
+                  <span class="section-subtitle">Badge Visibility</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  列表页各徽章独立开关。关闭不影响后台数据获取；关闭"全部好评率"同时停用好评率过滤，关闭"推荐值"同时停用推荐高亮<br /><em
+                    >Per-badge toggles on list pages. Data keeps fetching; "all" also controls the rating filter, "rec"
+                    the highlighting</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">近30天好评率</span>
+                    <span class="label-desc">30-day Rating Badge</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="badgeRecent" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">全部好评率</span>
+                    <span class="label-desc">All-time Rating Badge</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="badgeAll" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">最近更新日期</span>
+                    <span class="label-desc">Last Update Badge</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="badgeUpdate" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">推荐值</span>
+                    <span class="label-desc">Recommendation Badge</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="badgeRec" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">链接扫描上限</span>
+                    <span class="label-desc">Link Scan Limit</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="maxScanLinks"
+                    min="50"
+                    max="5000"
+                    step="50"
+                    class="text-input"
+                    style="width: 110px"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🚫</span>
+                <div class="section-title">
+                  <h3>关键词过滤规则</h3>
+                  <span class="section-subtitle">Keyword Filter Rules（v6.4.19：不内置规则，全部由你逐条添加）</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  在下载站列表页隐藏标题命中规则的游戏。<br />每条规则：<b>关键词</b>（标题含则命中）+
+                  <b>排除误报词</b>（标题也含则不算命中）——如 关键词"虚拟机" 排除"非虚拟机"，则"非虚拟机版"不会被隐藏<br /><em
+                    >Hide games whose titles match a rule: keyword hit AND no exclude-word hit</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">启用关键词过滤</span>
+                    <span class="label-desc">Enable Keyword Filter（勾选后规则生效）</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="vmFilterEnabled" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">规则列表</span>
+                    <span class="label-desc">每条含排除误报词（命中关键词且不命中排除词才隐藏）</span>
+                  </div>
+                  <div style="flex: 1">
+                    <button id="ruleAddBtn" class="btn btn-primary" style="margin-bottom: 6px">➕ 添加规则</button>
+                    <div id="ruleList"></div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 面板：推荐算法 / Panel: Recommendation ============ -->
+        <section class="settings-panel" id="panel-recommend">
+          <div class="panel-header">
+            <h2>推荐算法</h2>
+            <p>Recommendation</p>
+          </div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">⚖️</span>
+                <div class="section-title">
+                  <h3>算法权重</h3>
+                  <span class="section-subtitle">Algorithm Weights</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  调整各因素在推荐计算中的权重比例（总和建议为 1.0）<br /><em
+                    >Adjust weight factors (suggested sum ≈ 1.0)</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">点击率权重</span>
+                    <span class="label-desc">Click Rate</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="weightClick" min="0" max="50" step="5" />
+                    <span id="weightClickVal" class="range-value">0.20</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载率权重</span>
+                    <span class="label-desc">Download Rate</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="weightDownload" min="0" max="50" step="5" />
+                    <span id="weightDownloadVal" class="range-value">0.35</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">关键词匹配权重</span>
+                    <span class="label-desc">Keyword Match</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="weightKeyword" min="0" max="50" step="5" />
+                    <span id="weightKeywordVal" class="range-value">0.25</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">Steam 评分权重</span>
+                    <span class="label-desc">Steam Rating</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="weightSteam" min="0" max="50" step="5" />
+                    <span id="weightSteamVal" class="range-value">0.20</span>
+                  </div>
+                </div>
+                <!-- v4.0.0：SteamSpy 时长/热度信号权重 -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">游玩时长权重</span>
+                    <span class="label-desc">Play Time (SteamSpy)</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="weightPlayTime" min="0" max="50" step="5" />
+                    <span id="weightPlayTimeVal" class="range-value">0.10</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">热度权重</span>
+                    <span class="label-desc">Heat (SteamSpy owners)</span>
+                  </div>
+                  <div class="range-group">
+                    <input type="range" id="weightHeat" min="0" max="50" step="5" />
+                    <span id="weightHeatVal" class="range-value">0.10</span>
+                  </div>
+                </div>
+                <div class="weight-sum-row">
+                  <span class="weight-sum-label">权重总和 / Weight Sum</span>
+                  <span id="weightSum" class="weight-sum-value">1.00</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🤖</span>
+                <div class="section-title">
+                  <h3>AI 大模型</h3>
+                  <span class="section-subtitle">AI Model</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  接入本地或云端大模型进行更智能的推荐计算<br /><em
+                    >Connect a local or cloud LLM for smarter recommendations</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">启用大模型推荐</span>
+                    <span class="label-desc">Enable LLM</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="useLLM" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div id="llmSettings" class="llm-settings">
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="label-text">模型提供商</span>
+                      <span class="label-desc">Provider</span>
+                    </div>
+                    <select id="llmProvider" class="text-input">
+                      <option value="local">本地模型 (Ollama)</option>
+                      <option value="openai">OpenAI 兼容接口</option>
+                      <option value="custom">自定义接口</option>
+                    </select>
+                  </div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="label-text">API 地址</span>
+                      <span class="label-desc">Endpoint</span>
+                    </div>
+                    <input
+                      type="text"
+                      id="llmEndpoint"
+                      class="text-input"
+                      placeholder="http://localhost:11434/api/generate"
+                    />
+                  </div>
+                  <div class="setting-row" id="apiKeyRow">
+                    <div class="setting-label">
+                      <span class="label-text">API Key</span>
+                      <span class="label-desc">API Key</span>
+                    </div>
+                    <div style="flex: 1">
+                      <input type="password" id="llmApiKey" class="text-input" placeholder="sk-..." />
+                      <!-- v4.1.0：密钥存储知情提示 -->
+                      <p class="setting-hint" style="margin: 6px 0 0; font-size: 12px; color: #8f98a0">
+                        🔒 密钥仅存储于本机浏览器配置；导出 / 备份 / 导入均会自动剔除
+                      </p>
+                    </div>
+                  </div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="label-text">模型名称</span>
+                      <span class="label-desc">Model Name</span>
+                    </div>
+                    <input type="text" id="llmModel" class="text-input" placeholder="qwen2.5:7b" />
+                  </div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="label-text">Temperature</span>
+                      <span class="label-desc">Sampling Temperature</span>
+                    </div>
+                    <div class="range-group">
+                      <input type="range" id="llmTemp" min="0" max="100" step="5" />
+                      <span id="llmTempVal" class="range-value">0.3</span>
+                    </div>
+                  </div>
+                  <div class="setting-row llm-test-row">
+                    <button id="testLLM" class="btn btn-primary">⚡ 测试连接</button>
+                    <span id="llmTestResult" class="test-result"></span>
+                  </div>
+                </div>
+              </div>
+              <!-- v6.3.3：ITAD 二次校验 key（可选——限免通知候选免费状态确认）
                  v6.4.19：多套配置——添加/切换激活/删除，测试激活项 -->
-            <div class="setting-row">
-              <div class="setting-label">
-                <span class="label-text">ITAD API Key</span>
-                <span class="label-desc">多套配置：限免推送前用激活项二次确认"当前免费"（防误报）</span>
-              </div>
-              <div style="flex:1">
-                <div id="itadProfileList"></div>
-                <div style="display:flex;gap:8px;margin-top:8px;">
-                  <input type="text" id="itadNewName" class="text-input" style="width:110px;" placeholder="名称，如 主力" autocomplete="off">
-                  <input type="text" id="itadNewKey" class="text-input" style="flex:1;" placeholder="isthereanydeal.com 注册获取（添加后脱敏显示）" autocomplete="off">
-                  <button id="itadAddBtn" class="btn btn-primary btn-sm" style="white-space:nowrap;">➕ 添加</button>
-                  <button id="itadTestBtn" class="btn btn-primary btn-sm" style="white-space:nowrap;">🧪 测试激活项</button>
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">ITAD API Key</span>
+                  <span class="label-desc">多套配置：限免推送前用激活项二次确认"当前免费"（防误报）</span>
                 </div>
-                <span id="itadTestResult" class="test-result"></span>
-                <p class="setting-hint" style="margin:6px 0 0;font-size:12px;color:#8f98a0;">密钥仅存储于本机浏览器配置；导出/备份/导入自动剔除。未添加配置时跳过 ITAD 校验（按 GamerPower 分类直接推送）</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 面板：网站 / Panel: Sites ============ -->
-      <section class="settings-panel" id="panel-sites">
-        <div class="panel-header">
-          <h2>网站</h2>
-          <p>Sites</p>
-        </div>
-        <div class="panel-body">
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🌐</span>
-              <div class="section-title">
-                <h3>下载站与追踪管理</h3>
-                <span class="section-subtitle">Sites &amp; Tracking</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">
-                勾选需要追踪行为的下载站；"Steam 检索"控制 Steam 详情页与缓存更新的资源检索范围<br>
-                <em>Check sites to track behavior; "Steam Search" controls the resource-search scope on Steam pages and cache refreshes</em>
-              </p>
-              <div id="siteManageList" class="site-manage-list"></div>
-              <div class="site-custom-title">自定义追踪站点 <small>Custom tracked sites</small></div>
-              <div id="siteList" class="site-list"></div>
-              <div class="add-site-row">
-                <input type="text" id="newSite" class="text-input" placeholder="输入域名，如 example.com">
-                <button id="addSite" class="btn btn-primary btn-sm">添加</button>
-              </div>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🎮</span>
-              <div class="section-title">
-                <h3>游戏平台与辅助站</h3>
-                <span class="section-subtitle">Data Sources（v6.4.19：按用途分类，独立开关）</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">平台 = 限免/评分数据源；辅助站 = 搜索兜底。关闭的源不再调用其接口<br><em>Platform sources feed free-games/ratings; aux sites power search fallback</em></p>
-              <div id="dataSourceList"></div>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">📡</span>
-              <div class="section-title">
-                <h3>Steam 数据获取模块</h3>
-                <span class="section-subtitle">Steam API Modules（v6.4.19：每类独立开关 + 独立缓存 TTL）</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">每种信息独立开关、独立缓存：关闭的模块不调用其接口（缓存中已有数据仍展示，按各自 TTL 过期）<br><em>Per-module toggles; disabled modules are not fetched (cached data still shown)</em></p>
-              <div id="steamApiModulesList"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 面板：规则管理 / Panel: Rules ============ -->
-      <section class="settings-panel" id="panel-rules">
-        <div class="panel-header">
-          <h2>规则管理</h2>
-          <p>Adapter Rules</p>
-        </div>
-        <div class="panel-body">
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🧩</span>
-              <div class="section-title">
-                <h3>下载站适配规则</h3>
-                <span class="section-subtitle">Download-site Adapter Rules</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">
-                查看与编辑下载站适配规则（新增站点只需复制现有规则项修改）。
-                保存的规则覆盖内置规则，可独立导出/导入；保存后刷新已打开的下载站页面生效<br>
-                <em>View &amp; edit download-site adapter rules (copy an existing item to add a site).
-                Saved rules override the built-ins and can be exported/imported;
-                refresh open download-site pages after saving.</em>
-              </p>
-              <div class="rule-toolbar">
-                <span id="ruleSource" class="rule-source"></span>
-                <button id="ruleResetBuiltin" class="btn btn-sm" title="删除用户导入规则，恢复内置规则">♻️ 恢复内置</button>
-                <button id="ruleExport" class="btn btn-sm">📤 导出规则 JSON</button>
-                <button id="ruleImport" class="btn btn-sm">📥 导入规则 JSON</button>
-                <input type="file" id="ruleImportFile" accept=".json" class="hidden-file">
-              </div>
-              <div id="ruleList" class="rule-list"></div>
-              <details class="rule-field-help">
-                <summary>字段说明 <small>Field reference</small></summary>
-                <table class="rule-field-table">
-                  <tr><th>字段 / Field</th><th>说明 / Description</th></tr>
-                  <tr><td>key</td><td>站点唯一标识（小写字母/数字/-/_，后台搜索与缓存分桶使用）</td></tr>
-                  <tr><td>name</td><td>显示名</td></tr>
-                  <tr><td>domains</td><td>域名匹配数组（内容脚本按域名选适配器）</td></tr>
-                  <tr><td>base</td><td>站点根地址</td></tr>
-                  <tr><td>searchUrl</td><td>站内搜索 URL 模板，{q} 为编码后的搜索词（有此字段才可被 Steam 页检索）</td></tr>
-                  <tr><td>detailUrlPatterns</td><td>详情页 URL 特征正则数组（pathname）</td></tr>
-                  <tr><td>imageAppId</td><td>封面图 Steam appId 直取开关（true/false）</td></tr>
-                  <tr><td>listPage.urlPatterns</td><td>列表页 URL 特征正则数组</td></tr>
-                  <tr><td>listPage.minDetailLinks</td><td>通用判断：详情链接数达到该值视为列表页</td></tr>
-                  <tr><td>listPage.selectors</td><td>列表页 DOM 选择器（任一存在即列表页）</td></tr>
-                  <tr><td>listItem.containers</td><td>列表容器选择器数组（按优先级）</td></tr>
-                  <tr><td>listItem.titleLink</td><td>标题链接选择器（策略 1 优先，如 a.tit）</td></tr>
-                  <tr><td>listItem.titleEls</td><td>标题元素选择器数组（策略 2 回退）</td></tr>
-                  <tr><td>listItem.excludeClasses</td><td>跳过的链接类（纯图片/按钮）</td></tr>
-                  <tr><td>listItem.minLen / maxLen</td><td>标题长度范围（minLen 建议 2，支持两字游戏名）</td></tr>
-                  <tr><td>listItem.fallbackLinks</td><td>容器策略失败时回退全页面链接提取（true/false）</td></tr>
-                </table>
-              </details>
-              <div class="rule-editor">
-                <div class="rule-editor-header">
-                  <span>规则 JSON 编辑 <small>Rules JSON</small></span>
-                  <button id="ruleFormat" class="btn btn-sm">✨ 格式化</button>
-                </div>
-                <textarea id="ruleEditor" class="rule-editor-area" spellcheck="false"
-                  placeholder="{ &quot;version&quot;: 1, &quot;sites&quot;: [...] }"></textarea>
-                <div class="rule-editor-actions">
-                  <button id="ruleValidate" class="btn btn-sm">🔍 校验</button>
-                  <button id="ruleSave" class="btn btn-primary btn-sm">💾 保存规则</button>
-                  <span id="ruleStatus" class="rule-status"></span>
+                <div style="flex: 1">
+                  <div id="itadProfileList"></div>
+                  <div style="display: flex; gap: 8px; margin-top: 8px">
+                    <input
+                      type="text"
+                      id="itadNewName"
+                      class="text-input"
+                      style="width: 110px"
+                      placeholder="名称，如 主力"
+                      autocomplete="off"
+                    />
+                    <input
+                      type="text"
+                      id="itadNewKey"
+                      class="text-input"
+                      style="flex: 1"
+                      placeholder="isthereanydeal.com 注册获取（添加后脱敏显示）"
+                      autocomplete="off"
+                    />
+                    <button id="itadAddBtn" class="btn btn-primary btn-sm" style="white-space: nowrap">➕ 添加</button>
+                    <button id="itadTestBtn" class="btn btn-primary btn-sm" style="white-space: nowrap">
+                      🧪 测试激活项
+                    </button>
+                  </div>
+                  <span id="itadTestResult" class="test-result"></span>
+                  <p class="setting-hint" style="margin: 6px 0 0; font-size: 12px; color: #8f98a0">
+                    密钥仅存储于本机浏览器配置；导出/备份/导入自动剔除。未添加配置时跳过 ITAD 校验（按 GamerPower
+                    分类直接推送）
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- ============ 面板：缓存与数据 / Panel: Cache & Data ============ -->
-      <section class="settings-panel" id="panel-cache">
-        <div class="panel-header">
-          <h2>缓存与数据</h2>
-          <p>Cache &amp; Data</p>
-        </div>
-        <div class="panel-body">
-
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">⏱️</span>
-              <div class="section-title">
-                <h3>缓存有效期</h3>
-                <span class="section-subtitle">Cache TTLs</span>
+        <!-- ============ 面板：网站 / Panel: Sites ============ -->
+        <section class="settings-panel" id="panel-sites">
+          <div class="panel-header">
+            <h2>网站</h2>
+            <p>Sites</p>
+          </div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🌐</span>
+                <div class="section-title">
+                  <h3>下载站与追踪管理</h3>
+                  <span class="section-subtitle">Sites &amp; Tracking</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  勾选需要追踪行为的下载站；"Steam 检索"控制 Steam 详情页与缓存更新的资源检索范围<br />
+                  <em
+                    >Check sites to track behavior; "Steam Search" controls the resource-search scope on Steam pages and
+                    cache refreshes</em
+                  >
+                </p>
+                <div id="siteManageList" class="site-manage-list"></div>
+                <div class="site-custom-title">自定义追踪站点 <small>Custom tracked sites</small></div>
+                <div id="siteList" class="site-list"></div>
+                <div class="add-site-row">
+                  <input type="text" id="newSite" class="text-input" placeholder="输入域名，如 example.com" />
+                  <button id="addSite" class="btn btn-primary btn-sm">添加</button>
+                </div>
               </div>
             </div>
-            <div class="section-body">
-              <p class="section-note">自定义各类缓存的有效期，到期后自动重新获取；0 = 长期有效<br><em>Customize per-cache-type TTLs (0 = keep forever); expired entries are re-fetched</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">Steam 动态缓存</span>
-                  <span class="label-desc">Steam Dynamic Cache</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlSteamDynamic" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlSteamDynamicUnit" class="text-input ttl-unit">
-                    <option value="hours">小时</option>
-                    <option value="days">天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
+
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🎮</span>
+                <div class="section-title">
+                  <h3>游戏平台与辅助站</h3>
+                  <span class="section-subtitle">Data Sources（v6.4.19：按用途分类，独立开关）</span>
                 </div>
               </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">详情页 Steam 缓存</span>
-                  <span class="label-desc">Detail Page Cache</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlDetailSteam" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlDetailSteamUnit" class="text-input ttl-unit">
-                    <option value="hours" selected>小时</option>
-                    <option value="days">天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
+              <div class="section-body">
+                <p class="section-note">
+                  平台 = 限免/评分数据源；辅助站 = 搜索兜底。关闭的源不再调用其接口<br /><em
+                    >Platform sources feed free-games/ratings; aux sites power search fallback</em
+                  >
+                </p>
+                <div id="dataSourceList"></div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">📡</span>
+                <div class="section-title">
+                  <h3>Steam 数据获取模块</h3>
+                  <span class="section-subtitle">Steam API Modules（v6.4.19：每类独立开关 + 独立缓存 TTL）</span>
                 </div>
               </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">SteamSpy 数据缓存</span>
-                  <span class="label-desc">SteamSpy Supplement Cache</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlSpySteam" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlSpySteamUnit" class="text-input ttl-unit">
-                    <option value="hours">小时</option>
-                    <option value="days" selected>天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">Steam 基础信息缓存</span>
-                  <span class="label-desc">Steam Meta Cache</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlMetaSteam" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlMetaSteamUnit" class="text-input ttl-unit">
-                    <option value="hours">小时</option>
-                    <option value="days" selected>天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">注册表重确认</span>
-                  <span class="label-desc">Registry Re-confirm</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlRegistryConfirm" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlRegistryConfirmUnit" class="text-input ttl-unit">
-                    <option value="hours">小时</option>
-                    <option value="days" selected>天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">下载站网址缓存</span>
-                  <span class="label-desc">Download URL Cache</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlDownloadUrls" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlDownloadUrlsUnit" class="text-input ttl-unit">
-                    <option value="hours">小时</option>
-                    <option value="days" selected>天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
-                </div>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">名称负缓存</span>
-                  <span class="label-desc">Name Negative Cache</span>
-                </div>
-                <div class="ttl-group">
-                  <input type="number" id="ttlNegativeCache" min="0" max="10000" class="text-input ttl-input">
-                  <select id="ttlNegativeCacheUnit" class="text-input ttl-unit">
-                    <option value="hours" selected>小时</option>
-                    <option value="days">天</option>
-                    <option value="months">月</option>
-                    <option value="years">年</option>
-                  </select>
-                </div>
+              <div class="section-body">
+                <p class="section-note">
+                  每种信息独立开关、独立缓存：关闭的模块不调用其接口（缓存中已有数据仍展示，按各自 TTL 过期）<br /><em
+                    >Per-module toggles; disabled modules are not fetched (cached data still shown)</em
+                  >
+                </p>
+                <div id="steamApiModulesList"></div>
               </div>
             </div>
           </div>
+        </section>
 
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">🗄️</span>
-              <div class="section-title">
-                <h3>游戏缓存管理</h3>
-                <span class="section-subtitle">Game Cache</span>
+        <!-- ============ 面板：规则管理 / Panel: Rules ============ -->
+        <section class="settings-panel" id="panel-rules">
+          <div class="panel-header">
+            <h2>规则管理</h2>
+            <p>Adapter Rules</p>
+          </div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🧩</span>
+                <div class="section-title">
+                  <h3>下载站适配规则</h3>
+                  <span class="section-subtitle">Download-site Adapter Rules</span>
+                </div>
               </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">
-                查看已记录的游戏信息（以 Steam AppID 为唯一标识）<br>
-                <em>View recorded game info (keyed by Steam AppID)</em>
-              </p>
-              <div class="cache-toolbar">
-                <input type="text" id="cacheSearchInput" class="text-input" placeholder="搜索 AppID / 中文名 / 英文名..."
-                  style="flex:1;min-width:160px;">
-                <input type="number" id="cacheMinRating" class="text-input cache-filter-input" min="0" max="100" step="5"
-                  placeholder="好评率≥%" title="最低好评率（0-100）">
-                <input type="text" id="cacheTagInput" class="text-input cache-filter-input" placeholder="标签（如 动作）"
-                  title="Steam 官方标签包含">
-                <select id="cacheSiteFilter" class="text-input cache-filter-select" title="按下载站筛选">
-                  <option value="">全部站点</option>
-                </select>
-                <select id="cacheTypeFilter" class="text-input cache-filter-select" title="按 Steam 条目类型筛选">
-                  <option value="">全部类型</option>
-                  <option value="game">game 游戏</option>
-                  <option value="dlc">dlc 扩展</option>
-                  <option value="demo">demo 试玩</option>
-                  <option value="bundle">bundle 合集</option>
-                  <option value="music">music 音乐</option>
-                  <option value="mod">mod 模组</option>
-                  <option value="video">video 视频</option>
-                </select>
-                <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
-                <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
-                <button id="cacheCleanExpiredBtn" class="btn btn-sm" title="清理过期缓存条目（Steam 缓存/名称负缓存/下载站网址）">🧹 清理过期缓存</button>
-                <button id="cacheHealNamesBtn" class="btn btn-sm" title="扫描并修复注册表中名称异常（中文名无中文/英文名无英文）的条目">🩹 修复异常名称</button>
-                <button id="cacheClearAllBtn" class="btn btn-danger btn-sm">清空全部</button>
-              </div>
-              <div id="cacheStats" class="cache-stats"></div>
-              <div class="cache-table-wrap">
-                <table class="cache-table" id="cacheTable">
-                  <thead>
+              <div class="section-body">
+                <p class="section-note">
+                  查看与编辑下载站适配规则（新增站点只需复制现有规则项修改）。
+                  保存的规则覆盖内置规则，可独立导出/导入；保存后刷新已打开的下载站页面生效<br />
+                  <em
+                    >View &amp; edit download-site adapter rules (copy an existing item to add a site). Saved rules
+                    override the built-ins and can be exported/imported; refresh open download-site pages after
+                    saving.</em
+                  >
+                </p>
+                <div class="rule-toolbar">
+                  <span id="ruleSource" class="rule-source"></span>
+                  <button id="ruleResetBuiltin" class="btn btn-sm" title="删除用户导入规则，恢复内置规则">
+                    ♻️ 恢复内置
+                  </button>
+                  <button id="ruleExport" class="btn btn-sm">📤 导出规则 JSON</button>
+                  <button id="ruleImport" class="btn btn-sm">📥 导入规则 JSON</button>
+                  <input type="file" id="ruleImportFile" accept=".json" class="hidden-file" />
+                </div>
+                <div id="ruleList" class="rule-list"></div>
+                <details class="rule-field-help">
+                  <summary>字段说明 <small>Field reference</small></summary>
+                  <table class="rule-field-table">
                     <tr>
-                      <th>封面</th>
-                      <th>AppID</th>
-                      <th>中文名</th>
-                      <th>英文名</th>
-                      <th>类型</th>
-                      <th>信息缓存</th>
-                      <th>推荐值</th>
-                      <th>上次刷新</th>
-                      <th>下载站网址</th>
-                      <th>上次调用</th>
-                      <th>操作</th>
+                      <th>字段 / Field</th>
+                      <th>说明 / Description</th>
                     </tr>
-                  </thead>
-                  <tbody id="cacheTableBody">
-                    <tr><td colspan="10" class="cache-empty">点击"刷新"加载缓存数据</td></tr>
-                  </tbody>
-                </table>
-              </div>
-              <div class="cache-pagination" id="cachePagination"></div>
-            </div>
-          </div>
-
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">💾</span>
-              <div class="section-title">
-                <h3>数据管理</h3>
-                <span class="section-subtitle">Data Management</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">备份、恢复或导入导出插件数据（可自定义勾选数据类型）<br><em>Backup, restore, import or export data with per-type selection</em></p>
-              <div class="module-check-header">
-                <span class="module-check-title">数据类型 <small>Data types</small></span>
-                <button id="moduleCheckAll" class="btn btn-sm">全选</button>
-                <button id="moduleCheckNone" class="btn btn-sm">全不选</button>
-              </div>
-              <div id="moduleCheckList" class="module-check-list"></div>
-              <div class="data-actions">
-                <button id="exportData" class="btn data-btn"><span class="btn-icon">📤</span><span>导出所选</span></button>
-                <button id="importData" class="btn data-btn"><span class="btn-icon">📥</span><span>导入</span></button>
-                <button id="createBackupBtn" class="btn data-btn"><span class="btn-icon">➕</span><span>备份所选</span></button>
-                <select id="restoreBackupSelect" class="text-input restore-select" title="选择要恢复的备份">
-                  <option value="">选择备份...</option>
-                </select>
-                <button id="restoreBackupBtn" class="btn data-btn" disabled><span class="btn-icon">♻️</span><span>恢复所选</span></button>
-                <button id="resetDefaults" class="btn data-btn"><span class="btn-icon">♻️</span><span>恢复默认设置</span></button>
-                <button id="clearData" class="btn btn-danger"><span class="btn-icon">🗑️</span><span>清除所有数据</span></button>
-              </div>
-              <input type="file" id="importFile" accept=".json" class="hidden-file">
-              <div id="dataOpStatus" class="data-op-status"></div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- ============ 面板：日志 / Panel: Logging ============ -->
-      <section class="settings-panel" id="panel-logging">
-        <div class="panel-header">
-          <h2>日志</h2>
-          <p>Logging</p>
-        </div>
-        <div class="panel-body">
-          <div class="settings-section">
-            <div class="section-header">
-              <span class="section-icon">📝</span>
-              <div class="section-title">
-                <h3>日志配置</h3>
-                <span class="section-subtitle">Logging Config</span>
-              </div>
-            </div>
-            <div class="section-body">
-              <p class="section-note">记录插件运行详情，便于调试与维护<br><em>Detailed runtime logs for debugging and maintenance</em></p>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">启用日志</span>
-                  <span class="label-desc">Enable Logging</span>
+                    <tr>
+                      <td>key</td>
+                      <td>站点唯一标识（小写字母/数字/-/_，后台搜索与缓存分桶使用）</td>
+                    </tr>
+                    <tr>
+                      <td>name</td>
+                      <td>显示名</td>
+                    </tr>
+                    <tr>
+                      <td>domains</td>
+                      <td>域名匹配数组（内容脚本按域名选适配器）</td>
+                    </tr>
+                    <tr>
+                      <td>base</td>
+                      <td>站点根地址</td>
+                    </tr>
+                    <tr>
+                      <td>searchUrl</td>
+                      <td>站内搜索 URL 模板，{q} 为编码后的搜索词（有此字段才可被 Steam 页检索）</td>
+                    </tr>
+                    <tr>
+                      <td>detailUrlPatterns</td>
+                      <td>详情页 URL 特征正则数组（pathname）</td>
+                    </tr>
+                    <tr>
+                      <td>imageAppId</td>
+                      <td>封面图 Steam appId 直取开关（true/false）</td>
+                    </tr>
+                    <tr>
+                      <td>listPage.urlPatterns</td>
+                      <td>列表页 URL 特征正则数组</td>
+                    </tr>
+                    <tr>
+                      <td>listPage.minDetailLinks</td>
+                      <td>通用判断：详情链接数达到该值视为列表页</td>
+                    </tr>
+                    <tr>
+                      <td>listPage.selectors</td>
+                      <td>列表页 DOM 选择器（任一存在即列表页）</td>
+                    </tr>
+                    <tr>
+                      <td>listItem.containers</td>
+                      <td>列表容器选择器数组（按优先级）</td>
+                    </tr>
+                    <tr>
+                      <td>listItem.titleLink</td>
+                      <td>标题链接选择器（策略 1 优先，如 a.tit）</td>
+                    </tr>
+                    <tr>
+                      <td>listItem.titleEls</td>
+                      <td>标题元素选择器数组（策略 2 回退）</td>
+                    </tr>
+                    <tr>
+                      <td>listItem.excludeClasses</td>
+                      <td>跳过的链接类（纯图片/按钮）</td>
+                    </tr>
+                    <tr>
+                      <td>listItem.minLen / maxLen</td>
+                      <td>标题长度范围（minLen 建议 2，支持两字游戏名）</td>
+                    </tr>
+                    <tr>
+                      <td>listItem.fallbackLinks</td>
+                      <td>容器策略失败时回退全页面链接提取（true/false）</td>
+                    </tr>
+                  </table>
+                </details>
+                <div class="rule-editor">
+                  <div class="rule-editor-header">
+                    <span>规则 JSON 编辑 <small>Rules JSON</small></span>
+                    <button id="ruleFormat" class="btn btn-sm">✨ 格式化</button>
+                  </div>
+                  <textarea
+                    id="ruleEditor"
+                    class="rule-editor-area"
+                    spellcheck="false"
+                    placeholder='{ "version": 1, "sites": [...] }'
+                  ></textarea>
+                  <div class="rule-editor-actions">
+                    <button id="ruleValidate" class="btn btn-sm">🔍 校验</button>
+                    <button id="ruleSave" class="btn btn-primary btn-sm">💾 保存规则</button>
+                    <span id="ruleStatus" class="rule-status"></span>
+                  </div>
                 </div>
-                <label class="switch">
-                  <input type="checkbox" id="logEnabled">
-                  <span class="slider"></span>
-                </label>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">记录级别</span>
-                  <span class="label-desc">Log Level</span>
-                </div>
-                <select id="logLevel" class="text-input">
-                  <option value="debug">DEBUG - 全部记录</option>
-                  <option value="info">INFO - 常规信息</option>
-                  <option value="warn">WARN - 警告及以上</option>
-                  <option value="error">ERROR - 仅错误</option>
-                </select>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">保留天数</span>
-                  <span class="label-desc">Retention (days, 0 = keep all)</span>
-                </div>
-                <input type="number" id="logRetentionDays" min="0" max="365" class="text-input ttl-input">
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">存储形式</span>
-                  <span class="label-desc">Storage Format</span>
-                </div>
-                <select id="logStorage" class="text-input">
-                  <option value="ndjson">ND-JSON 文件（OPFS，追加高效）</option>
-                  <option value="local">storage.local（轻量）</option>
-                </select>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">日志条数上限</span>
-                  <span class="label-desc">Max Runtime Log（内存保留条数）</span>
-                </div>
-                <input type="number" id="maxRuntimeLog" min="100" max="5000" step="100" class="text-input" style="width:110px;">
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-    </main>
-  </div>
+        <!-- ============ 面板：缓存与数据 / Panel: Cache & Data ============ -->
+        <section class="settings-panel" id="panel-cache">
+          <div class="panel-header">
+            <h2>缓存与数据</h2>
+            <p>Cache &amp; Data</p>
+          </div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">⏱️</span>
+                <div class="section-title">
+                  <h3>缓存有效期</h3>
+                  <span class="section-subtitle">Cache TTLs</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  自定义各类缓存的有效期，到期后自动重新获取；0 = 长期有效<br /><em
+                    >Customize per-cache-type TTLs (0 = keep forever); expired entries are re-fetched</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">Steam 动态缓存</span>
+                    <span class="label-desc">Steam Dynamic Cache</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlSteamDynamic" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlSteamDynamicUnit" class="text-input ttl-unit">
+                      <option value="hours">小时</option>
+                      <option value="days">天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">详情页 Steam 缓存</span>
+                    <span class="label-desc">Detail Page Cache</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlDetailSteam" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlDetailSteamUnit" class="text-input ttl-unit">
+                      <option value="hours" selected>小时</option>
+                      <option value="days">天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">SteamSpy 数据缓存</span>
+                    <span class="label-desc">SteamSpy Supplement Cache</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlSpySteam" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlSpySteamUnit" class="text-input ttl-unit">
+                      <option value="hours">小时</option>
+                      <option value="days" selected>天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">Steam 基础信息缓存</span>
+                    <span class="label-desc">Steam Meta Cache</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlMetaSteam" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlMetaSteamUnit" class="text-input ttl-unit">
+                      <option value="hours">小时</option>
+                      <option value="days" selected>天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">注册表重确认</span>
+                    <span class="label-desc">Registry Re-confirm</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlRegistryConfirm" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlRegistryConfirmUnit" class="text-input ttl-unit">
+                      <option value="hours">小时</option>
+                      <option value="days" selected>天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载站网址缓存</span>
+                    <span class="label-desc">Download URL Cache</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlDownloadUrls" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlDownloadUrlsUnit" class="text-input ttl-unit">
+                      <option value="hours">小时</option>
+                      <option value="days" selected>天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">名称负缓存</span>
+                    <span class="label-desc">Name Negative Cache</span>
+                  </div>
+                  <div class="ttl-group">
+                    <input type="number" id="ttlNegativeCache" min="0" max="10000" class="text-input ttl-input" />
+                    <select id="ttlNegativeCacheUnit" class="text-input ttl-unit">
+                      <option value="hours" selected>小时</option>
+                      <option value="days">天</option>
+                      <option value="months">月</option>
+                      <option value="years">年</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-  <!-- v5.0.0：加载 patterns.js（评级颜色单源；cache.js 等面板引用 __GR_PATTERNS__） -->
-  <script src="../shared/patterns.js"></script>
-  <script src="../shared/escape.js"></script>
-  <script src="../shared/settings-utils.js"></script>
-  <script src="panels/settings.js"></script>
-  <script src="panels/cache.js"></script>
-  <script src="panels/data-manage.js"></script>
-  <script src="panels/rules.js"></script>
-  <script src="options.js"></script>
-</body>
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">🗄️</span>
+                <div class="section-title">
+                  <h3>游戏缓存管理</h3>
+                  <span class="section-subtitle">Game Cache</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  查看已记录的游戏信息（以 Steam AppID 为唯一标识）<br />
+                  <em>View recorded game info (keyed by Steam AppID)</em>
+                </p>
+                <div class="cache-toolbar">
+                  <input
+                    type="text"
+                    id="cacheSearchInput"
+                    class="text-input"
+                    placeholder="搜索 AppID / 中文名 / 英文名..."
+                    style="flex: 1; min-width: 160px"
+                  />
+                  <input
+                    type="number"
+                    id="cacheMinRating"
+                    class="text-input cache-filter-input"
+                    min="0"
+                    max="100"
+                    step="5"
+                    placeholder="好评率≥%"
+                    title="最低好评率（0-100）"
+                  />
+                  <input
+                    type="text"
+                    id="cacheTagInput"
+                    class="text-input cache-filter-input"
+                    placeholder="标签（如 动作）"
+                    title="Steam 官方标签包含"
+                  />
+                  <select id="cacheSiteFilter" class="text-input cache-filter-select" title="按下载站筛选">
+                    <option value="">全部站点</option>
+                  </select>
+                  <select id="cacheTypeFilter" class="text-input cache-filter-select" title="按 Steam 条目类型筛选">
+                    <option value="">全部类型</option>
+                    <option value="game">game 游戏</option>
+                    <option value="dlc">dlc 扩展</option>
+                    <option value="demo">demo 试玩</option>
+                    <option value="bundle">bundle 合集</option>
+                    <option value="music">music 音乐</option>
+                    <option value="mod">mod 模组</option>
+                    <option value="video">video 视频</option>
+                  </select>
+                  <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
+                  <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
+                  <button
+                    id="cacheRefreshStaleBtn"
+                    class="btn btn-sm"
+                    title="刷新本页中任一信息类型已过期的条目（v7.1.0）"
+                  >
+                    ♻️ 刷新本页过期
+                  </button>
+                  <button
+                    id="cacheCleanExpiredBtn"
+                    class="btn btn-sm"
+                    title="清理过期缓存条目（Steam 缓存/名称负缓存/下载站网址）"
+                  >
+                    🧹 清理过期缓存
+                  </button>
+                  <button
+                    id="cacheHealNamesBtn"
+                    class="btn btn-sm"
+                    title="扫描并修复注册表中名称异常（中文名无中文/英文名无英文）的条目"
+                  >
+                    🩹 修复异常名称
+                  </button>
+                  <button id="cacheClearAllBtn" class="btn btn-danger btn-sm">清空全部</button>
+                </div>
+                <div id="cacheStats" class="cache-stats"></div>
+                <div class="cache-table-wrap">
+                  <table class="cache-table" id="cacheTable">
+                    <thead>
+                      <tr>
+                        <th>封面</th>
+                        <th>AppID</th>
+                        <th>中文名</th>
+                        <th>英文名</th>
+                        <th>类型</th>
+                        <th>信息缓存</th>
+                        <th>推荐值</th>
+                        <th>上次刷新</th>
+                        <th>下载站网址</th>
+                        <th>上次调用</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody id="cacheTableBody">
+                      <tr>
+                        <td colspan="10" class="cache-empty">点击"刷新"加载缓存数据</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div class="cache-pagination" id="cachePagination"></div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">💾</span>
+                <div class="section-title">
+                  <h3>数据管理</h3>
+                  <span class="section-subtitle">Data Management</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  备份、恢复或导入导出插件数据（可自定义勾选数据类型）<br /><em
+                    >Backup, restore, import or export data with per-type selection</em
+                  >
+                </p>
+                <div class="module-check-header">
+                  <span class="module-check-title">数据类型 <small>Data types</small></span>
+                  <button id="moduleCheckAll" class="btn btn-sm">全选</button>
+                  <button id="moduleCheckNone" class="btn btn-sm">全不选</button>
+                </div>
+                <div id="moduleCheckList" class="module-check-list"></div>
+                <div class="data-actions">
+                  <button id="exportData" class="btn data-btn">
+                    <span class="btn-icon">📤</span><span>导出所选</span>
+                  </button>
+                  <button id="importData" class="btn data-btn">
+                    <span class="btn-icon">📥</span><span>导入</span>
+                  </button>
+                  <button id="createBackupBtn" class="btn data-btn">
+                    <span class="btn-icon">➕</span><span>备份所选</span>
+                  </button>
+                  <select id="restoreBackupSelect" class="text-input restore-select" title="选择要恢复的备份">
+                    <option value="">选择备份...</option>
+                  </select>
+                  <button id="restoreBackupBtn" class="btn data-btn" disabled>
+                    <span class="btn-icon">♻️</span><span>恢复所选</span>
+                  </button>
+                  <button id="resetDefaults" class="btn data-btn">
+                    <span class="btn-icon">♻️</span><span>恢复默认设置</span>
+                  </button>
+                  <button id="clearData" class="btn btn-danger">
+                    <span class="btn-icon">🗑️</span><span>清除所有数据</span>
+                  </button>
+                </div>
+                <input type="file" id="importFile" accept=".json" class="hidden-file" />
+                <div id="dataOpStatus" class="data-op-status"></div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ============ 面板：日志 / Panel: Logging ============ -->
+        <section class="settings-panel" id="panel-logging">
+          <div class="panel-header">
+            <h2>日志</h2>
+            <p>Logging</p>
+          </div>
+          <div class="panel-body">
+            <div class="settings-section">
+              <div class="section-header">
+                <span class="section-icon">📝</span>
+                <div class="section-title">
+                  <h3>日志配置</h3>
+                  <span class="section-subtitle">Logging Config</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  记录插件运行详情，便于调试与维护<br /><em>Detailed runtime logs for debugging and maintenance</em>
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">启用日志</span>
+                    <span class="label-desc">Enable Logging</span>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="logEnabled" />
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">记录级别</span>
+                    <span class="label-desc">Log Level</span>
+                  </div>
+                  <select id="logLevel" class="text-input">
+                    <option value="debug">DEBUG - 全部记录</option>
+                    <option value="info">INFO - 常规信息</option>
+                    <option value="warn">WARN - 警告及以上</option>
+                    <option value="error">ERROR - 仅错误</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">保留天数</span>
+                    <span class="label-desc">Retention (days, 0 = keep all)</span>
+                  </div>
+                  <input type="number" id="logRetentionDays" min="0" max="365" class="text-input ttl-input" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">存储形式</span>
+                    <span class="label-desc">Storage Format</span>
+                  </div>
+                  <select id="logStorage" class="text-input">
+                    <option value="ndjson">ND-JSON 文件（OPFS，追加高效）</option>
+                    <option value="local">storage.local（轻量）</option>
+                  </select>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">日志条数上限</span>
+                    <span class="label-desc">Max Runtime Log（内存保留条数）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="maxRuntimeLog"
+                    min="100"
+                    max="5000"
+                    step="100"
+                    class="text-input"
+                    style="width: 110px"
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- v5.0.0：加载 patterns.js（评级颜色单源；cache.js 等面板引用 __GR_PATTERNS__） -->
+    <script src="../shared/patterns.js"></script>
+    <script src="../shared/escape.js"></script>
+    <script src="../shared/settings-utils.js"></script>
+    <script src="panels/settings.js"></script>
+    <script src="panels/cache.js"></script>
+    <script src="panels/data-manage.js"></script>
+    <script src="panels/rules.js"></script>
+    <script src="options.js"></script>
+  </body>
 </html>

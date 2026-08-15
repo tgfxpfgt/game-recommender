@@ -11,7 +11,7 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
  * 注意：fetch mock 按 describe 作用域安装/卸载（顶层多 mock 后装覆盖前者）；
  * 名称索引删除断言依赖 v6.2.0 修复（deleteNameIndexEntry 对称删除清理名变体）。
  */
-'use strict';
+('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
@@ -62,7 +62,9 @@ describe('SEARCH_STEAM 完整链路', () => {
     });
     restoreFetch = installFetchMock(fetchMock);
   });
-  afterAll(() => { if (restoreFetch) restoreFetch(); });
+  afterAll(() => {
+    if (restoreFetch) restoreFetch();
+  });
 
   test('搜索链路返回 appId 与好评率', async () => {
     const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '艾尔登法环' });
@@ -106,7 +108,9 @@ describe('SEARCH_STEAM 无结果', () => {
     });
     restoreFetch = installFetchMock(fetchMock);
   });
-  afterAll(() => { if (restoreFetch) restoreFetch(); });
+  afterAll(() => {
+    if (restoreFetch) restoreFetch();
+  });
 
   test('无结果返回 null', async () => {
     const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '不存在的游戏XYZ' });
@@ -125,7 +129,12 @@ describe('SEARCH_STEAM 无结果', () => {
 test('报错清除缓存/索引/下载站映射并记录样本', async () => {
   storage._reset();
   await cacheMod.resetSteamCache();
-  await cacheMod.setSteamCacheEntry('2001760', { appId: '2001760', name: '错误游戏', positiveRate: 50, ratingDesc: 'x' });
+  await cacheMod.setSteamCacheEntry('2001760', {
+    appId: '2001760',
+    name: '错误游戏',
+    positiveRate: 50,
+    ratingDesc: 'x'
+  });
   await cacheMod.flushSteamCache();
   await nameIdx.recordNameIndex('游戏A', '2001760');
   await nameIdx.flushNameIndex();
@@ -257,7 +266,10 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
 
   test('SEARCH_STEAM：网址索引命中 → 直接使用索引 appId（不触发标题搜索）', async () => {
     await urlIdx.setUrlAppId(TEST_URL, 3764200);
-    const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' }, { tab: { url: TEST_URL } });
+    const resp = await handleMessage(
+      { action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' },
+      { tab: { url: TEST_URL } }
+    );
     expect(resp.data && String(resp.data.appId)).toEqual('3764200');
     // storesearch 未被调用（mock 返回空——若走了标题搜索则结果为 null）
     expect(fetchMock._calls.some((u) => u.includes('/api/storesearch'))).toEqual(false);
@@ -290,7 +302,10 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
   test('REFRESH 后：详情页匹配结果写入网址索引（后续列表页可复用）', async () => {
     // 清索引 → 标题搜索路径（mock storesearch 空 → 未找到）
     urlIdx.resetUrlIndex();
-    const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '不存在的游戏XYZ' }, { tab: { url: TEST_URL } });
+    const resp = await handleMessage(
+      { action: 'SEARCH_STEAM', gameName: '不存在的游戏XYZ' },
+      { tab: { url: TEST_URL } }
+    );
     expect(resp.data).toEqual(null);
     expect(await urlIdx.getAppIdByUrl(TEST_URL)).toEqual(null);
   });
@@ -365,9 +380,12 @@ describe('检索顺序与下载站缓存优先', () => {
     await urlMod.recordDownloadUrlsBatch('xdgame', 'XDGame', [
       { appId: 3764200, url: 'https://www.xdgame.com/12345.html' }
     ]);
-    const resp = await handleMessage(
-      { action: 'SEARCH_DOWNLOAD_SITES', gameName: 'Resident Evil Requiem', appId: '3764200', cacheOnly: true }
-    );
+    const resp = await handleMessage({
+      action: 'SEARCH_DOWNLOAD_SITES',
+      gameName: 'Resident Evil Requiem',
+      appId: '3764200',
+      cacheOnly: true
+    });
     const sites = resp.sites || [];
     const found = sites.filter((s) => s.found);
     // 两个下载站都命中缓存（不同网址）
@@ -377,10 +395,11 @@ describe('检索顺序与下载站缓存优先', () => {
     expect(gamer520 && gamer520.detailUrl).toEqual('https://www.gamer520.com/109515.html');
     expect(xdgame && xdgame.detailUrl).toEqual('https://www.xdgame.com/12345.html');
     // cacheOnly 不触发站内搜索（无网络调用）
-    expect(fetchMock._calls.some((u) => u.includes('gamer520.com/search') || u.includes('xdgame.com/search'))).toEqual(false);
+    expect(fetchMock._calls.some((u) => u.includes('gamer520.com/search') || u.includes('xdgame.com/search'))).toEqual(
+      false
+    );
   });
 });
-
 
 // ============ 并入：AI/匹配兜底（v6.4.16/17，v7.0.5 合并自 test-ai-fallback） ============
 const aiMod = await import(new URL('../../background/steam/ai-fallback.js', import.meta.url).href);
@@ -550,8 +569,7 @@ describe('webSearchFallback（Bing 搜索 → appdetails 校验）', () => {
   test('appdetails 校验失败（名字与标题零共同词）→ null', async () => {
     fetchMock = createFetchMock({
       'cn.bing.com/search': () => ({
-        text: async () =>
-          '<html><a href="https://store.steampowered.com/app/123456/">完全不相关的游戏</a></html>'
+        text: async () => '<html><a href="https://store.steampowered.com/app/123456/">完全不相关的游戏</a></html>'
       }),
       '/api/appdetails': {
         123456: { success: true, data: { name: 'Jrago III 夜之安魂曲' } }
@@ -596,3 +614,12 @@ describe('llmMatchGame 未配置 LLM', () => {
   });
 });
 
+// ============ v7.1.0：GET_STATS 自助诊断字段 ============
+describe('GET_STATS 诊断字段（网址索引规模/负缓存条数）', () => {
+  test('返回 urlIndexSize 与 negativeCacheCount', async () => {
+    const resp = await handleMessage({ action: 'GET_STATS' });
+    expect(typeof resp.urlIndexSize).toEqual('number');
+    expect(typeof resp.negativeCacheCount).toEqual('number');
+    expect(resp.cacheStats && typeof resp.cacheStats.modules).toEqual('object');
+  });
+});

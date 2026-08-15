@@ -30,6 +30,9 @@
  * @property {string} [gameName] - 游戏名
  * @property {string|number} [appId] - appId（SAVE_MANUAL_MAPPING / CACHE_STEAM_PAGE 等）
  * @property {string} [backupId] - 备份 ID（RESTORE_BACKUP / DELETE_BACKUP）
+ * @property {Object} [urls] - v7.0.2：批量详情页网址（名称 → url，GET_STEAM_RATINGS 网址索引第一候选）
+ * @property {boolean} [cacheOnly] - v7.0.3：仅查缓存不搜索（SEARCH_DOWNLOAD_SITES）
+ * @property {Object} [entries] - RECORD_DOWNLOAD_URLS_BATCH 条目（{appId, url}[]）
  * @property {Array<string>} [moduleKeys] - 备份/导出勾选模块
  * @property {string} [gameId] - 限免游戏 ID（CLAIM_FREE_GAME）
  * @property {number} [limit] - 日志/审计条数上限

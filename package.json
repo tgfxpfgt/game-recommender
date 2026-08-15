@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "7.0.7",
+  "version": "7.1.0",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -16,7 +16,9 @@
     "coverage": "vitest run --coverage",
     "install-hooks": "sh scripts/install-hooks.sh",
     "coverage:gate": "node scripts/coverage-gate.mjs",
-    "audit": "npm audit --audit-level=high"
+    "audit": "npm audit --audit-level=high",
+    "test:timed": "node scripts/test-timing.mjs",
+    "test:changed": "vitest run --changed"
   },
   "devDependencies": {
     "@vitest/coverage-v8": "^4.1.10",

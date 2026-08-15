@@ -160,22 +160,48 @@ export function migrateEntry(entry) {
   return null;
 }
 
-// 缓存命中率统计（v6.3.2 B3 可观测：dashboard 展示用）/ cache hit stats
-/** @type {{hits: number, misses: number}} */
-const cacheStats = { hits: 0, misses: 0 };
+// 缓存命中率统计（v6.3.2 B3 可观测；v7.1.0 分模块：meta/rating/detail/spy）
+// cache hit stats (global + per-module; module key recorded at read sites)
+/** @type {{hits: number, misses: number, modules: Object}} */
+const cacheStats = {
+  hits: 0,
+  misses: 0,
+  modules: {
+    meta: { hits: 0, misses: 0 },
+    rating: { hits: 0, misses: 0 },
+    detail: { hits: 0, misses: 0 },
+    spy: { hits: 0, misses: 0 }
+  }
+};
 
-// 读取缓存条目（返回模块结构）/ Read a cache entry (modular structure)
-export async function getSteamCacheEntry(cacheKey) {
+// 读取缓存条目（返回模块结构；moduleKey 传入时按模块计数命中率）
+// Read a cache entry; pass moduleKey to record per-module hit/miss.
+export async function getSteamCacheEntry(cacheKey, moduleKey) {
   await loadSteamCacheToMemory();
   const entry = steamCacheMemory.get(String(cacheKey)) || null;
-  if (entry) cacheStats.hits++;
-  else cacheStats.misses++;
+  if (moduleKey && cacheStats.modules[moduleKey]) {
+    const m = cacheStats.modules[moduleKey];
+    if (entry && entry.modules && entry.modules[moduleKey] && entry.modules[moduleKey].data) m.hits++;
+    else m.misses++;
+  } else {
+    if (entry) cacheStats.hits++;
+    else cacheStats.misses++;
+  }
   return entry;
 }
 
-// 缓存命中率统计（只读快照）/ cache hit-rate snapshot
+// 缓存命中率统计（只读快照，含分模块）/ cache hit-rate snapshot (global + modules)
 export function getCacheStats() {
-  return { ...cacheStats };
+  return {
+    hits: cacheStats.hits,
+    misses: cacheStats.misses,
+    modules: {
+      meta: { ...cacheStats.modules.meta },
+      rating: { ...cacheStats.modules.rating },
+      detail: { ...cacheStats.modules.detail },
+      spy: { ...cacheStats.modules.spy }
+    }
+  };
 }
 
 // 写入缓存条目（按 FIELD_MODULES 自动路由拆分到各模块；签名不变，调用方零改动）

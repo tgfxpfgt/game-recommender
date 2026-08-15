@@ -15,6 +15,7 @@ import { getGameRegistryEntry } from '../storage/registry.js';
  */
 
 // --- 下载站搜索（Steam 页浮窗）---
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleSearchDownloadSites(message) {
   const settings = await getSettings();
   const allSites = await getDownloadSites();
@@ -35,7 +36,7 @@ export async function handleSearchDownloadSites(message) {
     return { sites };
   }
 
-  const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
+  const sites = await searchDownloadSites(String(message.gameName || ''), message.appId, enabledKeys);
 
   // 兜底 1：缓存优先。全部未命中且提供 appId 时，优先使用下载站网址缓存
   // （列表页/详情页访问时已记录 appId → 下载页地址）。解决英文官方名与中文站

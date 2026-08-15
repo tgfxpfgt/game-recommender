@@ -10,7 +10,7 @@ import { test, expect, describe, beforeAll } from 'vitest';
  *（check 线性脚本的顶层流程在 vitest 收集阶段全部提前执行，断言运行阶段
  * 读到最终状态；准备移入各 test 后检查点语义恢复）。
  */
-'use strict';
+('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 
@@ -151,16 +151,29 @@ const defaults = {
   weights: { clickRate: 0.15, downloadRate: 0.3, keywordMatch: 0.2, steamRating: 0.15, playTime: 0.1, heat: 0.1 },
   llmConfig: { provider: 'local', apiKey: '', temperature: 0.3 }
 };
-test('旧设置缺新权重键 → 自动补默认', () => { expect(JSON.stringify(setMod.deepMergeSettings(defaults, { weights: { clickRate: 0.2 } }).weights)).toEqual(JSON.stringify({ ...defaults.weights, clickRate: 0.2 })); });
-test('类型不一致的畸形值 → 保留默认', () => { expect(setMod.deepMergeSettings(defaults, { weights: { playTime: '0.5' } }).weights.playTime).toEqual(0.1); });
-test('null 存储 → 返回默认', () => { expect(JSON.stringify(setMod.deepMergeSettings(defaults, null))).toEqual(JSON.stringify(defaults)); });
-test('嵌套对象深合并', () => { expect(setMod.deepMergeSettings(defaults, { llmConfig: { temperature: 0.7 } }).llmConfig.temperature).toEqual(0.7); });
-test('undefined 值跳过', () => { expect(setMod.deepMergeSettings(defaults, { weights: { heat: undefined } }).weights.heat).toEqual(0.1); });
-test('新增键保留', () => { expect(setMod.deepMergeSettings(defaults, { maxScanLinks: 1000 }).maxScanLinks).toEqual(1000); });
+test('旧设置缺新权重键 → 自动补默认', () => {
+  expect(JSON.stringify(setMod.deepMergeSettings(defaults, { weights: { clickRate: 0.2 } }).weights)).toEqual(
+    JSON.stringify({ ...defaults.weights, clickRate: 0.2 })
+  );
+});
+test('类型不一致的畸形值 → 保留默认', () => {
+  expect(setMod.deepMergeSettings(defaults, { weights: { playTime: '0.5' } }).weights.playTime).toEqual(0.1);
+});
+test('null 存储 → 返回默认', () => {
+  expect(JSON.stringify(setMod.deepMergeSettings(defaults, null))).toEqual(JSON.stringify(defaults));
+});
+test('嵌套对象深合并', () => {
+  expect(setMod.deepMergeSettings(defaults, { llmConfig: { temperature: 0.7 } }).llmConfig.temperature).toEqual(0.7);
+});
+test('undefined 值跳过', () => {
+  expect(setMod.deepMergeSettings(defaults, { weights: { heat: undefined } }).weights.heat).toEqual(0.1);
+});
+test('新增键保留', () => {
+  expect(setMod.deepMergeSettings(defaults, { maxScanLinks: 1000 }).maxScanLinks).toEqual(1000);
+});
 
 // 注：不 restore chrome——learned-noise 等模块的防抖写入可能延迟到恢复后
 // 才触发（与旧 test-wrong-reports 行为一致；run-tests 后续套件各自安装）
-
 
 // ============ 并入：设置深路径工具（v6.4.11，v7.0.5 合并自 test-settings-utils） ============
 import '../../shared/settings-utils.js';
@@ -231,7 +244,6 @@ describe('settings-utils applyPatch', () => {
   });
 });
 
-
 // ============ 并入：详情页网址索引（v7.0.2，v7.0.5 合并自 test-url-index） ============
 const idxMod = await import(new URL('../../background/storage/url-index.js', import.meta.url).href);
 
@@ -267,7 +279,6 @@ describe('url-index 详情页网址索引（v7.0.2，v7.0.5 合并自 test-url-i
     expect(await idxMod.getAppIdByUrl('https://www.gamer520.com/109515.html')).toEqual(null);
   });
 });
-
 
 // ============ 并入：备份管理（v6.3.0，v7.0.5 合并自 test-backups） ============
 const backups = await import(new URL('../../background/storage/backups.js', import.meta.url).href);
@@ -339,4 +350,30 @@ describe('备份管理', () => {
     const list = await backups.getBackupList();
     expect(list.find((b) => b.id === backup.id)).toBeUndefined();
   });
+});
+
+// ============ v7.1.0：缓存命中率分模块统计 ============
+console.log('9b. 分模块缓存命中率 getCacheStats');
+test('getSteamCacheEntry 带 moduleKey 按模块计数', async () => {
+  storage._reset({});
+  const scMod = await import(
+    new URL('../../background/storage/steam-cache.js', import.meta.url).href + '?t=' + Date.now()
+  );
+  await scMod.setSteamCacheEntry('100', { appId: 100, name: '测试', positiveRate: 90 });
+  await scMod.flushSteamCache();
+  // 命中 rating 模块（positiveRate 属 rating 模块）
+  const hit = await scMod.getSteamCacheEntry('100', 'rating');
+  expect(!!hit).toEqual(true);
+  const stats = scMod.getCacheStats();
+  expect(stats.modules.rating.hits).toEqual(1);
+  expect(stats.modules.rating.misses).toEqual(0);
+  // 未命中 rating 模块
+  await scMod.getSteamCacheEntry('999', 'rating');
+  const stats2 = scMod.getCacheStats();
+  expect(stats2.modules.rating.misses).toEqual(1);
+  // 不带 moduleKey → 全局计数
+  await scMod.getSteamCacheEntry('100');
+  const stats3 = scMod.getCacheStats();
+  expect(stats3.hits).toEqual(1);
+  expect(stats3.modules.rating.hits).toEqual(1); // 分模块不受全局影响
 });

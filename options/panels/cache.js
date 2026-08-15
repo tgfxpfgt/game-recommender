@@ -13,6 +13,8 @@
 
   // ============ 游戏缓存管理 / Game Cache Management ============
   function bindCacheEvents() {
+    // v7.1.0：本页过期条目批量刷新
+    bindStaleRefresh();
     // 搜索按钮
     document.getElementById('cacheSearchBtn').addEventListener('click', () => {
       OPTS.cacheCurrentPage = 1;
@@ -126,6 +128,37 @@
       });
   }
 
+  // v7.1.0：刷新本页过期条目（任一信息类型模块过期 → 逐条强制刷新）
+  function bindStaleRefresh() {
+    const btn = document.getElementById('cacheRefreshStaleBtn');
+    if (!btn) return;
+    btn.addEventListener('click', async () => {
+      const tbody = document.getElementById('cacheTableBody');
+      const stale = [];
+      tbody.querySelectorAll('tr').forEach((tr) => {
+        const appId = tr.querySelector('[data-appid]');
+        const tags = tr.querySelectorAll('.col-modules span');
+        if (!appId) return;
+        const hasStale = Array.from(tags).some(
+          (t) => (t.textContent || '').trim() === '' || /缺失|过期/.test(t.title || '')
+        );
+        if (hasStale) stale.push(appId.getAttribute('data-appid'));
+      });
+      if (stale.length === 0) {
+        alert('本页条目缓存均有效');
+        return;
+      }
+      btn.disabled = true;
+      btn.textContent = `⏳ 刷新 ${stale.length} 条...`;
+      for (const appId of stale.slice(0, 10)) {
+        await chrome.runtime.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId }).catch(() => {});
+      }
+      btn.disabled = false;
+      btn.textContent = '♻️ 刷新本页过期';
+      loadGameCache();
+    });
+  }
+
   // 加载游戏缓存列表
   async function loadGameCache() {
     const keyword = document.getElementById('cacheSearchInput').value.trim();
@@ -165,7 +198,9 @@
         .join(' · ');
       statsEl.innerHTML =
         `<div>共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页</div>` +
-        (msText ? `<div style="font-size:11px;color:#8f98a0;margin-top:2px;">缓存模块：${msText}（各模块 TTL 建议见「缓存有效期」设置）</div>` : '');
+        (msText
+          ? `<div style="font-size:11px;color:#8f98a0;margin-top:2px;">缓存模块：${msText}（各模块 TTL 建议见「缓存有效期」设置）</div>`
+          : '');
 
       if (resp.games.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">暂无缓存数据</td></tr>';
@@ -228,19 +263,26 @@
   }
 
   // v6.4.19：信息缓存新鲜度标签（meta 基础 / rating 好评率 / detail 详情 / spy 热度）
+  // v7.1.0：hover 显示 TTL 建议（来自设置 cacheTtls）
   function formatModuleFreshness(freshness) {
     const f = freshness || {};
+    const ttls = (OPTS.currentSettings && OPTS.currentSettings.cacheTtls) || {};
+    const ttlText = (key) => {
+      const t = ttls[key];
+      if (!t) return '';
+      return ` · TTL ${t.value || 0}${t.unit || ''}${t.value === 0 ? '（长期）' : ''}`;
+    };
     const items = [
-      ['基', f.meta],
-      ['评', f.rating],
-      ['详', f.detail],
-      ['热', f.spy]
+      ['基', f.meta, 'metaSteam'],
+      ['评', f.rating, 'steamDynamic'],
+      ['详', f.detail, 'detailSteam'],
+      ['热', f.spy, 'spySteam']
     ];
     return items
-      .map(([label, ok]) => {
+      .map(([label, ok, ttlKey]) => {
         const color = ok ? '#a3cf06' : '#8f98a0';
         const bg = ok ? 'rgba(163,207,6,0.12)' : 'rgba(143,152,160,0.12)';
-        return `<span title="${ok ? '缓存有效' : '缺失或已过期'}" style="display:inline-block;margin-right:3px;padding:0 5px;border-radius:3px;font-size:10.5px;color:${color};background:${bg};">${label}</span>`;
+        return `<span title="${ok ? '缓存有效' : '缺失或已过期'}${ttlText(ttlKey)}" style="display:inline-block;margin-right:3px;padding:0 5px;border-radius:3px;font-size:10.5px;color:${color};background:${bg};">${label}</span>`;
       })
       .join('');
   }

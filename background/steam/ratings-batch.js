@@ -20,6 +20,7 @@ import { getSteamApiStatus } from '../core/api-monitor.js';
 // 列表页批量好评率查询（两阶段：缓存命中即时返回，未命中后台拉取后推送）
 // Two-phase list-page rating lookup: cached hits return immediately; misses are
 // fetched from Steam in the background and pushed back via STEAM_RATINGS_UPDATE.
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleGetSteamRatings(message, sender) {
   const ratingNames = message.names || [];
   const imageData = message.imageData || {};
@@ -170,7 +171,7 @@ export async function handlePrefetchSteamRatings(message) {
     try {
       const appId = await lookupAppIdByName(name);
       if (appId) {
-        const cached = await getSteamCacheEntry(appId);
+        const cached = await getSteamCacheEntry(appId, 'rating');
         // v3.3.7：rating 模块有效（含好评率）即跳过；仅 rating 过期才预载
         const rating = isModuleValid(cached, 'rating') ? getModuleData(cached, 'rating') : null;
         if (rating && rating.positiveRate !== undefined) continue;

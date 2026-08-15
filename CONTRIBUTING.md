@@ -62,6 +62,14 @@ npm run coverage       # vitest 覆盖率
 - 完整发布流程：全量验证（vitest + lint + typecheck + E2E）→ Mimosa 深度扫描（seal 记录到 release notes）→ push/tag/release → README 更新日志。
 - 小版本常规：本地提交（不 push），计入计数。
 
+## 性能基线（v7.1.0 文档化）
+
+- **设计原则（用户方向）**：本地不涉网络的路径，用内存换延迟——存储预热、内存缓存、聚合缓存、推荐值缓存（v7.0.4）。
+- **关键基线**：①首个列表/详情查询零磁盘等待（SW 启动 8 路并行预热）；②列表页批次 ≤30s（6 并发自适应，限流降 2）；③缓存管理列表推荐值缓存（2000 上限，key 含版本）。
+- **测试基线**：全量 vitest ~14s（import 占 60%+，瓶颈为 content-sim 模块加载——分片实测无收益，勿再尝试；日常用 `npm run test:changed`）；`npm run test:timed` 记录趋势（tests/.timing.jsonl）。
+- **分片验证结论（v7.1.0）**：unit 并行 0.64s + integration 串行 13.2s ≈ 全量串行 14.3s——收益为零，不落地；提速方向是模块加载优化而非并行。
+- **限免源核验结论（v7.1.0）**：Amazon Prime Gaming / Ubisoft Connect 均需登录（302），**无公开 API**——不实施（Epic/GOG/Steam 有公开端点才接入；接入新源前必须先核验数据可得性）。
+
 ## 安全基线（不降级）
 
 - 出站请求仅经 `fetchWithTimeout`（SSRF host 校验、重定向逐跳复检、每主机限速、出站审计）。

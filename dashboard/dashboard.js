@@ -23,11 +23,17 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // v6.4.19：应用皮肤主题
-  (async () => { try { const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' }); const s = r && r.settings; if (s && globalThis.__GR_SETTINGS_UTILS__) {
-      const u = globalThis.__GR_SETTINGS_UTILS__;
-      if (u.applyTheme) u.applyTheme(s.uiTheme);
-      if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
-    } } catch {} })();
+  (async () => {
+    try {
+      const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = r && r.settings;
+      if (s && globalThis.__GR_SETTINGS_UTILS__) {
+        const u = globalThis.__GR_SETTINGS_UTILS__;
+        if (u.applyTheme) u.applyTheme(s.uiTheme);
+        if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
+      }
+    } catch {}
+  })();
   loadStats();
   loadRuntimeLogs();
   loadBackups();
@@ -251,12 +257,32 @@ async function loadStats() {
     document.getElementById('statViews').textContent = response.viewDetailCount ?? 0;
     document.getElementById('statDownloads').textContent = response.downloadCount ?? 0;
     document.getElementById('statRate').textContent = (response.downloadRate ?? 0) + '%';
+    // v7.1.0：自助诊断（网址索引规模 / 名称负缓存条数）
+    document.getElementById('diagUrlIndex').textContent = response.urlIndexSize ?? 0;
+    document.getElementById('diagNegativeCache').textContent = response.negativeCacheCount ?? 0;
     // v6.3.2 B3：缓存命中率（hits+misses 计数）
+    // v7.1.0：分模块命中率（meta 基础 / rating 好评率 / detail 详情 / spy 热度）
     const cs = response.cacheStats || {};
     const total = (cs.hits || 0) + (cs.misses || 0);
     document.getElementById('statCacheHit').textContent =
       total > 0 ? Math.round((cs.hits / total) * 100) + '% (' + cs.hits + '/' + total + ')' : '无查询';
+    const mods = cs.modules || {};
+    const modEls = {
+      meta: document.getElementById('modHitMeta'),
+      rating: document.getElementById('modHitRating'),
+      detail: document.getElementById('modHitDetail'),
+      spy: document.getElementById('modHitSpy')
+    };
+    for (const [k, el] of Object.entries(modEls)) {
+      if (!el) continue;
+      const m = mods[k] || {};
+      const t = (m.hits || 0) + (m.misses || 0);
+      el.textContent = t > 0 ? Math.round((m.hits / t) * 100) + '%' : '—';
+      el.title = `${m.hits || 0} 命中 / ${t} 查询（TTL 建议见设置「缓存有效期」）`;
+    }
 
+    // v7.1.0：Steam API 限流状态（自助诊断）
+    loadApiDiagnostics();
     // 标签偏好 / Tag preference cloud
     renderTagCloud(response.topKeywords);
 
@@ -483,6 +509,7 @@ async function loadRuntimeLogs() {
 // 渲染日志列表（按级别筛选，最新在前）/ Render logs (level-filtered, newest first)
 function renderRuntimeLogs() {
   const container = document.getElementById('runtimeLogList');
+  renderLogLevelStats(cachedLogs); // v7.1.0：级别统计
   const filter = document.getElementById('logLevelFilter').value;
 
   let logs = cachedLogs;
@@ -699,4 +726,44 @@ async function deleteBackup(id) {
   if (!confirm('确定删除该备份？')) return;
   await chrome.runtime.sendMessage({ action: 'DELETE_BACKUP', backupId: id });
   loadBackups();
+}
+
+// v7.1.0：Steam API 限流状态诊断（自助诊断——"为什么数据没更新"）
+async function loadApiDiagnostics() {
+  const el = document.getElementById('diagApiStatus');
+  if (!el) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_API_STATUS' });
+    if (!resp) {
+      el.textContent = '—';
+      return;
+    }
+    if (resp.anomaly) {
+      el.textContent = `⚠️ 异常（${resp.failRate}%）`;
+      el.style.color = '#e5534b';
+      el.title = `近 ${resp.windowSec / 60} 分钟失败 ${resp.failed}/${resp.total} 次，疑似限流`;
+    } else if (resp.total < 8) {
+      el.textContent = `采样中（${resp.total}）`;
+      el.style.color = '#f0a93b';
+      el.title = '调用量不足，状态待定';
+    } else {
+      el.textContent = `✅ 正常（${resp.failRate}%）`;
+      el.style.color = '#a3cf06';
+      el.title = `近 ${resp.windowSec / 60} 分钟 ${resp.total} 次调用，失败 ${resp.failed} 次`;
+    }
+  } catch {
+    el.textContent = '—';
+  }
+}
+
+// v7.1.0：运行日志级别统计（缓存中按级别计数）
+// （在 renderRuntimeLogs 中调用）
+function renderLogLevelStats(logs) {
+  const el = document.getElementById('logLevelStats');
+  if (!el) return;
+  const counts = { info: 0, warn: 0, error: 0, debug: 0 };
+  (logs || []).forEach((l) => {
+    counts[l.level] = (counts[l.level] || 0) + 1;
+  });
+  el.textContent = `info ${counts.info} · warn ${counts.warn} · error ${counts.error} · debug ${counts.debug}`;
 }

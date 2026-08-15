@@ -335,7 +335,8 @@ async function checkItadFree(appId) {
     const price = entry && entry.lowest && entry.lowest.price !== undefined ? entry.lowest.price : null;
     return price === null ? null : price <= 0;
   } catch (e) {
-    Logger.debug('FreeGames', 'ITAD校验失败:', String(e));
+    // v7.1.0：校验失败提升为 warn（凭证卫生——API 失效可被发现）
+    Logger.warn('FreeGames', 'ITAD校验失败（检查激活 Key 是否有效）:', String(e));
     return null;
   }
 }
@@ -375,7 +376,10 @@ export async function determineSteamFreeType(appId) {
     const d = data && data[appId] && data[appId].data;
     if (!d) return null;
     // F2P 永久免费：官方 is_free 权威信号（Dota 2 等无价格区）
-    if (d.is_free === true) { steamTypeCache.set(String(appId), { type: 'f2p', ts: Date.now() }); return 'f2p'; }
+    if (d.is_free === true) {
+      steamTypeCache.set(String(appId), { type: 'f2p', ts: Date.now() });
+      return 'f2p';
+    }
     const price = d.price_overview;
     if (!price) return 'f2p';
     // 促销免费（-100%）：原价 > 0 且现价 0 → 喜加一入库
@@ -387,7 +391,10 @@ export async function determineSteamFreeType(appId) {
       return t;
     }
     // 现价 0 但无原价：免费周末（Play Now 模式）或数据异常 → weekend 保守处理
-    if (price.final === 0) { steamTypeCache.set(String(appId), { type: 'weekend', ts: Date.now() }); return 'weekend'; }
+    if (price.final === 0) {
+      steamTypeCache.set(String(appId), { type: 'weekend', ts: Date.now() });
+      return 'weekend';
+    }
     const result = null; // 当前非免费（数据过期）
     steamTypeCache.set(String(appId), { type: result, ts: Date.now() });
     return result;

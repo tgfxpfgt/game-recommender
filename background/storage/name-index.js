@@ -72,6 +72,16 @@ const NAME_INDEX_MAX_ENTRIES = 5000;
 // 正向映射同时记录清理名；负缓存不共享清理名（避免误伤其他站变体）。
 // Record a name→appId mapping (appId=null = searched-not-found). Positive
 // mappings also index the cleaned canonical name; negative ones don't share it.
+// v7.1.0：负缓存条数（appId=null 且未过期的条目；dashboard 诊断展示）
+export async function getNegativeCacheCount() {
+  await loadNameIndexToMemory();
+  let count = 0;
+  for (const entry of nameIndexMemory.values()) {
+    if (entry && entry.appId === null && Date.now() - (entry.lastSearched || 0) < 24 * 3600e3) count++;
+  }
+  return count;
+}
+
 export async function recordNameIndex(gameName, appId) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return;

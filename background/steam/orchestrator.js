@@ -79,7 +79,7 @@ export async function searchSteamGame(gameName) {
   //    v3.3.10：命中前校验标题与缓存名相关——名称索引粘性条目（历史误写
   //    钉死 appId）在此被推翻，转重新搜索自愈（如 16598 页误钉 2001760）
   if (appId) {
-    const cached = await getSteamCacheEntry(appId);
+    const cached = await getSteamCacheEntry(appId, 'detail');
     const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
     const merged = getMergedData(cached) || {};
     // 无好评率条目（0 评测/失败固化）按冷却期重新获取
