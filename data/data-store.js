@@ -112,25 +112,19 @@ class DataStore {
     }
   }
 
-  // v3.4.1 原子写：先写临时文件再移动/重命名到目标，进程中途崩溃不会留下
-  // 半截损坏文件；旧版 Chrome（<112，无 move()）回退为直接写目标。
-  // Atomic write since v3.4.1: write to a temp file, then move() over the target
-  // so a crash mid-write cannot leave a truncated file; older Chrome falls back.
+  // v3.4.1 曾用"临时文件 + move() 原子替换"；v6.4.14 实测 Edge/Chrome 的
+  // move() 对"目标已存在"的文件**不替换**（源被移除、目标保留原内容）——
+  // 导致所有模块写入从未真正落盘（会话内靠内存缓存掩盖，重启后全部回退
+  // 默认）。改为直接截断覆盖目标：createWritable 默认截断；崩溃留下的半截
+  // 文件由读取侧 corrupt 备份 + 重置兜底（_readHandle）。
+  // Direct truncating write: move()-based atomic replace turned out to be a
+  // silent no-op on existing targets in Chromium; corruption is handled by the
+  // read-side backup-and-reset recovery.
   async _writeHandle(fileHandle, value, format) {
     const text = format === 'ndjson' ? NDJSON.encode(value) : JSON.stringify(value);
-    const tmpHandle = await this.dir.getFileHandle(fileHandle.name + '.tmp', { create: true });
-    const tmpWritable = await tmpHandle.createWritable();
-    await tmpWritable.write(text);
-    await tmpWritable.close();
-    if (typeof fileHandle.move === 'function') {
-      // move() 目标已存在时直接替换（文件语义）/ move() replaces an existing target file
-      await fileHandle.move(tmpHandle);
-    } else {
-      // 旧版 Chrome：直接覆盖目标（createWritable 默认截断，无法原子替换）
-      const writable = await fileHandle.createWritable();
-      await writable.write(text);
-      await writable.close();
-    }
+    const writable = await fileHandle.createWritable();
+    await writable.write(text);
+    await writable.close();
   }
 
   // v3.4.1：读取损坏时把原文件备份为 <name>.corrupt-<ts> 并重置为空
@@ -189,6 +183,11 @@ class DataStore {
       } catch (e) {
         const err = /** @type {{name?: string}} */ (e);
         if (err && err.name === 'NotFoundError') {
+          // v6.4.14：救援历史 move() bug 留下的数据——旧写入可能把内容留在
+          // <name>.tmp（目标文件被移走）；内容有效则采用
+          // Rescue data stranded in <name>.tmp by the historical move() bug.
+          const rescued = await this._readTmpRescue(cfg);
+          if (rescued !== undefined) return rescued;
           const stored = await chrome.storage.local.get(moduleKey);
           return stored[moduleKey];
         }
@@ -197,6 +196,29 @@ class DataStore {
     }
     const stored = await chrome.storage.local.get(moduleKey);
     return stored[moduleKey];
+  }
+
+  // 救援：目标文件缺失时尝试 <name>.tmp 中的有效数据（v6.4.14）
+  // Rescue: when the target file is missing, try valid data in <name>.tmp
+  async _readTmpRescue(cfg) {
+    if (!this.opfsAvailable) return undefined;
+    try {
+      const tmpHandle = await this.dir.getFileHandle(cfg.file + '.tmp', { create: false });
+      const tmpFile = await tmpHandle.getFile();
+      if (tmpFile.size === 0) return undefined;
+      const text = await tmpFile.text();
+      const value = cfg.format === 'ndjson' ? NDJSON.decode(text) : JSON.parse(text);
+      if (value !== null && value !== undefined) {
+        // 救援成功后把数据写回正确位置（此后读取走正常路径）
+        const target = await this.dir.getFileHandle(cfg.file, { create: true });
+        await this._writeHandle(target, value, cfg.format);
+        console.log(`[DataStore] 已从 ${cfg.file}.tmp 救援 ${cfg.file}`);
+        return value;
+      }
+    } catch {
+      /* 无 tmp 或内容损坏 */
+    }
+    return undefined;
   }
 
   // 写入模块：OPFS 优先，失败降级 storage.local

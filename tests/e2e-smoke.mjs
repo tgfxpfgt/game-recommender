@@ -76,16 +76,17 @@ const userDataDir = path.join(ROOT, '.e2e-profile');
 // 清理上次运行残留的 profile（否则默认设置断言会受旧状态影响）
 fs.rmSync(userDataDir, { recursive: true, force: true });
 let context = null;
+const LAUNCH_OPTS = () => ({
+  channel, // 复用系统 Edge/Chrome，免下载浏览器
+  headless: false,
+  args: [
+    `--disable-extensions-except=${EXTENSION_DIR}`,
+    `--load-extension=${EXTENSION_DIR}`,
+    `--host-resolver-rules=MAP www.xianyudanji.gg 127.0.0.1`
+  ]
+});
 try {
-  context = await chromium.launchPersistentContext(userDataDir, {
-    channel, // 复用系统 Edge/Chrome，免下载浏览器
-    headless: false,
-    args: [
-      `--disable-extensions-except=${EXTENSION_DIR}`,
-      `--load-extension=${EXTENSION_DIR}`,
-      `--host-resolver-rules=MAP www.xianyudanji.gg 127.0.0.1`
-    ]
-  });
+  context = await chromium.launchPersistentContext(userDataDir, LAUNCH_OPTS());
 } catch (e) {
   console.log('⚠️ 浏览器启动失败（需本机安装 Edge 或设置 E2E_CHANNEL=chrome）:', e.message.split('\n')[0]);
   // v3.4.1：启动失败必须失败退出——此前 exit(0) 使 e2e 在"根本没测"时假绿
@@ -515,5 +516,42 @@ async function runChecks() {
     check('dashboard 趋势图 SVG 渲染', trendInfo.svgCount > 0);
     check('趋势统计显示浏览数据', /浏览/.test(trendInfo.stats), `(${trendInfo.stats})`);
     await dash.close();
+
+    // 6. 重启持久化（v6.4.14 回归：OPFS move() 对已存在目标不替换的 bug
+    // 曾致所有模块写入从未落盘——保存后内存看似成功、重启全丢；
+    // 本段必须与 6b 配合：保存 → 关闭浏览器 → 同一 profile 重启验证）
+    console.log('6. 重启持久化（保存 → 关闭浏览器 → 同一 profile 重启）');
+    const persistPage = await context.newPage();
+    await persistPage.goto(`chrome-extension://${extId}/options/options.html`);
+    await persistPage.waitForTimeout(1200);
+    await persistPage.evaluate(() => {
+      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.getElementById('minRating').value = 55;
+      document.getElementById('minRating').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('saveBtn').click();
+    });
+    await persistPage.waitForTimeout(2000);
+    await persistPage.close();
+    // 关闭浏览器（持久 context 关闭即浏览器退出）
+    await context.close().catch(() => {});
+    context = null;
+    await new Promise((r) => setTimeout(r, 1000));
+    // 同一 profile 重启
+    context = await chromium.launchPersistentContext(userDataDir, LAUNCH_OPTS());
+    let extId2 = null;
+    for (let i = 0; i < 30; i++) {
+      const workers = context.serviceWorkers();
+      if (workers.length > 0) { extId2 = new URL(workers[0].url()).host; break; }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    const persistPage2 = await context.newPage();
+    await persistPage2.goto(`chrome-extension://${extId2}/options/options.html`);
+    await persistPage2.waitForTimeout(1500);
+    const persisted = await persistPage2.evaluate(() => {
+      document.querySelector('.nav-item[data-panel="filters"]').click();
+      return Number(document.getElementById('minRating').value);
+    });
+    check('重启后过滤设置持久化（写盘成功）', persisted === 55, `(got ${persisted})`);
+    await persistPage2.close();
   }
 }
