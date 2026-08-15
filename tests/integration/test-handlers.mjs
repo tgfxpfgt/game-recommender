@@ -302,3 +302,88 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     expect(await urlIdx.getAppIdByUrl(TEST_URL)).toEqual(null);
   });
 });
+
+// ============ v7.0.3：检索顺序（网址 → 直取 → 标题 → 搜索）+ 缓存优先展示 ============
+describe('检索顺序与下载站缓存优先', () => {
+  const URL = 'https://www.gamer520.com/109515.html';
+  let fetchMock, restoreFetch;
+
+  beforeAll(() => {
+    urlIdx.resetUrlIndex();
+    fetchMock = createFetchMock({
+      '/api/storesearch': { items: [] },
+      '/api/appdetails': {
+        3764200: {
+          success: true,
+          data: {
+            steam_appid: 3764200,
+            name: 'Resident Evil Requiem',
+            type: 'game',
+            genres: [{ id: 1, description: 'Action' }]
+          }
+        },
+        4021140: {
+          success: true,
+          data: {
+            steam_appid: 4021140,
+            name: 'Jrago III',
+            type: 'game',
+            genres: [{ id: 1, description: 'Action' }]
+          }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 10, total_positive: 9, total_negative: 1 },
+        reviews: []
+      },
+      '/api/ISteamNews': { appnews: { newsitems: [] } }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+  });
+  afterAll(() => {
+    restoreFetch();
+    urlIdx.resetUrlIndex();
+  });
+
+  test('直取路径网址索引优先：封面 appId 与网址索引不同 → 用网址索引（URL→直取→标题→搜索）', async () => {
+    await urlIdx.setUrlAppId(URL, 3764200);
+    const resp = await handleMessage(
+      { action: 'GET_STEAM_BY_APPID', appId: 4021140, gameName: '生化危机9 安魂曲' },
+      { tab: { url: URL } }
+    );
+    // 网址索引 3764200 优先于封面直取 4021140
+    expect(resp.data && String(resp.data.appId)).toEqual('3764200');
+  });
+
+  test('manual（用户手动选择）优先于网址索引', async () => {
+    const resp = await handleMessage(
+      { action: 'GET_STEAM_BY_APPID', appId: 4021140, gameName: 'Jrago III', manual: true },
+      { tab: { url: URL } }
+    );
+    expect(resp.data && String(resp.data.appId)).toEqual('4021140');
+  });
+
+  test('SEARCH_DOWNLOAD_SITES cacheOnly：按 appId 返回各下载站缓存网址（一个 appid 对应多站）', async () => {
+    // 预置多站下载网址缓存
+    await urlMod.recordDownloadUrlsBatch('gamer520', 'Gamer520', [
+      { appId: 3764200, url: 'https://www.gamer520.com/109515.html' }
+    ]);
+    await urlMod.recordDownloadUrlsBatch('xdgame', 'XDGame', [
+      { appId: 3764200, url: 'https://www.xdgame.com/12345.html' }
+    ]);
+    const resp = await handleMessage(
+      { action: 'SEARCH_DOWNLOAD_SITES', gameName: 'Resident Evil Requiem', appId: '3764200', cacheOnly: true }
+    );
+    const sites = resp.sites || [];
+    const found = sites.filter((s) => s.found);
+    // 两个下载站都命中缓存（不同网址）
+    expect(found.length).toBeGreaterThanOrEqual(2);
+    const gamer520 = found.find((s) => s.key === 'gamer520');
+    const xdgame = found.find((s) => s.key === 'xdgame');
+    expect(gamer520 && gamer520.detailUrl).toEqual('https://www.gamer520.com/109515.html');
+    expect(xdgame && xdgame.detailUrl).toEqual('https://www.xdgame.com/12345.html');
+    // cacheOnly 不触发站内搜索（无网络调用）
+    expect(fetchMock._calls.some((u) => u.includes('gamer520.com/search') || u.includes('xdgame.com/search'))).toEqual(false);
+  });
+});

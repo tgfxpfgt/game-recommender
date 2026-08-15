@@ -98,10 +98,23 @@ export async function handleRefreshSteamCache(message) {
 // v3.3.14：图片提取的 appId 可能与页面标题无关（gamer520 侧边推荐图是 Steam
 // CDN 封面，会被全页图提取误取）——有 gameName 时校验名称相关性，不相关
 // 拒绝并转标题搜索；manual=true（手动选择候选）跳过校验（用户主动确认）。
-export async function handleGetSteamByAppId(message) {
-  const appId = message.appId;
+// v7.0.3：检索顺序统一为「网址索引 → 封面直取 → 标题搜索 → 搜索引擎」——
+// 直取（GET_STEAM_BY_APPID）也先查网址索引；manual（用户手动选择）优先于一切
+export async function handleGetSteamByAppId(message, sender) {
+  let appId = message.appId;
   const gameName = message.gameName || '';
   const manual = message.manual === true;
+  const pageUrl = sender && sender.tab ? sender.tab.url : '';
+  // 网址索引第一候选（非手动路径）：同一详情页网址始终指向同一 appId
+  if (!manual && pageUrl) {
+    const urlAppId = await getAppIdByUrl(pageUrl);
+    if (urlAppId) {
+      if (String(urlAppId) !== String(appId)) {
+        Logger.info('Steam', `网址索引优先: ${appId} → ${urlAppId}（${pageUrl}）`);
+      }
+      appId = urlAppId;
+    }
+  }
 
   const cached = await getSteamCacheEntry(appId);
   const detailData = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
@@ -151,6 +164,8 @@ export async function handleGetSteamByAppId(message) {
       coverImage: target.headerImage || ''
     });
     if (gameName) await recordNameIndex(gameName, target.appId);
+    // v7.0.3：直取匹配成功也回写网址索引（统一详情页/列表页/Steam 页匹配）
+    if (pageUrl) await setUrlAppId(pageUrl, target.appId);
 
     await flushAllCaches();
     const newEntry = await getSteamCacheEntry(target.appId);

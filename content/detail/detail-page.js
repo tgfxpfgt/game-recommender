@@ -122,10 +122,31 @@ export function injectDownloadSitePanel() {
       width: 320,
       title: '📥 下载站资源'
     });
-    panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">正在搜索下载站资源...</div>`;
+    panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">正在读取下载站缓存...</div>`;
 
     (async () => {
       try {
+        // v7.0.3：先展示缓存（即时，按 appId 查各下载站已收录网址）——
+        // 一个 appId 对应多个下载站不同网址；缓存无结果再发起站内搜索
+        const cacheResp = await chrome.runtime.sendMessage({
+          action: 'SEARCH_DOWNLOAD_SITES',
+          gameName: gameName,
+          appId: appId,
+          cacheOnly: true
+        });
+        const cachedSites = (cacheResp && cacheResp.sites) || [];
+        const cachedFound = cachedSites.filter((s) => s.found);
+        if (cachedFound.length > 0) {
+          renderDownloadSitePanel(panel, cachedSites, gameName);
+          status.showStats({
+            title: '下载站缓存命中',
+            summary: `${cachedFound.length}/${cachedSites.length} 个下载站已有收录`,
+            rows: cachedFound.map((s) => `${s.name}: ${s.detailUrl}`).slice(0, 3)
+          });
+        } else {
+          panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">缓存中暂无收录，正在搜索下载站...</div>`;
+        }
+        // 完整搜索（站内检索 + 缓存兜底）→ 更新面板
         const resp = await chrome.runtime.sendMessage({
           action: 'SEARCH_DOWNLOAD_SITES',
           gameName: gameName,

@@ -19,6 +19,22 @@ export async function handleSearchDownloadSites(message) {
   const settings = await getSettings();
   const allSites = await getDownloadSites();
   const enabledKeys = settings.steamSiteSearch || allSites.map((s) => s.key);
+
+  // v7.0.3：cacheOnly 模式（Steam 商品页优先展示缓存）——只查下载站网址缓存，
+  // 不发起站内搜索；按缓存实际收录的站点返回（一个 appId 对应多个下载站网址）
+  if (message.cacheOnly === true) {
+    const cached = message.appId ? await getDownloadUrls(message.appId) : {};
+    const sites = Object.entries(cached).map(([siteKey, entry]) => ({
+      key: siteKey,
+      name: entry.siteName || siteKey,
+      found: true,
+      detailUrl: entry.url,
+      lastCalled: entry.lastCalled || null,
+      cached: true
+    }));
+    return { sites };
+  }
+
   const sites = await searchDownloadSites(message.gameName, message.appId, enabledKeys);
 
   // 兜底 1：缓存优先。全部未命中且提供 appId 时，优先使用下载站网址缓存
