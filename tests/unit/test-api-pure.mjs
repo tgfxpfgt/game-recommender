@@ -1,4 +1,5 @@
-import { test, expect } from 'vitest';
+import { test, expect, describe, afterAll } from 'vitest';
+import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 /**
  * 游戏雷达 Game Radar - 测试：Steam API 纯函数 / Steam API Pure Functions
  *
@@ -63,14 +64,18 @@ const mcs = apiMod.matchCandidateScore;
 test('跨语言收紧：中文搜索词命中英文结果名且标题无英文 → 拒绝（安魂曲→Jrago III 根因）', () => {
   expect(nm('Jrago III 夜之安魂曲', '安魂曲', '生化危机9 安魂曲')).toEqual(true); // 同语言包含仍通过（由 variant 校验拦截）
 });
-test('跨语言收紧：中文搜索词 + 英文结果名 + 无英文标题 → 拒绝（新作索引噪声）', () => {
-  expect(nm('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(false);
+test('跨语言收紧：中文搜索词 + 英文结果名 + 无英文标题无俗称序号 → 拒绝（索引噪声）', () => {
+  expect(nm('Resident Evil Requiem', '生化危机', '生化危机 安魂曲')).toEqual(false);
+});
+// v6.4.19：俗称序号例外（官方名无序号，互联网习惯加）——放行
+test('俗称序号例外：标题含数字 + 英文候选无数字 → 放行', () => {
+  expect(nm('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(true);
 });
 test('跨语言保留：中文搜索词 + 英文结果名 + 标题含共同英文词 → 放行', () => {
   expect(nm('Resident Evil Requiem', '生化危机', '生化危机 安魂曲 Resident Evil')).toEqual(true);
 });
-test('数字防护优先：标题"生化危机9" → 无数字英文结果拒绝（防旧作匹配）', () => {
-  expect(nm('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(false);
+test('数字防护：同语言"装机模拟器2" → 无数字"装机模拟器"拒绝（防 1 代）', () => {
+  expect(nm('装机模拟器', '装机模拟器2', '装机模拟器2')).toEqual(false);
 });
 test('删词变体校验：变体"安魂曲"命中"Jrago III 夜之安魂曲" → 拒绝（与标题其余词无关）', () => {
   expect(nmv('Jrago III 夜之安魂曲', '安魂曲', '生化危机9 安魂曲')).toEqual(false);
@@ -81,8 +86,8 @@ test('删词变体校验：结果名含标题其余核心词 → 放行', () => 
 test('删词变体校验：无其余核心词（变体=完整标题）→ 放行', () => {
   expect(nmv('装机模拟器2', '装机模拟器2', '装机模拟器2')).toEqual(true);
 });
-test('候选打分：跨语言无共同词 → 0（不被采用）', () => {
-  expect(mcs('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(0);
+test('候选打分：跨语言无共同词且无俗称序号 → 0（不被采用）', () => {
+  expect(mcs('Resident Evil Requiem', '生化危机', '生化危机 安魂曲')).toEqual(0);
 });
 test('候选打分：同语言共同词 > 0', () => {
   expect(mcs('生化危机 安魂曲', '安魂曲', '生化危机9 安魂曲')).toBeGreaterThan(0);
@@ -431,4 +436,47 @@ test('失败固化 count 5 + 无重试时间 → 不重取（需长冷却起点�
 test('失败固化冷却期内不重取（防同次刷新连打）', () => {
   const d = { positiveRate: null, ratingDesc: null, ratingRetriedAt: Date.now() - 1000 };
   expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);
+});
+
+// ============ v6.4.19：俗称序号支持（官方名无序号，互联网习惯加） ============
+describe('俗称序号（生化危机9 → Resident Evil Requiem）', () => {
+  const nm2 = apiMod.nameMatchesSearch;
+  const nmv2 = apiMod.nameMatchesSearchVariant;
+  const mcs2 = apiMod.matchCandidateScore;
+  test('digitGap 跨语言容忍：中文俗称序号 + 无数字英文候选 → 放行', () => {
+    expect(nm2('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(true);
+  });
+  test('digitGap 同语言仍拒绝（防旧作）', () => {
+    expect(nm2('装机模拟器', '装机模拟器2', '装机模拟器2')).toEqual(false);
+  });
+  test('变体校验：纯英文结果名中文 others 跨语言例外', () => {
+    expect(nmv2('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(true);
+  });
+  test('变体校验：中文无关结果名仍拒绝（Jrago III 夜之安魂曲）', () => {
+    expect(nmv2('Jrago III 夜之安魂曲', '安魂曲', '生化危机9 安魂曲')).toEqual(false);
+  });
+  test('打分：俗称序号例外 ≥1（可被采用）；含数字旧作 0（拒绝）', () => {
+    expect(mcs2('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toBeGreaterThanOrEqual(1);
+    expect(mcs2('Resident Evil 4', '生化危机', '生化危机9 安魂曲')).toEqual(0);
+    expect(mcs2('Resident Evil Village', '生化危机', '生化危机9 安魂曲')).toBeGreaterThanOrEqual(1);
+  });
+  test('搜索链路：俗称序号变体命中正确 appid（mock 真实候选序列）', async () => {
+    const fetchMock = createFetchMock({
+      '/api/storesearch': {
+        items: [
+          { id: 1634040, name: '黎明杀机-生化危机', type: 'app' },
+          { id: 3764200, name: 'Resident Evil Requiem', type: 'app' },
+          { id: 2050650, name: 'Resident Evil 4', type: 'app' },
+          { id: 1196590, name: 'Resident Evil Village', type: 'app' }
+        ]
+      }
+    });
+    const restore = installFetchMock(fetchMock);
+    try {
+      const r = await apiMod.searchSteamAppId(['生化危机9 安魂曲'], '生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器', null);
+      expect(r && r.appId).toEqual(3764200);
+    } finally {
+      restore();
+    }
+  });
 });

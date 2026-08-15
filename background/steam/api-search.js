@@ -149,9 +149,15 @@ export function nameMatchesSearch(resultName, term, rawName) {
   const idx = rawNorm.indexOf(tn);
   const next = idx >= 0 ? rawNorm[idx + tn.length] : '';
   const digitGap = !!next && /\d/.test(next) && !/\d/.test(rn);
+  const cnOf = (s) => /[\u4e00-\u9fff]/.test(s);
 
   if (rn === tn) return !digitGap;
   if (rn.includes(tn)) return !digitGap;
+
+  // v6.4.19：数字间隔（digitGap）仅对同语言候选拒绝——跨语言候选（中文俗称
+  // 标题 vs 英文官方名）允许"官方名无俗称序号"（如 生化危机9 → Resident Evil
+  // Requiem：官方未加序号，但互联网习惯加 9）。同语言仍拒绝（防 1 代/旧作）。
+  if (digitGap && cnOf(tn) === cnOf(rn)) return false;
 
   // 跨语言信任：搜索词与结果名一中文一英文时（如英文搜索词命中官方中文名
   // 条目"Gladiator Guild Manager"→"角斗士公会经理"），信任 storesearch 索引
@@ -160,14 +166,16 @@ export function nameMatchesSearch(resultName, term, rawName) {
   // 搜索对中文词的英文结果常为索引噪声（新作中文索引缺失时返回任意英文
   // 条目，如"生化危机9" → "Jrago III"类）；仅当原始标题含英文词且与结果
   // 名有共同英文词时才放行。英文搜索词命中中文结果名保留信任。
-  if (digitGap) return false;
-  const cnOf = (s) => /[\u4e00-\u9fff]/.test(s);
+  // v6.4.19 俗称序号例外：标题含数字（"生化危机9"）且候选无数字（官方名
+  // 未加序号 "Resident Evil Requiem"）→ 放行（storesearch 索引相关性保证
+  // 候选与搜索词同源）。
   if (cnOf(tn) !== cnOf(rn)) {
     if (cnOf(tn)) {
       // 用原始 resultName 提取英文词（norm 去空格后无法分词）
       const rawEn = coreTokensOf(rawName).filter((w) => /^[a-z]/.test(w));
       const rEn = coreTokensOf(resultName).filter((w) => /^[a-z]/.test(w));
-      return rawEn.length > 0 && rawEn.some((w) => rEn.includes(w));
+      if (rawEn.length > 0 && rawEn.some((w) => rEn.includes(w))) return true;
+      return /\d/.test(rawName) && !/\d/.test(resultName);
     }
     return true;
   }
@@ -186,6 +194,14 @@ export function nameMatchesSearchVariant(resultName, term, rawName) {
   const others = coreTokensOf(rawName).filter((w) => !tn.includes(w));
   if (others.length === 0) return true;
   const rn = String(resultName || '').toLowerCase();
+  // v6.4.19：结果名为纯英文（无 CJK）时，中文"其他核心词"跨语言不可比——
+  // 仅校验英文 others（若无英文 others 则交 nameMatchesSearch 的跨语言分支
+  // 把关：含搜索词 + 俗称序号/共同英文词例外）
+  if (!/[\u4e00-\u9fff]/.test(rn)) {
+    const enOthers = others.filter((w) => /^[a-z]/.test(w));
+    if (enOthers.length === 0) return true;
+    return enOthers.some((w) => rn.includes(w));
+  }
   return others.some((w) => rn.includes(w));
 }
 
@@ -209,9 +225,21 @@ export function matchCandidateScore(resultName, term, rawName) {
   // 搜索词包含关系
   if (rn === tn) score += 2;
   else if (tn.length >= 2 && rn.includes(tn)) score += 1;
-  // 数字一致性（rawName 含数字时结果名最好也含）
-  const hasDigit = (s) => /\d/.test(s);
-  if (hasDigit(rawName) === hasDigit(resultName)) score += 1;
+  // 数字一致性（v6.4.19：数字集合有交集才加分——"生化危机9" vs "Resident
+  // Evil 4" 都有数字但不同，不得加分；"赛博朋克2077" vs "Cyberpunk 2077" 加分）
+  const nums = (s) => (String(s).match(/\d+/g) || []).map(Number);
+  if (nums(rawName).some((x) => nums(resultName).includes(x))) score += 1;
+  // v6.4.19：俗称序号例外加分——中文标题含数字（"生化危机9"）、英文候选
+  // 无数字（官方名未加序号 "Resident Evil Requiem"）→ 最低 1 分可被采用
+  // （storesearch 相关性排序保证候选同源；多个无数字候选按出现顺序取前）
+  if (
+    /[\u4e00-\u9fff]/.test(rawName) &&
+    !/[\u4e00-\u9fff]/.test(resultName) &&
+    /\d/.test(rawName) &&
+    !/\d/.test(resultName)
+  ) {
+    score += 1;
+  }
   return score;
 }
 
@@ -311,6 +339,17 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
   if (rawName) {
     const activeNoise = await getActiveNoiseWords();
     const variants = generateSearchVariants(rawName, activeNoise);
+    // v6.4.19：俗称序号变体——官方名常无系列序号（"Resident Evil Requiem"），
+    // 互联网习惯加（"生化危机9"）——对含数字的变体追加去数字版本
+    // （"生化危机9" → "生化危机"），数字冲突校验会保护候选选择。
+    const extras = [];
+    for (const v of variants) {
+      if (/\d/.test(v)) {
+        const dv = v.replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim();
+        if (dv.length >= 2 && !variants.includes(dv) && !extras.includes(dv)) extras.push(dv);
+      }
+    }
+    variants.push(...extras);
     for (const variant of variants) {
       // v6.4.16：变体搜索走删词校验（结果名须与标题其余核心词相关）
       const result = await searchSteamAppIdLight(variant, rawName, excludeAppId, true);
