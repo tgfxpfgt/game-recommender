@@ -27,6 +27,7 @@ const nameIdx = await import(new URL('../../background/storage/name-index.js', i
 const regMod = await import(new URL('../../background/storage/registry.js', import.meta.url).href);
 const wrongMod = await import(new URL('../../background/storage/wrong-reports.js', import.meta.url).href);
 const urlMod = await import(new URL('../../background/storage/download-urls.js', import.meta.url).href);
+const urlIdx = await import(new URL('../../background/storage/url-index.js', import.meta.url).href);
 
 // ============ 1. SEARCH_STEAM 完整链路 ============
 console.log('1. SEARCH_STEAM 完整链路（搜索 → 详情 → 好评率 → 缓存/索引/注册表）');
@@ -224,4 +225,80 @@ test('DELETE_GAME_CACHE_ENTRY 非数字 appId 被拒绝', async () => {
 test('未知 action 返回 Unknown action', async () => {
   const resp = await handleMessage({ action: 'NO_SUCH_ACTION' });
   expect(String(resp.error || '').startsWith('Unknown action')).toEqual(true);
+});
+
+// ============ v7.0.2：详情页网址索引第一候选 ============
+describe('详情页网址索引（URL 第一候选，统一列表页/详情页匹配）', () => {
+  const TEST_URL = 'https://www.gamer520.com/109515.html';
+  let fetchMock, restoreFetch;
+
+  beforeAll(() => {
+    urlIdx.resetUrlIndex();
+    fetchMock = createFetchMock({
+      // storesearch 返回空——若结果仍命中 appId，证明走了 URL 索引而非标题搜索
+      '/api/storesearch': { items: [] },
+      '/api/appdetails': {
+        3764200: {
+          success: true,
+          data: {
+            steam_appid: 3764200,
+            name: 'Resident Evil Requiem',
+            type: 'game',
+            genres: [{ id: 1, description: 'Action' }]
+          }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 100, total_positive: 90, total_negative: 10 },
+        reviews: []
+      },
+      '/api/ISteamNews': { appnews: { newsitems: [] } }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+  });
+  afterAll(() => {
+    restoreFetch();
+    urlIdx.resetUrlIndex();
+  });
+
+  test('SEARCH_STEAM：网址索引命中 → 直接使用索引 appId（不触发标题搜索）', async () => {
+    await urlIdx.setUrlAppId(TEST_URL, 3764200);
+    const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' }, { tab: { url: TEST_URL } });
+    expect(resp.data && String(resp.data.appId)).toEqual('3764200');
+    // storesearch 未被调用（mock 返回空——若走了标题搜索则结果为 null）
+    expect(fetchMock._calls.some((u) => u.includes('/api/storesearch'))).toEqual(false);
+  });
+
+  test('GET_STEAM_RATINGS：urls 索引命中 → 缓存直取该 appId', async () => {
+    // 预置 3764200 的 rating 缓存
+    await cacheMod.setSteamCacheEntry(3764200, {
+      appId: 3764200,
+      name: 'Resident Evil Requiem',
+      englishName: 'Resident Evil Requiem',
+      type: 'game',
+      positiveRate: 90,
+      ratingDesc: '特别好评',
+      totalReviews: 100,
+      recentPositiveRate: 85,
+      recentTotalReviews: 50,
+      url: 'https://store.steampowered.com/app/3764200/'
+    });
+    await cacheMod.flushSteamCache();
+    const resp = await handleMessage(
+      { action: 'GET_STEAM_RATINGS', names: ['生化危机9 安魂曲'], urls: { '生化危机9 安魂曲': TEST_URL } },
+      { tab: { url: 'https://www.gamer520.com/pcplay' } }
+    );
+    const r = resp.ratings && resp.ratings['生化危机9 安魂曲'];
+    expect(r && String(r.appId)).toEqual('3764200');
+    expect(resp.pending).toEqual(0);
+  });
+
+  test('REFRESH 后：详情页匹配结果写入网址索引（后续列表页可复用）', async () => {
+    // 清索引 → 标题搜索路径（mock storesearch 空 → 未找到）
+    urlIdx.resetUrlIndex();
+    const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '不存在的游戏XYZ' }, { tab: { url: TEST_URL } });
+    expect(resp.data).toEqual(null);
+    expect(await urlIdx.getAppIdByUrl(TEST_URL)).toEqual(null);
+  });
 });

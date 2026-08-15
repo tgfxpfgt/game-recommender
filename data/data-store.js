@@ -37,7 +37,8 @@ const MODULE_FILES = {
   learnedNoise: { file: 'learned-noise.json', format: 'json' },
   wrongReports: { file: 'wrong-reports.json', format: 'json' },
   searchCache: { file: 'search-cache.json', format: 'json' }, // v6.4.3
-  llmScore: { file: 'llm-score.json', format: 'json' } // v6.4.3
+  llmScore: { file: 'llm-score.json', format: 'json' }, // v6.4.3
+  urlAppIdIndex: { file: 'url-appid-index.json', format: 'json' } // v7.0.2
 };
 
 class DataStore {

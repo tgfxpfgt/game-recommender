@@ -26,6 +26,7 @@ import {
   latestModuleTs
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
+import { getAppIdByUrl, setUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 
 /**
  * 游戏雷达 Game Radar - 消息处理：Steam 查询 / Steam Message Handlers
@@ -34,13 +35,32 @@ import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.j
  */
 
 // --- Steam 查询 / Steam lookups ---
-export async function handleSearchSteam(message) {
+// v7.0.2：详情页网址作为检索第一候选——同一 URL 始终指向同一 appId，
+// 消除列表页/详情页两条匹配路径的分歧；匹配成功后记录 URL → appId
+export async function handleSearchSteam(message, sender) {
+  const pageUrl = sender && sender.tab ? sender.tab.url : '';
+  // 第一候选：URL 索引命中 → 直接用该 appId 获取详情（不再标题搜索）
+  if (pageUrl) {
+    const urlAppId = await getAppIdByUrl(pageUrl);
+    if (urlAppId) {
+      const byUrl = await fetchSteamFullDetailsByAppId(urlAppId);
+      if (byUrl) {
+        Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${byUrl.name}`, { appId: byUrl.appId });
+        await flushAllCaches();
+        const cachedEntry = await getSteamCacheEntry(byUrl.appId);
+        return { data: byUrl, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
+      }
+      // 详情获取失败（如缓存损坏）→ 继续标题搜索路径
+    }
+  }
   const steamResult = await searchSteamGame(message.gameName);
   if (steamResult) {
     Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, {
       appId: steamResult.appId,
       rating: steamResult.ratingDesc
     });
+    // 记录 URL → appId（详情页网址作为后续检索第一候选）
+    if (pageUrl) await setUrlAppId(pageUrl, steamResult.appId);
   } else {
     Logger.warn('Steam', `未找到"${message.gameName}"`);
   }

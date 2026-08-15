@@ -4,6 +4,7 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { searchDownloadSites, extractDetailMeta } from '../sites/search.js';
 import { recordDownloadUrl, recordDownloadUrlsBatch, getDownloadUrls } from '../storage/download-urls.js';
 import { getDownloadHistory, inferSiteFromDomain } from '../storage/history.js';
+import { setUrlAppId } from '../storage/url-index.js'; // v7.0.2：列表页匹配后记录网址索引
 import { Logger } from '../storage/logger.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 
@@ -107,13 +108,16 @@ export async function handleTrackDownloadSiteVisit(message) {
 }
 
 // 列表页批量记录下载页地址
-
-// 列表页批量记录下载页地址
 export async function handleRecordDownloadUrlsBatch(message) {
   const data = message.data || {};
   const siteInfo = inferSiteFromDomain(data.domain || '');
   if (siteInfo.key === 'unknown') return { success: false };
   await recordDownloadUrlsBatch(siteInfo.key, siteInfo.name, data.entries || []);
+  // v7.0.2：列表页匹配成功后记录 详情页网址 → appId（详情页检索第一候选）
+  const entries = data.entries || [];
+  for (const e of entries) {
+    if (e && e.url && e.appId) await setUrlAppId(e.url, e.appId);
+  }
   return { success: true };
 }
 

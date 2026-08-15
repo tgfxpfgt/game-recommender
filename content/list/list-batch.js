@@ -92,10 +92,16 @@ async function fireBatch(names) {
     names.forEach((n) => {
       imageData[n] = ensureNameToImage(n) || null;
     });
+    // v7.0.2：详情页网址映射（name → item.url）——后台 URL 索引第一候选，
+    // 统一列表页/详情页对同一网址的匹配结果
+    const urls = {};
+    batchState.processItems.forEach((it) => {
+      if (it.name && it.url && urls[it.name] === undefined) urls[it.name] = it.url;
+    });
     // 推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
     fetchRecommendationsForBatch(names, imageData);
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData });
+      const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData, urls });
       const ratings = (response && response.ratings) || {};
       const pendingCount = (response && response.pending) || 0;
       // 第一波：缓存命中即时显示徽章 / wave 1: cached hits render instantly

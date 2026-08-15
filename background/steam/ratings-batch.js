@@ -12,6 +12,7 @@
 import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrator.js';
 import { flushAllCaches } from '../storage/flush.js';
 import { getSteamCacheEntry, isModuleValid, getModuleData } from '../storage/steam-cache.js';
+import { getAppIdByUrl } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
 import { getSteamApiStatus } from '../core/api-monitor.js';
@@ -23,18 +24,35 @@ export async function handleGetSteamRatings(message, sender) {
   const ratingNames = message.names || [];
   const imageData = message.imageData || {};
   const appIds = message.appIds || {};
+  const urls = message.urls || {}; // v7.0.2：name → 详情页网址（URL 索引第一候选）
   const cacheOnly = message.cacheOnly === true; // 兜底重试：只查缓存，不触发后台拉取
   const ratings = {};
   const pending = [];
+
+  // 阶段0（v7.0.2）：详情页网址索引第一候选——同 URL 已匹配过 appId 的
+  // 直接按该 appId 查缓存（统一列表页/详情页匹配结果）
+  // Phase 0: detail-URL index as the first candidate.
+  const urlAppIds = {};
+  for (const name of ratingNames) {
+    const u = urls[name];
+    if (!u) continue;
+    try {
+      const appId = await getAppIdByUrl(u);
+      if (appId) urlAppIds[name] = appId;
+    } catch {
+      /* 索引异常忽略 */
+    }
+  }
 
   // 阶段1：仅查缓存（无网络），命中即时返回 / Phase 1: cache-only, instant hits
   try {
     await Promise.all(
       ratingNames.map(async (name) => {
         try {
+          const urlAppId = urlAppIds[name] || null;
           const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
           const r = await getSteamRatingsFromCacheOnly(name, {
-            appId: img ? img.appId : null,
+            appId: urlAppId || (img ? img.appId : null),
             cover: img ? img.cover : null
           });
           if (r) ratings[name] = r;
@@ -89,10 +107,11 @@ export async function handleGetSteamRatings(message, sender) {
           await Promise.all(
             batch.map(async (name) => {
               try {
+                const urlAppId = urlAppIds[name] || null;
                 const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
                 const r = await getSteamPositiveRate(name, {
                   ignoreNegativeCache: true,
-                  appId: img ? img.appId : null,
+                  appId: urlAppId || (img ? img.appId : null),
                   cover: img ? img.cover : null
                 });
                 wave[name] = r;
