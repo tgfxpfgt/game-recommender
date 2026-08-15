@@ -57,6 +57,10 @@ const BING_UA =
 export async function webSearchFallback(rawName, excludeAppId) {
   if (!rawName) return null;
   try {
+    // v6.4.19：辅助站开关——关闭 Bing 数据源则不调用搜索兜底
+    const settings = await getSettings();
+    const sources = settings.dataSources || {};
+    if (sources.bing === false) return null;
     const cached = await getWebMatch(rawName);
     if (cached) {
       if (cached.ok && cached.appId) {

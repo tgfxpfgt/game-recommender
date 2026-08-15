@@ -259,10 +259,16 @@ function sanitizeImportedSettings(raw) {
       out[key] = '';
       continue;
     } // 密钥永不导入 / never import secrets
+    // v6.4.19：ITAD 密钥配置不导入（多套配置含密钥）
+    if (key === 'itadProfiles') {
+      out[key] = [];
+      continue;
+    }
     if (key === 'llmConfig') {
       if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
       const llm = {};
-      for (const [lk, ld] of Object.entries(def)) {
+      const defEntries = Object.entries(/** @type {Record<string, unknown>} */ (def));
+      for (const [lk, ld] of defEntries) {
         const lv = v[lk];
         if (lv === undefined) continue;
         if (lk === 'apiKey') {

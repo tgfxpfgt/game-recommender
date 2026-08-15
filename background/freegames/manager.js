@@ -322,7 +322,9 @@ export async function refreshFreeGames(force = false) {
 // ITAD secondary check: confirm the game is currently free (price 0)
 async function checkItadFree(appId) {
   try {
-    const key = (await getSettings()).itadApiKey;
+    // v6.4.19：多套配置——使用激活配置的 key；旧 itadApiKey 兼容为隐式配置
+    const settings = await getSettings();
+    const key = activeItadKey(settings);
     if (!key || !appId) return null;
     const resp = await fetchWithTimeout(
       `https://api.isthereanydeal.com/v02/game/prices/?key=${key}&appids=steam/${appId}`
@@ -336,6 +338,17 @@ async function checkItadFree(appId) {
     Logger.debug('FreeGames', 'ITAD校验失败:', String(e));
     return null;
   }
+}
+
+// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）
+// Resolve the active ITAD key (profiles first; legacy itadApiKey as fallback)
+export function activeItadKey(settings) {
+  const profiles = Array.isArray(settings.itadProfiles) ? settings.itadProfiles : [];
+  const active = profiles.find((p) => p && String(p.id) === String(settings.itadActiveProfileId));
+  if (active && active.key) return active.key;
+  const first = profiles.find((p) => p && p.key);
+  if (first) return first.key;
+  return settings.itadApiKey || '';
 }
 
 // v6.4.2：Steam 官方接口判定 100% OFF 类型——用户决策：

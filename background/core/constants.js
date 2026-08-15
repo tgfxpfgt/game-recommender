@@ -48,6 +48,12 @@ export const DEFAULT_SETTINGS = {
   },
   // v6.3.3：ITAD 二次校验 key（可选——限免通知候选的免费状态确认）
   itadApiKey: '',
+  // v6.4.19：ITAD 多套配置（{id, name, key}；itadActiveProfileId 指定激活项，
+  // 限免校验使用激活项；旧 itadApiKey 兼容为隐式配置）
+  itadProfiles: [],
+  itadActiveProfileId: null,
+  // v6.4.19：界面皮肤（steam 默认 / vista / win31-win11 历代风格）
+  uiTheme: 'steam',
   weights: {
     // v4.0.0：新增 SteamSpy 时长/热度信号（playTime/heat），四项原有权重
     // 同步下调，六项和保持 1.0（徽章百分比不超 100%）
@@ -82,16 +88,16 @@ export const DEFAULT_SETTINGS = {
   ratingFilterMode: 'and',
   // v6.4.4：列表页按好评率降序重排（默认关闭——会打乱页面浏览顺序）
   enableSortByRating: false,
+  // v6.4.7：通用关键词过滤（v6.4.8 起 filterRules 优先；v6.4.19 起默认不内置
+  // 规则——用户按需逐条添加）
   enableVmFilter: false, // 是否启用标题关键词过滤（v6.4.7 通用化，旧名保留兼容）
-  vmFilterKeywords: ['虚拟机板', '虚拟机'], // 旧字段（兼容；新字段 filterKeywords 优先）
-  filterKeywords: '虚拟机板,虚拟机', // v6.4.7：通用关键词过滤（逗号分隔；v6.4.8 起 filterRules 优先）
+  vmFilterKeywords: [], // 旧字段（兼容；新字段 filterKeywords 优先）
+  filterKeywords: '', // v6.4.7：通用关键词过滤（逗号分隔；v6.4.8 起 filterRules 优先）
   filterMatchMode: 'contains', // v6.4.7：contains 子串 / exact 整段（防误报）
   // v6.4.8：关键词过滤规则列表（每条：关键词 + 排除误报词——命中关键词且
   // 不命中排除词才过滤，如 {keyword:'虚拟机', exclude:'非虚拟机'}）
-  filterRules: [
-    { keyword: '虚拟机板', exclude: '' },
-    { keyword: '虚拟机', exclude: '非虚拟机' }
-  ],
+  // v6.4.19：默认不内置任何规则（"所有过滤规则以规则形式逐条存在"）
+  filterRules: [],
   // 列表页徽章显示开关（v3.3.8，默认全开）。关闭不影响后台数据获取；
   // 关闭"全部好评率"→ 好评率过滤停用；关闭"推荐值"→ 推荐高亮停用
   // List-page badge toggles (all on by default). Data fetching keeps running;
@@ -99,7 +105,24 @@ export const DEFAULT_SETTINGS = {
   badgeVisibility: { recent: true, all: true, update: true, rec: true },
   maxScanLinks: 500, // 列表页链接扫描上限（大列表页性能保护，v3.3.9 可配置）
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
-  // 各类缓存有效期（可在设置页自定义；value 0 = 长期有效）
+  // v6.4.19：外部数据源开关（站点按用途分类管理）——平台数据源（限免/评分）、
+  // 辅助站（搜索兜底）。关闭的源不再调用其接口。
+  dataSources: {
+    steam: true, // 游戏平台：Steam 官方（评分/详情/限免）
+    epic: true, // 游戏平台：Epic 官方（限免）
+    gog: true, // 游戏平台：GOG（限免）
+    gamerpower: true, // 聚合源：GamerPower（限免聚合）
+    bing: true // 辅助站：Bing 搜索（appid 匹配兜底）
+  },
+  // v6.4.19：Steam API 获取模块开关——每种信息对应独立缓存与 TTL；
+  // 关闭的模块不调用其接口（如关闭好评率则不请求 appreviews）。
+  steamApiModules: {
+    meta: true, // 名称/封面/类型（基础信息，appdetails）
+    rating: true, // 好评率（总 + 30 天，appreviews）
+    detail: true, // 详情页完整信息（语言支持/标签/更新，商店页解析）
+    spy: true // SteamSpy 补充（游玩时长/热度）
+  },
+  // 各类缓存 TTL（可在设置页自定义；value 0 = 长期有效）
   // Cache TTLs (customizable in settings; value 0 = keep forever)
   cacheTtls: {
     steamDynamic: { value: 7, unit: 'days' }, // 好评率缓存（rating 模块）——周级稳定数据，24h→7d 减少重复请求（v6.2.1）/ days

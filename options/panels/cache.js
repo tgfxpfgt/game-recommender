@@ -156,7 +156,16 @@
         return;
       }
 
-      statsEl.textContent = `共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页`;
+      // v6.4.19：缓存模块统计（按信息类型细分 + 过期数）与 TTL 建议
+      const modNames = { meta: '基础', rating: '好评率', detail: '详情', spy: '热度' };
+      const ms = resp.moduleStats || {};
+      const msText = Object.keys(modNames)
+        .filter((k) => ms[k])
+        .map((k) => `${modNames[k]} ${ms[k].count}${ms[k].stale > 0 ? `(+${ms[k].stale}过期)` : ''}`)
+        .join(' · ');
+      statsEl.innerHTML =
+        `<div>共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页</div>` +
+        (msText ? `<div style="font-size:11px;color:#8f98a0;margin-top:2px;">缓存模块：${msText}（各模块 TTL 建议见「缓存有效期」设置）</div>` : '');
 
       if (resp.games.length === 0) {
         tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">暂无缓存数据</td></tr>';
@@ -184,6 +193,7 @@
           <td class="col-name" title="${escapeAttr(g.cnName)}">${escapeHtml(g.cnName || '—')}</td>
           <td class="col-name" title="${escapeAttr(g.enName)}">${escapeHtml(g.enName || '—')}</td>
           <td class="col-type">${formatTypeBadge(g.type)}</td>
+          <td class="col-modules" title="各信息类型缓存新鲜度：绿=有效 灰=缺失/过期">${formatModuleFreshness(g.moduleFreshness)}</td>
           <td class="col-rec" title="${formatRecDetail(g)}">${formatRecBadge(g.recommendation)}</td>
           <td class="col-time">${formatTime(g.lastConfirmed)}</td>
           <td class="col-url">${formatDownloadUrls(g.downloadUrls, g.primaryDownloadUrl)}</td>
@@ -213,8 +223,26 @@
 
       renderPagination(resp.total, resp.totalPages);
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="10" class="cache-empty">加载失败: ${escapeHtml(String(e))}</td></tr>`;
+      tbody.innerHTML = `<tr><td colspan="11" class="cache-empty">加载失败: ${escapeHtml(String(e))}</td></tr>`;
     }
+  }
+
+  // v6.4.19：信息缓存新鲜度标签（meta 基础 / rating 好评率 / detail 详情 / spy 热度）
+  function formatModuleFreshness(freshness) {
+    const f = freshness || {};
+    const items = [
+      ['基', f.meta],
+      ['评', f.rating],
+      ['详', f.detail],
+      ['热', f.spy]
+    ];
+    return items
+      .map(([label, ok]) => {
+        const color = ok ? '#a3cf06' : '#8f98a0';
+        const bg = ok ? 'rgba(163,207,6,0.12)' : 'rgba(143,152,160,0.12)';
+        return `<span title="${ok ? '缓存有效' : '缺失或已过期'}" style="display:inline-block;margin-right:3px;padding:0 5px;border-radius:3px;font-size:10.5px;color:${color};background:${bg};">${label}</span>`;
+      })
+      .join('');
   }
 
   // 好评率徽章（颜色分级；无数据显示灰色"暂无"）

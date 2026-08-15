@@ -33,6 +33,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const utils = globalThis.__GR_SETTINGS_UTILS__ || { applyPatch: (o, p) => Object.assign(o, p) };
 
+  // v6.4.19：应用皮肤主题
+  if (utils.applyTheme) utils.applyTheme(settings.uiTheme);
+
   // ============ 保存（保存前重读最新设置，防快照覆盖） ============
   // v6.4.12：串行队列防竞态——快速连续操作时并发 GET→SAVE 会基于旧快照
   // 覆盖前次修改（"保存了但部分丢失"）；失败可见（状态栏提示 + console）。
@@ -77,11 +80,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ppFilterMode').value = settings.ratingFilterMode || 'and';
   document.getElementById('ppSortByRating').checked = settings.enableSortByRating || false;
 
-  // 关键词过滤
+  // 关键词过滤（v6.4.19：纯规则列表——规则在设置中心编辑）
   document.getElementById('ppVmFilter').checked = settings.enableVmFilter || false;
-  document.getElementById('ppVmKeywords').value =
-    settings.filterKeywords || (Array.isArray(settings.vmFilterKeywords) ? settings.vmFilterKeywords.join(',') : '') || '';
-  document.getElementById('ppFilterMatch').value = settings.filterMatchMode || 'contains';
 
   // 权重（动态 6 项）
   renderWeights(settings.weights || {});
@@ -163,8 +163,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   const inputMap = [
     ['ppMaxLog', 'maxBehaviorLog', Number],
     ['ppFilterMode', 'ratingFilterMode', String],
-    ['ppVmKeywords', 'filterKeywords', String],
-    ['ppFilterMatch', 'filterMatchMode', String],
     ['ppMaxScan', 'maxScanLinks', Number],
     ['ppBackupInterval', 'backupIntervalHours', Number],
     ['ppMaxBackups', 'maxBackups', Number],

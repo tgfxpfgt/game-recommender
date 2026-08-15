@@ -41,12 +41,10 @@
     // 列表页链接扫描上限（v3.3.9）
     document.getElementById('maxScanLinks').value = settings.maxScanLinks || 500;
 
-    // 虚拟机标题过滤 / VM title filter
+    // v6.4.19：关键词过滤（纯规则列表；旧简单关键词输入已移除——规则由
+    // 编辑器维护；uiTheme 皮肤回显）
     document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
-    document.getElementById('vmFilterKeywords').value = settings.filterKeywords || (settings.vmFilterKeywords || ['虚拟机板', '虚拟机']).join(', ');
-    // v6.4.8：filterMatchMode 回显（修复保存被重置 bug）
-    document.getElementById('filterMatchMode').value = settings.filterMatchMode || 'contains';
-    // v6.4.8：规则列表回显（window.__renderRules 由 options.js 注入）
+    document.getElementById('uiTheme').value = settings.uiTheme || 'steam';
     if (typeof window['__renderRules'] === 'function') window['__renderRules'](settings.filterRules || []);
 
     // 权重设置 / Algorithm weights
@@ -78,9 +76,7 @@
     const tempPct = Number.isFinite(llm.temperature) ? llm.temperature * 100 : 30;
     document.getElementById('llmTemp').value = tempPct;
     document.getElementById('llmTempVal').textContent = tempPct.toFixed(1);
-    // v6.3.3：ITAD 二次校验 key
-    document.getElementById('itadApiKey').value = settings.itadApiKey || '';
-
+    // v6.4.19：ITAD 多套配置由 options.js renderItadProfiles 渲染（旧单输入已移除）
     toggleLLMSettings();
     toggleApiKeyRow();
 

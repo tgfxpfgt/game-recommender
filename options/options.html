@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>游戏雷达 Game Radar - 设置</title>
   <link rel="stylesheet" href="../styles/ui-theme.css">
+  <link rel="stylesheet" href="../styles/themes.css">
   <link rel="stylesheet" href="options.css">
   <!-- 下载站适配规则（用于渲染站点勾选/筛选选项）-->
   <!-- Download-site adapter rules (drives site checkbox/filter options) -->
@@ -56,7 +57,6 @@
       <div class="sidebar-footer">
         <!-- v6.4.11：集中入口——hub 内嵌时切 tab，独立打开时新开标签 -->
         <button id="openHubBtn" class="btn" style="width:100%;margin-bottom:8px;">🏠 设置中心</button>
-        <button id="openVistaMenu" class="btn btn-primary" style="width:100%;margin-bottom:8px;">✨ 新菜单（Vista Aero）</button>
         <span id="saveStatus" class="save-status"></span>
         <button id="saveBtn" class="btn btn-primary btn-lg btn-block">💾 立即保存</button>
       </div>
@@ -127,6 +127,25 @@
                 </div>
                 <input type="number" id="maxLog" min="100" max="5000" step="100" value="500" class="text-input">
               </div>
+              <!-- v6.4.19：界面皮肤（Steam 默认 / Vista / Win31-Win11 历代风格） -->
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">界面皮肤</span>
+                  <span class="label-desc">UI Theme（历史风格可选，切换立即生效）</span>
+                </div>
+                <select id="uiTheme" class="text-input" style="max-width:240px">
+                  <option value="steam">Steam 深蓝（默认）</option>
+                  <option value="vista">Vista Aero 玻璃</option>
+                  <option value="win31">Windows 3.1 经典</option>
+                  <option value="win95">Windows 95</option>
+                  <option value="win98">Windows 98</option>
+                  <option value="winxp">Windows XP</option>
+                  <option value="win7">Windows 7</option>
+                  <option value="win8">Windows 8 Metro</option>
+                  <option value="win10">Windows 10 扁平</option>
+                  <option value="win11">Windows 11 圆角</option>
+                </select>
+              </div>
             </div>
           </div>
           <div class="settings-section">
@@ -173,9 +192,18 @@
               </div>
             </div>
             <div class="section-body">
+              <!-- v6.4.19：日志查看增强——级别筛选 + 关键词搜索 + 模块显示 -->
               <div class="setting-row">
                 <button id="logRefreshBtn" class="btn btn-primary">🔄 刷新</button>
                 <button id="logClearBtn" class="btn btn-danger">🗑️ 清空</button>
+                <select id="logLevelFilter" class="text-input" style="width:120px;">
+                  <option value="">全部级别</option>
+                  <option value="debug">debug</option>
+                  <option value="info">info</option>
+                  <option value="warn">warn</option>
+                  <option value="error">error</option>
+                </select>
+                <input type="text" id="logSearch" class="text-input" style="flex:1;min-width:120px;" placeholder="搜索日志关键词...">
                 <span id="logCount" class="test-result"></span>
               </div>
               <div id="logViewer" style="max-height:320px;overflow-y:auto;background:#10161f;border:1px solid #2f4055;border-radius:4px;padding:8px;margin-top:8px;font-size:12px;"></div>
@@ -200,10 +228,11 @@
               </div>
             </div>
             <div class="section-body">
+              <p class="section-note">好评率过滤：低于条件的游戏从列表页隐藏（条件见"保留条件"）<br><em>Games failing the keep-condition are hidden from list pages</em></p>
               <div class="setting-row">
                 <div class="setting-label">
                   <span class="label-text">启用好评率过滤</span>
-                  <span class="label-desc">Enable Rating Filter</span>
+                  <span class="label-desc">Enable Rating Filter（开启后按下方条件隐藏游戏）</span>
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="ratingFilterEnabled">
@@ -212,8 +241,8 @@
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">最低好评率阈值</span>
-                  <span class="label-desc">Minimum Positive Rating</span>
+                  <span class="label-text">总好评率下限</span>
+                  <span class="label-desc">Min Overall Rating（低于此值视为不达标）</span>
                 </div>
                 <div class="range-group">
                   <input type="range" id="minRating" min="0" max="95" step="5">
@@ -223,8 +252,8 @@
               <!-- v6.4.4：30 天好评率过滤 + 与/或/非关系 + 重排序 -->
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">30 天好评率过滤</span>
-                  <span class="label-desc">Recent 30-Day Rating Filter</span>
+                  <span class="label-text">启用 30 天好评率下限</span>
+                  <span class="label-desc">Enable Recent 30-Day Rating Filter</span>
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="recentFilterEnabled">
@@ -233,8 +262,8 @@
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">最低 30 天好评率阈值</span>
-                  <span class="label-desc">Min Recent Rating</span>
+                  <span class="label-text">30 天好评率下限</span>
+                  <span class="label-desc">Min Recent Rating（低于此值视为不达标）</span>
                 </div>
                 <div class="range-group">
                   <input type="range" id="minRecentRating" min="0" max="95" step="5">
@@ -243,17 +272,17 @@
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">过滤关系</span>
-                  <span class="label-desc">Filter Mode（总好评 与 30天好评）</span>
+                  <span class="label-text">保留条件</span>
+                  <span class="label-desc">Keep Condition（总好评 与 30天好评如何组合判定）</span>
                 </div>
-                <select id="ratingFilterMode" class="text-input" style="max-width:240px">
-                  <option value="and">与（两者都达标）</option>
-                  <option value="or">或（任一达标）</option>
-                  <option value="not">非（仅看 30 天好评）</option>
-                  <option value="hybrid">混合（任一≥高值 或 双≥低值）</option>
+                <select id="ratingFilterMode" class="text-input" style="max-width:260px">
+                  <option value="and">与：两项都达标才保留</option>
+                  <option value="or">或：任一达标即保留</option>
+                  <option value="not">非：只按 30 天好评判定</option>
+                  <option value="hybrid">混合：任一≥高值 或 双≥低值</option>
                 </select>
               </div>
-              <p class="section-note" style="margin:0 0 8px;">混合模式：高值 = 两个阈值中的较大者（任一达到即保留），低值 = 较小者（两者都达到才保留）。例：总 90 / 30天 80 → 任一 ≥90 或 双 ≥80 保留，其余过滤隐藏<br><em>Hybrid: either rate ≥ the larger threshold, or both ≥ the smaller one</em></p>
+              <p class="section-note" style="margin:0 0 8px;">混合模式：高值 = 两个下限中的较大者（任一达到即保留），低值 = 较小者（两者都达到才保留）。例：总 90 / 30天 80 → 任一 ≥90 或 双 ≥80 保留，其余隐藏<br><em>Hybrid: either rate ≥ the larger threshold, or both ≥ the smaller one</em></p>
               <div class="setting-row">
                 <div class="setting-label">
                   <span class="label-text">按好评率重排列表</span>
@@ -331,16 +360,16 @@
             <div class="section-header">
               <span class="section-icon">🚫</span>
               <div class="section-title">
-                <h3>虚拟机版过滤</h3>
-                <span class="section-subtitle">VM Edition Filter</span>
+                <h3>关键词过滤规则</h3>
+                <span class="section-subtitle">Keyword Filter Rules（v6.4.19：不内置规则，全部由你逐条添加）</span>
               </div>
             </div>
             <div class="section-body">
-              <p class="section-note">在下载站列表页隐藏标题包含关键词的游戏<br><em>Hide games whose titles contain the keywords</em></p>
+              <p class="section-note">在下载站列表页隐藏标题命中规则的游戏。<br>每条规则：<b>关键词</b>（标题含则命中）+ <b>排除误报词</b>（标题也含则不算命中）——如 关键词"虚拟机" 排除"非虚拟机"，则"非虚拟机版"不会被隐藏<br><em>Hide games whose titles match a rule: keyword hit AND no exclude-word hit</em></p>
               <div class="setting-row">
                 <div class="setting-label">
                   <span class="label-text">启用关键词过滤</span>
-                  <span class="label-desc">Keyword Filter（v6.4.7 通用化）</span>
+                  <span class="label-desc">Enable Keyword Filter（勾选后规则生效）</span>
                 </div>
                 <label class="switch">
                   <input type="checkbox" id="vmFilterEnabled">
@@ -349,25 +378,8 @@
               </div>
               <div class="setting-row">
                 <div class="setting-label">
-                  <span class="label-text">过滤关键词</span>
-                  <span class="label-desc">Filter Keywords</span>
-                </div>
-                <input type="text" id="vmFilterKeywords" class="text-input" placeholder="虚拟机板, 重制版, 测试版">
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">匹配模式（防误报）</span>
-                  <span class="label-desc">Match Mode</span>
-                </div>
-                <select id="filterMatchMode" class="text-input" style="max-width:220px">
-                  <option value="contains">包含（子串匹配）</option>
-                  <option value="exact">整段（标题分段完全相等，防误报）</option>
-                </select>
-              </div>
-              <div class="setting-row">
-                <div class="setting-label">
-                  <span class="label-text">过滤规则（优先于简单关键词）</span>
-                  <span class="label-desc">每条含排除误报词（如 虚拟机 排除 非虚拟机）</span>
+                  <span class="label-text">规则列表</span>
+                  <span class="label-desc">每条含排除误报词（命中关键词且不命中排除词才隐藏）</span>
                 </div>
                 <div style="flex:1">
                   <button id="ruleAddBtn" class="btn btn-primary" style="margin-bottom:6px;">➕ 添加规则</button>
@@ -537,19 +549,23 @@
                 </div>
               </div>
             </div>
-            <!-- v6.3.3：ITAD 二次校验 key（可选——限免通知候选免费状态确认） -->
+            <!-- v6.3.3：ITAD 二次校验 key（可选——限免通知候选免费状态确认）
+                 v6.4.19：多套配置——添加/切换激活/删除，测试激活项 -->
             <div class="setting-row">
               <div class="setting-label">
-                <span class="label-text">ITAD API Key（可选）</span>
-                <span class="label-desc">IsThereAnyDeal API Key</span>
+                <span class="label-text">ITAD API Key</span>
+                <span class="label-desc">多套配置：限免推送前用激活项二次确认"当前免费"（防误报）</span>
               </div>
               <div style="flex:1">
-                <div style="display:flex;gap:8px;">
-                  <input type="text" id="itadApiKey" class="text-input" style="flex:1" placeholder="isthereanydeal.com 注册获取" autocomplete="off">
-                  <button id="itadTestBtn" class="btn btn-primary" style="white-space:nowrap;">🧪 测试</button>
+                <div id="itadProfileList"></div>
+                <div style="display:flex;gap:8px;margin-top:8px;">
+                  <input type="text" id="itadNewName" class="text-input" style="width:110px;" placeholder="名称，如 主力" autocomplete="off">
+                  <input type="text" id="itadNewKey" class="text-input" style="flex:1;" placeholder="isthereanydeal.com 注册获取（添加后脱敏显示）" autocomplete="off">
+                  <button id="itadAddBtn" class="btn btn-primary btn-sm" style="white-space:nowrap;">➕ 添加</button>
+                  <button id="itadTestBtn" class="btn btn-primary btn-sm" style="white-space:nowrap;">🧪 测试激活项</button>
                 </div>
                 <span id="itadTestResult" class="test-result"></span>
-                <p class="setting-hint" style="margin:6px 0 0;font-size:12px;color:#8f98a0;">限免通知推送前经 ITAD 二次确认"当前免费"（防 GamerPower 数据过期误报；不填则按 GamerPower 分类直接推送）</p>
+                <p class="setting-hint" style="margin:6px 0 0;font-size:12px;color:#8f98a0;">密钥仅存储于本机浏览器配置；导出/备份/导入自动剔除。未添加配置时跳过 ITAD 校验（按 GamerPower 分类直接推送）</p>
               </div>
             </div>
           </div>
@@ -583,6 +599,34 @@
                 <input type="text" id="newSite" class="text-input" placeholder="输入域名，如 example.com">
                 <button id="addSite" class="btn btn-primary btn-sm">添加</button>
               </div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-icon">🎮</span>
+              <div class="section-title">
+                <h3>游戏平台与辅助站</h3>
+                <span class="section-subtitle">Data Sources（v6.4.19：按用途分类，独立开关）</span>
+              </div>
+            </div>
+            <div class="section-body">
+              <p class="section-note">平台 = 限免/评分数据源；辅助站 = 搜索兜底。关闭的源不再调用其接口<br><em>Platform sources feed free-games/ratings; aux sites power search fallback</em></p>
+              <div id="dataSourceList"></div>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-icon">📡</span>
+              <div class="section-title">
+                <h3>Steam 数据获取模块</h3>
+                <span class="section-subtitle">Steam API Modules（v6.4.19：每类独立开关 + 独立缓存 TTL）</span>
+              </div>
+            </div>
+            <div class="section-body">
+              <p class="section-note">每种信息独立开关、独立缓存：关闭的模块不调用其接口（缓存中已有数据仍展示，按各自 TTL 过期）<br><em>Per-module toggles; disabled modules are not fetched (cached data still shown)</em></p>
+              <div id="steamApiModulesList"></div>
             </div>
           </div>
         </div>
@@ -834,6 +878,7 @@
                       <th>中文名</th>
                       <th>英文名</th>
                       <th>类型</th>
+                      <th>信息缓存</th>
                       <th>推荐值</th>
                       <th>上次刷新</th>
                       <th>下载站网址</th>

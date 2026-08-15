@@ -1,0 +1,257 @@
+/**
+ * 游戏雷达 Game Radar - 皮肤系统 / Theme Skins
+ *
+ * v6.4.19：可选皮肤（Steam 默认 / Vista Aero / Win31-Win11 历代风格）。
+ * 全部主题通过覆盖 ui-theme.css 的 CSS 变量实现（页面基础结构变量化），
+ * 组件级微调（按钮/输入/开关）按 body[data-theme] 作用域叠加。
+ * 切换方式：body 的 data-theme 属性（页面 init 时按 settings.uiTheme 设置）。
+ * Theme skins: variable overrides on top of ui-theme.css; the page sets
+ * body[data-theme] from settings.uiTheme.
+ */
+
+/* ============ Vista Aero（玻璃蓝） ============ */
+body[data-theme='vista'] {
+  --gr-bg-deep: #b8cfe4;
+  --gr-bg: #dce9f5;
+  --gr-panel: rgba(255, 255, 255, 0.65);
+  --gr-panel-2: rgba(230, 240, 250, 0.8);
+  --gr-card: #eaf2fa;
+  --gr-card-hover: #d6e6f5;
+  --gr-accent: #1e4a7a;
+  --gr-accent-btn: #2f7fd0;
+  --gr-accent-btn-hover: #4b95dd;
+  --gr-grad-btn: linear-gradient(180deg, #f4f9fe 0%, #cfe3f5 100%);
+  --gr-green: #3d7a1f;
+  --gr-red: #b03030;
+  --gr-orange: #b05a00;
+  --gr-text: #22344a;
+  --gr-text-bright: #10365c;
+  --gr-text-dim: #4a5a6a;
+  --gr-border: #7ba5d9;
+  --gr-border-soft: rgba(59, 110, 165, 0.35);
+  --gr-radius: 6px;
+  --gr-radius-sm: 3px;
+  --gr-shadow: 0 2px 8px rgba(30, 74, 122, 0.25);
+  --gr-shadow-lg: 0 4px 18px rgba(30, 74, 122, 0.35);
+  --gr-page-grad: linear-gradient(180deg, #cfe3f5 0%, #e4eef8 100%);
+}
+body[data-theme='vista'] .gr-btn,
+body[data-theme='vista'] button.btn {
+  border: 1px solid #7ba5d9;
+  color: #10365c;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+body[data-theme='vista'] .gr-input,
+body[data-theme='vista'] input.text-input,
+body[data-theme='vista'] select.text-input {
+  background: rgba(255, 255, 255, 0.85);
+  color: #22344a;
+}
+
+/* ============ Win 3.1（灰底 + 深蓝标题） ============ */
+body[data-theme='win31'],
+body[data-theme='win95'],
+body[data-theme='win98'] {
+  --gr-bg-deep: #808080;
+  --gr-bg: #c0c0c0;
+  --gr-panel: #d4d0c8;
+  --gr-panel-2: #c0c0c0;
+  --gr-card: #d4d0c8;
+  --gr-card-hover: #e0dcd4;
+  --gr-accent: #000080;
+  --gr-accent-btn: #000080;
+  --gr-accent-btn-hover: #1a1aa0;
+  --gr-grad-btn: linear-gradient(180deg, #ffffff 0%, #c0c0c0 100%);
+  --gr-green: #005000;
+  --gr-red: #a00000;
+  --gr-orange: #7a5000;
+  --gr-text: #000000;
+  --gr-text-bright: #000000;
+  --gr-text-dim: #404040;
+  --gr-border: #000000;
+  --gr-border-soft: #808080;
+  --gr-radius: 0px;
+  --gr-radius-sm: 0px;
+  --gr-shadow: none;
+  --gr-shadow-lg: none;
+  --gr-page-grad: #c0c0c0;
+}
+body[data-theme='win31'] .gr-btn,
+body[data-theme='win31'] button.btn,
+body[data-theme='win95'] .gr-btn,
+body[data-theme='win95'] button.btn,
+body[data-theme='win98'] .gr-btn,
+body[data-theme='win98'] button.btn {
+  border: 2px solid;
+  border-color: #ffffff #404040 #404040 #ffffff;
+  color: #000000;
+  font-family: 'MS Sans Serif', '宋体', monospace;
+}
+body[data-theme='win31'] .gr-input,
+body[data-theme='win31'] input.text-input,
+body[data-theme='win31'] select.text-input,
+body[data-theme='win95'] .gr-input,
+body[data-theme='win95'] input.text-input,
+body[data-theme='win95'] select.text-input,
+body[data-theme='win98'] .gr-input,
+body[data-theme='win98'] input.text-input,
+body[data-theme='win98'] select.text-input {
+  background: #ffffff;
+  border: 2px solid;
+  border-color: #404040 #ffffff #ffffff #404040;
+  color: #000000;
+  font-family: 'MS Sans Serif', '宋体', monospace;
+}
+body[data-theme='win31'] .switch .slider,
+body[data-theme='win95'] .switch .slider,
+body[data-theme='win98'] .switch .slider {
+  border: 2px solid #000;
+  border-radius: 0;
+}
+
+/* ============ Win XP（蓝绿） ============ */
+body[data-theme='winxp'] {
+  --gr-bg-deep: #4a6fa5;
+  --gr-bg: #7ba5d9;
+  --gr-panel: #ece9d8;
+  --gr-panel-2: #f2efe2;
+  --gr-card: #ece9d8;
+  --gr-card-hover: #f6f3e8;
+  --gr-accent: #0a246a;
+  --gr-accent-btn: #3a6ea5;
+  --gr-accent-btn-hover: #4a80b8;
+  --gr-grad-btn: linear-gradient(180deg, #3a6ea5 0%, #2153a5 100%);
+  --gr-green: #3d7a1f;
+  --gr-red: #b03030;
+  --gr-orange: #b05a00;
+  --gr-text: #1a1a1a;
+  --gr-text-bright: #0a246a;
+  --gr-text-dim: #4a4a4a;
+  --gr-border: #3a6ea5;
+  --gr-border-soft: #b0b8c4;
+  --gr-radius: 3px;
+  --gr-radius-sm: 2px;
+  --gr-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  --gr-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.35);
+  --gr-page-grad: linear-gradient(180deg, #7ba5d9 0%, #5a8cc4 100%);
+}
+body[data-theme='winxp'] .gr-btn,
+body[data-theme='winxp'] button.btn {
+  color: #ffffff;
+}
+
+/* ============ Win 7（Aero 玻璃） ============ */
+body[data-theme='win7'] {
+  --gr-bg-deep: #7aa2d0;
+  --gr-bg: #a8c7e8;
+  --gr-panel: rgba(255, 255, 255, 0.7);
+  --gr-panel-2: rgba(240, 246, 252, 0.85);
+  --gr-card: #eaf2fa;
+  --gr-card-hover: #d8e8f8;
+  --gr-accent: #3f7fbf;
+  --gr-accent-btn: #2e6da4;
+  --gr-accent-btn-hover: #4a85ba;
+  --gr-grad-btn: linear-gradient(180deg, #eef6fd 0%, #c6ddf2 100%);
+  --gr-green: #2f7d32;
+  --gr-red: #b03030;
+  --gr-orange: #b05a00;
+  --gr-text: #22303f;
+  --gr-text-bright: #0e3a5c;
+  --gr-text-dim: #4a5a6a;
+  --gr-border: #5a8ec2;
+  --gr-border-soft: rgba(63, 127, 191, 0.35);
+  --gr-radius: 4px;
+  --gr-radius-sm: 2px;
+  --gr-shadow: 0 2px 8px rgba(30, 60, 90, 0.25);
+  --gr-shadow-lg: 0 4px 18px rgba(30, 60, 90, 0.35);
+  --gr-page-grad: linear-gradient(180deg, #a8c7e8 0%, #8fb2d8 100%);
+}
+
+/* ============ Win 8（Metro 扁平深色） ============ */
+body[data-theme='win8'] {
+  --gr-bg-deep: #101010;
+  --gr-bg: #1b1b1b;
+  --gr-panel: #2d2d30;
+  --gr-panel-2: #252528;
+  --gr-card: #2d2d30;
+  --gr-card-hover: #3d3d42;
+  --gr-accent: #00b7c3;
+  --gr-accent-btn: #00b7c3;
+  --gr-accent-btn-hover: #33c9d3;
+  --gr-grad-btn: linear-gradient(180deg, #00b7c3 0%, #0097a3 100%);
+  --gr-green: #8cc63f;
+  --gr-red: #e74856;
+  --gr-orange: #ff8c00;
+  --gr-text: #e8e8e8;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #8a8a8a;
+  --gr-border: #00b7c3;
+  --gr-border-soft: #3d3d42;
+  --gr-radius: 0px;
+  --gr-radius-sm: 0px;
+  --gr-shadow: none;
+  --gr-shadow-lg: none;
+  --gr-page-grad: linear-gradient(180deg, #1b1b1b 0%, #141414 100%);
+}
+
+/* ============ Win 10（扁平浅色） ============ */
+body[data-theme='win10'] {
+  --gr-bg-deep: #e0e0e0;
+  --gr-bg: #f3f3f3;
+  --gr-panel: #ffffff;
+  --gr-panel-2: #f7f7f7;
+  --gr-card: #ffffff;
+  --gr-card-hover: #eef4fb;
+  --gr-accent: #0078d7;
+  --gr-accent-btn: #0078d7;
+  --gr-accent-btn-hover: #1e8ae0;
+  --gr-grad-btn: linear-gradient(180deg, #0078d7 0%, #0067b8 100%);
+  --gr-green: #107c10;
+  --gr-red: #d13438;
+  --gr-orange: #ca5010;
+  --gr-text: #1a1a1a;
+  --gr-text-bright: #000000;
+  --gr-text-dim: #6a6a6a;
+  --gr-border: #0078d7;
+  --gr-border-soft: #d0d0d0;
+  --gr-radius: 0px;
+  --gr-radius-sm: 0px;
+  --gr-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  --gr-shadow-lg: 0 3px 10px rgba(0, 0, 0, 0.18);
+  --gr-page-grad: linear-gradient(180deg, #f3f3f3 0%, #eaeaea 100%);
+}
+body[data-theme='win10'] .gr-btn,
+body[data-theme='win10'] button.btn {
+  color: #ffffff;
+}
+
+/* ============ Win 11（圆角毛玻璃） ============ */
+body[data-theme='win11'] {
+  --gr-bg-deep: #dce8f5;
+  --gr-bg: #eef4fb;
+  --gr-panel: rgba(255, 255, 255, 0.6);
+  --gr-panel-2: rgba(255, 255, 255, 0.75);
+  --gr-card: #ffffff;
+  --gr-card-hover: #e8f0fa;
+  --gr-accent: #005fb8;
+  --gr-accent-btn: #0067c0;
+  --gr-accent-btn-hover: #1e78d0;
+  --gr-grad-btn: linear-gradient(180deg, #dce9f8 0%, #b8d2ee 100%);
+  --gr-green: #0f7b0f;
+  --gr-red: #c42b1c;
+  --gr-orange: #ca5010;
+  --gr-text: #1a1a1a;
+  --gr-text-bright: #00315c;
+  --gr-text-dim: #5a6a7a;
+  --gr-border: #9cc1e8;
+  --gr-border-soft: rgba(0, 95, 184, 0.25);
+  --gr-radius: 8px;
+  --gr-radius-sm: 6px;
+  --gr-shadow: 0 2px 10px rgba(0, 60, 120, 0.15);
+  --gr-shadow-lg: 0 6px 24px rgba(0, 60, 120, 0.25);
+  --gr-page-grad: linear-gradient(180deg, #eef4fb 0%, #dfeaf6 100%);
+}
+body[data-theme='win11'] .gr-btn,
+body[data-theme='win11'] button.btn {
+  color: #00315c;
+}

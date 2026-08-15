@@ -42,13 +42,6 @@
         if (utils && utils.goHub) utils.goHub('options');
       });
     }
-    const vistaBtn = document.getElementById('openVistaMenu');
-    if (vistaBtn) {
-      vistaBtn.addEventListener('click', () => {
-        const utils = globalThis.__GR_SETTINGS_UTILS__;
-        if (utils && utils.goHub) utils.goHub('vista');
-      });
-    }
     try {
       const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       // 防御：后台未就绪时 response 可能为 undefined
@@ -60,40 +53,85 @@
         return;
       }
       OPTS.currentSettings = response.settings;
+      // v6.4.19：应用皮肤主题（body data-theme）
+      if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) {
+        globalThis.__GR_SETTINGS_UTILS__.applyTheme(OPTS.currentSettings.uiTheme);
+      }
       OPTS.renderSettings(OPTS.currentSettings);
       bindEvents();
       bindTabEvents(); // 侧边栏分类切换
       OPTS.bindCacheEvents(); // 游戏缓存管理
       OPTS.bindRulesEvents(); // 规则管理（v3.0.0）
       OPTS.populateCacheSiteFilter(); // 缓存页下载站筛选
-      // v6.4.7：ITAD Key 脱敏显示 + 测试按钮
-    const itadInput = document.getElementById('itadApiKey');
-    if (itadInput && OPTS.currentSettings.itadApiKey) {
-      itadInput.value = '••••' + String(OPTS.currentSettings.itadApiKey).slice(-4);
-      itadInput.dataset.masked = '1';
-      itadInput.addEventListener('focus', () => {
-        if (itadInput.dataset.masked === '1') { itadInput.value = ''; itadInput.dataset.masked = ''; }
+      // v6.4.19：ITAD 多套配置管理（添加/切换激活/删除/测试激活项/脱敏显示）
+    function renderItadProfiles() {
+      const box = document.getElementById('itadProfileList');
+      if (!box) return;
+      const profiles = OPTS.currentSettings.itadProfiles || [];
+      const activeId = OPTS.currentSettings.itadActiveProfileId;
+      box.innerHTML = '';
+      if (profiles.length === 0) {
+        box.innerHTML = '<div style="font-size:12px;color:#8f98a0;">暂无配置——上方添加（可选）。未配置时跳过 ITAD 校验</div>';
+        return;
+      }
+      profiles.forEach((p, idx) => {
+        const isActive = String(p.id) === String(activeId) || (!activeId && idx === 0);
+        const row = document.createElement('div');
+        row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
+        row.innerHTML = `<label class="check-item" style="flex:0 0 auto;" title="设为激活配置（限免校验使用）">
+            <input type="radio" name="itadActive" data-act="${idx}" ${isActive ? 'checked' : ''}>
+          </label>
+          <span style="min-width:80px;font-size:12.5px;color:${isActive ? '#66c0f4' : 'inherit'};font-weight:${isActive ? '700' : '400'};">${escapeHtml(p.name || ('配置 ' + (idx + 1)))}${isActive ? ' ⭐' : ''}</span>
+          <code style="font-size:12px;color:#8f98a0;">${maskKey(p.key)}</code>
+          <button class="btn btn-danger btn-sm" data-rdel="${idx}" style="margin-left:auto;">删除</button>`;
+        box.appendChild(row);
+        row.querySelector('[data-act]').addEventListener('change', () => {
+          OPTS.currentSettings.itadActiveProfileId = p.id;
+          scheduleAutoSave();
+          renderItadProfiles();
+        });
+        row.querySelector('[data-rdel]').addEventListener('click', () => {
+          const profiles2 = (OPTS.currentSettings.itadProfiles || []).filter((_, i) => i !== idx);
+          OPTS.currentSettings.itadProfiles = profiles2;
+          if (String(OPTS.currentSettings.itadActiveProfileId) === String(p.id)) {
+            OPTS.currentSettings.itadActiveProfileId = profiles2.length > 0 ? profiles2[0].id : null;
+          }
+          scheduleAutoSave();
+          renderItadProfiles();
+        });
       });
     }
-    const itadTestBtn = document.getElementById('itadTestBtn');
-    if (itadTestBtn) {
-      itadTestBtn.addEventListener('click', async () => {
-        let key = itadInput.value.trim();
-        const result = document.getElementById('itadTestResult');
-        if (itadInput.dataset.masked === '1') {
-          const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-          key = (resp && resp.settings && resp.settings.itadApiKey) || '';
-        }
-        if (!key) { result.textContent = '⚠️ 请先输入/保存 ITAD Key'; return; }
-        result.textContent = '测试中...';
-        try {
-          const r = await fetch('https://api.isthereanydeal.com/v02/game/prices/?key=' + encodeURIComponent(key) + '&appids=steam/730');
-          result.textContent = r.status === 200 ? '✅ Key 有效' : r.status === 401 || r.status === 403 ? '❌ Key 无效' : '⚠️ 服务异常（' + r.status + '）';
-        } catch {
-          result.textContent = '❌ 网络错误';
-        }
-      });
-    }
+    document.getElementById('itadAddBtn').addEventListener('click', () => {
+      const name = document.getElementById('itadNewName').value.trim();
+      const key = document.getElementById('itadNewKey').value.trim();
+      if (!key) { document.getElementById('itadTestResult').textContent = '⚠️ 请输入 API Key'; return; }
+      const id = 'p' + Date.now();
+      const profiles = [...(OPTS.currentSettings.itadProfiles || []), { id, name: name || ('配置 ' + ((OPTS.currentSettings.itadProfiles || []).length + 1)), key }];
+      OPTS.currentSettings.itadProfiles = profiles;
+      OPTS.currentSettings.itadActiveProfileId = OPTS.currentSettings.itadActiveProfileId || id;
+      document.getElementById('itadNewName').value = '';
+      document.getElementById('itadNewKey').value = '';
+      document.getElementById('itadTestResult').textContent = '✅ 已添加并设为激活';
+      scheduleAutoSave();
+      renderItadProfiles();
+    });
+    document.getElementById('itadTestBtn').addEventListener('click', async () => {
+      const result = document.getElementById('itadTestResult');
+      const profiles = OPTS.currentSettings.itadProfiles || [];
+      const active = profiles.find((p) => String(p.id) === String(OPTS.currentSettings.itadActiveProfileId)) || profiles[0];
+      if (!active || !active.key) {
+        result.textContent = '⚠️ 暂无配置，请先添加';
+        return;
+      }
+      result.textContent = '测试中...';
+      try {
+        const r = await fetch('https://api.isthereanydeal.com/v02/game/prices/?key=' + encodeURIComponent(active.key) + '&appids=steam/730');
+        result.textContent = r.status === 200 ? `✅ 「${active.name || '配置'}」Key 有效` : r.status === 401 || r.status === 403 ? `❌ 「${active.name || '配置'}」Key 无效` : '⚠️ 服务异常（' + r.status + '）';
+      } catch {
+        result.textContent = '❌ 网络错误';
+      }
+    });
+    renderItadProfiles();
     // v6.4.8：关键词过滤规则编辑器（多条 + 排除误报词）
     function renderRules(rules) {
       const box = document.getElementById('ruleList');
@@ -139,23 +177,108 @@
     window['__renderRules'] = renderRules;
     // v6.4.11：renderSettings 先于本定义执行，首次加载时规则列表缺失 → 补渲染
     if (OPTS.currentSettings) renderRules(OPTS.currentSettings.filterRules || []);
-    // v6.4.8：日志在线查看
+    // v6.4.8：日志在线查看（v6.4.19：级别筛选 + 关键词搜索 + 模块显示）
     async function loadLogViewer() {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
       const logs = (resp && resp.logs) || [];
-      document.getElementById('logCount').textContent = logs.length + ' 条';
+      const levelFilter = document.getElementById('logLevelFilter').value;
+      const search = document.getElementById('logSearch').value.trim().toLowerCase();
+      const filtered = logs.filter((l) => {
+        if (levelFilter && l.level !== levelFilter) return false;
+        if (search && !(l.message || '').toLowerCase().includes(search) && !(l.module || '').toLowerCase().includes(search)) return false;
+        return true;
+      });
+      document.getElementById('logCount').textContent = filtered.length + ' / ' + logs.length + ' 条';
       const box = document.getElementById('logViewer');
-      box.innerHTML = logs.length === 0 ? '<div style="color:#8f98a0;">暂无日志</div>' : logs.slice(0, 200).map((l) => {
-        const color = l.level === 'error' ? '#c75050' : l.level === 'warn' ? '#c78550' : l.level === 'debug' ? '#8f98a0' : '#66c0f4';
-        return `<div style="padding:2px 4px;border-bottom:1px solid #2f4055;"><span style="color:#8f98a0;">${new Date(l.t).toLocaleTimeString('zh-CN')}</span> <span style="color:${color};font-weight:600;">[${escapeHtml(l.level || 'info')}]</span> ${escapeHtml(l.msg || '')}</div>`;
-      }).join('');
+      box.innerHTML = filtered.length === 0
+        ? '<div style="color:#8f98a0;">暂无匹配日志</div>'
+        : filtered.slice(0, 200).map((l) => {
+            const color = l.level === 'error' ? '#c75050' : l.level === 'warn' ? '#c78550' : l.level === 'debug' ? '#8f98a0' : '#66c0f4';
+            const time = new Date(l.timestamp || l.t).toLocaleTimeString('zh-CN');
+            return `<div style="padding:2px 4px;border-bottom:1px solid #2f4055;display:flex;gap:6px;">
+              <span style="color:#8f98a0;white-space:nowrap;">${time}</span>
+              <span style="color:${color};font-weight:600;white-space:nowrap;">[${escapeHtml(l.level || 'info')}]</span>
+              <span style="color:#4a7ab5;white-space:nowrap;">${escapeHtml(l.module || '')}</span>
+              <span style="flex:1;">${escapeHtml(l.message || l.msg || '')}</span>
+            </div>`;
+          }).join('');
     }
     document.getElementById('logRefreshBtn').addEventListener('click', loadLogViewer);
     document.getElementById('logClearBtn').addEventListener('click', async () => {
       await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
       loadLogViewer();
     });
+    document.getElementById('logLevelFilter').addEventListener('change', loadLogViewer);
+    document.getElementById('logSearch').addEventListener('input', loadLogViewer);
     setTimeout(loadLogViewer, 300);
+
+    // v6.4.19：数据源开关渲染（游戏平台 + 辅助站）
+    function renderDataSources() {
+      const box = document.getElementById('dataSourceList');
+      if (!box) return;
+      const ds = OPTS.currentSettings.dataSources || {};
+      const items = [
+        ['steam', 'Steam 官方', '评分 / 详情 / 限免'],
+        ['epic', 'Epic Games 官方', '限免（官方接口）'],
+        ['gog', 'GOG', '限免'],
+        ['gamerpower', 'GamerPower 聚合', '限免聚合（Steam/GOG 主源）'],
+        ['bing', 'Bing 搜索', '辅助：appid 匹配兜底']
+      ];
+      box.innerHTML = items.map(([key, name, desc]) => `
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">${name}</span>
+            <span class="label-desc">${desc}</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" data-ds="${key}" ${ds[key] !== false ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>`).join('');
+      box.querySelectorAll('[data-ds]').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          OPTS.currentSettings.dataSources = { ...(OPTS.currentSettings.dataSources || {}), [cb.dataset.ds]: cb.checked };
+          scheduleAutoSave();
+        });
+      });
+    }
+    // v6.4.19：Steam 数据获取模块开关（各带缓存 TTL 建议）
+    function renderSteamApiModules() {
+      const box = document.getElementById('steamApiModulesList');
+      if (!box) return;
+      const mods = OPTS.currentSettings.steamApiModules || {};
+      const ttls = OPTS.currentSettings.cacheTtls || {};
+      const ttlText = (key) => {
+        const t = ttls[key];
+        if (!t) return '';
+        return `缓存建议：${t.value || 0} ${t.unit || ''}${t.value === 0 ? '（长期）' : ''}`;
+      };
+      const items = [
+        ['meta', '名称 / 封面 / 类型', 'appdetails 基础信息（核心，关闭后无法识别游戏）', 'metaSteam'],
+        ['rating', '好评率（总 + 30 天）', 'appreviews 评测统计（关闭则不请求）', 'steamDynamic'],
+        ['detail', '详情页完整信息', '商店页解析：语言支持 / 标签 / 更新日期', 'detailSteam'],
+        ['spy', 'SteamSpy 补充', '游玩时长 / 热度（无官方替代）', 'spySteam']
+      ];
+      box.innerHTML = items.map(([key, name, desc, ttlKey]) => `
+        <div class="setting-row">
+          <div class="setting-label">
+            <span class="label-text">${name}</span>
+            <span class="label-desc">${desc} · ${ttlText(ttlKey)}</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" data-mod="${key}" ${mods[key] !== false ? 'checked' : ''}>
+            <span class="slider"></span>
+          </label>
+        </div>`).join('');
+      box.querySelectorAll('[data-mod]').forEach((cb) => {
+        cb.addEventListener('change', () => {
+          OPTS.currentSettings.steamApiModules = { ...(OPTS.currentSettings.steamApiModules || {}), [cb.dataset.mod]: cb.checked };
+          scheduleAutoSave();
+        });
+      });
+    }
+    renderDataSources();
+    renderSteamApiModules();
     OPTS.loadDataModules(); // 数据模块清单（勾选 UI）
       OPTS.loadBackupsSelect(); // 备份列表（恢复下拉）
     } catch (e) {
@@ -166,6 +289,13 @@
   // 工具 / utilities
 function escapeHtml(s) {
   return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+// v6.4.19：密钥脱敏显示（保留末 4 位）
+function maskKey(key) {
+  if (!key) return '';
+  const k = String(key);
+  return k.length <= 4 ? '••••' : '••••' + k.slice(-4);
 }
 
 // ============ 侧边栏分类切换 / Sidebar Category Switching ============
@@ -193,6 +323,14 @@ function escapeHtml(s) {
 
   // ============ Event Binding / 事件绑定 ============
   function bindEvents() {
+    // v6.4.19：界面皮肤切换（立即生效）
+    document.getElementById('uiTheme').addEventListener('change', (e) => {
+      scheduleAutoSave();
+      if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) {
+        globalThis.__GR_SETTINGS_UTILS__.applyTheme(e.target.value);
+      }
+    });
+
     // 阈值滑块
     document.getElementById('threshold').addEventListener('input', (e) => {
       document.getElementById('thresholdVal').textContent = `${e.target.value}%`;
@@ -215,11 +353,9 @@ function escapeHtml(s) {
     });
     document.getElementById('ratingFilterMode').addEventListener('change', () => scheduleAutoSave());
     document.getElementById('sortByRatingEnabled').addEventListener('change', () => scheduleAutoSave());
-    document.getElementById('filterMatchMode').addEventListener('change', () => scheduleAutoSave());
 
-    // 虚拟机过滤
+    // v6.4.19：关键词过滤（纯规则列表，简单关键词输入已移除）
     document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
-    document.getElementById('vmFilterKeywords').addEventListener('input', () => scheduleAutoSave());
 
     // 权重滑块（v4.0.0：新增 playTime/heat）
     const weightIds = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam', 'weightPlayTime', 'weightHeat'];
@@ -393,17 +529,9 @@ function escapeHtml(s) {
     // 列表页链接扫描上限（v3.3.9）
     OPTS.currentSettings.maxScanLinks = parseInt(document.getElementById('maxScanLinks').value) || 500;
 
-    // 虚拟机过滤
+    // v6.4.19：关键词过滤（纯规则列表——filterRules 由编辑器维护；
+    // 兼容字段保留旧值不覆盖，避免清掉历史简单关键词配置）
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
-    OPTS.currentSettings.filterKeywords = document.getElementById('vmFilterKeywords').value;
-    OPTS.currentSettings.filterMatchMode = document.getElementById('filterMatchMode').value;
-    // v6.4.8：规则列表（编辑器已维护 currentSettings.filterRules）
-    const vmKeywordsRaw = document
-      .getElementById('vmFilterKeywords')
-      .value.split(/[,，]/)
-      .map((s) => s.trim())
-      .filter(Boolean);
-    OPTS.currentSettings.vmFilterKeywords = vmKeywordsRaw.length > 0 ? vmKeywordsRaw : ['虚拟机板', '虚拟机'];
 
     // 权重（v4.0.0：新增 playTime/heat——必须写入保存映射，否则用户保存时
     // 会抹掉新权重项的自定义值）
@@ -425,8 +553,11 @@ function escapeHtml(s) {
       model: document.getElementById('llmModel').value.trim(),
       temperature: document.getElementById('llmTemp').value / 100
     };
-    // v6.3.3：ITAD 二次校验 key（可选）
-    OPTS.currentSettings.itadApiKey = document.getElementById('itadApiKey').value.trim();
+    // v6.4.19：界面皮肤
+    OPTS.currentSettings.uiTheme = document.getElementById('uiTheme').value;
+    // v6.4.19：ITAD 多套配置（编辑器已维护 currentSettings.itadProfiles/
+    // itadActiveProfileId——见 renderItadProfiles；旧 itadApiKey 字段保留兼容，
+    // 后台读取时 profiles 优先）
 
     // 下载站与追踪管理（合并后的统一配置入口）
     const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];

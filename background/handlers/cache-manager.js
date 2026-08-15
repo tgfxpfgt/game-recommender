@@ -23,7 +23,8 @@ import {
   deleteSteamCacheEntry,
   getSteamCacheMemory,
   loadSteamCacheToMemory,
-  getMergedData
+  getMergedData,
+  isModuleValid
 } from '../storage/steam-cache.js';
 
 /**
@@ -81,6 +82,23 @@ export async function handleGetGameCacheList(message) {
   await loadSteamCacheToMemory();
   const steamCacheMemory = getSteamCacheMemory();
 
+  // v6.4.19：缓存模块统计（按信息类型细分：meta/rating/detail/spy）——
+  // count = 有条目的模块数据条数，stale = 其中已过期条数（TTL 建议由 UI 展示）
+  const MODULE_KEYS = ['meta', 'rating', 'detail', 'spy'];
+  const moduleStats = {};
+  for (const k of MODULE_KEYS) moduleStats[k] = { count: 0, stale: 0 };
+  if (steamCacheMemory) {
+    for (const entry of steamCacheMemory.values()) {
+      for (const k of MODULE_KEYS) {
+        const mod = entry && entry.modules && entry.modules[k];
+        if (mod && mod.data) {
+          moduleStats[k].count++;
+          if (!isModuleValid(entry, k)) moduleStats[k].stale++;
+        }
+      }
+    }
+  }
+
   // 推荐值（appId 维度个性化）：批量计算一次取齐画像/偏好，循环复用
   const [gameProfiles, keywordWeights] = await Promise.all([readProfiles(), readKeywordWeights()]);
   const allProfiles = Object.values(gameProfiles);
@@ -135,7 +153,14 @@ export async function handleGetGameCacheList(message) {
         lastCalled: u.lastCalled || null // v6.4.8：上次调用时间
       })),
       primaryDownloadUrl: primaryUrl ? primaryUrl.url : '',
-      lastAccessed: primaryUrl ? primaryUrl.lastAccessed : null
+      lastAccessed: primaryUrl ? primaryUrl.lastAccessed : null,
+      // v6.4.19：各信息类型缓存新鲜度（true=有效 / false=缺失或过期）——
+      // 缓存详情展示用（独立查看/管理）
+      moduleFreshness: (() => {
+        const out = {};
+        for (const k of MODULE_KEYS) out[k] = cachedEntry ? isModuleValid(cachedEntry, k) : false;
+        return out;
+      })()
     };
   });
 
@@ -168,7 +193,7 @@ export async function handleGetGameCacheList(message) {
   const start = (page - 1) * pageSize;
   const pageItems = games.slice(start, start + pageSize);
 
-  return { games: pageItems, total, page, pageSize, totalPages };
+  return { games: pageItems, total, page, pageSize, totalPages, moduleStats };
 }
 
 export async function handleDeleteGameCacheEntry(message) {

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>游戏雷达 Game Radar</title>
   <link rel="stylesheet" href="../styles/ui-theme.css">
+  <link rel="stylesheet" href="../styles/themes.css">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
@@ -140,20 +141,9 @@
         <div class="section-body">
           <label class="check-item">
             <input type="checkbox" id="ppVmFilter">
-            <span>启用关键词过滤</span>
+            <span>启用关键词过滤（规则）</span>
           </label>
-          <div class="ctrl-row">
-            <span class="ctrl-label">关键词</span>
-            <input type="text" id="ppVmKeywords" class="mini-input" style="flex:1" placeholder="虚拟机板, 重制版, 测试版">
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">匹配模式</span>
-            <select id="ppFilterMatch" class="mini-select">
-              <option value="contains">包含（子串匹配）</option>
-              <option value="exact">整段（标题分段完全相等，防误报）</option>
-            </select>
-          </div>
-          <p class="hint">支持多条规则（关键词 + 排除误报词），在设置中心「过滤」面板编辑</p>
+          <p class="hint">每条规则：命中关键词且不命中排除词 → 隐藏该游戏（如 虚拟机 排除 非虚拟机）。规则在设置中心逐条编辑</p>
           <button id="ppOpenFilterRules" class="btn-sm ghost" type="button">🧩 编辑过滤规则 →</button>
         </div>
       </details>

@@ -7,7 +7,6 @@
 
 const PAGES = {
   options: { label: '设置（经典）', url: '../options/options.html?hub=1' },
-  vista: { label: 'Vista 菜单', url: '../menu-vista/index.html?hub=1' },
   dashboard: { label: '数据分析', url: '../dashboard/dashboard.html?hub=1' },
   freegames: { label: '限免游戏', url: '../freegames/freegames.html?hub=1' }
 };

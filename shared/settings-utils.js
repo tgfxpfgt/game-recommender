@@ -61,5 +61,16 @@
     }
   }
 
-  global.__GR_SETTINGS_UTILS__ = { deepSet, getByPath, applyPatch, goHub };
+  // v6.4.19：应用皮肤主题（body data-theme → themes.css 变量覆盖生效）
+  // Apply the UI skin theme (body[data-theme] drives themes.css overrides).
+  const VALID_THEMES = new Set([
+    'steam', 'vista', 'win31', 'win95', 'win98', 'winxp', 'win7', 'win8', 'win10', 'win11'
+  ]);
+  function applyTheme(theme) {
+    if (typeof document === 'undefined') return;
+    const t = VALID_THEMES.has(theme) ? theme : 'steam';
+    document.body.dataset.theme = t;
+  }
+
+  global.__GR_SETTINGS_UTILS__ = { deepSet, getByPath, applyPatch, goHub, applyTheme };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

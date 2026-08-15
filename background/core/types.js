@@ -80,7 +80,12 @@
  * @property {string} [filterKeywords] - 通用标题关键词过滤（逗号分隔，v6.4.7）
  * @property {string} [filterMatchMode] - contains|exact（防误报整段匹配）
  * @property {Array<{keyword: string, exclude: string}>} [filterRules] - 关键词过滤规则（v6.4.8：每条含排除误报词）
- * @property {string} [itadApiKey] - ITAD 二次校验 key（限免通知候选确认，v6.3.3）
+ * @property {string} [itadApiKey] - ITAD 二次校验 key（限免通知候选确认，v6.3.3；v6.4.19 起 profiles 优先）
+ * @property {Array<{id: string, name: string, key: string}>} [itadProfiles] - ITAD 多套配置（v6.4.19）
+ * @property {string} [itadActiveProfileId] - 激活的 ITAD 配置 id（v6.4.19）
+ * @property {string} [uiTheme] - 界面皮肤：steam|vista|win31|win95|win98|winxp|win7|win8|win10|win11（v6.4.19）
+ * @property {Object} [dataSources] - 数据源开关（steam/epic/gog/gamerpower/bing，v6.4.19）
+ * @property {Object} [steamApiModules] - Steam 数据模块开关（meta/rating/detail/spy，v6.4.19）
  * @property {number} [maxBehaviorLog] - 行为日志上限
  * @property {boolean} enableLog
  * @property {number} maxRuntimeLog

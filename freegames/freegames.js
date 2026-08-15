@@ -20,6 +20,8 @@ let currentFilter = 'all';
 let currentClaimFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
+  // v6.4.19：应用皮肤主题
+  (async () => { try { const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' }); const s = r && r.settings; if (s && globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) globalThis.__GR_SETTINGS_UTILS__.applyTheme(s.uiTheme); } catch {} })();
   loadFreeGames();
 
   // v6.4.11：返回设置中心（hub 内切面板 / 独立打开新标签）

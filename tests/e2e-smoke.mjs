@@ -142,8 +142,7 @@ async function runChecks() {
       recentFilter: !!document.getElementById('ppRecentFilter'),
       filterMode: !!document.getElementById('ppFilterMode'),
       sortByRating: !!document.getElementById('ppSortByRating'),
-      vmKeywords: !!document.getElementById('ppVmKeywords'),
-      filterMatch: !!document.getElementById('ppFilterMatch'),
+      ruleBtn: !!document.getElementById('ppOpenFilterRules'),
       weights: document.querySelectorAll('#ppWeights [data-w]').length,
       badges: ['ppBadgeRecent', 'ppBadgeAll', 'ppBadgeUpdate', 'ppBadgeRec'].every((id) => !!document.getElementById(id)),
       autoBackup: !!document.getElementById('ppAutoBackup'),
@@ -151,9 +150,9 @@ async function runChecks() {
       freeGamesBtn: !!document.getElementById('freeGamesBtn')
     }));
     check('popup 集中入口（设置中心按钮替代独立入口）', popupCover.hubBtn && !popupCover.optionsBtn && !popupCover.dashboardBtn);
-    check('popup 全覆盖设置（30天过滤/模式/重排/关键词/徽章/权重/备份/日志）',
+    check('popup 全覆盖设置（30天过滤/模式/重排/规则入口/徽章/权重/备份/日志）',
       popupCover.recentFilter && popupCover.filterMode && popupCover.sortByRating &&
-      popupCover.vmKeywords && popupCover.filterMatch && popupCover.weights === 6 &&
+      popupCover.ruleBtn && popupCover.weights === 6 &&
       popupCover.badges && popupCover.autoBackup && popupCover.logLevel && popupCover.freeGamesBtn);
     check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
     await page.close();
@@ -227,18 +226,17 @@ async function runChecks() {
       document.getElementById('minRating').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('ratingFilterMode').value = 'or';
       document.getElementById('ratingFilterMode').dispatchEvent(new Event('change', { bubbles: true }));
-      document.getElementById('vmFilterKeywords').value = '测试版,内测';
-      document.getElementById('vmFilterKeywords').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('ruleAddBtn').click();
       document.getElementById('saveBtn').click();
     });
     await optPage2.waitForTimeout(2000);
     const filterSaved = await optPage2.evaluate(async () => {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       const s = resp.settings;
-      return { enable: s.enableRatingFilter, min: s.minSteamRatingFilter, mode: s.ratingFilterMode, kw: s.filterKeywords };
+      return { enable: s.enableRatingFilter, min: s.minSteamRatingFilter, mode: s.ratingFilterMode };
     });
-    check('过滤设置全量保存（好评率开+阈值65/关系or/关键词）',
-      filterSaved.enable === true && filterSaved.min === 65 && filterSaved.mode === 'or' && filterSaved.kw === '测试版,内测', JSON.stringify(filterSaved));
+    check('过滤设置全量保存（好评率开+阈值65/关系or）',
+      filterSaved.enable === true && filterSaved.min === 65 && filterSaved.mode === 'or', JSON.stringify(filterSaved));
     // 重开设置页回显（好评率过滤开关+阈值）
     await optPage2.close();
     const optPage3 = await context.newPage();
@@ -275,68 +273,51 @@ async function runChecks() {
     await popup4.close();
 
     // 2c. Vista Aero 新菜单（v6.4.6）
-    console.log('2c. Vista 新菜单冒烟');
-    const vista = await context.newPage();
-    const vistaErrors = [];
-    vista.on('console', (msg) => { if (msg.type() === 'error') vistaErrors.push(msg.text()); });
-    vista.on('pageerror', (e) => vistaErrors.push(String(e)));
-    await vista.goto(`chrome-extension://${extId}/menu-vista/index.html`);
-    await vista.waitForTimeout(1200);
-    const vistaState = await vista.evaluate(() => ({
-      title: document.title,
-      version: document.getElementById('extVersion').textContent,
-      enabled: document.getElementById('vEnabled').checked,
-      weights: document.querySelectorAll('[data-w]').length,
-      panels: document.querySelectorAll('.aero-panel').length,
-      classicBtn: !!document.getElementById('toggleClassic')
+    // 2c. 皮肤系统（v6.4.19：可选主题 + 立即生效 + 保存往返）
+    console.log('2c. 皮肤系统（Steam/Vista/Win 历代主题）');
+    const skinPage = await context.newPage();
+    const skinErrors = [];
+    skinPage.on('console', (msg) => { if (msg.type() === 'error') skinErrors.push(msg.text()); });
+    skinPage.on('pageerror', (e) => skinErrors.push(String(e)));
+    await skinPage.goto(`chrome-extension://${extId}/options/options.html`);
+    await skinPage.waitForTimeout(1200);
+    const skinState = await skinPage.evaluate(() => ({
+      select: document.getElementById('uiTheme').value,
+      options: Array.from(document.querySelectorAll('#uiTheme option')).map((o) => o.value),
+      theme: document.body.dataset.theme,
+      vistaBtnGone: !document.getElementById('openVistaMenu')
     }));
-    check('Vista 菜单渲染（标题/版本/启用开关）', vistaState.title.includes('Vista') && vistaState.version.includes('v') && vistaState.enabled === true);
-    check('Vista 菜单全功能（8 面板 + 6 权重滑块 + 切换按钮）', vistaState.panels === 8 && vistaState.weights === 6 && vistaState.classicBtn);
-    check('Vista 菜单无 console error', vistaErrors.length === 0, `(${vistaErrors.slice(0, 3).join(' | ')})`);
-    // v6.4.11：Vista 徽章开关嵌套保存（此前 Object.assign 拍平点号键，
-    // badgeVisibility.recent 永远写不进）——切换后经 GET_SETTINGS 验证
-    await vista.evaluate(() => document.getElementById('vBadgeRecent').click());
-    await vista.waitForTimeout(1200);
-    const badgeSaved = await vista.evaluate(async () => {
+    check('皮肤选择器（默认 steam + 10 主题 + Vista 入口移除）',
+      skinState.select === 'steam' && skinState.options.length === 10 && skinState.vistaBtnGone);
+    // 切换皮肤 → body[data-theme] 立即生效 + 保存往返
+    await skinPage.evaluate(() => {
+      const sel = document.getElementById('uiTheme');
+      sel.value = 'win95';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('saveBtn').click();
+    });
+    await skinPage.waitForTimeout(1500);
+    const skinApplied = await skinPage.evaluate(() => document.body.dataset.theme);
+    check('皮肤切换立即生效（body[data-theme=win95]）', skinApplied === 'win95');
+    await skinPage.close();
+    const skinPage2 = await context.newPage();
+    await skinPage2.goto(`chrome-extension://${extId}/options/options.html`);
+    await skinPage2.waitForTimeout(1200);
+    const skinPersist = await skinPage2.evaluate(async () => {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-      const s = resp.settings;
-      return { recent: s.badgeVisibility && s.badgeVisibility.recent, noDotted: !('badgeVisibility.recent' in s) };
+      return { theme: resp.settings.uiTheme, applied: document.body.dataset.theme };
     });
-    check('Vista 徽章开关已保存（deepSet 修复嵌套键）', badgeSaved.recent === false && badgeSaved.noDotted);
-    await vista.evaluate(() => document.getElementById('vBadgeRecent').click());
-    await vista.waitForTimeout(1200);
-    const badgeRestored = await vista.evaluate(async () => {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-      return resp.settings.badgeVisibility && resp.settings.badgeVisibility.recent;
+    check('皮肤保存并重开生效（uiTheme=win95）', skinPersist.theme === 'win95' && skinPersist.applied === 'win95');
+    // 还原默认皮肤（避免影响后续断言）
+    await skinPage2.evaluate(() => {
+      const sel = document.getElementById('uiTheme');
+      sel.value = 'steam';
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('saveBtn').click();
     });
-    check('Vista 徽章开关回切成功', badgeRestored === true);
-    // Vista 交互：规则添加 / 站点管理 / ITAD 按钮 / 日志查看（v6.4.9）
-    await vista.evaluate(() => {
-      document.querySelector('.aero-nav .nav-item[data-panel="filters"]').click();
-      document.getElementById('vRuleAdd').click();
-    });
-    await vista.waitForTimeout(500);
-    const ruleRows = await vista.evaluate(() => document.querySelectorAll('#vRuleList .aero-row').length);
-    check('Vista 规则添加（编辑器行出现）', ruleRows >= 1);
-    await vista.evaluate(() => {
-      document.querySelector('.aero-nav .nav-item[data-panel="general"]').click();
-      document.querySelector('.aero-nav .nav-item[data-panel="recommend"]').click();
-    });
-    await vista.waitForTimeout(300);
-    const itadBtns = await vista.evaluate(() => ({
-      save: !!document.getElementById('vItadSave'),
-      test: !!document.getElementById('vItadTest'),
-      siteAdd: !!document.getElementById('vAddSite')
-    }));
-    check('Vista ITAD 保存/测试按钮存在', itadBtns.save && itadBtns.test);
-    await vista.evaluate(() => document.querySelector('.aero-nav .nav-item[data-panel="logging"]').click());
-    await vista.waitForTimeout(500);
-    const logState = await vista.evaluate(() => ({
-      refresh: !!document.getElementById('vLogRefresh'),
-      list: document.getElementById('vLogList').innerHTML.length > 0
-    }));
-    check('Vista 日志查看（刷新按钮 + 列表渲染）', logState.refresh && logState.list);
-    await vista.close();
+    await skinPage2.waitForTimeout(1200);
+    check('皮肤系统无 console error', skinErrors.length === 0, `(${skinErrors.slice(0, 3).join(' | ')})`);
+    await skinPage2.close();
 
     // 2d. 设置中心 hub（v6.4.11：所有页面集中入口 + 一键切换）
     console.log('2d. 设置中心 hub 集中入口');
@@ -352,8 +333,8 @@ async function runChecks() {
       active: document.querySelector('.hub-item.active')?.dataset.page || '',
       version: document.getElementById('hubVersion').textContent
     }));
-    check('hub 渲染（4 个页面入口 + 默认加载设置页）',
-      hubState.items === 4 && hubState.active === 'options' && hubState.frameSrc.includes('options/options.html') && hubState.version.includes('v'));
+    check('hub 渲染（3 个页面入口 + 默认加载设置页）',
+      hubState.items === 3 && hubState.active === 'options' && hubState.frameSrc.includes('options/options.html') && hubState.version.includes('v'));
     // 切换：数据分析（iframe 内 dashboard 页面加载；趋势图数据依赖浏览行为，
     // 本段位于第 4 节之前可能为空 → 仅断言页面结构与标题）
     await hub.evaluate(() => document.querySelector('.hub-item[data-page="dashboard"]').click());

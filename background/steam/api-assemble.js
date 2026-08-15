@@ -9,6 +9,7 @@ import {
 import { fetchLastUpdate, fetchSteamReviews } from './api-reviews.js';
 import { DEMO_NAME_PATTERN } from './api-search.js';
 import { fetchSteamSpyInfo } from './api-supplement.js';
+import { getSettings } from '../core/settings.js'; // v6.4.19：模块开关（MV3 SW 不支持动态 import，必须静态）
 
 /**
  * 游戏雷达 Game Radar - Steam API 子模块：api-assemble.js
@@ -28,7 +29,8 @@ export function buildSteamResult(
   enGameData,
   /** @type {string|null} */ lastUpdate = null
 ) {
-  const { reviewSummary, cnReviewSummary, chineseReviews } = reviews;
+  // v6.4.19：reviews 可能为 null（rating 模块关闭时）——容忍缺失
+  const { reviewSummary, cnReviewSummary, chineseReviews } = reviews || {};
   const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;
   // 近 30 天好评率（v3.3.6，来自 filter=recent 评测数组统计）
   const recent = reviewSummary && reviewSummary.recent ? reviewSummary.recent : null;
@@ -118,17 +120,26 @@ export async function fetchSteamFullDetailsByAppId(appId) {
   }
   if (!gameData) return null;
 
-  const storeHtml = await fetchStorePageHtml(appId);
+  // v6.4.19：Steam API 模块开关——关闭的模块不调用其接口（好评率/详情解析/
+  // SteamSpy），对应字段置空；基础信息（meta）为必需项不参与开关。
+  // Per-module API toggles: disabled modules are not fetched (fields left empty).
+  const settings = await getSettings();
+  const mods = settings.steamApiModules || {};
+
+  const storeHtml = mods.detail === false ? null : await fetchStorePageHtml(appId);
   const [langInfo, userTags, reviews] = await Promise.all([
-    Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData)),
-    Promise.resolve(parseUserTags(storeHtml, gameData)),
-    fetchSteamReviews(appId)
+    mods.detail === false
+      ? Promise.resolve({ chineseSupported: false, simplifiedChinese: false, chineseHasAudio: false, chineseHasSubtitles: false })
+      : Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData)),
+    mods.detail === false ? Promise.resolve([]) : Promise.resolve(parseUserTags(storeHtml, gameData)),
+    mods.rating === false ? Promise.resolve(null) : fetchSteamReviews(appId)
   ]);
   // v3.3.6：SteamSpy 总是请求（详情页以 SteamSpy 为主数据）；最近更新日期
   // 用最新公告日期近似。v6.2.1：SteamDB 网页抓取移除（链接模板拼接即可）
+  // v6.4.19：spy 开关关闭时跳过 SteamSpy；lastUpdate 属详情解析一并受控
   const [steamspyInfo, lastUpdate] = await Promise.all([
-    fetchSteamSpyInfo(appId).catch(() => null),
-    fetchLastUpdate(appId).catch(() => null)
+    mods.spy === false ? Promise.resolve(null) : fetchSteamSpyInfo(appId).catch(() => null),
+    mods.detail === false ? Promise.resolve(null) : fetchLastUpdate(appId).catch(() => null)
   ]);
 
   return buildSteamResult(
