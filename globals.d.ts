@@ -10,7 +10,6 @@
 
 // 全局命名空间（globalThis.X 访问需 declare global）/ namespace globals
 declare global {
-  var chrome: any; // chrome 扩展 API（MV3 全局）
   var __GR__: any; // 内容脚本命名空间（v6.0.0 起退场，兼容旧引用）
   var GR: any;
   var __GAME_RECOMMENDER_SITES__: any; // 适配规则（adapters 经典注入）

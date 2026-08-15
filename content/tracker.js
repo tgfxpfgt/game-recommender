@@ -214,9 +214,9 @@
           const adapter = M.builder.getAdapter();
           if (M.list.isListPageByUrl() || adapter.isListPage()) {
             let items = M.list.getListItemsSmart(adapter);
-            // 应用虚拟机过滤（若已启用）
+            // 应用关键词过滤规则（若已启用；v7.2.0 修正参数——原传 vmFilterKeywords 数组）
             if (settings.enableVmFilter) {
-              items = M.list.applyVmFilter(items, settings.vmFilterKeywords);
+              items = M.list.applyVmFilter(items, settings);
             }
             M.list.requestRecommendations(items, settings);
           }

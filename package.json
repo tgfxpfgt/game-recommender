@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "7.1.0",
+  "version": "7.2.0",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -21,6 +21,7 @@
     "test:changed": "vitest run --changed"
   },
   "devDependencies": {
+    "@types/chrome": "^0.2.6",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^9.0.0",
     "playwright-core": "^1.45.0",
