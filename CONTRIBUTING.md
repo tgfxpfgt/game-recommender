@@ -28,6 +28,17 @@ npm run coverage       # vitest 覆盖率
 - **新增测试文件必须加入 `vitest.config.js` 的 include 显式列表**（vitest 默认只匹配 `.test.` 后缀）。
 - **转换教训（重要）**：check 线性脚本（顶层准备 + 立即断言）转 vitest 时，**凡"顶层状态 + 延迟断言"必须打包进同一 test/beforeAll**——顶层准备在收集阶段全部提前执行，断言运行阶段读到最终状态（v6.1.1 根因）。多 fetch mock 必须按 describe 作用域安装/卸载（顶层多 mock 后装覆盖前者，v6.2.0 教训）。
 - **mock 工具**：`tests/helpers/storage-mock.mjs`（chrome.storage，含 `_reset()` 隔离）+ `fetch-mock.mjs`（URL 子串分发）。
+- **新增业务文件覆盖率门槛（v7.0.7）**：`npm run coverage:gate`——相对 origin/main（浅克隆回退 HEAD~1）的**新增业务文件**行覆盖 <50% 拒绝；已接入 CI。
+
+## 工程护栏（v7.0.7）
+
+- **git 钩子**（`sh scripts/install-hooks.sh` 安装，core.hooksPath=.githooks）：
+  - `pre-commit`：暂存 .js/.mjs 语法（node --check）+ eslint + prettier --check 三层快速校验
+  - `commit-msg`：提交信息 conventional 格式（feat|fix|refactor|docs|chore|test|style|perf|build|ci(scope)?: 描述）
+  - `pre-push`：push 前跑 `npm run check`（lint + typecheck + vitest）——坏提交本地拦截
+- **依赖与密钥防线**：`npm run audit`（devDeps 漏洞）；CI security job 跑 npm audit + gitleaks（Secret 扫描）
+- **CI**：test job（lint + typecheck + vitest + coverage:gate）；e2e job 用 **E2E_FAST 离线模式**（真实 Steam 网络段不可控，本地全量覆盖）
+- **发布**：`node scripts/release.mjs [版本号]` 半自动（门禁 → bump → changelog 草稿 → commit/tag/push → release 草稿）——**Mimosa seal 仍人工补入**
 
 ## 代码约定
 

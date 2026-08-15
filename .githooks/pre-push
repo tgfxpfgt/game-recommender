@@ -1,0 +1,14 @@
+#!/bin/sh
+# Game Recommender pre-push 钩子（v7.0.7）
+# push 前运行完整门禁（lint + typecheck + vitest）——坏提交在本地拦截，
+# 避免触发远端 CI 红灯。E2E/覆盖率门禁由发布流程负责（本地可另行执行）。
+# pre-push hook: full check gate (lint + typecheck + vitest) before pushing.
+
+echo "⏳ pre-push: 运行 npm run check（lint + typecheck + vitest）..."
+if ! npm run check >/dev/null 2>&1; then
+  echo "❌ pre-push 门禁失败（npm run check）——请修复后重新 push" >&2
+  npm run check 2>&1 | tail -25 >&2
+  exit 1
+fi
+echo "✅ pre-push 门禁通过"
+exit 0

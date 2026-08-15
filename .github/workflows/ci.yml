@@ -15,7 +15,10 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
+      # v7.0.7：全历史检出——coverage:gate 需要对比 origin/main/HEAD~1
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 20
@@ -27,8 +30,11 @@ jobs:
         run: npm run lint
       - name: 运行类型检查 / Run TypeScript check
         run: npm run typecheck
-      - name: 运行测试套件（vitest 16 套件全量）/ Run test suites
+      - name: 运行测试套件（vitest 15 套件全量）/ Run test suites
         run: npm test
+      # v7.0.7 T1：新增业务文件覆盖率门槛（行覆盖 <50% 拒绝）
+      - name: 新增文件覆盖率门槛 / Coverage gate
+        run: npm run coverage:gate
 
   e2e:
     # v3.4.1：浏览器端 E2E 冒烟（安装微软官方 Edge，xvfb 虚拟显示跑非无头）
@@ -50,5 +56,28 @@ jobs:
           sudo apt-get install -y microsoft-edge-stable
       - name: 安装依赖 / Install dependencies
         run: npm ci
-      - name: 运行 E2E 冒烟 / Run E2E smoke
-        run: xvfb-run -a npm run e2e
+      # v7.0.7 T2：CI 用 E2E_FAST 离线模式（跳过真实 Steam 网络段——网络不可控
+      # 曾致 CI 偶发红）；本地开发仍跑全量（含真实网络链路）
+      - name: 运行 E2E 冒烟（离线模式）/ Run E2E smoke (offline)
+        run: xvfb-run -a env E2E_FAST=1 npm run e2e
+
+  security:
+    # v7.0.7 S1/S2：依赖漏洞审计 + Secret 泄漏扫描（密钥/Token 防泄漏防线）
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖 / Install dependencies
+        run: npm ci
+      - name: 依赖漏洞审计 / npm audit
+        run: npm audit --audit-level=high
+      - name: Secret 扫描 / Gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

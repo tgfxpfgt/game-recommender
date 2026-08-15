@@ -19,7 +19,8 @@ function run(cmd) {
   return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
-// 1. 找出相对 origin/main 的新增文件（未合并的 A 状态）
+// 1. 找出相对 origin/main 的新增文件（未合并的 A 状态）；无远端基线时
+//    回退对比 HEAD~1（CI 浅克隆场景——防止门禁被静默跳过）
 let newFiles = [];
 try {
   const base = run('git merge-base HEAD origin/main').trim();
@@ -30,9 +31,19 @@ try {
     .filter((f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')))
     .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
 } catch {
-  // 无 origin/main（如首次克隆）→ 跳过
-  console.log('⚠️ 无 origin/main 基线，跳过覆盖率门禁');
-  process.exit(0);
+  // 无 origin/main（首次克隆/浅克隆）→ 回退 HEAD~1
+  try {
+    const diff = run('git diff --name-only --diff-filter=A HEAD~1 HEAD');
+    newFiles = diff
+      .split('\n')
+      .map((f) => f.trim())
+      .filter((f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')))
+      .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
+    console.log('⚠️ 无 origin/main 基线，回退对比 HEAD~1');
+  } catch {
+    console.log('⚠️ 无法确定基线，跳过覆盖率门禁');
+    process.exit(0);
+  }
 }
 
 if (newFiles.length === 0) {

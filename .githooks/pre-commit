@@ -1,17 +1,41 @@
 #!/bin/sh
-# Game Recommender pre-commit 钩子（v4.1.2）
-# 快速校验：仅对本次暂存的 .js/.mjs 改动做 node --check 语法检查
-# （不跑全量测试/lint，避免拖慢提交；完整验证由 npm run check 负责）
-# pre-commit hook: syntax-check staged JS files only (fast path)
+# Game Recommender pre-commit 钩子（v7.0.7）
+# 三层快速校验（仅暂存文件，避免拖慢提交；完整验证由 npm run check 负责）：
+#   1. node --check 语法
+#   2. eslint 暂存文件（风格/未用变量/常见隐患）
+#   3. prettier --check（格式统一，防漂移）
+# pre-commit hook: staged-file syntax + eslint + prettier (fast path)
 
 FAIL=0
-for FILE in $(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$'); do
+FILES=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs)$')
+
+# 1. 语法检查 / syntax check
+for FILE in $FILES; do
   if ! node --check "$FILE" >/dev/null 2>&1; then
     echo "❌ 语法错误: $FILE" >&2
     node --check "$FILE" 2>&1 >/dev/null | head -3 >&2
     FAIL=1
   fi
 done
+
+# 2. ESLint（暂存文件）
+if [ -n "$FILES" ]; then
+  if ! npx eslint $FILES >/dev/null 2>&1; then
+    echo "❌ ESLint 错误（暂存文件）:" >&2
+    npx eslint $FILES 2>&1 | head -20 >&2
+    FAIL=1
+  fi
+fi
+
+# 3. Prettier 格式检查（暂存文件）
+if [ -n "$FILES" ]; then
+  if ! npx prettier --check $FILES >/dev/null 2>&1; then
+    echo "❌ Prettier 格式不符（暂存文件）——请运行: npx prettier --write $FILES" >&2
+    npx prettier --check $FILES 2>&1 | head -10 >&2
+    FAIL=1
+  fi
+fi
+
 if [ "$FAIL" -ne 0 ]; then
   echo "  请修复后重新提交（完整验证: npm run check）" >&2
   exit 1

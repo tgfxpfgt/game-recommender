@@ -256,6 +256,15 @@ node --check options/options.js
 
 ## 更新日志
 
+### v7.0.7（全方位规则优化：本地钩子门禁 + CI 加固 + 安全防线 + 半自动发布）
+- **G1 pre-push 门禁**：push 前自动跑 `npm run check`（lint + typecheck + vitest，check 脚本补 typecheck）——坏提交本地拦截，CI 不再首当其冲
+- **G2+E1 pre-commit 升级**：暂存 .js/.mjs 三层校验——语法（node --check）+ **eslint** + **prettier --check**（实测即抓出 scripts 格式问题）
+- **S1 依赖审计**：`npm run audit`（--audit-level=high）实测 0 漏洞；**S2 Secret 扫描**：CI security job 集成 **gitleaks**（密钥/Token 防泄漏）
+- **T1 覆盖率门槛入 CI**：coverage:gate 接入 test job；脚本增加 **HEAD~1 回退**（浅克隆场景不静默跳过）；**T2 CI E2E 改离线模式**（E2E_FAST——真实 Steam 网络段不可控曾致 CI 偶发红；本地仍全量）
+- **R1 半自动发布**：`node scripts/release.mjs [版本号]`——版本互比校验 → 门禁全验 → bump → **CHANGELOG 草稿自动生成**（conventional 类型分组）→ commit/tag/push（交互确认）→ release 草稿——**Mimosa seal 流程保留**（脚本提示人工补入）
+- **E3 CONTRIBUTING 更新**：新增「工程护栏」章节（钩子/审计/CI/发布脚本用法）
+- **质量**：vitest 591 · lint 0 · typecheck 0 · E2E 38/38 · audit 0 · coverage:gate ✅
+
 ### v7.0.6（测试体系精简：套件合并 19→15 + eslint 规则去重 + 输出去噪）
 - **套件合并**：`test-settings-utils` / `test-url-index` / `test-backups` 并入 **test-storage**（存储层统一套件）；`test-ai-fallback` 并入 **test-handlers**（消息链路统一套件）——测试数不变（591），文件数 19 → 15
 - **eslint 规则精简**：tests 专用块 globals 与主块完全重复——去重（块保留仅作测试文件风格豁免）；`eslint .` 全量 0

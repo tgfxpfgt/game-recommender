@@ -13,7 +13,8 @@ else
 fi
 
 # 确保钩子可执行（Git for Windows 依赖 sh 解释器，POSIX 位非必需但保持惯例）
-chmod +x .githooks/commit-msg .githooks/pre-commit 2>/dev/null || true
+chmod +x .githooks/commit-msg .githooks/pre-commit .githooks/pre-push 2>/dev/null || true
 echo "   钩子: .githooks/commit-msg（提交信息格式校验）"
-echo "   钩子: .githooks/pre-commit（暂存 JS 语法检查）"
+echo "   钩子: .githooks/pre-commit（暂存文件 语法 + eslint + prettier 校验）"
+echo "   钩子: .githooks/pre-push（push 前完整门禁 lint+typecheck+vitest）"
 echo "   卸载: git config --unset core.hooksPath"
