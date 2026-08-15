@@ -5,9 +5,11 @@
 # pre-push hook: full check gate (lint + typecheck + vitest) before pushing.
 
 echo "⏳ pre-push: 运行 npm run check（lint + typecheck + vitest）..."
-if ! npm run check >/dev/null 2>&1; then
-  echo "❌ pre-push 门禁失败（npm run check）——请修复后重新 push" >&2
-  npm run check 2>&1 | tail -25 >&2
+# v7.3.0：首次失败输出完整日志（此前静默失败无法诊断——check 偶发非零退出）
+CHECK_LOG="${TMPDIR:-/tmp}/gr-pre-push-check.log"
+if ! npm run check >"$CHECK_LOG" 2>&1; then
+  echo "❌ pre-push 门禁失败（npm run check）——详见下方日志：" >&2
+  tail -40 "$CHECK_LOG" >&2
   exit 1
 fi
 echo "✅ pre-push 门禁通过"
