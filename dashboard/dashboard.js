@@ -23,7 +23,11 @@
 
 document.addEventListener('DOMContentLoaded', () => {
   // v6.4.19：应用皮肤主题
-  (async () => { try { const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' }); const s = r && r.settings; if (s && globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) globalThis.__GR_SETTINGS_UTILS__.applyTheme(s.uiTheme); } catch {} })();
+  (async () => { try { const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' }); const s = r && r.settings; if (s && globalThis.__GR_SETTINGS_UTILS__) {
+      const u = globalThis.__GR_SETTINGS_UTILS__;
+      if (u.applyTheme) u.applyTheme(s.uiTheme);
+      if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
+    } } catch {} })();
   loadStats();
   loadRuntimeLogs();
   loadBackups();

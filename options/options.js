@@ -53,9 +53,11 @@
         return;
       }
       OPTS.currentSettings = response.settings;
-      // v6.4.19：应用皮肤主题（body data-theme）
-      if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) {
-        globalThis.__GR_SETTINGS_UTILS__.applyTheme(OPTS.currentSettings.uiTheme);
+      // v6.4.19：应用皮肤主题（body data-theme）+ v7.0.5：自定义主题 CSS
+      const sut = globalThis.__GR_SETTINGS_UTILS__;
+      if (sut) {
+        sut.applyTheme(OPTS.currentSettings.uiTheme);
+        sut.applyCustomTheme(OPTS.currentSettings.customThemeCss);
       }
       OPTS.renderSettings(OPTS.currentSettings);
       bindEvents();
@@ -329,6 +331,36 @@ function maskKey(key) {
       if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) {
         globalThis.__GR_SETTINGS_UTILS__.applyTheme(e.target.value);
       }
+    });
+
+    // v7.0.5：自定义主题 CSS 导入/清除（本地文件，无网络）
+    document.getElementById('themeCssImport').addEventListener('click', () => {
+      document.getElementById('themeCssFile').click();
+    });
+    document.getElementById('themeCssFile').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const css = String(reader.result || '');
+        OPTS.currentSettings.customThemeCss = css;
+        const status = document.getElementById('themeCssStatus');
+        status.textContent = `✅ 已导入（${(css.length / 1024).toFixed(1)} KB）`;
+        if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme) {
+          globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme(css);
+        }
+        scheduleAutoSave();
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+    document.getElementById('themeCssClear').addEventListener('click', () => {
+      OPTS.currentSettings.customThemeCss = '';
+      document.getElementById('themeCssStatus').textContent = '✅ 已清除';
+      if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme) {
+        globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme('');
+      }
+      scheduleAutoSave();
     });
 
     // 阈值滑块

@@ -106,6 +106,19 @@ function validateNestedObject(siteKey, field, obj, depth) {
 // 校验一个站点的字段（必填项 + 类型白名单 + 嵌套递归 + 正则试编译）
 // Validate a site's fields (required fields + type whitelist + nested
 // recursion + regex compile check)
+// v7.0.5：轻量 ReDoS 风险启发式——嵌套量词（(a+)+ 类灾难性回溯）与超长正则
+// 拒绝；正常站点正则（/\/\d+\.html$/ 等）不受影响。纯函数，可单测。
+// Lightweight ReDoS heuristic: nested quantifiers ((a+)+) and over-long regexes.
+export function hasReDoSRisk(pattern) {
+  const src = String(pattern || '');
+  if (src.length > 200) return true;
+  // 分组内含量词且分组后带量词：(a+)+ / (a*){2,} / ([0-9]+)* 等灾难性回溯
+  if (/\([^()]*[*+][^()]*\)\s*[*+{]/.test(src)) return true;
+  // 交替分组带量词：(a|b)+ / (x|y)*（引擎需枚举所有分支组合）
+  if (/\([^()]*\|[^()]*\)\s*[*+]/.test(src)) return true;
+  return false;
+}
+
 function validateSiteRule(site, depth) {
   if (!isPlainObject(site)) return '站点规则必须是对象 (site rule must be an object)';
   if (depth > RULE_LIMITS.maxDepth) return '规则嵌套过深 (nesting too deep)';
@@ -137,6 +150,10 @@ function validateSiteRule(site, depth) {
       new RegExp(p, 'i');
     } catch {
       return `站点 "${site.key}" 含非法正则: ${String(p).substring(0, 60)}`;
+    }
+    // v7.0.5：ReDoS 风险正则拒绝（嵌套量词/超长——导入规则可被注入）
+    if (hasReDoSRisk(p)) {
+      return `站点 "${site.key}" 正则存在灾难性回溯风险（ReDoS）: ${String(p).substring(0, 60)}`;
     }
   }
   for (const [field, value] of Object.entries(site)) {

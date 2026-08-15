@@ -33,8 +33,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   const utils = globalThis.__GR_SETTINGS_UTILS__ || { applyPatch: (o, p) => Object.assign(o, p) };
 
-  // v6.4.19：应用皮肤主题
+  // v6.4.19：应用皮肤主题 + v7.0.5：自定义主题 CSS
   if (utils.applyTheme) utils.applyTheme(settings.uiTheme);
+  if (utils.applyCustomTheme) utils.applyCustomTheme(settings.customThemeCss);
 
   // ============ 保存（保存前重读最新设置，防快照覆盖） ============
   // v6.4.12：串行队列防竞态——快速连续操作时并发 GET→SAVE 会基于旧快照

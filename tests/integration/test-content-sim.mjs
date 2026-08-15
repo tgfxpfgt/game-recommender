@@ -286,7 +286,17 @@ async function loadModules() {
   // getURL mock：映射 content/... → file:// URL + ?t=（与 tracker 共享模块实例）
   globalThis.chrome.runtime.getURL = (path) =>
     new URL('../../' + path, import.meta.url).href;
-  const mods = await Promise.all(MODULE_FILES.map((f) => import(new URL('../../' + f, import.meta.url).href)));
+  // v7.0.5：全量并行下偶发 import 失败（循环依赖加载竞态，GR.listBatch null）——
+  // 整体失败重试 3 次（50ms 退避），根治偶发；仍失败则抛错（测试可见）
+  let mods = null;
+  for (let attempt = 0; attempt < 3 && !mods; attempt++) {
+    try {
+      mods = await Promise.all(MODULE_FILES.map((f) => import(new URL('../../' + f, import.meta.url).href)));
+    } catch (e) {
+      if (attempt === 2) throw e;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
   // GR shim：模块句柄挂回 __GR__（测试体 GR.x.y 引用零改动）
   const GR = (globalThis.__GR__ = globalThis.__GR__ || {});
   MODULE_KEYS.forEach((k, i) => { GR[k] = mods[i]; });

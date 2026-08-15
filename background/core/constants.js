@@ -55,6 +55,8 @@ export const DEFAULT_SETTINGS = {
   itadActiveProfileId: null,
   // v6.4.19：界面皮肤（steam 默认 / vista / win31-win11 历代风格）
   uiTheme: 'steam',
+  // v7.0.5：自定义主题 CSS（本地导入覆盖任意主题变量；空 = 不使用）
+  customThemeCss: '',
   weights: {
     // v4.0.0：新增 SteamSpy 时长/热度信号（playTime/heat），四项原有权重
     // 同步下调，六项和保持 1.0（徽章百分比不超 100%）

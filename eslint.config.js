@@ -39,6 +39,7 @@ export default [
         FileReader: 'readonly',
         TextEncoder: 'readonly',
         crypto: 'readonly',
+        history: 'readonly', // v7.0.5：hub.js 使用（浏览器全局，此前漏声明致误报）
         // 扩展 API / extension APIs
         chrome: 'readonly',
         // 内容脚本全局命名空间 / content-script namespaces

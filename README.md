@@ -256,6 +256,16 @@ node --check options/options.js
 
 ## 更新日志
 
+### v7.0.5（报告建议落地：hub lint 收口 + content-sim 竞态根治 + 推荐可解释 + ReDoS 校验 + 自定义主题 + 覆盖率门槛）
+- **A1 hub lint 收口**：eslint 补 `history` 浏览器全局声明（此前误报），hub/ 纳入 lint 扫描目录——`eslint .` 全量 0
+- **B2 content-sim 加载竞态根治**：loadModules 全量失败重试 3 次（50ms 退避）——根治全量并行下偶发的 `GR.listBatch` null（此前多次偶发）
+- **B3 推荐引擎可解释**：列表页推荐徽章悬停显示**六信号全量明细**（点击率/下载率/关键词/Steam/游玩时长/热度 + 归一化说明）；顺带修正旧 title 字段名错误（keywordMatch/steamRating → keywordScore/steamScore，此前显示 0%）
+- **B4 正则 ReDoS 校验**：适配规则导入新增 `hasReDoSRisk` 启发式（嵌套量词 `(a+)+`、交替分组带量词 `(a|b)+`、超长正则拒绝）——防导入规则灾难性回溯（含编译校验已有）
+- **C5 核验**：GOG 官方限免源**已存在**（v6.3.3 GOG 官方 ajax + 三类区分）——不重复投入
+- **C6 自定义主题 CSS**：设置页可导入本地 .css 覆盖任意主题变量（--gr-bg/--gr-accent 等），即时生效 + 清除；popup/dashboard/freegames 同步应用
+- **C7 覆盖率门槛**：`npm run coverage:gate`——对相对 origin/main 的**新增业务文件**跑覆盖率，行覆盖 < 50% 拒绝（防新增代码无测试上线）
+- **质量**：vitest 591 test（+7 ReDoS）· lint 0（全量）· typecheck 0 · E2E 38/38 · coverage:gate ✅
+
 ### v7.0.4（本地响应提速——内存换延迟：存储预热 + 内存缓存 + 聚合缓存）
 - **存储内存预热**：SW 启动时并行加载全部本地存储到内存（steam-cache / 名称索引 / 注册表 / 纠正知识库 / 噪声词 / 网址索引 / 行为数据 / 下载站网址）——**首个列表页/详情页查询零磁盘等待**（失败自动回退惰性加载）
 - **行为数据内存化**：行为日志/游戏画像/关键词权重**不再每次读盘**（此前推荐计算、统计每次 readModule）；写操作同步内存缓存（追加后重新读盘保证一致）；`dataVersion` 版本号驱动下游缓存失效

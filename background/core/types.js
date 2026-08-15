@@ -84,6 +84,7 @@
  * @property {Array<{id: string, name: string, key: string}>} [itadProfiles] - ITAD 多套配置（v6.4.19）
  * @property {string} [itadActiveProfileId] - 激活的 ITAD 配置 id（v6.4.19）
  * @property {string} [uiTheme] - 界面皮肤：steam|vista|win31|win95|win98|winxp|win7|win8|win10|win11（v6.4.19）
+ * @property {string} [customThemeCss] - 自定义主题 CSS（本地导入，v7.0.5）
  * @property {Object} [dataSources] - 数据源开关（steam/epic/gog/gamerpower/bing，v6.4.19）
  * @property {Object} [steamApiModules] - Steam 数据模块开关（meta/rating/detail/spy，v6.4.19）
  * @property {number} [maxBehaviorLog] - 行为日志上限

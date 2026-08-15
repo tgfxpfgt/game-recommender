@@ -168,3 +168,19 @@ test('未知模块非纯 JSON 拒绝', () => { expect(rulesMod.sanitizeImportedM
 test('未知模块纯 JSON 通过', () => { expect(JSON.stringify(rulesMod.sanitizeImportedModule('steamCache', { a: 1 }))).toEqual(JSON.stringify({ a: 1 })); });
 test('null 值未知模块拒绝', () => { expect(rulesMod.sanitizeImportedModule('behaviorLog', null)).toEqual(null); });
 
+
+// ============ v7.0.5：正则 ReDoS 风险校验 ============
+console.log('9. 正则 ReDoS 风险 hasReDoSRisk');
+const rr = rulesMod.hasReDoSRisk;
+test('嵌套量词 (a+)+ 拒绝', () => { expect(rr('(a+)+$')).toEqual(true); });
+test('嵌套量词 ([0-9]+)* 拒绝', () => { expect(rr('([0-9]+)*x')).toEqual(true); });
+test('交替分组带量词 (a|b)+ 拒绝', () => { expect(rr('(a|b)+')).toEqual(true); });
+test('超长正则拒绝', () => { expect(rr('a'.repeat(300))).toEqual(true); });
+test('正常站点正则放行', () => { expect(rr('/\/\d+\.html$/')).toEqual(false); });
+test('正常分组无重复量词放行', () => { expect(rr('(game|pcgame)/(\d+)/')).toEqual(false); });
+test('导入含 ReDoS 正则的规则被拒', () => {
+  const simple = { version: 1, sites: [{ key: 'bad', name: 'Bad', domains: ['bad.com'], detailUrlPatterns: ['/(a+)+$'] }] };
+  const res = rulesMod.validateAdapterRules(simple);
+  expect(res.ok).toEqual(false);
+  expect(res.error || '').toContain('ReDoS');
+});

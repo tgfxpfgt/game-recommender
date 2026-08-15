@@ -72,5 +72,25 @@
     document.body.dataset.theme = t;
   }
 
-  global.__GR_SETTINGS_UTILS__ = { deepSet, getByPath, applyPatch, goHub, applyTheme };
+  // v7.0.5：应用自定义主题 CSS（覆盖任意主题变量；空值移除）
+  // Apply user custom theme CSS (overrides any theme variables; empty removes).
+  function applyCustomTheme(css) {
+    if (typeof document === 'undefined') return;
+    const el = document.getElementById('gr-custom-theme');
+    const text = String(css || '').trim();
+    if (!text) {
+      if (el) el.remove();
+      return;
+    }
+    if (!el) {
+      const style = document.createElement('style');
+      style.id = 'gr-custom-theme';
+      document.head.appendChild(style);
+      style.textContent = text;
+    } else {
+      el.textContent = text;
+    }
+  }
+
+  global.__GR_SETTINGS_UTILS__ = { deepSet, getByPath, applyPatch, goHub, applyTheme, applyCustomTheme };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

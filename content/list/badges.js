@@ -228,7 +228,13 @@ export function prependRecBadge(item, recommendation, settings) {
     badge.className = 'gr-rec-badge';
     badge.textContent = `🎯 ${pct}%`;
     badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:default;`;
-    badge.title = `推荐度: ${pct}%\n点击率: ${fmt(b.clickScore)} · 下载率: ${fmt(b.downloadScore)}\n关键词: ${fmt(b.keywordMatch)} · Steam: ${fmt(b.steamRating)}`;
+    // v7.0.5：推荐理由可解释——六信号明细全量展示（点击/下载/关键词/Steam/时长/热度）
+    badge.title =
+      `推荐度: ${pct}%` +
+      `\n🖱 点击率: ${fmt(b.clickScore)} · ⬇ 下载率: ${fmt(b.downloadScore)}` +
+      `\n🏷 关键词: ${fmt(b.keywordScore)} · ⭐ Steam: ${fmt(b.steamScore)}` +
+      `\n⏱ 游玩时长: ${fmt(b.playTimeScore)} · 🔥 热度: ${fmt(b.heatScore)}` +
+      `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）`;
 
     // v6.3.2 C3：不感兴趣按钮（推荐反馈循环）——点击标记负信号并淡化徽章
     const dislikeBtn = document.createElement('span');

@@ -146,6 +146,19 @@
                   <option value="win11">Windows 11 圆角</option>
                 </select>
               </div>
+              <!-- v7.0.5：自定义主题 CSS（本地导入，覆盖任意主题变量） -->
+              <div class="setting-row">
+                <div class="setting-label">
+                  <span class="label-text">自定义主题 CSS（可选）</span>
+                  <span class="label-desc">导入 .css 覆盖任意主题变量（--gr-bg/--gr-accent 等），本地存储不涉网络</span>
+                </div>
+                <div style="flex:1;display:flex;gap:8px;align-items:center;">
+                  <button id="themeCssImport" class="btn btn-primary btn-sm" style="white-space:nowrap;">📥 导入 CSS</button>
+                  <button id="themeCssClear" class="btn btn-danger btn-sm" style="white-space:nowrap;">🗑️ 清除</button>
+                  <input type="file" id="themeCssFile" accept=".css" class="hidden-file">
+                  <span id="themeCssStatus" class="test-result"></span>
+                </div>
+              </div>
             </div>
           </div>
           <div class="settings-section">
