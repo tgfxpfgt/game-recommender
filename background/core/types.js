@@ -117,6 +117,7 @@
  * @property {string|number} appId
  * @property {string} name
  * @property {string} englishName
+ * @property {boolean} [aiFallback] - v6.4.16：经 AI/LLM 兜底匹配的结果标记
  */
 
 /**

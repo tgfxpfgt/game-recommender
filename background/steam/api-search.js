@@ -39,6 +39,16 @@ export function namesRelated(title, cachedName) {
   return false;
 }
 
+// v6.4.16：标题核心词提取（CJK 连续 2+ 汉字 + 英文 ≥4 字符，剔除数字段）——
+// 供删词变体校验与候选打分使用。规范化小写。
+// Core title tokens (CJK runs + EN words) for variant checks and scoring.
+function coreTokensOf(text) {
+  const norm = String(text || '').toLowerCase();
+  const cjk = norm.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
+  const en = norm.match(/[a-z][a-z0-9']{3,}/g) || [];
+  return [...cjk, ...en];
+}
+
 /**
  * 游戏雷达 Game Radar - Steam API 子模块：api-search.js
  *
@@ -125,10 +135,63 @@ export function nameMatchesSearch(resultName, term, rawName) {
   // 跨语言信任：搜索词与结果名一中文一英文时（如英文搜索词命中官方中文名
   // 条目"Gladiator Guild Manager"→"角斗士公会经理"），信任 storesearch 索引
   // 匹配；数字差异（1代/2代）仍拒绝。
+  // v6.4.16 收紧：中文搜索词命中英文结果名**不再无条件信任**——schinese
+  // 搜索对中文词的英文结果常为索引噪声（新作中文索引缺失时返回任意英文
+  // 条目，如"生化危机9" → "Jrago III"类）；仅当原始标题含英文词且与结果
+  // 名有共同英文词时才放行。英文搜索词命中中文结果名保留信任。
   if (digitGap) return false;
   const cnOf = (s) => /[\u4e00-\u9fff]/.test(s);
-  if (cnOf(tn) !== cnOf(rn)) return true;
+  if (cnOf(tn) !== cnOf(rn)) {
+    if (cnOf(tn)) {
+      // 用原始 resultName 提取英文词（norm 去空格后无法分词）
+      const rawEn = coreTokensOf(rawName).filter((w) => /^[a-z]/.test(w));
+      const rEn = coreTokensOf(resultName).filter((w) => /^[a-z]/.test(w));
+      return rawEn.length > 0 && rawEn.some((w) => rEn.includes(w));
+    }
+    return true;
+  }
   return false;
+}
+
+// v6.4.16：删词变体校验——结果名除包含搜索词外，还须与原始标题的**其他
+// 核心词**有交集。防通用词变体错配：标题"生化危机9 安魂曲"的删词变体
+// "安魂曲"会命中任何名字含"安魂曲"的游戏（如"Jrago III 夜之安魂曲"），
+// 而它与标题整体无关。变体搜索（扩展组合搜索）专用。
+// Variant-search guard: the result must also share a core token with the part
+// of the raw title that the variant dropped (blocks generic-word mismatches).
+export function nameMatchesSearchVariant(resultName, term, rawName) {
+  if (!nameMatchesSearch(resultName, term, rawName)) return false;
+  const tn = String(term || '').toLowerCase();
+  const others = coreTokensOf(rawName).filter((w) => !tn.includes(w));
+  if (others.length === 0) return true;
+  const rn = String(resultName || '').toLowerCase();
+  return others.some((w) => rn.includes(w));
+}
+
+// v6.4.16：候选相关性打分（多候选排序用）——共同核心词数优先，
+// 跨语言（无共同词）得分 0 不再被采用。
+// Candidate relevance score for multi-candidate ranking (score 0 = rejected).
+export function matchCandidateScore(resultName, term, rawName) {
+  const rn = String(resultName || '').toLowerCase();
+  const tn = String(term || '').toLowerCase();
+  const rTokens = coreTokensOf(resultName);
+  const rawTokens = coreTokensOf(rawName);
+  let score = 0;
+  // 与原始标题的共同核心词（CJK 词 ×2 / 英文词 ×3——英文更稀缺更可信）
+  for (const w of rawTokens) {
+    if (/^[a-z]/.test(w)) {
+      if (rTokens.includes(w)) score += 3;
+    } else if (rTokens.includes(w)) {
+      score += 2;
+    }
+  }
+  // 搜索词包含关系
+  if (rn === tn) score += 2;
+  else if (tn.length >= 2 && rn.includes(tn)) score += 1;
+  // 数字一致性（rawName 含数字时结果名最好也含）
+  const hasDigit = (s) => /\d/.test(s);
+  if (hasDigit(rawName) === hasDigit(resultName)) score += 1;
+  return score;
 }
 
 // 名称校验：中文名含中文、英文名含英文、不命中附属内容关键词
@@ -164,21 +227,23 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
     if (cnItems.length > 0) {
       // 名称相关性校验：优先非 Demo/附属且与搜索词相关的项；无相关项则尝试下一词
       // v3.3.13：排除曾报错的错误 appid（人工纠正知识库的"黑名单"项）
-      const related = cnItems.find(
-        (i) =>
-          String(i.id) !== String(excludeAppId) &&
-          !ADDON_NAME_PATTERN.test(i.name || '') &&
-          nameMatchesSearch(i.name, term, rawName)
-      );
-      if (!related) continue;
-      // v6.2.1：移除冗余的 english storesearch（此前每词并行 2 请求）——
-      // schinese 搜索对英文词同样有效，且英文名由 fetchSteamFullDetailsByAppId
-      // 的 appdetails(english) 官方直取覆盖（buildSteamResult.englishName），
-      // 此处英文名占位即可。每新游戏搜索省 1 请求（官方 API 优先 + 直取优先）。
+      // v6.4.16：多候选打分排序——此前取第一个通过者，跨语言/索引噪声
+      // 候选会直接中选；现按与完整标题的共同核心词评分，分数 0 不采用
+      const related = cnItems
+        .filter(
+          (i) =>
+            String(i.id) !== String(excludeAppId) &&
+            !ADDON_NAME_PATTERN.test(i.name || '') &&
+            nameMatchesSearch(i.name, term, rawName)
+        )
+        .map((i) => ({ item: i, score: matchCandidateScore(i.name, term, rawName) }))
+        .sort((a, b) => b.score - a.score);
+      const best = related[0];
+      if (!best || best.score < 1) continue;
       return {
-        appId: related.id,
-        name: related.name,
-        englishName: related.name
+        appId: best.item.id,
+        name: best.item.name,
+        englishName: best.item.name
       };
     }
   }
@@ -206,7 +271,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
  * 并行中英文搜索（strict 类型化，v6.3.1）
  * @param {Array<string>} searchTerms
  * @param {string} rawName
- * @param {string|null} [excludeAppId]
+ * @param {string|number|null} [excludeAppId]
  * @returns {Promise<import('../core/types.js').SteamSearchResult|null>}
  */
 export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
@@ -226,7 +291,8 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
     const activeNoise = await getActiveNoiseWords();
     const variants = generateSearchVariants(rawName, activeNoise);
     for (const variant of variants) {
-      const result = await searchSteamAppIdLight(variant, rawName, excludeAppId);
+      // v6.4.16：变体搜索走删词校验（结果名须与标题其余核心词相关）
+      const result = await searchSteamAppIdLight(variant, rawName, excludeAppId, true);
       if (result) {
         // 成功 → 自动学习被跳过的词（计数确认后才生效，防误学副标题）
         const noiseWords = extractNoiseCandidates(rawName, variant);
@@ -294,7 +360,7 @@ export async function findVersionVariant(appId, title) {
 
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
-async function searchSteamAppIdLight(term, rawName, excludeAppId) {
+async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = false) {
   try {
     const data = await (
       await fetchWithTimeout(
@@ -305,14 +371,20 @@ async function searchSteamAppIdLight(term, rawName, excludeAppId) {
     if (items.length === 0) return null;
     // 名称相关性校验：变体词较短，要求结果包含变体词且与原始标题相关；
     // v3.3.13：排除曾报错的错误 appid
-    const related = items.find(
-      (i) =>
-        String(i.id) !== String(excludeAppId) &&
-        !ADDON_NAME_PATTERN.test(i.name || '') &&
-        nameMatchesSearch(i.name, term, rawName)
-    );
-    if (!related) return null;
-    return { appId: related.id, name: related.name, englishName: related.name };
+    // v6.4.16：多候选打分 + variantMode 时用删词变体校验（防通用词错配）
+    const check = variantMode ? nameMatchesSearchVariant : nameMatchesSearch;
+    const related = items
+      .filter(
+        (i) =>
+          String(i.id) !== String(excludeAppId) &&
+          !ADDON_NAME_PATTERN.test(i.name || '') &&
+          check(i.name, term, rawName)
+      )
+      .map((i) => ({ item: i, score: matchCandidateScore(i.name, term, rawName) }))
+      .sort((a, b) => b.score - a.score);
+    const best = related[0];
+    if (!best || best.score < 1) return null;
+    return { appId: best.item.id, name: best.item.name, englishName: best.item.name };
   } catch {
     return null;
   }

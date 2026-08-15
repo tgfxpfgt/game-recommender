@@ -42,6 +42,7 @@ import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
+import { llmMatchGame } from './ai-fallback.js'; // v6.4.16：规则匹配失败后的 AI 兜底
 
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
@@ -122,11 +123,20 @@ export async function searchSteamGame(gameName) {
     if (!appId) {
       const searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
       if (!searchResult) {
-        // 记录负缓存 / Record negative cache
-        await recordNameIndex(gameName, null);
-        return null;
+        // v6.4.16：规则匹配失败 → AI/LLM 兜底（用户配置 LLM 时）——
+        // LLM 提取官方名经 storesearch/appdetails 校验后采用（防幻觉）；
+        // 未配置 LLM 时静默返回 null（"未找到"而非错误 appid——错配比未找到更糟）
+        const fallback = await llmMatchGame(gameName, excludeAppId);
+        if (fallback) {
+          appId = fallback.appId;
+        } else {
+          // 记录负缓存 / Record negative cache
+          await recordNameIndex(gameName, null);
+          return null;
+        }
+      } else {
+        appId = searchResult.appId;
       }
-      appId = searchResult.appId;
     }
 
     // 5. 获取完整 Steam 详情 / Fetch full Steam details

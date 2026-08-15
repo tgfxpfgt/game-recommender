@@ -256,6 +256,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v6.4.16（appid 错配根治 + AI/LLM 匹配兜底——真实站点诊断驱动）
+- **错配根因**（gamer520 109515"生化危机9 安魂曲"→ 错误匹配 Jrago III 4021140，正确应为 Resident Evil Requiem 3764200）：扩展组合搜索把标题删词成**通用词"安魂曲"**，storesearch 返回名字含"安魂曲"的无关游戏"Jrago III 夜之安魂曲"；`nameMatchesSearch` 只校验"结果名包含搜索词"、**不校验与完整标题相关** → 错配。实测 storesearch：中文索引无"生化危机 安魂曲"，英文"Resident Evil Requiem"正确返回 3764200
+- **规则层修复（三层）**：①**跨语言信任收紧**——中文搜索词命中英文结果名不再无条件放行（schinese 搜索的中文词英文结果多为索引噪声），仅当标题含共同英文词才放行；②**删词变体校验** `nameMatchesSearchVariant`——变体搜索的结果名须与标题**其余核心词**有交集（拒"安魂曲"→"Jrago III 夜之安魂曲"）；③**多候选打分排序**——`matchCandidateScore` 按与完整标题的共同核心词评分（英文词权重更高），分数 0 不采用
+- **AI/LLM 兜底**（用户要求）：规则匹配全部失败时，若配置了 LLM（useLLM + endpoint）——LLM 从标题提取 Steam 官方名 → **storesearch / appdetails 官方数据校验**（防幻觉）→ 命中才采用；成功缓存 7d、失败缓存 24h（防反复打 LLM）；**未配置 LLM 时显示"未找到"而非错误 appid**（错配比未找到更糟，可走报错纠正黑名单）。端到端实测（mock LLM）：109515 → 3764200 ✅
+- **质量**：vitest 556 test（+8 名称匹配/打分 +11 AI 兜底解析/链路）· lint 0 · typecheck 0 · E2E 42/42
+
 ### v6.4.15（列表页好评率提速 + 失败固化可恢复——真实站点诊断驱动）
 - **真实站点诊断**（xianyudanji.gg/pcdj、gamer520.com/pcplay 实测）：①xianyudanji 100 链接 ≈ 50 游戏，**25 秒只完成 24 个**（3 并发 + 中国网络下 Steam 请求挂起 5-15s）——后半部分长时间无徽章；②gamer520 首访 **16/44 显示 #appid**（好评率获取失败态），12 秒后恢复至 1 个——失败多为暂时性网络/限流
 - **修复问题 1（后半部分无徽章）**：`ratings-batch.js` 批量并发**自适应提速**——正常 6 并发（原 3）/ 检测到 Steam 限流异常时降为 2 + 既有降速等待。实测 xianyudanji **25 秒游戏覆盖 24 → 48**（翻倍，50 游戏约 30 秒完成）

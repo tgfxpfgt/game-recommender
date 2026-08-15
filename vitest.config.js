@@ -44,6 +44,7 @@ export default defineConfig({
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',
+      'tests/integration/test-ai-fallback.mjs',
       'tests/integration/test-integrity.mjs'
     ],
     server: {

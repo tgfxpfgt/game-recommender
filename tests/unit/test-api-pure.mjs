@@ -35,6 +35,41 @@ test('跨语言信任（英文词命中官方中文名本体）', () => { expect
 test('跨语言信任（星际采矿公司）', () => { expect(nm('星际采矿公司', 'Star Ores Inc', '星际采矿公司/Star Ores Inc')).toEqual(true); });
 test('跨语言+数字差异仍拒绝（装机模拟器2→1代）', () => { expect(nm('装机模拟器 (PC Building Simulator)', '装机模拟器2', '装机模拟器2')).toEqual(false); });
 
+// ============ 0.5b v6.4.16：跨语言收紧 / 删词变体校验 / 候选打分 ============
+console.log('0.5b v6.4.16 跨语言收紧 + 删词变体校验 + 候选打分');
+const nmv = apiMod.nameMatchesSearchVariant;
+const mcs = apiMod.matchCandidateScore;
+test('跨语言收紧：中文搜索词命中英文结果名且标题无英文 → 拒绝（安魂曲→Jrago III 根因）', () => {
+  expect(nm('Jrago III 夜之安魂曲', '安魂曲', '生化危机9 安魂曲')).toEqual(true); // 同语言包含仍通过（由 variant 校验拦截）
+});
+test('跨语言收紧：中文搜索词 + 英文结果名 + 无英文标题 → 拒绝（新作索引噪声）', () => {
+  expect(nm('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(false);
+});
+test('跨语言保留：中文搜索词 + 英文结果名 + 标题含共同英文词 → 放行', () => {
+  expect(nm('Resident Evil Requiem', '生化危机', '生化危机 安魂曲 Resident Evil')).toEqual(true);
+});
+test('数字防护优先：标题"生化危机9" → 无数字英文结果拒绝（防旧作匹配）', () => {
+  expect(nm('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(false);
+});
+test('删词变体校验：变体"安魂曲"命中"Jrago III 夜之安魂曲" → 拒绝（与标题其余词无关）', () => {
+  expect(nmv('Jrago III 夜之安魂曲', '安魂曲', '生化危机9 安魂曲')).toEqual(false);
+});
+test('删词变体校验：结果名含标题其余核心词 → 放行', () => {
+  expect(nmv('生化危机 安魂曲', '安魂曲', '生化危机9 安魂曲')).toEqual(true);
+});
+test('删词变体校验：无其余核心词（变体=完整标题）→ 放行', () => {
+  expect(nmv('装机模拟器2', '装机模拟器2', '装机模拟器2')).toEqual(true);
+});
+test('候选打分：跨语言无共同词 → 0（不被采用）', () => {
+  expect(mcs('Resident Evil Requiem', '生化危机', '生化危机9 安魂曲')).toEqual(0);
+});
+test('候选打分：同语言共同词 > 0', () => {
+  expect(mcs('生化危机 安魂曲', '安魂曲', '生化危机9 安魂曲')).toBeGreaterThan(0);
+});
+test('候选打分：英文共同词权重高于中文', () => {
+  expect(mcs('Resident Evil Requiem', 'Resident Evil Requiem', '生化危机9 安魂曲 Resident Evil Requiem')).toBeGreaterThan(3);
+});
+
 // ============ 0.6 appId 本体解析（v3.2.6）/ baseAppIdFromDetails ============
 console.log('0.6 appId 本体解析 baseAppIdFromDetails');
 const bd = apiMod.baseAppIdFromDetails;
