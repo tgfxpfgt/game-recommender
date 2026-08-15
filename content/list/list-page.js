@@ -356,6 +356,23 @@ export function ratingFilterPass(rating, settings = {}) {
     (settings.minRecentSteamRatingFilter || 0) <= 0 ||
     (rating.recentPositiveRate ?? -1) >= (settings.minRecentSteamRatingFilter || 0);
   const mode = settings.ratingFilterMode || 'and';
+  // v6.4.18：混合模式——"任一 ≥ 高值，或 双 ≥ 低值"。
+  // 高值 = 两阈值的较大者（任一达到即保留），低值 = 较小者（双达才保留）。
+  // 例：总 90 / 30天 80 → 任一 ≥90 或 双 ≥80 保留，其余过滤隐藏。
+  // 阈值 ≤0 的维度视为未参与（仅一个阈值时退化为该阈值过滤）。
+  // Hybrid: keep when either rate ≥ the larger threshold OR both rates ≥ the
+  // smaller one (e.g. total 90 + recent 80 → either ≥90 or both ≥80 keeps).
+  if (mode === 'hybrid') {
+    const t = Number(settings.minSteamRatingFilter) || 0;
+    const r = Number(settings.minRecentSteamRatingFilter) || 0;
+    const active = [t, r].filter((v) => v > 0);
+    if (active.length === 0) return true; // 无阈值 → 全部保留
+    const high = Math.max(...active);
+    const low = Math.min(...active);
+    const totalPass = rating.positiveRate ?? -1;
+    const recentPass = rating.recentPositiveRate ?? -1;
+    return (totalPass >= high || recentPass >= high) || (totalPass >= low && recentPass >= low);
+  }
   if (mode === 'or') return totalOk || recentOk;
   if (mode === 'not') return recentOk; // 非总好评过滤：仅 30 天生效
   return totalOk && recentOk;

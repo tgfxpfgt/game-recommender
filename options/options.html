@@ -246,12 +246,14 @@
                   <span class="label-text">过滤关系</span>
                   <span class="label-desc">Filter Mode（总好评 与 30天好评）</span>
                 </div>
-                <select id="ratingFilterMode" class="text-input" style="max-width:200px">
+                <select id="ratingFilterMode" class="text-input" style="max-width:240px">
                   <option value="and">与（两者都达标）</option>
                   <option value="or">或（任一达标）</option>
                   <option value="not">非（仅看 30 天好评）</option>
+                  <option value="hybrid">混合（任一≥高值 或 双≥低值）</option>
                 </select>
               </div>
+              <p class="section-note" style="margin:0 0 8px;">混合模式：高值 = 两个阈值中的较大者（任一达到即保留），低值 = 较小者（两者都达到才保留）。例：总 90 / 30天 80 → 任一 ≥90 或 双 ≥80 保留，其余过滤隐藏<br><em>Hybrid: either rate ≥ the larger threshold, or both ≥ the smaller one</em></p>
               <div class="setting-row">
                 <div class="setting-label">
                   <span class="label-text">按好评率重排列表</span>

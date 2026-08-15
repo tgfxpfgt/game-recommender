@@ -900,6 +900,22 @@ test('11. 好评过滤三态与按好评率重排', async () => {
   expect(ratingFilterPass(r2, { ...base, ratingFilterMode: 'and' })).toEqual(false);
   expect(ratingFilterPass(r2, { ...base, ratingFilterMode: 'or' })).toEqual(true);
   expect(ratingFilterPass(r2, { ...base, ratingFilterMode: 'not' })).toEqual(true);
+  // v6.4.18：混合模式——总 90 / 30天 80 → 任一 ≥90 或 双 ≥80 保留
+  const hybridBase = { enableRatingFilter: true, minSteamRatingFilter: 90, enableRecentFilter: true, minRecentSteamRatingFilter: 80, ratingFilterMode: 'hybrid' };
+  // 总 95 / 30天 50：任一 ≥90 → 保留
+  expect(ratingFilterPass({ positiveRate: 95, recentPositiveRate: 50 }, hybridBase)).toEqual(true);
+  // 总 85 / 30天 85：双 ≥80 → 保留
+  expect(ratingFilterPass({ positiveRate: 85, recentPositiveRate: 85 }, hybridBase)).toEqual(true);
+  // 总 85 / 30天 60：无任一 ≥90 且 30天 <80 → 过滤
+  expect(ratingFilterPass({ positiveRate: 85, recentPositiveRate: 60 }, hybridBase)).toEqual(false);
+  // 总 75 / 30天 95：30天 ≥90 → 保留
+  expect(ratingFilterPass({ positiveRate: 75, recentPositiveRate: 95 }, hybridBase)).toEqual(true);
+  // 双低：总 79 / 30天 79 → 过滤
+  expect(ratingFilterPass({ positiveRate: 79, recentPositiveRate: 79 }, hybridBase)).toEqual(false);
+  // 无阈值（都 ≤0）→ 全部保留
+  expect(ratingFilterPass({ positiveRate: 10, recentPositiveRate: 10 }, { ...hybridBase, minSteamRatingFilter: 0, minRecentSteamRatingFilter: 0 })).toEqual(true);
+  // 单阈值退化：仅 30天 80 → 30天 ≥80 保留
+  expect(ratingFilterPass({ positiveRate: 10, recentPositiveRate: 85 }, { ...hybridBase, minSteamRatingFilter: 0 })).toEqual(true);
   // 排序：构造容器 + job → 降序
   const container = new FakeEl('ul');
   const mk = (name, rate) => {
