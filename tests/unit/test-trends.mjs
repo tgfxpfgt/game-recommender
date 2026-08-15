@@ -16,7 +16,6 @@ const TUE = new Date('2026-08-11T10:00:00').getTime();
 const WED = new Date('2026-08-12T15:00:00').getTime();
 const NEXT_MON = new Date('2026-08-17T09:00:00').getTime();
 
-console.log('1. 按天聚合（day）');
 const dayLog = [
   { type: 'view_detail', timestamp: TUE },
   { type: 'click_download', timestamp: WED },
@@ -36,7 +35,6 @@ const sameDay = aggregateDailyTrends([
 test('同日 view+download 归并', () => { expect([sameDay[0].views, sameDay[0].downloads]).toEqual([1, 1]); });
 test('同日转化率 100%（1 浏览 1 下载）', () => { expect(sameDay[0].rate).toEqual(100); });
 
-console.log('2. 按周聚合（week，桶键=周一）');
 const weekly = aggregateTrends(dayLog, 'week');
 test('周二+周三归入同周（周一 8-10）', () => { expect(weekly.length).toEqual(2); });
 test('周桶键为周一日期', () => { expect(weekly[0].date).toEqual('2026-08-10'); });
@@ -44,7 +42,6 @@ test('周桶聚合浏览/下载', () => { expect([weekly[0].views, weekly[0].dow
 test('下周一独立成桶', () => { expect(weekly[1].date).toEqual('2026-08-17'); });
 test('周转化率', () => { expect(weekly[0].rate).toEqual(100); });
 
-console.log('3. 边界与防御');
 test('空日志返回空数组', () => { expect(aggregateDailyTrends([]).length).toEqual(0); });
 test('null 日志返回空数组', () => { expect(aggregateDailyTrends(null).length).toEqual(0); });
 test('无效时间戳忽略', () => { expect(aggregateDailyTrends([

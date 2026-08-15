@@ -256,6 +256,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v7.0.6（测试体系精简：套件合并 19→15 + eslint 规则去重 + 输出去噪）
+- **套件合并**：`test-settings-utils` / `test-url-index` / `test-backups` 并入 **test-storage**（存储层统一套件）；`test-ai-fallback` 并入 **test-handlers**（消息链路统一套件）——测试数不变（591），文件数 19 → 15
+- **eslint 规则精简**：tests 专用块 globals 与主块完全重复——去重（块保留仅作测试文件风格豁免）；`eslint .` 全量 0
+- **输出去噪**：批量移除测试文件 109 行 `console.log` 节标题（测试名已自解释），vitest 输出更清爽
+- **质量**：vitest 591 test / 15 套件 · lint 0（全量）· typecheck 0 · E2E 38/38 · coverage:gate ✅
+
 ### v7.0.5（报告建议落地：hub lint 收口 + content-sim 竞态根治 + 推荐可解释 + ReDoS 校验 + 自定义主题 + 覆盖率门槛）
 - **A1 hub lint 收口**：eslint 补 `history` 浏览器全局声明（此前误报），hub/ 纳入 lint 扫描目录——`eslint .` 全量 0
 - **B2 content-sim 加载竞态根治**：loadModules 全量失败重试 3 次（50ms 退避）——根治全量并行下偶发的 `GR.listBatch` null（此前多次偶发）

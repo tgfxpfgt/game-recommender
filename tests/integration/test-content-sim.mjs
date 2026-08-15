@@ -357,7 +357,6 @@ function isAllBadge(c) {
 }
 
 test('1. 顶层加载与预热', async () => {
-console.log('1. 顶层加载与预热');
 let loadError = null;
 try {
   await loadModules();
@@ -383,7 +382,6 @@ await waitFor(() => typeof msgListener === 'function' && msgListener !== null);
 });
 
 test('2. 列表页两波好评率流程', async () => {
-console.log('2. 列表页两波好评率流程');
 
 // 构建列表页 DOM：3 个游戏项 / build a 3-item list page
 itemA = makeItem('游戏A', 1);
@@ -493,7 +491,6 @@ expect(batchMsg ? batchMsg.data.entries.length : 0).toEqual(2);
 });
 
 test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
-console.log('2b. 批次调度（首屏 60 + 滚动衔接）');
 // 100 个游戏项：首批只应请求 60 个，缓存全命中（pending=0）时自动衔接第二批 40 个
 const manyItems = [];
 for (let i = 1; i <= 100; i++) {
@@ -545,7 +542,6 @@ presets['GET_STEAM_RATINGS'] = batchPreset;
 });
 
 test('3. waitForListItems（AJAX 延迟渲染）', async () => {
-console.log('3. waitForListItems（AJAX 延迟渲染）');
 queryAllStub = () => []; // 初始列表为空
 const waitPromise = GR.list.waitForListItems(GR.builder.getAdapter(), 4000);
 // 模拟 250ms 后 DOM 渲染出列表项 / simulate the DOM rendering items after 250ms
@@ -562,7 +558,6 @@ expect(waitedItems.length).toEqual(3);
 });
 
 test('4. 调试视图关闭后不自动复活', async () => {
-console.log('4. 调试视图关闭后不自动复活');
 GR.status.setDebugMode(true);
 GR.status.showDebugView('<div>test debug</div>');
 const dbgRoot = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
@@ -584,7 +579,6 @@ GR.float.closeAll();
 });
 
 test('5. lazyload 封面 appId 直取（data-src 优先）', async () => {
-console.log('5. lazyload 封面 appId 直取（data-src 优先）');
 const lazyScope = new FakeEl('div');
 const lazyImg = new FakeEl('img');
 lazyImg._attrs['src'] = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='; // 占位图
@@ -615,7 +609,6 @@ expect(xdInfo ? xdInfo.appId : null).toEqual('3613270');
 });
 
 test('6. 汇总贴/索引贴过滤', async () => {
-console.log('6. 汇总贴/索引贴过滤');
 const pinItem = makeItem('[顶置]PC近期爆火游戏 汇总贴', 56286);
 queryAllStub = (sel) => {
   if (sel === 'li.game-item') return [pinItem.li, itemA.li];
@@ -630,7 +623,6 @@ queryAllStub = (sel) => (sel === 'li.game-item' ? allItems.map((x) => x.li) : []
 });
 
 test('7. FORCE_REFRESH_PAGE（popup 强制刷新）', async () => {
-console.log('7. FORCE_REFRESH_PAGE（popup 强制刷新）');
 let reloaded = false;
 globalThis.location.reload = () => {
   reloaded = true;
@@ -651,7 +643,6 @@ expect(reloaded).toEqual(true);
 });
 
 test('8. 徽章开关与过滤/高亮联动', async () => {
-console.log('8. 徽章开关与过滤/高亮联动');
 // 重新加载内容脚本（新 warmupPromise 读新设置；清空旧回调 + 清除 tracker 防重复守卫）
 await reloadContentScripts();
 const badgeSettings = {
@@ -706,7 +697,6 @@ expect(itemE.a.children.some(isAllBadge)).toEqual(true);
 });
 
 test('8b. 关全部好评率徽章 → 过滤停用', async () => {
-console.log('8b. 关全部好评率徽章 → 过滤停用');
 await reloadContentScripts();
 const badgeSettings2 = {
   ...DEFAULT_SETTINGS,
@@ -770,7 +760,6 @@ expect((() => {
 });
 
 test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
-console.log('9. 详情页报错按钮（人工纠错重新检索）');
 await reloadContentScripts();
 presets['GET_SETTINGS'] = () => ({
   settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
@@ -867,7 +856,6 @@ expect(steamApiSrc.includes("gameData.type === 'demo'")).toEqual(true);
 });
 
 // ============ 10. 下载追踪 / Download tracking ============
-console.log('10. 下载追踪（网盘识别 + window.open 拦截）');
 test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
   const { isDownloadUrl, isDownloadText } = GR.tracking;
   // 网盘/下载 URL 识别（纯函数）
@@ -892,7 +880,6 @@ test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
 });
 
 // ============ 11. 过滤与排序（v6.4.4） ============
-console.log('11. 好评过滤三态与按好评率重排');
 test('11. 好评过滤三态与按好评率重排', async () => {
   const { ratingFilterPass, sortItemsByRating } = GR.list;
   const rating = { positiveRate: 90, recentPositiveRate: 50 };

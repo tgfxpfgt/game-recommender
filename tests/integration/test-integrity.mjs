@@ -55,7 +55,6 @@ function collectJs(dir, out) {
   return out;
 }
 
-console.log('1. 依赖分层单向校验（core→storage→业务→handlers→入口）');
 const violations = [];
 const edges = []; // [srcLayer, targetLayer]（--print 模式用）
 const importRe = /import\s+(?:[^'"]*?\s+from\s+)?['"]([^'"]+)['"]/g;
@@ -112,7 +111,6 @@ test('storage/reset.js 存在（归位后）', () => { expect(fs.existsSync(path
 test('旧 steam/title-parser.js 已移除', () => { expect(fs.existsSync(path.join(BG, 'steam/title-parser.js'))).toEqual(false); });
 test('旧 core/reset.js 已移除', () => { expect(fs.existsSync(path.join(BG, 'core/reset.js'))).toEqual(false); });
 
-console.log('2. TDZ 静态扫描（顶层常量后向引用）');
 const jsFiles = [];
 (function walk(dir) {
   for (const f of fs.readdirSync(dir)) {
@@ -155,7 +153,6 @@ for (const file of jsFiles) {
 }
 test('TDZ 后向引用', () => { expect(tdzCount).toEqual(0); });
 
-console.log('3. 噪声词双源一致性（shared/patterns.js ↔ title-parser.js）');
 const sharedPatterns = fs.readFileSync(path.join(ROOT, 'shared/patterns.js'), 'utf-8');
 const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/core/title-parser.js'), 'utf-8');
 // v5.1.0：提取正则支持跨行（prettier 会把长定义拆到多行）
@@ -167,7 +164,6 @@ const detailPageSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-pag
 test('detail-page 引用权威源（无独立副本）', () => { expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(true); });
 test('detail-page 不含完整漂移副本', () => { expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true); });
 
-console.log('4. JS 语法检查（全仓库 node --check）');
 let syntaxFail = 0;
 for (const f of jsFiles) {
   try {
@@ -180,7 +176,6 @@ for (const f of jsFiles) {
 test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
 test('JS 文件数', () => { expect(jsFiles.length >= 40).toEqual(true); });
 
-console.log('5. manifest 引用与版本一致性（v4.2.0：去硬编码）');
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf-8'));
 const refs = [];
 if (manifest.background?.service_worker) refs.push(manifest.background.service_worker);
@@ -200,7 +195,6 @@ test('CSP 显式声明（extension_pages 默认基线）', () => { expect(JSON.s
 
 
 // 6. adapters 清单一致性（v6.3.1：manifest/SW/options.html 三处手写同步防漂移）
-console.log('6. adapters 清单一致性（manifest/SW/options.html + 目录实测）');
 const swSrc2 = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
 const optsHtml = fs.readFileSync(path.join(ROOT, 'options/options.html'), 'utf-8');
 const manifestAdapters = (manifest.content_scripts || [])

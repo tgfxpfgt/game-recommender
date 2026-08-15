@@ -25,7 +25,6 @@ const FIXTURE_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>�
 </div>
 </body></html>`;
 
-console.log('1. 完整元信息提取');
 const meta = extractDetailMeta(FIXTURE_HTML, 'gamer520');
 test('更新日期', () => { expect(meta.updateDate).toEqual('2026-08-10'); });
 test('版本号', () => { expect(meta.version).toEqual('V1.2.3'); });
@@ -33,7 +32,6 @@ test('大小', () => { expect(meta.size).toEqual('25.4GB'); });
 test('百度网盘链接', () => { expect(meta.panUrl).toEqual('https://pan.baidu.com/s/1AbCdEfGhIjK'); });
 test('提取码', () => { expect(meta.panCode).toEqual('abcd'); });
 
-console.log('2. 边界与防御');
 test('空 HTML 返回空元信息', () => { expect(JSON.stringify(extractDetailMeta('', 'gamer520'))).toEqual(JSON.stringify({ updateDate: '', version: '', size: '', panUrl: '', panCode: '' })); });
 test('null HTML 返回空元信息', () => { expect(extractDetailMeta(null, 'gamer520').updateDate).toEqual(''); });
 test('无网盘链接时 panUrl 为空', () => { expect(extractDetailMeta('<html><body>无内容</body></html>', 'gamer520').panUrl).toEqual(''); });
@@ -45,7 +43,6 @@ test('全角冒号版本变体', () => { expect(variant.version).toEqual('1.0');
 
 
 // ============ 3. 搜索缓存（v6.4.3） ============
-console.log('3. 下载站搜索缓存（24h TTL）');
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 

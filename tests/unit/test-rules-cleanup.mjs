@@ -13,7 +13,6 @@ const rulesMod = await import(new URL('../../background/core/rules.js', import.m
 const cleanupMod = await import(
   new URL('../../background/storage/cleanup.js', import.meta.url).href + '?t=' + Date.now()
 );
-console.log('1. 适配规则校验 validateAdapterRules');
 const validRules = {
   version: 1,
   sites: [
@@ -72,7 +71,6 @@ const tooDeep = {
 test('嵌套过深拒绝', () => { expect(rulesMod.validateAdapterRules(tooDeep).ok).toEqual(false); });
 
 // ============ 2. Steam 缓存过期清理 / Steam-cache cleanup ============
-console.log('2. Steam 缓存过期清理 collectExpiredSteamCache（v3.3.7 模块化）');
 const now = Date.now();
 const steamEntries = {
   // 全部模块未过期 → 保留
@@ -94,7 +92,6 @@ test('删除空字段旧结构条目', () => { expect(steamResult.map.has('4')).
 test('空输入', () => { expect(cleanupMod.collectExpiredSteamCache(null).removed).toEqual(0); });
 
 // ============ 3. 名称负缓存清理 / Negative-name cleanup ============
-console.log('3. 名称负缓存清理 collectExpiredNegativeNames');
 const nameEntries = {
   a: { appId: null, lastSearched: now - 3 * 3600e3 }, // 负缓存过期（TTL 2h）
   b: { appId: null, lastSearched: now }, // 负缓存未过期
@@ -119,7 +116,6 @@ test('0=长期：时间过期全保留，无时间戳异常条目仍清理', () 
 });
 
 // ============ 4. 下载站网址清理 / Download-URL cleanup ============
-console.log('4. 下载站网址清理 collectExpiredDownloadUrls');
 const urlStore = {
   v: 2,
   sites: {
@@ -158,7 +154,6 @@ test('0=长期：全保留', () => {
 test('空输入', () => { expect(cleanupMod.collectExpiredDownloadUrls(null, 30 * 86400e3).removed).toEqual(0); });
 
 // ============ 5. 导入清洗（v4.2.0）/ sanitizeImportedModule ============
-console.log('5. 导入清洗 sanitizeImportedModule');
 const cleanSettings = await rulesMod.sanitizeImportedModule('settings', { enabled: true, weights: { clickRate: 0.2 } });
 test('settings 白名单清洗保留已知键', () => { expect(cleanSettings.enabled === true && cleanSettings.weights.clickRate === 0.2).toEqual(true); });
 test('settings 密钥剔除（apiKey 清空）', () => { expect(rulesMod.sanitizeImportedModule('settings', { llmConfig: { apiKey: 'sk-secret' } }).llmConfig.apiKey).toEqual(''); });
@@ -170,7 +165,6 @@ test('null 值未知模块拒绝', () => { expect(rulesMod.sanitizeImportedModul
 
 
 // ============ v7.0.5：正则 ReDoS 风险校验 ============
-console.log('9. 正则 ReDoS 风险 hasReDoSRisk');
 const rr = rulesMod.hasReDoSRisk;
 test('嵌套量词 (a+)+ 拒绝', () => { expect(rr('(a+)+$')).toEqual(true); });
 test('嵌套量词 ([0-9]+)* 拒绝', () => { expect(rr('([0-9]+)*x')).toEqual(true); });

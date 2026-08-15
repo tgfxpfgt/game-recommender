@@ -86,24 +86,12 @@ export default [
       // 强制规则需大规模自动修复制造 diff 噪音，暂以现状为准
     }
   },
+  // v7.0.5：测试文件专用块——globals 与主块已去重（主块全覆盖），
+  // 本块仅用于让测试文件豁免主块风格规则（测试惯用法如未用变量/临时 mock）
   {
     files: ['tests/**/*.mjs'],
     languageOptions: {
-      globals: {
-        process: 'readonly',
-        console: 'readonly',
-        setTimeout: 'readonly',
-        fetch: 'readonly',
-        URL: 'readonly',
-        globalThis: 'readonly',
-        navigator: 'readonly',
-        document: 'readonly',
-        window: 'readonly',
-        MutationObserver: 'readonly',
-        NodeFilter: 'readonly',
-        location: 'readonly',
-        performance: 'readonly'
-      }
+      globals: {}
     }
   }
 ];

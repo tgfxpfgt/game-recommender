@@ -24,7 +24,6 @@ const orchMod = await import(
 const cacheMod = await import(new URL('../../background/storage/steam-cache.js', import.meta.url).href);
 const { getSteamRatingsFromCacheOnly, getSteamPositiveRate } = orchMod;
 
-console.log('1. 缓存只读查询（getSteamRatingsFromCacheOnly）');
 test('空名称返回 null', async () => { expect(await await getSteamRatingsFromCacheOnly('')).toEqual(null); });
 test('无索引无缓存返回 null', async () => { expect(await await getSteamRatingsFromCacheOnly('不存在的游戏')).toEqual(null); });
 
@@ -52,7 +51,6 @@ test('缓存命中返回好评率', () => { expect(cached && cached.positiveRate
 test('缓存命中携带 appId', () => { expect(cached && cached.appId).toEqual('275850'); });
 test('缓存命中携带近30天', () => { expect(cached && cached.recentPositiveRate).toEqual(80); });
 
-console.log('2. 全流程拉取（getSteamPositiveRate：缓存优先 → 搜索 → 写缓存）');
 // 新游戏：无缓存 → mock Steam 搜索与详情 → 返回并写缓存
 const fetchMock = createFetchMock({
   '/api/storesearch': { items: [{ id: 1245620, name: '艾尔登法环', type: 'app' }] },
@@ -93,7 +91,6 @@ const searchCallsAfter = fetchMock._calls.filter((u) => u.includes('/api/storese
 test('二次查询缓存命中（无新增搜索请求）', () => { expect(searchCallsAfter === searchCallsBefore).toEqual(true); });
 test('缓存命中好评率一致', () => { expect(cached2 && cached2.positiveRate).toEqual(90); });
 
-console.log('3. 边界');
 test('空名称返回 null', async () => { expect(await await getSteamPositiveRate('')).toEqual(null); });
 restoreFetch();
 

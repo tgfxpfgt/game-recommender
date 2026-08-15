@@ -11,7 +11,6 @@ import { test, expect } from 'vitest';
 const mod = await import(new URL('../../background/freegames/manager.js', import.meta.url).href + '?t=' + Date.now());
 const { classifyGamerPowerGiveaway, extractThirdPartySource } = mod;
 
-console.log('1. 官方直领 vs 第三方（classifyGamerPowerGiveaway）');
 test('无 key 标记 → direct', () => { expect(classifyGamerPowerGiveaway({ title: '某游戏', instructions: '登录 Epic 领取' })).toEqual('direct'); });
 test('标题含 key → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'Free Game Key', instructions: '' })).toEqual('thirdparty'); });
 test('instructions 含 alienware → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Get your key at Alienware Arena' })).toEqual('thirdparty'); });
@@ -21,7 +20,6 @@ test('instructions 含 fanatical → thirdparty', () => { expect(classifyGamerPo
 test('空对象 → direct', () => { expect(classifyGamerPowerGiveaway({})).toEqual('direct'); });
 test('大小写不敏感', () => { expect(classifyGamerPowerGiveaway({ title: 'FREE GAME KEY', instructions: '' })).toEqual('thirdparty'); });
 
-console.log('2. 第三方来源识别（extractThirdPartySource）');
 test('alienware → Alienware Arena', () => { expect(extractThirdPartySource({ instructions: 'claim at Alienware' })).toEqual('Alienware Arena'); });
 test('indiegala → IndieGala', () => { expect(extractThirdPartySource({ instructions: 'get key at IndieGala' })).toEqual('IndieGala'); });
 test('humble → Humble Bundle', () => { expect(extractThirdPartySource({ instructions: 'redeem on humble bundle' })).toEqual('Humble Bundle'); });
@@ -31,7 +29,6 @@ test('无 instructions → 第三方平台', () => { expect(extractThirdPartySou
 
 
 // ============ 2. 限免抓取与领取主体（v6.3.0 盲区补强） ============
-console.log('2. refreshFreeGames / claimFreeGame（mock 四源抓取）');
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 
@@ -130,7 +127,6 @@ test('第三方 URL 协议白名单净化（恶意协议拒绝）', async () => 
 });
 
 // ============ 3. 限免推送通知（v6.3.2 C2） ============
-console.log('3. 新限免推送通知（chrome.notifications）');
 test('新限免触发推送通知（聚合一条）', async () => {
   storage._reset({
     freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [{ id: 'epic-old', name: '旧游戏', platform: 'epic' }] }
@@ -180,7 +176,6 @@ test('无新游戏不触发通知', async () => {
 });
 
 // ============ 4. 限免类型区分（v6.3.3） ============
-console.log('4. 三类区分 classifyFreeType（limited/weekend/f2p/key）');
 test('标题含 Free Weekend → weekend', () => {
   expect(mod.classifyFreeType({ title: 'Cyberpunk 2077 Free Weekend', instructions: '' }, true)).toEqual('weekend');
 });
@@ -242,7 +237,6 @@ test('通知仅限时领取（weekend/f2p 不推送）', async () => {
 });
 
 // ============ 5. Steam 官方判定（v6.4.2：喜加一 vs 免费周末 vs F2P） ============
-console.log('5. determineSteamFreeType（Steam 官方接口判定）');
 test('is_free=true → f2p（永久免费）', async () => {
   const fetchMock = createFetchMock({
     '/api/appdetails': { '999': { success: true, data: { is_free: true } } }

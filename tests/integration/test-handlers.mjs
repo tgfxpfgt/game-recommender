@@ -30,7 +30,6 @@ const urlMod = await import(new URL('../../background/storage/download-urls.js',
 const urlIdx = await import(new URL('../../background/storage/url-index.js', import.meta.url).href);
 
 // ============ 1. SEARCH_STEAM 完整链路 ============
-console.log('1. SEARCH_STEAM 完整链路（搜索 → 详情 → 好评率 → 缓存/索引/注册表）');
 describe('SEARCH_STEAM 完整链路', () => {
   let fetchMock, restoreFetch;
   beforeAll(() => {
@@ -96,7 +95,6 @@ describe('SEARCH_STEAM 完整链路', () => {
 });
 
 // ============ 2. SEARCH_STEAM 无结果 → 负缓存 ============
-console.log('2. SEARCH_STEAM 无结果（负缓存拦截重检索）');
 describe('SEARCH_STEAM 无结果', () => {
   let fetchMock, restoreFetch;
   beforeAll(() => {
@@ -124,7 +122,6 @@ describe('SEARCH_STEAM 无结果', () => {
 });
 
 // ============ 3. REPORT_WRONG_APPID（纠错接线） ============
-console.log('3. REPORT_WRONG_APPID（清除错误映射 + 记录纠错样本）');
 test('报错清除缓存/索引/下载站映射并记录样本', async () => {
   storage._reset();
   await cacheMod.resetSteamCache();
@@ -146,7 +143,6 @@ test('报错清除缓存/索引/下载站映射并记录样本', async () => {
 });
 
 // ============ 4. SAVE_MANUAL_MAPPING（手动映射接线） ============
-console.log('4. SAVE_MANUAL_MAPPING（名称索引 + 注册表 + 纠正知识）');
 test('手动映射写入三处落点', async () => {
   storage._reset();
   const resp = await handleMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: '游戏B', appId: '730' });
@@ -159,7 +155,6 @@ test('手动映射写入三处落点', async () => {
 });
 
 // ============ 5. TRACK_DOWNLOAD_SITE_VISIT ============
-console.log('5. TRACK_DOWNLOAD_SITE_VISIT（下载站访问记录）');
 test('访问记录写入下载站桶', async () => {
   storage._reset();
   const resp = await handleMessage({
@@ -180,7 +175,6 @@ test('未知站点拒绝记录', async () => {
 });
 
 // ============ 6. 缓存条目删除与清空 ============
-console.log('6. DELETE_GAME_CACHE_ENTRY / CLEAR_GAME_CACHE（破坏性操作）');
 test('删除单条缓存（注册表/缓存/下载站/索引联动）', async () => {
   storage._reset();
   await cacheMod.resetSteamCache();
@@ -213,7 +207,6 @@ test('清空全部游戏缓存', async () => {
 });
 
 // ============ 7. 契约校验接线（违规直接拒绝） ============
-console.log('7. 契约校验接线（invalid-message 拒绝）');
 test('SEARCH_STEAM 空名被契约拒绝', async () => {
   const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '  ' });
   expect(String(resp.error || '').startsWith('invalid-message')).toEqual(true);
@@ -387,3 +380,219 @@ describe('检索顺序与下载站缓存优先', () => {
     expect(fetchMock._calls.some((u) => u.includes('gamer520.com/search') || u.includes('xdgame.com/search'))).toEqual(false);
   });
 });
+
+
+// ============ 并入：AI/匹配兜底（v6.4.16/17，v7.0.5 合并自 test-ai-fallback） ============
+const aiMod = await import(new URL('../../background/steam/ai-fallback.js', import.meta.url).href);
+const settingsMod = await import(new URL('../../background/core/settings.js', import.meta.url).href);
+function seedSettings(patch) {
+  storage._reset({ settings: { ...patch } });
+  settingsMod.resetSettingsCache();
+}
+
+// ============ 纯函数：LLM 响应解析 ============
+describe('parseLlmMatchResponse', () => {
+  const { parseLlmMatchResponse } = aiMod;
+
+  test('标准 JSON 返回', () => {
+    expect(parseLlmMatchResponse('{"name": "Resident Evil Requiem", "appid": 3764200}')).toEqual({
+      name: 'Resident Evil Requiem',
+      appId: 3764200
+    });
+  });
+
+  test('JSON 包裹在散落文本中（代码块）', () => {
+    const r = parseLlmMatchResponse('好的，结果如下：\n```json\n{"name": "艾尔登法环", "appid": null}\n```');
+    expect(r).toEqual({ name: '艾尔登法环', appId: null });
+  });
+
+  test('appid 为 null 且 name 空 → null', () => {
+    expect(parseLlmMatchResponse('{"name": "", "appid": null}')).toEqual(null);
+  });
+
+  test('非数字 appid 拒绝（防类型污染）', () => {
+    const r = parseLlmMatchResponse('{"name": "X", "appid": "3764200"}');
+    expect(r).toEqual({ name: 'X', appId: null });
+  });
+
+  test('无法解析 → null', () => {
+    expect(parseLlmMatchResponse('抱歉我无法确定')).toEqual(null);
+    expect(parseLlmMatchResponse('')).toEqual(null);
+  });
+});
+
+// ============ 完整链路：llmMatchGame ============
+describe('llmMatchGame 完整链路（规则失败 → LLM 兜底 → 官方校验）', () => {
+  const { llmMatchGame } = aiMod;
+  let fetchMock, restoreFetch;
+
+  beforeAll(() => {
+    seedSettings({
+      useLLM: true,
+      llmConfig: { provider: 'local', endpoint: 'http://localhost:11434/api/generate', model: 'qwen2.5:7b' }
+    });
+  });
+
+  test('LLM 官方名 → storesearch 校验命中（Resident Evil Requiem 场景）', async () => {
+    fetchMock = createFetchMock({
+      '/api/generate': () => ({ response: '{"name": "Resident Evil Requiem", "appid": null}' }),
+      '/api/storesearch': {
+        items: [
+          { id: 2050650, name: 'Resident Evil 4', type: 'app' },
+          { id: 3764200, name: 'Resident Evil Requiem', type: 'app' },
+          { id: 418370, name: 'Resident Evil 7 Biohazard', type: 'app' }
+        ]
+      }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    const result = await llmMatchGame('生化危机9 安魂曲|中字-国语|Build.22898177', null);
+    expect(result && result.appId).toEqual(3764200);
+    expect(result && result.aiFallback).toEqual(true);
+    // LLM 官方名确实走了 storesearch 官方索引校验
+    expect(fetchMock._calls.some((u) => u.includes('/api/storesearch'))).toEqual(true);
+    restoreFetch();
+    restoreFetch = null;
+  });
+
+  test('LLM 直接给 appid → appdetails 官方名校验', async () => {
+    fetchMock = createFetchMock({
+      '/api/generate': () => ({ response: '{"name": "", "appid": 3764200}' }),
+      '/api/appdetails': {
+        3764200: { success: true, data: { steam_appid: 3764200, name: '生化危机 安魂曲' } }
+      }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    const result = await llmMatchGame('生化危机9 安魂曲', null);
+    expect(result && result.appId).toEqual(3764200);
+    restoreFetch();
+    restoreFetch = null;
+  });
+
+  test('LLM 输出无法解析 → null（不信任）', async () => {
+    fetchMock = createFetchMock({
+      '/api/generate': () => ({ response: '我不确定这个游戏在 Steam 上叫什么。' })
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    const result = await llmMatchGame('某个奇怪游戏', null);
+    expect(result).toEqual(null);
+    restoreFetch();
+    restoreFetch = null;
+  });
+
+  test('LLM 名搜索不到 → null（校验失败不采用）', async () => {
+    fetchMock = createFetchMock({
+      '/api/generate': () => ({ response: '{"name": "Nonexistent Game XYZ", "appid": null}' }),
+      '/api/storesearch': { items: [] }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    const result = await llmMatchGame('不存在游戏 XYZ', null);
+    expect(result).toEqual(null);
+    restoreFetch();
+    restoreFetch = null;
+  });
+
+  test('失败结果缓存 24h（同标题不重复打 LLM）', async () => {
+    fetchMock = createFetchMock({
+      '/api/generate': () => ({ response: '{"name": "Nonexistent Game XYZ", "appid": null}' }),
+      '/api/storesearch': { items: [] }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    await llmMatchGame('缓存测试游戏 ABC', null);
+    const before = fetchMock._calls.filter((u) => u.includes('/api/generate')).length;
+    await llmMatchGame('缓存测试游戏 ABC', null);
+    const after = fetchMock._calls.filter((u) => u.includes('/api/generate')).length;
+    expect(after).toEqual(before); // 失败缓存命中，未再调 LLM
+    restoreFetch();
+    restoreFetch = null;
+  });
+});
+
+// ============ v6.4.17：搜索引擎兜底（Bing） ============
+describe('parseBingSearchAppIds（Bing HTML → appid 提取）', () => {
+  const { parseBingSearchAppIds } = aiMod;
+
+  test('提取 store.steampowered.com/app/{id}（去重）', () => {
+    const html = `<a href="https://cn.bing.com/ck/a?u=a1b2c3"><h2>生化危机9 安魂曲</h2></a>
+      <a href="https://store.steampowered.com/app/3764200/Resident_Evil_Requiem/">Steam 商店</a>
+      <cite>https://store.steampowered.com/app/3764200</cite>
+      <a href="https://store.steampowered.com/app/2050650/">旧作</a>`;
+    expect(parseBingSearchAppIds(html)).toEqual(['3764200', '2050650']);
+  });
+
+  test('无结果 → 空数组', () => {
+    expect(parseBingSearchAppIds('<html><body>没有游戏结果</body></html>')).toEqual([]);
+    expect(parseBingSearchAppIds('')).toEqual([]);
+  });
+});
+
+describe('webSearchFallback（Bing 搜索 → appdetails 校验）', () => {
+  const { webSearchFallback } = aiMod;
+  let fetchMock, restoreFetch;
+
+  test('搜索结果含正确 appid → 校验通过采用（109515 场景，无需 LLM 配置）', async () => {
+    fetchMock = createFetchMock({
+      'cn.bing.com/search': () =>
+        '<html><a href="https://store.steampowered.com/app/2050650/">Resident Evil 4</a>' +
+        '<a href="https://store.steampowered.com/app/3764200/Resident_Evil_Requiem/">正确</a></html>',
+      '/api/appdetails': {
+        2050650: { success: true, data: { name: 'Resident Evil 4' } },
+        3764200: { success: true, data: { name: '生化危机 安魂曲' } }
+      }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    const result = await webSearchFallback('生化危机9 安魂曲|中字-国语', null);
+    expect(result && result.appId).toEqual(3764200);
+    expect(result && result.aiFallback).toEqual(true);
+    restoreFetch();
+    restoreFetch = null;
+  });
+
+  test('appdetails 校验失败（名字与标题零共同词）→ null', async () => {
+    fetchMock = createFetchMock({
+      'cn.bing.com/search': () => ({
+        text: async () =>
+          '<html><a href="https://store.steampowered.com/app/123456/">完全不相关的游戏</a></html>'
+      }),
+      '/api/appdetails': {
+        123456: { success: true, data: { name: 'Jrago III 夜之安魂曲' } }
+      }
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    const result = await webSearchFallback('某个全新神秘游戏', null);
+    expect(result).toEqual(null);
+    restoreFetch();
+    restoreFetch = null;
+  });
+
+  test('失败结果独立缓存（web: 键，不阻断 LLM match 缓存）', async () => {
+    fetchMock = createFetchMock({
+      'cn.bing.com/search': () => ({ text: async () => '<html>无结果</html>' })
+    });
+    restoreFetch = installFetchMock(fetchMock);
+    await webSearchFallback('缓存测试 Web 游戏', null);
+    const calls = fetchMock._calls.filter((u) => u.includes('cn.bing.com')).length;
+    await webSearchFallback('缓存测试 Web 游戏', null);
+    const calls2 = fetchMock._calls.filter((u) => u.includes('cn.bing.com')).length;
+    expect(calls2).toEqual(calls);
+    restoreFetch();
+    restoreFetch = null;
+  });
+});
+
+// ============ 未配置 LLM → 静默跳过 ============
+describe('llmMatchGame 未配置 LLM', () => {
+  test('useLLM=false → 直接返回 null（不触发任何网络）', async () => {
+    seedSettings({ useLLM: false, llmConfig: {} });
+    const fakeFetch = () => {
+      throw new Error('不应发起网络请求');
+    };
+    const prev = globalThis.fetch;
+    globalThis.fetch = fakeFetch;
+    try {
+      expect(await aiMod.llmMatchGame('任意游戏', null)).toEqual(null);
+    } finally {
+      globalThis.fetch = prev;
+    }
+  });
+});
+

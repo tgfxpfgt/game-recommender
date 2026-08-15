@@ -18,7 +18,6 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..')
 
 // 1. SSRF 校验（加载真实 utils 模块）
 const utils = await import(new URL('../../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
-console.log('1. SSRF 校验 isSafeFetchUrl');
 test('https 公网', () => { expect(utils.isSafeFetchUrl('https://store.steampowered.com/app/1/')).toEqual(true); });
 test('http 公网', () => { expect(utils.isSafeFetchUrl('http://xdgame.com/')).toEqual(true); });
 test('localhost 拒绝', () => { expect(utils.isSafeFetchUrl('http://localhost:11434/')).toEqual(false); });
@@ -50,7 +49,6 @@ test('IPv6 文档段放行', () => { expect(utils.isSafeFetchUrl('http://[2001:d
 
 // 2. ND-JSON 编解码（加载真实 ndjson 模块）
 const ndjson = await import(new URL('../../lib/ndjson.js', import.meta.url).href + '?t=' + Date.now());
-console.log('2. ND-JSON 编解码');
 const entries = [{ a: 1 }, { b: '中文' }, { c: [1, 2] }];
 const encoded = ndjson.NDJSON.encode(entries);
 test('编码行数', () => { expect(encoded.split('\n').length).toEqual(3); });
@@ -59,13 +57,11 @@ test('损坏行跳过', () => { expect(ndjson.NDJSON.decode('{bad}\n{"ok":1}\n')
 test('空输入', () => { expect(ndjson.NDJSON.decode('')).toEqual([]); });
 
 // 2.5 regexExecAll（Symbol.matchAll 标准符号，v3.2.5 修复）
-console.log('2.5 regexExecAll');
 test('迭代提取', () => { expect(utils.regexExecAll('a1 b22 c333', /\d+/g).map((m) => m[0])).toEqual(['1', '22', '333']); });
 test('自动补 g 标志', () => { expect(utils.regexExecAll('a1 b2', /\d+/).length).toEqual(2); });
 test('无匹配返回空', () => { expect(utils.regexExecAll('abc', /\d+/g).length).toEqual(0); });
 
 // 3. TDZ 静态扫描（全部 JS 文件）
-console.log('6. 缓存 TTL 单位解析');
 const constants = await import(
   new URL('../../background/core/constants.js', import.meta.url).href + '?t=' + Date.now()
 );
@@ -79,7 +75,6 @@ test('旧数字格式兼容（registryConfirm=天）', () => { expect(constants.
 test('缺省值', () => { expect(constants.resolveTtlMs('steamDynamic', null)).toEqual(24 * 3600e3); });
 
 // 7. 中英文名异常检测（导入 utils.js 真实谓词，不再复制被测逻辑）
-console.log('7. 中英文名异常检测（utils.js 真实谓词）');
 const utilsMod = await import(new URL('../../background/core/utils.js', import.meta.url).href);
 const validEn = (enName) => !enName || utilsMod.hasLatinLetters(enName, 2);
 const validCn = (cnName) => !cnName || utilsMod.hasChineseChars(cnName);

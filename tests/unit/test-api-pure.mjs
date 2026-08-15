@@ -13,14 +13,12 @@ import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 
 
 const apiMod = await import(new URL('../../background/steam/api.js', import.meta.url).href + '?t=' + Date.now());
-console.log('0. 封面 URL 构造 coverImageFor');
 test('已有 http 封面保留', () => { expect(apiMod.coverImageFor('111', 'https://xdgame.com/img/a.jpg')).toEqual('https://xdgame.com/img/a.jpg'); });
 test('按 appId 构造 CDN header 图', () => { expect(apiMod.coverImageFor('111', null)).toEqual('https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg'); });
 test('非 http 封面回退构造', () => { expect(apiMod.coverImageFor('111', 'data:image/png;base64,xx')).toEqual('https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg'); });
 test('无 appId 返回空', () => { expect(apiMod.coverImageFor('', '')).toEqual(''); });
 
 // ============ 0.5 名称相关性校验（v3.2.2）/ nameMatchesSearch ============
-console.log('0.5 名称相关性校验 nameMatchesSearch');
 const nm = apiMod.nameMatchesSearch;
 test('正常中文匹配', () => { expect(nm('幻世录 重制版', '幻世录', '幻世录 重制版 抢先试玩')).toEqual(true); });
 test('正常英文精确', () => { expect(nm('Kungfu Card', 'Kungfu Card', 'Kungfu Card')).toEqual(true); });
@@ -58,7 +56,6 @@ test('digitSetsOverlap 纯函数', () => {
 });
 
 // ============ 0.5b v6.4.16：跨语言收紧 / 删词变体校验 / 候选打分 ============
-console.log('0.5b v6.4.16 跨语言收紧 + 删词变体校验 + 候选打分');
 const nmv = apiMod.nameMatchesSearchVariant;
 const mcs = apiMod.matchCandidateScore;
 test('跨语言收紧：中文搜索词命中英文结果名且标题无英文 → 拒绝（安魂曲→Jrago III 根因）', () => {
@@ -97,7 +94,6 @@ test('候选打分：英文共同词权重高于中文', () => {
 });
 
 // ============ 0.6 appId 本体解析（v3.2.6）/ baseAppIdFromDetails ============
-console.log('0.6 appId 本体解析 baseAppIdFromDetails');
 const bd = apiMod.baseAppIdFromDetails;
 test('game 类型保留自身', () => { expect(bd({ type: 'game', appid: 2806120 })).toEqual('2806120'); });
 test('demo 含 fullgame 解析本体（杀死影子 Demo→本体）', () => { expect(bd({ type: 'demo', appid: 2947640, fullgame: { appid: '2660230', name: '杀死影子' } })).toEqual('2660230'); });
@@ -119,7 +115,6 @@ test('真实结构 dlc+fullgame 解析本体', () => { expect(bd({ type: 'dlc', 
 test('真实结构 bundle 无法解析', () => { expect(bd({ type: 'bundle', steam_appid: 888 })).toEqual(null); });
 
 // ============ 0.7 失败固化检测（v3.2.9）/ isFailedRatingEntry ============
-console.log('0.7 失败固化检测 isFailedRatingEntry');
 const fe = apiMod.isFailedRatingEntry;
 test('正常好评率条目有效', () => { expect(fe({ positiveRate: 90, ratingDesc: '特别好评' })).toEqual(false); });
 test('0 评测条目有效（有描述）', () => { expect(fe({ positiveRate: null, ratingDesc: '无用户评测' })).toEqual(false); });
@@ -127,7 +122,6 @@ test('失败固化（双空）判定', () => { expect(fe({ positiveRate: null, r
 test('null 输入', () => { expect(fe(null)).toEqual(false); });
 
 // ============ 0.8 Steam API 状态监测（v3.3.0）/ api-monitor ============
-console.log('0.8 Steam API 状态监测');
 const monitor = await import(
   new URL('../../background/core/api-monitor.js', import.meta.url).href + '?t=' + Date.now()
 );
@@ -165,7 +159,6 @@ test('限流状态码统计（429/503）', () => {
 });
 
 // ============ 0.9 无好评率缓存重新获取（v3.3.1）/ needsRatingRefetch ============
-console.log('0.9 无好评率缓存重新获取 needsRatingRefetch');
 const nr = apiMod.needsRatingRefetch;
 const refetchNow = Date.now();
 test('有好评率不重取', () => { expect(nr({ data: { positiveRate: 90, ratingDesc: '特别好评' } })).toEqual(false); });
@@ -176,7 +169,6 @@ test('无缓存条目重取', () => { expect(nr(null)).toEqual(true); });
 test('无重试记录立即重取', () => { expect(nr({ data: { positiveRate: null, ratingDesc: '无用户评测' } })).toEqual(true); });
 
 // ============ 0.10 详情页缓存完整性（v3.3.3）/ isCompleteCacheData ============
-console.log('0.10 详情页缓存完整性 isCompleteCacheData');
 const icd = apiMod.isCompleteCacheData;
 const fullData = {
   url: 'https://store.steampowered.com/app/1/',
@@ -197,7 +189,6 @@ test('缺 url 判定失败', () => { expect(icd({ ...fullData, url: '' })).toEqu
 test('null 输入判定失败', () => { expect(icd(null)).toEqual(false); });
 
 // ============ 0.11 详情页独立 TTL（v3.3.3）/ detailSteamCacheTtlMs ============
-console.log('0.11 详情页独立 TTL detailSteamCacheTtlMs');
 const constMod = await import(new URL('../../background/core/constants.js', import.meta.url).href + '?t=' + Date.now());
 test('默认 72 小时', () => { expect(constMod.detailSteamCacheTtlMs()).toEqual(72 * 3600e3); });
 test('detailSteam 0 = 长期', () => { expect((() => {
@@ -220,7 +211,6 @@ constMod.setTtlConfig({
 });
 
 // ============ 0.12 模块化缓存（v3.3.7）/ isModuleValid / getMergedData ============
-console.log('0.12 模块化缓存 isModuleValid / getMergedData');
 const cacheMod = await import(
   new URL('../../background/storage/steam-cache.js', import.meta.url).href + '?t=' + Date.now()
 );
@@ -245,7 +235,6 @@ test('全部过期条目整体无效', () => { expect(cacheMod.isSteamCacheValid
 // 0.12b 字段归属路由（setSteamCacheEntry 自动拆分）
 // v6.1.1：每 test 自包含准备——getSteamCacheEntry 返回内存对象引用，顶层
 // 准备 + 延迟断言会读到后续部分更新后的值（check 线性脚本时序语义丢失）
-console.log('0.12b 字段归属路由 setSteamCacheEntry');
 globalThis.chrome = {
   storage: { local: { get: async () => ({}), set: async () => {} } }
 };
@@ -290,7 +279,6 @@ test('部分更新覆盖同模块字段', async () => {
 });
 
 // 0.12c 旧平铺结构迁移（load 时自动迁移，旧缓存不立即失效）
-console.log('0.12c 旧平铺结构迁移 migrateEntry');
 const legacy = {
   data: { appId: '100', positiveRate: 88, genres: ['RPG'] },
   timestamp: modNow - 10 * 3600e3,
@@ -305,7 +293,6 @@ test('迁移保留原时间戳', () => { expect(migrated.modules.rating.ts === m
 test('模块结构条目迁移不变', () => { expect(cacheMod.migrateEntry(modEntry) === modEntry).toEqual(true); });
 
 // ============ 0.13 近30天评测统计（v3.3.6）/ summarizeRecentReviews ============
-console.log('0.13 近30天评测统计 summarizeRecentReviews');
 const srr = apiMod.summarizeRecentReviews;
 const winSec = apiMod.RECENT_REVIEW_WINDOW_SEC;
 const nowSec = Math.floor(Date.now() / 1000);
@@ -327,7 +314,6 @@ test('100 条全近期统计（截断窗口近似）', () => { expect(srr(
 test('null 输入', () => { expect(srr(null, nowSec - winSec)).toEqual({ total: 0, positive: 0, rate: null }); });
 
 // ============ 0.14 检索匹配修复（v3.3.10）/ calcLinkMatchScore + namesRelated ============
-console.log('0.14 检索匹配修复 calcLinkMatchScore + namesRelated');
 const searchMod = await import(new URL('../../background/sites/search.js', import.meta.url).href + '?t=' + Date.now());
 // 数字保护：二代搜索词 vs 一代页面 → 0 分（"spiritofthenorth2" 不再匹配 "spiritofthenorth"）
 test('二代词 vs 一代页（数字保护 → 0 分）', () => { expect(searchMod.calcLinkMatchScore('北方之魂增强版/Spirit of the North- Switch520.com', 'Spirit of the North 2')).toEqual(0); });
@@ -346,7 +332,6 @@ test('空输入', () => { expect(nr2('', '')).toEqual(false); });
 
 // ============ 1. 适配规则校验 / Adapter-rule validation ============
 
-console.log('8. 版本后缀补搜 findVersionVariant（mock Steam）');
 const realFetch = globalThis.fetch;
 // mock：appdetails 返回英文名（Legacy 后缀）；storesearch 返回增强版条目
 globalThis.fetch = async (url) => {
@@ -373,7 +358,6 @@ try {
 
 
 // ============ 0.15 解析健壮性（v6.3.0 C 收尾）/ Parser robustness ============
-console.log('0.15 解析健壮性（异常输入不抛错 + 官方字段降级）');
 const detailsMod = await import(new URL('../../background/steam/api-details.js', import.meta.url).href + '?t=1');
 test('supported_languages 非字符串（异常响应）不抛错', () => {
   const r = detailsMod.parseChineseLanguageSupport('', { supported_languages: { schinese: { full_audio: true } } });
@@ -403,7 +387,6 @@ test('storeHtml 异常标签 → 过滤非法标签且不抛错', () => {
 });
 
 // ============ 0.16 好评率重试机制（v6.4.10：刷新重试上限 3 次） ============
-console.log('0.16 好评率重试机制（失败固化上限 3 次）');
 test('失败固化 count 0 → 需重取（首次刷新）', () => {
   const d = { positiveRate: null, ratingDesc: null };
   expect(apiMod.needsRatingRefetch({ data: d })).toEqual(true);
