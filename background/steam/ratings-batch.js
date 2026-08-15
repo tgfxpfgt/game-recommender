@@ -67,7 +67,11 @@ export async function handleGetSteamRatings(message, sender) {
         chrome.runtime.getPlatformInfo().catch(() => {});
       }, 10000);
       try {
-        const batchSize = 3;
+        // v6.4.15：并发自适应——正常 6 并发提速（中国网络下 Steam 请求常
+        // 挂起 5-15s，3 并发时 50 游戏列表需约 1 分钟，后半部分长时间无徽章）；
+        // 检测到限流异常时降为 2 并配合下方降速等待
+        const anomaly = getSteamApiStatus().anomaly;
+        const batchSize = anomaly ? 2 : 6;
         const push = (payload) => {
           if (tabId !== null && tabId !== undefined) {
             chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});

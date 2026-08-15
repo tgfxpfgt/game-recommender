@@ -355,6 +355,23 @@ test('失败固化 count 3 → 停止重试（上限）', () => {
   const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 3 };
   expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);
 });
+// v6.4.15：超过上限后按长冷却（1 小时）重置重试——限流/超时是暂时性的
+test('失败固化 count 3 + 刚重试过 → 不重取（长冷却内）', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 3, ratingRetriedAt: Date.now() - 1000 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);
+});
+test('失败固化 count 3 + 长冷却已过 → 恢复重取', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 3, ratingRetriedAt: Date.now() - 61 * 60 * 1000 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(true);
+});
+test('失败固化 count 5 + 长冷却已过 → 仍可重取（不永久固化）', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 5, ratingRetriedAt: Date.now() - 2 * 60 * 60 * 1000 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(true);
+});
+test('失败固化 count 5 + 无重试时间 → 不重取（需长冷却起点）', () => {
+  const d = { positiveRate: null, ratingDesc: null, ratingFailCount: 5 };
+  expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);
+});
 test('失败固化冷却期内不重取（防同次刷新连打）', () => {
   const d = { positiveRate: null, ratingDesc: null, ratingRetriedAt: Date.now() - 1000 };
   expect(apiMod.needsRatingRefetch({ data: d })).toEqual(false);

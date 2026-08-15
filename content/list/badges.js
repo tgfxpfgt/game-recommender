@@ -103,7 +103,7 @@ export function prependBadge(item, rating, settings) {
           bg: 'rgba(143,152,160,0.15)',
           cls: 'gr-rating-badge',
           title: rating.failed
-            ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），下次访问自动重试`
+            ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），稍后自动重试`
             : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
           clickable: true,
           appId: rating.appId
