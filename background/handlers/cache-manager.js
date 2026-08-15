@@ -33,6 +33,11 @@ import {
  * v5.0.0：由 handlers.js 拆分——缓存列表/删除/清空/单条刷新/过期清理。
  */
 
+// v7.0.4：推荐值计算缓存（key 含数据版本与 lastConfirmed——行为/缓存变更
+// 自动失效；内存换延迟：缓存面板查询不再每条目重算评分）
+import { getDataVersion } from '../storage/behavior.js';
+const recCache = new Map();
+
 // --- 缓存过期清理（v3.0.0）---
 export async function handleCleanExpiredCache() {
   const settings = await getSettings();
@@ -115,21 +120,32 @@ export async function handleGetGameCacheList(message) {
     const primaryUrl = Object.values(urls).find((u) => u && u.url) || null;
     const cachedEntry = steamCacheMemory ? steamCacheMemory.get(String(appId)) || null : null;
     const cachedData = cachedEntry ? getMergedData(cachedEntry) : null;
-    // 推荐值计算（纯函数，行为/Steam 信息动态反映）
-    const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
-    // v4.0.0：SteamSpy 时长/热度信号（与 calculateRecommendation 两处评分一致）
-    const { playTimeScore, heatScore } = steamspyScores(cachedData && cachedData.steamspy ? cachedData.steamspy : null);
-    const rec = computeGameScore({
-      profile,
-      globalStats,
-      tags: entry.tags || null,
-      keywordWeights,
-      positiveRate: cachedData && cachedData.positiveRate !== undefined ? cachedData.positiveRate : null,
-      chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
-      playTimeScore,
-      heatScore,
-      weights
-    });
+    // v7.0.4：推荐值计算缓存（内存换延迟）——按 appId + 数据版本缓存 60s，
+    // 缓存面板翻页/重复查询不再每条目重算评分
+    const recCacheKey = String(appId) + ':' + getDataVersion() + ':' + (entry.lastConfirmed || 0);
+    let rec = recCache.get(recCacheKey);
+    if (!rec) {
+      // 推荐值计算（纯函数，行为/Steam 信息动态反映）
+      const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
+      // v4.0.0：SteamSpy 时长/热度信号（与 calculateRecommendation 两处评分一致）
+      const { playTimeScore, heatScore } = steamspyScores(cachedData && cachedData.steamspy ? cachedData.steamspy : null);
+      rec = computeGameScore({
+        profile,
+        globalStats,
+        tags: entry.tags || null,
+        keywordWeights,
+        positiveRate: cachedData && cachedData.positiveRate !== undefined ? cachedData.positiveRate : null,
+        chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
+        playTimeScore,
+        heatScore,
+        weights
+      });
+      recCache.set(recCacheKey, rec);
+      if (recCache.size > 2000) {
+        // 简单 LRU 裁剪：清空重来（缓存面板查询间隔内条目数远小于此）
+        recCache.clear();
+      }
+    }
     return {
       appId,
       cnName: entry.cnName || '',

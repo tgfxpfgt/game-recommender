@@ -46,6 +46,11 @@ const scheduleWrite = writer.scheduleWrite;
 export const flushLearnedNoise = writer.flush;
 
 // 当前生效的动态噪声词（计数达到阈值）/ active learned noise words
+// v7.0.4：预热内存缓存（SW 启动时调用）
+export async function warmupLearnedNoise() {
+  await load();
+}
+
 export async function getActiveNoiseWords() {
   await load();
   return Object.entries(noiseMemory)

@@ -9,6 +9,8 @@
  * 属 storage 层编排职责，下沉后恢复 core→storage 单向依赖。
  */
 import { resetUrlIndex } from './url-index.js';
+import { resetDownloadUrlsMemory } from './download-urls.js';
+import { resetBehaviorMemory } from './behavior.js';
 import { resetSettingsCache } from '../core/settings.js';
 import { resetRulesCache } from '../core/rules.js';
 import { resetSteamCache } from './steam-cache.js';
@@ -25,6 +27,8 @@ import { resetLlmCache } from './llm-cache.js';
 // 重置所有内存缓存 / Reset all in-memory caches
 export function resetInMemoryCaches() {
   resetUrlIndex();
+  resetDownloadUrlsMemory();
+  resetBehaviorMemory();
   resetSettingsCache();
   resetRegistry();
   resetNameIndex();

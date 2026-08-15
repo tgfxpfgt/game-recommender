@@ -50,6 +50,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ============ 初始化 / Initialization ============
 initStorage().catch((e) => console.error('初始化失败:', e));
 
+// v7.0.4：存储内存预热（内存换延迟）——SW 启动时并行加载全部本地存储到
+// 内存，首个列表页/详情页查询零磁盘等待；失败不影响主流程（各模块惰性
+// 加载兜底）。Memory warm-up: parallel preload of local stores so the first
+// list/detail queries never wait on disk IO.
+Promise.allSettled([
+  import('./storage/steam-cache.js').then((m) => m.loadSteamCacheToMemory()),
+  import('./storage/name-index.js').then((m) => m.warmupNameIndex()),
+  import('./storage/registry.js').then((m) => m.warmupRegistry()),
+  import('./storage/wrong-reports.js').then((m) => m.warmupWrongReports()),
+  import('./storage/learned-noise.js').then((m) => m.warmupLearnedNoise()),
+  import('./storage/url-index.js').then((m) => m.warmupUrlIndex()),
+  import('./storage/behavior.js').then((m) => m.warmupBehavior()),
+  import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls())
+]);
+
 // 定时器幂等创建：MV3 SW 每次冷启动都会重跑顶层代码，`alarms.create`
 // 对同名 alarm 是替换（重新起算周期）——重复创建会让 24h 任务永远不触发。
 // 已存在则跳过（v3.4.1 修复）。

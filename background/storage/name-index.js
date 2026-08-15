@@ -28,6 +28,11 @@ async function loadNameIndexToMemory() {
 
 // 查询游戏名对应的 appId（精确名 → 清理名回退，兼容跨站变体）
 // Lookup appId by name (exact, then cleaned canonical-name fallback)
+// v7.0.4：预热内存缓存（SW 启动时调用）
+export async function warmupNameIndex() {
+  await loadNameIndexToMemory();
+}
+
 export async function lookupAppIdByName(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return null;

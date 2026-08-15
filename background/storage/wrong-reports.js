@@ -52,6 +52,11 @@ export async function recordWrongReport(gameName, info = {}) {
   return entry;
 }
 
+// v7.0.4：预热内存缓存（SW 启动时调用）
+export async function warmupWrongReports() {
+  await loadWrongReports();
+}
+
 /**
  * 查询某标题的人工纠正知识（有 correctAppId 才返回——用户手动确认过的正确本体）。
  * Look up the confirmed correction for a title (only when a correctAppId exists).

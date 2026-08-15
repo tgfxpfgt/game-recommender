@@ -28,12 +28,29 @@ function withStoreLock(task) {
 
 // 读取整个存储结构（含版本校验，版本不符视为空）
 // Read the whole store (version-checked; mismatches treated as empty)
+// v7.0.4：内存缓存（内存换延迟——Steam 页缓存优先展示/列表页推送不再每次
+// 读盘；写操作经 withStoreLock 修改同一内存引用后落盘，读写一致）
+/** @type {{v: number, sites: Object}|null} */
+let urlsStoreMemory = null;
 export async function readDownloadUrlsStore() {
+  if (urlsStoreMemory) return urlsStoreMemory;
   const store = await dataStore.readModule(DB_KEYS.DOWNLOAD_URLS);
   if (!store || store.v !== DOWNLOAD_URLS_VERSION || !store.sites) {
-    return { v: DOWNLOAD_URLS_VERSION, sites: {} };
+    urlsStoreMemory = { v: DOWNLOAD_URLS_VERSION, sites: {} };
+    return urlsStoreMemory;
   }
+  urlsStoreMemory = store;
   return store;
+}
+
+// 预热内存缓存（SW 启动时调用）/ warm the in-memory store
+export async function warmupDownloadUrls() {
+  await readDownloadUrlsStore();
+}
+
+// 清空内存缓存（导入/清除数据后调用，避免读到旧数据）
+export function resetDownloadUrlsMemory() {
+  urlsStoreMemory = null;
 }
 
 // 获取某 appId 的所有下载站网址（合并各站点桶；Steam 页检索缓存优先用）

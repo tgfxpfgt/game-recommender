@@ -10,34 +10,76 @@ import { DB_KEYS, PREF_UPDATE_INTERVAL } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 
 // --- 行为日志 / Behavior Log ---
+// v7.0.4：内存缓存（内存换延迟）——行为日志/画像/关键词权重常被读取（推荐
+// 计算、统计、缓存列表），此前每次 readModule 读盘；写操作更新内存缓存为写回
+// 对象，读写一致；dataVersion 供统计聚合缓存按版本失效。
+/** @type {{log: Array<Object>|null, profiles: Object|null, keywordWeights: Object|null}} */
+let behaviorCache = { log: null, profiles: null, keywordWeights: null };
+let dataVersion = 0;
+export function getDataVersion() {
+  return dataVersion;
+}
+function bumpVersion() {
+  dataVersion++;
+}
+
 // 追加一条行为记录（ND-JSON 追加写入，仅超限时裁剪重写）
 // Append a behavior entry (ND-JSON append; trim only when over the limit)
 export async function addBehaviorLog(entry) {
   entry.timestamp = Date.now();
   await dataStore.appendModule(DB_KEYS.BEHAVIOR_LOG, entry);
+  // v7.0.4：追加是磁盘写入——内存缓存需重新读盘同步（缓存引用是旧数组，
+  // 直接 push 会漏掉 appendModule 的序列化结果）
+  const stored = await dataStore.readModule(DB_KEYS.BEHAVIOR_LOG);
+  behaviorCache.log = Array.isArray(stored) ? stored : [];
 
   const settings = await getSettings();
-  const log = await getBehaviorLog();
+  const log = behaviorCache.log;
   const maxLog = settings.maxBehaviorLog || 500;
   if (log.length > maxLog) {
-    await dataStore.writeModule(DB_KEYS.BEHAVIOR_LOG, log.slice(-maxLog));
+    const trimmed = log.slice(-maxLog);
+    await dataStore.writeModule(DB_KEYS.BEHAVIOR_LOG, trimmed);
+    behaviorCache.log = trimmed;
   }
+  bumpVersion();
   return log;
 }
 
 // 读取行为日志 / Read the behavior log
+/** @returns {Promise<Array<Object>>} */
 export async function getBehaviorLog() {
+  if (behaviorCache.log) return behaviorCache.log;
   const stored = await dataStore.readModule(DB_KEYS.BEHAVIOR_LOG);
-  return stored || [];
+  behaviorCache.log = Array.isArray(stored) ? stored : [];
+  return behaviorCache.log;
 }
 
 // v5.0.0：画像/关键词权重读取辅助（此前 handlers/engine 4 处手写并行读取）
 // Profile / keyword-weight read helpers (was hand-written in 4 call sites)
+/** @returns {Promise<Object>} */
 export async function readProfiles() {
-  return dataStore.readModule(DB_KEYS.GAME_PROFILES).then((v) => v || {});
+  if (behaviorCache.profiles) return behaviorCache.profiles;
+  const v = (await dataStore.readModule(DB_KEYS.GAME_PROFILES)) || {};
+  behaviorCache.profiles = v;
+  return v;
 }
+/** @returns {Promise<Object>} */
 export async function readKeywordWeights() {
-  return dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS).then((v) => v || {});
+  if (behaviorCache.keywordWeights) return behaviorCache.keywordWeights;
+  const v = (await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS)) || {};
+  behaviorCache.keywordWeights = v;
+  return v;
+}
+
+// 预热内存缓存（SW 启动时调用）/ warm the in-memory caches
+export async function warmupBehavior() {
+  await Promise.all([getBehaviorLog(), readProfiles(), readKeywordWeights()]);
+}
+
+// 清空内存缓存（导入/清除数据后调用）
+export function resetBehaviorMemory() {
+  behaviorCache = { log: null, profiles: null, keywordWeights: null };
+  dataVersion++;
 }
 
 // --- 游戏画像 / Game Profiles ---
@@ -72,6 +114,8 @@ export async function updateGameProfile(gameInfo) {
   profile.lastSeen = Date.now();
 
   await dataStore.writeModule(DB_KEYS.GAME_PROFILES, profiles);
+  behaviorCache.profiles = profiles; // v7.0.4：写回内存缓存（读写一致）
+  bumpVersion();
   return profiles;
 }
 
@@ -137,5 +181,7 @@ async function updateUserPreferences() {
   });
 
   await dataStore.writeModule(DB_KEYS.KEYWORD_WEIGHTS, keywordWeights);
+  behaviorCache.keywordWeights = keywordWeights; // v7.0.4：写回内存缓存
+  bumpVersion();
   return keywordWeights;
 }

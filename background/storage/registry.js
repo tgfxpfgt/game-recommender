@@ -25,6 +25,11 @@ async function loadRegistryToMemory() {
 }
 
 // 获取整个注册表 / Get the entire registry
+// v7.0.4：预热内存缓存（SW 启动时调用）
+export async function warmupRegistry() {
+  await loadRegistryToMemory();
+}
+
 export async function getGameRegistry() {
   await loadRegistryToMemory();
   return registryMemory;

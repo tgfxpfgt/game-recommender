@@ -44,6 +44,11 @@ function normalizeUrl(url) {
   return u.split('#')[0].split('?')[0];
 }
 
+// v7.0.4：预热内存缓存（SW 启动时调用）
+export async function warmupUrlIndex() {
+  await load();
+}
+
 // 按网址查 appId（第一候选；无记录返回 null）
 export async function getAppIdByUrl(url) {
   const key = normalizeUrl(url);

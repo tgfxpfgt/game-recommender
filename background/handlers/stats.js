@@ -1,5 +1,5 @@
 import { dataStore } from '../../data/data-store.js';
-import { readProfiles, readKeywordWeights, getBehaviorLog } from '../storage/behavior.js';
+import { readProfiles, readKeywordWeights, getBehaviorLog, getDataVersion } from '../storage/behavior.js';
 import { getCacheStats } from '../storage/steam-cache.js';
 import { DB_KEYS } from '../core/constants.js';
 import { aggregateTrends } from '../core/trends.js';
@@ -12,8 +12,17 @@ import { Logger } from '../storage/logger.js';
  * v5.0.0：由 handlers.js 拆分——统计/趋势/偏好推荐。
  */
 
+// v7.0.4：聚合结果缓存（内存换延迟）——数据版本未变时直接复用，避免
+// dashboard/popup 频繁查询重复遍历全量行为日志
+/** @type {{version: number, result: Object}|null} */
+let statsCache = null;
+/** @type {{version: number, day: Array<Object>|null, week: Array<Object>|null}} */
+let trendsCache = { version: -1, day: null, week: null };
+
 // --- 统计 / Stats ---
 export async function handleGetStats() {
+  const version = getDataVersion();
+  if (statsCache && statsCache.version === version) return statsCache.result;
   const log = await getBehaviorLog();
   const [profiles, keywordWeights] = await Promise.all([readProfiles(), readKeywordWeights()]);
 
@@ -33,7 +42,7 @@ export async function handleGetStats() {
       downloadMethods[method] = (downloadMethods[method] || 0) + 1;
     });
 
-  return {
+  const result = {
     totalEvents: log.length,
     totalGames: Object.keys(profiles).length,
     viewDetailCount,
@@ -49,17 +58,23 @@ export async function handleGetStats() {
     recentLog: log.slice(-30).reverse(),
     cacheStats: getCacheStats()
   };
+  statsCache = { version, result };
+  return result;
 }
 
 // 行为趋势（按天/周浏览·下载·转化率，v4.0.0 起；v4.1.0 支持周粒度）
 // Behavior trends (daily/weekly views · downloads · rate)
-
-// 行为趋势（按天/周浏览·下载·转化率，v4.0.0 起；v4.1.0 支持周粒度）
-// Behavior trends (daily/weekly views · downloads · rate)
 export async function handleGetTrends(message) {
-  const log = await getBehaviorLog();
   const granularity = message && message.granularity === 'week' ? 'week' : 'day';
-  return { daily: aggregateTrends(log, granularity), granularity };
+  // v7.0.4：趋势聚合缓存（版本未变直接复用）
+  const version = getDataVersion();
+  if (trendsCache.version === version && trendsCache[granularity]) {
+    return { daily: trendsCache[granularity], granularity };
+  }
+  const log = await getBehaviorLog();
+  const daily = aggregateTrends(log, granularity);
+  trendsCache = { version, day: granularity === 'day' ? daily : trendsCache.day, week: granularity === 'week' ? daily : trendsCache.week };
+  return { daily, granularity };
 }
 
 // 基于用户偏好标签的 Steam 推荐
