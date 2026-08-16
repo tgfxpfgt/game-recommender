@@ -473,7 +473,7 @@ test('2. 列表页两波好评率流程', async () => {
     true
   );
   expect(
-    itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '95%'
+    itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '✓ 95%'
   ).toEqual(true);
   expect(itemA.a.children[2].className.includes('gr-update-badge') && itemA.a.children[2].textContent === '—').toEqual(
     true
@@ -525,7 +525,7 @@ test('2. 列表页两波好评率流程', async () => {
   ).toEqual(true);
   expect(itemB.a.children[0].title.includes('55%') && itemB.a.children[0].title.includes('120')).toEqual(true);
   expect(
-    itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '60%'
+    itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '▲ 60%'
   ).toEqual(true);
   expect(
     itemB.a.children[2].className.includes('gr-update-badge') && itemB.a.children[2].textContent === '🛠 08-01'

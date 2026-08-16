@@ -12,6 +12,12 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { getSettings } from '../core/settings.js';
 import { Logger } from '../storage/logger.js';
 
+// v7.4.0：最近一次限免通知内容（SW 点击通知时读取）
+let lastNotifyGames = [];
+export function getLastNotifyGames() {
+  return lastNotifyGames;
+}
+
 const ONE_DAY = 24 * 3600 * 1000;
 
 // v3.4.1：外链协议白名单——第三方 API 的链接/图片只允许 http(s)
@@ -448,6 +454,8 @@ async function notifyNewFreeGames(newOnes) {
     }
     if (limited.length === 0) return;
     newOnes = limited;
+    // v7.4.0：记录通知内容 → SW 点击通知时打开首个游戏商店页
+    lastNotifyGames = newOnes;
     const names = newOnes
       .slice(0, 3)
       .map((g) => g.name)

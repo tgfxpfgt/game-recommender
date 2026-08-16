@@ -7,7 +7,7 @@ import { test, expect } from 'vitest';
  * 版本断言改为 manifest 为唯一权威 + 与 package.json 互比（去硬编码——
  * 发版不再需要改测试）。
  */
-'use strict';
+('use strict');
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -105,11 +105,21 @@ if (process.argv.includes('--print')) {
   process.exit(0);
 }
 for (const v of violations) console.log('  ⚠', v);
-test('分层违规数（应为 0）', () => { expect(violations.length).toEqual(0); });
-test('core/title-parser.js 存在（下沉后）', () => { expect(fs.existsSync(path.join(BG, 'core/title-parser.js'))).toEqual(true); });
-test('storage/reset.js 存在（归位后）', () => { expect(fs.existsSync(path.join(BG, 'storage/reset.js'))).toEqual(true); });
-test('旧 steam/title-parser.js 已移除', () => { expect(fs.existsSync(path.join(BG, 'steam/title-parser.js'))).toEqual(false); });
-test('旧 core/reset.js 已移除', () => { expect(fs.existsSync(path.join(BG, 'core/reset.js'))).toEqual(false); });
+test('分层违规数（应为 0）', () => {
+  expect(violations.length).toEqual(0);
+});
+test('core/title-parser.js 存在（下沉后）', () => {
+  expect(fs.existsSync(path.join(BG, 'core/title-parser.js'))).toEqual(true);
+});
+test('storage/reset.js 存在（归位后）', () => {
+  expect(fs.existsSync(path.join(BG, 'storage/reset.js'))).toEqual(true);
+});
+test('旧 steam/title-parser.js 已移除', () => {
+  expect(fs.existsSync(path.join(BG, 'steam/title-parser.js'))).toEqual(false);
+});
+test('旧 core/reset.js 已移除', () => {
+  expect(fs.existsSync(path.join(BG, 'core/reset.js'))).toEqual(false);
+});
 
 const jsFiles = [];
 (function walk(dir) {
@@ -151,18 +161,31 @@ for (const file of jsFiles) {
     }
   }
 }
-test('TDZ 后向引用', () => { expect(tdzCount).toEqual(0); });
+test('TDZ 后向引用', () => {
+  expect(tdzCount).toEqual(0);
+});
 
 const sharedPatterns = fs.readFileSync(path.join(ROOT, 'shared/patterns.js'), 'utf-8');
 const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/core/title-parser.js'), 'utf-8');
 // v5.1.0：提取正则支持跨行（prettier 会把长定义拆到多行）
-const sharedSource = ((sharedPatterns.match(/noisePatternSource\s*=\s*'([^']+)'/) || [])[1] || '').replace(/\\\\/g, '\\');
+const sharedSource = ((sharedPatterns.match(/noisePatternSource\s*=\s*'([^']+)'/) || [])[1] || '').replace(
+  /\\\\/g,
+  '\\'
+);
 const parserSource = (titleParserSrc.match(/const noisePattern\s*=\s*\/([\s\S]*?)\/(?:gi|i);/) || [])[1] || '';
-test('双源正则一致（无漂移）', () => { expect(sharedSource === parserSource).toEqual(true); });
-test('权威源非空', () => { expect(sharedSource.length > 50).toEqual(true); });
+test('双源正则一致（无漂移）', () => {
+  expect(sharedSource === parserSource).toEqual(true);
+});
+test('权威源非空', () => {
+  expect(sharedSource.length > 50).toEqual(true);
+});
 const detailPageSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
-test('detail-page 引用权威源（无独立副本）', () => { expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(true); });
-test('detail-page 不含完整漂移副本', () => { expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true); });
+test('detail-page 引用权威源（无独立副本）', () => {
+  expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(true);
+});
+test('detail-page 不含完整漂移副本', () => {
+  expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true);
+});
 
 let syntaxFail = 0;
 for (const f of jsFiles) {
@@ -173,8 +196,12 @@ for (const f of jsFiles) {
     console.log('  ❌', path.relative(ROOT, f));
   }
 }
-test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
-test('JS 文件数', () => { expect(jsFiles.length >= 40).toEqual(true); });
+test('语法错误数', () => {
+  expect(syntaxFail).toEqual(0);
+});
+test('JS 文件数', () => {
+  expect(jsFiles.length >= 40).toEqual(true);
+});
 
 const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf-8'));
 const refs = [];
@@ -187,12 +214,21 @@ for (const v of Object.values(manifest.icons || {})) refs.push(v);
 if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
 const missing = refs.filter((r) => !fs.existsSync(path.join(ROOT, r)));
-test('manifest 引用缺失', () => { expect(missing.length).toEqual(0); });
-test('manifest 版本为 x.y.z 格式', () => { expect(/^\d+\.\d+\.\d+$/.test(manifest.version)).toEqual(true); });
+test('manifest 引用缺失', () => {
+  expect(missing.length).toEqual(0);
+});
+test('manifest 版本为 x.y.z 格式', () => {
+  expect(/^\d+\.\d+\.\d+$/.test(manifest.version)).toEqual(true);
+});
 const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
-test('package.json 版本与 manifest 一致', () => { expect(pkg.version).toEqual(manifest.version); });
-test('CSP 显式声明（extension_pages 默认基线）', () => { expect(JSON.stringify(manifest.content_security_policy || {})).toEqual(JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" })); });
-
+test('package.json 版本与 manifest 一致', () => {
+  expect(pkg.version).toEqual(manifest.version);
+});
+test('CSP 显式声明（extension_pages 默认基线）', () => {
+  expect(JSON.stringify(manifest.content_security_policy || {})).toEqual(
+    JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" })
+  );
+});
 
 // 6. adapters 清单一致性（v6.3.1：manifest/SW/options.html 三处手写同步防漂移）
 const swSrc2 = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
@@ -214,4 +250,40 @@ test('adapters 清单三处一致（manifest = SW = options.html）', () => {
 test('adapters 目录文件全部注册（无漏注册）', () => {
   const norm = (a) => [...a].sort();
   expect(JSON.stringify(norm(manifestAdapters))).toEqual(JSON.stringify(norm(dirAdapters)));
+});
+
+// ============ 7. 网站范围一致性（v7.4.0） ============
+// manifest content_scripts matches ↔ site-scripts BUILTIN_DOMAINS ↔ 内置规则
+// domains 三方同步——新增内置站点必须同时改三处（manifest matches、
+// background/core/site-scripts.js、adapters/sites/xxx.js）
+const manifestMatches = (manifest.content_scripts || []).flatMap((cs) => cs.matches || []);
+const manifestDomains = [
+  ...new Set(
+    manifestMatches
+      .filter((m) => m.startsWith('http') && !m.includes('steampowered.com'))
+      .map((m) => m.replace(/^https?:\/\/\*\./, '').replace(/\/\*$/, ''))
+  )
+].sort();
+const builtinDomains = [
+  ...fs
+    .readFileSync(path.join(BG, 'core/site-scripts.js'), 'utf-8')
+    .matchAll(/'(xdgame\.com|xianyudanji\.gg|gamer520\.com|3dmgame\.com|ali213\.net|gamersky\.com)'/g)
+]
+  .map((m) => m[1])
+  .sort();
+const siteRuleDomains = [
+  ...collectJs(path.join(ROOT, 'adapters/sites'), [])
+    .map((f) => fs.readFileSync(f, 'utf-8'))
+    .join('\n')
+    .matchAll(/domains:\s*\['([^']+)'\]/g)
+]
+  .map((m) => m[1])
+  .sort();
+test('网站范围三方一致（manifest matches = site-scripts 内置 = 规则 domains）', () => {
+  expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(builtinDomains));
+  expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(siteRuleDomains));
+});
+test('manifest 只注入内置站点 + Steam（无全站匹配）', () => {
+  expect(manifestMatches.some((m) => m === 'http://*/*' || m === 'https://*/*')).toEqual(false);
+  expect(manifestMatches.filter((m) => m.includes('steampowered.com')).length).toBeGreaterThan(0);
 });

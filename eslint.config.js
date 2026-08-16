@@ -26,6 +26,7 @@ export default [
         clearInterval: 'readonly',
         fetch: 'readonly',
         URL: 'readonly',
+        URLSearchParams: 'readonly',
         DOMParser: 'readonly',
         MutationObserver: 'readonly',
         NodeFilter: 'readonly',

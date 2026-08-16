@@ -1,0 +1,98 @@
+/* 游戏雷达 - 欢迎页样式 / Welcome page (v7.4.0) */
+.welcome-shell {
+  max-width: 760px;
+  margin: 40px auto;
+  padding: 0 20px 60px;
+  font-family: system-ui, "Microsoft YaHei", sans-serif;
+  color: #2c3e50;
+}
+.welcome-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.welcome-logo {
+  font-size: 52px;
+  line-height: 1;
+}
+.welcome-header h1 {
+  margin: 8px 0 4px;
+  font-size: 26px;
+}
+.welcome-header .ver {
+  font-size: 14px;
+  color: #27ae60;
+  vertical-align: middle;
+}
+.welcome-subtitle {
+  margin: 0;
+  color: #7f8c8d;
+  font-size: 14px;
+}
+.welcome-section h2 {
+  font-size: 17px;
+  margin: 0 0 14px;
+}
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+.feature-card {
+  background: #f8f9fa;
+  border: 1px solid #e6e9ec;
+  border-radius: 10px;
+  padding: 14px;
+}
+.feature-card .feat-icon {
+  font-size: 22px;
+}
+.feature-card h3 {
+  margin: 6px 0 4px;
+  font-size: 14px;
+}
+.feature-card p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #57606f;
+}
+.welcome-note {
+  margin-top: 16px;
+  font-size: 12px;
+  color: #57606f;
+}
+.changelog {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.9;
+}
+.changelog li {
+  margin-bottom: 4px;
+}
+.welcome-footer {
+  margin-top: 28px;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+.welcome-footer button {
+  padding: 8px 20px;
+  font-size: 13px;
+  color: #fff;
+  background: #1f6feb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.welcome-footer button.ghost {
+  color: #57606f;
+  background: transparent;
+  border: 1px solid #d0d7de;
+}
+.welcome-footer button:hover {
+  opacity: 0.85;
+}
+.hidden {
+  display: none;
+}

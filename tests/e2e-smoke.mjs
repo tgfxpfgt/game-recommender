@@ -194,6 +194,24 @@ async function runChecks() {
   }
   check('扩展后台 Service Worker 已启动', !!extId, `(id=${extId || '未获取'})`);
 
+  // v7.4.0：首次安装 onInstalled 自动打开欢迎页（install → 功能导览）
+  console.log('1b. 欢迎页（首次安装自动打开）');
+  let welcomeTab = context.pages().find((p) => p.url().includes('welcome/welcome.html'));
+  for (let i = 0; i < 10 && !welcomeTab; i++) {
+    await new Promise((r) => setTimeout(r, 500));
+    welcomeTab = context.pages().find((p) => p.url().includes('welcome/welcome.html'));
+  }
+  if (welcomeTab) {
+    await welcomeTab.waitForTimeout(600);
+    const wState = await welcomeTab.evaluate(() => ({
+      cards: document.querySelectorAll('.feature-card').length,
+      hasHub: !!document.getElementById('openHubBtn')
+    }));
+    check('欢迎页功能导览渲染（安装模式）', wState.cards === 6 && wState.hasHub);
+  } else {
+    check('欢迎页已打开（install 模式）', false);
+  }
+
   if (extId) {
     // 2. popup 打开且无 console error
     console.log('2. popup 冒烟');
@@ -246,6 +264,29 @@ async function runChecks() {
     );
     check('popup 无 console error', errors.length === 0, `(${errors.slice(0, 3).join(' | ')})`);
     await page.close();
+
+    // 2a. popup 快速搜索（v7.4.0：输入 → Steam 候选列表 → 点击打开）
+    console.log('2a. popup 快速搜索');
+    const searchPage = await context.newPage();
+    await searchPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+    await searchPage.waitForTimeout(600);
+    await searchPage.evaluate(() => {
+      const input = document.getElementById('searchInput');
+      input.value = '游戏';
+      input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    });
+    // 候选来自后台 Steam 搜索（真实网络或 E2E_MOCK fixture）
+    let searchOk = false;
+    for (let i = 0; i < 30 && !searchOk; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      searchOk = await searchPage.evaluate(() => {
+        const box = document.getElementById('searchResults');
+        const text = box ? box.textContent : '';
+        return !!box && box.querySelectorAll('.search-result-row').length > 0;
+      });
+    }
+    check('搜索候选渲染（Steam 检索）', searchOk);
+    await searchPage.close();
 
     // 2b. options 设置页 + popup↔options 状态一致性（v6.4.1）
     console.log('2b. options 设置页与双向状态一致性');
@@ -683,5 +724,42 @@ async function runChecks() {
     });
     check('重启后过滤设置持久化（写盘成功）', persisted === 55, `(got ${persisted})`);
     await persistPage2.close();
+
+    // 7. 自定义站点动态注册（v7.4.0：网站范围注入——自定义站点 registerContentScripts）
+    // 放在最后：保存自定义规则会临时覆盖内置规则（随后删除恢复）
+    // 注：注册域名须有 host permission（registerContentScripts 要求）——
+    // 用 host_permissions 已含的 localhost
+    console.log('7. 自定义站点内容脚本动态注册');
+    const regPage = await context.newPage();
+    await regPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+    await regPage.waitForTimeout(500);
+    await regPage.evaluate(async () => {
+      await chrome.runtime.sendMessage({
+        action: 'SAVE_ADAPTER_RULES',
+        rules: {
+          version: 1,
+          sites: [
+            {
+              key: 'grtest',
+              name: 'GR Test',
+              domains: ['localhost'],
+              listItem: { containers: ['li'], titleEls: ['a'], minLen: 2 }
+            }
+          ]
+        }
+      });
+    });
+    await regPage.waitForTimeout(1500);
+    const regIds = await regPage.evaluate(async () => {
+      const scripts = await chrome.scripting.getRegisteredContentScripts();
+      return scripts.map((s) => s.id);
+    });
+    check('自定义站点脚本已注册（gr-site-localhost）', regIds.includes('gr-site-localhost'));
+    // 恢复内置规则（删除自定义规则 → 内置回退）
+    await regPage.evaluate(async () => {
+      await chrome.runtime.sendMessage({ action: 'DELETE_ADAPTER_RULES' });
+    });
+    await regPage.waitForTimeout(800);
+    await regPage.close();
   }
 }

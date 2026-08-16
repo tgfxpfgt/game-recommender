@@ -1,15 +1,26 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "7.2.0",
+  "version": "8.0.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
   "permissions": [
     "storage",
     "alarms",
-    "notifications"
+    "notifications",
+    "scripting",
+    "contextMenus"
   ],
+  "commands": {
+    "gr-force-refresh": {
+      "suggested_key": {
+        "default": "Alt+Shift+G",
+        "mac": "Alt+Shift+G"
+      },
+      "description": "强制刷新当前页游戏好评率"
+    }
+  },
   "host_permissions": [
     "http://3dmgame.com/*",
     "https://3dmgame.com/*",
@@ -53,8 +64,19 @@
   "content_scripts": [
     {
       "matches": [
-        "http://*/*",
-        "https://*/*"
+        "http://*.xdgame.com/*",
+        "https://*.xdgame.com/*",
+        "http://*.xianyudanji.gg/*",
+        "https://*.xianyudanji.gg/*",
+        "http://*.gamer520.com/*",
+        "https://*.gamer520.com/*",
+        "http://*.3dmgame.com/*",
+        "https://*.3dmgame.com/*",
+        "http://*.ali213.net/*",
+        "https://*.ali213.net/*",
+        "http://*.gamersky.com/*",
+        "https://*.gamersky.com/*",
+        "https://*.steampowered.com/*"
       ],
       "js": [
         "shared/patterns.js",
@@ -95,8 +117,19 @@
         "content/*.js"
       ],
       "matches": [
-        "http://*/*",
-        "https://*/*"
+        "http://*.xdgame.com/*",
+        "https://*.xdgame.com/*",
+        "http://*.xianyudanji.gg/*",
+        "https://*.xianyudanji.gg/*",
+        "http://*.gamer520.com/*",
+        "https://*.gamer520.com/*",
+        "http://*.3dmgame.com/*",
+        "https://*.3dmgame.com/*",
+        "http://*.ali213.net/*",
+        "https://*.ali213.net/*",
+        "http://*.gamersky.com/*",
+        "https://*.gamersky.com/*",
+        "https://*.steampowered.com/*"
       ]
     }
   ]

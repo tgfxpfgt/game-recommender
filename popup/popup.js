@@ -43,20 +43,24 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Serial save queue prevents concurrent GET→SAVE overwrites; failures visible.
   let saveQueue = Promise.resolve();
   function saveSettingsPatch(patch) {
-    saveQueue = saveQueue.then(async () => {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-      const latest = resp && resp.settings ? resp.settings : settings;
-      utils.applyPatch(latest, patch);
-      settings = latest;
-      await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
-    }).catch((err) => {
-      console.warn('【游戏雷达】 设置保存失败:', err);
-      const saveFail = document.getElementById('saveFailHint');
-      if (saveFail) {
-        saveFail.style.display = 'block';
-        setTimeout(() => { saveFail.style.display = 'none'; }, 3000);
-      }
-    });
+    saveQueue = saveQueue
+      .then(async () => {
+        const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        const latest = resp && resp.settings ? resp.settings : settings;
+        utils.applyPatch(latest, patch);
+        settings = latest;
+        await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+      })
+      .catch((err) => {
+        console.warn('【游戏雷达】 设置保存失败:', err);
+        const saveFail = document.getElementById('saveFailHint');
+        if (saveFail) {
+          saveFail.style.display = 'block';
+          setTimeout(() => {
+            saveFail.style.display = 'none';
+          }, 3000);
+        }
+      });
     return saveQueue;
   }
 
@@ -187,7 +191,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     const btn = document.getElementById('refreshBtn');
     btn.textContent = '✅ 已刷新';
-    setTimeout(() => { btn.textContent = '🔄 刷新'; }, 1500);
+    setTimeout(() => {
+      btn.textContent = '🔄 刷新';
+    }, 1500);
   });
 
   // 强制刷新当前页（清除当前页 Steam 缓存后重载）
@@ -278,7 +284,9 @@ function updateWeightSum() {
   const sumEl = document.getElementById('ppWeightSum');
   if (!box || !sumEl) return;
   let sum = 0;
-  box.querySelectorAll('[data-w]').forEach((s) => { sum += Number(s.value) || 0; });
+  box.querySelectorAll('[data-w]').forEach((s) => {
+    sum += Number(s.value) || 0;
+  });
   sumEl.textContent = (sum / 100).toFixed(2);
 }
 
@@ -373,4 +381,45 @@ function updateLLMStatus(settings) {
   } else {
     statusDiv.style.display = 'none';
   }
+}
+
+// ============ 快速搜索（v7.4.0） ============
+// Quick Steam search: candidates → click to open the store page
+const searchInput = document.getElementById('searchInput');
+const searchBtn = document.getElementById('searchBtn');
+const searchResults = document.getElementById('searchResults');
+
+async function doSearch() {
+  const name = (searchInput.value || '').trim();
+  if (!name) return;
+  searchResults.classList.remove('hidden');
+  searchResults.textContent = '搜索中…';
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM_CANDIDATES', gameName: name });
+    const cands = (resp && resp.candidates) || [];
+    if (cands.length === 0) {
+      searchResults.textContent = '未找到匹配的 Steam 游戏';
+      return;
+    }
+    searchResults.innerHTML = '';
+    cands.slice(0, 6).forEach((c) => {
+      const row = document.createElement('div');
+      row.className = 'search-result-row';
+      row.textContent = c.name;
+      row.title = '打开 Steam 商店页 (App ID ' + c.appId + ')';
+      row.addEventListener('click', () => {
+        chrome.tabs.create({ url: 'https://store.steampowered.com/app/' + c.appId + '/' });
+        window.close();
+      });
+      searchResults.appendChild(row);
+    });
+  } catch (e) {
+    searchResults.textContent = '搜索失败：' + String(e);
+  }
+}
+if (searchInput && searchBtn) {
+  searchBtn.addEventListener('click', doSearch);
+  searchInput.addEventListener('keydown', (ev) => {
+    if (ev.key === 'Enter') doSearch();
+  });
 }

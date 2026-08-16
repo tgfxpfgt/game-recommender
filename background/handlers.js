@@ -10,6 +10,7 @@
 import { DEFAULT_SETTINGS } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
 import { saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
+import { syncSiteScripts } from './core/site-scripts.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
 import {
   addBehaviorLog,
@@ -152,11 +153,17 @@ async function handleGetAdapterRules() {
 
 async function handleSaveAdapterRules(message) {
   const result = await saveAdapterRules(message.rules);
+  // v7.4.0：规则变化后同步自定义站点内容脚本注册（新增站点立即生效，
+  // 无需等下一次 SW 启动）
+  if (result.ok) syncSiteScripts().catch(() => {});
   return result;
 }
 
 async function handleDeleteAdapterRules() {
   await deleteAdapterRules();
+  // 规则删除后自定义站点脚本残留注册无碍（tracker 按规则早退兜底）——
+  // 不注销，保持幂等简单；仍同步以补注册其他新站点
+  syncSiteScripts().catch(() => {});
   return { success: true };
 }
 
@@ -165,6 +172,18 @@ async function handleGetApiStatus() {
   // v6.4.10：扁平返回（popup 读顶层 anomaly/total/failed——此前嵌套 {status} 导致
   // 状态永远显示采样中）
   return getSteamApiStatus();
+}
+
+// v7.4.0：打开设置中心（欢迎页/弹窗跳转用）
+async function handleOpenHub() {
+  const url = chrome.runtime.getURL('hub/hub.html');
+  const [tab] = await chrome.tabs.query({ url });
+  if (tab) {
+    await chrome.tabs.update(tab.id, { active: true });
+  } else {
+    await chrome.tabs.create({ url });
+  }
+  return { success: true };
 }
 
 // --- 消息分发映射表 / Message dispatch map ---
@@ -217,6 +236,7 @@ export const MESSAGE_HANDLERS = {
   REPORT_WRONG_APPID: handleReportWrongAppId,
   HEAL_REGISTRY_NAMES: handleHealRegistryNames,
   GET_API_STATUS: handleGetApiStatus,
+  OPEN_HUB: handleOpenHub,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
   CLEAR_OUTBOUND_AUDIT: async () => {
     resetOutboundAudit();

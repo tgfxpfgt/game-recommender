@@ -60,3 +60,4 @@ GameRecommender-*.html
 .tmp-*.mjs
 coverage/
 tests/.timing.jsonl
+tests/visual/diff/

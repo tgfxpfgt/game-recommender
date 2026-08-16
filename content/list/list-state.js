@@ -34,6 +34,7 @@ function createRatingsJob(processItems, settings, uniqueNames) {
     processed: new Set(), // 已出结果的游戏名（徽章已显示）/ names already resolved
     shown: 0,
     filtered: 0,
+    filteredNames: [], // v7.4.0：被过滤游戏名（状态浮窗可恢复）/ filtered names
     notFoundNames: [],
     urlEntries: [], // appId → 下载页地址批量写入 / download-URL batch entries
     finished: false,
@@ -112,6 +113,7 @@ export function applyRatingsResponse(ratings, mode) {
         ) {
           badges.removeItemFromDom(item);
           job.filtered++;
+          job.filteredNames.push(item.name);
           return;
         }
       }
@@ -164,6 +166,13 @@ export function finishRatings() {
       `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
       job.notFoundNames.length > 0
         ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}`
+        : '',
+      // v7.4.0：被过滤游戏可恢复（点击回调由 status-bar 委托执行）
+      job.filteredNames.length > 0
+        ? {
+            text: `已过滤 ${job.filteredNames.length} 个（点击恢复全部）`,
+            click: () => restoreFilteredGames(job)
+          }
         : ''
     ].filter(Boolean)
   });
@@ -171,6 +180,30 @@ export function finishRatings() {
   if (job.settings && job.settings.enableSortByRating) {
     sortItemsByRating(job);
   }
+}
+
+// v7.4.0：恢复被过滤游戏（重新插入列表容器末尾——位置可能略有变化）
+// Restore filtered games: re-append their elements to the list container
+function restoreFilteredGames(job) {
+  if (!job || job.filteredNames.length === 0) return;
+  const names = new Set(job.filteredNames);
+  const live = job.processItems.find((i) => i.element && i.element.parentNode);
+  const container = live && live.element.parentNode;
+  if (!container) return;
+  let restored = 0;
+  for (const item of job.processItems) {
+    if (names.has(item.name) && item.element && !item.element.parentNode) {
+      container.appendChild(item.element);
+      restored++;
+    }
+  }
+  job.filteredNames = [];
+  job.filtered = 0;
+  status.showStats({
+    title: '已恢复被过滤游戏',
+    summary: `恢复了 ${restored} 个游戏（位置可能略有变化）`,
+    rows: []
+  });
 }
 
 // v6.4.4：按好评率降序重排列表页 DOM（评分最高的在前；无评分的沉底）

@@ -33,8 +33,9 @@ import '../adapters/index.js';
 import { initStorage, getSettings } from './core/settings.js';
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
-import { refreshFreeGames } from './freegames/manager.js';
+import { refreshFreeGames, getLastNotifyGames } from './freegames/manager.js';
 import { createBackup } from './storage/backups.js';
+import { syncSiteScripts } from './core/site-scripts.js';
 
 // ============ 消息监听 / Message Listener ============
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -49,6 +50,63 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ============ 初始化 / Initialization ============
 initStorage().catch((e) => console.error('初始化失败:', e));
+
+// v7.4.0：自定义站点内容脚本动态注册（SW 启动时补齐；规则保存后由 handlers 再触发）
+// Custom-site content scripts (registered on startup; re-synced after rule saves)
+syncSiteScripts().catch((e) => console.error('站点脚本同步失败:', String(e)));
+
+// v7.4.0：安装/更新欢迎页（首次安装显示功能导览；更新显示 What's new）
+// Welcome page on install (feature tour) / update (what's new)
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome/welcome.html?source=install') });
+  } else if (details.reason === 'update') {
+    chrome.tabs.create({ url: chrome.runtime.getURL('welcome/welcome.html?source=update') });
+  }
+});
+
+// v7.4.0：限免通知点击 → 打开对应商店页（最近一次通知内容）
+// Notification click → open the store page of the latest free-game batch
+chrome.notifications.onClicked.addListener((notificationId) => {
+  if (notificationId !== 'gr-free-games') return;
+  const games = getLastNotifyGames();
+  if (games.length === 0) return;
+  const first = games[0];
+  const url = first.url || (first.steamId ? `https://store.steampowered.com/app/${first.steamId}` : '');
+  if (url) chrome.tabs.create({ url });
+  chrome.notifications.clear(notificationId);
+});
+
+// v7.4.0：右键菜单（选中文本 → 搜 Steam）
+// Context menu: search Steam for the selected text
+function setupContextMenu() {
+  try {
+    chrome.contextMenus.removeAll(() => {
+      chrome.contextMenus.create({
+        id: 'gr-search-steam',
+        title: '在 Steam 搜索"%s"',
+        contexts: ['selection']
+      });
+    });
+  } catch (e) {
+    console.warn('【游戏雷达】 右键菜单创建失败:', String(e));
+  }
+}
+chrome.contextMenus.onClicked.addListener((info, tab) => {
+  if (info.menuItemId !== 'gr-search-steam' || !info.selectionText) return;
+  const url = `https://store.steampowered.com/search/?term=${encodeURIComponent(info.selectionText.trim())}`;
+  chrome.tabs.create({ url });
+});
+setupContextMenu();
+
+// v7.4.0：键盘快捷键——强制刷新当前页评分 / Command: force-refresh ratings
+chrome.commands.onCommand.addListener((command, tab) => {
+  if (command === 'gr-force-refresh' && tab && tab.id != null) {
+    chrome.tabs
+      .sendMessage(tab.id, { action: 'FORCE_REFRESH_PAGE' })
+      .catch(() => console.warn('【游戏雷达】 快捷键发送失败（当前页无扩展脚本）'));
+  }
+});
 
 // v7.0.4：存储内存预热（内存换延迟）——SW 启动时并行加载全部本地存储到
 // 内存，首个列表页/详情页查询零磁盘等待；失败不影响主流程（各模块惰性
