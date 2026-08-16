@@ -5,253 +5,1434 @@
  * 全部主题通过覆盖 ui-theme.css 的 CSS 变量实现（页面基础结构变量化），
  * 组件级微调（按钮/输入/开关）按 body[data-theme] 作用域叠加。
  * 切换方式：body 的 data-theme 属性（页面 init 时按 settings.uiTheme 设置）。
+ * v9.2.0：全面重做为 20 套差异化主题（材质/色彩/圆角/阴影/边框/布局参数），
+ * 每套含中文风格说明；清理合并雷同旧主题（win31/95/98 → netscape 覆盖
+ * 90 年代、win7 → vista、win10 → ios17/nordic 覆盖）。
  * Theme skins: variable overrides on top of ui-theme.css; the page sets
  * body[data-theme] from settings.uiTheme.
  */
 
-/* ============ Vista Aero（玻璃蓝） ============ */
+/* ============================================================
+   1. Vista Aero 玻璃拟态（Windows Vista 复古玻璃）
+   半透明磨砂玻璃、浅蓝高光、大圆角、玻璃反光、柔和外发光
+   ============================================================ */
 body[data-theme='vista'] {
-  --gr-bg-deep: #b8cfe4;
-  --gr-bg: #dce9f5;
-  --gr-panel: rgba(255, 255, 255, 0.65);
-  --gr-panel-2: rgba(230, 240, 250, 0.8);
-  --gr-card: #eaf2fa;
-  --gr-card-hover: #d6e6f5;
-  --gr-accent: #1e4a7a;
-  --gr-accent-btn: #2f7fd0;
-  --gr-accent-btn-hover: #4b95dd;
-  --gr-grad-btn: linear-gradient(180deg, #f4f9fe 0%, #cfe3f5 100%);
-  --gr-green: #3d7a1f;
-  --gr-red: #b03030;
-  --gr-orange: #b05a00;
-  --gr-text: #22344a;
-  --gr-text-bright: #10365c;
-  --gr-text-dim: #4a5a6a;
-  --gr-border: #7ba5d9;
-  --gr-border-soft: rgba(59, 110, 165, 0.35);
-  --gr-radius: 6px;
-  --gr-radius-sm: 3px;
-  --gr-shadow: 0 2px 8px rgba(30, 74, 122, 0.25);
-  --gr-shadow-lg: 0 4px 18px rgba(30, 74, 122, 0.35);
-  --gr-page-grad: linear-gradient(180deg, #cfe3f5 0%, #e4eef8 100%);
+  --gr-bg-deep: #0b1a2e;
+  --gr-bg: rgba(27, 45, 71, 0.82);
+  --gr-panel: rgba(38, 60, 92, 0.55);
+  --gr-panel-2: rgba(46, 70, 105, 0.5);
+  --gr-card: rgba(52, 80, 120, 0.45);
+  --gr-card-hover: rgba(66, 100, 148, 0.5);
+  --gr-accent: #7ec8ff;
+  --gr-accent-btn: #4aa3ff;
+  --gr-accent-btn-hover: #7ec8ff;
+  --gr-grad-btn: linear-gradient(180deg, rgba(120, 190, 255, 0.75), rgba(70, 130, 220, 0.7));
+  --gr-green: #9fe08a;
+  --gr-red: #ff7d7d;
+  --gr-orange: #ffc46b;
+  --gr-text: #dceaff;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #9db4d0;
+  --gr-border: rgba(160, 200, 255, 0.4);
+  --gr-border-soft: rgba(120, 165, 220, 0.25);
+  --gr-radius: 12px;
+  --gr-radius-sm: 8px;
+  --gr-shadow: 0 6px 24px rgba(20, 40, 80, 0.35);
+  --gr-shadow-lg: 0 10px 40px rgba(10, 30, 60, 0.45);
+  --gr-page-grad: linear-gradient(160deg, #1e3a5f 0%, #0e2138 100%);
+  --gr-gap: 12px;
 }
-body[data-theme='vista'] .gr-btn,
-body[data-theme='vista'] button.btn {
-  border: 1px solid #7ba5d9;
-  color: #10365c;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+body[data-theme='vista'] .gr-panel,
+body[data-theme='vista'] .gr-card,
+body[data-theme='vista'] .gr-stat-card {
+  backdrop-filter: blur(14px) saturate(1.3);
+  -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.09) 0%, transparent 55%);
 }
-body[data-theme='vista'] .gr-input,
-body[data-theme='vista'] input.text-input,
-body[data-theme='vista'] select.text-input {
-  background: rgba(255, 255, 255, 0.85);
-  color: #22344a;
+body[data-theme='vista'] .gr-btn {
+  border: 1px solid rgba(180, 220, 255, 0.5);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 0 12px rgba(100, 180, 255, 0.25);
+  border-radius: 8px;
+}
+body[data-theme='vista'] .gr-btn:hover {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 0 20px rgba(120, 190, 255, 0.45);
+}
+body[data-theme='vista'] .gr-input {
+  background: rgba(10, 24, 45, 0.55);
+  box-shadow: inset 0 2px 6px rgba(0, 10, 25, 0.45);
+  border-radius: 8px;
+  backdrop-filter: blur(6px);
+}
+body[data-theme='vista'] .gr-nav-item.active {
+  background: rgba(90, 150, 230, 0.28);
+  box-shadow:
+    inset 2px 0 0 var(--gr-accent),
+    0 0 14px rgba(110, 180, 255, 0.2);
 }
 
-/* ============ Win 3.1（灰底 + 深蓝标题） ============ */
-body[data-theme='win31'],
-body[data-theme='win95'],
-body[data-theme='win98'] {
-  --gr-bg-deep: #808080;
-  --gr-bg: #c0c0c0;
-  --gr-panel: #d4d0c8;
-  --gr-panel-2: #c0c0c0;
+/* ============================================================
+   2. iOS 6 经典拟物化
+   写实拟物、斜面浮雕、金属磨砂质感、凸起按钮、凹陷输入框、
+   银灰米色底、旧苹果实体控件
+   ============================================================ */
+body[data-theme='ios6'] {
+  --gr-bg-deep: #c8c8c4;
+  --gr-bg: #d4d4d0;
+  --gr-panel: #e8e8e4;
+  --gr-panel-2: #deded9;
+  --gr-card: #f0f0ec;
+  --gr-card-hover: #e4e4df;
+  --gr-accent: #3b7dd8;
+  --gr-accent-btn: #2f6ec2;
+  --gr-accent-btn-hover: #4a8ade;
+  --gr-grad-btn: linear-gradient(180deg, #6ea8e8 0%, #2f6ec2 55%, #2560ae 100%);
+  --gr-green: #4c9a3d;
+  --gr-red: #c2453a;
+  --gr-orange: #d9822b;
+  --gr-text: #3a3a38;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #7c7c78;
+  --gr-border: #b0b0ab;
+  --gr-border-soft: #c4c4bf;
+  --gr-radius: 6px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 2px 5px rgba(0, 0, 0, 0.28);
+  --gr-shadow-lg: 0 5px 14px rgba(0, 0, 0, 0.3);
+  --gr-page-grad: linear-gradient(180deg, #e2e2dd 0%, #cbcbc6 100%);
+  --gr-gap: 11px;
+}
+body[data-theme='ios6'] .gr-btn {
+  border: 1px solid rgba(0, 0, 0, 0.3);
+  border-radius: 6px;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.55) 0%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(0, 0, 0, 0.08) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.25) inset,
+    0 2px 3px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+body[data-theme='ios6'] .gr-btn:active {
+  background-image: linear-gradient(180deg, rgba(0, 0, 0, 0.18) 0%, rgba(0, 0, 0, 0.05) 100%);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3) inset;
+}
+body[data-theme='ios6'] .gr-input {
+  background: #f7f7f2;
+  border: 1px solid #a8a8a3;
+  border-radius: 5px;
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.7);
+  color: #2a2a28;
+}
+body[data-theme='ios6'] .gr-switch .gr-slider-ui {
+  background: linear-gradient(180deg, #b5b5b0, #9c9c97);
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+body[data-theme='ios6'] .gr-nav-item.active {
+  background: linear-gradient(180deg, #5b95e0, #2f6ec2);
+  color: #fff;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.3);
+}
+body[data-theme='ios6'] .gr-stat-card {
+  background: linear-gradient(180deg, #f3f3ee, #dfdfda);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* ============================================================
+   3. iOS 17 现代扁平化
+   极简干净、大圆角、低饱和柔和配色、轻微半透明、高留白、
+   现代移动端扁平移植
+   ============================================================ */
+body[data-theme='ios17'] {
+  --gr-bg-deep: #f2f2f7;
+  --gr-bg: #f7f7fa;
+  --gr-panel: rgba(255, 255, 255, 0.72);
+  --gr-panel-2: rgba(240, 240, 246, 0.8);
+  --gr-card: rgba(255, 255, 255, 0.85);
+  --gr-card-hover: #eef0f6;
+  --gr-accent: #0a84ff;
+  --gr-accent-btn: #0a84ff;
+  --gr-accent-btn-hover: #3b9cff;
+  --gr-grad-btn: linear-gradient(180deg, #3b9cff 0%, #0a84ff 100%);
+  --gr-green: #30d158;
+  --gr-red: #ff453a;
+  --gr-orange: #ff9f0a;
+  --gr-text: #1c1c1e;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #8e8e93;
+  --gr-border: rgba(60, 60, 67, 0.12);
+  --gr-border-soft: rgba(60, 60, 67, 0.08);
+  --gr-radius: 18px;
+  --gr-radius-sm: 12px;
+  --gr-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --gr-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.1);
+  --gr-page-grad: linear-gradient(180deg, #fafafd 0%, #f2f2f7 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 40px;
+}
+body[data-theme='ios17'] .gr-panel,
+body[data-theme='ios17'] .gr-card,
+body[data-theme='ios17'] .gr-stat-card {
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+body[data-theme='ios17'] .gr-btn {
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.25);
+}
+body[data-theme='ios17'] .gr-btn.ghost {
+  background: rgba(120, 120, 128, 0.1);
+  border: none;
+  box-shadow: none;
+}
+body[data-theme='ios17'] .gr-input {
+  background: rgba(120, 120, 128, 0.1);
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+  color: #1c1c1e;
+}
+body[data-theme='ios17'] .gr-input::placeholder {
+  color: #aeaeb2;
+}
+body[data-theme='ios17'] .gr-nav-item.active {
+  background: rgba(10, 132, 255, 0.12);
+  color: var(--gr-accent);
+  box-shadow: none;
+}
+body[data-theme='ios17'] .gr-switch .gr-slider-ui {
+  background: rgba(120, 120, 128, 0.24);
+}
+body[data-theme='ios17'] .gr-switch input:checked + .gr-slider-ui {
+  background: #34c759;
+}
+body[data-theme='ios17'] .gr-stat-card {
+  background: rgba(255, 255, 255, 0.75);
+}
+
+/* ============================================================
+   4. Windows XP Luna 蓝主题
+   XP 经典家用系统、鲜艳蓝色渐变、饱满圆润控件、明亮高光、
+   2000 年代复古桌面 UI
+   ============================================================ */
+body[data-theme='winxp'] {
+  --gr-bg-deep: #4a79d0;
+  --gr-bg: #5584d9;
+  --gr-panel: #7da2e0;
+  --gr-panel-2: #6d95da;
+  --gr-card: #8fb0e8;
+  --gr-card-hover: #9dbcef;
+  --gr-accent: #ffe86b;
+  --gr-accent-btn: #3c78d8;
+  --gr-accent-btn-hover: #5589e2;
+  --gr-grad-btn: linear-gradient(180deg, #f0f6ff 0%, #7fa9e6 45%, #3c78d8 100%);
+  --gr-green: #3c9a2e;
+  --gr-red: #e05050;
+  --gr-orange: #f0a030;
+  --gr-text: #0d1f3c;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #46608a;
+  --gr-border: #2c56a0;
+  --gr-border-soft: #3f6ab0;
+  --gr-radius: 6px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 3px 8px rgba(20, 50, 110, 0.35);
+  --gr-shadow-lg: 0 6px 18px rgba(20, 50, 110, 0.4);
+  --gr-page-grad: linear-gradient(180deg, #6f9ae4 0%, #3f6fc0 100%);
+  --gr-gap: 11px;
+}
+body[data-theme='winxp'] .gr-btn {
+  border: 1px solid #2c56a0;
+  border-radius: 6px;
+  background-image: linear-gradient(180deg, #ffffff 0%, #bcd4f5 45%, #5c8fe0 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(10, 40, 90, 0.4);
+  color: #0d1f3c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+body[data-theme='winxp'] .gr-btn:hover {
+  background-image: linear-gradient(180deg, #ffffff 0%, #d8e8fb 45%, #7aa6ec 100%);
+}
+body[data-theme='winxp'] .gr-input {
+  background: #ffffff;
+  border: 1px solid #7a9bd8;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(30, 60, 120, 0.25);
+  color: #0d1f3c;
+}
+body[data-theme='winxp'] .gr-nav-item.active {
+  background: linear-gradient(180deg, #ffe87a, #ffd94a);
+  color: #0d1f3c;
+  box-shadow: inset 2px 0 0 #b8860b;
+}
+body[data-theme='winxp'] .gr-stat-card {
+  background: linear-gradient(180deg, #a8c4f0, #7da2e0);
+  border: 1px solid #5a84c8;
+}
+
+/* ============================================================
+   5. Windows 11 Fluent 云母 Mica
+   云母半透明材质、柔和软阴影、中等圆角、低饱和度强调色、
+   微软现代原生系统控件
+   ============================================================ */
+body[data-theme='win11'] {
+  --gr-bg-deep: #202020;
+  --gr-bg: #2b2b2b;
+  --gr-panel: rgba(60, 60, 60, 0.75);
+  --gr-panel-2: rgba(70, 70, 70, 0.7);
+  --gr-card: rgba(82, 82, 82, 0.72);
+  --gr-card-hover: rgba(96, 96, 96, 0.75);
+  --gr-accent: #60cdff;
+  --gr-accent-btn: #4cc2ff;
+  --gr-accent-btn-hover: #7ad5ff;
+  --gr-grad-btn: linear-gradient(180deg, #6dd0ff 0%, #3bb3f2 100%);
+  --gr-green: #6ccb5f;
+  --gr-red: #ff6161;
+  --gr-orange: #ffb63d;
+  --gr-text: #e8e8e8;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #9a9a9a;
+  --gr-border: rgba(255, 255, 255, 0.12);
+  --gr-border-soft: rgba(255, 255, 255, 0.08);
+  --gr-radius: 8px;
+  --gr-radius-sm: 6px;
+  --gr-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --gr-shadow-lg: 0 10px 36px rgba(0, 0, 0, 0.3);
+  --gr-page-grad: linear-gradient(180deg, #333333 0%, #242424 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='win11'] .gr-panel,
+body[data-theme='win11'] .gr-card,
+body[data-theme='win11'] .gr-stat-card {
+  backdrop-filter: blur(30px) saturate(1.2);
+  -webkit-backdrop-filter: blur(30px) saturate(1.2);
+}
+body[data-theme='win11'] .gr-btn {
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+body[data-theme='win11'] .gr-btn.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+body[data-theme='win11'] .gr-input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  box-shadow: none;
+}
+body[data-theme='win11'] .gr-nav-item.active {
+  background: rgba(76, 194, 255, 0.16);
+  box-shadow: none;
+}
+body[data-theme='win11'] .gr-switch .gr-slider-ui {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+/* ============================================================
+   6. 赛博朋克黑客终端
+   纯黑底色、霓虹青紫荧光描边、等宽字体、微弱扫描线纹理、
+   低圆角、开发工具科幻终端
+   ============================================================ */
+body[data-theme='cyberpunk'] {
+  --gr-bg-deep: #000000;
+  --gr-bg: #050508;
+  --gr-panel: #0a0a10;
+  --gr-panel-2: #0e0e16;
+  --gr-card: #10101a;
+  --gr-card-hover: #161624;
+  --gr-accent: #00f0ff;
+  --gr-accent-btn: #00e5ff;
+  --gr-accent-btn-hover: #4df4ff;
+  --gr-grad-btn: linear-gradient(90deg, #00f0ff 0%, #b026ff 100%);
+  --gr-green: #00ff88;
+  --gr-red: #ff2a6d;
+  --gr-orange: #ffd319;
+  --gr-text: #c8f6ff;
+  --gr-text-bright: #eaffff;
+  --gr-text-dim: #5a7a8a;
+  --gr-border: rgba(0, 240, 255, 0.5);
+  --gr-border-soft: rgba(0, 240, 255, 0.22);
+  --gr-radius: 2px;
+  --gr-radius-sm: 0px;
+  --gr-shadow: 0 0 10px rgba(0, 240, 255, 0.25);
+  --gr-shadow-lg: 0 0 24px rgba(176, 38, 255, 0.3);
+  --gr-page-grad: linear-gradient(180deg, #07070c 0%, #000000 100%);
+  --gr-font: 'Consolas', 'Courier New', 'PingFang SC', monospace;
+  --gr-gap: 9px;
+  --gr-control-h: 30px;
+}
+body[data-theme='cyberpunk'] .gr-panel,
+body[data-theme='cyberpunk'] .gr-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(0, 240, 255, 0.35);
+  box-shadow: 0 0 14px rgba(0, 240, 255, 0.15) inset;
+}
+body[data-theme='cyberpunk'] .gr-panel::after,
+body[data-theme='cyberpunk'] .gr-card::after {
+  content: '';
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(0deg, rgba(0, 240, 255, 0.025) 0 1px, transparent 1px 3px);
+}
+body[data-theme='cyberpunk'] .gr-btn {
+  border: 1px solid var(--gr-accent);
+  border-radius: 0;
+  background: rgba(0, 240, 255, 0.08);
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.3);
+  color: var(--gr-accent);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+body[data-theme='cyberpunk'] .gr-btn:hover {
+  background: rgba(0, 240, 255, 0.2);
+  box-shadow: 0 0 16px rgba(0, 240, 255, 0.5);
+}
+body[data-theme='cyberpunk'] .gr-btn.danger {
+  border-color: #ff2a6d;
+  color: #ff2a6d;
+  background: rgba(255, 42, 109, 0.08);
+}
+body[data-theme='cyberpunk'] .gr-input {
+  background: #000;
+  border: 1px solid rgba(0, 240, 255, 0.4);
+  border-radius: 0;
+  box-shadow: inset 0 0 8px rgba(0, 240, 255, 0.12);
+  color: var(--gr-accent);
+  caret-color: #00ff88;
+}
+body[data-theme='cyberpunk'] .gr-nav-item.active {
+  background: rgba(176, 38, 255, 0.2);
+  box-shadow:
+    inset 2px 0 0 #b026ff,
+    0 0 12px rgba(176, 38, 255, 0.3);
+  color: #eaffff;
+}
+body[data-theme='cyberpunk'] .gr-stat-card {
+  border: 1px solid rgba(0, 240, 255, 0.3);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.12);
+}
+body[data-theme='cyberpunk'] .gr-switch .gr-slider-ui {
+  background: #001018;
+  border: 1px solid rgba(0, 240, 255, 0.5);
+}
+body[data-theme='cyberpunk'] .gr-switch input:checked + .gr-slider-ui {
+  background: rgba(0, 240, 255, 0.7);
+}
+
+/* ============================================================
+   7. macOS Aqua 水晶（OS X Tiger）
+   通透水晶水珠光泽、超大圆角水晶按钮、高光反射、
+   老式 Mac 晶莹透亮 UI
+   ============================================================ */
+body[data-theme='aqua'] {
+  --gr-bg-deep: #1a2b4a;
+  --gr-bg: #22385c;
+  --gr-panel: rgba(36, 60, 100, 0.72);
+  --gr-panel-2: rgba(42, 70, 115, 0.66);
+  --gr-card: rgba(50, 84, 138, 0.6);
+  --gr-card-hover: rgba(62, 100, 160, 0.62);
+  --gr-accent: #8ed8ff;
+  --gr-accent-btn: #3c9ef0;
+  --gr-accent-btn-hover: #5fb4f8;
+  --gr-grad-btn: linear-gradient(180deg, #7ec4ff 0%, #3c9ef0 55%, #2b7fd8 100%);
+  --gr-green: #8fe3a0;
+  --gr-red: #ff8080;
+  --gr-orange: #ffc06a;
+  --gr-text: #dceeff;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #8fa8c8;
+  --gr-border: rgba(140, 200, 255, 0.35);
+  --gr-border-soft: rgba(120, 180, 240, 0.2);
+  --gr-radius: 22px;
+  --gr-radius-sm: 16px;
+  --gr-shadow: 0 4px 14px rgba(10, 30, 60, 0.35);
+  --gr-shadow-lg: 0 10px 32px rgba(10, 30, 60, 0.4);
+  --gr-page-grad: linear-gradient(180deg, #2c4a78 0%, #16263e 100%);
+  --gr-gap: 12px;
+  --gr-control-h: 36px;
+}
+body[data-theme='aqua'] .gr-btn {
+  border: 1px solid rgba(60, 140, 230, 0.8);
+  border-radius: 18px;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.75) 0%,
+    rgba(255, 255, 255, 0.18) 40%,
+    rgba(43, 127, 216, 0.35) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 -3px 8px rgba(30, 80, 160, 0.4) inset,
+    0 3px 8px rgba(10, 30, 60, 0.4);
+  text-shadow: 0 -1px 1px rgba(0, 40, 100, 0.4);
+}
+body[data-theme='aqua'] .gr-btn:hover {
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.9) 0%,
+    rgba(255, 255, 255, 0.3) 40%,
+    rgba(60, 158, 240, 0.4) 100%
+  );
+}
+body[data-theme='aqua'] .gr-input {
+  background: rgba(12, 28, 52, 0.6);
+  border: 1px solid rgba(140, 200, 255, 0.4);
+  border-radius: 10px;
+  box-shadow:
+    inset 0 2px 6px rgba(0, 10, 30, 0.5),
+    0 1px 0 rgba(255, 255, 255, 0.15);
+}
+body[data-theme='aqua'] .gr-switch .gr-slider-ui {
+  background: linear-gradient(180deg, #5aa8f0, #2b7fd8);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 2px 5px rgba(0, 20, 50, 0.4);
+}
+body[data-theme='aqua'] .gr-panel,
+body[data-theme='aqua'] .gr-card {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+body[data-theme='aqua'] .gr-stat-card {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.16) 0%, transparent 60%);
+}
+
+/* ============================================================
+   8. Neumorphism 新拟态软 UI
+   同色系凹凸双层软阴影、无硬边框、控件与背景颜色接近、
+   柔和一体软质感
+   ============================================================ */
+body[data-theme='neumorph'] {
+  --gr-bg-deep: #e0e5ec;
+  --gr-bg: #e0e5ec;
+  --gr-panel: #e0e5ec;
+  --gr-panel-2: #d9dee6;
+  --gr-card: #e0e5ec;
+  --gr-card-hover: #d6dbe3;
+  --gr-accent: #4a7bd0;
+  --gr-accent-btn: #4a7bd0;
+  --gr-accent-btn-hover: #5a8be0;
+  --gr-grad-btn: linear-gradient(145deg, #eef2f8 0%, #d4dae4 100%);
+  --gr-green: #3f9d5a;
+  --gr-red: #cf5b5b;
+  --gr-orange: #cf9a3f;
+  --gr-text: #4a5468;
+  --gr-text-bright: #2f3644;
+  --gr-text-dim: #9aa5b5;
+  --gr-border: transparent;
+  --gr-border-soft: transparent;
+  --gr-radius: 18px;
+  --gr-radius-sm: 14px;
+  --gr-shadow: 8px 8px 18px rgba(163, 177, 198, 0.6), -8px -8px 18px rgba(255, 255, 255, 0.9);
+  --gr-shadow-lg: 12px 12px 26px rgba(163, 177, 198, 0.65), -12px -12px 26px rgba(255, 255, 255, 0.95);
+  --gr-page-grad: linear-gradient(145deg, #e8ecf2 0%, #d8dde6 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 40px;
+}
+body[data-theme='neumorph'] .gr-panel,
+body[data-theme='neumorph'] .gr-card,
+body[data-theme='neumorph'] .gr-stat-card {
+  border: none;
+  box-shadow: var(--gr-shadow);
+}
+body[data-theme='neumorph'] .gr-btn {
+  border: none;
+  background: var(--gr-grad-btn);
+  color: #4a5468;
+  box-shadow:
+    6px 6px 12px rgba(163, 177, 198, 0.6),
+    -6px -6px 12px rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+}
+body[data-theme='neumorph'] .gr-btn:hover {
+  box-shadow:
+    4px 4px 10px rgba(163, 177, 198, 0.6),
+    -4px -4px 10px rgba(255, 255, 255, 0.9);
+}
+body[data-theme='neumorph'] .gr-btn:active {
+  box-shadow:
+    inset 6px 6px 12px rgba(163, 177, 198, 0.6),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.9);
+}
+body[data-theme='neumorph'] .gr-btn.primary {
+  background: linear-gradient(145deg, #5b8de0, #3a68b8);
+  color: #fff;
+}
+body[data-theme='neumorph'] .gr-input {
+  background: #e0e5ec;
+  border: none;
+  border-radius: 14px;
+  box-shadow:
+    inset 6px 6px 12px rgba(163, 177, 198, 0.6),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.9);
+  color: #4a5468;
+}
+body[data-theme='neumorph'] .gr-switch .gr-slider-ui {
+  background: #d0d6e0;
+  box-shadow:
+    inset 3px 3px 6px rgba(163, 177, 198, 0.6),
+    inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+}
+body[data-theme='neumorph'] .gr-switch input:checked + .gr-slider-ui {
+  background: #4a7bd0;
+}
+body[data-theme='neumorph'] .gr-nav-item.active {
+  background: #dde2ea;
+  color: #3a68b8;
+  box-shadow:
+    inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+}
+body[data-theme='neumorph'] .gr-check input[type='checkbox'] {
+  accent-color: #4a7bd0;
+}
+
+/* ============================================================
+   9. 90 年代 Netscape 远古网页
+   直角方块、3D 斜面立体灰色控件、老式原生 html 按钮、
+   无圆角、互联网早期复古界面
+   ============================================================ */
+body[data-theme='netscape'] {
+  --gr-bg-deep: #c0c0c0;
+  --gr-bg: #d4d0c8;
+  --gr-panel: #c0c0c0;
+  --gr-panel-2: #b8b8b8;
   --gr-card: #d4d0c8;
-  --gr-card-hover: #e0dcd4;
+  --gr-card-hover: #dedad2;
   --gr-accent: #000080;
   --gr-accent-btn: #000080;
-  --gr-accent-btn-hover: #1a1aa0;
-  --gr-grad-btn: linear-gradient(180deg, #ffffff 0%, #c0c0c0 100%);
-  --gr-green: #005000;
-  --gr-red: #a00000;
-  --gr-orange: #7a5000;
+  --gr-accent-btn-hover: #0000a0;
+  --gr-grad-btn: linear-gradient(180deg, #ffffff 0%, #d4d0c8 45%, #a8a8a8 100%);
+  --gr-green: #008000;
+  --gr-red: #800000;
+  --gr-orange: #804000;
   --gr-text: #000000;
-  --gr-text-bright: #000000;
+  --gr-text-bright: #ffffff;
   --gr-text-dim: #404040;
-  --gr-border: #000000;
-  --gr-border-soft: #808080;
+  --gr-border: #808080;
+  --gr-border-soft: #a0a0a0;
   --gr-radius: 0px;
   --gr-radius-sm: 0px;
-  --gr-shadow: none;
-  --gr-shadow-lg: none;
-  --gr-page-grad: #c0c0c0;
+  --gr-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+  --gr-shadow-lg: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  --gr-page-grad: linear-gradient(180deg, #d8d4cc 0%, #c4c0b8 100%);
+  --gr-font: 'MS Sans Serif', Tahoma, 'PingFang SC', sans-serif;
+  --gr-gap: 8px;
+  --gr-control-h: 28px;
 }
-body[data-theme='win31'] .gr-btn,
-body[data-theme='win31'] button.btn,
-body[data-theme='win95'] .gr-btn,
-body[data-theme='win95'] button.btn,
-body[data-theme='win98'] .gr-btn,
-body[data-theme='win98'] button.btn {
+body[data-theme='netscape'] .gr-btn {
   border: 2px solid;
   border-color: #ffffff #404040 #404040 #ffffff;
-  color: #000000;
-  font-family: 'MS Sans Serif', '宋体', monospace;
+  border-radius: 0;
+  background: var(--gr-grad-btn);
+  color: #000;
+  box-shadow: none;
+  font-size: 12px;
 }
-body[data-theme='win31'] .gr-input,
-body[data-theme='win31'] input.text-input,
-body[data-theme='win31'] select.text-input,
-body[data-theme='win95'] .gr-input,
-body[data-theme='win95'] input.text-input,
-body[data-theme='win95'] select.text-input,
-body[data-theme='win98'] .gr-input,
-body[data-theme='win98'] input.text-input,
-body[data-theme='win98'] select.text-input {
+body[data-theme='netscape'] .gr-btn:active {
+  border-color: #404040 #ffffff #ffffff #404040;
+}
+body[data-theme='netscape'] .gr-btn.primary {
+  color: #000080;
+  font-weight: bold;
+}
+body[data-theme='netscape'] .gr-input {
   background: #ffffff;
   border: 2px solid;
   border-color: #404040 #ffffff #ffffff #404040;
-  color: #000000;
-  font-family: 'MS Sans Serif', '宋体', monospace;
-}
-body[data-theme='win31'] .switch .slider,
-body[data-theme='win95'] .switch .slider,
-body[data-theme='win98'] .switch .slider {
-  border: 2px solid #000;
   border-radius: 0;
+  box-shadow: none;
+  color: #000;
+  font-size: 13px;
+}
+body[data-theme='netscape'] .gr-panel,
+body[data-theme='netscape'] .gr-card,
+body[data-theme='netscape'] .gr-stat-card {
+  border: 1px solid #808080;
+  border-radius: 0;
+  box-shadow:
+    1px 1px 0 rgba(255, 255, 255, 0.6) inset,
+    -1px -1px 0 rgba(0, 0, 0, 0.2) inset;
+}
+body[data-theme='netscape'] .gr-switch .gr-slider-ui {
+  background: #d4d0c8;
+  border: 2px solid;
+  border-color: #404040 #ffffff #ffffff #404040;
+}
+body[data-theme='netscape'] .gr-switch input:checked + .gr-slider-ui {
+  background: #000080;
+}
+body[data-theme='netscape'] .gr-nav-item.active {
+  background: #000080;
+  color: #fff;
+  box-shadow: none;
+}
+body[data-theme='netscape'] a {
+  color: #0000ee;
+}
+body[data-theme='netscape'] a:visited {
+  color: #551a8b;
 }
 
-/* ============ Win XP（蓝绿） ============ */
-body[data-theme='winxp'] {
-  --gr-bg-deep: #4a6fa5;
-  --gr-bg: #7ba5d9;
-  --gr-panel: #ece9d8;
-  --gr-panel-2: #f2efe2;
-  --gr-card: #ece9d8;
-  --gr-card-hover: #f6f3e8;
-  --gr-accent: #0a246a;
-  --gr-accent-btn: #3a6ea5;
-  --gr-accent-btn-hover: #4a80b8;
-  --gr-grad-btn: linear-gradient(180deg, #3a6ea5 0%, #2153a5 100%);
-  --gr-green: #3d7a1f;
-  --gr-red: #b03030;
-  --gr-orange: #b05a00;
-  --gr-text: #1a1a1a;
-  --gr-text-bright: #0a246a;
-  --gr-text-dim: #4a4a4a;
-  --gr-border: #3a6ea5;
-  --gr-border-soft: #b0b8c4;
-  --gr-radius: 3px;
-  --gr-radius-sm: 2px;
-  --gr-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  --gr-shadow-lg: 0 2px 8px rgba(0, 0, 0, 0.35);
-  --gr-page-grad: linear-gradient(180deg, #7ba5d9 0%, #5a8cc4 100%);
+/* ============================================================
+   10. Material You Material3 谷歌动态色彩
+   柔和大圆角、动态低饱和配色、柔和大阴影、
+   谷歌现代安卓材质风格
+   ============================================================ */
+body[data-theme='material'] {
+  --gr-bg-deep: #ece6f0;
+  --gr-bg: #f3eff7;
+  --gr-panel: #f8f5fa;
+  --gr-panel-2: #efeaf4;
+  --gr-card: #ffffff;
+  --gr-card-hover: #f1ecf6;
+  --gr-accent: #6750a4;
+  --gr-accent-btn: #6750a4;
+  --gr-accent-btn-hover: #7c66b8;
+  --gr-grad-btn: linear-gradient(180deg, #7c66b8 0%, #6750a4 100%);
+  --gr-green: #3a9b63;
+  --gr-red: #b3261e;
+  --gr-orange: #b26a00;
+  --gr-text: #1d1b20;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #79747e;
+  --gr-border: rgba(29, 27, 32, 0.08);
+  --gr-border-soft: rgba(29, 27, 32, 0.05);
+  --gr-radius: 24px;
+  --gr-radius-sm: 16px;
+  --gr-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --gr-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.14);
+  --gr-page-grad: linear-gradient(180deg, #f7f4fa 0%, #ece6f0 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 44px;
 }
-body[data-theme='winxp'] .gr-btn,
-body[data-theme='winxp'] button.btn {
-  color: #ffffff;
+body[data-theme='material'] .gr-btn {
+  border-radius: 22px;
+  box-shadow: 0 3px 10px rgba(103, 80, 164, 0.3);
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+body[data-theme='material'] .gr-btn.ghost {
+  background: rgba(103, 80, 164, 0.08);
+  border: none;
+  box-shadow: none;
+  color: #6750a4;
+}
+body[data-theme='material'] .gr-input {
+  background: #ece6f0;
+  border: none;
+  border-radius: 28px;
+  box-shadow: none;
+  color: #1d1b20;
+  padding-left: 16px;
+}
+body[data-theme='material'] .gr-nav-item.active {
+  background: #e8def8;
+  color: #4f378b;
+  box-shadow: none;
+}
+body[data-theme='material'] .gr-stat-card {
+  background: #ffffff;
+  border-radius: 24px;
+}
+body[data-theme='material'] .gr-switch .gr-slider-ui {
+  background: #cac4d0;
+}
+body[data-theme='material'] .gr-switch input:checked + .gr-slider-ui {
+  background: #6750a4;
+}
+body[data-theme='material'] .gr-pill.blue {
+  background: #e8def8;
+  color: #4f378b;
 }
 
-/* ============ Win 7（Aero 玻璃） ============ */
-body[data-theme='win7'] {
-  --gr-bg-deep: #7aa2d0;
-  --gr-bg: #a8c7e8;
-  --gr-panel: rgba(255, 255, 255, 0.7);
-  --gr-panel-2: rgba(240, 246, 252, 0.85);
-  --gr-card: #eaf2fa;
-  --gr-card-hover: #d8e8f8;
-  --gr-accent: #3f7fbf;
-  --gr-accent-btn: #2e6da4;
-  --gr-accent-btn-hover: #4a85ba;
-  --gr-grad-btn: linear-gradient(180deg, #eef6fd 0%, #c6ddf2 100%);
-  --gr-green: #2f7d32;
-  --gr-red: #b03030;
-  --gr-orange: #b05a00;
-  --gr-text: #22303f;
-  --gr-text-bright: #0e3a5c;
-  --gr-text-dim: #4a5a6a;
-  --gr-border: #5a8ec2;
-  --gr-border-soft: rgba(63, 127, 191, 0.35);
+/* ============================================================
+   11. GTK2 Linux 复古桌面
+   复古 Linux 旧桌面、细微浮雕控件、中性灰底色、小圆角、
+   朴素开源桌面工具 UI
+   ============================================================ */
+body[data-theme='gtk2'] {
+  --gr-bg-deep: #3f3f3f;
+  --gr-bg: #4a4a4a;
+  --gr-panel: #555555;
+  --gr-panel-2: #4e4e4e;
+  --gr-card: #606060;
+  --gr-card-hover: #6a6a6a;
+  --gr-accent: #729fcf;
+  --gr-accent-btn: #5c85b8;
+  --gr-accent-btn-hover: #729fcf;
+  --gr-grad-btn: linear-gradient(180deg, #777777 0%, #5a5a5a 50%, #4a4a4a 100%);
+  --gr-green: #8ae234;
+  --gr-red: #ef2929;
+  --gr-orange: #fcaf3e;
+  --gr-text: #e0e0e0;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #9a9a9a;
+  --gr-border: #2e2e2e;
+  --gr-border-soft: #3c3c3c;
+  --gr-radius: 4px;
+  --gr-radius-sm: 3px;
+  --gr-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --gr-shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.45);
+  --gr-page-grad: linear-gradient(180deg, #515151 0%, #424242 100%);
+  --gr-gap: 9px;
+  --gr-control-h: 30px;
+}
+body[data-theme='gtk2'] .gr-btn {
+  border: 1px solid #2e2e2e;
+  border-radius: 4px;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.25) inset;
+}
+body[data-theme='gtk2'] .gr-btn:hover {
+  background-image: linear-gradient(180deg, rgba(114, 159, 207, 0.35) 0%, rgba(114, 159, 207, 0.1) 100%);
+}
+body[data-theme='gtk2'] .gr-input {
+  background: #3a3a3a;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+body[data-theme='gtk2'] .gr-switch .gr-slider-ui {
+  background: #3a3a3a;
+  border: 1px solid #2e2e2e;
+}
+body[data-theme='gtk2'] .gr-switch input:checked + .gr-slider-ui {
+  background: #5c85b8;
+}
+body[data-theme='gtk2'] .gr-nav-item.active {
+  background: #5c85b8;
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+}
+body[data-theme='gtk2'] .gr-panel {
+  border: 1px solid #3c3c3c;
+}
+
+/* ============================================================
+   12. 蒸汽波 Vaporwave 复古 80-90
+   粉紫、薄荷蓝高饱和复古渐变、柔和模糊、梦幻霓虹复古氛围
+   ============================================================ */
+body[data-theme='vaporwave'] {
+  --gr-bg-deep: #2a1a4a;
+  --gr-bg: #3a2a5e;
+  --gr-panel: rgba(58, 40, 100, 0.6);
+  --gr-panel-2: rgba(72, 50, 120, 0.55);
+  --gr-card: rgba(92, 60, 150, 0.45);
+  --gr-card-hover: rgba(110, 72, 175, 0.5);
+  --gr-accent: #ff9ef5;
+  --gr-accent-btn: #00d9d9;
+  --gr-accent-btn-hover: #5ce8e8;
+  --gr-grad-btn: linear-gradient(90deg, #ff71ce 0%, #01cdfe 100%);
+  --gr-green: #b3ff00;
+  --gr-red: #ff3d81;
+  --gr-orange: #ffd319;
+  --gr-text: #ffe9fb;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #c9a8e8;
+  --gr-border: rgba(255, 158, 245, 0.45);
+  --gr-border-soft: rgba(255, 158, 245, 0.2);
+  --gr-radius: 16px;
+  --gr-radius-sm: 12px;
+  --gr-shadow: 0 4px 20px rgba(255, 60, 180, 0.3);
+  --gr-shadow-lg: 0 8px 36px rgba(1, 205, 254, 0.35);
+  --gr-page-grad: linear-gradient(180deg, #3a2a5e 0%, #1a1030 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='vaporwave'] .gr-panel,
+body[data-theme='vaporwave'] .gr-card {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-image: linear-gradient(135deg, rgba(255, 113, 206, 0.12) 0%, rgba(1, 205, 254, 0.08) 100%);
+}
+body[data-theme='vaporwave'] .gr-btn {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  box-shadow:
+    0 0 18px rgba(255, 113, 206, 0.4),
+    0 0 36px rgba(1, 205, 254, 0.2);
+}
+body[data-theme='vaporwave'] .gr-btn:hover {
+  box-shadow:
+    0 0 26px rgba(255, 113, 206, 0.6),
+    0 0 50px rgba(1, 205, 254, 0.35);
+}
+body[data-theme='vaporwave'] .gr-input {
+  background: rgba(20, 10, 40, 0.55);
+  border: 1px solid rgba(255, 158, 245, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 0 12px rgba(255, 113, 206, 0.15) inset;
+  color: #ffe9fb;
+}
+body[data-theme='vaporwave'] .gr-stat-card {
+  background: linear-gradient(135deg, rgba(255, 113, 206, 0.25), rgba(1, 205, 254, 0.2));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+body[data-theme='vaporwave'] .gr-nav-item.active {
+  background: linear-gradient(90deg, rgba(255, 113, 206, 0.35), rgba(1, 205, 254, 0.3));
+  box-shadow: none;
+  color: #fff;
+}
+
+/* ============================================================
+   13. OLED 极致纯黑极简
+   真正 #000 纯黑背景、高对比高亮强调色、极小阴影、
+   极少装饰、省电暗黑极简
+   ============================================================ */
+body[data-theme='oled'] {
+  --gr-bg-deep: #000000;
+  --gr-bg: #000000;
+  --gr-panel: #0a0a0a;
+  --gr-panel-2: #111111;
+  --gr-card: #141414;
+  --gr-card-hover: #1c1c1c;
+  --gr-accent: #00e676;
+  --gr-accent-btn: #00e676;
+  --gr-accent-btn-hover: #33eb8c;
+  --gr-grad-btn: linear-gradient(180deg, #1db954 0%, #0a8f3c 100%);
+  --gr-green: #00e676;
+  --gr-red: #ff5252;
+  --gr-orange: #ffab40;
+  --gr-text: #e0e0e0;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #616161;
+  --gr-border: #1f1f1f;
+  --gr-border-soft: #161616;
+  --gr-radius: 8px;
+  --gr-radius-sm: 6px;
+  --gr-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --gr-shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.7);
+  --gr-page-grad: linear-gradient(180deg, #000000 0%, #000000 100%);
+  --gr-gap: 10px;
+}
+body[data-theme='oled'] .gr-panel,
+body[data-theme='oled'] .gr-card,
+body[data-theme='oled'] .gr-stat-card {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+}
+body[data-theme='oled'] .gr-btn {
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  background: transparent;
+  color: #00e676;
+}
+body[data-theme='oled'] .gr-btn:hover {
+  background: rgba(0, 230, 118, 0.12);
+}
+body[data-theme='oled'] .gr-btn.primary {
+  background: #00e676;
+  color: #000;
+  border: none;
+  font-weight: 700;
+}
+body[data-theme='oled'] .gr-input {
+  background: #000;
+  border: 1px solid #1f1f1f;
+  box-shadow: none;
+  color: #e0e0e0;
+}
+body[data-theme='oled'] .gr-input:focus {
+  border-color: #00e676;
+}
+body[data-theme='oled'] .gr-nav-item.active {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00e676;
+  box-shadow: none;
+}
+body[data-theme='oled'] .gr-switch .gr-slider-ui {
+  background: #1a1a1a;
+}
+body[data-theme='oled'] .gr-switch input:checked + .gr-slider-ui {
+  background: #00e676;
+}
+body[data-theme='oled'] .gr-stat-card .gr-stat-value {
+  color: #00e676;
+}
+
+/* ============================================================
+   14. 日系和风素雅
+   米白、炭灰、赭石低饱和传统日式配色、细微线条分割、
+   克制圆角、素雅沉静、无花哨特效
+   ============================================================ */
+body[data-theme='wabi'] {
+  --gr-bg-deep: #e8e0d2;
+  --gr-bg: #f2ecdf;
+  --gr-panel: #efe8d9;
+  --gr-panel-2: #e9e1d1;
+  --gr-card: #f6f1e5;
+  --gr-card-hover: #ede5d4;
+  --gr-accent: #8c6b4a;
+  --gr-accent-btn: #7a5c3e;
+  --gr-accent-btn-hover: #9a7a58;
+  --gr-grad-btn: linear-gradient(180deg, #9a7a58 0%, #7a5c3e 100%);
+  --gr-green: #5c7a4a;
+  --gr-red: #9a4a3a;
+  --gr-orange: #b07a3a;
+  --gr-text: #3a342c;
+  --gr-text-bright: #2a241c;
+  --gr-text-dim: #8a8274;
+  --gr-border: #d5ccb8;
+  --gr-border-soft: #ddd4c2;
   --gr-radius: 4px;
   --gr-radius-sm: 2px;
-  --gr-shadow: 0 2px 8px rgba(30, 60, 90, 0.25);
-  --gr-shadow-lg: 0 4px 18px rgba(30, 60, 90, 0.35);
-  --gr-page-grad: linear-gradient(180deg, #a8c7e8 0%, #8fb2d8 100%);
+  --gr-shadow: 0 1px 3px rgba(90, 75, 50, 0.12);
+  --gr-shadow-lg: 0 3px 10px rgba(90, 75, 50, 0.15);
+  --gr-page-grad: linear-gradient(180deg, #f2ecdf 0%, #e8e0d2 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='wabi'] .gr-panel,
+body[data-theme='wabi'] .gr-card,
+body[data-theme='wabi'] .gr-stat-card {
+  border: 1px solid #ddd4c2;
+  box-shadow: none;
+}
+body[data-theme='wabi'] .gr-panel {
+  border-top: 2px solid #8c6b4a;
+}
+body[data-theme='wabi'] .gr-btn {
+  border: 1px solid #b5a88e;
+  border-radius: 3px;
+  background: #f0ead9;
+  color: #5c4a34;
+  box-shadow: none;
+}
+body[data-theme='wabi'] .gr-btn:hover {
+  background: #e5dcc8;
+}
+body[data-theme='wabi'] .gr-btn.primary {
+  background: #7a5c3e;
+  color: #f6f1e5;
+  border-color: #7a5c3e;
+}
+body[data-theme='wabi'] .gr-input {
+  background: #faf6ec;
+  border: 1px solid #ccc2ac;
+  border-radius: 2px;
+  box-shadow: none;
+  color: #3a342c;
+}
+body[data-theme='wabi'] .gr-nav-item.active {
+  background: transparent;
+  color: #7a5c3e;
+  box-shadow: inset 2px 0 0 #8c6b4a;
+}
+body[data-theme='wabi'] .gr-switch .gr-slider-ui {
+  background: #d8ceba;
+}
+body[data-theme='wabi'] .gr-switch input:checked + .gr-slider-ui {
+  background: #8c6b4a;
+}
+body[data-theme='wabi'] .gr-section-title {
+  border-bottom-color: #c8b89a;
 }
 
-/* ============ Win 8（Metro 扁平深色） ============ */
+/* ============================================================
+   15. 复古 CRT 显像管显示器
+   深色背景、微弱扫描线、轻微色彩偏移、绿琥珀荧光文字、
+   老式显示器终端效果
+   ============================================================ */
+body[data-theme='crt'] {
+  --gr-bg-deep: #0a0f0a;
+  --gr-bg: #0e140e;
+  --gr-panel: #121a12;
+  --gr-panel-2: #162016;
+  --gr-card: #1a261a;
+  --gr-card-hover: #223022;
+  --gr-accent: #33ff66;
+  --gr-accent-btn: #2ee659;
+  --gr-accent-btn-hover: #5cff85;
+  --gr-grad-btn: linear-gradient(180deg, #2ee659 0%, #1c9e3c 100%);
+  --gr-green: #33ff66;
+  --gr-red: #ff6a33;
+  --gr-orange: #ffaa33;
+  --gr-text: #8fffaa;
+  --gr-text-bright: #c8ffd4;
+  --gr-text-dim: #4a8a5a;
+  --gr-border: rgba(51, 255, 102, 0.35);
+  --gr-border-soft: rgba(51, 255, 102, 0.18);
+  --gr-radius: 6px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 0 12px rgba(51, 255, 102, 0.2);
+  --gr-shadow-lg: 0 0 24px rgba(51, 255, 102, 0.28);
+  --gr-page-grad: linear-gradient(180deg, #0e140e 0%, #080c08 100%);
+  --gr-font: 'Consolas', 'Courier New', 'PingFang SC', monospace;
+  --gr-gap: 9px;
+  --gr-control-h: 30px;
+}
+body[data-theme='crt'] .gr-panel,
+body[data-theme='crt'] .gr-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(51, 255, 102, 0.25);
+  box-shadow: 0 0 18px rgba(51, 255, 102, 0.12) inset;
+}
+body[data-theme='crt'] .gr-panel::after,
+body[data-theme='crt'] .gr-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px);
+}
+body[data-theme='crt'] .gr-btn {
+  border: 1px solid rgba(51, 255, 102, 0.5);
+  border-radius: 4px;
+  background: rgba(51, 255, 102, 0.08);
+  color: var(--gr-accent);
+  text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
+}
+body[data-theme='crt'] .gr-btn:hover {
+  background: rgba(51, 255, 102, 0.2);
+  box-shadow: 0 0 12px rgba(51, 255, 102, 0.4);
+}
+body[data-theme='crt'] .gr-input {
+  background: #060a06;
+  border: 1px solid rgba(51, 255, 102, 0.4);
+  border-radius: 3px;
+  box-shadow: inset 0 0 8px rgba(51, 255, 102, 0.15);
+  color: var(--gr-accent);
+  text-shadow: 0 0 4px rgba(51, 255, 102, 0.4);
+}
+body[data-theme='crt'] .gr-nav-item.active {
+  background: rgba(51, 255, 102, 0.18);
+  color: #c8ffd4;
+  box-shadow: inset 2px 0 0 var(--gr-accent);
+}
+body[data-theme='crt'] .gr-stat-card .gr-stat-value {
+  color: var(--gr-accent);
+  text-shadow: 0 0 8px rgba(51, 255, 102, 0.5);
+}
+body[data-theme='crt'] .gr-switch .gr-slider-ui {
+  background: #0a140a;
+  border: 1px solid rgba(51, 255, 102, 0.4);
+}
+body[data-theme='crt'] .gr-switch input:checked + .gr-slider-ui {
+  background: rgba(51, 255, 102, 0.6);
+}
+
+/* ============================================================
+   16. 微软 Metro 初代扁平（Windows 8）
+   直角方块、无渐变无阴影、大块纯色、极简硬朗、
+   高对比色块、无多余装饰
+   ============================================================ */
 body[data-theme='win8'] {
-  --gr-bg-deep: #101010;
-  --gr-bg: #1b1b1b;
-  --gr-panel: #2d2d30;
-  --gr-panel-2: #252528;
-  --gr-card: #2d2d30;
-  --gr-card-hover: #3d3d42;
+  --gr-bg-deep: #1b1b1b;
+  --gr-bg: #1e1e1e;
+  --gr-panel: #232323;
+  --gr-panel-2: #2a2a2a;
+  --gr-card: #2d2d2d;
+  --gr-card-hover: #383838;
   --gr-accent: #00b7c3;
   --gr-accent-btn: #00b7c3;
-  --gr-accent-btn-hover: #33c9d3;
-  --gr-grad-btn: linear-gradient(180deg, #00b7c3 0%, #0097a3 100%);
-  --gr-green: #8cc63f;
+  --gr-accent-btn-hover: #00d0dd;
+  --gr-grad-btn: linear-gradient(180deg, #00b7c3 0%, #00b7c3 100%);
+  --gr-green: #7cb72e;
   --gr-red: #e74856;
-  --gr-orange: #ff8c00;
-  --gr-text: #e8e8e8;
+  --gr-orange: #f4721e;
+  --gr-text: #e6e6e6;
   --gr-text-bright: #ffffff;
-  --gr-text-dim: #8a8a8a;
-  --gr-border: #00b7c3;
-  --gr-border-soft: #3d3d42;
+  --gr-text-dim: #7a7a7a;
+  --gr-border: #3a3a3a;
+  --gr-border-soft: #303030;
   --gr-radius: 0px;
   --gr-radius-sm: 0px;
   --gr-shadow: none;
   --gr-shadow-lg: none;
-  --gr-page-grad: linear-gradient(180deg, #1b1b1b 0%, #141414 100%);
+  --gr-page-grad: linear-gradient(180deg, #1e1e1e 0%, #1b1b1b 100%);
+  --gr-gap: 8px;
+  --gr-control-h: 32px;
+}
+body[data-theme='win8'] .gr-btn {
+  border: none;
+  border-radius: 0;
+  background: #00b7c3;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+body[data-theme='win8'] .gr-btn:hover {
+  background: #00d0dd;
+}
+body[data-theme='win8'] .gr-btn.ghost {
+  background: #3a3a3a;
+  color: #e6e6e6;
+  border: none;
+}
+body[data-theme='win8'] .gr-btn.danger {
+  background: #e74856;
+}
+body[data-theme='win8'] .gr-input {
+  background: #1b1b1b;
+  border: 1px solid #3a3a3a;
+  border-radius: 0;
+  box-shadow: none;
+  color: #e6e6e6;
+}
+body[data-theme='win8'] .gr-nav-item.active {
+  background: #00b7c3;
+  color: #fff;
+  box-shadow: none;
+}
+body[data-theme='win8'] .gr-stat-card {
+  border-radius: 0;
+  background: #2d2d2d;
+  box-shadow: none;
+}
+body[data-theme='win8'] .gr-switch .gr-slider-ui {
+  background: #3a3a3a;
+  border-radius: 0;
+}
+body[data-theme='win8'] .gr-switch input:checked + .gr-slider-ui {
+  background: #00b7c3;
 }
 
-/* ============ Win 10（扁平浅色） ============ */
-body[data-theme='win10'] {
-  --gr-bg-deep: #e0e0e0;
-  --gr-bg: #f3f3f3;
-  --gr-panel: #ffffff;
-  --gr-panel-2: #f7f7f7;
-  --gr-card: #ffffff;
-  --gr-card-hover: #eef4fb;
-  --gr-accent: #0078d7;
-  --gr-accent-btn: #0078d7;
-  --gr-accent-btn-hover: #1e8ae0;
-  --gr-grad-btn: linear-gradient(180deg, #0078d7 0%, #0067b8 100%);
-  --gr-green: #107c10;
-  --gr-red: #d13438;
-  --gr-orange: #ca5010;
-  --gr-text: #1a1a1a;
-  --gr-text-bright: #000000;
-  --gr-text-dim: #6a6a6a;
-  --gr-border: #0078d7;
-  --gr-border-soft: #d0d0d0;
-  --gr-radius: 0px;
-  --gr-radius-sm: 0px;
-  --gr-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
-  --gr-shadow-lg: 0 3px 10px rgba(0, 0, 0, 0.18);
-  --gr-page-grad: linear-gradient(180deg, #f3f3f3 0%, #eaeaea 100%);
+/* ============================================================
+   17. 莫兰迪低饱和配色
+   全部颜色灰度抬高、柔和哑光、低对比度、中等圆角、
+   安静柔和艺术质感
+   ============================================================ */
+body[data-theme='morandi'] {
+  --gr-bg-deep: #b8b2a6;
+  --gr-bg: #c4beb2;
+  --gr-panel: #cfc9bd;
+  --gr-panel-2: #c8c2b6;
+  --gr-card: #d6d0c4;
+  --gr-card-hover: #ccc6ba;
+  --gr-accent: #8a9a8e;
+  --gr-accent-btn: #7d8d81;
+  --gr-accent-btn-hover: #97a79b;
+  --gr-grad-btn: linear-gradient(180deg, #97a79b 0%, #7d8d81 100%);
+  --gr-green: #9aa88a;
+  --gr-red: #b08a84;
+  --gr-orange: #b5a184;
+  --gr-text: #5a554d;
+  --gr-text-bright: #4a453d;
+  --gr-text-dim: #8d877c;
+  --gr-border: #b5afa3;
+  --gr-border-soft: #c2bcb0;
+  --gr-radius: 12px;
+  --gr-radius-sm: 9px;
+  --gr-shadow: 0 3px 12px rgba(120, 110, 90, 0.18);
+  --gr-shadow-lg: 0 8px 26px rgba(120, 110, 90, 0.22);
+  --gr-page-grad: linear-gradient(180deg, #c9c3b7 0%, #b8b2a6 100%);
+  --gr-gap: 12px;
 }
-body[data-theme='win10'] .gr-btn,
-body[data-theme='win10'] button.btn {
-  color: #ffffff;
+body[data-theme='morandi'] .gr-panel,
+body[data-theme='morandi'] .gr-card,
+body[data-theme='morandi'] .gr-stat-card {
+  background: #d3cdc1;
+  border: 1px solid #bdb7ab;
+}
+body[data-theme='morandi'] .gr-btn {
+  border: 1px solid #a8a295;
+  border-radius: 10px;
+  background: #d9d3c7;
+  color: #6a655c;
+  box-shadow: 0 2px 6px rgba(120, 110, 90, 0.15);
+}
+body[data-theme='morandi'] .gr-btn:hover {
+  background: #e0dacd;
+}
+body[data-theme='morandi'] .gr-btn.primary {
+  background: #7d8d81;
+  border-color: #7d8d81;
+  color: #f0ece2;
+}
+body[data-theme='morandi'] .gr-input {
+  background: #e3ddd1;
+  border: 1px solid #bdb7ab;
+  border-radius: 9px;
+  box-shadow: inset 0 1px 3px rgba(120, 110, 90, 0.15);
+  color: #5a554d;
+}
+body[data-theme='morandi'] .gr-nav-item.active {
+  background: #b9c0b4;
+  color: #6a655c;
+  box-shadow: none;
+}
+body[data-theme='morandi'] .gr-switch .gr-slider-ui {
+  background: #b8b2a4;
+}
+body[data-theme='morandi'] .gr-switch input:checked + .gr-slider-ui {
+  background: #8a9a8e;
 }
 
-/* ============ Win 11（圆角毛玻璃） ============ */
-body[data-theme='win11'] {
-  --gr-bg-deep: #dce8f5;
-  --gr-bg: #eef4fb;
-  --gr-panel: rgba(255, 255, 255, 0.6);
-  --gr-panel-2: rgba(255, 255, 255, 0.75);
+/* ============================================================
+   18. 暗黑哥特复古羊皮纸
+   黄褐色羊皮纸纹理底色、深暗酒红墨黑、细微雕花弱化边框、
+   复古书卷工具弹窗
+   ============================================================ */
+body[data-theme='gothic'] {
+  --gr-bg-deep: #1c1310;
+  --gr-bg: #2a1d18;
+  --gr-panel: #33231c;
+  --gr-panel-2: #3a2a21;
+  --gr-card: #422f25;
+  --gr-card-hover: #4d382c;
+  --gr-accent: #b8916a;
+  --gr-accent-btn: #9c6b4a;
+  --gr-accent-btn-hover: #b8916a;
+  --gr-grad-btn: linear-gradient(180deg, #7a4a3a 0%, #5c3528 100%);
+  --gr-green: #8a9a5a;
+  --gr-red: #a03a2a;
+  --gr-orange: #b07a3a;
+  --gr-text: #d4c0a8;
+  --gr-text-bright: #e8d8c0;
+  --gr-text-dim: #8a7560;
+  --gr-border: #5c4538;
+  --gr-border-soft: #4a382e;
+  --gr-radius: 6px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  --gr-shadow-lg: 0 6px 20px rgba(0, 0, 0, 0.55);
+  --gr-page-grad: linear-gradient(180deg, #2e201a 0%, #1a100c 100%);
+  --gr-gap: 11px;
+  --gr-font: 'Georgia', 'Songti SC', 'SimSun', serif;
+}
+body[data-theme='gothic'] .gr-panel,
+body[data-theme='gothic'] .gr-card,
+body[data-theme='gothic'] .gr-stat-card {
+  background-image:
+    repeating-linear-gradient(45deg, rgba(184, 145, 106, 0.03) 0 2px, transparent 2px 5px),
+    linear-gradient(180deg, #3a2a20 0%, #33231c 100%);
+  border: 1px solid #5c4538;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.4) inset;
+}
+body[data-theme='gothic'] .gr-panel {
+  border-top: 2px solid #7a4a3a;
+}
+body[data-theme='gothic'] .gr-btn {
+  border: 1px solid #7a4a3a;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #5c3528 0%, #43261c 100%);
+  color: #e0c8a8;
+  box-shadow: 0 1px 0 rgba(255, 220, 180, 0.12) inset;
+  font-family: var(--gr-font);
+}
+body[data-theme='gothic'] .gr-btn:hover {
+  border-color: #b8916a;
+  box-shadow: 0 0 10px rgba(184, 145, 106, 0.3);
+}
+body[data-theme='gothic'] .gr-input {
+  background: #241812;
+  border: 1px solid #5c4538;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.5);
+  color: #d4c0a8;
+  font-family: var(--gr-font);
+}
+body[data-theme='gothic'] .gr-nav-item.active {
+  background: linear-gradient(90deg, rgba(122, 74, 58, 0.5), transparent);
+  color: #e8d8c0;
+  box-shadow: inset 2px 0 0 #a03a2a;
+}
+body[data-theme='gothic'] .gr-switch .gr-slider-ui {
+  background: #241812;
+  border: 1px solid #5c4538;
+}
+body[data-theme='gothic'] .gr-switch input:checked + .gr-slider-ui {
+  background: #7a4a3a;
+}
+
+/* ============================================================
+   19. 清爽北欧 Scandinavian 北欧风
+   大量留白、浅原木米色底色、冷灰简约、轻微细边框、
+   圆角适中、干净家居简约质感
+   ============================================================ */
+body[data-theme='nordic'] {
+  --gr-bg-deep: #f0ece4;
+  --gr-bg: #f7f4ee;
+  --gr-panel: #fdfbf6;
+  --gr-panel-2: #f5f1e9;
   --gr-card: #ffffff;
-  --gr-card-hover: #e8f0fa;
-  --gr-accent: #005fb8;
-  --gr-accent-btn: #0067c0;
-  --gr-accent-btn-hover: #1e78d0;
-  --gr-grad-btn: linear-gradient(180deg, #dce9f8 0%, #b8d2ee 100%);
-  --gr-green: #0f7b0f;
-  --gr-red: #c42b1c;
-  --gr-orange: #ca5010;
-  --gr-text: #1a1a1a;
-  --gr-text-bright: #00315c;
-  --gr-text-dim: #5a6a7a;
-  --gr-border: #9cc1e8;
-  --gr-border-soft: rgba(0, 95, 184, 0.25);
-  --gr-radius: 8px;
-  --gr-radius-sm: 6px;
-  --gr-shadow: 0 2px 10px rgba(0, 60, 120, 0.15);
-  --gr-shadow-lg: 0 6px 24px rgba(0, 60, 120, 0.25);
-  --gr-page-grad: linear-gradient(180deg, #eef4fb 0%, #dfeaf6 100%);
+  --gr-card-hover: #f4f0e8;
+  --gr-accent: #5c6b73;
+  --gr-accent-btn: #4a5961;
+  --gr-accent-btn-hover: #6b7c85;
+  --gr-grad-btn: linear-gradient(180deg, #6b7c85 0%, #4a5961 100%);
+  --gr-green: #6b8f6b;
+  --gr-red: #a86f6f;
+  --gr-orange: #b08f5a;
+  --gr-text: #3d3d3a;
+  --gr-text-bright: #2b2b28;
+  --gr-text-dim: #9a958c;
+  --gr-border: #e2ddd2;
+  --gr-border-soft: #eae5da;
+  --gr-radius: 10px;
+  --gr-radius-sm: 7px;
+  --gr-shadow: 0 2px 8px rgba(90, 80, 60, 0.07);
+  --gr-shadow-lg: 0 6px 22px rgba(90, 80, 60, 0.1);
+  --gr-page-grad: linear-gradient(180deg, #faf7f1 0%, #f0ece4 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 38px;
 }
-body[data-theme='win11'] .gr-btn,
-body[data-theme='win11'] button.btn {
-  color: #00315c;
+body[data-theme='nordic'] .gr-panel,
+body[data-theme='nordic'] .gr-card,
+body[data-theme='nordic'] .gr-stat-card {
+  border: 1px solid #e6e1d6;
+  box-shadow: 0 2px 8px rgba(90, 80, 60, 0.06);
 }
+body[data-theme='nordic'] .gr-btn {
+  border: 1px solid #d8d3c8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4a5961;
+  box-shadow: none;
+}
+body[data-theme='nordic'] .gr-btn:hover {
+  background: #f4f0e8;
+}
+body[data-theme='nordic'] .gr-btn.primary {
+  background: #4a5961;
+  border-color: #4a5961;
+  color: #fff;
+}
+body[data-theme='nordic'] .gr-input {
+  background: #ffffff;
+  border: 1px solid #ddd8cd;
+  border-radius: 7px;
+  box-shadow: none;
+  color: #3d3d3a;
+}
+body[data-theme='nordic'] .gr-nav-item.active {
+  background: #eef0ec;
+  color: #4a5961;
+  box-shadow: none;
+}
+body[data-theme='nordic'] .gr-switch .gr-slider-ui {
+  background: #d8d3c8;
+}
+body[data-theme='nordic'] .gr-switch input:checked + .gr-slider-ui {
+  background: #6b8f6b;
+}
+
+/* ============================================================
+   20. 说明：默认 steam（深色工业风）定义于 ui-theme.css :root；
+   本文件 19 个主题块 + 默认 = 共 20 套。清理合并：
+   win31/win95/win98 → netscape 覆盖 90 年代；win7 → vista；
+   win10 → ios17/nordic 覆盖。
+   ============================================================ */

@@ -7,45 +7,54 @@
  * Steam-inspired design system: dark blue-black, blue accents, gradient cards.
  */
 :root {
-  /* 背景层级 / background layers */
-  --gr-bg-deep: #171a21; /* 最深（页面底） */
-  --gr-bg: #1b2838; /* 主背景（Steam 深蓝黑） */
-  --gr-panel: #16202d; /* 面板 */
-  --gr-panel-2: #1b2838; /* 次级面板 */
-  --gr-card: #2a475e; /* 卡片（Steam 蓝灰） */
-  --gr-card-hover: #345774;
+  /* ===== v9.2.0：默认主题 = Steam 旧客户端深色工业风 =====
+   * 深灰游戏客户端 UI、蓝绿强调色、极小圆角、凹陷输入框、
+   * 轻微纹理底色——厚重工具客户端质感 */
 
-  /* 强调色 / accents */
-  --gr-accent: #66c0f4; /* Steam 蓝 */
-  --gr-accent-btn: #1a9fff; /* 按钮亮蓝 */
-  --gr-accent-btn-hover: #54b8ff;
-  --gr-grad-btn: linear-gradient(to right, #588fe3 0%, #2f6db3 100%); /* 按钮渐变 */
-  --gr-green: #a3cf06; /* 正面（好评率） */
-  --gr-red: #c75050; /* 负面 */
-  --gr-orange: #f49e4c; /* 警告 */
+  /* 背景层级 / background layers */
+  --gr-bg-deep: #141414; /* 最深（页面底） */
+  --gr-bg: #1a1a1a; /* 主背景（深灰） */
+  --gr-panel: #202020; /* 面板 */
+  --gr-panel-2: #262626; /* 次级面板 */
+  --gr-card: #2b2b2b; /* 卡片 */
+  --gr-card-hover: #343434;
+
+  /* 强调色 / accents（蓝绿青——工业工具强调） */
+  --gr-accent: #2dd4bf; /* 青绿 */
+  --gr-accent-btn: #14b8a6; /* 按钮青绿 */
+  --gr-accent-btn-hover: #2dd4bf;
+  --gr-grad-btn: linear-gradient(to right, #0d9488 0%, #0f766e 100%);
+  --gr-green: #4ade80;
+  --gr-red: #f87171;
+  --gr-orange: #fbbf24;
 
   /* 文本 / text */
-  --gr-text: #c7d5e0;
+  --gr-text: #d4d4d4;
   --gr-text-bright: #ffffff;
-  --gr-text-dim: #8f98a0;
+  --gr-text-dim: #8a8a8a;
 
-  /* 边框与阴影 / borders & shadows */
-  --gr-border: #4b619b;
-  --gr-border-soft: #2f4055;
-  --gr-radius: 8px;
-  --gr-radius-sm: 4px;
-  --gr-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
-  --gr-shadow-lg: 0 4px 16px rgba(0, 0, 0, 0.5);
+  /* 边框与阴影 / borders & shadows（极小圆角 + 凹陷质感） */
+  --gr-border: #3d3d3d;
+  --gr-border-soft: #2e2e2e;
+  --gr-radius: 2px; /* 工业风极小圆角 */
+  --gr-radius-sm: 1px;
+  --gr-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  --gr-shadow-lg: 0 2px 10px rgba(0, 0, 0, 0.6);
 
-  /* 页面背景渐变（Steam 风格：顶部深蓝渐变） */
-  --gr-page-grad: linear-gradient(180deg, #1b2838 0%, #101822 100%);
+  /* 页面背景渐变（轻微纹理底色） */
+  --gr-page-grad: linear-gradient(180deg, #1a1a1a 0%, #131313 100%);
+
+  /* ===== v9.2.0：布局参数（主题可覆盖） ===== */
+  --gr-control-h: 34px; /* 控件标准高度 */
+  --gr-gap: 10px; /* 基础间距 */
+  --gr-font: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; /* 字体 */
 }
 
 /* ============ 基础 ============ */
 body {
   background: var(--gr-page-grad);
   color: var(--gr-text);
-  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+  font-family: var(--gr-font, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif);
 }
 
 /* ============ 按钮（Steam 蓝色渐变） ============ */
@@ -54,7 +63,8 @@ body {
   align-items: center;
   justify-content: center;
   gap: 6px;
-  padding: 8px 18px;
+  min-height: var(--gr-control-h, 34px);
+  padding: 6px 18px;
   border: none;
   border-radius: var(--gr-radius-sm);
   background: var(--gr-grad-btn);
@@ -214,14 +224,23 @@ body {
 
 /* ============ 输入框 ============ */
 .gr-input {
-  background: #1e2836;
+  background: #1a1a1a;
   border: 1px solid var(--gr-border-soft);
   border-radius: var(--gr-radius-sm);
   color: var(--gr-text);
+  min-height: var(--gr-control-h, 34px);
   padding: 6px 10px;
   font-size: 13px;
   outline: none;
   transition: border-color 0.2s;
+  /* v9.2.0：默认凹陷输入框（工业风质感，浅色主题可覆盖） */
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.35);
+}
+.gr-input:focus {
+  border-color: var(--gr-accent-btn);
+  box-shadow:
+    inset 0 2px 4px rgba(0, 0, 0, 0.35),
+    0 0 0 1px rgba(20, 184, 166, 0.2);
 }
 .gr-input:focus {
   border-color: var(--gr-accent-btn);

@@ -354,25 +354,49 @@
 }
 
 /* ============ 浮窗主题跟随（v8.1.0：浅色主题给浅色浮窗） ============ */
-.gr-float[data-theme='win31'],
-.gr-float[data-theme='win95'],
-.gr-float[data-theme='win98'] {
+/* v9.2.0：浅色系主题的浮窗配色（跟随设置页皮肤系统） */
+.gr-float[data-theme='ios6'] {
+  --gr-float-bg: #e8e8e4;
+  --gr-float-border: #b0b0ab;
+  --gr-float-text: #3a3a38;
+  --gr-float-text-bright: #2a2a28;
+  --gr-float-text-dim: #7c7c78;
+  --gr-float-accent: #2f6ec2;
+}
+.gr-float[data-theme='ios17'],
+.gr-float[data-theme='nordic'] {
+  --gr-float-bg: #f7f7fa;
+  --gr-float-border: rgba(60, 60, 67, 0.15);
+  --gr-float-text: #1c1c1e;
+  --gr-float-text-bright: #1c1c1e;
+  --gr-float-text-dim: #8e8e93;
+  --gr-float-accent: #0a84ff;
+}
+.gr-float[data-theme='neumorph'],
+.gr-float[data-theme='morandi'] {
+  --gr-float-bg: #e0e5ec;
+  --gr-float-border: transparent;
+  --gr-float-text: #4a5468;
+  --gr-float-text-bright: #2f3644;
+  --gr-float-text-dim: #9aa5b5;
+  --gr-float-accent: #4a7bd0;
+}
+.gr-float[data-theme='netscape'] {
   --gr-float-bg: #c0c0c0;
   --gr-float-border: #808080;
   --gr-float-text: #000;
   --gr-float-text-bright: #000;
-  --gr-float-text-dim: #444;
+  --gr-float-text-dim: #404040;
   --gr-float-accent: #000080;
   --gr-float-radius: 0;
 }
-.gr-float[data-theme='win10'] {
-  --gr-float-bg: #f3f3f3;
-  --gr-float-border: #d0d0d0;
-  --gr-float-text: #1a1a1a;
-  --gr-float-text-bright: #1a1a1a;
-  --gr-float-text-dim: #666;
-  --gr-float-accent: #0078d7;
-  --gr-float-radius: 0;
+.gr-float[data-theme='wabi'] {
+  --gr-float-bg: #efe8d9;
+  --gr-float-border: #d5ccb8;
+  --gr-float-text: #3a342c;
+  --gr-float-text-bright: #2a241c;
+  --gr-float-text-dim: #8a8274;
+  --gr-float-accent: #8c6b4a;
 }
 
 /* 加载动画 */

@@ -171,3 +171,18 @@ tr:hover td {
   padding: 20px 0;
   font-size: 13px;
 }
+
+/* ============ 带鱼屏适配（v9.2.0） ============ */
+@media (min-width: 2000px) {
+  .dashboard {
+    max-width: 1720px; /* 超宽屏扩大内容区 */
+  }
+  .stats-grid {
+    grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  }
+}
+@media (min-aspect-ratio: 21/9) {
+  .dashboard {
+    max-width: calc(100vw - 120px);
+  }
+}

@@ -230,3 +230,13 @@ body {
   border: 1px dashed var(--gr-border-soft);
   border-radius: var(--gr-radius);
 }
+
+/* ============ 带鱼屏适配（v9.2.0） ============ */
+@media (min-width: 2000px) {
+  .container {
+    max-width: 1720px;
+  }
+  .game-grid {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  }
+}

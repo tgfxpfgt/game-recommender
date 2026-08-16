@@ -28,7 +28,7 @@ const CHANNEL = process.env.E2E_CHANNEL || 'chromium';
 const userDataDir = path.join(ROOT, '.visual-profile');
 
 const PAGES = [
-  // v8.2.0：多主题基线——options 页在 steam 基础上加浅色主题（win95/win10）
+  // v8.2.0：多主题基线；v9.2.0：代表主题（深色工业/浅色扁平/终端/莫兰迪）
   // 覆盖皮肤系统浅色分支；popup/dashboard 保持默认主题
   // v9.1.0：交互态基线——popup 全部分组展开 / options 过滤面板
   {
@@ -50,7 +50,7 @@ const PAGES = [
     name: 'options',
     url: 'options/options.html',
     viewport: { width: 1280, height: 800 },
-    themes: ['steam', 'win95', 'win10'],
+    themes: ['steam', 'ios17', 'cyberpunk', 'morandi'],
     states: [
       {
         name: 'filters',

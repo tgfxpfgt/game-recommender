@@ -452,19 +452,19 @@ async function runChecks() {
       vistaBtnGone: !document.getElementById('openVistaMenu')
     }));
     check(
-      '皮肤选择器（默认 steam + 10 主题 + Vista 入口移除）',
-      skinState.select === 'steam' && skinState.options.length === 10 && skinState.vistaBtnGone
+      '皮肤选择器（默认 steam + 20 主题 + Vista 入口移除）',
+      skinState.select === 'steam' && skinState.options.length === 20 && skinState.vistaBtnGone
     );
     // 切换皮肤 → body[data-theme] 立即生效 + 保存往返
     await skinPage.evaluate(() => {
       const sel = document.getElementById('uiTheme');
-      sel.value = 'win95';
+      sel.value = 'ios17';
       sel.dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('saveBtn').click();
     });
     await skinPage.waitForTimeout(1500);
     const skinApplied = await skinPage.evaluate(() => document.body.dataset.theme);
-    check('皮肤切换立即生效（body[data-theme=win95]）', skinApplied === 'win95');
+    check('皮肤切换立即生效（body[data-theme=ios17]）', skinApplied === 'ios17');
     await skinPage.close();
     const skinPage2 = await context.newPage();
     await skinPage2.goto(`chrome-extension://${extId}/options/options.html`);
@@ -473,7 +473,7 @@ async function runChecks() {
       const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
       return { theme: resp.settings.uiTheme, applied: document.body.dataset.theme };
     });
-    check('皮肤保存并重开生效（uiTheme=win95）', skinPersist.theme === 'win95' && skinPersist.applied === 'win95');
+    check('皮肤保存并重开生效（uiTheme=ios17）', skinPersist.theme === 'ios17' && skinPersist.applied === 'ios17');
     // 还原默认皮肤（避免影响后续断言）
     await skinPage2.evaluate(() => {
       const sel = document.getElementById('uiTheme');

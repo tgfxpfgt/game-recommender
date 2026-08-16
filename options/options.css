@@ -1817,3 +1817,24 @@ tr:hover td {
 .settings-panel.search-hit {
   box-shadow: inset 0 0 0 1px rgba(102, 192, 244, 0.35);
 }
+
+/* ============ 带鱼屏适配（v9.2.0：超宽屏布局扩展） ============ */
+@media (min-width: 2000px) {
+  .settings-shell {
+    max-width: 1680px; /* 超宽屏扩大内容区 */
+  }
+  .settings-content {
+    padding: 24px 36px;
+  }
+  .settings-panel .panel-body {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(420px, 1fr)); /* 双列面板 */
+    gap: 0 32px;
+    align-items: start;
+  }
+}
+@media (min-aspect-ratio: 21/9) {
+  .settings-shell {
+    max-width: calc(100vw - 120px); /* 21:9+ 全宽利用 */
+  }
+}

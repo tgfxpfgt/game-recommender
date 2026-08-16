@@ -63,8 +63,28 @@
 
   // v6.4.19：应用皮肤主题（body data-theme → themes.css 变量覆盖生效）
   // Apply the UI skin theme (body[data-theme] drives themes.css overrides).
+  // v9.2.0：20 套主题（win31/95/98/win7/win10 已清理——netscape/vista/ios17 覆盖）
   const VALID_THEMES = new Set([
-    'steam', 'vista', 'win31', 'win95', 'win98', 'winxp', 'win7', 'win8', 'win10', 'win11'
+    'steam',
+    'vista',
+    'ios6',
+    'ios17',
+    'winxp',
+    'win11',
+    'cyberpunk',
+    'aqua',
+    'neumorph',
+    'netscape',
+    'material',
+    'gtk2',
+    'vaporwave',
+    'oled',
+    'wabi',
+    'crt',
+    'win8',
+    'morandi',
+    'gothic',
+    'nordic'
   ]);
   function applyTheme(theme) {
     if (typeof document === 'undefined') return;
