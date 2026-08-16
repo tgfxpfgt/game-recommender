@@ -65,8 +65,12 @@ body {
   text-decoration: none;
   transition: filter 0.15s ease;
 }
-.gr-btn:hover { filter: brightness(1.2); }
-.gr-btn:active { filter: brightness(0.9); }
+.gr-btn:hover {
+  filter: brightness(1.2);
+}
+.gr-btn:active {
+  filter: brightness(0.9);
+}
 .gr-btn.primary {
   background: var(--gr-grad-btn);
   color: #e5f1ff;
@@ -76,27 +80,48 @@ body {
   color: var(--gr-accent);
   border: 1px solid var(--gr-border);
 }
-.gr-btn.ghost:hover { background: rgba(102, 192, 244, 0.1); }
+.gr-btn.ghost:hover {
+  background: rgba(102, 192, 244, 0.1);
+}
 .gr-btn.danger {
   background: linear-gradient(to right, #c75050 0%, #a33b3b 100%);
   color: #ffe5e5;
 }
-.gr-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.gr-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 
 /* ============ 卡片 ============ */
 .gr-card {
   background: var(--gr-card);
   border-radius: var(--gr-radius);
   box-shadow: var(--gr-shadow);
-  transition: background 0.15s ease, box-shadow 0.15s ease;
+  transition:
+    background 0.15s ease,
+    box-shadow 0.15s ease;
 }
-.gr-card:hover { background: var(--gr-card-hover); box-shadow: var(--gr-shadow-lg); }
+.gr-card:hover {
+  background: var(--gr-card-hover);
+  box-shadow: var(--gr-shadow-lg);
+}
 
 /* ============ 开关（Steam 滑块式） ============ */
-.gr-switch { position: relative; display: inline-block; width: 40px; height: 20px; vertical-align: middle; }
-.gr-switch input { opacity: 0; width: 0; height: 0; }
+.gr-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 20px;
+  vertical-align: middle;
+}
+.gr-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
 .gr-switch .gr-slider-ui {
-  position: absolute; inset: 0;
+  position: absolute;
+  inset: 0;
   background: #3d4450;
   border-radius: 20px;
   cursor: pointer;
@@ -104,29 +129,49 @@ body {
 }
 .gr-switch .gr-slider-ui::before {
   content: '';
-  position: absolute; left: 2px; top: 2px;
-  width: 16px; height: 16px;
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 16px;
+  height: 16px;
   background: #8f98a0;
   border-radius: 50%;
-  transition: transform 0.2s, background 0.2s;
+  transition:
+    transform 0.2s,
+    background 0.2s;
 }
-.gr-switch input:checked + .gr-slider-ui { background: var(--gr-accent-btn); }
+.gr-switch input:checked + .gr-slider-ui {
+  background: var(--gr-accent-btn);
+}
 .gr-switch input:checked + .gr-slider-ui::before {
   transform: translateX(20px);
   background: #fff;
 }
 
 /* ============ 滑块（Steam 范围条） ============ */
-.gr-range { -webkit-appearance: none; appearance: none; width: 100%; height: 6px; border-radius: 3px; background: #3d4450; outline: none; }
+.gr-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #3d4450;
+  outline: none;
+}
 .gr-range::-webkit-slider-thumb {
-  -webkit-appearance: none; appearance: none;
-  width: 16px; height: 16px; border-radius: 50%;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
   background: var(--gr-accent-btn);
   border: 2px solid #fff;
   cursor: pointer;
 }
 .gr-range::-moz-range-thumb {
-  width: 14px; height: 14px; border-radius: 50%;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
   background: var(--gr-accent-btn);
   border: 2px solid #fff;
   cursor: pointer;
@@ -141,11 +186,31 @@ body {
   font-weight: 600;
   border: 1px solid;
 }
-.gr-tag.blue { color: var(--gr-accent); border-color: rgba(102, 192, 244, 0.5); background: rgba(102, 192, 244, 0.1); }
-.gr-tag.green { color: var(--gr-green); border-color: rgba(163, 207, 6, 0.5); background: rgba(163, 207, 6, 0.1); }
-.gr-tag.red { color: var(--gr-red); border-color: rgba(199, 80, 80, 0.5); background: rgba(199, 80, 80, 0.1); }
-.gr-tag.orange { color: var(--gr-orange); border-color: rgba(244, 158, 76, 0.5); background: rgba(244, 158, 76, 0.1); }
-.gr-tag.gray { color: var(--gr-text-dim); border-color: rgba(143, 152, 160, 0.5); background: rgba(143, 152, 160, 0.1); }
+.gr-tag.blue {
+  color: var(--gr-accent);
+  border-color: rgba(102, 192, 244, 0.5);
+  background: rgba(102, 192, 244, 0.1);
+}
+.gr-tag.green {
+  color: var(--gr-green);
+  border-color: rgba(163, 207, 6, 0.5);
+  background: rgba(163, 207, 6, 0.1);
+}
+.gr-tag.red {
+  color: var(--gr-red);
+  border-color: rgba(199, 80, 80, 0.5);
+  background: rgba(199, 80, 80, 0.1);
+}
+.gr-tag.orange {
+  color: var(--gr-orange);
+  border-color: rgba(244, 158, 76, 0.5);
+  background: rgba(244, 158, 76, 0.1);
+}
+.gr-tag.gray {
+  color: var(--gr-text-dim);
+  border-color: rgba(143, 152, 160, 0.5);
+  background: rgba(143, 152, 160, 0.1);
+}
 
 /* ============ 输入框 ============ */
 .gr-input {
@@ -158,8 +223,12 @@ body {
   outline: none;
   transition: border-color 0.2s;
 }
-.gr-input:focus { border-color: var(--gr-accent-btn); }
-.gr-input::placeholder { color: var(--gr-text-dim); }
+.gr-input:focus {
+  border-color: var(--gr-accent-btn);
+}
+.gr-input::placeholder {
+  color: var(--gr-text-dim);
+}
 
 /* ============ 区块标题（Steam 风格下划线蓝条） ============ */
 .gr-section-title {
@@ -172,8 +241,224 @@ body {
   margin: 20px 0 12px;
 }
 
+/* ============ 页面级容器与头部（v8.1.0 组件化） ============ */
+.gr-page {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+.gr-page-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.gr-page-header h1 {
+  margin: 0;
+  font-size: 20px;
+  color: var(--gr-text-bright);
+}
+.gr-page-header .gr-page-desc {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--gr-text-dim);
+}
+.gr-page-header .gr-toolbar {
+  margin-left: auto;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* ============ 面板 / 分组容器 ============ */
+.gr-panel {
+  background: var(--gr-panel);
+  border: 1px solid var(--gr-border-soft);
+  border-radius: var(--gr-radius);
+  padding: 14px 16px;
+}
+.gr-panel + .gr-panel {
+  margin-top: 12px;
+}
+.gr-panel-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+  margin: 0 0 10px;
+}
+.gr-panel-title .gr-panel-sub {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--gr-text-dim);
+}
+
+/* ============ 表单行（标签 + 控件） ============ */
+.gr-form-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0;
+}
+.gr-form-row + .gr-form-row {
+  border-top: 1px solid rgba(143, 152, 160, 0.12);
+}
+.gr-form-label {
+  min-width: 0;
+}
+.gr-form-label .gr-form-name {
+  font-size: 13px;
+  color: var(--gr-text);
+}
+.gr-form-label .gr-form-desc {
+  font-size: 11px;
+  color: var(--gr-text-dim);
+  margin-top: 2px;
+}
+.gr-form-control {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ============ 复选框行 ============ */
+.gr-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--gr-text);
+  user-select: none;
+}
+.gr-check input[type='checkbox'] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--gr-accent-btn);
+  cursor: pointer;
+}
+
+/* ============ 表格 ============ */
+.gr-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.gr-table th {
+  text-align: left;
+  padding: 6px 8px;
+  color: var(--gr-text-dim);
+  font-weight: 600;
+  border-bottom: 1px solid var(--gr-border-soft);
+  white-space: nowrap;
+}
+.gr-table td {
+  padding: 6px 8px;
+  color: var(--gr-text);
+  border-bottom: 1px solid rgba(143, 152, 160, 0.1);
+}
+.gr-table tr:hover td {
+  background: rgba(102, 192, 244, 0.06);
+}
+
+/* ============ 统计卡片 ============ */
+.gr-stat-card {
+  background: var(--gr-card);
+  border-radius: var(--gr-radius);
+  padding: 12px 14px;
+  text-align: center;
+  box-shadow: var(--gr-shadow);
+}
+.gr-stat-card .gr-stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--gr-text-bright);
+}
+.gr-stat-card .gr-stat-label {
+  font-size: 11px;
+  color: var(--gr-text-dim);
+  margin-top: 2px;
+}
+
+/* ============ 空状态 / 提示 ============ */
+.gr-empty {
+  padding: 24px;
+  text-align: center;
+  color: var(--gr-text-dim);
+  font-size: 12px;
+}
+
+/* ============ 导航项（侧边栏） ============ */
+.gr-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-radius: var(--gr-radius-sm);
+  background: transparent;
+  color: var(--gr-text);
+  font-size: 13px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+.gr-nav-item:hover {
+  background: rgba(102, 192, 244, 0.1);
+}
+.gr-nav-item.active {
+  background: rgba(102, 192, 244, 0.18);
+  color: var(--gr-text-bright);
+  box-shadow: inset 2px 0 0 var(--gr-accent);
+}
+
+/* ============ 小号胶囊标签 ============ */
+.gr-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 8px;
+  border-radius: 10px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.gr-pill.blue {
+  color: var(--gr-accent);
+  background: rgba(102, 192, 244, 0.14);
+}
+.gr-pill.green {
+  color: var(--gr-green);
+  background: rgba(163, 207, 6, 0.14);
+}
+.gr-pill.red {
+  color: var(--gr-red);
+  background: rgba(199, 80, 80, 0.14);
+}
+.gr-pill.orange {
+  color: var(--gr-orange);
+  background: rgba(244, 158, 76, 0.14);
+}
+.gr-pill.gray {
+  color: var(--gr-text-dim);
+  background: rgba(143, 152, 160, 0.14);
+}
+
 /* ============ 滚动条（Steam 深色） ============ */
-::-webkit-scrollbar { width: 10px; }
-::-webkit-scrollbar-track { background: var(--gr-bg-deep); }
-::-webkit-scrollbar-thumb { background: #3d4450; border-radius: 5px; }
-::-webkit-scrollbar-thumb:hover { background: var(--gr-card); }
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: var(--gr-bg-deep);
+}
+::-webkit-scrollbar-thumb {
+  background: #3d4450;
+  border-radius: 5px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--gr-card);
+}

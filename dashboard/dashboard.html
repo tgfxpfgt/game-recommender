@@ -13,63 +13,63 @@
       <header class="dash-header">
         <h1>🎮 游戏智能推荐 - 数据分析中心</h1>
         <div class="header-actions">
-          <button id="hubBtn" class="btn" title="返回设置中心">🏠 中心</button>
-          <button id="refreshBtn" class="btn btn-primary">🔄 刷新数据</button>
-          <button id="steamRecBtn" class="btn btn-steam">🎯 Steam推荐</button>
+          <button id="hubBtn" class="gr-btn" title="返回设置中心">🏠 中心</button>
+          <button id="refreshBtn" class="gr-btn gr-btn-primary">🔄 刷新数据</button>
+          <button id="steamRecBtn" class="gr-btn gr-btn-steam">🎯 Steam推荐</button>
         </div>
       </header>
 
       <!-- 概览统计 / Overview stats -->
       <section class="stats-grid">
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="statTotal">0</div>
           <div class="stat-label">总行为记录</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="statGames">0</div>
           <div class="stat-label">已学习游戏</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="statViews">0</div>
           <div class="stat-label">详情页浏览</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="statDownloads">0</div>
           <div class="stat-label">下载操作</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="statRate">0%</div>
           <div class="stat-label">浏览→下载转化率</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="statCacheHit">—</div>
           <div class="stat-label">Steam 缓存命中率（v6.3.2）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="modHitMeta">—</div>
           <div class="stat-label">基础信息命中（v7.1.0）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="modHitRating">—</div>
           <div class="stat-label">好评率命中（v7.1.0）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="modHitDetail">—</div>
           <div class="stat-label">详情信息命中（v7.1.0）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="modHitSpy">—</div>
           <div class="stat-label">SteamSpy 命中（v7.1.0）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="diagApiStatus">—</div>
           <div class="stat-label">Steam API 状态（v7.1.0 诊断）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="diagUrlIndex">—</div>
           <div class="stat-label">网址索引条数（v7.1.0 诊断）</div>
         </div>
-        <div class="stat-card">
+        <div class="gr-stat-card">
           <div class="stat-value" id="diagNegativeCache">—</div>
           <div class="stat-label">名称负缓存（v7.1.0 诊断）</div>
         </div>
@@ -85,7 +85,7 @@
             <option value="week">按周</option>
           </select>
           <span id="trendStats" class="backup-status"></span>
-          <button id="exportTrendsCsvBtn" class="btn btn-sm">📄 导出趋势 CSV</button>
+          <button id="exportTrendsCsvBtn" class="gr-btn gr-btn-sm">📄 导出趋势 CSV</button>
         </div>
         <div id="trendChart" class="trend-chart">
           <div class="no-data">暂无行为数据</div>
@@ -114,7 +114,7 @@
         <h2>🕹️ 游戏学习记录</h2>
         <div class="section-toolbar">
           <span class="backup-status"></span>
-          <button id="exportGamesCsvBtn" class="btn btn-sm">📄 导出游戏 CSV</button>
+          <button id="exportGamesCsvBtn" class="gr-btn gr-btn-sm">📄 导出游戏 CSV</button>
         </div>
         <div class="table-wrapper">
           <table id="gameTable" class="data-table">
@@ -149,7 +149,7 @@
         <h2>📋 最近行为日志</h2>
         <div class="section-toolbar">
           <span class="backup-status"></span>
-          <button id="exportLogsCsvBtn" class="btn btn-sm">📄 导出行为 CSV</button>
+          <button id="exportLogsCsvBtn" class="gr-btn gr-btn-sm">📄 导出行为 CSV</button>
         </div>
         <div class="table-wrapper">
           <table class="data-table">
@@ -183,8 +183,8 @@
             <option value="debug">DEBUG</option>
           </select>
           <span id="logLevelStats" class="backup-status" title="各级别日志条数统计（v7.1.0）"></span>
-          <button id="exportLogsBtn" class="btn btn-sm">📤 导出日志</button>
-          <button id="clearLogsBtn" class="btn btn-sm btn-danger">🗑️ 清空日志</button>
+          <button id="exportLogsBtn" class="gr-btn gr-btn-sm">📤 导出日志</button>
+          <button id="clearLogsBtn" class="gr-btn gr-btn-sm gr-btn-danger">🗑️ 清空日志</button>
         </div>
         <div id="runtimeLogList" class="runtime-log">
           <div class="no-data">暂无日志</div>
@@ -200,13 +200,13 @@
           <input
             type="text"
             id="auditHostFilter"
-            class="text-input"
+            class="gr-input"
             placeholder="按主机筛选..."
             style="max-width: 180px; flex: 1"
           />
-          <button id="exportAuditCsvBtn" class="btn btn-sm">📄 导出审计 CSV</button>
-          <button id="refreshAuditBtn" class="btn btn-sm">🔄 刷新</button>
-          <button id="clearAuditBtn" class="btn btn-sm btn-danger">🗑️ 清空审计</button>
+          <button id="exportAuditCsvBtn" class="gr-btn gr-btn-sm">📄 导出审计 CSV</button>
+          <button id="refreshAuditBtn" class="gr-btn gr-btn-sm">🔄 刷新</button>
+          <button id="clearAuditBtn" class="gr-btn gr-btn-sm gr-btn-danger">🗑️ 清空审计</button>
         </div>
         <div id="auditList" class="runtime-log">
           <div class="no-data">暂无请求记录</div>
@@ -217,7 +217,7 @@
       <section class="section">
         <h2>💾 数据备份管理</h2>
         <div class="section-toolbar">
-          <button id="createBackupBtn" class="btn btn-primary btn-sm">➕ 立即备份</button>
+          <button id="createBackupBtn" class="gr-btn gr-btn-primary gr-btn-sm">➕ 立即备份</button>
           <span id="backupStatus" class="backup-status"></span>
         </div>
         <div id="backupList" class="backup-list">

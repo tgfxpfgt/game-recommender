@@ -12,7 +12,11 @@ body {
   font-size: 14px;
   line-height: 1.6;
 }
-.container { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
+.container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 20px 16px 60px;
+}
 
 /* ============ 页面头部（Steam 渐变横幅） ============ */
 .page-header {
@@ -32,11 +36,18 @@ body {
   font-weight: 700;
   color: var(--gr-text-bright);
 }
-.header-actions { display: flex; align-items: center; gap: 12px; }
-.last-update { font-size: 12px; color: var(--gr-text-dim); }
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.last-update {
+  font-size: 12px;
+  color: var(--gr-text-dim);
+}
 
 /* ============ 按钮 ============ */
-.btn {
+.gr-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -49,13 +60,27 @@ body {
   text-decoration: none;
   transition: filter 0.15s;
 }
-.btn-primary { background: var(--gr-grad-btn); color: #d2e4fc; }
-.btn-primary:hover { filter: brightness(1.2); }
+.gr-btn.primary {
+  background: var(--gr-grad-btn);
+  color: #d2e4fc;
+}
+.gr-btn.primary:hover {
+  filter: brightness(1.2);
+}
 
-.page-desc { font-size: 13px; color: var(--gr-text-dim); margin: 0 0 16px; }
+.page-desc {
+  font-size: 13px;
+  color: var(--gr-text-dim);
+  margin: 0 0 16px;
+}
 
 /* ============ 平台筛选（Steam 标签组） ============ */
-.platform-filter { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 16px; }
+.platform-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
 .filter-btn {
   padding: 6px 14px;
   border-radius: 16px;
@@ -66,7 +91,10 @@ body {
   cursor: pointer;
   transition: all 0.15s;
 }
-.filter-btn:hover { border-color: var(--gr-accent); color: var(--gr-accent); }
+.filter-btn:hover {
+  border-color: var(--gr-accent);
+  color: var(--gr-accent);
+}
 .filter-btn.active {
   background: var(--gr-grad-btn);
   border-color: transparent;
@@ -79,7 +107,8 @@ body {
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 14px;
 }
-.loading, .empty {
+.loading,
+.empty {
   text-align: center;
   color: var(--gr-text-dim);
   padding: 40px 0;
@@ -91,24 +120,38 @@ body {
   background: var(--gr-card);
   overflow: hidden;
   box-shadow: var(--gr-shadow);
-  transition: transform 0.15s, box-shadow 0.15s, background 0.15s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.15s,
+    background 0.15s;
 }
 .game-card:hover {
   transform: translateY(-2px);
   box-shadow: var(--gr-shadow-lg);
   background: var(--gr-card-hover);
 }
-.game-card.claimed { opacity: 0.65; }
+.game-card.claimed {
+  opacity: 0.65;
+}
 .game-card img {
   width: 120px;
   height: 68px;
   object-fit: cover;
   flex-shrink: 0;
 }
-.game-card-body { padding: 8px 12px; flex: 1; min-width: 0; }
+.game-card-body {
+  padding: 8px 12px;
+  flex: 1;
+  min-width: 0;
+}
 
 /* 标签行（平台 + 类型 + 今日新增） */
-.game-tags-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.game-tags-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
 .game-platform {
   display: inline-block;
   padding: 1px 8px;
@@ -119,7 +162,9 @@ body {
   background: rgba(102, 192, 244, 0.1);
   border: 1px solid rgba(102, 192, 244, 0.4);
 }
-.game-tags-row .game-platform { margin-right: 0; }
+.game-tags-row .game-platform {
+  margin-right: 0;
+}
 .new-today {
   display: inline-block;
   padding: 1px 8px;
@@ -139,8 +184,16 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-.game-meta { font-size: 11px; color: var(--gr-text-dim); }
-.game-actions { margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.game-meta {
+  font-size: 11px;
+  color: var(--gr-text-dim);
+}
+.game-actions {
+  margin-top: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .claim-btn {
   display: inline-flex;
   align-items: center;
@@ -153,15 +206,23 @@ body {
   text-decoration: none;
   transition: filter 0.15s;
 }
-.claim-btn:hover { filter: brightness(1.2); }
+.claim-btn:hover {
+  filter: brightness(1.2);
+}
 .claim-btn.claimed {
   background: transparent;
   border: 1px solid var(--gr-green);
   color: var(--gr-green);
 }
-.claim-type { font-size: 11px; }
-.claim-type.direct { color: var(--gr-green); }
-.claim-type.thirdparty { color: var(--gr-orange); }
+.claim-type {
+  font-size: 11px;
+}
+.claim-type.direct {
+  color: var(--gr-green);
+}
+.claim-type.thirdparty {
+  color: var(--gr-orange);
+}
 
 /* ============ 空态（Steam 风格提示） ============ */
 .empty {

@@ -1,52 +1,294 @@
 /* ============================================================
-   游戏雷达 Game Radar - Content Styles (v2)
+   游戏雷达 Game Radar - Content Styles (v3)
    内容脚本样式 / Content-script styles
-   Injected via manifest content_scripts css (all download sites).
-   经 manifest content_scripts css 注入（全部下载站页面）。
+   Injected via manifest content_scripts css (download sites + Steam).
+   v8.1.0：浮窗/状态条/徽章/详情浮窗从内联样式类化；浮窗支持主题
+   跟随（容器 data-theme 覆盖 --gr-float-* 变量）。
    ============================================================ */
 
-/* 列表页高亮样式 / List-page recommendation highlight */
+/* ============ 浮窗通用（v8.1.0 类化） ============ */
+.gr-float {
+  position: fixed;
+  z-index: 2147483647;
+  width: 320px;
+  background: var(--gr-float-bg, #1b2838);
+  border: 1px solid var(--gr-float-border, #2a475e);
+  border-radius: var(--gr-float-radius, 8px);
+  color: var(--gr-float-text, #c7d5e0);
+  font-size: 13px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif;
+}
+.gr-float-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background: rgba(0, 0, 0, 0.22);
+  border-bottom: 1px solid var(--gr-float-border, #2a475e);
+  border-radius: 8px 8px 0 0;
+  color: var(--gr-float-text-bright, #fff);
+  font-size: 12px;
+  font-weight: 600;
+  user-select: none;
+}
+.gr-float-chrome-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.gr-float-chrome-btn {
+  border: none;
+  background: transparent;
+  color: var(--gr-float-text-dim, #8f98a0);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 3px;
+}
+.gr-float-chrome-btn:hover {
+  color: var(--gr-float-accent, #66c0f4);
+}
+.gr-float-body {
+  max-height: calc(100vh - 140px);
+  overflow-y: auto;
+  padding: 8px 10px;
+}
+
+/* ============ 状态浮窗 ============ */
+.gr-status-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--gr-float-text-bright, #fff);
+  font-weight: bold;
+  font-size: 12px;
+}
+.gr-status-elapsed {
+  margin-left: auto;
+  font-size: 10px;
+  color: var(--gr-float-text-dim, #8f98a0);
+}
+.gr-status-summary {
+  font-size: 12px;
+  color: var(--gr-float-accent, #66c0f4);
+  margin-top: 4px;
+}
+.gr-status-row {
+  font-size: 11px;
+  color: var(--gr-float-text-dim, #8f98a0);
+}
+.gr-status-row-clickable {
+  font-size: 11px;
+  color: var(--gr-float-text-dim, #8f98a0);
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+.gr-status-progress {
+  height: 4px;
+  background: var(--gr-float-border, #2a475e);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 4px 0;
+}
+.gr-status-progress-fill {
+  height: 100%;
+  background: var(--gr-float-accent, #66c0f4);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+/* ============ 诊断视图（debug） ============ */
+.gr-debug-row {
+  font-size: 11px;
+  margin: 2px 0;
+  color: var(--gr-float-text, #c7d5e0);
+}
+.gr-debug-state-ok {
+  color: #2ecc71;
+  font-weight: bold;
+}
+.gr-debug-state-bad {
+  color: #e74c3c;
+  font-weight: bold;
+}
+.gr-debug-state-warn {
+  color: #f39c12;
+  font-weight: bold;
+}
+.gr-debug-state-info {
+  color: var(--gr-float-accent, #66c0f4);
+  font-weight: bold;
+}
+.gr-debug-log {
+  font-size: 10px;
+  color: #666;
+  border-top: 1px solid #333;
+  padding-top: 4px;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============ 列表页徽章（统一基类 + 变体） ============ */
+.gr-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 4px;
+  vertical-align: middle;
+  white-space: nowrap;
+  border: 1px solid;
+  line-height: 1.5;
+}
+.gr-badge-clickable {
+  cursor: pointer;
+}
+.gr-badge-dashed {
+  border-style: dashed;
+}
+.gr-badge-notfound {
+  color: #666;
+  border-color: #666;
+  background: rgba(102, 102, 102, 0.08);
+}
+.gr-badge-type {
+  color: #b48ce0;
+  border-color: rgba(180, 140, 224, 0.5);
+  background: rgba(180, 140, 224, 0.12);
+}
+.gr-badge-empty {
+  color: #8f98a0;
+  border-color: rgba(143, 152, 160, 0.4);
+  background: rgba(143, 152, 160, 0.1);
+}
+.gr-badge-recent {
+  color: #66c0f4;
+  border-color: rgba(102, 192, 244, 0.4);
+  background: rgba(102, 192, 244, 0.12);
+}
+.gr-badge-update {
+  color: #8f98a0;
+  border-color: rgba(143, 152, 160, 0.4);
+  background: rgba(143, 152, 160, 0.08);
+}
+/* 全部好评率：分级色由 shared/patterns.js 单源注入（ratingColorFor/ratingBgFor） */
+.gr-rec-badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: bold;
+  border-radius: 4px;
+  vertical-align: middle;
+  cursor: default;
+  white-space: nowrap;
+  border: 1px solid;
+  line-height: 1.5;
+}
+.gr-dislike-btn {
+  margin-left: 4px;
+  cursor: pointer;
+  font-size: 10px;
+  opacity: 0.6;
+}
+.gr-dislike-btn:hover {
+  opacity: 1;
+}
+
+/* 推荐高亮整项 */
 .gr-highlighted {
   position: relative;
   border-left: 3px solid #e74c3c !important;
   background: linear-gradient(90deg, rgba(231, 76, 60, 0.08) 0%, transparent 100%) !important;
   transition: all 0.3s ease;
 }
-
-/* 悬停时加深高亮 / Deepen highlight on hover */
 .gr-highlighted:hover {
   background: linear-gradient(90deg, rgba(231, 76, 60, 0.15) 0%, transparent 100%) !important;
 }
-
-/* 高亮项内的链接着色 / Link color inside highlighted items */
 .gr-highlighted a {
   color: #e74c3c !important;
   font-weight: bold !important;
 }
 
-/* 推荐分数徽章 / Recommendation-score badge */
-.gr-badge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  font-size: 11px;
+/* ============ 详情页浮窗 ============ */
+.gr-detail-title {
+  font-size: 17px;
   font-weight: bold;
+  color: var(--gr-float-text-bright, #fff);
+  margin: 6px 0 4px;
+}
+.gr-detail-meta-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 11px;
+  color: var(--gr-float-text-dim, #8f98a0);
+  margin: 2px 0;
+}
+.gr-detail-btn {
+  display: block;
+  text-align: center;
+  padding: 7px 10px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: bold;
+  text-decoration: none;
+  margin: 6px 0;
+  background: linear-gradient(to right, #75b022 0%, #588a1b 100%);
   color: #fff;
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
+}
+.gr-detail-btn-blue {
+  background: linear-gradient(to right, #588fe3 0%, #2f6db3 100%);
+  color: #fff;
+}
+.gr-detail-btn-red {
+  background: linear-gradient(to right, #c75050 0%, #a33b3b 100%);
+  color: #ffe5e5;
+}
+.gr-detail-section {
+  margin: 8px 0;
+  padding-top: 6px;
+  border-top: 1px solid rgba(143, 152, 160, 0.18);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.gr-detail-rate {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  padding: 3px 6px;
+  border-radius: 3px;
+  margin: 2px 0;
+}
+.gr-detail-tag {
+  display: inline-block;
+  margin: 2px 4px 2px 0;
+  padding: 1px 8px;
   border-radius: 10px;
-  vertical-align: middle;
-  white-space: nowrap;
-  cursor: help;
+  font-size: 11px;
+}
+.gr-detail-spy {
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 4px;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.gr-detail-review {
+  border-left: 3px solid;
+  padding: 4px 8px;
+  margin: 4px 0;
+  font-size: 11px;
+  line-height: 1.5;
 }
 
-/* 加载动画 / Loading spinner */
-@keyframes gr-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
-}
-
-/* ============ 扩展更新提示条（v7.3.0） ============ */
-/* Extension-update toast: fixed top-right, dismissible, with a refresh button */
+/* ============ 扩展更新提示条 ============ */
 #gr-update-toast {
   position: fixed;
   top: 12px;
@@ -64,7 +306,7 @@
   border: 1px solid #d4a72c;
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
-  font-family: system-ui, "Microsoft YaHei", sans-serif;
+  font-family: system-ui, 'Microsoft YaHei', sans-serif;
 }
 #gr-update-toast button {
   flex-shrink: 0;
@@ -83,4 +325,36 @@
 }
 #gr-update-toast button:hover {
   opacity: 0.85;
+}
+
+/* ============ 浮窗主题跟随（v8.1.0：浅色主题给浅色浮窗） ============ */
+.gr-float[data-theme='win31'],
+.gr-float[data-theme='win95'],
+.gr-float[data-theme='win98'] {
+  --gr-float-bg: #c0c0c0;
+  --gr-float-border: #808080;
+  --gr-float-text: #000;
+  --gr-float-text-bright: #000;
+  --gr-float-text-dim: #444;
+  --gr-float-accent: #000080;
+  --gr-float-radius: 0;
+}
+.gr-float[data-theme='win10'] {
+  --gr-float-bg: #f3f3f3;
+  --gr-float-border: #d0d0d0;
+  --gr-float-text: #1a1a1a;
+  --gr-float-text-bright: #1a1a1a;
+  --gr-float-text-dim: #666;
+  --gr-float-accent: #0078d7;
+  --gr-float-radius: 0;
+}
+
+/* 加载动画 */
+@keyframes gr-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }

@@ -127,14 +127,14 @@
         return `
         <div class="site-manage-row">
           <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0])}</small></span>
-          <label class="check-item" title="追踪该站点的浏览行为">
+          <label class="gr-check" title="追踪该站点的浏览行为">
             <input type="checkbox" class="track-site-check" data-domain="${escapeAttr(s.domains[0])}" ${isTracked ? 'checked' : ''}>
             <span>追踪行为</span>
           </label>
           ${
             canSearch
               ? `
-            <label class="check-item" title="在 Steam 详情页与缓存更新中检索该站点资源">
+            <label class="gr-check" title="在 Steam 详情页与缓存更新中检索该站点资源">
               <input type="checkbox" class="steam-site-check" data-site="${escapeAttr(s.key)}" ${steamSearch.includes(s.key) ? 'checked' : ''}>
               <span>Steam 检索</span>
             </label>

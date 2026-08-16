@@ -1,52 +1,76 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <title>游戏雷达 - 欢迎</title>
-  <link rel="stylesheet" href="../styles/themes.css">
-  <link rel="stylesheet" href="welcome.css">
-</head>
-<body data-theme="steam">
-  <main class="welcome-shell">
-    <header class="welcome-header">
-      <div class="welcome-logo">🎮</div>
-      <h1>游戏雷达 <span class="ver" id="extVersion">v7.4.0</span></h1>
-      <p id="welcomeSubtitle" class="welcome-subtitle">下载站好游戏，一眼看穿</p>
-    </header>
+  <head>
+    <meta charset="utf-8" />
+    <title>游戏雷达 - 欢迎</title>
+    <link rel="stylesheet" href="../styles/themes.css" />
+    <link rel="stylesheet" href="welcome.css" />
+  </head>
+  <body data-theme="steam">
+    <main class="welcome-shell">
+      <header class="welcome-header">
+        <div class="welcome-logo">🎮</div>
+        <h1>游戏雷达 <span class="ver" id="extVersion">v7.4.0</span></h1>
+        <p id="welcomeSubtitle" class="welcome-subtitle">下载站好游戏，一眼看穿</p>
+      </header>
 
-    <section id="installSection" class="welcome-section hidden">
-      <h2>欢迎使用！这是它的能力：</h2>
-      <div class="feature-grid">
-        <div class="feature-card"><div class="feat-icon">⭐</div><h3>好评率徽章</h3><p>下载站列表直接显示 Steam 总评/近 30 天好评率与评测数，一眼筛掉雷作</p></div>
-        <div class="feature-card"><div class="feat-icon">🔍</div><h3>智能过滤</h3><p>按好评率、关键词规则自动过滤低质游戏，页面保持干净</p></div>
-        <div class="feature-card"><div class="feat-icon">🎯</div><h3>游戏推荐</h3><p>基于你的浏览/下载行为 + Steam 热度，为每个游戏打出推荐分</p></div>
-        <div class="feature-card"><div class="feat-icon">🎁</div><h3>限免提醒</h3><p>Steam/Epic/GOG 限时喜加一自动检测，通知 + 角标提醒</p></div>
-        <div class="feature-card"><div class="feat-icon">🎨</div><h3>皮肤主题</h3><p>Steam/Vista/Win 历代 10 套主题，设置里一键切换</p></div>
-        <div class="feature-card"><div class="feat-icon">🧭</div><h3>设置中心</h3><p>弹窗快捷设置 + 集中入口，所有功能一处管理</p></div>
-      </div>
-      <p class="welcome-note">🔒 所有数据（浏览记录、缓存、设置）均存储在本地，不会上传。</p>
-    </section>
+      <section id="installSection" class="welcome-section hidden">
+        <h2>欢迎使用！这是它的能力：</h2>
+        <div class="feature-grid">
+          <div class="feature-card">
+            <div class="feat-icon">⭐</div>
+            <h3>好评率徽章</h3>
+            <p>下载站列表直接显示 Steam 总评/近 30 天好评率与评测数，一眼筛掉雷作</p>
+          </div>
+          <div class="feature-card">
+            <div class="feat-icon">🔍</div>
+            <h3>智能过滤</h3>
+            <p>按好评率、关键词规则自动过滤低质游戏，页面保持干净</p>
+          </div>
+          <div class="feature-card">
+            <div class="feat-icon">🎯</div>
+            <h3>游戏推荐</h3>
+            <p>基于你的浏览/下载行为 + Steam 热度，为每个游戏打出推荐分</p>
+          </div>
+          <div class="feature-card">
+            <div class="feat-icon">🎁</div>
+            <h3>限免提醒</h3>
+            <p>Steam/Epic/GOG 限时喜加一自动检测，通知 + 角标提醒</p>
+          </div>
+          <div class="feature-card">
+            <div class="feat-icon">🎨</div>
+            <h3>皮肤主题</h3>
+            <p>Steam/Vista/Win 历代 10 套主题，设置里一键切换</p>
+          </div>
+          <div class="feature-card">
+            <div class="feat-icon">🧭</div>
+            <h3>设置中心</h3>
+            <p>弹窗快捷设置 + 集中入口，所有功能一处管理</p>
+          </div>
+        </div>
+        <p class="welcome-note">🔒 所有数据（浏览记录、缓存、设置）均存储在本地，不会上传。</p>
+      </section>
 
-    <section id="updateSection" class="welcome-section hidden">
-      <h2>本次更新（v7.4.0）</h2>
-      <ul class="changelog">
-        <li>🌐 <b>网站范围注入</b>——扩展只在内置游戏站与 Steam 工作，浏览其他网站零打扰（性能 + 隐私）</li>
-        <li>👋 <b>欢迎页</b>——安装/更新后自动展示功能导览与本页更新说明</li>
-        <li>💡 <b>推荐可解释</b>——推荐徽章悬停显示六项评分信号明细</li>
-        <li>🔔 <b>通知可点击</b>——限免通知点击直达商店页</li>
-        <li>🔎 <b>快速搜索</b>——弹窗直接搜索 Steam 游戏</li>
-        <li>📋 <b>过滤可见</b>——被过滤的游戏可在状态浮窗查看与恢复</li>
-        <li>🖱️ <b>右键搜索</b>——选中游戏名右键一键搜 Steam</li>
-        <li>🎨 <b>色盲友好</b>——好评率徽章增加符号标识（✓/▲/✕）</li>
-        <li>⌨️ <b>快捷键</b>——Alt+Shift+G 强制刷新当前页评分</li>
-      </ul>
-    </section>
+      <section id="updateSection" class="welcome-section hidden">
+        <h2>本次更新（v7.4.0）</h2>
+        <ul class="changelog">
+          <li>🌐 <b>网站范围注入</b>——扩展只在内置游戏站与 Steam 工作，浏览其他网站零打扰（性能 + 隐私）</li>
+          <li>👋 <b>欢迎页</b>——安装/更新后自动展示功能导览与本页更新说明</li>
+          <li>💡 <b>推荐可解释</b>——推荐徽章悬停显示六项评分信号明细</li>
+          <li>🔔 <b>通知可点击</b>——限免通知点击直达商店页</li>
+          <li>🔎 <b>快速搜索</b>——弹窗直接搜索 Steam 游戏</li>
+          <li>📋 <b>过滤可见</b>——被过滤的游戏可在状态浮窗查看与恢复</li>
+          <li>🖱️ <b>右键搜索</b>——选中游戏名右键一键搜 Steam</li>
+          <li>🎨 <b>色盲友好</b>——好评率徽章增加符号标识（✓/▲/✕）</li>
+          <li>⌨️ <b>快捷键</b>——Alt+Shift+G 强制刷新当前页评分</li>
+        </ul>
+      </section>
 
-    <footer class="welcome-footer">
-      <button id="openHubBtn" type="button">打开设置中心</button>
-      <button id="closeBtn" type="button" class="ghost">关闭本页</button>
-    </footer>
-  </main>
-  <script src="welcome.js"></script>
-</body>
+      <footer class="welcome-footer">
+        <button id="openHubBtn" type="button">打开设置中心</button>
+        <button id="closeBtn" type="button" class="ghost">关闭本页</button>
+      </footer>
+    </main>
+    <script src="welcome.js"></script>
+  </body>
 </html>

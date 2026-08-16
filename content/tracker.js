@@ -105,6 +105,8 @@
 
     // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
     status.setEnabled(settings.showStatusBar !== false);
+    // v8.1.0：浮窗主题跟随设置页皮肤系统（内容侧 data-theme）
+    M.floats.applyFloatTheme(settings.uiTheme || 'steam');
 
     // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
     await builder.loadSiteRules();

@@ -1,54 +1,60 @@
-<!DOCTYPE html>
+<!doctype html>
 <!-- 限免游戏提醒页面 / Free-games reminder page -->
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>游戏雷达 Game Radar - 限免游戏提醒</title>
-  <link rel="stylesheet" href="../styles/ui-theme.css">
-  <link rel="stylesheet" href="../styles/themes.css">
-  <link rel="stylesheet" href="freegames.css">
-</head>
-<body>
-  <div class="container">
-    <!-- 页面头部：标题 + 最后更新时间 + 刷新 / Header: title, last update, refresh -->
-    <header class="page-header">
-      <h1>🎁 限免游戏提醒</h1>
-      <div class="header-actions">
-        <button id="hubBtn" class="btn" title="返回设置中心">🏠 中心</button>
-        <span id="lastUpdate" class="last-update"></span>
-        <button id="refreshBtn" class="btn btn-primary">🔄 刷新</button>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>游戏雷达 Game Radar - 限免游戏提醒</title>
+    <link rel="stylesheet" href="../styles/ui-theme.css" />
+    <link rel="stylesheet" href="../styles/themes.css" />
+    <link rel="stylesheet" href="freegames.css" />
+  </head>
+  <body>
+    <div class="container">
+      <!-- 页面头部：标题 + 最后更新时间 + 刷新 / Header: title, last update, refresh -->
+      <header class="page-header">
+        <h1>🎁 限免游戏提醒</h1>
+        <div class="header-actions">
+          <button id="hubBtn" class="gr-btn" title="返回设置中心">🏠 中心</button>
+          <span id="lastUpdate" class="last-update"></span>
+          <button id="refreshBtn" class="gr-btn gr-btn-primary">🔄 刷新</button>
+        </div>
+      </header>
+
+      <p class="page-desc">
+        每日自动刷新，覆盖 Epic / Steam / GOG 等主流平台（含 GamerPower
+        聚合渠道）的限免游戏。点击“去领取”后会自动标记已领取并更新角标数量。<br /><em
+          >Auto-refreshed daily, covering Epic / Steam / GOG and the GamerPower aggregator. Clicking "claim" marks it
+          claimed and updates the badge.</em
+        >
+      </p>
+
+      <!-- 平台筛选 / Platform filter -->
+      <div class="platform-filter">
+        <button class="filter-gr-btn active" data-platform="all">全部</button>
+        <button class="filter-gr-btn" data-platform="epic">Epic Games</button>
+        <button class="filter-gr-btn" data-platform="steam">Steam</button>
+        <button class="filter-gr-btn" data-platform="gog">GOG</button>
+        <button class="filter-gr-btn" data-platform="microsoft">微软商店</button>
+        <button class="filter-gr-btn" data-platform="other">其他</button>
       </div>
-    </header>
 
-    <p class="page-desc">每日自动刷新，覆盖 Epic / Steam / GOG 等主流平台（含 GamerPower 聚合渠道）的限免游戏。点击“去领取”后会自动标记已领取并更新角标数量。<br><em>Auto-refreshed daily, covering Epic / Steam / GOG and the GamerPower aggregator. Clicking "claim" marks it claimed and updates the badge.</em></p>
+      <!-- 领取方式筛选：官方直领 vs 第三方领取 / Claim-type filter: official direct vs third-party -->
+      <div class="claim-filter">
+        <span class="filter-label">领取方式：</span>
+        <button class="claim-gr-btn-filter active" data-claim="all">全部</button>
+        <button class="claim-gr-btn-filter" data-claim="direct">🟢 官方直领·无门槛</button>
+        <button class="claim-gr-btn-filter" data-claim="thirdparty">🟡 第三方领取·需条件</button>
+      </div>
 
-    <!-- 平台筛选 / Platform filter -->
-    <div class="platform-filter">
-      <button class="filter-btn active" data-platform="all">全部</button>
-      <button class="filter-btn" data-platform="epic">Epic Games</button>
-      <button class="filter-btn" data-platform="steam">Steam</button>
-      <button class="filter-btn" data-platform="gog">GOG</button>
-      <button class="filter-btn" data-platform="microsoft">微软商店</button>
-      <button class="filter-btn" data-platform="other">其他</button>
+      <!-- 游戏列表 / Game list -->
+      <div id="gameList" class="game-grid">
+        <div class="loading">正在加载限免游戏...</div>
+      </div>
     </div>
 
-    <!-- 领取方式筛选：官方直领 vs 第三方领取 / Claim-type filter: official direct vs third-party -->
-    <div class="claim-filter">
-      <span class="filter-label">领取方式：</span>
-      <button class="claim-btn-filter active" data-claim="all">全部</button>
-      <button class="claim-btn-filter" data-claim="direct">🟢 官方直领·无门槛</button>
-      <button class="claim-btn-filter" data-claim="thirdparty">🟡 第三方领取·需条件</button>
-    </div>
-
-    <!-- 游戏列表 / Game list -->
-    <div id="gameList" class="game-grid">
-      <div class="loading">正在加载限免游戏...</div>
-    </div>
-  </div>
-
-  <script src="../shared/escape.js"></script>
-  <script src="../shared/settings-utils.js"></script>
-  <script src="freegames.js"></script>
-</body>
+    <script src="../shared/escape.js"></script>
+    <script src="../shared/settings-utils.js"></script>
+    <script src="freegames.js"></script>
+  </body>
 </html>

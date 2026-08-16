@@ -361,10 +361,10 @@
   // ============ 侧边栏分类切换 / Sidebar Category Switching ============
   // Chrome 设置页风格：左侧分类导航 + 右侧内容面板
   function bindTabEvents() {
-    document.querySelectorAll('.nav-item').forEach((btn) => {
+    document.querySelectorAll('.gr-nav-item').forEach((btn) => {
       btn.addEventListener('click', () => {
         const panelId = btn.dataset.panel;
-        document.querySelectorAll('.nav-item').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.gr-nav-item').forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         document.querySelectorAll('.settings-panel').forEach((p) => p.classList.remove('active'));
         const panel = document.getElementById('panel-' + panelId);

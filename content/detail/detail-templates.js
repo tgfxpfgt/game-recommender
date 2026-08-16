@@ -14,37 +14,37 @@ const esc = (text) => common.escapeHtml(text);
 // Steam 信息栏完整模板（数据 + 缓存时间 + 按钮开关 → HTML）
 // Full Steam-info sidebar template (data + cachedAt + button flags → HTML)
 export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
-    // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__）
-    const P = globalThis.__GR_PATTERNS__ || {};
-    const rate = data.positiveRate || 0;
-    const ratingColor = P.ratingColorFor
-      ? P.ratingColorFor(rate)
-      : rate >= 80
-        ? '#66c0f4'
-        : rate >= 60
-          ? '#a3cf06'
-          : '#ff7b00';
-    const ratingBg = P.ratingBgFor
-      ? P.ratingBgFor(rate)
-      : rate >= 80
-        ? 'rgba(102,192,244,0.15)'
-        : rate >= 60
-          ? 'rgba(163,207,6,0.15)'
-          : 'rgba(255,123,0,0.15)';
+  // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__）
+  const P = globalThis.__GR_PATTERNS__ || {};
+  const rate = data.positiveRate || 0;
+  const ratingColor = P.ratingColorFor
+    ? P.ratingColorFor(rate)
+    : rate >= 80
+      ? '#66c0f4'
+      : rate >= 60
+        ? '#a3cf06'
+        : '#ff7b00';
+  const ratingBg = P.ratingBgFor
+    ? P.ratingBgFor(rate)
+    : rate >= 80
+      ? 'rgba(102,192,244,0.15)'
+      : rate >= 60
+        ? 'rgba(163,207,6,0.15)'
+        : 'rgba(255,123,0,0.15)';
 
-    const cacheAgeText = common.formatRelativeTime(cachedAt);
+  const cacheAgeText = common.formatRelativeTime(cachedAt);
 
-    // 中文评测
-    let reviewsHtml = '';
-    if (data.reviews && data.reviews.length > 0) {
-      reviewsHtml = `
-        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;">
+  // 中文评测
+  let reviewsHtml = '';
+  if (data.reviews && data.reviews.length > 0) {
+    reviewsHtml = `
+        <div class="gr-detail-section">
           <div style="font-size:12px;color:#8f98a0;margin-bottom:6px;">🇨🇳 简体中文评测</div>
           ${data.reviews
             .slice(0, 3)
             .map(
               (r) => `
-            <div style="padding:6px 8px;margin:4px 0;background:rgba(0,0,0,0.2);border-radius:3px;font-size:12px;border-left:2px solid ${r.recommended ? '#66c0f4' : '#a34c25'}">
+            <div class="gr-detail-review" style="border-left-color:${r.recommended ? '#66c0f4' : '#a34c25'};">
               <span style="color:${r.recommended ? '#66c0f4' : '#a34c25'}">${r.recommended ? '👍 推荐' : '👎 不推荐'}</span>
               <div style="color:#acb2b8;margin-top:3px;word-break:break-all;">${esc(r.text.substring(0, 120))}${r.text.length > 120 ? '...' : ''}</div>
             </div>
@@ -53,27 +53,27 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
             .join('')}
         </div>
       `;
-    }
+  }
 
-    // SteamSpy 面板（v3.3.6 主数据；v4.0.0 热度等级）
-    let spyHtml = '';
-    const spy = data.steamspy;
-    const hasSpyData =
-      spy &&
-      ((spy.positiveRate !== null && spy.positiveRate !== undefined) ||
-        spy.currentPlayers ||
-        spy.owners ||
-        spy.averagePlaytime);
-    const spyHeatLabel = () => {
-      if (!spy || typeof spy.ownersLow !== 'number' || typeof spy.ownersHigh !== 'number' || spy.ownersHigh <= 0)
-        return '';
-      const mid = (spy.ownersLow + spy.ownersHigh) / 2;
-      const h = Math.min(Math.log10(mid) / 7, 1);
-      return h >= 0.85 ? '爆款' : h >= 0.6 ? '热门' : h >= 0.35 ? '一般' : '冷门';
-    };
-    let spyBody = '';
-    if (hasSpyData) {
-      spyBody = `
+  // SteamSpy 面板（v3.3.6 主数据；v4.0.0 热度等级）
+  let spyHtml = '';
+  const spy = data.steamspy;
+  const hasSpyData =
+    spy &&
+    ((spy.positiveRate !== null && spy.positiveRate !== undefined) ||
+      spy.currentPlayers ||
+      spy.owners ||
+      spy.averagePlaytime);
+  const spyHeatLabel = () => {
+    if (!spy || typeof spy.ownersLow !== 'number' || typeof spy.ownersHigh !== 'number' || spy.ownersHigh <= 0)
+      return '';
+    const mid = (spy.ownersLow + spy.ownersHigh) / 2;
+    const h = Math.min(Math.log10(mid) / 7, 1);
+    return h >= 0.85 ? '爆款' : h >= 0.6 ? '热门' : h >= 0.35 ? '一般' : '冷门';
+  };
+  let spyBody = '';
+  if (hasSpyData) {
+    spyBody = `
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
           ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div style="color:#acb2b8;">好评率: <span style="color:#66c0f4;font-weight:bold;">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
           ${spy.currentPlayers ? `<div style="color:#acb2b8;">当前在线: <span style="color:#a3cf06;font-weight:bold;">${spy.currentPlayers}</span> 人</div>` : ''}
@@ -81,11 +81,11 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
           ${spy.averagePlaytime ? `<div style="color:#acb2b8;">平均时长: <span style="color:#c7d5e0;font-weight:bold;">${spy.averagePlaytime}</span></div>` : ''}
         </div>
       `;
-    } else {
-      spyBody = `<div style="font-size:11px;color:#8f98a0;">SteamSpy 数据暂不可用（站点可能启用了人机验证）</div>`;
-    }
-    spyHtml = `
-      <div style="margin-top:12px;padding:10px;background:rgba(0,0,0,0.25);border-radius:3px;border:1px solid #2a475e;">
+  } else {
+    spyBody = `<div style="font-size:11px;color:#8f98a0;">SteamSpy 数据暂不可用（站点可能启用了人机验证）</div>`;
+  }
+  spyHtml = `
+      <div class="gr-detail-spy">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <span style="font-size:12px;font-weight:bold;color:#fff;">📊 SteamSpy</span>
           ${data.steamdbUrl ? `<a href="${common.escapeAttr(data.steamdbUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">SteamDB 查看 ↗</a>` : ''}
@@ -94,7 +94,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
       </div>
     `;
 
-    return `
+  return `
       <!-- 头部图片 -->
       ${
         data.headerImage
@@ -108,7 +108,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
       <div style="padding:14px;">
         <!-- 游戏名 + Demo/试玩版标识 -->
-        <div style="font-size:17px;font-weight:bold;color:#fff;margin-bottom:8px;">
+        <div class="gr-detail-title">
           ${
             data.isDemo || /\b(demo|trial)\b|试玩/i.test((data.name || '') + ' ' + (data.englishName || ''))
               ? `<span style="display:inline-block;padding:2px 8px;margin-right:6px;font-size:11px;font-weight:bold;color:#ff7b00;background:rgba(255,123,0,0.15);border:1px solid #ff7b00;border-radius:3px;vertical-align:middle;">试玩版 / Demo</span>`
@@ -131,13 +131,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         <!-- 跳转Steam按钮 -->
         ${
           data.url
-            ? `<a href="${common.escapeAttr(data.url)}" target="_blank" style="
-          display:block;margin-bottom:12px;padding:9px 0;text-align:center;
-          background:linear-gradient(to right,#75b022,#588a1b);
-          color:#d2efa9;border-radius:3px;text-decoration:none;
-          font-size:13px;font-weight:bold;
-          text-shadow:1px 1px 0 rgba(0,0,0,0.3);
-        ">在 Steam 上查看</a>`
+            ? `<a href="${common.escapeAttr(data.url)}" target="_blank" class="gr-detail-btn">在 Steam 上查看</a>`
             : ''
         }
 
@@ -292,4 +286,3 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
       </div>
     `;
 }
-

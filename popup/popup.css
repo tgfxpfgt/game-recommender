@@ -67,18 +67,18 @@ body {
 }
 
 /* ============ 开关（Steam 滑块式） ============ */
-.switch {
+.gr-switch {
   position: relative;
   display: inline-block;
   width: 40px;
   height: 20px;
 }
-.switch input {
+.gr-switch input {
   opacity: 0;
   width: 0;
   height: 0;
 }
-.slider {
+.gr-slider-ui {
   position: absolute;
   inset: 0;
   background: #3d4450;
@@ -86,7 +86,7 @@ body {
   cursor: pointer;
   transition: background 0.2s;
 }
-.slider::before {
+.gr-slider-ui::before {
   content: '';
   position: absolute;
   left: 2px;
@@ -99,10 +99,10 @@ body {
     transform 0.2s,
     background 0.2s;
 }
-input:checked + .slider {
+input:checked + .gr-slider-ui {
   background: var(--gr-accent-btn);
 }
-input:checked + .slider::before {
+input:checked + .gr-slider-ui::before {
   transform: translateX(20px);
   background: #fff;
 }
@@ -163,13 +163,13 @@ input:checked + .slider::before {
   box-shadow: var(--gr-shadow);
   overflow: hidden;
 }
-.stat-card {
+.gr-stat-card {
   flex: 1;
   padding: 10px 6px;
   text-align: center;
   transition: background 0.15s;
 }
-.stat-card:hover {
+.gr-stat-card:hover {
   background: var(--gr-card-hover);
 }
 .stat-value {
@@ -328,12 +328,12 @@ button:hover {
 button:active {
   filter: brightness(0.9);
 }
-.btn-row {
+.gr-btn-row {
   display: flex;
   gap: 8px;
   margin-top: 8px;
 }
-.btn-row button {
+.gr-btn-row button {
   flex: 1;
 }
 button.ghost {
@@ -386,7 +386,7 @@ button.ghost:hover {
 
 /* ============ v6.4.11 全量设置控件 ============ */
 /* 复选行 / checkbox rows */
-.check-item {
+.gr-check {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -395,7 +395,7 @@ button.ghost:hover {
   color: var(--gr-text);
   cursor: pointer;
 }
-.check-item input[type='checkbox'] {
+.gr-check input[type='checkbox'] {
   accent-color: var(--gr-accent-btn);
   width: 14px;
   height: 14px;
@@ -461,7 +461,7 @@ button.ghost:hover {
 }
 
 /* 小按钮（覆盖 button 全宽默认） */
-button.btn-sm {
+button.gr-btn.sm {
   width: auto;
   padding: 5px 10px;
   font-size: 11.5px;
@@ -544,7 +544,7 @@ button.ghost:hover {
   font-size: 12px;
   white-space: nowrap;
 }
-button.btn-free {
+button.gr-btn-free {
   background: linear-gradient(180deg, #4f8c37 0%, #3d702b 50%, #2f5a21 100%);
 }
 .free-count {
@@ -560,4 +560,22 @@ button.btn-free {
   font-size: 10px;
   font-weight: 700;
   margin-left: 2px;
+}
+
+/* ============ 分组内分隔（v8.1.0 合并分组） ============ */
+.section-divider {
+  height: 1px;
+  margin: 10px 0;
+  background: rgba(143, 152, 160, 0.15);
+}
+.section-sub-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--gr-text-dim);
+  margin-bottom: 8px;
+}
+.section-sub-title .section-title-en {
+  font-size: 10px;
+  font-weight: 400;
+  margin-left: 6px;
 }

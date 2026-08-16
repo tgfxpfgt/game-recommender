@@ -395,7 +395,9 @@ let itemA = null,
   allItems = null;
 function isAllBadge(c) {
   return (
-    c.className.includes('gr-rating-badge') && !c.className.includes('gr-recent') && !c.className.includes('gr-update')
+    c.className.includes('gr-rating-badge') &&
+    !c.className.includes('gr-badge-recent') &&
+    !c.className.includes('gr-badge-update')
   );
 }
 
@@ -469,13 +471,13 @@ test('2. 列表页两波好评率流程', async () => {
   await waitFor(() => itemA.a.children.length >= 4);
   // v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
   expect(itemA.a.children.length).toEqual(4);
-  expect(itemA.a.children[0].className.includes('gr-recent-badge') && itemA.a.children[0].textContent === '—').toEqual(
+  expect(itemA.a.children[0].className.includes('gr-badge-recent') && itemA.a.children[0].textContent === '—').toEqual(
     true
   );
   expect(
     itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '✓ 95%'
   ).toEqual(true);
-  expect(itemA.a.children[2].className.includes('gr-update-badge') && itemA.a.children[2].textContent === '—').toEqual(
+  expect(itemA.a.children[2].className.includes('gr-badge-update') && itemA.a.children[2].textContent === '—').toEqual(
     true
   );
   expect(itemA.a.children[3].className.includes('gr-rec-badge')).toEqual(true);
@@ -521,14 +523,14 @@ test('2. 列表页两波好评率流程', async () => {
   expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);
   // v3.3.6：游戏B 三段徽章（近30天 55% / 全部 60% / 更新 08-01）
   expect(
-    itemB.a.children[0].className.includes('gr-recent-badge') && itemB.a.children[0].textContent === '55%'
+    itemB.a.children[0].className.includes('gr-badge-recent') && itemB.a.children[0].textContent === '55%'
   ).toEqual(true);
   expect(itemB.a.children[0].title.includes('55%') && itemB.a.children[0].title.includes('120')).toEqual(true);
   expect(
     itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '▲ 60%'
   ).toEqual(true);
   expect(
-    itemB.a.children[2].className.includes('gr-update-badge') && itemB.a.children[2].textContent === '🛠 08-01'
+    itemB.a.children[2].className.includes('gr-badge-update') && itemB.a.children[2].textContent === '🛠 08-01'
   ).toEqual(true);
   expect(itemB.a.children[2].title.includes('2026-08-01') && itemB.a.children[2].title.includes('2025-03-30')).toEqual(
     true
@@ -545,9 +547,9 @@ test('2. 列表页两波好评率流程', async () => {
     () => {}
   );
 
-  expect(itemC.a.children.some((c) => c.className.includes('gr-type-badge'))).toEqual(true);
-  expect(itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-type-badge') : false).toEqual(true);
-  expect(itemC.a.children.find((c) => c.className.includes('gr-type-badge')).textContent).toEqual('bundle');
+  expect(itemC.a.children.some((c) => c.className.includes('gr-badge-type'))).toEqual(true);
+  expect(itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-badge-type') : false).toEqual(true);
+  expect(itemC.a.children.find((c) => c.className.includes('gr-badge-type')).textContent).toEqual('bundle');
   const barEl = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
   expect(barEl ? barEl.innerHTML.includes('Steam 好评率获取完成') : false).toEqual(true);
   const batchMsg = sentMessages.find((m) => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
@@ -751,10 +753,10 @@ test('8. 徽章开关与过滤/高亮联动', async () => {
   GR.list.trackListView(adapterE, itemsE, badgeSettings);
   await waitFor(() => itemE.a.children.length > 0);
   await new Promise((r) => setTimeout(r, 300));
-  expect(itemE.a.children.some((c) => c.className.includes('gr-recent-badge'))).toEqual(false);
+  expect(itemE.a.children.some((c) => c.className.includes('gr-badge-recent'))).toEqual(false);
   // isAllBadge 定义见文件级（v6.2.0 提升）
   expect(itemE.a.children.some(isAllBadge)).toEqual(true);
-  expect(itemE.a.children.some((c) => c.className.includes('gr-update-badge'))).toEqual(true);
+  expect(itemE.a.children.some((c) => c.className.includes('gr-badge-update'))).toEqual(true);
   expect(itemE.a.children.some((c) => c.className.includes('gr-rec-badge'))).toEqual(false);
   expect(itemE.li.classList.contains('gr-highlighted')).toEqual(false);
   expect(itemE.a.children.some(isAllBadge)).toEqual(true);
@@ -807,7 +809,7 @@ test('8b. 关全部好评率徽章 → 过滤停用', async () => {
   await new Promise((r) => setTimeout(r, 300));
 
   expect(itemF.a.children.some(isAllBadge)).toEqual(false);
-  expect(itemF.a.children.some((c) => c.className.includes('gr-recent-badge'))).toEqual(true);
+  expect(itemF.a.children.some((c) => c.className.includes('gr-badge-recent'))).toEqual(true);
   expect(documentMock.body.children.includes(itemF.li)).toEqual(true);
   expect(itemF.a.children.some((c) => c.className.includes('gr-rec-badge'))).toEqual(true);
   expect(
@@ -817,8 +819,8 @@ test('8b. 关全部好评率徽章 → 过滤停用', async () => {
       const badgeIdx = kids.findIndex(
         (c) =>
           c.className.includes('gr-rating-badge') ||
-          c.className.includes('gr-update-badge') ||
-          c.className.includes('gr-recent-badge')
+          c.className.includes('gr-badge-update') ||
+          c.className.includes('gr-badge-recent')
       );
       return recIdx > badgeIdx;
     })()

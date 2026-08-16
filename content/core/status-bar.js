@@ -46,18 +46,17 @@ export function showStatus(title, current, total, detail) {
   if (!startTime) startTime = Date.now();
   const el = ensureEl();
   const pct = total > 0 ? Math.round((current / total) * 100) : null;
+  // v8.1.0：进度条样式类化（.gr-status-progress 系列，content.css）
   const progressHtml =
     pct === null
-      ? `<div style="height:4px;background:#2a475e;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:40%;height:100%;background:#66c0f4;border-radius:2px;animation:gr-status-slide 1.2s ease-in-out infinite;"></div></div>`
-      : `<div style="height:4px;background:#2a475e;border-radius:2px;margin-top:6px;overflow:hidden;"><div style="width:${pct}%;height:100%;background:#66c0f4;border-radius:2px;transition:width 0.3s;"></div></div>`;
+      ? `<div class="gr-status-progress"><div class="gr-status-progress-fill" style="width:40%;animation:gr-status-slide 1.2s ease-in-out infinite;"></div></div>`
+      : `<div class="gr-status-progress"><div class="gr-status-progress-fill" style="width:${pct}%;"></div></div>`;
   ensureKeyframes();
   el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:bold;font-size:12px;">
-        <span>🎮</span><span>${common.escapeHtml(title)}</span>
-      </div>
+      <div class="gr-status-title"><span>🎮</span><span>${common.escapeHtml(title)}</span></div>
       ${progressHtml}
-      ${pct !== null ? `<div style="font-size:10px;color:#8f98a0;margin-top:3px;">${current}/${total} · ${pct}%</div>` : ''}
-      ${detail ? `<div style="font-size:11px;color:#8f98a0;margin-top:2px;">${common.escapeHtml(detail)}</div>` : ''}
+      ${pct !== null ? `<div class="gr-status-row" style="margin-top:3px;">${current}/${total} · ${pct}%</div>` : ''}
+      ${detail ? `<div class="gr-status-row" style="margin-top:2px;">${common.escapeHtml(detail)}</div>` : ''}
     `;
   clearTimeout(hideTimer); // 进行中不自动消失
 }
@@ -76,18 +75,17 @@ export function showStats(stats) {
       ? stats.rows
           .map((r, i) => {
             if (r && typeof r === 'object' && typeof r.click === 'function') {
-              return `<div data-gr-row="${i}" style="font-size:11px;color:#8f98a0;cursor:pointer;text-decoration:underline;text-decoration-style:dotted;">${common.escapeHtml(r.text)}</div>`;
+              return `<div data-gr-row="${i}" class="gr-status-row-clickable">${common.escapeHtml(r.text)}</div>`;
             }
-            return `<div style="font-size:11px;color:#8f98a0;">${common.escapeHtml(String(r))}</div>`;
+            return `<div class="gr-status-row">${common.escapeHtml(String(r))}</div>`;
           })
           .join('')
       : '';
   el.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;color:#fff;font-weight:bold;font-size:12px;">
-        <span>✅</span><span>${common.escapeHtml(stats ? stats.title || '完成' : '完成')}</span>
-        ${elapsed ? `<span style="margin-left:auto;font-size:10px;color:#8f98a0;">⏱ ${common.escapeHtml(elapsed)}</span>` : ''}
+      <div class="gr-status-title"><span>✅</span><span>${common.escapeHtml(stats ? stats.title || '完成' : '完成')}</span>
+        ${elapsed ? `<span class="gr-status-elapsed">⏱ ${common.escapeHtml(elapsed)}</span>` : ''}
       </div>
-      ${stats && stats.summary ? `<div style="font-size:12px;color:#66c0f4;margin-top:4px;">${common.escapeHtml(stats.summary)}</div>` : ''}
+      ${stats && stats.summary ? `<div class="gr-status-summary">${common.escapeHtml(stats.summary)}</div>` : ''}
       ${rows}
     `;
   // 可点击行事件委托（点击执行对应回调）

@@ -22,10 +22,13 @@ export function removeItemFromDom(item) {
  * @param {{text: string, color: string, bg: string, cls: string, title: string, clickable?: boolean, appId?: any, dashed?: boolean}} opts
  */
 export function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed }) {
+  // v8.1.0：公共样式走 .gr-badge 基类（content.css）；动态颜色与变体类仍由调用方提供
   const badge = document.createElement('span');
-  badge.className = cls || 'gr-rating-badge';
+  badge.className = 'gr-badge gr-rating-badge ' + (cls || '');
   badge.textContent = text;
-  badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px ${dashed ? 'dashed' : 'solid'} ${color};border-radius:3px;vertical-align:middle;${clickable ? 'cursor:pointer;text-decoration:none;' : ''}`;
+  badge.style.cssText = `color:${color};background:${bg};border-color:${color};${clickable ? 'cursor:pointer;text-decoration:none;' : ''}`;
+  if (dashed) badge.classList.add('gr-badge-dashed');
+  if (clickable) badge.classList.add('gr-badge-clickable');
   badge.title = title || '';
   // span+click 避免嵌套链接 / span + click to avoid nested anchors
   if (clickable && appId) {
@@ -80,7 +83,7 @@ export function prependBadge(item, rating, settings) {
         text: '未找到',
         color: '#666',
         bg: 'rgba(102,102,102,0.08)',
-        cls: 'gr-rating-badge gr-not-found',
+        cls: 'gr-badge-notfound',
         title: '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）',
         dashed: true
       })
@@ -91,7 +94,7 @@ export function prependBadge(item, rating, settings) {
         text: rating.type,
         color: '#b48ce0',
         bg: 'rgba(180,140,224,0.12)',
-        cls: 'gr-rating-badge gr-type-badge',
+        cls: 'gr-badge-type',
         title: `Steam 条目类型: ${rating.type}（合集/非单个游戏本体，无法获取本体 AppID）`
       })
     );
@@ -120,7 +123,7 @@ export function prependBadge(item, rating, settings) {
             text: '—',
             color: '#8f98a0',
             bg: 'rgba(143,152,160,0.1)',
-            cls: 'gr-rating-badge gr-recent-badge',
+            cls: 'gr-badge-recent',
             title: '近30天暂无评测'
           })
         );
@@ -130,7 +133,7 @@ export function prependBadge(item, rating, settings) {
             text: `${recentRate}%`,
             color: '#66c0f4',
             bg: 'rgba(102,192,244,0.12)',
-            cls: 'gr-rating-badge gr-recent-badge',
+            cls: 'gr-badge-recent',
             title: `最近30天好评率: ${recentRate}% · ${recentTotal.toLocaleString()} 条评测`
           })
         );
@@ -177,7 +180,7 @@ export function prependBadge(item, rating, settings) {
             text: `🛠 ${update.length >= 10 ? update.slice(5) : update}`,
             color: '#8f98a0',
             bg: 'rgba(143,152,160,0.1)',
-            cls: 'gr-rating-badge gr-update-badge',
+            cls: 'gr-badge-update',
             title: `最近更新: ${update}${rating.releaseDate ? ' · 发行: ' + rating.releaseDate : ''}`
           })
         );
@@ -187,7 +190,7 @@ export function prependBadge(item, rating, settings) {
             text: '—',
             color: '#8f98a0',
             bg: 'rgba(143,152,160,0.1)',
-            cls: 'gr-rating-badge gr-update-badge',
+            cls: 'gr-badge-update',
             title: '最近更新获取中...'
           })
         );

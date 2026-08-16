@@ -13,6 +13,18 @@ const PAGES = {
 
 const frame = document.getElementById('hubFrame');
 
+// v8.1.0：应用皮肤主题（与各页面一致）
+(async () => {
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    if (resp && resp.settings && window.__GR_SETTINGS_UTILS__) {
+      window.__GR_SETTINGS_UTILS__.applyTheme(resp.settings.uiTheme || 'steam');
+    }
+  } catch {
+    /* 后台不可达时保持默认主题 */
+  }
+})();
+
 // 当前页面（hash 或默认 options）
 function currentPage() {
   const m = String(location.hash).match(/page=([a-z]+)/);

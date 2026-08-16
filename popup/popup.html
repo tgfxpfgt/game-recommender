@@ -1,329 +1,330 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>游戏雷达 Game Radar</title>
-  <link rel="stylesheet" href="../styles/ui-theme.css">
-  <link rel="stylesheet" href="../styles/themes.css">
-  <link rel="stylesheet" href="popup.css">
-</head>
-<body>
-  <div class="popup-container">
-
-    <!-- ===== 顶部 Header / Top Header ===== -->
-    <header class="popup-header">
-      <div class="header-brand">
-        <span class="header-logo">🎮</span>
-        <div class="header-text">
-          <h1>游戏智能推荐</h1>
-          <span class="header-subtitle">游戏雷达 Game Radar</span>
-        </div>
-      </div>
-      <div class="header-actions">
-        <span id="extVersion" class="ext-version" title="扩展版本号 / Extension version"></span>
-        <label class="switch" title="启用/禁用 · Enable/Disable">
-          <input type="checkbox" id="enableToggle" checked>
-          <span class="slider"></span>
-        </label>
-      </div>
-    </header>
-
-    <!-- ===== 快速搜索（v7.4.0：Steam 游戏搜索） ===== -->
-    <!-- Quick Steam search -->
-    <section class="popup-search">
-      <input type="text" id="searchInput" placeholder="搜索 Steam 游戏…（回车）" autocomplete="off">
-      <button type="button" id="searchBtn">搜索</button>
-    </section>
-    <div id="searchResults" class="search-results hidden"></div>
-
-    <!-- ===== 统计卡片 / Statistics Cards ===== -->
-    <section class="popup-stats">
-      <div class="stat-card">
-        <span class="stat-value" id="statEvents">0</span>
-        <span class="stat-label">行为记录</span>
-        <span class="stat-sublabel">Events</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-card">
-        <span class="stat-value" id="statGames">0</span>
-        <span class="stat-label">已学习游戏</span>
-        <span class="stat-sublabel">Games</span>
-      </div>
-      <div class="stat-divider"></div>
-      <div class="stat-card">
-        <span class="stat-value" id="statKeywords">0</span>
-        <span class="stat-label">偏好关键词</span>
-        <span class="stat-sublabel">Keywords</span>
-      </div>
-    </section>
-
-    <!-- ===== 全量快捷设置（与设置页同键同名，v6.4.11 覆盖全部选项） ===== -->
-    <!-- Full quick settings: same keys/labels as the settings page -->
-    <div class="settings-area">
-
-      <!-- 1. 常规 -->
-      <details class="popup-section" open>
-        <summary class="section-summary">
-          <span class="section-icon">⚙️</span>
-          <span class="section-title">常规设置<span class="section-title-en">General</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <label class="check-item">
-            <input type="checkbox" id="ppStatusBar">
-            <span>工作状态浮窗</span>
-          </label>
-          <label class="check-item">
-            <input type="checkbox" id="ppDebug">
-            <span>调试浮窗</span>
-          </label>
-          <div class="ctrl-row">
-            <span class="ctrl-label">推荐高亮阈值</span>
-            <div class="threshold-control">
-              <input type="range" id="ppThreshold" min="30" max="90" step="5">
-              <span id="ppThresholdVal" class="threshold-value">60%</span>
-            </div>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">行为记录上限</span>
-            <input type="number" id="ppMaxLog" min="100" max="5000" step="100" class="mini-input">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>游戏雷达 Game Radar</title>
+    <link rel="stylesheet" href="../styles/ui-theme.css" />
+    <link rel="stylesheet" href="../styles/themes.css" />
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <div class="popup-container">
+      <!-- ===== 顶部 Header / Top Header ===== -->
+      <header class="popup-header">
+        <div class="header-brand">
+          <span class="header-logo">🎮</span>
+          <div class="header-text">
+            <h1>游戏智能推荐</h1>
+            <span class="header-subtitle">游戏雷达 Game Radar</span>
           </div>
         </div>
-      </details>
-
-      <!-- 2. 好评率过滤 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">⭐</span>
-          <span class="section-title">好评率过滤<span class="section-title-en">Rating Filter</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <label class="check-item">
-            <input type="checkbox" id="ppRatingFilter">
-            <span>启用总好评率过滤</span>
+        <div class="header-actions">
+          <span id="extVersion" class="ext-version" title="扩展版本号 / Extension version"></span>
+          <label class="gr-switch" title="启用/禁用 · Enable/Disable">
+            <input type="checkbox" id="enableToggle" checked />
+            <span class="gr-slider-ui"></span>
           </label>
-          <div class="ctrl-row" id="ppRatingControl">
-            <span class="ctrl-label">最低总好评率</span>
-            <div class="threshold-control">
-              <input type="range" id="ppMinRating" min="0" max="95" step="5">
-              <span id="ppMinRatingVal" class="threshold-value">0%</span>
-            </div>
-          </div>
-          <label class="check-item">
-            <input type="checkbox" id="ppRecentFilter">
-            <span>启用 30 天好评率过滤</span>
-          </label>
-          <div class="ctrl-row" id="ppRecentControl">
-            <span class="ctrl-label">最低 30 天好评率</span>
-            <div class="threshold-control">
-              <input type="range" id="ppMinRecent" min="0" max="95" step="5">
-              <span id="ppMinRecentVal" class="threshold-value">0%</span>
-            </div>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">过滤关系</span>
-            <select id="ppFilterMode" class="mini-select">
-              <option value="and">与（两者都达标）</option>
-              <option value="or">或（任一达标）</option>
-              <option value="not">非（仅看 30 天）</option>
-              <option value="hybrid">混合（任一≥高值 或 双≥低值）</option>
-            </select>
-          </div>
-          <label class="check-item">
-            <input type="checkbox" id="ppSortByRating">
-            <span>按好评率重排列表（降序）</span>
-          </label>
-          <p class="hint">过滤条件与设置页完全一致，关闭"全部好评率"徽章即停用总好评率过滤</p>
         </div>
-      </details>
+      </header>
 
-      <!-- 3. 关键词过滤 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">🚫</span>
-          <span class="section-title">关键词过滤<span class="section-title-en">Keyword Filter</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <label class="check-item">
-            <input type="checkbox" id="ppVmFilter">
-            <span>启用关键词过滤（规则）</span>
-          </label>
-          <p class="hint">每条规则：命中关键词且不命中排除词 → 隐藏该游戏（如 虚拟机 排除 非虚拟机）。规则在设置中心逐条编辑</p>
-          <button id="ppOpenFilterRules" class="btn-sm ghost" type="button">🧩 编辑过滤规则 →</button>
+      <!-- ===== 快速搜索（v7.4.0：Steam 游戏搜索） ===== -->
+      <!-- Quick Steam search -->
+      <section class="popup-search">
+        <input type="text" id="searchInput" placeholder="搜索 Steam 游戏…（回车）" autocomplete="off" />
+        <button type="button" id="searchBtn">搜索</button>
+      </section>
+      <div id="searchResults" class="search-results hidden"></div>
+
+      <!-- ===== 统计卡片 / Statistics Cards ===== -->
+      <section class="popup-stats">
+        <div class="gr-stat-card">
+          <span class="stat-value" id="statEvents">0</span>
+          <span class="stat-label">行为记录</span>
+          <span class="stat-sublabel">Events</span>
         </div>
-      </details>
+        <div class="stat-divider"></div>
+        <div class="gr-stat-card">
+          <span class="stat-value" id="statGames">0</span>
+          <span class="stat-label">已学习游戏</span>
+          <span class="stat-sublabel">Games</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="gr-stat-card">
+          <span class="stat-value" id="statKeywords">0</span>
+          <span class="stat-label">偏好关键词</span>
+          <span class="stat-sublabel">Keywords</span>
+        </div>
+      </section>
 
-      <!-- 4. 推荐算法 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">🧠</span>
-          <span class="section-title">推荐算法<span class="section-title-en">Algorithm</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <div id="ppWeights"></div>
-          <div class="weight-sum-row">
-            <span class="weight-sum-label">权重总和 / Weight Sum</span>
-            <span id="ppWeightSum" class="threshold-value">1.00</span>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">AI 大模型评分</span>
-            <label class="switch">
-              <input type="checkbox" id="ppUseLLM">
-              <span class="slider"></span>
+      <!-- ===== 全量快捷设置（与设置页同键同名，v6.4.11 覆盖全部选项） ===== -->
+      <!-- Full quick settings: same keys/labels as the settings page -->
+      <div class="settings-area">
+        <!-- 1. 常规 -->
+        <details class="popup-section" open>
+          <summary class="section-summary">
+            <span class="section-icon">⚙️</span>
+            <span class="section-title">常规设置<span class="section-title-en">General</span></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <label class="gr-check">
+              <input type="checkbox" id="ppStatusBar" />
+              <span>工作状态浮窗</span>
             </label>
+            <label class="gr-check">
+              <input type="checkbox" id="ppDebug" />
+              <span>调试浮窗</span>
+            </label>
+            <div class="ctrl-row">
+              <span class="ctrl-label">推荐高亮阈值</span>
+              <div class="threshold-control">
+                <input type="gr-range" id="ppThreshold" min="30" max="90" step="5" />
+                <span id="ppThresholdVal" class="threshold-value">60%</span>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">行为记录上限</span>
+              <input type="number" id="ppMaxLog" min="100" max="5000" step="100" class="mini-input" />
+            </div>
           </div>
-          <div id="ppLlmStatus" class="llm-status" style="display:none">
-            <span class="status-dot"></span>
-            <span id="ppLlmStatusText">未配置</span>
-          </div>
-          <p class="hint">权重总和超过 1.0 时按比例归一化；大模型接口在设置中心「推荐」面板配置</p>
-        </div>
-      </details>
+        </details>
 
-      <!-- 5. 徽章显示 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">👁️</span>
-          <span class="section-title">徽章显示<span class="section-title-en">Badges</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <label class="check-item">
-            <input type="checkbox" id="ppBadgeRecent">
+        <!-- 2. 好评率过滤 -->
+        <details class="popup-section">
+          <summary class="section-summary">
+            <span class="section-icon">⭐</span>
+            <span class="section-title">好评率过滤<span class="section-title-en">Rating Filter</span></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <label class="gr-check">
+              <input type="checkbox" id="ppRatingFilter" />
+              <span>启用总好评率过滤</span>
+            </label>
+            <div class="ctrl-row" id="ppRatingControl">
+              <span class="ctrl-label">最低总好评率</span>
+              <div class="threshold-control">
+                <input type="gr-range" id="ppMinRating" min="0" max="95" step="5" />
+                <span id="ppMinRatingVal" class="threshold-value">0%</span>
+              </div>
+            </div>
+            <label class="gr-check">
+              <input type="checkbox" id="ppRecentFilter" />
+              <span>启用 30 天好评率过滤</span>
+            </label>
+            <div class="ctrl-row" id="ppRecentControl">
+              <span class="ctrl-label">最低 30 天好评率</span>
+              <div class="threshold-control">
+                <input type="gr-range" id="ppMinRecent" min="0" max="95" step="5" />
+                <span id="ppMinRecentVal" class="threshold-value">0%</span>
+              </div>
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">过滤关系</span>
+              <select id="ppFilterMode" class="mini-select">
+                <option value="and">与（两者都达标）</option>
+                <option value="or">或（任一达标）</option>
+                <option value="not">非（仅看 30 天）</option>
+                <option value="hybrid">混合（任一≥高值 或 双≥低值）</option>
+              </select>
+            </div>
+            <label class="gr-check">
+              <input type="checkbox" id="ppSortByRating" />
+              <span>按好评率重排列表（降序）</span>
+            </label>
+            <p class="hint">过滤条件与设置页完全一致，关闭"全部好评率"徽章即停用总好评率过滤</p>
+          </div>
+          <div class="section-divider"></div>
+          <div class="section-sub-title">徽章显示 <span class="section-title-en">Badges</span></div>
+          <label class="gr-check">
+            <input type="checkbox" id="ppBadgeRecent" />
             <span>近 30 天好评率徽章</span>
           </label>
-          <label class="check-item">
-            <input type="checkbox" id="ppBadgeAll">
+          <label class="gr-check">
+            <input type="checkbox" id="ppBadgeAll" />
             <span>全部好评率徽章（关闭则停用好评率过滤）</span>
           </label>
-          <label class="check-item">
-            <input type="checkbox" id="ppBadgeUpdate">
+          <label class="gr-check">
+            <input type="checkbox" id="ppBadgeUpdate" />
             <span>最近更新日期徽章</span>
           </label>
-          <label class="check-item">
-            <input type="checkbox" id="ppBadgeRec">
+          <label class="gr-check">
+            <input type="checkbox" id="ppBadgeRec" />
             <span>推荐值徽章（关闭则停用推荐高亮）</span>
           </label>
           <div class="ctrl-row">
             <span class="ctrl-label">链接扫描上限</span>
-            <input type="number" id="ppMaxScan" min="50" max="5000" step="50" class="mini-input">
+            <input type="number" id="ppMaxScan" min="50" max="5000" step="50" class="mini-input" />
           </div>
-        </div>
-      </details>
+        </details>
 
-      <!-- 6. 数据与备份 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">💾</span>
-          <span class="section-title">数据与备份<span class="section-title-en">Data</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <label class="check-item">
-            <input type="checkbox" id="ppAutoBackup">
-            <span>启用自动备份</span>
-          </label>
-          <div class="ctrl-row">
-            <span class="ctrl-label">备份间隔（小时）</span>
-            <input type="number" id="ppBackupInterval" min="1" max="720" class="mini-input">
+        <!-- 3. 关键词过滤 -->
+        <details class="popup-section">
+          <summary class="section-summary">
+            <span class="section-icon">🚫</span>
+            <span class="section-title">关键词过滤<span class="section-title-en">Keyword Filter</span></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <label class="gr-check">
+              <input type="checkbox" id="ppVmFilter" />
+              <span>启用关键词过滤（规则）</span>
+            </label>
+            <p class="hint">
+              每条规则：命中关键词且不命中排除词 → 隐藏该游戏（如 虚拟机 排除 非虚拟机）。规则在设置中心逐条编辑
+            </p>
+            <button id="ppOpenFilterRules" class="gr-btn-sm ghost" type="button">🧩 编辑过滤规则 →</button>
           </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">保留备份份数</span>
-            <input type="number" id="ppMaxBackups" min="1" max="30" class="mini-input">
-          </div>
-          <p class="hint">手动备份 / 恢复 / 导入导出在设置中心「缓存与数据」面板</p>
-          <button id="ppOpenData" class="btn-sm ghost" type="button">🗄️ 打开数据管理 →</button>
-        </div>
-      </details>
+        </details>
 
-      <!-- 7. 日志 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">📝</span>
-          <span class="section-title">日志<span class="section-title-en">Logging</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <label class="check-item">
-            <input type="checkbox" id="ppLogEnabled">
-            <span>启用日志</span>
-          </label>
-          <div class="ctrl-row">
-            <span class="ctrl-label">记录级别</span>
-            <select id="ppLogLevel" class="mini-select">
-              <option value="debug">DEBUG - 全部记录</option>
-              <option value="info">INFO - 常规信息</option>
-              <option value="warn">WARN - 警告及以上</option>
-              <option value="error">ERROR - 仅错误</option>
-            </select>
+        <!-- 4. 推荐算法 -->
+        <details class="popup-section">
+          <summary class="section-summary">
+            <span class="section-icon">🧠</span>
+            <span class="section-title">推荐算法<span class="section-title-en">Algorithm</span></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <div id="ppWeights"></div>
+            <div class="weight-sum-row">
+              <span class="weight-sum-label">权重总和 / Weight Sum</span>
+              <span id="ppWeightSum" class="threshold-value">1.00</span>
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">AI 大模型评分</span>
+              <label class="gr-switch">
+                <input type="checkbox" id="ppUseLLM" />
+                <span class="gr-slider-ui"></span>
+              </label>
+            </div>
+            <div id="ppLlmStatus" class="llm-status" style="display: none">
+              <span class="status-dot"></span>
+              <span id="ppLlmStatusText">未配置</span>
+            </div>
+            <p class="hint">权重总和超过 1.0 时按比例归一化；大模型接口在设置中心「推荐」面板配置</p>
           </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">保留天数</span>
-            <input type="number" id="ppLogRetention" min="0" max="365" class="mini-input">
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">存储形式</span>
-            <select id="ppLogStorage" class="mini-select">
-              <option value="ndjson">ND-JSON 文件（OPFS）</option>
-              <option value="local">storage.local（轻量）</option>
-            </select>
-          </div>
-          <div class="ctrl-row">
-            <span class="ctrl-label">日志条数上限</span>
-            <input type="number" id="ppMaxRuntimeLog" min="100" max="5000" step="100" class="mini-input">
-          </div>
-        </div>
-      </details>
+        </details>
 
-      <!-- 8. 状态信息 -->
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">📡</span>
-          <span class="section-title">Steam API 状态<span class="section-title-en">API Status</span></span>
-          <span id="apiStatusDot" class="status-dot" style="margin-left:auto;"></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <div id="apiStatusInfo" class="api-status-info">
-            <span class="no-data">查询中...</span>
-          </div>
-        </div>
-      </details>
+        <!-- 5. 徽章显示 -->
 
-      <details class="popup-section">
-        <summary class="section-summary">
-          <span class="section-icon">🏷️</span>
-          <span class="section-title">偏好关键词 TOP5<span class="section-title-en">Keywords</span></span>
-          <span class="section-arrow">▾</span>
-        </summary>
-        <div class="section-body">
-          <div id="topKeywords" class="keyword-tags">
-            <span class="no-data">暂无数据，多浏览游戏即可学习</span>
+        <!-- 6. 数据与备份 -->
+        <details class="popup-section">
+          <summary class="section-summary">
+            <span class="section-icon">💾</span>
+            <span class="section-title">数据与备份<span class="section-title-en">Data</span></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <label class="gr-check">
+              <input type="checkbox" id="ppAutoBackup" />
+              <span>启用自动备份</span>
+            </label>
+            <div class="ctrl-row">
+              <span class="ctrl-label">备份间隔（小时）</span>
+              <input type="number" id="ppBackupInterval" min="1" max="720" class="mini-input" />
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">保留备份份数</span>
+              <input type="number" id="ppMaxBackups" min="1" max="30" class="mini-input" />
+            </div>
+            <p class="hint">手动备份 / 恢复 / 导入导出在设置中心「缓存与数据」面板</p>
+            <button id="ppOpenData" class="gr-btn-sm ghost" type="button">🗄️ 打开数据管理 →</button>
           </div>
-        </div>
-      </details>
+        </details>
 
+        <!-- 7. 日志 -->
+        <details class="popup-section">
+          <summary class="section-summary">
+            <span class="section-icon">📝</span>
+            <span class="section-title">日志<span class="section-title-en">Logging</span></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <label class="gr-check">
+              <input type="checkbox" id="ppLogEnabled" />
+              <span>启用日志</span>
+            </label>
+            <div class="ctrl-row">
+              <span class="ctrl-label">记录级别</span>
+              <select id="ppLogLevel" class="mini-select">
+                <option value="debug">DEBUG - 全部记录</option>
+                <option value="info">INFO - 常规信息</option>
+                <option value="warn">WARN - 警告及以上</option>
+                <option value="error">ERROR - 仅错误</option>
+              </select>
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">保留天数</span>
+              <input type="number" id="ppLogRetention" min="0" max="365" class="mini-input" />
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">存储形式</span>
+              <select id="ppLogStorage" class="mini-select">
+                <option value="ndjson">ND-JSON 文件（OPFS）</option>
+                <option value="local">storage.local（轻量）</option>
+              </select>
+            </div>
+            <div class="ctrl-row">
+              <span class="ctrl-label">日志条数上限</span>
+              <input type="number" id="ppMaxRuntimeLog" min="100" max="5000" step="100" class="mini-input" />
+            </div>
+          </div>
+        </details>
+
+        <!-- 8. 状态信息 -->
+        <details class="popup-section">
+          <summary class="section-summary">
+            <span class="section-icon">📡</span>
+            <span class="section-title">状态<span class="section-title-en">Status · API · Keywords</span></span>
+            <span id="apiStatusDot" class="status-dot" style="margin-left: auto"></span>
+            <span class="section-arrow">▾</span>
+          </summary>
+          <div class="section-body">
+            <div id="apiStatusInfo" class="api-status-info">
+              <span class="no-data">查询中...</span>
+              <div class="section-divider"></div>
+              <div class="section-sub-title">偏好关键词 TOP5 <span class="section-title-en">Keywords</span></div>
+              <div id="topKeywords" class="keyword-tags">
+                <span class="no-data">暂无数据，多浏览游戏即可学习</span>
+              </div>
+            </div>
+          </div>
+        </details>
+      </div>
+
+      <!-- v6.4.12：保存失败提示（自动隐藏） -->
+      <div
+        id="saveFailHint"
+        style="
+          display: none;
+          margin: 10px 14px 0;
+          padding: 8px 10px;
+          background: #3a1a1a;
+          color: #ff8a7a;
+          border: 1px solid #d94126;
+          border-radius: 8px;
+          font-size: 12px;
+        "
+      >
+        ❌ 设置保存失败，请检查扩展后台后重试
+      </div>
+
+      <!-- ===== 底部按钮栏 / Bottom Button Bar ===== -->
+      <footer class="popup-footer">
+        <button id="refreshBtn" class="gr-btn">🔄 刷新</button>
+        <button id="forceRefreshBtn" class="gr-btn" title="清除当前页 Steam 缓存并重新加载（忽视缓存有效期）">
+          ♻️ 强制刷新
+        </button>
+        <button id="freeGamesBtn" class="gr-btn gr-btn-free">
+          🎁 限免<span id="freeCount" class="free-count" style="display: none"></span>
+        </button>
+        <button id="hubBtn" class="gr-btn gr-btn-primary">🏠 设置中心</button>
+      </footer>
     </div>
 
-    <!-- v6.4.12：保存失败提示（自动隐藏） -->
-    <div id="saveFailHint" style="display:none;margin:10px 14px 0;padding:8px 10px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;font-size:12px;">❌ 设置保存失败，请检查扩展后台后重试</div>
-
-    <!-- ===== 底部按钮栏 / Bottom Button Bar ===== -->
-    <footer class="popup-footer">
-      <button id="refreshBtn" class="btn">🔄 刷新</button>
-      <button id="forceRefreshBtn" class="btn" title="清除当前页 Steam 缓存并重新加载（忽视缓存有效期）">♻️ 强制刷新</button>
-      <button id="freeGamesBtn" class="btn btn-free">🎁 限免<span id="freeCount" class="free-count" style="display:none"></span></button>
-      <button id="hubBtn" class="btn btn-primary">🏠 设置中心</button>
-    </footer>
-
-  </div>
-
-  <script src="../shared/escape.js"></script>
-  <script src="../shared/settings-utils.js"></script>
-  <script src="popup.js"></script>
-</body>
+    <script src="../shared/escape.js"></script>
+    <script src="../shared/settings-utils.js"></script>
+    <script src="popup.js"></script>
+  </body>
 </html>

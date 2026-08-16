@@ -31,22 +31,26 @@
           </div>
         </div>
         <nav class="sidebar-nav" id="sidebarNav">
-          <button class="nav-item active" data-panel="general">
+          <button class="gr-nav-item active" data-panel="general">
             <span class="nav-icon">⚙️</span><span>常规设置</span>
           </button>
-          <button class="nav-item" data-panel="filters"><span class="nav-icon">🎯</span><span>过滤</span></button>
-          <button class="nav-item" data-panel="recommend"><span class="nav-icon">🧠</span><span>推荐算法</span></button>
-          <button class="nav-item" data-panel="sites"><span class="nav-icon">🌐</span><span>网站</span></button>
+          <button class="gr-nav-item" data-panel="filters"><span class="nav-icon">🎯</span><span>过滤</span></button>
+          <button class="gr-nav-item" data-panel="recommend">
+            <span class="nav-icon">🧠</span><span>推荐算法</span>
+          </button>
+          <button class="gr-nav-item" data-panel="sites"><span class="nav-icon">🌐</span><span>网站</span></button>
           <div class="nav-group-label">🔧 高级设置</div>
-          <button class="nav-item" data-panel="rules"><span class="nav-icon">🧩</span><span>规则管理</span></button>
-          <button class="nav-item" data-panel="cache"><span class="nav-icon">🗄️</span><span>缓存与数据</span></button>
-          <button class="nav-item" data-panel="logging"><span class="nav-icon">📝</span><span>日志</span></button>
+          <button class="gr-nav-item" data-panel="rules"><span class="nav-icon">🧩</span><span>规则管理</span></button>
+          <button class="gr-nav-item" data-panel="cache">
+            <span class="nav-icon">🗄️</span><span>缓存与数据</span>
+          </button>
+          <button class="gr-nav-item" data-panel="logging"><span class="nav-icon">📝</span><span>日志</span></button>
         </nav>
         <div class="sidebar-footer">
           <!-- v6.4.11：集中入口——hub 内嵌时切 tab，独立打开时新开标签 -->
-          <button id="openHubBtn" class="btn" style="width: 100%; margin-bottom: 8px">🏠 设置中心</button>
+          <button id="openHubBtn" class="gr-btn" style="width: 100%; margin-bottom: 8px">🏠 设置中心</button>
           <span id="saveStatus" class="save-status"></span>
-          <button id="saveBtn" class="btn btn-primary btn-lg btn-block">💾 立即保存</button>
+          <button id="saveBtn" class="gr-btn gr-btn-primary gr-btn-lg gr-btn-block">💾 立即保存</button>
         </div>
       </aside>
 
@@ -72,9 +76,9 @@
                     <span class="label-text">启用插件</span>
                     <span class="label-desc">Enable Extension</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="enabled" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -82,9 +86,9 @@
                     <span class="label-text">工作状态浮窗</span>
                     <span class="label-desc">Status Bar</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="showStatusBar" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -92,9 +96,9 @@
                     <span class="label-text">调试浮窗</span>
                     <span class="label-desc">Debug Panel（列表/详情页诊断视图，默认关闭）</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="showDebugPanel" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -102,9 +106,9 @@
                     <span class="label-text">推荐高亮阈值</span>
                     <span class="label-desc">Highlight Threshold</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="threshold" min="30" max="90" step="5" />
-                    <span id="thresholdVal" class="range-value">60%</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="threshold" min="30" max="90" step="5" />
+                    <span id="thresholdVal" class="gr-range-value">60%</span>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -112,7 +116,7 @@
                     <span class="label-text">最大行为记录数</span>
                     <span class="label-desc">Max Behavior Log</span>
                   </div>
-                  <input type="number" id="maxLog" min="100" max="5000" step="100" value="500" class="text-input" />
+                  <input type="number" id="maxLog" min="100" max="5000" step="100" value="500" class="gr-input" />
                 </div>
                 <!-- v6.4.19：界面皮肤（Steam 默认 / Vista / Win31-Win11 历代风格） -->
                 <div class="setting-row">
@@ -120,7 +124,7 @@
                     <span class="label-text">界面皮肤</span>
                     <span class="label-desc">UI Theme（历史风格可选，切换立即生效）</span>
                   </div>
-                  <select id="uiTheme" class="text-input" style="max-width: 240px">
+                  <select id="uiTheme" class="gr-input" style="max-width: 240px">
                     <option value="steam">Steam 深蓝（默认）</option>
                     <option value="vista">Vista Aero 玻璃</option>
                     <option value="win31">Windows 3.1 经典</option>
@@ -142,10 +146,10 @@
                     >
                   </div>
                   <div style="flex: 1; display: flex; gap: 8px; align-items: center">
-                    <button id="themeCssImport" class="btn btn-primary btn-sm" style="white-space: nowrap">
+                    <button id="themeCssImport" class="gr-btn gr-btn-primary gr-btn-sm" style="white-space: nowrap">
                       📥 导入 CSS
                     </button>
-                    <button id="themeCssClear" class="btn btn-danger btn-sm" style="white-space: nowrap">
+                    <button id="themeCssClear" class="gr-btn gr-btn-danger gr-btn-sm" style="white-space: nowrap">
                       🗑️ 清除
                     </button>
                     <input type="file" id="themeCssFile" accept=".css" class="hidden-file" />
@@ -168,9 +172,9 @@
                     <span class="label-text">启用自动备份</span>
                     <span class="label-desc">Auto Backup</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="autoBackup" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -184,7 +188,7 @@
                     min="1"
                     max="720"
                     step="1"
-                    class="text-input"
+                    class="gr-input"
                     style="width: 110px"
                   />
                 </div>
@@ -199,54 +203,10 @@
                     min="1"
                     max="30"
                     step="1"
-                    class="text-input"
+                    class="gr-input"
                     style="width: 110px"
                   />
                 </div>
-              </div>
-            </div>
-            <div class="settings-section">
-              <div class="section-header">
-                <span class="section-icon">👁️</span>
-                <div class="section-title">
-                  <h3>日志查看（v6.4.8 在线）</h3>
-                  <span class="section-subtitle">Runtime Logs</span>
-                </div>
-              </div>
-              <div class="section-body">
-                <!-- v6.4.19：日志查看增强——级别筛选 + 关键词搜索 + 模块显示 -->
-                <div class="setting-row">
-                  <button id="logRefreshBtn" class="btn btn-primary">🔄 刷新</button>
-                  <button id="logClearBtn" class="btn btn-danger">🗑️ 清空</button>
-                  <select id="logLevelFilter" class="text-input" style="width: 120px">
-                    <option value="">全部级别</option>
-                    <option value="debug">debug</option>
-                    <option value="info">info</option>
-                    <option value="warn">warn</option>
-                    <option value="error">error</option>
-                  </select>
-                  <input
-                    type="text"
-                    id="logSearch"
-                    class="text-input"
-                    style="flex: 1; min-width: 120px"
-                    placeholder="搜索日志关键词..."
-                  />
-                  <span id="logCount" class="test-result"></span>
-                </div>
-                <div
-                  id="logViewer"
-                  style="
-                    max-height: 320px;
-                    overflow-y: auto;
-                    background: #10161f;
-                    border: 1px solid #2f4055;
-                    border-radius: 4px;
-                    padding: 8px;
-                    margin-top: 8px;
-                    font-size: 12px;
-                  "
-                ></div>
               </div>
             </div>
           </div>
@@ -278,9 +238,9 @@
                     <span class="label-text">启用好评率过滤</span>
                     <span class="label-desc">Enable Rating Filter（开启后按下方条件隐藏游戏）</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="ratingFilterEnabled" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -288,9 +248,9 @@
                     <span class="label-text">总好评率下限</span>
                     <span class="label-desc">Min Overall Rating（低于此值视为不达标）</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="minRating" min="0" max="95" step="5" />
-                    <span id="minRatingVal" class="range-value">70%</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="minRating" min="0" max="95" step="5" />
+                    <span id="minRatingVal" class="gr-range-value">70%</span>
                   </div>
                 </div>
                 <!-- v6.4.4：30 天好评率过滤 + 与/或/非关系 + 重排序 -->
@@ -299,9 +259,9 @@
                     <span class="label-text">启用 30 天好评率下限</span>
                     <span class="label-desc">Enable Recent 30-Day Rating Filter</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="recentFilterEnabled" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -309,9 +269,9 @@
                     <span class="label-text">30 天好评率下限</span>
                     <span class="label-desc">Min Recent Rating（低于此值视为不达标）</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="minRecentRating" min="0" max="95" step="5" />
-                    <span id="minRecentRatingVal" class="range-value">70%</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="minRecentRating" min="0" max="95" step="5" />
+                    <span id="minRecentRatingVal" class="gr-range-value">70%</span>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -319,7 +279,7 @@
                     <span class="label-text">保留条件</span>
                     <span class="label-desc">Keep Condition（总好评 与 30天好评如何组合判定）</span>
                   </div>
-                  <select id="ratingFilterMode" class="text-input" style="max-width: 260px">
+                  <select id="ratingFilterMode" class="gr-input" style="max-width: 260px">
                     <option value="and">与：两项都达标才保留</option>
                     <option value="or">或：任一达标即保留</option>
                     <option value="not">非：只按 30 天好评判定</option>
@@ -337,9 +297,9 @@
                     <span class="label-text">按好评率重排列表</span>
                     <span class="label-desc">Sort List by Rating（降序）</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="sortByRatingEnabled" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
               </div>
@@ -365,9 +325,9 @@
                     <span class="label-text">近30天好评率</span>
                     <span class="label-desc">30-day Rating Badge</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="badgeRecent" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -375,9 +335,9 @@
                     <span class="label-text">全部好评率</span>
                     <span class="label-desc">All-time Rating Badge</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="badgeAll" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -385,9 +345,9 @@
                     <span class="label-text">最近更新日期</span>
                     <span class="label-desc">Last Update Badge</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="badgeUpdate" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -395,9 +355,9 @@
                     <span class="label-text">推荐值</span>
                     <span class="label-desc">Recommendation Badge</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="badgeRec" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -411,7 +371,7 @@
                     min="50"
                     max="5000"
                     step="50"
-                    class="text-input"
+                    class="gr-input"
                     style="width: 110px"
                   />
                 </div>
@@ -438,9 +398,9 @@
                     <span class="label-text">启用关键词过滤</span>
                     <span class="label-desc">Enable Keyword Filter（勾选后规则生效）</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="vmFilterEnabled" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -449,7 +409,9 @@
                     <span class="label-desc">每条含排除误报词（命中关键词且不命中排除词才隐藏）</span>
                   </div>
                   <div style="flex: 1">
-                    <button id="ruleAddBtn" class="btn btn-primary" style="margin-bottom: 6px">➕ 添加规则</button>
+                    <button id="ruleAddBtn" class="gr-btn gr-btn-primary" style="margin-bottom: 6px">
+                      ➕ 添加规则
+                    </button>
                     <div id="ruleList"></div>
                   </div>
                 </div>
@@ -484,9 +446,9 @@
                     <span class="label-text">点击率权重</span>
                     <span class="label-desc">Click Rate</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="weightClick" min="0" max="50" step="5" />
-                    <span id="weightClickVal" class="range-value">0.20</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="weightClick" min="0" max="50" step="5" />
+                    <span id="weightClickVal" class="gr-range-value">0.20</span>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -494,9 +456,9 @@
                     <span class="label-text">下载率权重</span>
                     <span class="label-desc">Download Rate</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="weightDownload" min="0" max="50" step="5" />
-                    <span id="weightDownloadVal" class="range-value">0.35</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="weightDownload" min="0" max="50" step="5" />
+                    <span id="weightDownloadVal" class="gr-range-value">0.35</span>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -504,9 +466,9 @@
                     <span class="label-text">关键词匹配权重</span>
                     <span class="label-desc">Keyword Match</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="weightKeyword" min="0" max="50" step="5" />
-                    <span id="weightKeywordVal" class="range-value">0.25</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="weightKeyword" min="0" max="50" step="5" />
+                    <span id="weightKeywordVal" class="gr-range-value">0.25</span>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -514,9 +476,9 @@
                     <span class="label-text">Steam 评分权重</span>
                     <span class="label-desc">Steam Rating</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="weightSteam" min="0" max="50" step="5" />
-                    <span id="weightSteamVal" class="range-value">0.20</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="weightSteam" min="0" max="50" step="5" />
+                    <span id="weightSteamVal" class="gr-range-value">0.20</span>
                   </div>
                 </div>
                 <!-- v4.0.0：SteamSpy 时长/热度信号权重 -->
@@ -525,9 +487,9 @@
                     <span class="label-text">游玩时长权重</span>
                     <span class="label-desc">Play Time (SteamSpy)</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="weightPlayTime" min="0" max="50" step="5" />
-                    <span id="weightPlayTimeVal" class="range-value">0.10</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="weightPlayTime" min="0" max="50" step="5" />
+                    <span id="weightPlayTimeVal" class="gr-range-value">0.10</span>
                   </div>
                 </div>
                 <div class="setting-row">
@@ -535,9 +497,9 @@
                     <span class="label-text">热度权重</span>
                     <span class="label-desc">Heat (SteamSpy owners)</span>
                   </div>
-                  <div class="range-group">
-                    <input type="range" id="weightHeat" min="0" max="50" step="5" />
-                    <span id="weightHeatVal" class="range-value">0.10</span>
+                  <div class="gr-range-group">
+                    <input type="gr-range" id="weightHeat" min="0" max="50" step="5" />
+                    <span id="weightHeatVal" class="gr-range-value">0.10</span>
                   </div>
                 </div>
                 <div class="weight-sum-row">
@@ -566,9 +528,9 @@
                     <span class="label-text">启用大模型推荐</span>
                     <span class="label-desc">Enable LLM</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="useLLM" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div id="llmSettings" class="llm-settings">
@@ -577,7 +539,7 @@
                       <span class="label-text">模型提供商</span>
                       <span class="label-desc">Provider</span>
                     </div>
-                    <select id="llmProvider" class="text-input">
+                    <select id="llmProvider" class="gr-input">
                       <option value="local">本地模型 (Ollama)</option>
                       <option value="openai">OpenAI 兼容接口</option>
                       <option value="custom">自定义接口</option>
@@ -591,7 +553,7 @@
                     <input
                       type="text"
                       id="llmEndpoint"
-                      class="text-input"
+                      class="gr-input"
                       placeholder="http://localhost:11434/api/generate"
                     />
                   </div>
@@ -601,7 +563,7 @@
                       <span class="label-desc">API Key</span>
                     </div>
                     <div style="flex: 1">
-                      <input type="password" id="llmApiKey" class="text-input" placeholder="sk-..." />
+                      <input type="password" id="llmApiKey" class="gr-input" placeholder="sk-..." />
                       <!-- v4.1.0：密钥存储知情提示 -->
                       <p class="setting-hint" style="margin: 6px 0 0; font-size: 12px; color: #8f98a0">
                         🔒 密钥仅存储于本机浏览器配置；导出 / 备份 / 导入均会自动剔除
@@ -613,20 +575,20 @@
                       <span class="label-text">模型名称</span>
                       <span class="label-desc">Model Name</span>
                     </div>
-                    <input type="text" id="llmModel" class="text-input" placeholder="qwen2.5:7b" />
+                    <input type="text" id="llmModel" class="gr-input" placeholder="qwen2.5:7b" />
                   </div>
                   <div class="setting-row">
                     <div class="setting-label">
                       <span class="label-text">Temperature</span>
                       <span class="label-desc">Sampling Temperature</span>
                     </div>
-                    <div class="range-group">
-                      <input type="range" id="llmTemp" min="0" max="100" step="5" />
-                      <span id="llmTempVal" class="range-value">0.3</span>
+                    <div class="gr-range-group">
+                      <input type="gr-range" id="llmTemp" min="0" max="100" step="5" />
+                      <span id="llmTempVal" class="gr-range-value">0.3</span>
                     </div>
                   </div>
                   <div class="setting-row llm-test-row">
-                    <button id="testLLM" class="btn btn-primary">⚡ 测试连接</button>
+                    <button id="testLLM" class="gr-btn gr-btn-primary">⚡ 测试连接</button>
                     <span id="llmTestResult" class="test-result"></span>
                   </div>
                 </div>
@@ -644,7 +606,7 @@
                     <input
                       type="text"
                       id="itadNewName"
-                      class="text-input"
+                      class="gr-input"
                       style="width: 110px"
                       placeholder="名称，如 主力"
                       autocomplete="off"
@@ -652,13 +614,15 @@
                     <input
                       type="text"
                       id="itadNewKey"
-                      class="text-input"
+                      class="gr-input"
                       style="flex: 1"
                       placeholder="isthereanydeal.com 注册获取（添加后脱敏显示）"
                       autocomplete="off"
                     />
-                    <button id="itadAddBtn" class="btn btn-primary btn-sm" style="white-space: nowrap">➕ 添加</button>
-                    <button id="itadTestBtn" class="btn btn-primary btn-sm" style="white-space: nowrap">
+                    <button id="itadAddBtn" class="gr-btn gr-btn-primary gr-btn-sm" style="white-space: nowrap">
+                      ➕ 添加
+                    </button>
+                    <button id="itadTestBtn" class="gr-btn gr-btn-primary gr-btn-sm" style="white-space: nowrap">
                       🧪 测试激活项
                     </button>
                   </div>
@@ -700,8 +664,8 @@
                 <div class="site-custom-title">自定义追踪站点 <small>Custom tracked sites</small></div>
                 <div id="siteList" class="site-list"></div>
                 <div class="add-site-row">
-                  <input type="text" id="newSite" class="text-input" placeholder="输入域名，如 example.com" />
-                  <button id="addSite" class="btn btn-primary btn-sm">添加</button>
+                  <input type="text" id="newSite" class="gr-input" placeholder="输入域名，如 example.com" />
+                  <button id="addSite" class="gr-btn gr-btn-primary gr-btn-sm">添加</button>
                 </div>
               </div>
             </div>
@@ -771,11 +735,11 @@
                 </p>
                 <div class="rule-toolbar">
                   <span id="ruleSource" class="rule-source"></span>
-                  <button id="ruleResetBuiltin" class="btn btn-sm" title="删除用户导入规则，恢复内置规则">
+                  <button id="ruleResetBuiltin" class="gr-btn gr-btn-sm" title="删除用户导入规则，恢复内置规则">
                     ♻️ 恢复内置
                   </button>
-                  <button id="ruleExport" class="btn btn-sm">📤 导出规则 JSON</button>
-                  <button id="ruleImport" class="btn btn-sm">📥 导入规则 JSON</button>
+                  <button id="ruleExport" class="gr-btn gr-btn-sm">📤 导出规则 JSON</button>
+                  <button id="ruleImport" class="gr-btn gr-btn-sm">📥 导入规则 JSON</button>
                   <input type="file" id="ruleImportFile" accept=".json" class="hidden-file" />
                 </div>
                 <div id="ruleList" class="rule-list"></div>
@@ -855,7 +819,7 @@
                 <div class="rule-editor">
                   <div class="rule-editor-header">
                     <span>规则 JSON 编辑 <small>Rules JSON</small></span>
-                    <button id="ruleFormat" class="btn btn-sm">✨ 格式化</button>
+                    <button id="ruleFormat" class="gr-btn gr-btn-sm">✨ 格式化</button>
                   </div>
                   <textarea
                     id="ruleEditor"
@@ -864,8 +828,8 @@
                     placeholder='{ "version": 1, "sites": [...] }'
                   ></textarea>
                   <div class="rule-editor-actions">
-                    <button id="ruleValidate" class="btn btn-sm">🔍 校验</button>
-                    <button id="ruleSave" class="btn btn-primary btn-sm">💾 保存规则</button>
+                    <button id="ruleValidate" class="gr-btn gr-btn-sm">🔍 校验</button>
+                    <button id="ruleSave" class="gr-btn gr-btn-primary gr-btn-sm">💾 保存规则</button>
                     <span id="ruleStatus" class="rule-status"></span>
                   </div>
                 </div>
@@ -901,8 +865,8 @@
                     <span class="label-desc">Steam Dynamic Cache</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlSteamDynamic" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlSteamDynamicUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlSteamDynamic" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlSteamDynamicUnit" class="gr-input ttl-unit">
                       <option value="hours">小时</option>
                       <option value="days">天</option>
                       <option value="months">月</option>
@@ -916,8 +880,8 @@
                     <span class="label-desc">Detail Page Cache</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlDetailSteam" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlDetailSteamUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlDetailSteam" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlDetailSteamUnit" class="gr-input ttl-unit">
                       <option value="hours" selected>小时</option>
                       <option value="days">天</option>
                       <option value="months">月</option>
@@ -931,8 +895,8 @@
                     <span class="label-desc">SteamSpy Supplement Cache</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlSpySteam" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlSpySteamUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlSpySteam" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlSpySteamUnit" class="gr-input ttl-unit">
                       <option value="hours">小时</option>
                       <option value="days" selected>天</option>
                       <option value="months">月</option>
@@ -946,8 +910,8 @@
                     <span class="label-desc">Steam Meta Cache</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlMetaSteam" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlMetaSteamUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlMetaSteam" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlMetaSteamUnit" class="gr-input ttl-unit">
                       <option value="hours">小时</option>
                       <option value="days" selected>天</option>
                       <option value="months">月</option>
@@ -961,8 +925,8 @@
                     <span class="label-desc">Registry Re-confirm</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlRegistryConfirm" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlRegistryConfirmUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlRegistryConfirm" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlRegistryConfirmUnit" class="gr-input ttl-unit">
                       <option value="hours">小时</option>
                       <option value="days" selected>天</option>
                       <option value="months">月</option>
@@ -976,8 +940,8 @@
                     <span class="label-desc">Download URL Cache</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlDownloadUrls" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlDownloadUrlsUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlDownloadUrls" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlDownloadUrlsUnit" class="gr-input ttl-unit">
                       <option value="hours">小时</option>
                       <option value="days" selected>天</option>
                       <option value="months">月</option>
@@ -991,8 +955,8 @@
                     <span class="label-desc">Name Negative Cache</span>
                   </div>
                   <div class="ttl-group">
-                    <input type="number" id="ttlNegativeCache" min="0" max="10000" class="text-input ttl-input" />
-                    <select id="ttlNegativeCacheUnit" class="text-input ttl-unit">
+                    <input type="number" id="ttlNegativeCache" min="0" max="10000" class="gr-input ttl-input" />
+                    <select id="ttlNegativeCacheUnit" class="gr-input ttl-unit">
                       <option value="hours" selected>小时</option>
                       <option value="days">天</option>
                       <option value="months">月</option>
@@ -1020,14 +984,14 @@
                   <input
                     type="text"
                     id="cacheSearchInput"
-                    class="text-input"
+                    class="gr-input"
                     placeholder="搜索 AppID / 中文名 / 英文名..."
                     style="flex: 1; min-width: 160px"
                   />
                   <input
                     type="number"
                     id="cacheMinRating"
-                    class="text-input cache-filter-input"
+                    class="gr-input cache-filter-input"
                     min="0"
                     max="100"
                     step="5"
@@ -1037,14 +1001,14 @@
                   <input
                     type="text"
                     id="cacheTagInput"
-                    class="text-input cache-filter-input"
+                    class="gr-input cache-filter-input"
                     placeholder="标签（如 动作）"
                     title="Steam 官方标签包含"
                   />
-                  <select id="cacheSiteFilter" class="text-input cache-filter-select" title="按下载站筛选">
+                  <select id="cacheSiteFilter" class="gr-input cache-filter-select" title="按下载站筛选">
                     <option value="">全部站点</option>
                   </select>
-                  <select id="cacheTypeFilter" class="text-input cache-filter-select" title="按 Steam 条目类型筛选">
+                  <select id="cacheTypeFilter" class="gr-input cache-filter-select" title="按 Steam 条目类型筛选">
                     <option value="">全部类型</option>
                     <option value="game">game 游戏</option>
                     <option value="dlc">dlc 扩展</option>
@@ -1054,30 +1018,30 @@
                     <option value="mod">mod 模组</option>
                     <option value="video">video 视频</option>
                   </select>
-                  <button id="cacheSearchBtn" class="btn btn-primary btn-sm">搜索</button>
-                  <button id="cacheRefreshBtn" class="btn btn-sm">刷新</button>
+                  <button id="cacheSearchBtn" class="gr-btn gr-btn-primary gr-btn-sm">搜索</button>
+                  <button id="cacheRefreshBtn" class="gr-btn gr-btn-sm">刷新</button>
                   <button
                     id="cacheRefreshStaleBtn"
-                    class="btn btn-sm"
+                    class="gr-btn gr-btn-sm"
                     title="刷新本页中任一信息类型已过期的条目（v7.1.0）"
                   >
                     ♻️ 刷新本页过期
                   </button>
                   <button
                     id="cacheCleanExpiredBtn"
-                    class="btn btn-sm"
+                    class="gr-btn gr-btn-sm"
                     title="清理过期缓存条目（Steam 缓存/名称负缓存/下载站网址）"
                   >
                     🧹 清理过期缓存
                   </button>
                   <button
                     id="cacheHealNamesBtn"
-                    class="btn btn-sm"
+                    class="gr-btn gr-btn-sm"
                     title="扫描并修复注册表中名称异常（中文名无中文/英文名无英文）的条目"
                   >
                     🩹 修复异常名称
                   </button>
-                  <button id="cacheClearAllBtn" class="btn btn-danger btn-sm">清空全部</button>
+                  <button id="cacheClearAllBtn" class="gr-btn gr-btn-danger gr-btn-sm">清空全部</button>
                 </div>
                 <div id="cacheStats" class="cache-stats"></div>
                 <div class="cache-table-wrap">
@@ -1124,31 +1088,31 @@
                 </p>
                 <div class="module-check-header">
                   <span class="module-check-title">数据类型 <small>Data types</small></span>
-                  <button id="moduleCheckAll" class="btn btn-sm">全选</button>
-                  <button id="moduleCheckNone" class="btn btn-sm">全不选</button>
+                  <button id="moduleCheckAll" class="gr-btn gr-btn-sm">全选</button>
+                  <button id="moduleCheckNone" class="gr-btn gr-btn-sm">全不选</button>
                 </div>
                 <div id="moduleCheckList" class="module-check-list"></div>
                 <div class="data-actions">
-                  <button id="exportData" class="btn data-btn">
-                    <span class="btn-icon">📤</span><span>导出所选</span>
+                  <button id="exportData" class="gr-btn data-gr-btn">
+                    <span class="gr-btn-icon">📤</span><span>导出所选</span>
                   </button>
-                  <button id="importData" class="btn data-btn">
-                    <span class="btn-icon">📥</span><span>导入</span>
+                  <button id="importData" class="gr-btn data-gr-btn">
+                    <span class="gr-btn-icon">📥</span><span>导入</span>
                   </button>
-                  <button id="createBackupBtn" class="btn data-btn">
-                    <span class="btn-icon">➕</span><span>备份所选</span>
+                  <button id="createBackupBtn" class="gr-btn data-gr-btn">
+                    <span class="gr-btn-icon">➕</span><span>备份所选</span>
                   </button>
-                  <select id="restoreBackupSelect" class="text-input restore-select" title="选择要恢复的备份">
+                  <select id="restoreBackupSelect" class="gr-input restore-select" title="选择要恢复的备份">
                     <option value="">选择备份...</option>
                   </select>
-                  <button id="restoreBackupBtn" class="btn data-btn" disabled>
-                    <span class="btn-icon">♻️</span><span>恢复所选</span>
+                  <button id="restoreBackupBtn" class="gr-btn data-gr-btn" disabled>
+                    <span class="gr-btn-icon">♻️</span><span>恢复所选</span>
                   </button>
-                  <button id="resetDefaults" class="btn data-btn">
-                    <span class="btn-icon">♻️</span><span>恢复默认设置</span>
+                  <button id="resetDefaults" class="gr-btn data-gr-btn">
+                    <span class="gr-btn-icon">♻️</span><span>恢复默认设置</span>
                   </button>
-                  <button id="clearData" class="btn btn-danger">
-                    <span class="btn-icon">🗑️</span><span>清除所有数据</span>
+                  <button id="clearData" class="gr-btn gr-btn-danger">
+                    <span class="gr-btn-icon">🗑️</span><span>清除所有数据</span>
                   </button>
                 </div>
                 <input type="file" id="importFile" accept=".json" class="hidden-file" />
@@ -1182,9 +1146,9 @@
                     <span class="label-text">启用日志</span>
                     <span class="label-desc">Enable Logging</span>
                   </div>
-                  <label class="switch">
+                  <label class="gr-switch">
                     <input type="checkbox" id="logEnabled" />
-                    <span class="slider"></span>
+                    <span class="gr-slider-ui"></span>
                   </label>
                 </div>
                 <div class="setting-row">
@@ -1192,7 +1156,7 @@
                     <span class="label-text">记录级别</span>
                     <span class="label-desc">Log Level</span>
                   </div>
-                  <select id="logLevel" class="text-input">
+                  <select id="logLevel" class="gr-input">
                     <option value="debug">DEBUG - 全部记录</option>
                     <option value="info">INFO - 常规信息</option>
                     <option value="warn">WARN - 警告及以上</option>
@@ -1204,14 +1168,14 @@
                     <span class="label-text">保留天数</span>
                     <span class="label-desc">Retention (days, 0 = keep all)</span>
                   </div>
-                  <input type="number" id="logRetentionDays" min="0" max="365" class="text-input ttl-input" />
+                  <input type="number" id="logRetentionDays" min="0" max="365" class="gr-input ttl-input" />
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
                     <span class="label-text">存储形式</span>
                     <span class="label-desc">Storage Format</span>
                   </div>
-                  <select id="logStorage" class="text-input">
+                  <select id="logStorage" class="gr-input">
                     <option value="ndjson">ND-JSON 文件（OPFS，追加高效）</option>
                     <option value="local">storage.local（轻量）</option>
                   </select>
@@ -1227,11 +1191,55 @@
                     min="100"
                     max="5000"
                     step="100"
-                    class="text-input"
+                    class="gr-input"
                     style="width: 110px"
                   />
                 </div>
               </div>
+            </div>
+          </div>
+          <div class="settings-section">
+            <div class="section-header">
+              <span class="section-icon">👁️</span>
+              <div class="section-title">
+                <h3>日志查看（v6.4.8 在线）</h3>
+                <span class="section-subtitle">Runtime Logs</span>
+              </div>
+            </div>
+            <div class="section-body">
+              <!-- v6.4.19：日志查看增强——级别筛选 + 关键词搜索 + 模块显示 -->
+              <div class="setting-row">
+                <button id="logRefreshBtn" class="gr-btn gr-btn-primary">🔄 刷新</button>
+                <button id="logClearBtn" class="gr-btn gr-btn-danger">🗑️ 清空</button>
+                <select id="logLevelFilter" class="gr-input" style="width: 120px">
+                  <option value="">全部级别</option>
+                  <option value="debug">debug</option>
+                  <option value="info">info</option>
+                  <option value="warn">warn</option>
+                  <option value="error">error</option>
+                </select>
+                <input
+                  type="text"
+                  id="logSearch"
+                  class="gr-input"
+                  style="flex: 1; min-width: 120px"
+                  placeholder="搜索日志关键词..."
+                />
+                <span id="logCount" class="test-result"></span>
+              </div>
+              <div
+                id="logViewer"
+                style="
+                  max-height: 320px;
+                  overflow-y: auto;
+                  background: #10161f;
+                  border: 1px solid #2f4055;
+                  border-radius: 4px;
+                  padding: 8px;
+                  margin-top: 8px;
+                  font-size: 12px;
+                "
+              ></div>
             </div>
           </div>
         </section>

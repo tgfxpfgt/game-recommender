@@ -315,7 +315,7 @@ async function runChecks() {
     check('options 标题', optState.title.includes('设置'));
     // options 切 VM 过滤（先切到过滤面板）→ 自动保存（800ms 防抖）→ popup 重开验证一致
     await optPage.evaluate(() => {
-      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.querySelector('.gr-nav-item[data-panel="filters"]').click();
       document.getElementById('vmFilterEnabled').click();
       // v6.4.11：30 天好评过滤（此前保存时漏读 DOM，永远无法持久化）
       document.getElementById('recentFilterEnabled').click();
@@ -343,7 +343,7 @@ async function runChecks() {
     await opt2.goto(`chrome-extension://${extId}/options/options.html`);
     await opt2.waitForTimeout(1200);
     const optVm2 = await opt2.evaluate(() => {
-      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.querySelector('.gr-nav-item[data-panel="filters"]').click();
       return document.getElementById('vmFilterEnabled').checked;
     });
     check('popup→options 状态一致（VM 过滤回切）', optVm2 === false);
@@ -358,7 +358,7 @@ async function runChecks() {
     await optPage2.goto(`chrome-extension://${extId}/options/options.html`);
     await optPage2.waitForTimeout(1200);
     await optPage2.evaluate(() => {
-      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.querySelector('.gr-nav-item[data-panel="filters"]').click();
       document.getElementById('ratingFilterEnabled').checked = true;
       document.getElementById('ratingFilterEnabled').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('minRating').value = 65;
@@ -385,7 +385,7 @@ async function runChecks() {
     await optPage3.goto(`chrome-extension://${extId}/options/options.html`);
     await optPage3.waitForTimeout(1200);
     const filterEcho = await optPage3.evaluate(() => {
-      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.querySelector('.gr-nav-item[data-panel="filters"]').click();
       return {
         enable: document.getElementById('ratingFilterEnabled').checked,
         min: Number(document.getElementById('minRating').value)
@@ -693,7 +693,7 @@ async function runChecks() {
     await persistPage.goto(`chrome-extension://${extId}/options/options.html`);
     await persistPage.waitForTimeout(1200);
     await persistPage.evaluate(() => {
-      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.querySelector('.gr-nav-item[data-panel="filters"]').click();
       document.getElementById('minRating').value = 55;
       document.getElementById('minRating').dispatchEvent(new Event('change', { bubbles: true }));
       document.getElementById('saveBtn').click();
@@ -719,7 +719,7 @@ async function runChecks() {
     await persistPage2.goto(`chrome-extension://${extId2}/options/options.html`);
     await persistPage2.waitForTimeout(1500);
     const persisted = await persistPage2.evaluate(() => {
-      document.querySelector('.nav-item[data-panel="filters"]').click();
+      document.querySelector('.gr-nav-item[data-panel="filters"]').click();
       return Number(document.getElementById('minRating').value);
     });
     check('重启后过滤设置持久化（写盘成功）', persisted === 55, `(got ${persisted})`);
