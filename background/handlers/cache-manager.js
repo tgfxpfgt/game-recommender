@@ -128,7 +128,9 @@ export async function handleGetGameCacheList(message) {
       // 推荐值计算（纯函数，行为/Steam 信息动态反映）
       const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
       // v4.0.0：SteamSpy 时长/热度信号（与 calculateRecommendation 两处评分一致）
-      const { playTimeScore, heatScore } = steamspyScores(cachedData && cachedData.steamspy ? cachedData.steamspy : null);
+      const { playTimeScore, heatScore } = steamspyScores(
+        cachedData && cachedData.steamspy ? cachedData.steamspy : null
+      );
       rec = computeGameScore({
         profile,
         globalStats,
@@ -246,7 +248,7 @@ export async function handleClearGameCache() {
     dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
     dataStore.removeModule(DB_KEYS.NAME_INDEX)
   ]);
-  await chrome.storage.local.remove(DB_KEYS.MANUAL_MAPPINGS);
+  await dataStore.removeModule(DB_KEYS.MANUAL_MAPPINGS).catch(() => {});
   resetInMemoryCaches();
   Logger.info('Cache', '清空全部游戏缓存');
   return { success: true };

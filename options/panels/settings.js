@@ -116,7 +116,7 @@
   function renderSiteManagement(settings) {
     const container = document.getElementById('siteManageList');
     if (!container) return;
-    const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    const rules = (OPTS.siteRules || {}).sites || [];
     const tracked = settings.trackedSites || [];
     const steamSearch = settings.steamSiteSearch || [];
 

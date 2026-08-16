@@ -117,7 +117,7 @@
   function populateCacheSiteFilter() {
     const select = document.getElementById('cacheSiteFilter');
     if (!select) return;
-    const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    const rules = (OPTS.siteRules || {}).sites || [];
     rules
       .filter((s) => s.searchUrl)
       .forEach((s) => {

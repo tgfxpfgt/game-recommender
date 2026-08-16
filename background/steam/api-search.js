@@ -87,22 +87,27 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
     const data = await resp.json();
 
     if (data.total > 0 && data.items) {
-      for (const item of data.items.slice(0, 4)) {
-        if (recGames.some((g) => g.appId === item.id)) continue;
-
-        /** @type {{name?: string, header_image?: string, price_overview?: {final_formatted?: string}}|null} */
-        let detail = null;
-        try {
-          const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
-          const detResp = await fetchWithTimeout(detUrl);
-          const detData = await detResp.json();
-          if (detData[item.id]?.success) {
-            detail = detData[item.id].data;
+      // v9.3.0：条目详情并发拉取（此前逐个串行——3 标签 × 4 条目 = 15 次串行请求，
+      // 标签推荐长尾明显；改为每批 4 并发，标签间保持串行（storesearch 单在途）
+      const items = data.items.slice(0, 4).filter((item) => !recGames.some((g) => g.appId === item.id));
+      const details = await Promise.all(
+        items.map(async (item) => {
+          /** @type {{name?: string, header_image?: string, price_overview?: {final_formatted?: string}}|null} */
+          let detail = null;
+          try {
+            const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
+            const detResp = await fetchWithTimeout(detUrl);
+            const detData = await detResp.json();
+            if (detData[item.id]?.success) {
+              detail = detData[item.id].data;
+            }
+          } catch {
+            /* 详情失败用搜索条目兜底 */
           }
-        } catch {
-          /* 详情失败用搜索条目兜底 */
-        }
-
+          return { item, detail };
+        })
+      );
+      for (const { item, detail } of details) {
         recGames.push({
           appId: item.id,
           name: detail?.name || item.name,

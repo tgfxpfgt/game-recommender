@@ -182,7 +182,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
   // v6.4.3：搜索结果缓存（24h——资源页变化慢，命中免去逐站逐词请求）
   const cached = await getSearchCache(gameName, appId, siteKeys);
   if (cached) return cached;
-  const results = [];
+  let results = [];
   // 仅检索指定的站点
   const allSites = await getDownloadSites();
   const sitesToSearch = siteKeys ? allSites.filter((s) => siteKeys.includes(s.key)) : allSites;
@@ -201,148 +201,153 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
   parseGameTitle(gameName).forEach((t) => addTerm(t));
   addTerm(gameName);
 
-  for (const site of sitesToSearch) {
-    const primaryTerm = searchTerms[0];
-    const result = {
-      key: site.key,
-      name: site.name,
-      found: false,
-      detailUrl: '',
-      searchUrl: site.searchUrl(primaryTerm),
-      updateDate: '',
-      version: '',
-      size: '',
-      panUrl: '',
-      panCode: ''
-    };
-    try {
-      // 依次尝试每个搜索词，找到匹配就停止
-      let bestUrl = '';
-      let bestScore = 0;
-      let usedTerm = primaryTerm;
+  // v9.3.0：站点间并发搜索（每站词间保持串行 + 高分提前终止——网络礼貌与
+  // 长尾改善兼顾；此前 N 站 × M 词全串行，反查耗时随站点数线性增长）
+  const siteResults = await Promise.all(
+    sitesToSearch.map(async (site) => {
+      const primaryTerm = searchTerms[0];
+      const result = {
+        key: site.key,
+        name: site.name,
+        found: false,
+        detailUrl: '',
+        searchUrl: site.searchUrl(primaryTerm),
+        updateDate: '',
+        version: '',
+        size: '',
+        panUrl: '',
+        panCode: ''
+      };
+      try {
+        // 依次尝试每个搜索词，找到匹配就停止
+        let bestUrl = '';
+        let bestScore = 0;
+        let usedTerm = primaryTerm;
 
-      for (let termIdx = 0; termIdx < searchTerms.length; termIdx++) {
-        const term = searchTerms[termIdx];
-        const resp = await fetchWithTimeout(site.searchUrl(term), {
-          headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
-        });
-        if (!resp.ok) continue;
-        const html = await resp.text();
+        for (let termIdx = 0; termIdx < searchTerms.length; termIdx++) {
+          const term = searchTerms[termIdx];
+          const resp = await fetchWithTimeout(site.searchUrl(term), {
+            headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
+          });
+          if (!resp.ok) continue;
+          const html = await resp.text();
 
-        // 提取候选详情链接：文本为空时回退 title 属性（WordPress 图片链接场景）
-        // Candidate detail links; fall back to the title attribute when the
-        // link text is empty (WordPress image-only links)
-        const candidates = [];
-        const linkMatches = regexExecAll(
-          html,
-          /<a([^>]*)href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"([^>]*)>([\s\S]*?)<\/a>/gi
-        );
-        for (const lm of linkMatches) {
-          const href = lm[2];
-          const text = lm[4]
-            .replace(/<[^>]+>/g, '')
-            .replace(/&[a-z]+;/gi, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-          const titleAttr = regexMatch(lm[1] + lm[3], /title="([^"]*)"/i);
-          const titleText = titleAttr
-            ? titleAttr[1]
-                .replace(/&[a-z]+;/gi, ' ')
-                .replace(/\s+/g, ' ')
-                .trim()
-            : '';
-          candidates.push({ href, text: text || titleText });
-        }
-
-        // 按文本匹配度选出最符合游戏名的链接
-        for (const c of candidates) {
-          let maxScore = 0;
-          for (const t of searchTerms) {
-            maxScore = Math.max(maxScore, calcLinkMatchScore(c.text, t));
+          // 提取候选详情链接：文本为空时回退 title 属性（WordPress 图片链接场景）
+          // Candidate detail links; fall back to the title attribute when the
+          // link text is empty (WordPress image-only links)
+          const candidates = [];
+          const linkMatches = regexExecAll(
+            html,
+            /<a([^>]*)href="([^"]*(?:\/\d+\.html?|\/game\/\d+[^"]*))"([^>]*)>([\s\S]*?)<\/a>/gi
+          );
+          for (const lm of linkMatches) {
+            const href = lm[2];
+            const text = lm[4]
+              .replace(/<[^>]+>/g, '')
+              .replace(/&[a-z]+;/gi, ' ')
+              .replace(/\s+/g, ' ')
+              .trim();
+            const titleAttr = regexMatch(lm[1] + lm[3], /title="([^"]*)"/i);
+            const titleText = titleAttr
+              ? titleAttr[1]
+                  .replace(/&[a-z]+;/gi, ' ')
+                  .replace(/\s+/g, ' ')
+                  .trim()
+              : '';
+            candidates.push({ href, text: text || titleText });
           }
-          maxScore = Math.max(maxScore, calcLinkMatchScore(c.text, gameName));
-          if (maxScore > bestScore) {
-            bestScore = maxScore;
-            bestUrl = c.href;
-            usedTerm = term;
-          }
-        }
 
-        // 已经找到高分匹配，不再尝试更多搜索词
-        if (bestScore >= 80) break;
-      }
-
-      // 更新搜索URL为实际使用的那个
-      result.searchUrl = site.searchUrl(usedTerm);
-
-      if (bestUrl && bestScore >= 60) {
-        const detailUrl = bestUrl.startsWith('http')
-          ? bestUrl
-          : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
-        // v3.4.1：详情页链接同域白名单——搜索结果页 HTML 里的链接若被
-        // 植入外站/伪协议地址（站点被黑或恶意规则），一律丢弃。
-        // SSRF 校验（fetch/缓存写入）是第二道防线，这里拦在数据源头。
-        // Same-origin whitelist for detail links: a compromised search page or
-        // a malicious rule cannot smuggle off-site/javascript: URLs in.
-        let safeDetailUrl = '';
-        try {
-          const baseHost = new URL(site.base).hostname;
-          const detailHost = new URL(detailUrl).hostname;
-          if (detailHost === baseHost || detailHost.endsWith('.' + baseHost)) {
-            safeDetailUrl = detailUrl;
-          }
-        } catch {
-          /* 无法解析即丢弃 */
-        }
-        if (!safeDetailUrl) {
-          Logger.debug('Sites', `丢弃非本域详情链接: ${detailUrl.substring(0, 80)}`);
-        }
-        if (safeDetailUrl) {
-          result.found = true;
-          result.detailUrl = safeDetailUrl;
-          // 记录到下载站网址缓存（以 appId 为键，30 天有效，新网址替代旧网址）。
-          // v3.3.10：仅高分（≥80）结果写缓存——低分/模糊匹配不固化，
-          // 防止误匹配结果污染 30 天缓存（如二代词匹配到一代页面 75 分）
-          if (appId && bestScore >= 80) {
-            await recordDownloadUrl(appId, site.key, site.name, safeDetailUrl);
-          }
-          try {
-            const dResp = await fetchWithTimeout(safeDetailUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
-            if (dResp.ok) {
-              const dHtml = await dResp.text();
-              const meta = extractDetailMeta(dHtml, site.key);
-              // v6.4.4：搜索结果元数据合并进网址缓存（与上次调用合并）——
-              // detail 页二次展示免重抓；recordDownloadUrl 同 url 时更新 meta + lastCalled
-              if (appId && bestScore >= 80 && meta && (meta.updateDate || meta.version || meta.size || meta.panUrl)) {
-                await recordDownloadUrl(appId, site.key, site.name, safeDetailUrl, {
-                  updateDate: meta.updateDate,
-                  version: meta.version,
-                  size: meta.size,
-                  panUrl: meta.panUrl,
-                  panCode: meta.panCode
-                });
-              }
-              result.updateDate = meta.updateDate;
-              result.version = meta.version;
-              result.size = meta.size;
-              result.panUrl = meta.panUrl;
-              result.panCode = meta.panCode;
-              // 百度网盘自动拼接提取码
-              if (result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
-                result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
-              }
+          // 按文本匹配度选出最符合游戏名的链接
+          for (const c of candidates) {
+            let maxScore = 0;
+            for (const t of searchTerms) {
+              maxScore = Math.max(maxScore, calcLinkMatchScore(c.text, t));
             }
-          } catch (e) {
-            // 详情页元信息抓取失败不影响搜索结果
-            Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, String(e));
+            maxScore = Math.max(maxScore, calcLinkMatchScore(c.text, gameName));
+            if (maxScore > bestScore) {
+              bestScore = maxScore;
+              bestUrl = c.href;
+              usedTerm = term;
+            }
+          }
+
+          // 已经找到高分匹配，不再尝试更多搜索词
+          if (bestScore >= 80) break;
+        }
+
+        // 更新搜索URL为实际使用的那个
+        result.searchUrl = site.searchUrl(usedTerm);
+
+        if (bestUrl && bestScore >= 60) {
+          const detailUrl = bestUrl.startsWith('http')
+            ? bestUrl
+            : site.base + (bestUrl.startsWith('/') ? '' : '/') + bestUrl;
+          // v3.4.1：详情页链接同域白名单——搜索结果页 HTML 里的链接若被
+          // 植入外站/伪协议地址（站点被黑或恶意规则），一律丢弃。
+          // SSRF 校验（fetch/缓存写入）是第二道防线，这里拦在数据源头。
+          // Same-origin whitelist for detail links: a compromised search page or
+          // a malicious rule cannot smuggle off-site/javascript: URLs in.
+          let safeDetailUrl = '';
+          try {
+            const baseHost = new URL(site.base).hostname;
+            const detailHost = new URL(detailUrl).hostname;
+            if (detailHost === baseHost || detailHost.endsWith('.' + baseHost)) {
+              safeDetailUrl = detailUrl;
+            }
+          } catch {
+            /* 无法解析即丢弃 */
+          }
+          if (!safeDetailUrl) {
+            Logger.debug('Sites', `丢弃非本域详情链接: ${detailUrl.substring(0, 80)}`);
+          }
+          if (safeDetailUrl) {
+            result.found = true;
+            result.detailUrl = safeDetailUrl;
+            // 记录到下载站网址缓存（以 appId 为键，30 天有效，新网址替代旧网址）。
+            // v3.3.10：仅高分（≥80）结果写缓存——低分/模糊匹配不固化，
+            // 防止误匹配结果污染 30 天缓存（如二代词匹配到一代页面 75 分）
+            if (appId && bestScore >= 80) {
+              await recordDownloadUrl(appId, site.key, site.name, safeDetailUrl);
+            }
+            try {
+              const dResp = await fetchWithTimeout(safeDetailUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
+              if (dResp.ok) {
+                const dHtml = await dResp.text();
+                const meta = extractDetailMeta(dHtml, site.key);
+                // v6.4.4：搜索结果元数据合并进网址缓存（与上次调用合并）——
+                // detail 页二次展示免重抓；recordDownloadUrl 同 url 时更新 meta + lastCalled
+                if (appId && bestScore >= 80 && meta && (meta.updateDate || meta.version || meta.size || meta.panUrl)) {
+                  await recordDownloadUrl(appId, site.key, site.name, safeDetailUrl, {
+                    updateDate: meta.updateDate,
+                    version: meta.version,
+                    size: meta.size,
+                    panUrl: meta.panUrl,
+                    panCode: meta.panCode
+                  });
+                }
+                result.updateDate = meta.updateDate;
+                result.version = meta.version;
+                result.size = meta.size;
+                result.panUrl = meta.panUrl;
+                result.panCode = meta.panCode;
+                // 百度网盘自动拼接提取码
+                if (result.panUrl && result.panCode && /pan\.baidu\.com/i.test(result.panUrl)) {
+                  result.panUrl = buildBaiduPanUrlWithPwd(result.panUrl, result.panCode);
+                }
+              }
+            } catch (e) {
+              // 详情页元信息抓取失败不影响搜索结果
+              Logger.debug('Sites', `获取${site.name}详情页元信息失败:`, String(e));
+            }
           }
         }
+      } catch (e) {
+        Logger.debug('Sites', `搜索${site.name}失败:`, String(e));
       }
-    } catch (e) {
-      Logger.debug('Sites', `搜索${site.name}失败:`, String(e));
-    }
-    results.push(result);
-  }
+      return result;
+    })
+  );
+  results = siteResults;
   // v6.4.3：写缓存（结果含 detailUrl/panUrl 等——资源页稳定，缓存安全）
   await setSearchCache(gameName, appId, siteKeys, results);
   return results;

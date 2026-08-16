@@ -238,14 +238,15 @@ const manifestAdapters = (manifest.content_scripts || [])
   .filter((j) => j.startsWith('adapters/'))
   .map((j) => j.replace('adapters/', ''));
 const swAdapters = [...swSrc2.matchAll(/import\s+'\.\.\/adapters\/([^']+)'/g)].map((m) => m[1]);
+// v9.3.0：options.html 不再注入 adapters 脚本（改为 GET_ADAPTER_RULES 消息获取）
 const htmlAdapters = [...optsHtml.matchAll(/<script src="\.\.\/adapters\/([^"]+)"/g)].map((m) => m[1]);
 const dirAdapters = collectJs(path.join(ROOT, 'adapters'), [])
   .map((f) => path.relative(path.join(ROOT, 'adapters'), f).replace(/\\/g, '/'))
   .sort();
-test('adapters 清单三处一致（manifest = SW = options.html）', () => {
+test('adapters 清单一致（manifest = SW；options 零注入——v9.3.0 改消息获取）', () => {
   const norm = (a) => [...a].sort();
   expect(JSON.stringify(norm(manifestAdapters))).toEqual(JSON.stringify(norm(swAdapters)));
-  expect(JSON.stringify(norm(manifestAdapters))).toEqual(JSON.stringify(norm(htmlAdapters)));
+  expect(htmlAdapters.length).toEqual(0);
 });
 test('adapters 目录文件全部注册（无漏注册）', () => {
   const norm = (a) => [...a].sort();

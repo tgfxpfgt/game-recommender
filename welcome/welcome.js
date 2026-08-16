@@ -8,7 +8,9 @@
 'use strict';
 
 (function () {
-  const manifest = (chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest()) || {};
+  const manifest = /** @type {{version?: string}} */ (
+    (chrome.runtime && chrome.runtime.getManifest && chrome.runtime.getManifest()) || {}
+  );
   const ver = manifest.version || '';
   const verEl = document.getElementById('extVersion');
   if (verEl && ver) verEl.textContent = 'v' + ver;

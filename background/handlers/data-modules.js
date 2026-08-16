@@ -27,7 +27,7 @@ export async function handleClearData() {
     dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
     dataStore.removeModule(DB_KEYS.LEARNED_NOISE)
   ]);
-  await chrome.storage.local.remove(DB_KEYS.MANUAL_MAPPINGS);
+  await dataStore.removeModule(DB_KEYS.MANUAL_MAPPINGS).catch(() => {});
   resetInMemoryCaches();
   return { success: true };
 }

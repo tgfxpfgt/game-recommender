@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "9.3.0",
+  "version": "9.4.0",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -30,6 +30,7 @@
     "pixelmatch": "^7.2.0",
     "playwright-core": "^1.45.0",
     "pngjs": "^7.0.0",
+    "prettier": "^3.9.6",
     "typescript": "^7.0.2",
     "vitest": "^4.1.10"
   }

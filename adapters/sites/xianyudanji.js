@@ -26,6 +26,7 @@
   global.__GAME_RECOMMENDER_SITE_XIANYUDANJI__ = {
     key: 'xianyudanji',
     name: '咸鱼单机',
+    displayName: '咸鱼单机',
     domains: ['xianyudanji.gg'],
     base: 'https://www.xianyudanji.gg',
     searchUrl: 'https://www.xianyudanji.gg/?s={q}',

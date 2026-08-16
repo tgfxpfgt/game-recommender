@@ -22,6 +22,7 @@ declare global {
     href?: any;
   } // 下载站链接元素（锚点属性宽松）
   var escapeHtml: (text: string) => string; // shared/escape.js 经典注入
+  var __GR_SETTINGS_UTILS__: any; // shared/settings-utils.js（补丁保存/主题/跳转）
   var escapeAttr: (text: string) => string;
   // UI 层 DOM 访问宽松化（v6.3.2 决策）：UI 脚本风格代码中元素存在性/具体
   // 类型由浏览器运行时保证，此处降级 any 消除噪音——类型化价值聚焦业务

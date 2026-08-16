@@ -57,6 +57,7 @@ export function resetRulesCache() {
 // 站点规则允许的字段与类型白名单（纯数据，拒绝函数/未知类型，防注入）
 // Allowed rule fields with type whitelist (pure data; functions rejected)
 const SITE_FIELD_TYPES = {
+  displayName: 'string', // v9.3.0：站点显示名（详情页下载资源面板等）
   key: 'string',
   name: 'string',
   domains: 'array',

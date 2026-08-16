@@ -53,6 +53,13 @@
         return;
       }
       OPTS.currentSettings = response.settings;
+      // v9.3.0：站点规则经后台获取（此前注入 8 个 adapters 脚本只为读全局常量）
+      try {
+        const rulesResp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' });
+        OPTS.siteRules = (rulesResp && rulesResp.rules && rulesResp.rules.merged) || { sites: [] };
+      } catch {
+        OPTS.siteRules = { sites: [] };
+      }
       // v6.4.19：应用皮肤主题（body data-theme）+ v7.0.5：自定义主题 CSS
       const sut = globalThis.__GR_SETTINGS_UTILS__;
       if (sut) {
@@ -689,7 +696,7 @@
     // 后台读取时 profiles 优先）
 
     // 下载站与追踪管理（合并后的统一配置入口）
-    const rules = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    const rules = (OPTS.siteRules || {}).sites || [];
     const customSites = (OPTS.currentSettings.trackedSites || []).filter(
       (d) => !rules.some((s) => s.domains.some((x) => d === x || d.includes(x)))
     );

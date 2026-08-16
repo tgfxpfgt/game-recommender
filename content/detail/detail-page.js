@@ -176,7 +176,10 @@ export function injectDownloadSitePanel() {
 
 // 渲染下载站结果（仅显示详情页链接）
 function renderDownloadSitePanel(panel, sites, gameName) {
-  const siteNames = { xdgame: 'XDGame', xianyudanji: '咸鱼单机', gamer520: 'Gamer520' };
+  // v9.3.0：站点显示名读规则 displayName（此前硬编码 3 站——自定义站点显示 key）
+  const rules = (builder.getSITE_RULES && builder.getSITE_RULES()) || [];
+  const siteNames = {};
+  for (const r of rules) if (r && r.key && r.displayName) siteNames[r.key] = r.displayName;
   let html = `
       <div style="padding:12px 14px 6px 14px;">
         <div style="font-size:13px;font-weight:bold;color:#fff;margin-bottom:2px;">📥 下载站资源</div>

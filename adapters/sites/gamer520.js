@@ -23,6 +23,7 @@
   global.__GAME_RECOMMENDER_SITE_GAMER520__ = {
     key: 'gamer520',
     name: 'Gamer520',
+    displayName: 'Gamer520',
     domains: ['gamer520.com'],
     base: 'https://www.gamer520.com',
     searchUrl: 'https://www.gamer520.com/?s={q}',

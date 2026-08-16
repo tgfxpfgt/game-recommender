@@ -44,6 +44,7 @@
   global.__GAME_RECOMMENDER_SITE_XDGAME__ = {
     key: 'xdgame',
     name: 'XDGame',
+    displayName: 'XDGame',
     domains: ['xdgame.com'],
     base: 'https://xdgame.com',
     searchUrl: 'https://xdgame.com/so/{q}.html',
