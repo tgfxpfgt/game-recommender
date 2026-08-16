@@ -112,5 +112,27 @@
     }
   }
 
-  global.__GR_SETTINGS_UTILS__ = { deepSet, getByPath, applyPatch, goHub, applyTheme, applyCustomTheme };
+  // v9.3.0：串行保存队列工厂（popup 保存链路复用 + 可单测——并发 GET→SAVE
+  // 基于旧快照互相覆盖的防竞态）
+  // Serial save queue: each task re-reads latest settings before patching.
+  function createSaveQueue(send) {
+    let queue = Promise.resolve();
+    return function enqueue(getLatest, patch, doSave) {
+      queue = queue.then(async () => {
+        const latest = await getLatest();
+        await doSave(latest, patch);
+      });
+      return queue;
+    };
+  }
+
+  global.__GR_SETTINGS_UTILS__ = {
+    deepSet,
+    getByPath,
+    applyPatch,
+    goHub,
+    applyTheme,
+    applyCustomTheme,
+    createSaveQueue
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

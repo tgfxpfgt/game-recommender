@@ -21,11 +21,17 @@ let currentClaimFilter = 'all';
 
 document.addEventListener('DOMContentLoaded', () => {
   // v6.4.19：应用皮肤主题
-  (async () => { try { const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' }); const s = r && r.settings; if (s && globalThis.__GR_SETTINGS_UTILS__) {
-      const u = globalThis.__GR_SETTINGS_UTILS__;
-      if (u.applyTheme) u.applyTheme(s.uiTheme);
-      if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
-    } } catch {} })();
+  (async () => {
+    try {
+      const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = r && r.settings;
+      if (s && globalThis.__GR_SETTINGS_UTILS__) {
+        const u = globalThis.__GR_SETTINGS_UTILS__;
+        if (u.applyTheme) u.applyTheme(s.uiTheme);
+        if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
+      }
+    } catch {}
+  })();
   loadFreeGames();
 
   // v6.4.11：返回设置中心（hub 内切面板 / 独立打开新标签）
@@ -90,21 +96,9 @@ async function loadFreeGames(force = false) {
 function renderGames() {
   const listEl = document.getElementById('gameList');
 
-  // v4.1.0：微软商店独立筛选（manager.js 平台门已映射 microsoft）
-  const mainPlatforms = ['epic', 'steam', 'gog', 'microsoft'];
-  let filtered;
-  if (currentFilter === 'all') {
-    filtered = allGames;
-  } else if (currentFilter === 'other') {
-    filtered = allGames.filter((g) => !mainPlatforms.includes(g.platform));
-  } else {
-    filtered = allGames.filter((g) => g.platform === currentFilter);
-  }
-
-  // 领取方式筛选（官方直领 vs 第三方）
-  if (currentClaimFilter !== 'all') {
-    filtered = filtered.filter((g) => (g.claimType || 'direct') === currentClaimFilter);
-  }
+  // v9.3.0：过滤逻辑抽取为纯函数（shared/freegames-filter.js——可单测）
+  const { filterFreeGames } = globalThis.__GR_FG_FILTER__ || {};
+  const filtered = filterFreeGames ? filterFreeGames(allGames, currentFilter, currentClaimFilter) : allGames;
 
   if (filtered.length === 0) {
     listEl.innerHTML = '<div class="empty">当前没有符合条件的限免游戏</div>';

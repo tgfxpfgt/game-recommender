@@ -207,7 +207,7 @@ function renderDownloadSitePanel(panel, sites, gameName) {
     } else {
       html += `
           <div style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.15);border:1px solid #222;border-radius:3px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div class="gr-detail-flex-between">
               <span style="font-size:12px;color:#666;">${name}</span>
               <a href="${common.escapeAttr(site.searchUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">去搜索 ↗</a>
             </div>

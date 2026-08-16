@@ -20,9 +20,30 @@ import { Logger } from './logger.js';
  * @param {boolean} [manual]
  * @param {Array<string>|null} [moduleKeys]
  */
-export async function createBackup(manual = false, moduleKeys = null) {
+// v9.3.0：默认备份高价值子集（缓存/日志类可重建——steamCache/downloadUrls/
+// searchCache/llmScore/runtimeLog/behaviorLog/freeGames 排除，显著降低备份体积
+// 与全量序列化写放大）；moduleKeys 参数仍支持全量/自定义勾选
+/** @type {string[]} */
+const BACKUP_CORE_KEYS = [
+  'settings',
+  'adapterRules',
+  'behavior',
+  'gameProfiles',
+  'keywordWeights',
+  'gameRegistry',
+  'nameIndex',
+  'downloadHistory',
+  'wrongReports',
+  'learnedNoise',
+  'manualMappings'
+];
+
+export async function createBackup(manual = false, /** @type {string[]|null} */ moduleKeys = null) {
   try {
-    const modules = moduleKeys ? DATA_MODULES.filter((m) => moduleKeys.includes(m.key)) : DATA_MODULES;
+    const all = /** @type {Array<{key: string, storageKey: string}>} */ (DATA_MODULES);
+    const modules = moduleKeys
+      ? all.filter((m) => moduleKeys.includes(m.key))
+      : all.filter((m) => BACKUP_CORE_KEYS.includes(m.key) || m.key === 'settings');
     const storageKeys = modules.map((m) => m.storageKey);
     const snapshot = {};
     for (const key of storageKeys) {

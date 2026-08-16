@@ -75,14 +75,14 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   if (hasSpyData) {
     spyBody = `
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
-          ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div style="color:#acb2b8;">好评率: <span style="color:#66c0f4;font-weight:bold;">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
-          ${spy.currentPlayers ? `<div style="color:#acb2b8;">当前在线: <span style="color:#a3cf06;font-weight:bold;">${spy.currentPlayers}</span> 人</div>` : ''}
-          ${spy.owners ? `<div style="color:#acb2b8;">拥有者: <span style="color:#c7d5e0;font-weight:bold;">${spy.owners}</span>${spyHeatLabel() ? ` · 热度 <span style="color:#a3cf06;font-weight:bold;">${spyHeatLabel()}</span>` : ''}</div>` : ''}
-          ${spy.averagePlaytime ? `<div style="color:#acb2b8;">平均时长: <span style="color:#c7d5e0;font-weight:bold;">${spy.averagePlaytime}</span></div>` : ''}
+          ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div class="gr-detail-dim">好评率: <span class="gr-detail-blue">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
+          ${spy.currentPlayers ? `<div class="gr-detail-dim">当前在线: <span class="gr-detail-green">${spy.currentPlayers}</span> 人</div>` : ''}
+          ${spy.owners ? `<div class="gr-detail-dim">拥有者: <span class="gr-detail-strong">${spy.owners}</span>${spyHeatLabel() ? ` · 热度 <span class="gr-detail-green">${spyHeatLabel()}</span>` : ''}</div>` : ''}
+          ${spy.averagePlaytime ? `<div class="gr-detail-dim">平均时长: <span class="gr-detail-strong">${spy.averagePlaytime}</span></div>` : ''}
         </div>
       `;
   } else {
-    spyBody = `<div style="font-size:11px;color:#8f98a0;">SteamSpy 数据暂不可用（站点可能启用了人机验证）</div>`;
+    spyBody = `<div class="gr-detail-muted">SteamSpy 数据暂不可用（站点可能启用了人机验证）</div>`;
   }
   spyHtml = `
       <div class="gr-detail-spy">
@@ -124,8 +124,8 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
             ${data.chineseSupported && data.chineseHasAudio ? ' · 音频' : ''}
             ${data.chineseSupported && data.chineseHasSubtitles ? ' · 字幕' : ''}
           </span>
-          ${data.releaseDate ? `<span style="padding:2px 8px;border-radius:2px;background:rgba(255,255,255,0.05);color:#8f98a0;">📅 ${esc(data.releaseDate)}</span>` : ''}
-          ${data.lastUpdate ? `<span style="padding:2px 8px;border-radius:2px;background:rgba(255,255,255,0.05);color:#8f98a0;">🛠 更新 ${esc(data.lastUpdate)}</span>` : ''}
+          ${data.releaseDate ? `<span class="gr-detail-chip">📅 ${esc(data.releaseDate)}</span>` : ''}
+          ${data.lastUpdate ? `<span class="gr-detail-chip">🛠 更新 ${esc(data.lastUpdate)}</span>` : ''}
         </div>
 
         <!-- 跳转Steam按钮 -->
@@ -137,37 +137,37 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
         <!-- 评分区域 - 四重评价（Steam总体/最近30天/简体中文/SteamSpy） -->
         <div class="gr-detail-rating-box" style="background:${ratingBg};">
-          <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:11px;color:#8f98a0;">Steam 总体</span>
+          <div class="gr-detail-sep">
+            <div class="gr-detail-flex-between">
+              <span class="gr-detail-muted">Steam 总体</span>
               <span style="font-size:13px;font-weight:bold;color:${ratingColor};">${data.ratingDesc || '暂无'}</span>
             </div>
-            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">
+            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">
               ${data.positiveRate !== null && data.positiveRate !== undefined ? `${data.positiveRate}% 好评` : ''}
               ${data.totalReviews ? ` · ${data.totalReviews.toLocaleString()} 条` : ''}
             </div>
           </div>
-          <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:11px;color:#8f98a0;">🕒 最近 30 天</span>
+          <div class="gr-detail-sep">
+            <div class="gr-detail-flex-between">
+              <span class="gr-detail-muted">🕒 最近 30 天</span>
               <span style="font-size:13px;font-weight:bold;color:${(data.recentPositiveRate || 0) >= 80 ? '#66c0f4' : (data.recentPositiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00'};">${data.recentPositiveRate !== null && data.recentPositiveRate !== undefined ? `${data.recentPositiveRate}% 好评` : '暂无近期评测'}</span>
             </div>
-            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">
+            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">
               ${data.recentTotalReviews ? `近30天 ${data.recentTotalReviews.toLocaleString()} 条` : ''}
             </div>
           </div>
-          <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-              <span style="font-size:11px;color:#8f98a0;">🇨🇳 简体中文</span>
+          <div class="gr-detail-sep">
+            <div class="gr-detail-flex-between">
+              <span class="gr-detail-muted">🇨🇳 简体中文</span>
               <span style="font-size:13px;font-weight:bold;color:${(data.cnPositiveRate || 0) >= 80 ? '#66c0f4' : (data.cnPositiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00'};">${data.cnRatingDesc || (data.cnPositiveRate !== null && data.cnPositiveRate !== undefined ? data.cnPositiveRate + '% 好评' : '暂无')}</span>
             </div>
-            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">
+            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">
               ${data.cnPositiveRate !== null && data.cnPositiveRate !== undefined ? `${data.cnPositiveRate}% 好评` : ''}
               ${data.cnTotalReviews ? ` · ${data.cnTotalReviews.toLocaleString()} 条` : ''}
             </div>
           </div>
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <span style="font-size:11px;color:#8f98a0;">📊 SteamSpy</span>
+          <div class="gr-detail-flex-between">
+            <span class="gr-detail-muted">📊 SteamSpy</span>
             <span style="font-size:13px;font-weight:bold;color:#67c1f5;">
               ${data.steamspy && data.steamspy.positiveRate !== null && data.steamspy.positiveRate !== undefined ? data.steamspy.positiveRate + '%' : '—'}
             </span>
@@ -175,7 +175,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
           ${
             data.steamspy && data.steamspy.reviewCount
               ? `
-            <div style="font-size:11px;color:#8f98a0;margin-top:2px;text-align:right;">${data.steamspy.reviewCount} 条评测</div>
+            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">${data.steamspy.reviewCount} 条评测</div>
           `
               : ''
           }
@@ -192,7 +192,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
             const heat = spyHeatLabel();
             if (heat) parts.push(`热度 ${heat}`);
             if (spy && spy.averagePlaytime) parts.push(`平均时长 ${spy.averagePlaytime}`);
-            return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#acb2b8;">综合推荐 <span style="color:#66c0f4;font-weight:bold;">${Math.round(s * 100)}%</span><span style="color:#8f98a0;">（${parts.join(' · ')}）</span></div>`;
+            return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#acb2b8;">综合推荐 <span class="gr-detail-blue">${Math.round(s * 100)}%</span><span style="color:#8f98a0;">（${parts.join(' · ')}）</span></div>`;
           })()}
         </div>
 
@@ -202,7 +202,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
             ? `
           <div style="margin-bottom:12px;">
             <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">🔥 热门用户标签</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <div class="gr-detail-flex-wrap">
               ${data.userTags.map((t) => `<span style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:default;">${esc(t)}</span>`).join('')}
             </div>
           </div>
@@ -216,7 +216,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
             ? `
           <div style="margin-bottom:12px;">
             <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">类型</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;">
+            <div class="gr-detail-flex-wrap">
               ${data.genres.map((g) => `<span style="padding:3px 8px;font-size:11px;background:rgba(255,255,255,0.06);color:#c7d5e0;border-radius:2px;cursor:default;">${esc(g)}</span>`).join('')}
             </div>
           </div>

@@ -71,11 +71,7 @@ export async function webSearchFallback(rawName, excludeAppId) {
     // cn.bing.com 为公网域名（fetchWithTimeout 的 SSRF host 校验放行）；
     // 搜索词经 encodeURIComponent 编码，无注入面
     const searchUrl = BING_SEARCH_URL + encodeURIComponent(rawName + ' steam');
-    const resp = await fetchWithTimeout(
-      searchUrl,
-      { headers: { 'User-Agent': BING_UA } },
-      15000
-    );
+    const resp = await fetchWithTimeout(searchUrl, { headers: { 'User-Agent': BING_UA } }, 15000);
     const html = await resp.text();
     const appIds = parseBingSearchAppIds(html)
       .filter((id) => String(id) !== String(excludeAppId))
@@ -178,7 +174,12 @@ export async function askLlmForOfficialName(rawName, cfg) {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           allowPrivateHosts: true,
-          body: JSON.stringify({ model: cfg.model, prompt, stream: false, options: { temperature: cfg.temperature ?? 0 } })
+          body: JSON.stringify({
+            model: cfg.model,
+            prompt,
+            stream: false,
+            options: { temperature: cfg.temperature ?? 0 }
+          })
         },
         LLM_FETCH_TIMEOUT
       );
@@ -190,7 +191,10 @@ export async function askLlmForOfficialName(rawName, cfg) {
         cfg.endpoint,
         {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {}) },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {})
+          },
           allowPrivateHosts: true,
           body: JSON.stringify({
             model: cfg.model,
@@ -204,7 +208,9 @@ export async function askLlmForOfficialName(rawName, cfg) {
         LLM_FETCH_TIMEOUT
       );
       const data = await resp.json();
-      text = String((data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || '');
+      text = String(
+        (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ''
+      );
     }
     return parseLlmMatchResponse(text);
   } catch {

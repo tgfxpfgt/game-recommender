@@ -42,6 +42,7 @@ export default defineConfig({
       'tests/unit/test-outbound.mjs',
       'tests/unit/test-properties.mjs',
       'tests/unit/test-migrate.mjs',
+      'tests/unit/test-ui-pure.mjs',
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',

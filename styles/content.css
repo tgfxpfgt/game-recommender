@@ -314,6 +314,51 @@
   line-height: 1.5;
 }
 
+/* v9.3.0：详情浮窗高频样式子类（行内样式迁移收尾） */
+.gr-detail-muted {
+  font-size: 11px;
+  color: var(--gr-float-text-dim, #8f98a0);
+}
+.gr-detail-dim {
+  color: #acb2b8;
+}
+.gr-detail-right {
+  text-align: right;
+}
+.gr-detail-flex-between {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gr-detail-flex-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.gr-detail-sep {
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin-bottom: 8px;
+}
+.gr-detail-chip {
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--gr-float-text-dim, #8f98a0);
+}
+.gr-detail-strong {
+  color: var(--gr-float-text-bright, #c7d5e0);
+  font-weight: bold;
+}
+.gr-detail-green {
+  color: #a3cf06;
+  font-weight: bold;
+}
+.gr-detail-blue {
+  color: var(--gr-float-accent, #66c0f4);
+  font-weight: bold;
+}
+
 /* ============ 扩展更新提示条 ============ */
 #gr-update-toast {
   position: fixed;

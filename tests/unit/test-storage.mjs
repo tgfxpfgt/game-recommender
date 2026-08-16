@@ -293,11 +293,15 @@ describe('备份管理', () => {
     expect(!!backup && !!backup.id).toEqual(true);
     expect(backup.manual).toEqual(false);
     expect(backup.modules.includes('settings')).toEqual(true);
-    // 密钥剔除：备份数据中 apiKey 为空
+    // v9.3.0：默认备份为核心子集——可重建的日志类（behaviorLog）不备份
+    expect(backup.modules.includes('behaviorLog')).toEqual(false);
     expect(backup.data.settings.llmConfig.apiKey).toEqual('');
     // 原始存储不受影响（仅备份副本剔除）
     expect(storage._dump().settings.llmConfig.apiKey).toEqual('sk-secret');
-    expect(backup.data.behaviorLog.length).toEqual(1);
+    // 显式 moduleKeys 全量备份仍可用
+    const full = await backups.createBackup(false, ['settings', 'behaviorLog']);
+    expect(full.modules.includes('behaviorLog')).toEqual(true);
+    expect(full.data.behaviorLog.length).toEqual(1);
   });
 
   test('勾选模块备份（moduleKeys 过滤）', async () => {
@@ -324,7 +328,8 @@ describe('备份管理', () => {
       behaviorLog: [{ t: 1000, type: 'view_detail', gameName: '游戏A' }],
       gameRegistry: { 275850: { cnName: '无人深空' } }
     });
-    const backup = await backups.createBackup(false);
+    // v9.3.0：恢复测试显式全量（默认备份为核心子集不含 behaviorLog）
+    const backup = await backups.createBackup(false, ['settings', 'behaviorLog', 'gameRegistry']);
     // 修改数据
     await storage._data.set('behaviorLog', [{ t: 9999, type: 'view_detail', gameName: '被改' }]);
     const restored = await backups.restoreBackup(backup.id);

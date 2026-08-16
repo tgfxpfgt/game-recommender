@@ -26,9 +26,10 @@ const FIXTURE = path.join(ROOT, 'fixtures/list-page.html');
 const MOCK = process.env.E2E_MOCK === '1';
 const RECORD = process.env.E2E_RECORD === '1';
 const FIXTURES_DIR = path.join(ROOT, 'fixtures', 'http');
-// 只 mock 后台检索用的 /api/ 路径（storesearch/appdetails/appreviews/steamspy）；
-// 图片等非 API 请求保持直通（缺失不阻塞徽章断言）
-const MOCK_RE = /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\//;
+// mock 后台检索 API（storesearch/appdetails/appreviews/steamspy）+ 限免源
+//（v9.3.0：Epic/GOG/GamerPower——限免链路离线可测）；图片等非 API 直通
+const MOCK_RE =
+  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\//;
 
 // fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
 function fixtureKey(urlStr) {
@@ -547,6 +548,29 @@ async function runChecks() {
       return epicActive && allDeactivated && claimBtn.classList.contains('active');
     });
     check('限免页筛选按钮生效（平台+领取方式）', freeFilterState);
+    // v9.3.0：限免卡片渲染（MOCK 回放限免源 fixture——离线可测）
+    // 先重置筛选（上一断言停留在 epic+thirdparty——mock 的 epic 游戏是 direct）
+    await hub.evaluate(() => {
+      const doc = document.getElementById('hubFrame').contentDocument;
+      doc.querySelector('.filter-btn[data-platform="all"]').click();
+      doc.querySelector('.claim-btn-filter[data-claim="all"]').click();
+    });
+    await hub.waitForTimeout(600);
+    let freeCardCount = 0;
+    for (let i = 0; i < 20 && freeCardCount === 0; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      freeCardCount = await hub.evaluate(() => {
+        const doc = document.getElementById('hubFrame').contentDocument;
+        return doc ? doc.querySelectorAll('.game-card').length : 0;
+      });
+    }
+    const freeData = await hub.evaluate(async () => {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force: false });
+      const games = (resp && resp.data && resp.data.games) || [];
+      return { count: games.length, names: games.slice(0, 3).map((g) => g.name) };
+    });
+    void freeData; // 数据已在卡片断言中间接验证（渲染成功）
+    check('限免游戏卡片渲染（MOCK 回放限免源）', freeCardCount > 0);
     check('hub 无 console error', hubErrors.length === 0, `(${hubErrors.slice(0, 3).join(' | ')})`);
     await hub.close();
 
