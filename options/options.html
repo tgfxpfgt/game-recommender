@@ -102,7 +102,15 @@
                     <span class="label-desc">Highlight Threshold</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="threshold" min="30" max="90" step="5" />
+                    <input type="range" id="threshold" min="30" max="90" step="5" />
+                    <input
+                      type="number"
+                      id="thresholdInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="thresholdVal" class="gr-range-value">60%</span>
                   </div>
                 </div>
@@ -254,7 +262,15 @@
                     <span class="label-desc">Min Overall Rating（低于此值视为不达标）</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="minRating" min="0" max="95" step="5" />
+                    <input type="range" id="minRating" min="0" max="95" step="5" />
+                    <input
+                      type="number"
+                      id="minRatingInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="minRatingVal" class="gr-range-value">70%</span>
                   </div>
                 </div>
@@ -275,7 +291,15 @@
                     <span class="label-desc">Min Recent Rating（低于此值视为不达标）</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="minRecentRating" min="0" max="95" step="5" />
+                    <input type="range" id="minRecentRating" min="0" max="95" step="5" />
+                    <input
+                      type="number"
+                      id="minRecentRatingInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="minRecentRatingVal" class="gr-range-value">70%</span>
                   </div>
                 </div>
@@ -452,7 +476,15 @@
                     <span class="label-desc">Click Rate</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="weightClick" min="0" max="50" step="5" />
+                    <input type="range" id="weightClick" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightClickInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="weightClickVal" class="gr-range-value">0.20</span>
                   </div>
                 </div>
@@ -462,7 +494,15 @@
                     <span class="label-desc">Download Rate</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="weightDownload" min="0" max="50" step="5" />
+                    <input type="range" id="weightDownload" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightDownloadInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="weightDownloadVal" class="gr-range-value">0.35</span>
                   </div>
                 </div>
@@ -472,7 +512,15 @@
                     <span class="label-desc">Keyword Match</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="weightKeyword" min="0" max="50" step="5" />
+                    <input type="range" id="weightKeyword" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightKeywordInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="weightKeywordVal" class="gr-range-value">0.25</span>
                   </div>
                 </div>
@@ -482,7 +530,15 @@
                     <span class="label-desc">Steam Rating</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="weightSteam" min="0" max="50" step="5" />
+                    <input type="range" id="weightSteam" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightSteamInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="weightSteamVal" class="gr-range-value">0.20</span>
                   </div>
                 </div>
@@ -493,7 +549,15 @@
                     <span class="label-desc">Play Time (SteamSpy)</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="weightPlayTime" min="0" max="50" step="5" />
+                    <input type="range" id="weightPlayTime" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightPlayTimeInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="weightPlayTimeVal" class="gr-range-value">0.10</span>
                   </div>
                 </div>
@@ -503,7 +567,15 @@
                     <span class="label-desc">Heat (SteamSpy owners)</span>
                   </div>
                   <div class="gr-range-group">
-                    <input type="gr-range" id="weightHeat" min="0" max="50" step="5" />
+                    <input type="range" id="weightHeat" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightHeatInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
                     <span id="weightHeatVal" class="gr-range-value">0.10</span>
                   </div>
                 </div>
@@ -588,7 +660,15 @@
                       <span class="label-desc">Sampling Temperature</span>
                     </div>
                     <div class="gr-range-group">
-                      <input type="gr-range" id="llmTemp" min="0" max="100" step="5" />
+                      <input type="range" id="llmTemp" min="0" max="100" step="5" />
+                      <input
+                        type="number"
+                        id="llmTempInput"
+                        class="mini-input"
+                        step="5"
+                        style="width: 64px"
+                        title="手动输入数值"
+                      />
                       <span id="llmTempVal" class="gr-range-value">0.3</span>
                     </div>
                   </div>

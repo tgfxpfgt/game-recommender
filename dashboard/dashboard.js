@@ -118,11 +118,18 @@ function renderTrendChart(daily) {
   const y = (v) => PAD.t + ih - (v / maxCount) * ih;
 
   let bars = '';
+  // v9.6.0：柱状图渐变填充 + 圆角（美化）
   daily.forEach((d, i) => {
     bars +=
-      `<rect x="${(x(i) - barW - 1).toFixed(1)}" y="${y(d.views).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.views)).toFixed(1)}" fill="#66c0f4" opacity="0.75"/>` +
-      `<rect x="${(x(i) + 1).toFixed(1)}" y="${y(d.downloads).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.downloads)).toFixed(1)}" fill="#a3cf06" opacity="0.85"/>`;
+      `<rect x="${(x(i) - barW - 1).toFixed(1)}" y="${y(d.views).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.views)).toFixed(1)}" rx="2" fill="url(#gr-grad-views)" opacity="0.85"/>` +
+      `<rect x="${(x(i) + 1).toFixed(1)}" y="${y(d.downloads).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.downloads)).toFixed(1)}" rx="2" fill="url(#gr-grad-downloads)" opacity="0.9"/>`;
   });
+  // y 轴网格线（4 条水平虚线）
+  let grid = '';
+  for (let g = 0; g <= 4; g++) {
+    const gy = y((maxCount * g) / 4);
+    grid += `<line x1="${PAD.l}" y1="${gy.toFixed(1)}" x2="${W - PAD.r}" y2="${gy.toFixed(1)}" stroke="#2a3f55" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>`;
+  }
   let line = '';
   daily.forEach((d, i) => {
     const px = x(i).toFixed(1);
@@ -140,6 +147,17 @@ function renderTrendChart(daily) {
     yTicks += `<text x="${PAD.l - 6}" y="${(y((maxCount * g) / 4) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8f98a0">${v}</text>`;
   }
   container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="行为趋势图">
+    <defs>
+      <linearGradient id="gr-grad-views" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#66c0f4" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="#2a6fb0" stop-opacity="0.55"/>
+      </linearGradient>
+      <linearGradient id="gr-grad-downloads" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#a3cf06" stop-opacity="0.95"/>
+        <stop offset="100%" stop-color="#5c8a00" stop-opacity="0.55"/>
+      </linearGradient>
+    </defs>
+    ${grid}
     <g>${bars}</g>
     <path d="${line}" fill="none" stroke="#ff7b00" stroke-width="2"/>
     <g>${ticks

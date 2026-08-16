@@ -382,3 +382,26 @@ test('getSteamCacheEntry 带 moduleKey 按模块计数', async () => {
   expect(stats3.hits).toEqual(1);
   expect(stats3.modules.rating.hits).toEqual(1); // 分模块不受全局影响
 });
+
+// ============ v9.6.0：首次启动优先加载离线备份 ============
+test('settings 缺失 + 存在备份 → 自动恢复最新', async () => {
+  storage._reset({ settings: { enabled: true, maxBackups: 3 } });
+  await backups.createBackup(false, ['settings']);
+  storage._data.delete('settings'); // 模拟数据丢失（settings 缺失）
+  const r = await backups.restoreLatestIfFresh();
+  expect(r.restored).toEqual(true);
+  expect(!!storage._dump().settings).toEqual(true);
+});
+test('settings 已存在 → 跳过恢复', async () => {
+  storage._reset({ settings: { enabled: true } });
+  await backups.createBackup(false, ['settings']);
+  const r = await backups.restoreLatestIfFresh();
+  expect(r.restored).toEqual(false);
+  expect(r.reason).toEqual('settings-exists');
+});
+test('无备份 → 跳过恢复', async () => {
+  storage._reset({});
+  const r = await backups.restoreLatestIfFresh();
+  expect(r.restored).toEqual(false);
+  expect(r.reason).toEqual('no-backups');
+});

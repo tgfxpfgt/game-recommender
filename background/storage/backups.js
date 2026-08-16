@@ -147,6 +147,29 @@ export async function restoreBackup(backupId, moduleKeys = null) {
 }
 
 // 删除备份 / Delete a backup
+// v9.6.0：首次启动优先加载离线备份——settings 数据缺失（重装/清除/损坏
+// 后首次启动）且本地存在备份时，自动从最新备份恢复全部数据。
+// Fresh-start restore: when settings are missing (first run after data loss)
+// and local backups exist, restore from the latest backup automatically.
+export async function restoreLatestIfFresh() {
+  try {
+    const settings = await dataStore.readModule(DB_KEYS.SETTINGS);
+    if (settings && typeof settings === 'object') return { restored: false, reason: 'settings-exists' };
+    const list = await getBackupList();
+    if (list.length === 0) return { restored: false, reason: 'no-backups' };
+    const latest = list[0];
+    await restoreBackup(latest.id);
+    Logger.info(
+      'Backups',
+      `首次启动自动恢复离线备份: ${latest.id}（${latest.modules ? latest.modules.length + ' 模块' : '全量'}）`
+    );
+    return { restored: true, backupId: latest.id };
+  } catch (e) {
+    Logger.warn('Backups', '首次启动自动恢复失败:', String(e));
+    return { restored: false, reason: 'error' };
+  }
+}
+
 export async function deleteBackup(backupId) {
   const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
   let backups = stored || [];

@@ -29,6 +29,7 @@ export default [
         URLSearchParams: 'readonly',
         DOMParser: 'readonly',
         MutationObserver: 'readonly',
+        Event: 'readonly',
         NodeFilter: 'readonly',
         ResizeObserver: 'readonly',
         IntersectionObserver: 'readonly',

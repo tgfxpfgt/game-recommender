@@ -79,7 +79,15 @@
             <div class="ctrl-row">
               <span class="ctrl-label">推荐高亮阈值</span>
               <div class="threshold-control">
-                <input type="gr-range" id="ppThreshold" min="30" max="90" step="5" />
+                <input type="range" id="ppThreshold" min="30" max="90" step="5" />
+                <input
+                  type="number"
+                  id="ppThresholdInput"
+                  class="mini-input"
+                  step="5"
+                  style="width: 56px"
+                  title="手动输入数值"
+                />
                 <span id="ppThresholdVal" class="threshold-value">60%</span>
               </div>
             </div>
@@ -105,7 +113,15 @@
             <div class="ctrl-row" id="ppRatingControl">
               <span class="ctrl-label">最低总好评率</span>
               <div class="threshold-control">
-                <input type="gr-range" id="ppMinRating" min="0" max="95" step="5" />
+                <input type="range" id="ppMinRating" min="0" max="95" step="5" />
+                <input
+                  type="number"
+                  id="ppMinRatingInput"
+                  class="mini-input"
+                  step="5"
+                  style="width: 56px"
+                  title="手动输入数值"
+                />
                 <span id="ppMinRatingVal" class="threshold-value">0%</span>
               </div>
             </div>
@@ -116,7 +132,15 @@
             <div class="ctrl-row" id="ppRecentControl">
               <span class="ctrl-label">最低 30 天好评率</span>
               <div class="threshold-control">
-                <input type="gr-range" id="ppMinRecent" min="0" max="95" step="5" />
+                <input type="range" id="ppMinRecent" min="0" max="95" step="5" />
+                <input
+                  type="number"
+                  id="ppMinRecentInput"
+                  class="mini-input"
+                  step="5"
+                  style="width: 56px"
+                  title="手动输入数值"
+                />
                 <span id="ppMinRecentVal" class="threshold-value">0%</span>
               </div>
             </div>

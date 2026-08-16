@@ -17,13 +17,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__）
   const P = globalThis.__GR_PATTERNS__ || {};
   const rate = data.positiveRate || 0;
-  const ratingColor = P.ratingColorFor
-    ? P.ratingColorFor(rate)
-    : rate >= 80
-      ? '#66c0f4'
-      : rate >= 60
-        ? '#a3cf06'
-        : '#ff7b00';
+  // v9.6.0：评分区改 Steam 风格——颜色在 row 内经 colorOf 单源计算（此处不再需要）
   const ratingBg = P.ratingBgFor
     ? P.ratingBgFor(rate)
     : rate >= 80
@@ -136,50 +130,77 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         }
 
         <!-- 评分区域 - 四重评价（Steam总体/最近30天/简体中文/SteamSpy） -->
-        <div class="gr-detail-rating-box" style="background:${ratingBg};">
-          <div class="gr-detail-sep">
-            <div class="gr-detail-flex-between">
-              <span class="gr-detail-muted">Steam 总体</span>
-              <span style="font-size:13px;font-weight:bold;color:${ratingColor};">${data.ratingDesc || '暂无'}</span>
-            </div>
-            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">
-              ${data.positiveRate !== null && data.positiveRate !== undefined ? `${data.positiveRate}% 好评` : ''}
-              ${data.totalReviews ? ` · ${data.totalReviews.toLocaleString()} 条` : ''}
-            </div>
-          </div>
-          <div class="gr-detail-sep">
-            <div class="gr-detail-flex-between">
-              <span class="gr-detail-muted">🕒 最近 30 天</span>
-              <span style="font-size:13px;font-weight:bold;color:${(data.recentPositiveRate || 0) >= 80 ? '#66c0f4' : (data.recentPositiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00'};">${data.recentPositiveRate !== null && data.recentPositiveRate !== undefined ? `${data.recentPositiveRate}% 好评` : '暂无近期评测'}</span>
-            </div>
-            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">
-              ${data.recentTotalReviews ? `近30天 ${data.recentTotalReviews.toLocaleString()} 条` : ''}
-            </div>
-          </div>
-          <div class="gr-detail-sep">
-            <div class="gr-detail-flex-between">
-              <span class="gr-detail-muted">🇨🇳 简体中文</span>
-              <span style="font-size:13px;font-weight:bold;color:${(data.cnPositiveRate || 0) >= 80 ? '#66c0f4' : (data.cnPositiveRate || 0) >= 60 ? '#a3cf06' : '#ff7b00'};">${data.cnRatingDesc || (data.cnPositiveRate !== null && data.cnPositiveRate !== undefined ? data.cnPositiveRate + '% 好评' : '暂无')}</span>
-            </div>
-            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">
-              ${data.cnPositiveRate !== null && data.cnPositiveRate !== undefined ? `${data.cnPositiveRate}% 好评` : ''}
-              ${data.cnTotalReviews ? ` · ${data.cnTotalReviews.toLocaleString()} 条` : ''}
-            </div>
-          </div>
-          <div class="gr-detail-flex-between">
-            <span class="gr-detail-muted">📊 SteamSpy</span>
-            <span style="font-size:13px;font-weight:bold;color:#67c1f5;">
-              ${data.steamspy && data.steamspy.positiveRate !== null && data.steamspy.positiveRate !== undefined ? data.steamspy.positiveRate + '%' : '—'}
-            </span>
-          </div>
-          ${
-            data.steamspy && data.steamspy.reviewCount
-              ? `
-            <div class="gr-detail-muted gr-detail-right" style="margin-top:2px">${data.steamspy.reviewCount} 条评测</div>
-          `
-              : ''
-          }
-          <!-- v4.1.0：综合推荐理由（好评率 70% + 中文 30% 口径 + 热度/时长因子，与推荐引擎同源） -->
+                        <div class="gr-detail-rating-box" style="background:${ratingBg};">
+          ${(() => {
+            // v9.6.0：Steam 风格评分行——标签 + 好评率条形 + 数字（颜色走单源；
+            // 字符串拼接避免嵌套模板转义）
+            const P2 = globalThis.__GR_PATTERNS__ || {};
+            const colorOf = (v) =>
+              P2.ratingColorFor ? P2.ratingColorFor(v) : v >= 80 ? '#66c0f4' : v >= 60 ? '#a3cf06' : '#ff7b00';
+            const fmt = (n) => (n === null || n === undefined ? 0 : Number(n).toLocaleString());
+            const row = (label, desc, rate, total, color) =>
+              '<div class="gr-detail-rate-row">' +
+              '<div class="gr-detail-rate-head">' +
+              '<span class="gr-detail-rate-label">' +
+              label +
+              '</span>' +
+              '<span class="gr-detail-rate-desc" style="color:' +
+              color +
+              '">' +
+              desc +
+              '</span>' +
+              '</div>' +
+              '<div class="gr-detail-rate-bar"><div class="gr-detail-rate-fill" style="width:' +
+              Math.max(0, Math.min(100, rate)) +
+              '%;background:' +
+              color +
+              '"></div></div>' +
+              '<div class="gr-detail-rate-num">' +
+              rate +
+              '% · ' +
+              fmt(total) +
+              ' 条评测</div>' +
+              '</div>';
+            let html = '';
+            if (data.positiveRate !== null && data.positiveRate !== undefined) {
+              html += row(
+                'Steam 总体',
+                data.ratingDesc || data.positiveRate + '% 好评',
+                data.positiveRate,
+                data.totalReviews || 0,
+                colorOf(data.positiveRate)
+              );
+            }
+            if (data.recentPositiveRate !== null && data.recentPositiveRate !== undefined) {
+              html += row(
+                '🕒 最近 30 天',
+                data.recentPositiveRate + '% 好评',
+                data.recentPositiveRate,
+                data.recentTotalReviews || 0,
+                colorOf(data.recentPositiveRate)
+              );
+            }
+            if (data.cnPositiveRate !== null && data.cnPositiveRate !== undefined) {
+              html += row(
+                '🇨🇳 简体中文',
+                data.cnRatingDesc || data.cnPositiveRate + '% 好评',
+                data.cnPositiveRate,
+                data.cnTotalReviews || 0,
+                colorOf(data.cnPositiveRate)
+              );
+            }
+            if (data.steamspy && data.steamspy.positiveRate !== null && data.steamspy.positiveRate !== undefined) {
+              html += row(
+                '📊 SteamSpy',
+                data.steamspy.positiveRate + '% 好评',
+                data.steamspy.positiveRate,
+                data.steamspy.reviewCount || 0,
+                '#67c1f5'
+              );
+            }
+            return html;
+          })()}
+<!-- v4.1.0：综合推荐理由（好评率 70% + 中文 30% 口径 + 热度/时长因子，与推荐引擎同源） -->
           ${(() => {
             let s = 0.4; // 无好评率中性值（对齐引擎 steamScore）
             if (data.positiveRate !== null && data.positiveRate !== undefined) {

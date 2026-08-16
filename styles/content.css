@@ -314,6 +314,43 @@
   line-height: 1.5;
 }
 
+/* v9.6.0：Steam 风格评分行（标签 + 好评率条形 + 数字） */
+.gr-detail-rate-row {
+  padding: 5px 0;
+}
+.gr-detail-rate-row + .gr-detail-rate-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+.gr-detail-rate-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.gr-detail-rate-label {
+  font-size: 12px;
+  color: var(--gr-float-text, #c7d5e0);
+}
+.gr-detail-rate-desc {
+  font-size: 12px;
+  font-weight: bold;
+}
+.gr-detail-rate-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 2px;
+  overflow: hidden;
+  margin: 4px 0 3px;
+}
+.gr-detail-rate-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.gr-detail-rate-num {
+  font-size: 10px;
+  color: var(--gr-float-text-dim, #8f98a0);
+}
+
 /* v9.3.0：详情浮窗高频样式子类（行内样式迁移收尾） */
 .gr-detail-muted {
   font-size: 11px;

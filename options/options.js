@@ -70,6 +70,7 @@
       bindEvents();
       bindTabEvents();
       bindSettingsSearch(); // 侧边栏分类切换
+      bindRangeNumberInputs(); // 滑块 + 手动输入双向绑定
       OPTS.bindCacheEvents(); // 游戏缓存管理
       OPTS.bindRulesEvents(); // 规则管理（v3.0.0）
       OPTS.populateCacheSiteFilter(); // 缓存页下载站筛选
@@ -364,6 +365,34 @@
     if (!key) return '';
     const k = String(key);
     return k.length <= 4 ? '••••' : '••••' + k.slice(-4);
+  }
+
+  // ============ 数值滑块 + 手动输入双向绑定（v9.6.0） ============
+  // Slider ↔ number-input two-way sync for all range controls.
+  function bindRangeNumberInputs() {
+    document.querySelectorAll('input[type="range"]').forEach((range) => {
+      const input = document.getElementById(range.id + 'Input');
+      if (!input) return;
+      // 滑块 → 输入框
+      range.addEventListener('input', () => {
+        input.value = range.value;
+      });
+      // 输入框 → 滑块（clamp 到 min/max；回车或失焦生效）
+      const apply = () => {
+        let v = Number(input.value);
+        if (Number.isNaN(v)) return;
+        v = Math.min(range.max, Math.max(range.min, v));
+        input.value = v;
+        if (String(range.value) !== String(v)) {
+          range.value = v;
+          range.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+      input.addEventListener('change', apply);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') apply();
+      });
+    });
   }
 
   // ============ 设置搜索（v9.1.0：过滤设置行 + 高亮所在面板） ============

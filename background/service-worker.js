@@ -34,7 +34,7 @@ import { initStorage, getSettings } from './core/settings.js';
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
 import { refreshFreeGames, getLastNotifyGames } from './freegames/manager.js';
-import { createBackup } from './storage/backups.js';
+import { createBackup, restoreLatestIfFresh } from './storage/backups.js';
 import { syncSiteScripts } from './core/site-scripts.js';
 
 // v9.1.0：SW 启动计时（性能基线——Perf 日志落盘 runtimeLog，可脚本分析）
@@ -53,6 +53,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ============ 初始化 / Initialization ============
 initStorage().catch((e) => console.error('初始化失败:', e));
+// v9.6.0：首次启动优先加载离线备份（settings 缺失且本地有备份时自动恢复）
+restoreLatestIfFresh().catch(() => {});
 // v9.1.0：启动完成基线（监听器已注册 + 存储初始化发起）——Perf 日志供 dashboard
 // 诊断卡与自动化分析读取
 Logger.info('Perf', `SW 启动耗时: ${Date.now() - BOOT_START}ms (冷启动)`);

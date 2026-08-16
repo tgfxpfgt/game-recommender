@@ -253,6 +253,23 @@ export function matchCandidateScore(resultName, term, rawName) {
 
 // --- 搜索 ---
 
+// v9.6.0：候选按 type 筛选与排序——Steam storesearch 的 items 带 type
+// 字段（game/dlc/music/series/bundle/software/demo 等）：明确非游戏类型
+// （dlc/music/series/bundle/video）在存在游戏候选时剔除（音乐集/原声带/
+// DLC 常含游戏名会干扰匹配）；type=game 加排序权重（线索优先）。
+// 全为非游戏候选时兜底保留（名称相关性校验仍在，避免无结果）。
+// Pure candidate ranker by Steam type (DLC/music excluded when game exists).
+const GAME_CANDIDATE_TYPES = new Set(['game', 'software', 'demo']);
+export function rankCandidatesByType(items) {
+  const all = Array.isArray(items) ? items : [];
+  const games = all.filter((i) => GAME_CANDIDATE_TYPES.has(String((i && i.type) || '').toLowerCase()));
+  const pool = games.length > 0 ? games : all;
+  return pool
+    .map((item) => ({ item, typeBonus: String((item && item.type) || '').toLowerCase() === 'game' ? 20 : 0 }))
+    .sort((a, b) => b.typeBonus - a.typeBonus)
+    .map((r) => r.item);
+}
+
 // 单次搜索实现（网络全挂时抛错供外层重试；无结果返回 null 表示"确实未找到"）
 // 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
 // One search pass (throws on total network failure for outer retry; null = not
@@ -283,7 +300,9 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
       // v3.3.13：排除曾报错的错误 appid（人工纠正知识库的"黑名单"项）
       // v6.4.16：多候选打分排序——此前取第一个通过者，跨语言/索引噪声
       // 候选会直接中选；现按与完整标题的共同核心词评分，分数 0 不采用
-      const related = cnItems
+      // v9.6.0：先按 type 排名（game 优先、去 DLC/音乐集），再名称相关性打分
+      const typeRanked = rankCandidatesByType(cnItems);
+      const related = typeRanked
         .filter(
           (i) =>
             String(i.id) !== String(excludeAppId) &&
