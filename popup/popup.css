@@ -110,28 +110,36 @@ input:checked + .gr-slider-ui::before {
 /* ============ 快速搜索（v7.4.0） ============ */
 .popup-search {
   display: flex;
+  align-items: center;
   gap: 6px;
   padding: 8px 12px 0;
 }
 .popup-search input {
-  flex: 1;
+  flex: 1 1 auto;
   min-width: 0;
-  padding: 6px 10px;
+  width: auto;
+  height: 30px;
+  padding: 4px 10px;
   font-size: 12px;
-  color: #2c3e50;
-  background: #fff;
-  border: 1px solid #c9d1d9;
+  color: var(--gr-text, #2c3e50);
+  background: var(--gr-input-bg, #fff);
+  border: 1px solid var(--gr-border-soft, #c9d1d9);
   border-radius: 6px;
   outline: none;
+  box-shadow: none;
 }
 .popup-search input:focus {
-  border-color: #1f6feb;
+  border-color: var(--gr-accent-btn, #1f6feb);
 }
 .popup-search button {
-  padding: 6px 12px;
-  font-size: 12px;
+  /* v9.2.1：图标化紧凑按钮——文字过长挤压输入框 */
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  font-size: 14px;
   color: #fff;
-  background: #1f6feb;
+  background: var(--gr-accent-btn, #1f6feb);
   border: none;
   border-radius: 6px;
   cursor: pointer;

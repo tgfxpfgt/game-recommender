@@ -19,65 +19,78 @@
         </div>
       </header>
 
-      <!-- 概览统计 / Overview stats -->
-      <section class="stats-grid">
-        <div class="gr-stat-card">
-          <div class="stat-value" id="statTotal">0</div>
-          <div class="stat-label">总行为记录</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="statGames">0</div>
-          <div class="stat-label">已学习游戏</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="statViews">0</div>
-          <div class="stat-label">详情页浏览</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="statDownloads">0</div>
-          <div class="stat-label">下载操作</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="statRate">0%</div>
-          <div class="stat-label">浏览→下载转化率</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="statCacheHit">—</div>
-          <div class="stat-label">Steam 缓存命中率（v6.3.2）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="modHitMeta">—</div>
-          <div class="stat-label">基础信息命中（v7.1.0）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="modHitRating">—</div>
-          <div class="stat-label">好评率命中（v7.1.0）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="modHitDetail">—</div>
-          <div class="stat-label">详情信息命中（v7.1.0）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="modHitSpy">—</div>
-          <div class="stat-label">SteamSpy 命中（v7.1.0）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="diagApiStatus">—</div>
-          <div class="stat-label">Steam API 状态（v7.1.0 诊断）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="diagUrlIndex">—</div>
-          <div class="stat-label">网址索引条数（v7.1.0 诊断）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="diagNegativeCache">—</div>
-          <div class="stat-label">名称负缓存（v7.1.0 诊断）</div>
-        </div>
-        <div class="gr-stat-card">
-          <div class="stat-value" id="diagBootTime">—</div>
-          <div class="stat-label">SW 启动耗时（v9.1.0 性能）</div>
-        </div>
-      </section>
+      <!-- 概览统计（分级展示 v9.2.1） -->
+      <div class="stats-group">
+        <div class="stats-group-title">📈 行为统计 Behavior</div>
+        <section class="stats-grid">
+          <div class="gr-stat-card">
+            <div class="stat-value" id="statTotal">0</div>
+            <div class="stat-label">总行为记录</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="statGames">0</div>
+            <div class="stat-label">已学习游戏</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="statViews">0</div>
+            <div class="stat-label">详情页浏览</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="statDownloads">0</div>
+            <div class="stat-label">下载操作</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="statRate">0%</div>
+            <div class="stat-label">浏览→下载转化率</div>
+          </div>
+        </section>
+      </div>
+      <div class="stats-group">
+        <div class="stats-group-title">💾 缓存命中 Cache</div>
+        <section class="stats-grid">
+          <div class="gr-stat-card">
+            <div class="stat-value" id="statCacheHit">—</div>
+            <div class="stat-label">Steam 缓存命中率（v6.3.2）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="modHitMeta">—</div>
+            <div class="stat-label">基础信息命中（v7.1.0）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="modHitRating">—</div>
+            <div class="stat-label">好评率命中（v7.1.0）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="modHitDetail">—</div>
+            <div class="stat-label">详情信息命中（v7.1.0）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="modHitSpy">—</div>
+            <div class="stat-label">SteamSpy 命中（v7.1.0）</div>
+          </div>
+        </section>
+      </div>
+      <div class="stats-group">
+        <div class="stats-group-title">🩺 系统诊断 Diagnostics</div>
+        <section class="stats-grid">
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagApiStatus">—</div>
+            <div class="stat-label">Steam API 状态（v7.1.0 诊断）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagUrlIndex">—</div>
+            <div class="stat-label">网址索引条数（v7.1.0 诊断）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagNegativeCache">—</div>
+            <div class="stat-label">名称负缓存（v7.1.0 诊断）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagBootTime">—</div>
+            <div class="stat-label">SW 启动耗时（v9.1.0 性能）</div>
+          </div>
+        </section>
+      </div>
 
       <!-- 行为趋势 / Behavior trends (v4.0.0) -->
       <section class="section">
@@ -138,6 +151,7 @@
               </tr>
             </tbody>
           </table>
+          <div id="gamePager" class="pager"></div>
         </div>
       </section>
 
@@ -193,6 +207,7 @@
         <div id="runtimeLogList" class="runtime-log">
           <div class="no-data">暂无日志</div>
         </div>
+        <div id="logPager" class="pager"></div>
       </section>
 
       <!-- 出站请求审计 / Outbound request audit -->
@@ -215,6 +230,7 @@
         <div id="auditList" class="runtime-log">
           <div class="no-data">暂无请求记录</div>
         </div>
+        <div id="auditPager" class="pager"></div>
       </section>
 
       <!-- 备份管理 / Backup management -->

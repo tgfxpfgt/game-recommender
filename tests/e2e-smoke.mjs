@@ -534,6 +534,19 @@ async function runChecks() {
     await hub.waitForTimeout(1500);
     const hubFree = await hub.evaluate(() => document.getElementById('hubFrame').src);
     check('hub 切换到限免游戏', hubFree.includes('freegames/freegames.html'));
+    // v9.2.1：限免页筛选按钮回归（平台/领取方式——v8.1.0 组件化误改类名致失效）
+    const freeFilterState = await hub.evaluate(() => {
+      const doc = document.getElementById('hubFrame').contentDocument;
+      const epicBtn = doc.querySelector('.filter-btn[data-platform="epic"]');
+      epicBtn.click();
+      const epicActive = epicBtn.classList.contains('active');
+      const allBtn = doc.querySelector('.filter-btn[data-platform="all"]');
+      const allDeactivated = !allBtn.classList.contains('active');
+      const claimBtn = doc.querySelector('.claim-btn-filter[data-claim="thirdparty"]');
+      claimBtn.click();
+      return epicActive && allDeactivated && claimBtn.classList.contains('active');
+    });
+    check('限免页筛选按钮生效（平台+领取方式）', freeFilterState);
     check('hub 无 console error', hubErrors.length === 0, `(${hubErrors.slice(0, 3).join(' | ')})`);
     await hub.close();
 

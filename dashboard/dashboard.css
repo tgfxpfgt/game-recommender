@@ -186,3 +186,42 @@ tr:hover td {
     max-width: calc(100vw - 120px);
   }
 }
+
+/* ============ 分级统计与分页（v9.2.1） ============ */
+.stats-group {
+  margin-bottom: 18px;
+}
+.stats-group-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--gr-text-dim, #8f98a0);
+  margin: 0 0 8px 2px;
+  letter-spacing: 0.5px;
+}
+.pager {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 10px;
+  flex-wrap: wrap;
+}
+.pager .pager-info {
+  font-size: 11px;
+  color: var(--gr-text-dim, #8f98a0);
+  margin-right: 8px;
+}
+.pager .pager-btn {
+  min-height: 24px;
+  padding: 2px 8px;
+  font-size: 11px;
+  border-radius: 4px;
+}
+.pager .pager-btn.active {
+  background: var(--gr-accent-btn, #1a9fff);
+  color: #fff;
+  border-color: transparent;
+}
+.pager .pager-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

@@ -352,13 +352,16 @@ function renderDownloadMethods(methods) {
 
 // 游戏明细表（按下载数/查看数降序） / Per-game table (sorted by downloads/views)
 function renderGameTable(games) {
+  cachedGames = games || [];
   const tbody = document.getElementById('gameTableBody');
   if (!games || games.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无游戏记录</td></tr>';
+    renderPager('games', 'gamePager', 0);
     return;
   }
-
-  tbody.innerHTML = games
+  const { slice, total } = paginate('games', games);
+  renderPager('games', 'gamePager', total);
+  tbody.innerHTML = slice
     .map((game) => {
       const tags = (game.keywords || [])
         .slice(0, 4)
@@ -494,6 +497,7 @@ async function loadSteamRecommendations() {
 
 // ============ 运行日志 / Runtime Logs ============
 let cachedLogs = [];
+let cachedGames = [];
 
 // 从后台加载运行日志（最多 200 条）/ Load runtime logs from background (max 200)
 async function loadRuntimeLogs() {
@@ -520,8 +524,12 @@ function renderRuntimeLogs() {
 
   if (logs.length === 0) {
     container.innerHTML = '<div class="no-data">暂无日志</div>';
+    renderPager('logs', 'logPager', 0);
     return;
   }
+  const { slice: logSlice, total: logTotal } = paginate('logs', logs);
+  renderPager('logs', 'logPager', logTotal);
+  logs = logSlice;
 
   // 倒序显示（最新在前）
   container.innerHTML = [...logs]
@@ -595,9 +603,12 @@ function renderOutboundAudit() {
   const entries = (cachedAudit.entries || []).filter((e) => !filter || (e.host || '').toLowerCase().includes(filter));
   if (entries.length === 0) {
     container.innerHTML = '<div class="no-data">' + (filter ? '无匹配主机记录' : '暂无请求记录') + '</div>';
+    renderPager('audit', 'auditPager', 0);
     return;
   }
-  container.innerHTML = entries
+  const { slice: auditSlice, total: auditTotal } = paginate('audit', entries);
+  renderPager('audit', 'auditPager', auditTotal);
+  container.innerHTML = auditSlice
     .map((e) => {
       const time = new Date(e.t).toLocaleString('zh-CN', {
         month: '2-digit',
@@ -749,6 +760,70 @@ async function loadBootTime() {
     el.textContent = '—';
   }
 }
+
+// ============ v9.2.1：统一分页（游戏记录/运行日志/出站审计） ============
+// Unified pagination for the three growing tables.
+const PAGERS = {
+  games: { page: 1, pageSize: 20 },
+  logs: { page: 1, pageSize: 50 },
+  audit: { page: 1, pageSize: 50 }
+};
+
+function paginate(key, items) {
+  const p = PAGERS[key];
+  const total = items.length;
+  const pages = Math.max(1, Math.ceil(total / p.pageSize));
+  if (p.page > pages) p.page = pages;
+  const start = (p.page - 1) * p.pageSize;
+  return {
+    slice: items.slice(start, start + p.pageSize),
+    page: p.page,
+    pages,
+    total,
+    start: start + 1,
+    end: Math.min(start + p.pageSize, total)
+  };
+}
+
+// 渲染分页控件（容器 id → 数据来自调用方缓存的 items 长度）
+function renderPager(key, containerId, total) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  const p = PAGERS[key];
+  const pages = Math.max(1, Math.ceil(total / p.pageSize));
+  if (pages <= 1) {
+    el.innerHTML = '';
+    return;
+  }
+  const start = (p.page - 1) * p.pageSize + 1;
+  const end = Math.min(start + p.pageSize - 1, total);
+  const pageBtns = [];
+  for (let i = 1; i <= pages; i++) {
+    pageBtns.push(
+      `<button class="gr-btn sm pager-btn${i === p.page ? ' active' : ''}" data-key="${key}" data-page="${i}">${i}</button>`
+    );
+  }
+  el.innerHTML =
+    `<span class="pager-info">${start}-${end} / ${total} 条</span>` +
+    `<button class="gr-btn sm pager-btn" data-key="${key}" data-page="${p.page - 1}" ${p.page <= 1 ? 'disabled' : ''}>‹</button>` +
+    pageBtns.join('') +
+    `<button class="gr-btn sm pager-btn" data-key="${key}" data-page="${p.page + 1}" ${p.page >= pages ? 'disabled' : ''}>›</button>`;
+}
+
+// 分页控件事件（事件委托：任何 pager 内按钮）
+document.addEventListener('click', (e) => {
+  const t = /** @type {any} */ (e.target);
+  const btn = t && t.closest ? t.closest('.pager-btn') : null;
+  if (!btn || btn.disabled) return;
+  const key = btn.dataset.key;
+  const page = Number(btn.dataset.page);
+  if (!key || !page) return;
+  PAGERS[key].page = page;
+  // 触发对应重渲染
+  if (key === 'games') renderGameTable(cachedGames || []);
+  else if (key === 'logs') renderRuntimeLogs();
+  else if (key === 'audit') renderOutboundAudit();
+});
 
 // v7.1.0：Steam API 限流状态诊断（自助诊断——"为什么数据没更新"）
 async function loadApiDiagnostics() {
