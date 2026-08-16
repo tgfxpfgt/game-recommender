@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Load settings / 加载设置（后台未就绪时给出降级处理）
   let settings;
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
     settings = response?.settings;
   } catch (e) {
     console.warn('【游戏雷达】 加载设置失败:', e);
@@ -45,11 +45,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   function saveSettingsPatch(patch) {
     saveQueue = saveQueue
       .then(async () => {
-        const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
         const latest = resp && resp.settings ? resp.settings : settings;
         utils.applyPatch(latest, patch);
         settings = latest;
-        await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+        await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
       })
       .catch((err) => {
         console.warn('【游戏雷达】 设置保存失败:', err);
@@ -267,12 +267,12 @@ function renderWeights(weights) {
       updateWeightSum();
     });
     slider.addEventListener('change', async (e) => {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
       const latest = resp && resp.settings ? resp.settings : {};
       latest.weights = { ...(latest.weights || {}), [key]: Number(e.target.value) / 100 };
       const utils = globalThis.__GR_SETTINGS_UTILS__ || {};
       if (utils.applyPatch) utils.applyPatch(latest, { weights: latest.weights });
-      await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+      await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
       updateWeightSum();
     });
   });
@@ -295,7 +295,7 @@ async function loadApiStatus() {
   const dot = document.getElementById('apiStatusDot');
   const info = document.getElementById('apiStatusInfo');
   try {
-    const resp = await chrome.runtime.sendMessage({ action: 'GET_API_STATUS' });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_API_STATUS' });
     if (!resp) {
       info.innerHTML = '<span class="no-data">无法获取状态</span>';
       return;
@@ -319,7 +319,7 @@ async function loadApiStatus() {
 // ============ Load Free Games Count / 加载限免游戏数量 ============
 async function loadFreeGamesCount() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force: false });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_FREE_GAMES', force: false });
     if (response && response.data && response.data.games) {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
@@ -339,7 +339,7 @@ async function loadFreeGamesCount() {
 // ============ Load Statistics / 加载统计数据 ============
 async function loadStats() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STATS' });
     if (!response) return;
     const totalEvents = response.totalEvents || 0;
     const totalGames = response.totalGames || 0;
@@ -395,7 +395,7 @@ async function doSearch() {
   searchResults.classList.remove('hidden');
   searchResults.textContent = '搜索中…';
   try {
-    const resp = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM_CANDIDATES', gameName: name });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM_CANDIDATES', gameName: name });
     const cands = (resp && resp.candidates) || [];
     if (cands.length === 0) {
       searchResults.textContent = '未找到匹配的 Steam 游戏';

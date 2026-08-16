@@ -14,6 +14,17 @@ import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
 /** @type {Record<string, any>} */
 let registryMemory = {};
 let registryMemoryLoaded = false;
+// v8.2.0：注册表上限（防长期运行无界膨胀——超限按 lastConfirmed 最旧淘汰；
+// 正常用户远低于此，仅极端累积触发）
+const REGISTRY_MAX_ENTRIES = 10000;
+function enforceRegistryLimit() {
+  const keys = Object.keys(registryMemory);
+  if (keys.length <= REGISTRY_MAX_ENTRIES) return;
+  const sorted = keys
+    .map((k) => [k, (registryMemory[k] && registryMemory[k].lastConfirmed) || 0])
+    .sort((a, b) => a[1] - b[1]);
+  for (const [k] of sorted.slice(0, keys.length - REGISTRY_MAX_ENTRIES)) delete registryMemory[k];
+}
 let registryDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 
 // 加载注册表到内存 / Load registry into memory (once)
@@ -22,6 +33,7 @@ async function loadRegistryToMemory() {
   const stored = await dataStore.readModule(DB_KEYS.GAME_REGISTRY);
   registryMemory = stored || {};
   registryMemoryLoaded = true;
+  enforceRegistryLimit();
 }
 
 // 获取整个注册表 / Get the entire registry
@@ -94,6 +106,7 @@ export async function recordGameInRegistry(
 
   existing.lastConfirmed = Date.now();
   registryMemory[key] = existing;
+  enforceRegistryLimit();
   scheduleRegistryWrite();
 }
 

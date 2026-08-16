@@ -21,9 +21,10 @@ export default defineConfig({
     // v6.2.0：默认隔离 + 文件级并行——v6.1.1 结构化重写后各套件已自包含
     //（chrome/storage mock 各自安装还原、模块实例按文件独立），无需串行共享；
     // 隔离开启后跨文件状态竞态（防抖延迟写落点依赖执行时序）一并消除
-    // v6.4.10：content-sim 高负载（eval 11 模块 + Fake DOM）与并行文件 CPU
-    // 竞争导致节 2/2b 偶发推送处理超时——串行执行根治（全量耗时 ~10s 可接受）
-    fileParallelism: false,
+    // v6.4.10：content-sim 高负载与并行文件 CPU 竞争致节 2/2b 偶发超时——串行。
+    // v8.2.0：P0-1 偶发根治（boot 等待 + 微任务 flush + waitFor 20s 余量）后恢复并行
+    //（unit 13 文件并行 ≈ 全量 15s → ~8s；content-sim 的偶发窗口由 20s 余量覆盖）
+    fileParallelism: true,
     isolate: true,
     include: [
       // v6.2.0：14 个套件全部由 vitest 收集（content-sim 经 __grImport
@@ -41,6 +42,7 @@ export default defineConfig({
       'tests/unit/test-outbound.mjs',
       'tests/unit/test-backups.mjs',
       'tests/unit/test-properties.mjs',
+      'tests/unit/test-migrate.mjs',
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',

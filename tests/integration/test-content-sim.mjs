@@ -272,7 +272,7 @@ globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: SITE_RULES };
 // v6.0.0：内容脚本 ESM 化——经典入口 tracker.js eval + 模块动态 import
 // v7.2.0 回退：Chromium 的 content_scripts 不支持 type:module（运行时忽略）——
 // 恢复动态 import 方案；storage mock 返回测试规则（更健壮）
-const SCRIPT_FILES = ['shared/patterns.js', 'shared/escape.js', 'content/tracker.js'];
+const SCRIPT_FILES = ['shared/patterns.js', 'shared/escape.js', 'shared/msg.js', 'content/tracker.js'];
 // 模块加载（动态 import + GR shim 兼容层；固定 ?t= 与 tracker 的 getURL 共享实例）
 const MODULE_FILES = [
   'content/core/common.js',
@@ -366,7 +366,7 @@ let GR = null; // 节 1 赋值，后续节共享（文件级 let + test 顺序�
 
 // v6.3.2：固定延时在全量并发下偶发不足（推送/批次异步链竞争）——
 // 轮询等待条件（最多 2s）替代固定延时，根治偶发
-async function waitFor(fn, timeoutMs = 10000) {
+async function waitFor(fn, timeoutMs = 20000) {
   // v6.4.7：全量并行 CPU 竞争，5s 偶发不足 → 10s // v6.4.4：全量并行加载慢，超时 2s 偶发不足 → 5s
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
@@ -603,6 +603,8 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   await waitFor(() => batchRequests2.length >= 1);
   expect(batchRequests2.length).toEqual(1);
   // 后台完成 → 推送 done → 应自动发起第二批
+  // 让第一批 fireBatch 的 await sendMessage 微任务完成（否则 done 与在途批交错）
+  await new Promise((r) => setTimeout(r, 0));
   await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
   await waitFor(() => batchRequests2.length >= 2);
   expect(batchRequests2[1] ? batchRequests2[1].length : 0).toEqual(40);

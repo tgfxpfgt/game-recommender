@@ -31,6 +31,7 @@ export const BUILTIN_DOMAINS = [
 // 与 manifest content_scripts 相同的注入清单（动态注册用）
 const SITE_SCRIPT_FILES = [
   'shared/patterns.js',
+  'shared/msg.js',
   'shared/escape.js',
   'adapters/default.js',
   'adapters/sites/xdgame.js',

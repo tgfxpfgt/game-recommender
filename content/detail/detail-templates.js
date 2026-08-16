@@ -100,13 +100,13 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         data.headerImage
           ? `
         <div style="position:relative;">
-          <img id="gr-header-image" src="${common.escapeAttr(data.headerImage)}" style="width:100%;display:block;border-radius:4px 4px 0 0;"/>
+          <img id="gr-header-image" class="gr-detail-header-img" src="${common.escapeAttr(data.headerImage)}"/>
         </div>
       `
           : ''
       }
 
-      <div style="padding:14px;">
+      <div class="gr-detail-content">
         <!-- 游戏名 + Demo/试玩版标识 -->
         <div class="gr-detail-title">
           ${
@@ -118,7 +118,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         </div>
 
         <!-- 中文支持 + 发行信息 -->
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;font-size:11px;">
+        <div class="gr-detail-tags">
           <span style="padding:2px 8px;border-radius:2px;background:${data.chineseSupported ? 'rgba(163,207,6,0.15)' : 'rgba(255,255,255,0.05)'};color:${data.chineseSupported ? '#a3cf06' : '#666'};">
             ${data.chineseSupported ? (data.simplifiedChinese ? '✓ 简体中文' : '✓ 支持中文') : '✗ 暂不支持中文'}
             ${data.chineseSupported && data.chineseHasAudio ? ' · 音频' : ''}
@@ -136,7 +136,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         }
 
         <!-- 评分区域 - 四重评价（Steam总体/最近30天/简体中文/SteamSpy） -->
-        <div style="background:${ratingBg};border-radius:3px;padding:10px;margin-bottom:12px;">
+        <div class="gr-detail-rating-box" style="background:${ratingBg};">
           <div style="padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.08);margin-bottom:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
               <span style="font-size:11px;color:#8f98a0;">Steam 总体</span>

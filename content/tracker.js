@@ -16,7 +16,17 @@
   window.__gameRecommenderTracker = true;
 
   // ============ 模块加载（动态 import，零构建） ============
+  // v8.2.0：JSDoc 类型化——MODULES 形状固定，`M.float` 类键名错误编译期可捕获
+  /**
+   * @typedef {{
+   *   common: any, floats: any, status: any, debug: any, builder: any,
+   *   badges: any, listBatch: any, list: any, listState: any,
+   *   detailTemplates: any, detail: any, tracking: any
+   * }} GRModules
+   */
+  /** @type {GRModules|null} */
   let MODULES = null;
+
   async function ensureModules() {
     if (MODULES) return MODULES;
     // 逐模块 getURL（动态 import 的 URL 由浏览器解析；测试环境 getURL 可 mock）
@@ -69,9 +79,10 @@
   // Warm-up: module load, settings and site rules all run in parallel.
   const bootPromise = (async () => {
     const M = await ensureModules();
+    /** @type {any} */
     let settings = null;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
       settings = resp?.settings;
     } catch {
       /* 后台不可达时 init 会自行重试 */
@@ -84,6 +95,8 @@
     }
     return { M, settings };
   })();
+  // v8.2.0：boot 就绪信号（测试等待模块+预热完成——推送不再走延迟路径）
+  window.__grBootPromise = bootPromise;
 
   // ============ 核心初始化（URL检测页面类型） ============
   async function init() {
@@ -95,7 +108,7 @@
     // Fallback when the warm-up failed (e.g. SW cold start): retry once
     if (!settings) {
       try {
-        const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
         settings = resp?.settings;
       } catch {
         /* 仍失败则放弃本页 */
@@ -280,7 +293,7 @@
       (async () => {
         try {
           const { M } = await bootPromise;
-          const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+          const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
           const settings = resp?.settings;
           if (!settings) {
             sendResponse({ success: false });
@@ -349,7 +362,7 @@
               });
             }
           }
-          const resp = await chrome.runtime.sendMessage({
+          const resp = await window.__GR_MSG__.sendMessage({
             action: 'CLEAR_CACHE_FOR_PAGE',
             names: [...names],
             appIds: [...appIds]

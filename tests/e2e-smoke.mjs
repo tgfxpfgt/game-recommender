@@ -211,6 +211,16 @@ async function runChecks() {
   } else {
     check('欢迎页已打开（install 模式）', false);
   }
+  // v8.2.0：update 模式（What's new）——直接访问 ?source=update 验证渲染
+  const updWelcome = await context.newPage();
+  await updWelcome.goto(`chrome-extension://${extId}/welcome/welcome.html?source=update`);
+  await updWelcome.waitForTimeout(500);
+  const updState = await updWelcome.evaluate(() => ({
+    changelog: document.querySelectorAll('.changelog li').length,
+    installHidden: document.getElementById('installSection').classList.contains('hidden')
+  }));
+  check("欢迎页更新模式（What's new 渲染 + 安装区隐藏）", updState.changelog >= 5 && updState.installHidden);
+  await updWelcome.close();
 
   if (extId) {
     // 2. popup 打开且无 console error

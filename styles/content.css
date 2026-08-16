@@ -217,6 +217,32 @@
 }
 
 /* ============ 详情页浮窗 ============ */
+.gr-detail-header-img {
+  width: 100%;
+  display: block;
+  border-radius: 8px 8px 0 0;
+}
+.gr-detail-content {
+  padding: 14px;
+}
+.gr-detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+  font-size: 11px;
+}
+.gr-detail-tag-chip {
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--gr-float-text-dim, #8f98a0);
+}
+.gr-detail-rating-box {
+  border-radius: 3px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
 .gr-detail-title {
   font-size: 17px;
   font-weight: bold;

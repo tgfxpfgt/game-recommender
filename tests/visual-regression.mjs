@@ -27,9 +27,16 @@ const CHANNEL = process.env.E2E_CHANNEL || 'msedge';
 const userDataDir = path.join(ROOT, '.visual-profile');
 
 const PAGES = [
-  { name: 'popup', url: 'popup/popup.html', viewport: { width: 420, height: 620 } },
-  { name: 'options', url: 'options/options.html', viewport: { width: 1280, height: 800 } },
-  { name: 'dashboard', url: 'dashboard/dashboard.html', viewport: { width: 1280, height: 800 } }
+  // v8.2.0：多主题基线——options 页在 steam 基础上加浅色主题（win95/win10）
+  // 覆盖皮肤系统浅色分支；popup/dashboard 保持默认主题
+  { name: 'popup', url: 'popup/popup.html', viewport: { width: 420, height: 620 }, themes: ['steam'] },
+  {
+    name: 'options',
+    url: 'options/options.html',
+    viewport: { width: 1280, height: 800 },
+    themes: ['steam', 'win95', 'win10']
+  },
+  { name: 'dashboard', url: 'dashboard/dashboard.html', viewport: { width: 1280, height: 800 }, themes: ['steam'] }
   // 注：freegames 页为动态限免数据（每次运行内容漂移），不适合像素基线对比
 ];
 
@@ -76,30 +83,39 @@ try {
     await page.goto(`chrome-extension://${extId}/${p.url}`);
     // 等待渲染稳定（options/dashboard 有异步数据加载）
     await page.waitForTimeout(1500);
-    // 截首屏（固定 viewport 尺寸——fullPage 高度随动态内容漂移，无法稳定对比；
-    // 布局回归在首屏即可见）
-    const shot = await page.screenshot();
-    const file = path.join(BASELINE_DIR, p.name + '.png');
-    if (UPDATE) {
-      fs.writeFileSync(file, shot);
-      report(`${p.name} 基线已更新`, true);
-    } else {
-      if (!fs.existsSync(file)) {
-        report(`${p.name} 缺少基线（先跑 npm run visual -- --update）`, false);
-        continue;
-      }
-      const base = PNG.sync.read(fs.readFileSync(file));
-      const now = PNG.sync.read(shot);
-      const diff = new PNG({ width: base.width, height: base.height });
-      const mismatched = pixelmatch(base.data, now.data, diff.data, base.width, base.height, {
-        threshold: 0.15
-      });
-      const ratio = mismatched / (base.width * base.height);
-      if (ratio > MAX_DIFF_RATIO) {
-        fs.writeFileSync(path.join(DIFF_DIR, p.name + '.png'), PNG.sync.write(diff));
-        report(`${p.name} 与基线差异 ${(ratio * 100).toFixed(2)}%`, false, `(diff: tests/visual/diff/${p.name}.png)`);
+    for (const theme of p.themes) {
+      // 直接设置 data-theme（themes.css 按 body[data-theme] 生效）
+      await page.evaluate((t) => document.body.setAttribute('data-theme', t), theme);
+      await page.waitForTimeout(300);
+      // 截首屏（固定 viewport 尺寸——fullPage 高度随动态内容漂移，无法稳定对比；
+      // 布局回归在首屏即可见）
+      const shot = await page.screenshot();
+      const file = path.join(BASELINE_DIR, `${theme}-${p.name}.png`);
+      if (UPDATE) {
+        fs.writeFileSync(file, shot);
+        report(`${theme}-${p.name} 基线已更新`, true);
       } else {
-        report(`${p.name} 与基线一致（差异 ${(ratio * 100).toFixed(3)}%）`, true);
+        if (!fs.existsSync(file)) {
+          report(`${theme}-${p.name} 缺少基线（先跑 npm run visual -- --update）`, false);
+          continue;
+        }
+        const base = PNG.sync.read(fs.readFileSync(file));
+        const now = PNG.sync.read(shot);
+        const diff = new PNG({ width: base.width, height: base.height });
+        const mismatched = pixelmatch(base.data, now.data, diff.data, base.width, base.height, {
+          threshold: 0.15
+        });
+        const ratio = mismatched / (base.width * base.height);
+        if (ratio > MAX_DIFF_RATIO) {
+          fs.writeFileSync(path.join(DIFF_DIR, `${theme}-${p.name}.png`), PNG.sync.write(diff));
+          report(
+            `${theme}-${p.name} 与基线差异 ${(ratio * 100).toFixed(2)}%`,
+            false,
+            `(diff: tests/visual/diff/${theme}-${p.name}.png)`
+          );
+        } else {
+          report(`${theme}-${p.name} 与基线一致（差异 ${(ratio * 100).toFixed(3)}%）`, true);
+        }
       }
     }
     await page.close();

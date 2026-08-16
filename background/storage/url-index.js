@@ -18,6 +18,14 @@ import { createDebouncedStore } from './debounced-store.js';
 /** @type {Record<string, string|number>} */
 let urlIndexMemory = {};
 let loaded = false;
+// v8.2.0：网址索引上限（对象键序 = 插入序，超限淘汰最旧——URL→appId
+// 映射为缓存性质数据，无界增长无意义）
+const URL_INDEX_MAX_ENTRIES = 5000;
+function enforceUrlIndexLimit() {
+  const keys = Object.keys(urlIndexMemory);
+  if (keys.length <= URL_INDEX_MAX_ENTRIES) return;
+  for (const k of keys.slice(0, keys.length - URL_INDEX_MAX_ENTRIES)) delete urlIndexMemory[k];
+}
 
 async function load() {
   if (loaded) return;
@@ -30,6 +38,7 @@ async function load() {
     /* 损坏缓存忽略 */
   }
   loaded = true;
+  enforceUrlIndexLimit();
 }
 
 const writer = createDebouncedStore({
@@ -63,6 +72,7 @@ export async function setUrlAppId(url, appId) {
   if (!key || appId === null || appId === undefined) return;
   await load();
   urlIndexMemory[key] = appId;
+  enforceUrlIndexLimit();
   writer.scheduleWrite();
 }
 

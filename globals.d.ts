@@ -16,7 +16,11 @@ declare global {
   var __GR_PATTERNS__: any; // 共享模式（shared/patterns.js 经典注入）
   var __OPTS__: any; // 设置页命名空间（options 经典脚本共享）
   var __gameRecommenderTracker: boolean; // tracker 防重入守卫
-  interface Element { href?: any; } // 下载站链接元素（锚点属性宽松）
+  var __grBootPromise: Promise<any>; // v8.2.0：tracker boot 就绪信号（测试等待用）
+  var __GR_MSG__: { sendMessage: (action: any, payload?: any, opts?: { timeout?: number }) => Promise<any> }; // v8.2.0：统一消息层
+  interface Element {
+    href?: any;
+  } // 下载站链接元素（锚点属性宽松）
   var escapeHtml: (text: string) => string; // shared/escape.js 经典注入
   var escapeAttr: (text: string) => string;
   // UI 层 DOM 访问宽松化（v6.3.2 决策）：UI 脚本风格代码中元素存在性/具体

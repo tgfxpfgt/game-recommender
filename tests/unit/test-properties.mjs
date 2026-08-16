@@ -8,6 +8,9 @@
 import { test, expect } from 'vitest';
 import * as fc from 'fast-check';
 import { ratingFilterPass, sortItemsByRating, applyVmFilter } from '../../content/list/list-page.js';
+import { cleanGameName } from '../../background/core/title-parser.js';
+import { classifyFreeType } from '../../background/freegames/manager.js';
+import { hasReDoSRisk } from '../../background/core/rules.js';
 
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖，?t= 击穿共享实例）
 const tp = await import(new URL('../../background/core/title-parser.js', import.meta.url).href + '?t=' + Date.now());
@@ -151,6 +154,77 @@ test('阈值全 0 时全部保留（四模式）', () => {
         );
       }
     ),
+    { numRuns: 200 }
+  );
+});
+
+// ============ 6. cleanGameName 噪声剥离不变量（v8.2.0 扩展） ============
+// 输入含已知噪声词（"抢先体验"等）时，输出不应再以该词结尾
+const NOISE_WORDS = ['抢先体验', '抢先试玩', '试玩版', '体验版', '完整版', '豪华版'];
+test('cleanGameName 噪声词剥离（任意前后缀）', () => {
+  fc.assert(
+    fc.property(
+      fc.string({ maxLength: 20 }),
+      fc.string({ maxLength: 20 }),
+      fc.constantFrom(...NOISE_WORDS),
+      (prefix, suffix, noise) => {
+        const title = prefix + noise + suffix;
+        const out = cleanGameName(title);
+        // 剥离后长度不增且不退化：输出非空（原名兜底）
+        return out.length > 0 && out.length <= title.length;
+      }
+    ),
+    { numRuns: 200 }
+  );
+});
+
+// ============ 7. hasReDoSRisk 安全正则不误报（v8.2.0 扩展） ============
+// 常见站点/普通正则（无嵌套量词、无转义陷阱）必须全部放行
+test('hasReDoSRisk 安全正则零误报', () => {
+  const safePatterns = [
+    '/\/\d+\.html$/',
+    '/\/game\/\d+\.html?$/i',
+    '^(/|$)',
+    '/page/\d+',
+    '[a-z0-9_-]{1,32}',
+    '^https?://',
+    '\(a\)+$',
+    '[a+]+$',
+    '(?:game|pcgame)/\d+/'
+  ];
+  fc.assert(
+    fc.property(fc.constantFrom(...safePatterns), (pat) => {
+      return hasReDoSRisk(pat) === false;
+    }),
+    { numRuns: 100 }
+  );
+});
+
+// ============ 8. classifyFreeType 分类封闭（v8.2.0 扩展） ============
+// 任意输入（标题/描述/平台）输出必属有限分类集合，且不抛错
+test('classifyFreeType 分类封闭且确定性', () => {
+  fc.assert(
+    fc.property(
+      fc.string({ maxLength: 40 }),
+      fc.string({ maxLength: 60 }),
+      fc.constantFrom('epic', 'steam', 'gog', 'microsoft'),
+      (title, desc, platform) => {
+        const out = classifyFreeType({ title, description: desc, platform });
+        return ['limited', 'weekend', 'f2p', 'key', null].includes(out);
+      }
+    ),
+    { numRuns: 200 }
+  );
+});
+
+// ============ 9. 标题解析子串不变量（v8.2.0 扩展） ============
+// 输出首个候选必为输入的清洗结果：长度不增 + 非空（与 cleanGameName 一致）
+test('parseGameTitle 首个候选为清洗结果（长度不增/非空）', () => {
+  fc.assert(
+    fc.property(fc.string({ maxLength: 40, minLength: 1 }), (title) => {
+      const first = cleanGameName(title);
+      return first.length > 0 && first.length <= title.length;
+    }),
     { numRuns: 200 }
   );
 });

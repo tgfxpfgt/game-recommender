@@ -283,6 +283,13 @@ test('网站范围三方一致（manifest matches = site-scripts 内置 = 规则
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(builtinDomains));
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(siteRuleDomains));
 });
+test('快捷键命令注册（manifest commands + SW onCommand）', () => {
+  const cmds = (manifest.commands || {})['gr-force-refresh'];
+  expect(!!cmds && !!cmds.suggested_key).toEqual(true);
+  const swSrc = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
+  expect(swSrc.includes('commands.onCommand')).toEqual(true);
+  expect(swSrc.includes('gr-force-refresh')).toEqual(true);
+});
 test('manifest 只注入内置站点 + Steam（无全站匹配）', () => {
   expect(manifestMatches.some((m) => m === 'http://*/*' || m === 'https://*/*')).toEqual(false);
   expect(manifestMatches.filter((m) => m.includes('steampowered.com')).length).toBeGreaterThan(0);
