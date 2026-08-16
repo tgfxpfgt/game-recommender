@@ -10,10 +10,21 @@
 import { flushSteamCache } from './steam-cache.js';
 import { flushNameIndex } from './name-index.js';
 import { flushRegistry } from './registry.js';
+import { flushUrlIndex } from './url-index.js';
+import { flushWrongReports } from './wrong-reports.js';
+import { flushLearnedNoise } from './learned-noise.js';
+import { flushLogBuffer } from './logger.js';
 
-// 三层缓存全部落盘 / flush all three caches
+// v9.3.0：聚合落盘全覆盖——此前仅 steam/name-index/registry 三层；
+// url-index（2s 防抖）/wrong-reports/learned-noise/logger（日志缓冲）不在
+// 聚合范围，SW 休眠时存在防抖窗口内写入丢失。download-urls 为即时写（无需）。
+// Flush every debounced store (SW-suspend safety net for debounce windows).
 export async function flushAllCaches() {
   await flushSteamCache();
   await flushNameIndex();
   await flushRegistry();
+  await flushUrlIndex();
+  await flushWrongReports();
+  await flushLearnedNoise();
+  await flushLogBuffer();
 }

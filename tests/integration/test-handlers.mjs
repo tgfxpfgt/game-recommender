@@ -234,8 +234,8 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
   const TEST_URL = 'https://www.gamer520.com/109515.html';
   let fetchMock, restoreFetch;
 
-  beforeAll(() => {
-    urlIdx.resetUrlIndex();
+  beforeAll(async () => {
+    await urlIdx.resetUrlIndex();
     fetchMock = createFetchMock({
       // storesearch 返回空——若结果仍命中 appId，证明走了 URL 索引而非标题搜索
       '/api/storesearch': { items: [] },
@@ -259,9 +259,9 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     });
     restoreFetch = installFetchMock(fetchMock);
   });
-  afterAll(() => {
+  afterAll(async () => {
     restoreFetch();
-    urlIdx.resetUrlIndex();
+    await urlIdx.resetUrlIndex();
   });
 
   test('SEARCH_STEAM：网址索引命中 → 直接使用索引 appId（不触发标题搜索）', async () => {
@@ -301,7 +301,7 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
 
   test('REFRESH 后：详情页匹配结果写入网址索引（后续列表页可复用）', async () => {
     // 清索引 → 标题搜索路径（mock storesearch 空 → 未找到）
-    urlIdx.resetUrlIndex();
+    await urlIdx.resetUrlIndex();
     const resp = await handleMessage(
       { action: 'SEARCH_STEAM', gameName: '不存在的游戏XYZ' },
       { tab: { url: TEST_URL } }
@@ -316,8 +316,8 @@ describe('检索顺序与下载站缓存优先', () => {
   const URL = 'https://www.gamer520.com/109515.html';
   let fetchMock, restoreFetch;
 
-  beforeAll(() => {
-    urlIdx.resetUrlIndex();
+  beforeAll(async () => {
+    await urlIdx.resetUrlIndex();
     fetchMock = createFetchMock({
       '/api/storesearch': { items: [] },
       '/api/appdetails': {
@@ -349,9 +349,9 @@ describe('检索顺序与下载站缓存优先', () => {
     });
     restoreFetch = installFetchMock(fetchMock);
   });
-  afterAll(() => {
+  afterAll(async () => {
     restoreFetch();
-    urlIdx.resetUrlIndex();
+    await urlIdx.resetUrlIndex();
   });
 
   test('直取路径网址索引优先：封面 appId 与网址索引不同 → 用网址索引（URL→直取→标题→搜索）', async () => {

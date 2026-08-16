@@ -103,8 +103,33 @@ function waitForListItems(adapter, timeoutMs) {
 }
 
 // ============ 列表页功能 ============
+// v9.3.0：站点规则失效告警（每页一次）——列表项提取为 0 且站点被追踪时，
+// 上报后台日志（站点改版致选择器静默失效时可感知）
+let siteAlertSent = false;
+function maybeReportAdapterIssue(adapter) {
+  if (siteAlertSent || !adapter || !adapter.key) return;
+  siteAlertSent = true;
+  try {
+    window.__GR_MSG__
+      .sendMessage(
+        {
+          action: 'SITE_ADAPTER_ALERT',
+          siteKey: adapter.key,
+          host: window.location.hostname,
+          url: window.location.href
+        },
+        null,
+        { timeout: 2000 }
+      )
+      .catch(() => {});
+  } catch {
+    /* 上报失败不影响页面 */
+  }
+}
+
 function trackListView(adapter, items, settings) {
   common.trackEvent('view_list', { itemCount: items.length, page: window.location.href });
+  if (items.length === 0 && adapter && adapter.key) maybeReportAdapterIssue(adapter);
 
   // 关键词过滤（v6.4.7 通用化）：请求推荐/好评率之前移除标题命中关键词的游戏
   let filteredItems = items;

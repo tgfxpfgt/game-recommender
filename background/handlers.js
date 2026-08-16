@@ -174,6 +174,21 @@ async function handleGetApiStatus() {
   return getSteamApiStatus();
 }
 
+// v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）
+const siteAlertLast = new Map();
+async function handleSiteAdapterAlert(message) {
+  const siteKey = String(message.siteKey || 'unknown');
+  const now = Date.now();
+  const last = siteAlertLast.get(siteKey) || 0;
+  if (now - last < 24 * 60 * 60 * 1000) return { success: true, throttled: true };
+  siteAlertLast.set(siteKey, now);
+  Logger.warn(
+    'SiteAdapter',
+    `站点规则疑似失效: ${siteKey}（${message.host || '?'}）——列表项提取为 0，站点可能改版，请更新适配规则`
+  );
+  return { success: true };
+}
+
 // v9.1.0：性能上报（内容脚本 boot 耗时等 → Perf 日志落盘）
 async function handleLogPerf(message) {
   const source = message.source || 'content';
@@ -248,6 +263,7 @@ export const MESSAGE_HANDLERS = {
   GET_API_STATUS: handleGetApiStatus,
   OPEN_HUB: handleOpenHub,
   LOG_PERF: handleLogPerf,
+  SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
   CLEAR_OUTBOUND_AUDIT: async () => {
     resetOutboundAudit();

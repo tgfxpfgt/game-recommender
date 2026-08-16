@@ -46,6 +46,8 @@ const writer = createDebouncedStore({
   debounceMs: 2000,
   save: () => dataStore.writeModule(DB_KEYS.URL_APPID_INDEX, urlIndexMemory)
 });
+// v9.3.0：显式 flush（SW 休眠前/聚合落盘时调用，消除 2s 防抖丢失窗口）
+export const flushUrlIndex = writer.flush;
 
 // 规范化详情页 URL（去掉 hash/query 尾参——同一页面对应同一缓存）
 function normalizeUrl(url) {
@@ -83,8 +85,11 @@ export async function getUrlIndexSize() {
 }
 
 // 清空（导入/清除数据时调用）
-export function resetUrlIndex() {
+// v9.3.0：同步清除磁盘（此前仅清内存——惰性 load() 会把防抖落盘的旧数据
+// 读回，清除数据后索引"复活"；reset.js 同步调用点不 await 亦可（remove 幂等））
+export async function resetUrlIndex() {
   urlIndexMemory = {};
   loaded = false;
   writer.reset && writer.reset();
+  await dataStore.removeModule(DB_KEYS.URL_APPID_INDEX).catch(() => {});
 }

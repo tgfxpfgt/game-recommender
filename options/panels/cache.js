@@ -71,7 +71,7 @@
     btn.disabled = true;
     btn.textContent = '🩹 修复中...';
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'HEAL_REGISTRY_NAMES' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'HEAL_REGISTRY_NAMES' });
       const statsEl = document.getElementById('cacheStats');
       if (resp) {
         statsEl.innerHTML = `✅ 名称自愈：扫描 <b>${resp.scanned}</b> 条异常 · 修复 <b>${resp.healed}</b> 条${resp.remaining > 0 ? ` · 剩余 <b>${resp.remaining}</b> 条（可再次点击）` : ''}`;
@@ -96,7 +96,7 @@
     btn.disabled = true;
     btn.textContent = '🧹 清理中...';
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'CLEAN_EXPIRED_CACHE' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'CLEAN_EXPIRED_CACHE' });
       const statsEl = document.getElementById('cacheStats');
       if (resp && resp.total >= 0) {
         statsEl.innerHTML = `✅ 清理完成：Steam 缓存 <b>${resp.steamCache}</b> · 名称负缓存 <b>${resp.nameIndex}</b> · 下载站网址 <b>${resp.downloadUrls}</b>，共 <b>${resp.total}</b> 条过期条目`;
@@ -151,7 +151,7 @@
       btn.disabled = true;
       btn.textContent = `⏳ 刷新 ${stale.length} 条...`;
       for (const appId of stale.slice(0, 10)) {
-        await chrome.runtime.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId }).catch(() => {});
+        await window.__GR_MSG__.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId }).catch(() => {});
       }
       btn.disabled = false;
       btn.textContent = '♻️ 刷新本页过期';
@@ -173,7 +173,7 @@
     statsEl.textContent = '';
 
     try {
-      const resp = await chrome.runtime.sendMessage({
+      const resp = await window.__GR_MSG__.sendMessage({
         action: 'GET_GAME_CACHE_LIST',
         keyword,
         minRating,
@@ -354,7 +354,7 @@
     btn.textContent = '⏳';
     btn.disabled = true;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId });
       if (resp && resp.success) {
         btn.textContent = '✅';
         setTimeout(() => {
@@ -426,7 +426,7 @@
   async function deleteCacheEntry(appId) {
     if (!confirm(`确定要删除 AppID ${appId} 的缓存吗？`)) return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'DELETE_GAME_CACHE_ENTRY', appId });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'DELETE_GAME_CACHE_ENTRY', appId });
       if (resp && resp.success) {
         loadGameCache();
       } else {
@@ -446,7 +446,7 @@
     )
       return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'CLEAR_GAME_CACHE' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'CLEAR_GAME_CACHE' });
       if (resp && resp.success) {
         OPTS.cacheCurrentPage = 1;
         loadGameCache();

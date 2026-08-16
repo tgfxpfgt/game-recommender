@@ -101,7 +101,7 @@ async function fireBatch(names) {
   // 推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
   fetchRecommendationsForBatch(names, imageData);
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData, urls });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData, urls });
     const ratings = (response && response.ratings) || {};
     const pendingCount = (response && response.pending) || 0;
     // 第一波：缓存命中即时显示徽章 / wave 1: cached hits render instantly
@@ -133,7 +133,7 @@ async function fetchRecommendationsForBatch(names, imageData) {
       const img = imageData[n];
       return { name: n, url: '', appId: img && img.appId ? img.appId : null };
     });
-    const response = await chrome.runtime.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_RECOMMENDATIONS', games });
     applyRecommendationResults(response && response.results);
   } catch (e) {
     dbg('推荐计算失败: ' + String(e));

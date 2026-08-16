@@ -43,7 +43,7 @@
       });
     }
     try {
-      const response = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const response = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
       // 防御：后台未就绪时 response 可能为 undefined
       if (!response || !response.settings) {
         document.body.insertAdjacentHTML(
@@ -206,7 +206,7 @@
       if (OPTS.currentSettings) renderRules(OPTS.currentSettings.filterRules || []);
       // v6.4.8：日志在线查看（v6.4.19：级别筛选 + 关键词搜索 + 模块显示）
       async function loadLogViewer() {
-        const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
+        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
         const logs = (resp && resp.logs) || [];
         const levelFilter = document.getElementById('logLevelFilter').value;
         const search = document.getElementById('logSearch').value.trim().toLowerCase();
@@ -248,7 +248,7 @@
       }
       document.getElementById('logRefreshBtn').addEventListener('click', loadLogViewer);
       document.getElementById('logClearBtn').addEventListener('click', async () => {
-        await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
+        await window.__GR_MSG__.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
         loadLogViewer();
       });
       document.getElementById('logLevelFilter').addEventListener('change', loadLogViewer);
@@ -725,7 +725,7 @@
     const snapshot = OPTS.currentSettings;
     saveQueue = saveQueue
       .then(async () => {
-        await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: snapshot });
+        await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: snapshot });
         showSaveStatus('saved');
       })
       .catch((err) => {

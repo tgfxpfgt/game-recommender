@@ -18,7 +18,7 @@
   // 加载模块清单（含条目数）并渲染勾选 UI
   async function loadDataModules() {
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_DATA_MODULES' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_DATA_MODULES' });
       dataModules = (resp && resp.modules) || [];
       selectedModules = new Set(dataModules.map((m) => m.key)); // 默认全选
       renderModuleChecks();
@@ -74,7 +74,7 @@
       return;
     }
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'EXPORT_DATA', moduleKeys: keys });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'EXPORT_DATA', moduleKeys: keys });
       if (!resp || !resp.success || !resp.data) {
         showDataOpStatus('导出失败', true);
         return;
@@ -103,14 +103,14 @@
         throw new Error('不是有效的 游戏雷达 Game Radar 导出文件');
       }
       const keys = getSelectedModuleKeys();
-      const resp = await chrome.runtime.sendMessage({
+      const resp = await window.__GR_MSG__.sendMessage({
         action: 'IMPORT_DATA',
         data: payload,
         moduleKeys: keys
       });
       if (resp && resp.success) {
         // 重新加载设置与模块数据
-        const sr = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        const sr = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
         if (sr && sr.settings) {
           OPTS.currentSettings = sr.settings;
           OPTS.renderSettings(OPTS.currentSettings);
@@ -134,7 +134,7 @@
       alert('请先勾选要备份的数据类型');
       return;
     }
-    const resp = await chrome.runtime.sendMessage({ action: 'CREATE_BACKUP', moduleKeys: keys });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'CREATE_BACKUP', moduleKeys: keys });
     if (resp && resp.success) {
       showDataOpStatus('✅ 备份成功 (' + keys.length + ' 个模块)');
       loadBackupsSelect();
@@ -149,7 +149,7 @@
     const btn = document.getElementById('restoreBackupBtn');
     if (!select) return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_BACKUPS' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_BACKUPS' });
       const backups = (resp && resp.backups) || [];
       select.innerHTML =
         '<option value="">选择备份...</option>' +
@@ -180,9 +180,9 @@
     }
     if (!confirm('恢复将覆盖当前所选模块的数据（系统会先自动备份当前状态）。确定继续？')) return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'RESTORE_BACKUP', backupId, moduleKeys: keys });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'RESTORE_BACKUP', backupId, moduleKeys: keys });
       if (resp && resp.success) {
-        const sr = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        const sr = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
         if (sr && sr.settings) {
           OPTS.currentSettings = sr.settings;
           OPTS.renderSettings(OPTS.currentSettings);
@@ -200,7 +200,7 @@
   // 清除所有学习数据
   async function clearData() {
     if (confirm('确定要清除所有学习数据吗？此操作不可恢复。')) {
-      await chrome.runtime.sendMessage({ action: 'CLEAR_DATA' });
+      await window.__GR_MSG__.sendMessage({ action: 'CLEAR_DATA' });
       alert('学习数据已清除');
     }
   }
@@ -209,7 +209,7 @@
   async function resetDefaults() {
     if (!confirm('确定要将所有设置恢复为默认值吗？\n（浏览历史和游戏画像等数据不会被清除）')) return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'RESET_SETTINGS' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'RESET_SETTINGS' });
       if (resp && resp.settings) {
         OPTS.currentSettings = resp.settings;
         OPTS.renderSettings(OPTS.currentSettings);

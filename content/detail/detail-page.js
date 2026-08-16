@@ -128,7 +128,7 @@ export function injectDownloadSitePanel() {
     try {
       // v7.0.3：先展示缓存（即时，按 appId 查各下载站已收录网址）——
       // 一个 appId 对应多个下载站不同网址；缓存无结果再发起站内搜索
-      const cacheResp = await chrome.runtime.sendMessage({
+      const cacheResp = await window.__GR_MSG__.sendMessage({
         action: 'SEARCH_DOWNLOAD_SITES',
         gameName: gameName,
         appId: appId,
@@ -147,7 +147,7 @@ export function injectDownloadSitePanel() {
         panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">缓存中暂无收录，正在搜索下载站...</div>`;
       }
       // 完整搜索（站内检索 + 缓存兜底）→ 更新面板
-      const resp = await chrome.runtime.sendMessage({
+      const resp = await window.__GR_MSG__.sendMessage({
         action: 'SEARCH_DOWNLOAD_SITES',
         gameName: gameName,
         appId: appId
@@ -324,7 +324,7 @@ export function injectSteamButton(gameName) {
         steamData && steamData.appId ? String(steamData.appId) : builder.extractSteamAppIdFromImages() || '';
       dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
       try {
-        await chrome.runtime.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
+        await window.__GR_MSG__.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
       } catch {
         /* 后台不可达不阻断重检索 */
       }
@@ -333,10 +333,10 @@ export function injectSteamButton(gameName) {
       /** @type {any} */
       let resp = null;
       if (imgAppId) {
-        resp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
+        resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
       }
       if (!resp || !resp.data) {
-        resp = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM', gameName: name });
+        resp = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName: name });
       }
       // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
       const sameAppId = resp && resp.data && wrongAppId && String(resp.data.appId) === wrongAppId;
@@ -366,9 +366,9 @@ export function injectSteamButton(gameName) {
       const appId = builder.extractSteamAppIdFromImages();
       let refreshResp;
       if (appId) {
-        refreshResp = await chrome.runtime.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName: name });
+        refreshResp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName: name });
       } else {
-        refreshResp = await chrome.runtime.sendMessage({ action: 'REFRESH_STEAM_CACHE', gameName: name });
+        refreshResp = await window.__GR_MSG__.sendMessage({ action: 'REFRESH_STEAM_CACHE', gameName: name });
       }
       if (refreshResp && refreshResp.data) {
         steamData = refreshResp.data;
@@ -429,11 +429,11 @@ export function injectSteamButton(gameName) {
       let response = null;
       if (appId) {
         dbg(`从图片URL提取到 appId: ${appId}，直接获取 Steam 详情`);
-        response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName });
+        response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName });
       }
 
       if (!response || !response.data) {
-        response = await chrome.runtime.sendMessage({ action: 'SEARCH_STEAM', gameName });
+        response = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName });
       }
 
       if (response && response.data) {
@@ -499,7 +499,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
     listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">⏳ 搜索中...</div>`;
 
     try {
-      const resp = await chrome.runtime.sendMessage({
+      const resp = await window.__GR_MSG__.sendMessage({
         action: 'SEARCH_STEAM_CANDIDATES',
         gameName: keyword || gameName
       });
@@ -547,7 +547,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
           const selectedAppId = item.getAttribute('data-appid');
           listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">⏳ 正在获取详情...</div>`;
           try {
-            const detailResp = await chrome.runtime.sendMessage({
+            const detailResp = await window.__GR_MSG__.sendMessage({
               action: 'GET_STEAM_BY_APPID',
               appId: parseInt(selectedAppId),
               manual: true // v3.3.14：手动选择候选跳过名称相关性校验（用户主动确认）

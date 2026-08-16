@@ -248,9 +248,9 @@ describe('settings-utils applyPatch', () => {
 const idxMod = await import(new URL('../../background/storage/url-index.js', import.meta.url).href);
 
 describe('url-index 详情页网址索引（v7.0.2，v7.0.5 合并自 test-url-index）', () => {
-  beforeAll(() => {
+  beforeAll(async () => {
     storage._reset({});
-    idxMod.resetUrlIndex();
+    await idxMod.resetUrlIndex();
   });
 
   test('set 后 get 命中', async () => {
@@ -275,7 +275,7 @@ describe('url-index 详情页网址索引（v7.0.2，v7.0.5 合并自 test-url-i
   });
 
   test('reset 清空', async () => {
-    idxMod.resetUrlIndex();
+    await idxMod.resetUrlIndex();
     expect(await idxMod.getAppIdByUrl('https://www.gamer520.com/109515.html')).toEqual(null);
   });
 });

@@ -26,7 +26,7 @@
   // 切换到规则面板时加载 / Load rules when the panel opens
   async function loadRules() {
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'GET_ADAPTER_RULES' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' });
       if (!resp) return;
       OPTS.ruleData = resp; // {builtin, imported, merged}
       renderRuleSource(resp);
@@ -119,7 +119,7 @@
     const parsed = parseEditor();
     if (!parsed) return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'SAVE_ADAPTER_RULES', rules: parsed });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'SAVE_ADAPTER_RULES', rules: parsed });
       if (resp && resp.ok) {
         setRuleStatus(`✅ 已保存 ${parsed.sites.length} 个站点规则（覆盖内置）；刷新已打开的下载站页面后生效`, 'ok');
         await loadRules();
@@ -134,7 +134,7 @@
   async function resetToBuiltin() {
     if (!confirm('删除用户导入的规则并恢复内置规则？')) return;
     try {
-      const resp = await chrome.runtime.sendMessage({ action: 'DELETE_ADAPTER_RULES' });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'DELETE_ADAPTER_RULES' });
       if (resp && resp.ok) {
         setRuleStatus('✅ 已恢复内置规则；刷新已打开的下载站页面后生效', 'ok');
         await loadRules();
@@ -171,7 +171,7 @@
       document.getElementById('ruleEditor').value = JSON.stringify(parsed, null, 2);
       const parsed2 = parseEditor(); // 结构校验后直接保存
       if (!parsed2) return;
-      const resp = await chrome.runtime.sendMessage({ action: 'SAVE_ADAPTER_RULES', rules: parsed2 });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'SAVE_ADAPTER_RULES', rules: parsed2 });
       if (resp && resp.ok) {
         setRuleStatus(`✅ 导入成功：${parsed2.sites.length} 个站点规则已生效；刷新已打开的下载站页面后生效`, 'ok');
         await loadRules();

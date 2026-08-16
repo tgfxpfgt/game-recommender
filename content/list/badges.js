@@ -255,7 +255,7 @@ export function prependRecBadge(item, recommendation, settings) {
     badge.style.textDecoration = 'line-through';
     dislikeBtn.remove();
     try {
-      chrome.runtime.sendMessage({
+      window.__GR_MSG__.sendMessage({
         action: 'TRACK_EVENT',
         data: { type: 'dislike_game', gameName: item.name || '' }
       });

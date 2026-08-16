@@ -13,9 +13,22 @@ import { isPlainObject } from './utils.js';
 
 const APP_ID_RE = /^\d{1,10}$/; // 1-10 位数字 appId
 // 行为日志 type 白名单（与 content 侧发送方一致）
-const TRACK_TYPES = new Set(['view_list', 'view_detail', 'click_detail', 'click_download', 'steam_tags_update', 'dislike_game']);
+const TRACK_TYPES = new Set([
+  'view_list',
+  'view_detail',
+  'click_detail',
+  'click_download',
+  'steam_tags_update',
+  'dislike_game'
+]);
 // 需要 gameName 的 type（view_list 仅计数，无需名称）
-const NAME_REQUIRED_TYPES = new Set(['view_detail', 'click_detail', 'click_download', 'steam_tags_update', 'dislike_game']);
+const NAME_REQUIRED_TYPES = new Set([
+  'view_detail',
+  'click_detail',
+  'click_download',
+  'steam_tags_update',
+  'dislike_game'
+]);
 
 function isName(v) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= 200;
@@ -180,7 +193,9 @@ const RULES = {
     ) {
       return { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.appId 数字且 url 必填' };
     }
-    return optStr(data.domain, 100) ? { ok: true } : { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.domain 可选字符串（≤100）' };
+    return optStr(data.domain, 100)
+      ? { ok: true }
+      : { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.domain 可选字符串（≤100）' };
   },
   SAVE_ADAPTER_RULES: (m) =>
     isPlainObject(m && m.rules) ? { ok: true } : { error: 'SAVE_ADAPTER_RULES.rules 必须是对象' },
@@ -205,7 +220,13 @@ const RULES = {
   GET_TRENDS: (m) =>
     m.granularity === undefined || m.granularity === 'day' || m.granularity === 'week'
       ? { ok: true }
-      : { error: 'GET_TRENDS.granularity 可选 day|week' }
+      : { error: 'GET_TRENDS.granularity 可选 day|week' },
+  // v9.3.0：站点规则失效告警（限频在 handler 侧）
+  SITE_ADAPTER_ALERT: (m) => {
+    if (typeof m.siteKey !== 'string' || m.siteKey.length > 64) return { error: 'SITE_ADAPTER_ALERT.siteKey 非法' };
+    if (typeof m.host !== 'string' || m.host.length > 255) return { error: 'SITE_ADAPTER_ALERT.host 非法' };
+    return { ok: true };
+  }
 };
 
 // 统一校验入口：未契约化 action 放行 / unified entry; uncovered actions pass

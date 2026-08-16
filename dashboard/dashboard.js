@@ -25,7 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // v6.4.19：应用皮肤主题
   (async () => {
     try {
-      const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const r = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
       const s = r && r.settings;
       if (s && globalThis.__GR_SETTINGS_UTILS__) {
         const u = globalThis.__GR_SETTINGS_UTILS__;
@@ -83,7 +83,7 @@ async function loadTrends() {
   const container = document.getElementById('trendChart');
   const granularity = document.getElementById('trendGranularity').value;
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_TRENDS', granularity });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_TRENDS', granularity });
     cachedTrends = (response && response.daily) || [];
     renderTrendChart(cachedTrends);
   } catch (e) {
@@ -218,7 +218,7 @@ function exportGamesCsv() {
 // 导出行为日志 CSV（全量，经 EXPORT_DATA 获取）/ Export the full behavior log as CSV
 async function exportLogsCsv() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'EXPORT_DATA', moduleKeys: ['behaviorLog'] });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'EXPORT_DATA', moduleKeys: ['behaviorLog'] });
     const entries = (response && response.data && response.data.modules && response.data.modules.behaviorLog) || [];
     if (!entries || entries.length === 0) {
       alert('暂无行为日志');
@@ -248,7 +248,7 @@ let cachedGameList = []; // 供 CSV 导出 / cached game list for CSV export
 
 async function loadStats() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_STATS' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STATS' });
     if (!response) return;
 
     // 概览统计 / Overview stats（旧字段缺失时兜底 0）
@@ -436,7 +436,7 @@ async function loadSteamRecommendations() {
   basedOnEl.textContent = '';
 
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_STEAM_RECOMMENDATIONS' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_RECOMMENDATIONS' });
 
     if (response && response.error) {
       listEl.innerHTML = `<span class="no-data">${escapeHtml(response.error)}</span>`;
@@ -503,7 +503,7 @@ let cachedGames = [];
 async function loadRuntimeLogs() {
   const container = document.getElementById('runtimeLogList');
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
     cachedLogs = (response && response.logs) || [];
     renderRuntimeLogs();
   } catch (e) {
@@ -556,7 +556,7 @@ function renderRuntimeLogs() {
 // 导出日志为 JSON 文件 / Export logs as a JSON file
 async function exportLogs() {
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'EXPORT_LOGS' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'EXPORT_LOGS' });
     const logs = (response && response.logs) || [];
     const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
@@ -573,7 +573,7 @@ async function exportLogs() {
 // 清空运行日志 / Clear runtime logs
 async function clearLogs() {
   if (!confirm('确定要清空所有运行日志吗？')) return;
-  await chrome.runtime.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
+  await window.__GR_MSG__.sendMessage({ action: 'CLEAR_RUNTIME_LOGS' });
   loadRuntimeLogs();
 }
 
@@ -584,7 +584,7 @@ let cachedAudit = { entries: [], stats: null };
 async function loadOutboundAudit() {
   const container = document.getElementById('auditList');
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_OUTBOUND_AUDIT', limit: 100 });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_OUTBOUND_AUDIT', limit: 100 });
     cachedAudit = (response && response.audit) || { entries: [], stats: null };
     renderOutboundAudit();
   } catch (e) {
@@ -647,7 +647,7 @@ function exportAuditCsv() {
 // 清空出站请求审计 / Clear outbound request audit
 async function clearAudit() {
   if (!confirm('确定要清空出站请求审计吗？')) return;
-  await chrome.runtime.sendMessage({ action: 'CLEAR_OUTBOUND_AUDIT' });
+  await window.__GR_MSG__.sendMessage({ action: 'CLEAR_OUTBOUND_AUDIT' });
   loadOutboundAudit();
 }
 
@@ -656,7 +656,7 @@ async function clearAudit() {
 async function loadBackups() {
   const container = document.getElementById('backupList');
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_BACKUPS' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_BACKUPS' });
     const backups = (response && response.backups) || [];
 
     if (backups.length === 0) {
@@ -701,7 +701,7 @@ async function createBackup() {
   const statusEl = document.getElementById('backupStatus');
   statusEl.textContent = '备份中...';
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'CREATE_BACKUP' });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'CREATE_BACKUP' });
     if (response && response.success) {
       statusEl.textContent = '✅ 备份成功';
       loadBackups();
@@ -721,7 +721,7 @@ async function createBackup() {
 async function restoreBackup(id) {
   if (!confirm('恢复备份将覆盖当前数据（系统会先自动备份当前状态）。确定继续？')) return;
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'RESTORE_BACKUP', backupId: id });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'RESTORE_BACKUP', backupId: id });
     if (response && response.success) {
       alert('✅ 恢复成功，页面将刷新');
       location.reload();
@@ -736,7 +736,7 @@ async function restoreBackup(id) {
 // 删除备份 / Delete a backup
 async function deleteBackup(id) {
   if (!confirm('确定删除该备份？')) return;
-  await chrome.runtime.sendMessage({ action: 'DELETE_BACKUP', backupId: id });
+  await window.__GR_MSG__.sendMessage({ action: 'DELETE_BACKUP', backupId: id });
   loadBackups();
 }
 
@@ -745,7 +745,7 @@ async function loadBootTime() {
   const el = document.getElementById('diagBootTime');
   if (!el) return;
   try {
-    const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
     const logs = (resp && resp.logs) || [];
     const perf = logs.filter((l) => l && l.module === 'Perf');
     if (perf.length === 0) {
@@ -830,7 +830,7 @@ async function loadApiDiagnostics() {
   const el = document.getElementById('diagApiStatus');
   if (!el) return;
   try {
-    const resp = await chrome.runtime.sendMessage({ action: 'GET_API_STATUS' });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_API_STATUS' });
     if (!resp) {
       el.textContent = '—';
       return;
