@@ -157,7 +157,7 @@ export function remove(id) {
   refreshZone(item.zone);
 }
 
-// 关闭全部浮窗 / Close all floats
+// 关闭全部浮窗 / Close all floats（测试清理用）
 export function closeAll() {
   for (const id of Object.keys(floats)) remove(id);
 }
