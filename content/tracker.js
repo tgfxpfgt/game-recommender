@@ -75,6 +75,8 @@
     return MODULES;
   }
 
+  // v9.1.0：boot 计时（性能基线）
+  const BOOT_T0 = Date.now();
   // ============ 预热（模块加载 + 设置/规则并行） ============
   // Warm-up: module load, settings and site rules all run in parallel.
   const bootPromise = (async () => {
@@ -92,6 +94,18 @@
       M.builder.buildSiteAdapters(M.builder.getSITE_RULES());
     } catch {
       /* 规则加载失败时回退内置规则 */
+    }
+    // v9.1.0：boot 完成 → Perf 日志上报（后台落盘 runtimeLog，可脚本分析）
+    try {
+      window.__GR_MSG__
+        .sendMessage(
+          { action: 'LOG_PERF', source: 'content-boot', metric: location.hostname, durationMs: Date.now() - BOOT_T0 },
+          null,
+          { timeout: 2000 }
+        )
+        .catch(() => {});
+    } catch {
+      /* 忽略上报失败 */
     }
     return { M, settings };
   })();

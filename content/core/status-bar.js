@@ -15,7 +15,9 @@ import * as float from './floats.js';
 import * as common from './common.js';
 import * as debug from './debug.js';
 
+/** @type {HTMLDivElement|null} */
 let statusEl = null;
+/** @type {ReturnType<typeof setTimeout>|null} */
 let hideTimer = null;
 let lastStats = null; // 最近一次统计（供 popup 重新显示）/ latest stats
 let startTime = 0; // 本次任务开始时间（计时器）/ task start time
@@ -31,12 +33,15 @@ function formatElapsed() {
 
 // 创建浮窗元素（右下角，经 GR.float 统一管理）
 // Create the bar (bottom-right, managed by GR.float)
+/** @returns {HTMLDivElement} */
 function ensureEl() {
   if (statusEl && statusEl.parentNode) return statusEl;
-  statusEl = float.create(float.ZONE.BOTTOM_RIGHT, 'gr-status-bar', {
-    chrome: false,
-    width: 380
-  });
+  statusEl = /** @type {HTMLDivElement} */ (
+    float.create(float.ZONE.BOTTOM_RIGHT, 'gr-status-bar', {
+      chrome: false,
+      width: 380
+    })
+  );
   return statusEl;
 }
 
@@ -58,7 +63,7 @@ export function showStatus(title, current, total, detail) {
       ${pct !== null ? `<div class="gr-status-row" style="margin-top:3px;">${current}/${total} · ${pct}%</div>` : ''}
       ${detail ? `<div class="gr-status-row" style="margin-top:2px;">${common.escapeHtml(detail)}</div>` : ''}
     `;
-  clearTimeout(hideTimer); // 进行中不自动消失
+  clearTimeout(/** @type {any} */ (hideTimer)); // 进行中不自动消失
 }
 
 // 显示完成统计（3 秒后按调试模式切换为诊断视图或消失）
@@ -95,7 +100,7 @@ export function showStats(stats) {
       if (row && typeof row.click === 'function') row.click();
     });
   });
-  clearTimeout(hideTimer);
+  clearTimeout(/** @type {any} */ (hideTimer));
   // 3 秒后：调试模式 → 切换诊断视图；否则消失
   hideTimer = setTimeout(() => {
     if (debugMode && debug) {
@@ -127,7 +132,7 @@ export function showDebugView(html) {
     }
   });
   statusEl.innerHTML = html;
-  clearTimeout(hideTimer); // 诊断视图常驻 / persistent
+  clearTimeout(/** @type {any} */ (hideTimer)); // 诊断视图常驻 / persistent
 }
 
 // 调试模式开关（由设置 showDebugPanel 控制；重新开启时允许调试视图再次显示）

@@ -174,6 +174,16 @@ async function handleGetApiStatus() {
   return getSteamApiStatus();
 }
 
+// v9.1.0：性能上报（内容脚本 boot 耗时等 → Perf 日志落盘）
+async function handleLogPerf(message) {
+  const source = message.source || 'content';
+  Logger.info(
+    'Perf',
+    `${source} ${message.metric || ''} 耗时: ${message.durationMs}ms${message.detail ? ' (' + message.detail + ')' : ''}`
+  );
+  return { success: true };
+}
+
 // v7.4.0：打开设置中心（欢迎页/弹窗跳转用）
 async function handleOpenHub() {
   const url = chrome.runtime.getURL('hub/hub.html');
@@ -237,6 +247,7 @@ export const MESSAGE_HANDLERS = {
   HEAL_REGISTRY_NAMES: handleHealRegistryNames,
   GET_API_STATUS: handleGetApiStatus,
   OPEN_HUB: handleOpenHub,
+  LOG_PERF: handleLogPerf,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
   CLEAR_OUTBOUND_AUDIT: async () => {
     resetOutboundAudit();

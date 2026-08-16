@@ -283,6 +283,7 @@ async function loadStats() {
 
     // v7.1.0：Steam API 限流状态（自助诊断）
     loadApiDiagnostics();
+    loadBootTime();
     // 标签偏好 / Tag preference cloud
     renderTagCloud(response.topKeywords);
 
@@ -726,6 +727,27 @@ async function deleteBackup(id) {
   if (!confirm('确定删除该备份？')) return;
   await chrome.runtime.sendMessage({ action: 'DELETE_BACKUP', backupId: id });
   loadBackups();
+}
+
+// v9.1.0：性能基线（从 runtimeLog 读最近 Perf 条目——启动耗时）
+async function loadBootTime() {
+  const el = document.getElementById('diagBootTime');
+  if (!el) return;
+  try {
+    const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
+    const logs = (resp && resp.logs) || [];
+    const perf = logs.filter((l) => l && l.module === 'Perf');
+    if (perf.length === 0) {
+      el.textContent = '—';
+      return;
+    }
+    const latest = perf[perf.length - 1];
+    const m = String(latest.message || '').match(/(\d+)ms/);
+    el.textContent = m ? m[1] + 'ms' : '—';
+    el.title = `${latest.message} · ${new Date(latest.ts || latest.timestamp || Date.now()).toLocaleString()}`;
+  } catch {
+    el.textContent = '—';
+  }
 }
 
 // v7.1.0：Steam API 限流状态诊断（自助诊断——"为什么数据没更新"）

@@ -10,6 +10,7 @@ import * as common from './common.js';
 import * as status from './status-bar.js';
 
 // ============ Debug State / 调试状态 ============
+/** @type {{ pageType: string, adapter: string, siteTracked: boolean, steamStatus: string, downloadEvents: number, gameName: string, logs: string[] }} */
 export const DEBUG = {
   pageType: '未检测',
   adapter: '无',
@@ -21,6 +22,7 @@ export const DEBUG = {
 };
 
 // 防抖更新诊断视图 / Debounced debug-view refresh
+/** @type {ReturnType<typeof setTimeout>|null} */
 let debugViewTimer = null;
 export function scheduleDebugUpdate() {
   if (debugViewTimer) return;
@@ -32,6 +34,7 @@ export function scheduleDebugUpdate() {
 
 // 记录调试日志（带时间戳，最多 20 条）/ Record a debug log line (max 20)
 export function dbg(msg) {
+  msg = String(msg);
   DEBUG.logs.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`);
   if (DEBUG.logs.length > 20) DEBUG.logs.pop();
   scheduleDebugUpdate();

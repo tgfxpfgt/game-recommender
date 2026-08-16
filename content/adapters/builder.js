@@ -8,6 +8,7 @@
  */
 import * as common from '../core/common.js';
 
+/** @type {Array<any>|null} */
 let SITE_RULES = null;
 
 // 异步加载适配规则（内容脚本可访问 storage）/ Load rules async (storage-aware)
@@ -17,7 +18,7 @@ export async function loadSiteRules(force) {
   try {
     const data = await chrome.storage.local.get('adapterRules');
     // v7.2.0：@types/chrome 下 storage.get 返回 unknown 值——显式断言
-    /** @type {{version?: number, sites?: Array<Object>}|null|undefined} */
+    /** @type {any} */
     const imported = data.adapterRules;
     SITE_RULES =
       imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0

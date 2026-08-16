@@ -53,7 +53,7 @@ export function insertBadges(item, link, badges) {
   } else {
     const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
     const firstTextNode = walker.nextNode();
-    const ref = firstTextNode && firstTextNode.textContent.trim().length > 1 ? firstTextNode : link.firstChild;
+    const ref = firstTextNode && (firstTextNode.textContent || '').trim().length > 1 ? firstTextNode : link.firstChild;
     for (let i = badges.length - 1; i >= 0; i--) link.insertBefore(badges[i], ref);
   }
 }

@@ -172,6 +172,7 @@ function applyRecommendationResults(results) {
 function startListScan() {
   const batchState = _state.batchState;
   if (!batchState || batchState.observer) return;
+  /** @type {ReturnType<typeof setTimeout>|null} */
   let scanTimer = null;
   let pendingNodes = [];
   batchState.observer = new MutationObserver((mutations) => {
@@ -181,7 +182,7 @@ function startListScan() {
         if (node.nodeType === 1) pendingNodes.push(node);
       }
     }
-    if (scanTimer) clearTimeout(scanTimer);
+    if (scanTimer) clearTimeout(/** @type {any} */ (scanTimer));
     scanTimer = setTimeout(() => {
       const nodes = pendingNodes;
       pendingNodes = [];

@@ -140,7 +140,10 @@ const FIXTURE_URL = `http://www.xianyudanji.gg:${FIXTURE_PORT}/`;
 const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf-8'));
 console.log(`1. 扩展 ${manifest.name} v${manifest.version}`);
 
-const channel = process.env.E2E_CHANNEL || 'msedge';
+// v9.1.0：默认 Chrome（跨浏览器验证目标——Edge 经 E2E_CHANNEL 可选）
+// v9.1.0：默认 bundled Chromium（Chrome for Testing，官方 Chrome 构建）；
+// E2E_CHANNEL=chrome 可用系统 Chrome（CI 用）
+const channel = process.env.E2E_CHANNEL || 'chromium';
 const userDataDir = path.join(ROOT, '.e2e-profile');
 // 清理上次运行残留的 profile（否则默认设置断言会受旧状态影响）
 fs.rmSync(userDataDir, { recursive: true, force: true });

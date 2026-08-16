@@ -71,8 +71,11 @@ function getListItemsSmart(adapter) {
 function waitForListItems(adapter, timeoutMs) {
   const limit = timeoutMs || 4000;
   return new Promise((resolve) => {
+    /** @type {ReturnType<typeof setTimeout>|null} */
     let timer = null;
+    /** @type {MutationObserver|null} */
     let observer = null;
+    /** @type {ReturnType<typeof setTimeout>|null} */
     let debounceTimer = null;
     let lastItems = [];
     const finish = (its) => {
@@ -351,10 +354,8 @@ function applySteamRatingsUpdate(ratings, done) {
   // 未请求名字对应 item 必未 processed，等 done 衔接下一批）
   // all discovered games resolved → finish (queued names' items are never
   // processed yet, so the check only passes when nothing is left queued)
-  if (
-    !_state.ratingsJob.finished &&
-    _state.ratingsJob.processItems.every((i) => _state.ratingsJob.processed.has(i.name))
-  ) {
+  const job = _state.ratingsJob;
+  if (job && !job.finished && job.processItems.every((i) => job.processed.has(i.name))) {
     if (!batchState || batchState.queue.length === 0) {
       finishRatings();
     }

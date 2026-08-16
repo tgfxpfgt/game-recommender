@@ -23,6 +23,22 @@ const dbg = (...a) => debug.dbg(...a);
 // Two-wave rating flow: cached hits render instantly; misses are fetched in
 // the background and pushed back via STEAM_RATINGS_UPDATE.
 // v5.1.0：状态容器（list-page 与 list-batch 共享）/ shared state container
+/**
+ * @typedef {Object} RatingsJob
+ * @property {Array<any>} processItems
+ * @property {any} settings
+ * @property {Array<string>} uniqueNames
+ * @property {Record<string, number|null>} ratingMap
+ * @property {Set<string>} processed
+ * @property {number} shown
+ * @property {number} filtered
+ * @property {Array<string>} filteredNames
+ * @property {Array<string>} notFoundNames
+ * @property {Array<any>} urlEntries
+ * @property {boolean} finished
+ * @property {any} forceTimer
+ */
+/** @type {{ ratingsJob: RatingsJob|null, batchState: any }} */
 export const _state = { ratingsJob: null, batchState: null };
 
 function createRatingsJob(processItems, settings, uniqueNames) {

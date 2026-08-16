@@ -922,6 +922,110 @@ test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   expect(steamApiSrc.includes("gameData.type === 'demo'")).toEqual(true);
 });
 
+// ============ 9b. 详情浮窗模板全量渲染（v9.1.0 覆盖率） ============
+test('9b. 详情浮窗模板全量渲染（detail-templates 分支覆盖）', () => {
+  const data = {
+    appId: '1213700',
+    name: '北方之魂',
+    englishName: 'Spirit of the North',
+    positiveRate: 90,
+    ratingDesc: '特别好评',
+    totalReviews: 5000,
+    recentPositiveRate: 88,
+    recentTotalReviews: 100,
+    url: 'https://store.steampowered.com/app/1213700/',
+    headerImage: 'https://cdn/h.jpg',
+    genres: ['RPG', '冒险'],
+    userTags: ['开放世界'],
+    developers: ['Dev'],
+    chineseSupported: true,
+    releaseDate: '2024-01-01',
+    lastUpdate: '2024-06-01',
+    description: '一段描述文本',
+    steamspy: { positiveRate: 92, reviewCount: 300, currentPlayers: 1200, owners: '1000000', averagePlaytime: 5 },
+    steamdbUrl: 'https://steamdb.info/app/1213700/',
+    type: 'game',
+    reviews: [
+      { recommended: true, text: '很好玩的游戏' },
+      { recommended: false, text: '优化一般' }
+    ]
+  };
+  const html = GR.detailTemplates.steamSidebar(data, Date.now(), true, true);
+  expect(html.includes('gr-detail-header-img')).toEqual(true);
+  expect(html.includes('gr-detail-title') && html.includes('北方之魂')).toEqual(true);
+  expect(html.includes('特别好评')).toEqual(true);
+  expect(html.includes('gr-detail-spy') && html.includes('92%')).toEqual(true);
+  expect(html.includes('gr-detail-review') && html.includes('很好玩的游戏')).toEqual(true);
+  expect(html.includes('gr-detail-btn')).toEqual(true);
+  expect(html.includes('gr-refresh-cache-btn')).toEqual(true);
+  expect(html.includes('gr-report-issue-btn')).toEqual(true);
+});
+
+// ============ 9c. 详情浮窗模板变体分支（v9.1.0 覆盖率） ============
+test('9c. 详情浮窗模板变体分支（空数据/降级路径）', async () => {
+  await loadModules(); // -t 单跑兜底：确保 GR shim 就绪
+  GR = globalThis.__GR__; // 文件级 GR 仅在节 1 赋值——单跑时手动补齐
+  // 变体 1：无 steamspy / 无 reviews / 无中文支持 / demo 类型 / 无头图
+  const sparse = {
+    appId: '999',
+    name: '测试游戏',
+    englishName: 'Test',
+    positiveRate: 40,
+    ratingDesc: '褒贬不一',
+    totalReviews: 50,
+    url: 'https://store.steampowered.com/app/999/',
+    headerImage: '',
+    genres: [],
+    userTags: [],
+    developers: [],
+    chineseSupported: false,
+    releaseDate: '',
+    type: 'demo',
+    reviews: [],
+    steamspy: null
+  };
+  const html = GR.detailTemplates.steamSidebar(sparse, Date.now(), false, false);
+  expect(html.includes('试玩版') || html.includes('Demo')).toEqual(true);
+  expect(html.includes('gr-detail-spy')).toEqual(true); // 面板始终渲染
+  expect(html.includes('暂不可用')).toEqual(true); // 无 steamspy → 降级文案
+  expect(html.includes('gr-detail-review')).toEqual(false); // 无评测 → 无块
+  expect(html.includes('gr-refresh-cache-btn')).toEqual(false); // hasRefresh=false
+  expect(html.includes('gr-report-issue-btn')).toEqual(false); // hasReport=false
+  expect(html.includes('褒贬不一')).toEqual(true);
+});
+
+// ============ 9d. 详情页搜索未找到 → 手动选择（v9.1.0 覆盖率） ============
+test('9d. 详情页未找到路径（手动选择浮窗）', async () => {
+  await loadModules();
+  GR = globalThis.__GR__;
+  presets['GET_SETTINGS'] = () => ({
+    settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
+  });
+  globalThis.location = {
+    hostname: 'www.xianyudanji.gg',
+    pathname: '/16598.html',
+    href: 'https://www.xianyudanji.gg/16598.html'
+  };
+  window.location = globalThis.location;
+  const h1El = new FakeEl('h1');
+  h1El._text = '找不到的游戏XYZ';
+  queryOneStub = (sel) => (sel === 'h1' || sel === '.entry-title' ? h1El : null);
+  queryAllStub = () => [];
+  // 搜索全部失败 → 未找到 → 手动选择浮窗
+  presets['SEARCH_STEAM'] = () => ({ data: null });
+  presets['GET_STEAM_BY_APPID'] = () => ({ data: null });
+  GR.detail.injectSteamButton('找不到的游戏XYZ');
+  await waitFor(() => {
+    const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
+    const body = root && root.children[1];
+    return body && (body._html || '').includes('手动选择游戏');
+  });
+  const manualRoot = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
+  const manualBody = manualRoot && manualRoot.children[1];
+  expect(((manualBody && manualBody._html) || '').includes('手动选择游戏')).toEqual(true);
+  expect(((manualBody && manualBody._html) || '').includes('gr-manual-search-input')).toEqual(true);
+});
+
 // ============ 10. 下载追踪 / Download tracking ============
 test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
   const { isDownloadUrl, isDownloadText } = GR.tracking;

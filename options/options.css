@@ -1804,3 +1804,16 @@ tr:hover td {
   background: #3d4450;
   border-radius: 5px;
 }
+
+/* ============ 设置搜索（v9.1.0） ============ */
+.sidebar-search {
+  padding: 8px 10px 4px;
+}
+.sidebar-search .gr-input {
+  width: 100%;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+.settings-panel.search-hit {
+  box-shadow: inset 0 0 0 1px rgba(102, 192, 244, 0.35);
+}

@@ -61,7 +61,8 @@
       }
       OPTS.renderSettings(OPTS.currentSettings);
       bindEvents();
-      bindTabEvents(); // 侧边栏分类切换
+      bindTabEvents();
+      bindSettingsSearch(); // 侧边栏分类切换
       OPTS.bindCacheEvents(); // 游戏缓存管理
       OPTS.bindRulesEvents(); // 规则管理（v3.0.0）
       OPTS.populateCacheSiteFilter(); // 缓存页下载站筛选
@@ -356,6 +357,46 @@
     if (!key) return '';
     const k = String(key);
     return k.length <= 4 ? '••••' : '••••' + k.slice(-4);
+  }
+
+  // ============ 设置搜索（v9.1.0：过滤设置行 + 高亮所在面板） ============
+  // Settings search: filter setting rows and highlight their panels
+  function bindSettingsSearch() {
+    const input = document.getElementById('settingsSearch');
+    if (!input) return;
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      // 匹配范围：设置行标签/描述 + 分组标题
+      const rows = document.querySelectorAll('.setting-row, .section-header');
+      if (!q) {
+        rows.forEach((r) => {
+          r.style.display = '';
+          r.closest('.settings-panel')?.classList.remove('search-hit');
+        });
+        return;
+      }
+      let firstHitPanel = null;
+      rows.forEach((r) => {
+        const text = (r.textContent || '').toLowerCase();
+        const hit = text.includes(q);
+        r.style.display = hit ? '' : 'none';
+        const panel = r.closest('.settings-panel');
+        if (panel) {
+          panel.classList.toggle('search-hit', hit);
+          if (hit && !firstHitPanel) firstHitPanel = panel;
+        }
+      });
+      // 自动切换到第一个命中面板
+      if (firstHitPanel) {
+        const panelId = firstHitPanel.id.replace('panel-', '');
+        document
+          .querySelectorAll('.gr-nav-item')
+          .forEach((b) => b.classList.toggle('active', b.dataset.panel === panelId));
+        document
+          .querySelectorAll('.settings-panel')
+          .forEach((p2) => p2.classList.toggle('active', p2 === firstHitPanel));
+      }
+    });
   }
 
   // ============ 侧边栏分类切换 / Sidebar Category Switching ============

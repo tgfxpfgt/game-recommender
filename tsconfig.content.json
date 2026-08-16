@@ -12,5 +12,5 @@
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["chrome"]
   },
-  "include": ["content/tracker.js", "globals.d.ts"]
+  "include": ["content/**/*.js", "globals.d.ts"]
 }

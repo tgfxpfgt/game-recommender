@@ -37,6 +37,9 @@ import { refreshFreeGames, getLastNotifyGames } from './freegames/manager.js';
 import { createBackup } from './storage/backups.js';
 import { syncSiteScripts } from './core/site-scripts.js';
 
+// v9.1.0：SW 启动计时（性能基线——Perf 日志落盘 runtimeLog，可脚本分析）
+const BOOT_START = Date.now();
+
 // ============ 消息监听 / Message Listener ============
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   handleMessage(message, sender)
@@ -50,6 +53,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
 // ============ 初始化 / Initialization ============
 initStorage().catch((e) => console.error('初始化失败:', e));
+// v9.1.0：启动完成基线（监听器已注册 + 存储初始化发起）——Perf 日志供 dashboard
+// 诊断卡与自动化分析读取
+Logger.info('Perf', `SW 启动耗时: ${Date.now() - BOOT_START}ms (冷启动)`);
 
 // v7.4.0：自定义站点内容脚本动态注册（SW 启动时补齐；规则保存后由 handlers 再触发）
 // Custom-site content scripts (registered on startup; re-synced after rule saves)

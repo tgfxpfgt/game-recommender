@@ -1,17 +1,11 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "9.0.0",
+  "version": "9.1.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
-  "permissions": [
-    "storage",
-    "alarms",
-    "notifications",
-    "scripting",
-    "contextMenus"
-  ],
+  "permissions": ["storage", "alarms", "notifications", "scripting", "contextMenus"],
   "commands": {
     "gr-force-refresh": {
       "suggested_key": {
@@ -50,10 +44,7 @@
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
-  "optional_host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
@@ -92,9 +83,7 @@
         "adapters/index.js",
         "content/tracker.js"
       ],
-      "css": [
-        "styles/content.css"
-      ],
+      "css": ["styles/content.css"],
       "run_at": "document_start"
     }
   ],
@@ -114,9 +103,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "content/*.js"
-      ],
+      "resources": ["content/*.js"],
       "matches": [
         "http://*.xdgame.com/*",
         "https://*.xdgame.com/*",
