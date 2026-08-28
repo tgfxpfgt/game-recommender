@@ -11,7 +11,10 @@
  * (host/duration/status) for traceability, and a per-host sliding-window rate
  * limit as a safety net (generous threshold; Steam batches have their own
  * anomaly-based throttling).
+ * v10.0.0：审计缓冲持久化到 storage.session（防抖）——SW 冷启动后
+ * dashboard 出站审计不再总是空窗口。rateCalls 为 10s 短窗口，不持久化。
  */
+import { createSessionPersist } from './session-persist.js';
 
 // 审计缓冲上限（防内存膨胀）/ audit ring-buffer cap
 export const AUDIT_MAX = 300;
@@ -19,20 +22,30 @@ export const AUDIT_MAX = 300;
 export const RATE_WINDOW_MS = 10000; // 10s
 export const RATE_MAX = 100; // 每窗口每主机 100 次（10/s 兜底）
 
-let audit = []; // [{t, host, ok, ms, status}]
-const rateCalls = new Map(); // host -> [t, ...]（窗口内时间戳）
+const persist = createSessionPersist('grOutboundAudit', { initial: [] });
+const rateCalls = new Map(); // host -> [t, ...]（窗口内时间戳；短窗口不持久化）
+
+// 预热（SW 启动时调用——从 session 读回审计缓冲）
+export async function warmupOutboundAudit() {
+  await persist.load();
+}
 
 // 记录一次出站请求（fetchWithTimeout 调用；含被拦截/限速/网络错误路径）
 // Record one outbound request (called by fetchWithTimeout; covers blocked,
 // rate-limited and network-error paths).
 export function recordOutbound(host, ok, ms, status = 0, t = Date.now()) {
+  const audit = persist.peek();
   audit.push({ t, host: String(host).slice(0, 80), ok: !!ok, ms: ms | 0, status: status | 0 });
-  if (audit.length > AUDIT_MAX) audit = audit.slice(-AUDIT_MAX);
+  if (audit.length > AUDIT_MAX) {
+    audit.splice(0, audit.length - AUDIT_MAX);
+  }
+  persist.scheduleSave();
 }
 
 // 获取审计（entries 倒序，最新在前）+ 聚合统计
 // Get audit entries (newest first) plus aggregate stats.
 export function getOutboundAudit(limit = 100) {
+  const audit = persist.peek();
   const total = audit.length;
   const failed = audit.filter((e) => !e.ok).length;
   const hosts = new Map();
@@ -56,7 +69,7 @@ export function getOutboundAudit(limit = 100) {
 // 清空审计（测试/清理用；接入 resetInMemoryCaches）
 // Clear the audit buffer (tests/cleanup; wired into resetInMemoryCaches).
 export function resetOutboundAudit() {
-  audit = [];
+  persist.reset();
   rateCalls.clear();
 }
 

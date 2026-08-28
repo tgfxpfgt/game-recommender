@@ -37,6 +37,16 @@ Chrome Web Store / Edge Add-ons，按本清单准备。
 
 ## 审核注意事项
 
-- 权限说明已最小化（26 域名 + optional）；**notifications 权限（v6.3.2 C2）需在描述中说明用途**
-- 数据本地声明（PRIVACY.md）满足"仅收集必要数据"审核要点
+- 权限说明已最小化；**notifications 权限（v6.3.2 C2）需在描述中说明用途**；`scripting`/`contextMenus`（v7.4.0）需说明"仅用于用户自定义站点的注入"与"右键搜索"
+- host 权限清单随版本演进：v9.7.0 增 `api.isthereanydeal.com`（限免二次校验，用户配置 Key 时才发请求）；v9.5.0 清理了 fitgirl/rutracker/yystv 残留域——提交前以 manifest.json 当前内容为准
+- 数据本地声明（PRIVACY.md，v10.0.0 更新）满足"仅收集必要数据"审核要点
 - 若审核要求最小权限：`notifications` 可改为可选（仅在用户开启限免通知时请求）
+
+## 提交状态（v10.0.0 更新）
+
+- ✅ 代码与数据面就绪：数据安全自检修复（v9.7.0）、深度扫描 0 findings、密钥不导出、权限最小化
+- ⏳ 待用户操作项（需开发者账号，无法自动完成）：
+  1. Chrome Web Store 开发者账号注册（$5 一次性）
+  2. 商店素材定稿（名称/描述/5 张截图 1280x800）
+  3. 隐私政策托管为公开 URL（GitHub Pages 或 raw）
+  4. 上传 `release/game-recommender-vX.Y.Z.zip` 提交审核

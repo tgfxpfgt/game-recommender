@@ -138,7 +138,13 @@ Promise.allSettled([
   import('./storage/learned-noise.js').then((m) => m.warmupLearnedNoise()),
   import('./storage/url-index.js').then((m) => m.warmupUrlIndex()),
   import('./storage/behavior.js').then((m) => m.warmupBehavior()),
-  import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls())
+  import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls()),
+  // v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
+  // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
+  import('./core/api-monitor.js').then((m) => m.warmupApiMonitor()),
+  import('./core/outbound-audit.js').then((m) => m.warmupOutboundAudit()),
+  import('./handlers.js').then((m) => m.warmupSiteAlertPersist()),
+  import('./steam/ratings-batch.js').then((m) => m.resumeRatingsBatch())
 ]);
 
 // 定时器幂等创建：MV3 SW 每次冷启动都会重跑顶层代码，`alarms.create`
@@ -176,6 +182,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     getSettings().then((settings) => {
       if (settings.autoBackup) createBackup(false).catch((e) => console.error('自动备份失败:', String(e)));
     });
+  }
+  // v10.0.0：批量好评率任务续跑（SW 被 5 分钟硬上限杀死后由 alarm 唤醒；
+  // 任务已在途/无任务时幂等早退）
+  if (alarm.name === 'ratingsBatchResume') {
+    import('./steam/ratings-batch.js')
+      .then((m) => m.resumeRatingsBatch())
+      .catch((e) => console.error('批量好评率续跑失败:', String(e)));
   }
 });
 

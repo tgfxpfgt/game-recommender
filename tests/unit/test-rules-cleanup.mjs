@@ -268,3 +268,47 @@ test('导入含 ReDoS 正则的规则被拒', () => {
   expect(res.ok).toEqual(false);
   expect(res.error || '').toContain('ReDoS');
 });
+
+// ============ v10.0.0：规则包生态（格式化升级 + 逐站诊断） ============
+const { normalizeImportedRules, diagnoseAdapterRules, RULES_FORMAT_VERSION } = rulesMod;
+
+test('normalizeImportedRules：displayName 缺失以 name 回填 + version 戳记', () => {
+  const rules = {
+    version: 1,
+    sites: [{ key: 'a', name: 'A 站', domains: ['a.com'] }]
+  };
+  const out = normalizeImportedRules(rules);
+  expect(out.sites[0].displayName).toEqual('A 站');
+  expect(out.version).toEqual(RULES_FORMAT_VERSION);
+  // 已有 displayName 不覆盖
+  const rules2 = { version: 2, sites: [{ key: 'b', name: 'B', displayName: '自定义名', domains: ['b.com'] }] };
+  expect(normalizeImportedRules(rules2).sites[0].displayName).toEqual('自定义名');
+});
+
+test('diagnoseAdapterRules：缺 displayName/过宽正则+fallbackLinks 告警', () => {
+  const rules = {
+    version: 2,
+    sites: [
+      {
+        key: 'wide',
+        name: 'W',
+        displayName: 'W',
+        domains: ['w.com'],
+        detailUrlPatterns: ['/[^/]+/?$'],
+        listItem: { fallbackLinks: true }
+      },
+      {
+        key: 'ok',
+        name: 'OK',
+        displayName: 'OK',
+        domains: ['ok.com'],
+        searchUrl: 'https://ok.com/?s={q}',
+        detailUrlPatterns: ['/\d+\.html$']
+      }
+    ]
+  };
+  const diag = diagnoseAdapterRules(rules);
+  const wide = diag.find((d) => d.site === 'wide' && d.level === 'warn');
+  expect(!!wide).toEqual(true);
+  expect(diag.find((d) => d.site === 'ok')).toEqual(undefined);
+});

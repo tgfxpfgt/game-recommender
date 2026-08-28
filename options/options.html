@@ -915,8 +915,11 @@
                   <div class="rule-editor-actions">
                     <button id="ruleValidate" class="gr-btn gr-btn-sm">🔍 校验</button>
                     <button id="ruleSave" class="gr-btn gr-btn-primary gr-btn-sm">💾 保存规则</button>
+                    <button id="ruleSelfCheck" class="gr-btn gr-btn-sm">🩺 健康自检</button>
                     <span id="ruleStatus" class="rule-status"></span>
                   </div>
+                  <!-- v10.0.0：保存后逐站诊断 / per-site diagnostics after save -->
+                  <div id="ruleDiagnostics" class="rule-status" style="display:none;"></div>
                 </div>
               </div>
             </div>

@@ -7,7 +7,10 @@
  * Sliding-window stats over Steam API calls; a fail-rate above the threshold
  * flags an anomaly (rate limiting), surfaced in the popup and used to slow
  * down batch fetches.
+ * v10.0.0：调用窗口持久化到 storage.session（防抖）——SW 冷启动后限流
+ * 检测连续，不再从空窗口重新统计。
  */
+import { createSessionPersist } from './session-persist.js';
 
 // 统计窗口 / stats window
 const WINDOW_MS = 5 * 60 * 1000; // 5 分钟
@@ -16,7 +19,12 @@ const FAIL_RATE_THRESHOLD = 0.4; // 失败率 > 40% 视为异常
 const MIN_SAMPLES = 8; // 至少 8 次采样才判定（避免小样本误报）
 const MAX_SAMPLES = 200; // 窗口内样本上限（防内存膨胀）
 
-let calls = []; // [{t, ok, status}]
+const persist = createSessionPersist('grApiMonitor', { initial: [] });
+
+// 预热（SW 启动时调用——从 session 读回调用窗口）
+export async function warmupApiMonitor() {
+  await persist.load();
+}
 
 // 记录一次 Steam API 调用（status 为 HTTP 状态码，0 = 网络异常）
 // Record one Steam API call (status = HTTP code; 0 = network error)
@@ -24,20 +32,25 @@ let calls = []; // [{t, ok, status}]
 // 此前每次 O(n) 扫描；现仅在超上限 64 条时压缩一次，读取时再惰性过期）
 export function recordSteamCall(ok, status = 0) {
   const now = Date.now();
+  const calls = persist.peek();
   calls.push({ t: now, ok: !!ok, status: status || 0 });
   if (calls.length > MAX_SAMPLES + 64) {
-    calls = calls.filter((c) => now - c.t < WINDOW_MS).slice(-MAX_SAMPLES);
+    const kept = calls.filter((c) => now - c.t < WINDOW_MS).slice(-MAX_SAMPLES);
+    calls.length = 0;
+    calls.push(...kept);
   }
+  persist.scheduleSave();
 }
 
 // 获取当前 API 状态（纯函数，可单测）
 // Current API status (pure; unit-testable)
 export function getSteamApiStatus() {
   const now = Date.now();
-  let recent = calls;
-  if (calls.length > 0 && now - calls[0].t >= WINDOW_MS) {
-    calls = calls.filter((c) => now - c.t < WINDOW_MS);
-    recent = calls;
+  const recent = persist.peek();
+  if (recent.length > 0 && now - recent[0].t >= WINDOW_MS) {
+    const kept = recent.filter((c) => now - c.t < WINDOW_MS);
+    recent.length = 0;
+    recent.push(...kept);
   }
   const total = recent.length;
   const failed = recent.filter((c) => !c.ok).length;
@@ -65,5 +78,5 @@ export function getSteamApiStatus() {
 
 // 重置（测试/清理用）/ Reset
 export function resetApiMonitor() {
-  calls = [];
+  persist.reset();
 }

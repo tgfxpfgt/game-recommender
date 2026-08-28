@@ -17,6 +17,7 @@
     $('ruleSave').addEventListener('click', saveRules);
     $('ruleValidate').addEventListener('click', validateEditor);
     $('ruleFormat').addEventListener('click', formatEditor);
+    $('ruleSelfCheck').addEventListener('click', selfCheckRules);
     $('ruleResetBuiltin').addEventListener('click', resetToBuiltin);
     $('ruleExport').addEventListener('click', exportRules);
     $('ruleImport').addEventListener('click', () => $('ruleImportFile').click());
@@ -123,11 +124,74 @@
       if (resp && resp.ok) {
         setRuleStatus(`✅ 已保存 ${parsed.sites.length} 个站点规则（覆盖内置）；刷新已打开的下载站页面后生效`, 'ok');
         await loadRules();
+        // v10.0.0：保存后展示逐站诊断（结构性合法但影响功能的配置问题）
+        renderRuleDiagnostics(resp.diagnostics || []);
       } else {
         setRuleStatus('保存失败: ' + ((resp && resp.error) || '校验未通过'), 'error');
       }
     } catch (e) {
       setRuleStatus('保存失败: ' + String(e), 'error');
+    }
+  }
+
+  // v10.0.0：逐站诊断渲染（warn 红 / info 灰）/ per-site diagnostics render
+  function renderRuleDiagnostics(diagnostics) {
+    const box = document.getElementById('ruleDiagnostics');
+    if (!box) return;
+    if (!diagnostics || diagnostics.length === 0) {
+      box.style.display = 'none';
+      box.innerHTML = '';
+      return;
+    }
+    box.style.display = 'block';
+    box.innerHTML = diagnostics
+      .map((d) => {
+        const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const color = d.level === 'warn' ? '#e67e22' : '#8f98a0';
+        return `<div style="color:${color};">⚠ [${esc(d.site)}] ${esc(d.message)}</div>`;
+      })
+      .join('');
+  }
+
+  // v10.0.0：规则健康自检——逐站展示"配置诊断 + 运行时改版告警"
+  // Rule-pack self-check: config diagnostics per site + runtime redesign alerts
+  async function selfCheckRules() {
+    const box = document.getElementById('ruleDiagnostics');
+    try {
+      const [rulesResp, healthResp] = await Promise.all([
+        window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' }),
+        window.__GR_MSG__.sendMessage({ action: 'GET_SITE_HEALTH' })
+      ]);
+      const sites = ((rulesResp && rulesResp.merged) || {}).sites || [];
+      const alerts = (healthResp && healthResp.sites) || [] || [];
+      const alertByKey = {};
+      for (const a of alerts) alertByKey[a.siteKey] = a;
+      const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const lines = [];
+      for (const s of sites) {
+        const alert = alertByKey[s.key];
+        if (alert) {
+          lines.push(
+            `<div style="color:#e74c3c;">✖ [${esc(s.key)}] 疑似改版失效（${esc(alert.host || '?')}）— ` +
+              `${alert.alertCount} 次告警，最近 ${new Date(alert.lastAlertAt || Date.now()).toLocaleString()}</div>`
+          );
+        } else {
+          lines.push(`<div style="color:#67c1f5;">✓ [${esc(s.key)}] 正常（无改版告警）</div>`);
+        }
+      }
+      if (box) {
+        box.style.display = 'block';
+        box.innerHTML = '<div style="font-weight:bold;">🩺 规则健康自检：</div>' + lines.join('');
+      }
+      if (!lines.length && box) {
+        box.style.display = 'block';
+        box.innerHTML = '<div style="color:#8f98a0;">无站点规则可检查</div>';
+      }
+    } catch (e) {
+      if (box) {
+        box.style.display = 'block';
+        box.innerHTML = `<div style="color:#e74c3c;">自检失败: ${String(e).replace(/</g, '&lt;')}</div>`;
+      }
     }
   }
 

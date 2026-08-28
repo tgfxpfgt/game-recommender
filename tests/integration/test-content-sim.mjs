@@ -1027,7 +1027,7 @@ test('9d. 详情页未找到路径（手动选择浮窗）', async () => {
 });
 
 // ============ 10. 下载追踪 / Download tracking ============
-test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
+test('10. 下载追踪（网盘识别纯函数）', async () => {
   const { isDownloadUrl, isDownloadText } = GR.tracking;
   // 网盘/下载 URL 识别（纯函数）
   expect(isDownloadUrl('https://pan.baidu.com/s/abc')).toEqual(true);
@@ -1039,21 +1039,8 @@ test('10. 下载追踪（网盘识别 + window.open 拦截）', async () => {
   expect(isDownloadText('百度网盘提取码')).toEqual(true);
   expect(isDownloadText('点击下载游戏')).toEqual(true);
   expect(isDownloadText('游戏介绍与截图')).toEqual(false);
-  // window.open 拦截 → click_download 追踪（tracker init 已激活 setupDownloadTracking）
-  const before = sentMessages.filter(
-    (m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download'
-  ).length;
-  window.open('https://pan.baidu.com/s/download123');
-  await new Promise((r) => setTimeout(r, 300));
-  const after = sentMessages.filter(
-    (m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download'
-  ).length;
-  expect(after > before).toEqual(true);
-  const evt = sentMessages
-    .filter((m) => m.action === 'TRACK_EVENT' && m.data && m.data.type === 'click_download')
-    .pop();
-  expect(evt.data.downloadUrl.includes('pan.baidu.com')).toEqual(true);
-  expect(!!evt.data.gameName).toEqual(true);
+  // v10.0.0：window.open 拦截已移除（隔离世界覆盖对站点自身 JS 无效——
+  // 死代码）；下载路径由点击委托/copy 捕获覆盖，E2E 真实浏览器验证
 });
 
 // ============ 11. 过滤与排序（v6.4.4） ============

@@ -24,6 +24,9 @@ import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratin
 import { calculateRecommendation } from './recommend/engine.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
 import { getSteamApiStatus } from './core/api-monitor.js';
+import { createSessionPersist } from './core/session-persist.js'; // v10.0.0：告警限频跨 SW 持久化
+import { recordSiteAlert, getSiteHealth } from './storage/site-health.js';
+import { getFlushHealth } from './storage/flush-health.js';
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
 import { validateMessage } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
@@ -125,8 +128,14 @@ async function handleGetRecommendations(message) {
       : null;
   const results = [];
   for (const game of games) {
-    const score = await calculateRecommendation(game, useBuiltinOnly, shared);
-    results.push({ ...game, recommendation: score });
+    // v10.0.0：per-game 防御——单个游戏画像/数据畸形（如历史坏数据）
+    // 导致 calculateRecommendation 抛错时，跳过该游戏而非炸掉整批推荐
+    try {
+      const score = await calculateRecommendation(game, useBuiltinOnly, shared);
+      results.push({ ...game, recommendation: score });
+    } catch (e) {
+      Logger.warn('Recommend', `推荐计算失败（跳过）: ${String((game && game.name) || '?')}`, String(e));
+    }
   }
   return { results };
 }
@@ -181,18 +190,36 @@ async function handleGetApiStatus() {
 }
 
 // v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）
-const siteAlertLast = new Map();
+// v10.0.0：限频表持久化 storage.session（防抖）——SW 冷启动后 24h 限频连续
+const siteAlertPersist = createSessionPersist('grSiteAlertLast', { initial: {} });
+export async function warmupSiteAlertPersist() {
+  await siteAlertPersist.load();
+}
 async function handleSiteAdapterAlert(message) {
   const siteKey = String(message.siteKey || 'unknown');
   const now = Date.now();
-  const last = siteAlertLast.get(siteKey) || 0;
+  const lastMap = siteAlertPersist.peek();
+  const last = lastMap[siteKey] || 0;
   if (now - last < 24 * 60 * 60 * 1000) return { success: true, throttled: true };
-  siteAlertLast.set(siteKey, now);
+  lastMap[siteKey] = now;
+  siteAlertPersist.scheduleSave();
+  // v10.0.0：告警落盘站点健康模块（dashboard 健康看板/规则面板自检用）
+  await recordSiteAlert(siteKey, message.host || '');
   Logger.warn(
     'SiteAdapter',
     `站点规则疑似失效: ${siteKey}（${message.host || '?'}）——列表项提取为 0，站点可能改版，请更新适配规则`
   );
   return { success: true };
+}
+
+// v10.0.0：站点适配器健康（dashboard 看板/规则面板自检）
+async function handleGetSiteHealth() {
+  return getSiteHealth();
+}
+
+// v10.0.0：存储健康（写失败计数 + OPFS 模式态）
+async function handleGetStorageHealth() {
+  return getFlushHealth();
 }
 
 // v9.1.0：性能上报（内容脚本 boot 耗时等 → Perf 日志落盘）
@@ -270,6 +297,8 @@ export const MESSAGE_HANDLERS = {
   OPEN_HUB: handleOpenHub,
   LOG_PERF: handleLogPerf,
   SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
+  GET_SITE_HEALTH: handleGetSiteHealth,
+  GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
   CLEAR_OUTBOUND_AUDIT: async () => {
     resetOutboundAudit();

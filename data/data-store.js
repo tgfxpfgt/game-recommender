@@ -38,7 +38,8 @@ const MODULE_FILES = {
   wrongReports: { file: 'wrong-reports.json', format: 'json' },
   searchCache: { file: 'search-cache.json', format: 'json' }, // v6.4.3
   llmScore: { file: 'llm-score.json', format: 'json' }, // v6.4.3
-  urlAppIdIndex: { file: 'url-appid-index.json', format: 'json' } // v7.0.2
+  urlAppIdIndex: { file: 'url-appid-index.json', format: 'json' }, // v7.0.2
+  siteHealth: { file: 'site-health.json', format: 'json' } // v10.0.0：站点适配器健康
 };
 
 class DataStore {
@@ -66,6 +67,11 @@ class DataStore {
     return run;
   }
 
+  // v10.0.0：OPFS 可用态（dashboard 存储健康卡片展示）
+  isOpfsAvailable() {
+    return this.opfsAvailable;
+  }
+
   // 初始化（幂等）：探测 OPFS 并迁移旧数据 / Init (idempotent): probe OPFS + migrate
   init() {
     if (!this._initPromise) {
@@ -91,11 +97,13 @@ class DataStore {
 
   // 首次启动：把 storage.local 旧数据迁移到 OPFS（文件已存在则跳过）
   // First run: migrate legacy storage.local data into OPFS (skip existing files)
+  // v10.0.0：迁移成功后删除 storage.local 旧键——否则残留陈旧副本，内容侧
+  // 兼容回退链（loadSiteRules 读 storage.local adapterRules）会用到过期数据
   async _migrateFromStorage() {
     try {
       const moduleKeys = Object.keys(MODULE_FILES);
       const stored = await chrome.storage.local.get(moduleKeys);
-      let migrated = 0;
+      const migratedKeys = [];
       for (const key of moduleKeys) {
         if (stored[key] === undefined) continue;
         const cfg = MODULE_FILES[key];
@@ -103,10 +111,11 @@ class DataStore {
         const existing = await handle.getFile();
         if (existing.size > 0) continue; // 已迁移过 / already migrated
         await this._writeHandle(handle, stored[key], cfg.format);
-        migrated++;
+        migratedKeys.push(key);
       }
-      if (migrated > 0) {
-        console.log(`[DataStore] 已迁移 ${migrated} 个模块到 OPFS`);
+      if (migratedKeys.length > 0) {
+        await chrome.storage.local.remove(migratedKeys);
+        console.log(`[DataStore] 已迁移 ${migratedKeys.length} 个模块到 OPFS（旧 storage.local 键已清理）`);
       }
     } catch (e) {
       console.warn('[DataStore] 迁移失败:', String(e));

@@ -43,12 +43,14 @@ export function createStorageMock(initial = {}) {
   return api;
 }
 
-// 安装到 globalThis.chrome（local + runtime 最小面）；返回可卸载的清理函数
-// Installs the mock onto globalThis.chrome (local + minimal runtime surface).
+// 安装到 globalThis.chrome（local + session + runtime 最小面）；返回可卸载的清理函数
+// Installs the mock onto globalThis.chrome (local + session + minimal runtime surface).
 export function installChromeStorageMock(storage) {
   const prev = globalThis.chrome;
+  // v10.0.0：session 区与 local 同构（诊断持久化测试用）
+  const session = createStorageMock();
   globalThis.chrome = {
-    storage: { local: storage },
+    storage: { local: storage, session },
     runtime: {
       sendMessage: async () => ({ success: true }),
       onMessage: { addListener: () => {} },

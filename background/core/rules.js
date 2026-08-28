@@ -212,12 +212,76 @@ export function validateAdapterRules(rules) {
 
 // 保存用户导入的适配规则（校验通过后写入 storage，覆盖内置规则）
 // Save user-imported adapter rules (validated; overrides built-in rules)
+// v10.0.0：导入前做格式化升级（normalizeImportedRules）+ 返回逐站诊断
 export async function saveAdapterRules(rules) {
   const result = validateAdapterRules(rules);
   if (!result.ok) return result;
-  await dataStore.writeModule(DB_KEYS.ADAPTER_RULES, result.rules);
+  const normalized = normalizeImportedRules(result.rules);
+  await dataStore.writeModule(DB_KEYS.ADAPTER_RULES, normalized);
   resetRulesCache();
-  return { ok: true };
+  return { ok: true, rules: normalized, diagnostics: diagnoseAdapterRules(normalized) };
+}
+
+// ============ 规则包生态 / Rule-Pack Ecosystem (v10.0.0) ============
+
+// 规则格式版本（结构升级时递增；导入侧 normalizeImportedRules 自动升级）
+// Rule format version (bump on structural changes; imports auto-upgrade)
+export const RULES_FORMAT_VERSION = 2;
+
+// 导入侧格式化升级（纯函数，可单测）：旧版规则包缺 v9.3.0 引入的
+// displayName 字段时以 name 回填，并把 version 升到当前格式版本——
+// 消除"规则包随版本演进必须手工改字段"的迁移负担
+// Import-side format upgrade (pure): backfill displayName from name for
+// pre-v9.3.0 packs and stamp the current format version.
+export function normalizeImportedRules(rules) {
+  if (!isPlainObject(rules) || !Array.isArray(rules.sites)) return rules;
+  const sites = rules.sites.map((s) => {
+    if (!isPlainObject(s)) return s;
+    const out = { ...s };
+    if (!out.displayName && out.name) out.displayName = out.name;
+    return out;
+  });
+  return { ...rules, sites, version: RULES_FORMAT_VERSION };
+}
+
+// 逐站诊断（纯函数，可单测）：结构性合法但可能影响功能的配置问题，
+// 供保存后提示与规则面板自检展示（level: warn/info）
+// Per-site diagnostics (pure): structurally valid but function-affecting
+// config issues, surfaced after save and in the rules panel self-check.
+export function diagnoseAdapterRules(rules) {
+  const diagnostics = [];
+  const sites = rules && Array.isArray(rules.sites) ? rules.sites : [];
+  for (const s of sites) {
+    if (!isPlainObject(s) || !s.key) continue;
+    if (!s.displayName) {
+      diagnostics.push({ site: s.key, level: 'warn', message: '缺少 displayName，站点显示名将退化为 key' });
+    }
+    if (!s.searchUrl) {
+      diagnostics.push({ site: s.key, level: 'info', message: '未配置 searchUrl，站内搜索与兜底重试不可用' });
+    }
+    if (!Array.isArray(s.detailUrlPatterns) || s.detailUrlPatterns.length === 0) {
+      diagnostics.push({
+        site: s.key,
+        level: 'info',
+        message: '未配置 detailUrlPatterns，回退通用路径特征（/game/ /down/ /soft/）'
+      });
+    }
+    // 过宽正则 + 整页兜底组合：导航/分类链接会被误判为游戏详情页
+    // (v10.0.0 内置站已收窄为"含数字"路径——旧规则包仍可能带此组合)
+    if (
+      s.listItem &&
+      s.listItem.fallbackLinks === true &&
+      Array.isArray(s.detailUrlPatterns) &&
+      s.detailUrlPatterns.some((p) => p === '/[^/]+/?$')
+    ) {
+      diagnostics.push({
+        site: s.key,
+        level: 'warn',
+        message: 'fallbackLinks 与过宽详情正则（任意一级路径）组合，导航/分类链接会被误判为详情页'
+      });
+    }
+  }
+  return diagnostics;
 }
 
 // 删除用户导入的规则，恢复使用内置规则
@@ -319,7 +383,8 @@ export function sanitizeImportedModule(key, value) {
   if (key === 'settings') return sanitizeImportedSettings(value);
   if (key === 'adapterRules') {
     const result = validateAdapterRules(value);
-    return result.ok ? result.rules : null;
+    // v10.0.0：备份/导入同样走格式化升级（displayName 回填 + version 戳记）
+    return result.ok ? normalizeImportedRules(result.rules) : null;
   }
   if (!isPureJsonSafe(value)) return null;
   return value;

@@ -28,7 +28,8 @@ export const DB_KEYS = {
   WRONG_REPORTS: 'wrongReports', // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
   SEARCH_CACHE: 'searchCache', // 下载站搜索结果缓存（v6.4.3，24h TTL）
   LLM_SCORE: 'llmScore', // LLM 推荐评分缓存（v6.4.3，7d TTL）
-  URL_APPID_INDEX: 'urlAppIdIndex' // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
+  URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
+  SITE_HEALTH: 'siteHealth' // 站点适配器健康（v10.0.0：改版告警聚合）
 };
 
 // 默认设置 / Default settings
@@ -269,7 +270,8 @@ export const DATA_MODULES = [
   { key: 'llmScore', name: 'LLM 评分缓存', desc: 'LLM Score Cache', storageKey: 'llmScore' },
   { key: 'learnedNoise', name: '标题噪声词', desc: 'Learned Noise', storageKey: 'learnedNoise' },
   { key: 'wrongReports', name: '报错纠正记录', desc: 'Wrong Reports', storageKey: 'wrongReports' },
-  { key: 'urlAppIdIndex', name: '详情页网址索引', desc: 'Detail URL Index', storageKey: 'urlAppIdIndex' }
+  { key: 'urlAppIdIndex', name: '详情页网址索引', desc: 'Detail URL Index', storageKey: 'urlAppIdIndex' },
+  { key: 'siteHealth', name: '站点健康', desc: 'Site Health', storageKey: 'siteHealth' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

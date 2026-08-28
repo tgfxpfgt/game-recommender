@@ -4,7 +4,7 @@ import { getCacheStats } from '../storage/steam-cache.js';
 import { getUrlIndexSize } from '../storage/url-index.js';
 import { getNegativeCacheCount } from '../storage/name-index.js';
 import { DB_KEYS } from '../core/constants.js';
-import { aggregateTrends } from '../core/trends.js';
+import { aggregateTrends, aggregateFeedback } from '../core/trends.js';
 import { fetchSteamTagRecommendations } from '../steam/api-search.js';
 import { Logger } from '../storage/logger.js';
 
@@ -63,6 +63,8 @@ export async function handleGetStats() {
   // v7.1.0：诊断数据（网址索引规模 / 负缓存条数——自助诊断用）
   result.urlIndexSize = await getUrlIndexSize();
   result.negativeCacheCount = await getNegativeCacheCount();
+  // v10.0.0：推荐反馈信号（dislike 闭环数据利用——dashboard 区块）
+  result.feedback = aggregateFeedback(log);
   statsCache = { version, result };
   return result;
 }

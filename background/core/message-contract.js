@@ -175,6 +175,9 @@ const RULES = {
   CLEAR_GAME_CACHE: () => ({ ok: true }),
   DELETE_ADAPTER_RULES: () => ({ ok: true }),
   CLEAN_EXPIRED_CACHE: () => ({ ok: true }),
+  // v10.0.0：健康读类（无参）
+  GET_SITE_HEALTH: () => ({ ok: true }),
+  GET_STORAGE_HEALTH: () => ({ ok: true }),
   // 缓存条目级操作：appId 必填
   DELETE_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'DELETE_GAME_CACHE_ENTRY.appId'),
   REFRESH_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'REFRESH_GAME_CACHE_ENTRY.appId'),

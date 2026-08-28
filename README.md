@@ -278,7 +278,31 @@ node --check options/options.js
 
 ## 更新日志
 
-### v9.7.0（全项目自检修复：8 P1 + 21 P2 + 5 P3）
+### v10.0.0（大版本：迭代路线全落地——技术债清偿 / MV3 根治 / 产品化）
+
+按 v9.7.0 后制定的迭代路线三阶段全量实施。
+
+**技术债清偿（v9.8 计划项）**：
+- tsconfig.ui.json 重复 exclude 键修复（content 双检查根治）；旧 storage.local 迁移残留键一次性清理（迁移成功后 remove，消除内容侧回退链读到陈旧 adapterRules 的隐患）
+- 移除 window.open 死代码（隔离世界覆盖对站点自身 JS 无效，下载路径由点击委托/copy 捕获覆盖）
+- GET_RECOMMENDATIONS 循环 per-game try/catch（单个畸形画像不再炸整批推荐）
+- 诊断数据持久化：API 监控窗口/出站审计环形缓冲/站点告警限频表迁入 chrome.storage.session（新增 background/core/session-persist.js 防抖辅助）——SW 冷启动后限流检测与审计连续
+- 覆盖率 63.96%→66%+（+21 测试：data-modules 接线/site-scripts 动态注册/历史记录/行为偏好/健康模块）；handlers.js 覆盖归因伪影定位（原生加载逃逸插桩，真实覆盖远高于读数）——已记录 CONTRIBUTING，修复留专项
+
+**MV3 生命周期根治 + 可观测性（v9.9 计划项）**：
+- **批量好评率任务可恢复化**：任务状态经批次边界检查点到 chrome.storage.session，SW 被 Chrome 110+ 的 5 分钟硬上限杀死后由 alarm（每分钟）唤醒新实例从最后边界续跑（done 推送不再丢失）；回归测试覆盖连续任务守卫复位（E2E 滚动节抓出的真实 bug：startRatingJob 未复位 jobRunning，第二批请求被静默丢弃）
+- 站点适配器健康模块（background/storage/site-health.js，OPFS 持久化）+ dashboard 健康看板卡片与明细列表——站点改版从"静默失效"变"主动可见"
+- 存储健康指标（flush 写失败计数 + OPFS/降级模式态，session 持久化）+ dashboard 卡片
+- 写放大实测（scripts/measure-write-amplification.mjs）：满负载单批落盘 ≈1MB，60 游戏会话总写量 1-6MB 可接受——保留每批落盘设计，缓存规模 5-10 倍增长时再做增量优化
+
+**产品化（v10.0 计划项）**：
+- 规则包生态：导入侧格式化升级 normalizeImportedRules（旧包 displayName 回填 + version 戳记）、逐站诊断 diagnoseAdapterRules（缺 displayName/过宽正则+fallbackLinks 组合等 warn/info）、规则面板"🩺 健康自检"按钮（配置诊断 × 运行时改版告警逐站展示）、保存后诊断反馈
+- 推荐反馈信号：aggregateFeedback 纯函数（dislike 闭环聚合）+ dashboard"🎯 推荐反馈信号"区块（负反馈总量/top 负反馈/top 下载）
+- 上架材料：PRIVACY.md 更新（session 存储/ITAD/Bing/新权限说明）、STORE.md 提交状态清单（CWS 开发者账号注册为用户操作项）
+
+**质量门禁**：668 test · E2E 46/46（MOCK 与真实网络双模式）· visual 11/11（dashboard 新卡片基线更新）· lint 0 · typecheck 0 · npm audit 0 · 覆盖率门禁通过
+
+### v9.7.0（全项目自检修复：8 P1 + 20 P2 + 5 P3）
 
 编码模型切换（DeepSeek V4 Flash → GLM-5.3）后的全面自检与修复；完整清单见仓库根 `自检报告-2026-08-27.md`。自动化基线 640 test · E2E 46/46 · lint 0 · typecheck 0。
 

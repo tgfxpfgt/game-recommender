@@ -20,14 +20,17 @@ const storage = createStorageMock();
 installChromeStorageMock(storage);
 
 // handlers.js 与其静态依赖无 ?t= 导入（同实例，handler 写入的状态可验证落点）
-const handlers = await import(new URL('../../background/handlers.js', import.meta.url).href);
+// v10.0.0：改相对路径动态导入——绝对 URL（路径含空格被编码 %20）会让后台
+// 模块脱离 vite 转换管线原生加载，V8 覆盖率键不匹配（handlers.js 被误报
+// 15%）；相对导入经 vite 解析（decoded fs 路径），实例共享语义不变
+const handlers = await import('../../background/handlers.js');
 const { handleMessage } = handlers;
-const cacheMod = await import(new URL('../../background/storage/steam-cache.js', import.meta.url).href);
-const nameIdx = await import(new URL('../../background/storage/name-index.js', import.meta.url).href);
-const regMod = await import(new URL('../../background/storage/registry.js', import.meta.url).href);
-const wrongMod = await import(new URL('../../background/storage/wrong-reports.js', import.meta.url).href);
-const urlMod = await import(new URL('../../background/storage/download-urls.js', import.meta.url).href);
-const urlIdx = await import(new URL('../../background/storage/url-index.js', import.meta.url).href);
+const cacheMod = await import('../../background/storage/steam-cache.js');
+const nameIdx = await import('../../background/storage/name-index.js');
+const regMod = await import('../../background/storage/registry.js');
+const wrongMod = await import('../../background/storage/wrong-reports.js');
+const urlMod = await import('../../background/storage/download-urls.js');
+const urlIdx = await import('../../background/storage/url-index.js');
 
 // ============ 1. SEARCH_STEAM 完整链路 ============
 describe('SEARCH_STEAM 完整链路', () => {

@@ -23,6 +23,7 @@ import { resetBehaviorState } from './behavior.js';
 import { resetOutboundAudit } from '../core/outbound-audit.js';
 import { resetSearchCache } from './search-cache.js';
 import { resetLlmCache } from './llm-cache.js';
+import { resetSiteHealth } from './site-health.js';
 
 // 重置所有内存缓存 / Reset all in-memory caches
 export function resetInMemoryCaches() {
@@ -41,4 +42,5 @@ export function resetInMemoryCaches() {
   resetOutboundAudit(); // v3.4.1：出站请求审计缓冲随清理一并清空
   resetSearchCache(); // v6.4.3：下载站搜索缓存
   resetLlmCache(); // v6.4.3：LLM 评分缓存
+  resetSiteHealth(); // v10.0.0：站点适配器健康随清理一并重置
 }

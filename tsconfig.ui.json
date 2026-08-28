@@ -24,6 +24,5 @@
     "shared/**/*.js",
     "**/*.d.ts"
   ],
-  "exclude": ["node_modules", "tests", "content"],
-  "exclude": ["node_modules", "tests", "background", "data", "lib"]
+  "exclude": ["node_modules", "tests", "content", "background", "data", "lib"]
 }

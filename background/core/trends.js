@@ -54,3 +54,35 @@ function mondayKey(d) {
   m.setDate(m.getDate() - dow);
   return dayKey(m);
 }
+
+// v10.0.0：推荐反馈信号聚合（纯函数，可单测）——dislike_game 负反馈闭环
+// 数据的利用：负反馈总量、按游戏聚合的 top 负反馈与 top 下载（dashboard
+// 「推荐反馈信号」区块渲染）。
+// Feedback-signal aggregation (pure): dislike totals plus per-game top lists.
+export function aggregateFeedback(log, topN = 5) {
+  const perGame = new Map();
+  let dislikeTotal = 0;
+  for (const e of log || []) {
+    const name = String((e && e.gameName) || '').trim();
+    if (!name) continue;
+    if (e.type === 'dislike_game') dislikeTotal++;
+    let g = perGame.get(name);
+    if (!g) {
+      g = { name, views: 0, downloads: 0, dislikes: 0 };
+      perGame.set(name, g);
+    }
+    if (e.type === 'view_detail') g.views++;
+    else if (e.type === 'click_download') g.downloads++;
+    if (e.type === 'dislike_game') g.dislikes++;
+  }
+  const games = [...perGame.values()];
+  const topDisliked = games
+    .filter((g) => g.dislikes > 0)
+    .sort((a, b) => b.dislikes - a.dislikes || b.views - a.views)
+    .slice(0, topN);
+  const topDownloaded = games
+    .filter((g) => g.downloads > 0)
+    .sort((a, b) => b.downloads - a.downloads)
+    .slice(0, topN);
+  return { dislikeTotal, gameCount: games.length, topDisliked, topDownloaded };
+}

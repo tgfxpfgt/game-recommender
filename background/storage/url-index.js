@@ -14,6 +14,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { createDebouncedStore } from './debounced-store.js';
+import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
 /** @type {Record<string, string|number>} */
 let urlIndexMemory = {};
@@ -44,7 +45,15 @@ async function load() {
 const writer = createDebouncedStore({
   name: '网址索引',
   debounceMs: 2000,
-  save: () => dataStore.writeModule(DB_KEYS.URL_APPID_INDEX, urlIndexMemory)
+  save: async () => {
+    try {
+      await dataStore.writeModule(DB_KEYS.URL_APPID_INDEX, urlIndexMemory);
+    } catch (e) {
+      // v10.0.0：写失败计数可见（flush-health）——此前静默失败
+      recordFlushFailure('urlIndexWriteFails');
+      throw e; // 交由工厂记录日志
+    }
+  }
 });
 // v9.3.0：显式 flush（SW 休眠前/聚合落盘时调用，消除 2s 防抖丢失窗口）
 export const flushUrlIndex = writer.flush;

@@ -21,6 +21,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, STEAM_CACHE_WRITE_DEBOUNCE, STEAM_CACHE_MAX_ENTRIES, moduleTtlMs } from '../core/constants.js';
+import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
 // 字段 → 模块归属映射（v3.3.7 模块化；未知新字段默认进 detail）
 // Field → module routing (modular since v3.3.7; unknown fields go to detail)
@@ -260,6 +261,7 @@ export async function flushSteamCache() {
     // 会随 SW 死亡静默丢失且永不重试（参照 logger.js flushLogBuffer 的回滚）
     steamCacheDirty = true;
     writer.scheduleWrite();
+    recordFlushFailure('steamCacheWriteFails');
     console.error('Steam缓存写入失败:', String(e));
   }
 }

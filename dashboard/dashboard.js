@@ -278,6 +278,7 @@ async function loadStats() {
     // v7.1.0：自助诊断（网址索引规模 / 名称负缓存条数）
     document.getElementById('diagUrlIndex').textContent = response.urlIndexSize ?? 0;
     document.getElementById('diagNegativeCache').textContent = response.negativeCacheCount ?? 0;
+    loadHealthCards().catch(() => {}); // v10.0.0：站点/存储健康卡片（失败不影响主统计）
     // v6.3.2 B3：缓存命中率（hits+misses 计数）
     // v7.1.0：分模块命中率（meta 基础 / rating 好评率 / detail 详情 / spy 热度）
     const cs = response.cacheStats || {};
@@ -302,6 +303,8 @@ async function loadStats() {
     // v7.1.0：Steam API 限流状态（自助诊断）
     loadApiDiagnostics();
     loadBootTime();
+    // v10.0.0：推荐反馈信号区块
+    renderFeedback(response.feedback);
     // 标签偏好 / Tag preference cloud
     renderTagCloud(response.topKeywords);
 
@@ -756,6 +759,92 @@ async function deleteBackup(id) {
   if (!confirm('确定删除该备份？')) return;
   await window.__GR_MSG__.sendMessage({ action: 'DELETE_BACKUP', backupId: id });
   loadBackups();
+}
+
+// v10.0.0：存储健康 + 站点适配器健康（诊断卡与明细列表）
+async function loadHealthCards() {
+  try {
+    const storageHealth = await window.__GR_MSG__.sendMessage({ action: 'GET_STORAGE_HEALTH' });
+    const opfsEl = document.getElementById('diagOpfsMode');
+    const failEl = document.getElementById('diagFlushFails');
+    if (opfsEl) {
+      opfsEl.textContent = storageHealth && storageHealth.opfsAvailable ? 'OPFS' : '降级 local';
+      opfsEl.title =
+        storageHealth && storageHealth.opfsAvailable
+          ? '数据存储于 OPFS（每模块独立文件）'
+          : 'OPFS 不可用，已降级 chrome.storage.local（受 5MB 配额限制）';
+    }
+    if (failEl) {
+      const fails =
+        ((storageHealth && storageHealth.steamCacheWriteFails) || 0) +
+        ((storageHealth && storageHealth.registryWriteFails) || 0) +
+        ((storageHealth && storageHealth.nameIndexWriteFails) || 0) +
+        ((storageHealth && storageHealth.urlIndexWriteFails) || 0);
+      failEl.textContent = String(fails);
+      failEl.title =
+        storageHealth && storageHealth.lastFailModule
+          ? `最近失败模块: ${storageHealth.lastFailModule}（写失败会自动回滚重试）`
+          : '本次会话无写失败（失败会自动回滚重试）';
+    }
+  } catch {
+    /* 存储健康读取失败忽略 */
+  }
+  try {
+    const siteHealth = await window.__GR_MSG__.sendMessage({ action: 'GET_SITE_HEALTH' });
+    const alertEl = document.getElementById('diagSiteAlerts');
+    const sites = (siteHealth && siteHealth.sites) || [];
+    const totalAlerts = sites.reduce((sum, s) => sum + (s.alertCount || 0), 0);
+    if (alertEl) {
+      alertEl.textContent = String(totalAlerts);
+      alertEl.title = sites.length > 0 ? sites.map((s) => `${s.siteKey}: ${s.alertCount} 次`).join('\n') : '无告警记录';
+    }
+    // 明细列表（仅存在告警时显示）/ per-site detail when alerts exist
+    const listEl = document.getElementById('siteHealthList');
+    if (listEl) {
+      if (sites.length === 0) {
+        listEl.style.display = 'none';
+        listEl.innerHTML = '';
+      } else {
+        listEl.style.display = 'block';
+        listEl.innerHTML =
+          '<div style="color:#e74c3c;">⚠ 站点适配器疑似失效（列表项提取为 0，请检查/更新适配规则）：</div>' +
+          sites
+            .map(
+              (s) =>
+                `<div style="margin-top:2px;">• ${escapeHtml(s.siteKey)}（${escapeHtml(s.host || '?')}）— ` +
+                `${s.alertCount} 次，最近 ${new Date(s.lastAlertAt || Date.now()).toLocaleString()}</div>`
+            )
+            .join('');
+      }
+    }
+  } catch {
+    /* 站点健康读取失败忽略 */
+  }
+}
+
+// v10.0.0：推荐反馈信号渲染（dislike 闭环 / top 下载）
+function renderFeedback(feedback) {
+  const summaryEl = document.getElementById('feedbackSummary');
+  const listEl = document.getElementById('feedbackLists');
+  if (!summaryEl || !listEl) return;
+  const fb = feedback || {};
+  const hasData = (fb.gameCount || 0) > 0 || (fb.dislikeTotal || 0) > 0;
+  if (!hasData) {
+    summaryEl.textContent = '暂无数据';
+    listEl.innerHTML = '';
+    return;
+  }
+  summaryEl.textContent = `负反馈（不感兴趣）${fb.dislikeTotal || 0} 次 · 覆盖 ${fb.gameCount || 0} 款游戏`;
+  const esc = (t) => escapeHtml(String(t || ''));
+  const renderList = (title, items, key) =>
+    items && items.length > 0
+      ? `<div style="margin-top:4px;"><b>${title}</b>${items
+          .map((g) => `<span class="gr-pill" style="margin-left:6px;">${esc(g.name)} · ${g[key]}</span>`)
+          .join('')}</div>`
+      : '';
+  listEl.innerHTML =
+    renderList('👎 负反馈最多：', fb.topDisliked, 'dislikes') +
+    renderList('⬇️ 下载最多：', fb.topDownloaded, 'downloads');
 }
 
 // v9.1.0：性能基线（从 runtimeLog 读最近 Perf 条目——启动耗时）

@@ -10,6 +10,7 @@ import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE, nameNegativeCacheTtlMs } from '../core/constants.js';
 import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
+import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
 /** @type {Map<string, {appId: string|null, lastSearched: number}>} */
 let nameIndexMemory = new Map();
@@ -117,6 +118,7 @@ const writer = createDebouncedStore({
       // v9.7.0：写失败回滚 dirty 并重新调度（否则本批修改静默丢失且永不重试）
       nameIndexDirty = true;
       writer.scheduleWrite();
+      recordFlushFailure('nameIndexWriteFails');
       console.error('名称索引写入失败:', String(e));
     }
   }

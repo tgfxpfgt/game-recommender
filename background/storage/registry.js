@@ -10,6 +10,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
+import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
 /** @type {Record<string, any>} */
 let registryMemory = {};
@@ -134,6 +135,7 @@ export async function flushRegistry() {
     // v9.7.0：写失败回滚 dirty 并重新调度（否则本批修改静默丢失且永不重试）
     registryDirty = true;
     writer.scheduleWrite();
+    recordFlushFailure('registryWriteFails');
     console.error('注册表写入失败:', String(e));
   }
 }

@@ -89,7 +89,21 @@
             <div class="stat-value" id="diagBootTime">—</div>
             <div class="stat-label">SW 启动耗时（v9.1.0 性能）</div>
           </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagOpfsMode">—</div>
+            <div class="stat-label">存储模式（v10.0.0 健康）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagFlushFails">—</div>
+            <div class="stat-label">缓存写失败（v10.0.0 健康）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagSiteAlerts">—</div>
+            <div class="stat-label">站点改版告警（v10.0.0 健康）</div>
+          </div>
         </section>
+        <!-- v10.0.0：站点适配器健康明细（改版可感知） -->
+        <div id="siteHealthList" class="backup-status" style="margin-top:8px;display:none;"></div>
       </div>
 
       <!-- 行为趋势 / Behavior trends (v4.0.0) -->
@@ -107,6 +121,14 @@
         <div id="trendChart" class="trend-chart">
           <div class="no-data">暂无行为数据</div>
         </div>
+      </section>
+
+      <!-- 推荐反馈信号 / Recommendation feedback signals (v10.0.0) -->
+      <section class="section">
+        <h2>🎯 推荐反馈信号</h2>
+        <p class="section-desc">dislike 负反馈闭环与 view→download 转化的按游戏聚合（v10.0.0）</p>
+        <div id="feedbackSummary" class="backup-status">暂无数据</div>
+        <div id="feedbackLists" style="margin-top:6px;"></div>
       </section>
 
       <!-- 标签偏好 / Tag preferences -->
