@@ -71,7 +71,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
           ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div class="gr-detail-dim">好评率: <span class="gr-detail-blue">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
           ${spy.currentPlayers ? `<div class="gr-detail-dim">当前在线: <span class="gr-detail-green">${spy.currentPlayers}</span> 人</div>` : ''}
-          ${spy.owners ? `<div class="gr-detail-dim">拥有者: <span class="gr-detail-strong">${spy.owners}</span>${spyHeatLabel() ? ` · 热度 <span class="gr-detail-green">${spyHeatLabel()}</span>` : ''}</div>` : ''}
+          ${spy.owners ? `<div class="gr-detail-dim">拥有者: <span class="gr-detail-strong">${esc(spy.owners)}</span>${spyHeatLabel() ? ` · 热度 <span class="gr-detail-green">${spyHeatLabel()}</span>` : ''}</div>` : ''}
           ${spy.averagePlaytime ? `<div class="gr-detail-dim">平均时长: <span class="gr-detail-strong">${spy.averagePlaytime}</span></div>` : ''}
         </div>
       `;
@@ -274,7 +274,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         <!-- 底部信息栏：App ID + 缓存时间 + 手动更新/报错按钮 -->
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
-            ${data.appId ? `<span>App ID: <a href="https://store.steampowered.com/app/${data.appId}" target="_blank" style="color:#67c1f5;text-decoration:none;">${data.appId}</a></span>` : '<span>App ID: —</span>'}
+            ${data.appId ? `<span>App ID: <a href="${common.escapeAttr('https://store.steampowered.com/app/' + data.appId)}" target="_blank" style="color:#67c1f5;text-decoration:none;">${esc(String(data.appId))}</a></span>` : '<span>App ID: —</span>'}
             <span title="${cachedAt ? new Date(cachedAt).toLocaleString() : ''}">缓存于 ${cacheAgeText}</span>
           </div>
           ${

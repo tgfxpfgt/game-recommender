@@ -18,6 +18,15 @@ const dbg = (...a) => debug.dbg(...a);
 const RATINGS_BATCH_SIZE = 60; // 每批请求上限（与后台批处理规模对应）
 
 function initBatchState(settings) {
+  // v9.7.0：重建前先断开旧观察器/定时器——重复调用（SPA 重入/强制刷新）
+  // 时旧 MutationObserver/IntersectionObserver 仍持有旧 batchState 闭包，
+  // 泄漏且可能对已废弃状态触发回调
+  const prev = _state.batchState;
+  if (prev) {
+    if (prev.observer) prev.observer.disconnect();
+    if (prev.sentinelObserver) prev.sentinelObserver.disconnect();
+    if (prev.forceTimer) clearTimeout(prev.forceTimer);
+  }
   _state.batchState = {
     processItems: [], // 全部已发现 item（追加式）/ all discovered items
     itemsByName: new Map(), // name → item（同名取首个，按名回填/惰性提取用）
@@ -110,7 +119,14 @@ async function fireBatch(names) {
     if (!job || job.finished) return;
     if (pendingCount > 0) {
       // 后台正在拉取：等推送 done 衔接下一批（45s 兜底随批次重置）
-      status.showStatus('正在从 Steam 更新缓存', job.processed.size, `${pendingCount} 个未命中缓存，后台拉取中...`);
+      // v9.7.0：修正参数错位——第 3 参是数字 total，描述文本应传第 4 参 detail
+      //（此前文本传给 total 导致 NaN 比较，进度行与描述文案都不渲染）
+      status.showStatus(
+        '正在从 Steam 更新缓存',
+        job.processed.size,
+        _state.batchState.processItems.length,
+        `${pendingCount} 个未命中缓存，后台拉取中...`
+      );
       _internal.scheduleFallbacks();
     } else {
       // 本批全部命中缓存，无推送会来：立即衔接下一批
@@ -228,7 +244,8 @@ export function requestSteamRatings(items, settings) {
     status.hide();
     return;
   }
-  status.showStatus('正在获取 Steam 好评率', _state.batchState.processItems.length, '缓存优先检索中...');
+  // v9.7.0：修正参数错位（同上——detail 应为第 4 参）
+  status.showStatus('正在获取 Steam 好评率', 0, _state.batchState.processItems.length, '缓存优先检索中...');
   _internal.createRatingsJob(_state.batchState.processItems, settings, jobNames);
   maybeFetchNextBatch();
   startListScan();

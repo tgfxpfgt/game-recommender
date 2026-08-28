@@ -280,14 +280,15 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
     let cnData = null;
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
-        cnData = await (
-          await fetchWithTimeout(
-            `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
-          )
-        ).json();
-        recordSteamCall(true);
+        const resp = await fetchWithTimeout(
+          `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
+        );
+        // v9.7.0：传入 status 且非 2xx 不计成功（与 api-details/reviews 一致）
+        recordSteamCall(resp.ok, resp.status);
+        if (!resp.ok) continue;
+        cnData = await resp.json();
       } catch {
-        recordSteamCall(false); /* 中文搜索失败不阻断流程 */
+        recordSteamCall(false, 0); /* 中文搜索失败不阻断流程 */
       }
     }
 

@@ -142,8 +142,12 @@ async function handleSaveSettings(message) {
 }
 
 async function handleResetSettings() {
-  await saveSettings(DEFAULT_SETTINGS);
-  return { success: true };
+  const settings = DEFAULT_SETTINGS;
+  await saveSettings(settings);
+  // v9.7.0：返回 settings 供 UI 立即重渲染——此前只回 {success} 而 UI 判
+  // resp.settings，恒走失败分支；且失败分支不重渲染时旧 DOM 值会被下一次
+  // saveSettings 整包覆盖回去
+  return { success: true, settings };
 }
 
 // --- 适配规则三件套 / Adapter rules ---
@@ -164,7 +168,9 @@ async function handleDeleteAdapterRules() {
   // 规则删除后自定义站点脚本残留注册无碍（tracker 按规则早退兜底）——
   // 不注销，保持幂等简单；仍同步以补注册其他新站点
   syncSiteScripts().catch(() => {});
-  return { success: true };
+  // v9.7.0：补 ok 字段——UI（panels/rules.js）判 resp.ok，此前恒 undefined
+  // 导致"恢复内置规则"成功后无任何反馈
+  return { ok: true, success: true };
 }
 
 // --- Steam API 状态监测（v3.3.0）---

@@ -13,9 +13,25 @@ import { getSettings } from '../core/settings.js';
 import { Logger } from '../storage/logger.js';
 
 // v7.4.0：最近一次限免通知内容（SW 点击通知时读取）
+// v9.7.0：同步持久化到 chrome.storage.session——通知存活数分钟～数小时而
+// SW 空闲 30s 即被杀，点击通知唤醒的是全新 SW 实例，纯内存变量必然为空
+//（"点击通知打开商店页"100% 失效）；storage.session 生命周期与浏览器会话
+// 一致，恰覆盖通知存活窗口
 let lastNotifyGames = [];
-export function getLastNotifyGames() {
-  return lastNotifyGames;
+const NOTIFY_SESSION_KEY = 'grLastNotifyGames';
+export async function getLastNotifyGames() {
+  if (lastNotifyGames.length > 0) return lastNotifyGames;
+  try {
+    const data = await chrome.storage.session.get(NOTIFY_SESSION_KEY);
+    const stored = data && data[NOTIFY_SESSION_KEY];
+    if (Array.isArray(stored) && stored.length > 0) {
+      lastNotifyGames = stored;
+      return stored;
+    }
+  } catch {
+    /* session 存储不可用（极旧 Chrome）→ 空数组（与旧行为一致） */
+  }
+  return [];
 }
 
 const ONE_DAY = 24 * 3600 * 1000;
@@ -291,7 +307,24 @@ function normalizeGameName(name) {
 }
 
 // 刷新限免游戏（force 强制重新拉取）/ Refresh free games (force re-fetches)
-export async function refreshFreeGames(force = false) {
+// v9.7.0：in-flight 复用——启动/alarm/UI 三处触发源可能并发（SW 启动即发
+// 起 + alarm 同时到点），并发刷新各自读旧库、各自整体覆盖写，用户在两写
+// 之间 claimFreeGame 设置的 claimed 标志会被最后写者以旧基线覆盖丢失
+/** @type {Promise<Object>|null} */
+let refreshInFlight = null;
+export function refreshFreeGames(force = false) {
+  if (refreshInFlight) return refreshInFlight;
+  refreshInFlight = (async () => {
+    try {
+      return await doRefreshFreeGames(force);
+    } finally {
+      refreshInFlight = null;
+    }
+  })();
+  return refreshInFlight;
+}
+
+async function doRefreshFreeGames(force = false) {
   const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
   const existing = stored || { lastUpdate: 0, games: [] };
 
@@ -335,6 +368,11 @@ async function checkItadFree(appId) {
     const resp = await fetchWithTimeout(
       `https://api.isthereanydeal.com/v02/game/prices/?key=${key}&appids=steam/${appId}`
     );
+    // v9.7.0：非 2xx 区分凭证失效（401/403 → key 失效告警）与其他失败
+    if (resp.status === 401 || resp.status === 403) {
+      Logger.warn('FreeGames', `ITAD校验凭证失效（HTTP ${resp.status}，检查激活 Key 是否有效）`);
+      return null;
+    }
     if (!resp.ok) return null;
     const data = await resp.json();
     const entry = data && data['steam/' + appId];
@@ -342,7 +380,9 @@ async function checkItadFree(appId) {
     return price === null ? null : price <= 0;
   } catch (e) {
     // v7.1.0：校验失败提升为 warn（凭证卫生——API 失效可被发现）
-    Logger.warn('FreeGames', 'ITAD校验失败（检查激活 Key 是否有效）:', String(e));
+    // v9.7.0：文案区分网络/CORS 失败与 Key 失效——fetch 异常多为网络问题，
+    // 恒报"检查 Key"会误导用户（无 Key 用户也不会走到这里：上方已早退）
+    Logger.warn('FreeGames', 'ITAD校验请求失败（网络不可达或被拦截，按原分类放行）:', String(e));
     return null;
   }
 }
@@ -456,6 +496,12 @@ async function notifyNewFreeGames(newOnes) {
     newOnes = limited;
     // v7.4.0：记录通知内容 → SW 点击通知时打开首个游戏商店页
     lastNotifyGames = newOnes;
+    // v9.7.0：同步写 session 存储（SW 被杀后点击通知仍可读取）
+    try {
+      await chrome.storage.session.set({ [NOTIFY_SESSION_KEY]: newOnes });
+    } catch {
+      /* session 不可用时退化为纯内存（旧行为） */
+    }
     const names = newOnes
       .slice(0, 3)
       .map((g) => g.name)

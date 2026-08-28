@@ -131,7 +131,20 @@ export async function flushRegistry() {
   try {
     await dataStore.writeModule(DB_KEYS.GAME_REGISTRY, registryMemory);
   } catch (e) {
+    // v9.7.0：写失败回滚 dirty 并重新调度（否则本批修改静默丢失且永不重试）
+    registryDirty = true;
+    writer.scheduleWrite();
     console.error('注册表写入失败:', String(e));
+  }
+}
+
+// 删除单个注册条目（缓存管理页删除用）/ Delete a single registry entry
+// v9.7.0：delete 只改内存引用，必须显式置 dirty 并调度写入，否则 flush 会
+// 跳过、删除在 SW 重启后"复活"（与 deleteSteamCacheEntry 同理）
+export async function deleteGameRegistryEntry(appId) {
+  await loadRegistryToMemory();
+  if (appId && delete registryMemory[String(appId)]) {
+    scheduleRegistryWrite();
   }
 }
 

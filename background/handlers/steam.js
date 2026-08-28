@@ -26,7 +26,7 @@ import {
   latestModuleTs
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
-import { getAppIdByUrl, setUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
+import { getAppIdByUrl, setUrlAppId, deleteUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 
 /**
  * 游戏雷达 Game Radar - 消息处理：Steam 查询 / Steam Message Handlers
@@ -45,10 +45,21 @@ export async function handleSearchSteam(message, sender) {
     if (urlAppId) {
       const byUrl = await fetchSteamFullDetailsByAppId(urlAppId);
       if (byUrl) {
-        Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${byUrl.name}`, { appId: byUrl.appId });
-        await flushAllCaches();
-        const cachedEntry = await getSteamCacheEntry(byUrl.appId);
-        return { data: byUrl, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
+        // v9.7.0：URL 命中同样过名称相关性校验（与 handleGetSteamByAppId
+        // 的直取校验对称）——URL 索引由历史匹配写入，一旦写入错误 appId 而
+        // 命中路径无校验短路返回，错误被永久固化（报错清理不覆盖 URL 索引
+        // 时换绑永远不会发生）。不相关 → 清除错误绑定，继续标题搜索路径
+        if (namesRelated(message.gameName, byUrl.name)) {
+          Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${byUrl.name}`, { appId: byUrl.appId });
+          await flushAllCaches();
+          const cachedEntry = await getSteamCacheEntry(byUrl.appId);
+          return { data: byUrl, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
+        }
+        Logger.warn(
+          'Steam',
+          `网址索引 appId ${urlAppId} 与标题不相关（${byUrl.name} vs ${message.gameName}），清除错误绑定`
+        );
+        await deleteUrlAppId(pageUrl);
       }
       // 详情获取失败（如缓存损坏）→ 继续标题搜索路径
     }
@@ -286,22 +297,17 @@ export async function handleCacheSteamPage(message) {
 // appid 时，清除该 appId 的 Steam 缓存/名称索引（正/负缓存都删，防负缓存
 // 拦截重检索）/下载站网址映射（30 天错误映射一并清除），随后重新检索。
 // 注册表不删：它是 Steam 官方信息，错误的是"标题→appId"的映射。
+// v9.7.0：同时清除当前页的网址索引绑定（sender.tab.url）——此前报错不覆盖
+// URL 索引，重载页面后 SEARCH_STEAM 仍命中同一错误 appId 原样返回，报错
+// 自愈闭环被 URL 第一候选短路击穿。
 // Manual wrong-appId report: clears the wrong appId's Steam cache, name-index
-// entries (both signs, so the negative cache can't block the re-search) and
-// download-URL mappings; the registry is kept (it holds official Steam info,
-// only the title→appId mapping was wrong).
-
-// 人工报错重检索（v3.3.11）：详情页浮窗"报错"按钮——用户发现检索到错误的
-// appid 时，清除该 appId 的 Steam 缓存/名称索引（正/负缓存都删，防负缓存
-// 拦截重检索）/下载站网址映射（30 天错误映射一并清除），随后重新检索。
-// 注册表不删：它是 Steam 官方信息，错误的是"标题→appId"的映射。
-// Manual wrong-appId report: clears the wrong appId's Steam cache, name-index
-// entries (both signs, so the negative cache can't block the re-search) and
-// download-URL mappings; the registry is kept (it holds official Steam info,
-// only the title→appId mapping was wrong).
-export async function handleReportWrongAppId(message) {
+// entries (both signs, so the negative cache can't block the re-search),
+// download-URL mappings and the page's URL-index binding; the registry is kept
+// (it holds official Steam info, only the title→appId mapping was wrong).
+export async function handleReportWrongAppId(message, sender) {
   const appId = String(message.appId || '');
   const gameName = message.gameName || '';
+  const pageUrl = sender && sender.tab ? sender.tab.url : '';
   if (appId) {
     await deleteSteamCacheEntry(appId);
     const urlStore = await readDownloadUrlsStore();
@@ -310,6 +316,9 @@ export async function handleReportWrongAppId(message) {
     }
     await dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, urlStore);
   }
+  // v9.7.0：报错页面必然是写入了错误绑定的来源页（或其复读者）——清除后
+  // 重载将重新走标题搜索，匹配成功即换绑正确 appId
+  if (pageUrl) await deleteUrlAppId(pageUrl);
   if (gameName) await deleteNameIndexEntry(gameName);
   await flushSteamCache();
   await flushNameIndex();

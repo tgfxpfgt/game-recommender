@@ -43,6 +43,7 @@ import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
 import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/17：规则匹配失败后的匹配兜底
+import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络故障期跳过负缓存
 
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
@@ -132,7 +133,18 @@ export async function searchSteamGame(gameName) {
           appId = fallback.appId;
         } else {
           // 记录负缓存 / Record negative cache
-          await recordNameIndex(gameName, null);
+          // v9.7.0：网络故障期不做负缓存固化——searchSteamAppId 吞掉网络异常
+          // 返回 null（与"确认未找到"不可区分），断网时会把故障固化为 2h 负
+          // 缓存。窗口内有失败记录即视为网络不可靠，跳过负缓存（本路径可重试）
+          const apiStatus = getSteamApiStatus();
+          if (apiStatus.failed === 0) {
+            await recordNameIndex(gameName, null);
+          } else {
+            Logger.warn(
+              'Steam',
+              `搜索未命中且窗口内 ${apiStatus.failed} 次 API 失败（疑似网络问题），跳过负缓存: "${gameName}"`
+            );
+          }
           return null;
         }
       } else {

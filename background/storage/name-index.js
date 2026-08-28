@@ -111,7 +111,14 @@ const writer = createDebouncedStore({
   save: async () => {
     if (!nameIndexMemory || !nameIndexDirty) return;
     nameIndexDirty = false;
-    await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
+    try {
+      await dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(nameIndexMemory));
+    } catch (e) {
+      // v9.7.0：写失败回滚 dirty 并重新调度（否则本批修改静默丢失且永不重试）
+      nameIndexDirty = true;
+      writer.scheduleWrite();
+      console.error('名称索引写入失败:', String(e));
+    }
   }
 });
 function scheduleWrite() {

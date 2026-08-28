@@ -41,41 +41,56 @@ const writer = createDebouncedStore({
   save: flushLogBuffer
 });
 
-export async function flushLogBuffer() {
-  if (logBuffer.length === 0) return;
+// v9.7.0：flush 互斥锁——定时器触发的 flush 与显式 flush（getRuntimeLogs /
+// flushAllCaches）可重叠：两个 flush 各自以同一磁盘基线读-改-写覆盖，先写
+// 者的日志批次被静默丢弃（_serialize 只串行化写，不覆盖读段）
+let flushLock = Promise.resolve();
+function withFlushLock(task) {
+  const prev = flushLock;
+  let release;
+  flushLock = new Promise((res) => {
+    release = res;
+  });
+  return prev.then(() => task()).finally(release);
+}
 
-  const pending = logBuffer;
-  logBuffer = [];
+export function flushLogBuffer() {
+  return withFlushLock(async () => {
+    if (logBuffer.length === 0) return;
 
-  try {
-    // flush 低频（防抖 2s），实时读设置兜底（开关关闭时立即丢弃缓冲）
-    const settings = await getSettings();
-    if (!settings.enableLog) return; // 日志开关已关闭，丢弃缓冲 / Logging disabled; drop buffer
+    const pending = logBuffer;
+    logBuffer = [];
 
-    const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
-    let logs = stored || [];
-    logs.push(...pending);
+    try {
+      // flush 低频（防抖 2s），实时读设置兜底（开关关闭时立即丢弃缓冲）
+      const settings = await getSettings();
+      if (!settings.enableLog) return; // 日志开关已关闭，丢弃缓冲 / Logging disabled; drop buffer
 
-    // 按保留天数清理过期日志（0 = 不清理）/ Purge by retention days (0 = keep all)
-    const retentionMs = (settings.logRetentionDays || 0) * 24 * 3600 * 1000;
-    if (retentionMs > 0) {
-      const cutoff = Date.now() - retentionMs;
-      logs = logs.filter((l) => l && l.timestamp >= cutoff);
+      const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+      let logs = stored || [];
+      logs.push(...pending);
+
+      // 按保留天数清理过期日志（0 = 不清理）/ Purge by retention days (0 = keep all)
+      const retentionMs = (settings.logRetentionDays || 0) * 24 * 3600 * 1000;
+      if (retentionMs > 0) {
+        const cutoff = Date.now() - retentionMs;
+        logs = logs.filter((l) => l && l.timestamp >= cutoff);
+      }
+
+      const max = settings.maxRuntimeLog || 300;
+      while (logs.length > max) logs.shift();
+
+      // 按设置的存储形式落盘 / Persist per the configured storage format
+      if (settings.logStorage === 'local') {
+        await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: logs });
+      } else {
+        await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
+      }
+    } catch {
+      // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
+      logBuffer = [...pending, ...logBuffer];
     }
-
-    const max = settings.maxRuntimeLog || 300;
-    while (logs.length > max) logs.shift();
-
-    // 按设置的存储形式落盘 / Persist per the configured storage format
-    if (settings.logStorage === 'local') {
-      await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: logs });
-    } else {
-      await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
-    }
-  } catch {
-    // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
-    logBuffer = [...pending, ...logBuffer];
-  }
+  });
 }
 
 // 记录日志（按配置级别过滤）/ Write a log entry (filtered by configured level)

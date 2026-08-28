@@ -52,9 +52,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 });
 
 // ============ 初始化 / Initialization ============
-initStorage().catch((e) => console.error('初始化失败:', e));
 // v9.6.0：首次启动优先加载离线备份（settings 缺失且本地有备份时自动恢复）
-restoreLatestIfFresh().catch(() => {});
+// v9.7.0：必须与 initStorage 串行——此前两者并行起跑，initStorage 先写入
+// DEFAULT_SETTINGS；SW 若在恢复链路中途被杀，下次启动 restore 判定
+// "settings 已存在"直接跳过，自动恢复被永久击穿。串行后：恢复未完成时
+// settings 未写入，下次启动仍会重试恢复（dataStore.init 幂等，先行安全）
+restoreLatestIfFresh()
+  .catch(() => {})
+  .finally(() => {
+    initStorage().catch((e) => console.error('初始化失败:', e));
+  });
 // v9.1.0：启动完成基线（监听器已注册 + 存储初始化发起）——Perf 日志供 dashboard
 // 诊断卡与自动化分析读取
 Logger.info('Perf', `SW 启动耗时: ${Date.now() - BOOT_START}ms (冷启动)`);
@@ -77,12 +84,15 @@ chrome.runtime.onInstalled.addListener((details) => {
 // Notification click → open the store page of the latest free-game batch
 chrome.notifications.onClicked.addListener((notificationId) => {
   if (notificationId !== 'gr-free-games') return;
-  const games = getLastNotifyGames();
-  if (games.length === 0) return;
-  const first = games[0];
-  const url = first.url || (first.steamId ? `https://store.steampowered.com/app/${first.steamId}` : '');
-  if (url) chrome.tabs.create({ url });
-  chrome.notifications.clear(notificationId);
+  // v9.7.0：getLastNotifyGames 已改 async（内容持久化在 chrome.storage.session，
+  // SW 冷启动后仍可读取——此前纯内存在 30s SW 生命周期下点击必然为空）
+  getLastNotifyGames().then((games) => {
+    if (games.length === 0) return;
+    const first = games[0];
+    const url = first.url || (first.steamId ? `https://store.steampowered.com/app/${first.steamId}` : '');
+    if (url) chrome.tabs.create({ url });
+    chrome.notifications.clear(notificationId);
+  });
 });
 
 // v7.4.0：右键菜单（选中文本 → 搜 Steam）

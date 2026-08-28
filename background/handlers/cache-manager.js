@@ -15,7 +15,7 @@ import {
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, deleteNameIndexEntries } from '../storage/name-index.js';
-import { flushRegistry, getGameRegistry, recordGameInRegistry } from '../storage/registry.js';
+import { flushRegistry, deleteGameRegistryEntry, getGameRegistry, recordGameInRegistry } from '../storage/registry.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
 import {
   flushSteamCache,
@@ -42,6 +42,10 @@ const recCache = new Map();
 export async function handleCleanExpiredCache() {
   const settings = await getSettings();
   const ttl = settings.cacheTtls || {};
+  // v9.7.0：先把内存缓存（steamCache/nameIndex 等 2s 防抖窗口内的脏数据）
+  // 落盘再清理——否则下面直读磁盘快照会丢弃未落盘增量，且随后的
+  // resetInMemoryCaches 会把内存整体丢弃
+  await flushAllCaches();
   // v3.3.7 模块化：Steam 缓存按各模块自身 TTL 判定（collectExpiredSteamCache
   // 不再需要外部 TTL），仅清理所有模块均过期的条目
   const negTtl = resolveTtlMs('negativeCache', ttl.negativeCache);
@@ -222,7 +226,9 @@ export async function handleDeleteGameCacheEntry(message) {
   const entry = registry[appId];
   const namesToClean = entry ? entry.names || [] : [];
 
-  delete registry[appId];
+  // v9.7.0：走显式删除（置 dirty）——直接 delete 内存引用后 flush 会因
+  // dirty 未置位跳过，删除在 SW 重启后"复活"
+  await deleteGameRegistryEntry(appId);
   await flushRegistry();
 
   await deleteSteamCacheEntry(appId);

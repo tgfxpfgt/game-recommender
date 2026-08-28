@@ -55,11 +55,26 @@ export async function migrateModuleIfNeeded(key) {
     const target = chain[chain.length - 1].to;
     if (current >= target) return { migrated: false, version: current };
     let next = data;
+    let ver = current;
+    let applied = false;
     for (const step of chain) {
-      if (current >= step.to) continue;
-      next = step.migrate(next);
-      next = { ...next, version: step.to };
+      if (ver >= step.to) continue;
+      // v9.7.0：链断开防护——ver < step.from 说明缺 ver→ver+1 的迁移步
+      //（注册不连续），拿后面的迁移函数处理前面版本的数据形状会破坏数据；
+      // 停止迁移，保留已完成的步（ver 随迁移步推进，不能用原始 current）
+      if (ver < step.from) break;
+      const migrated = step.migrate(next);
+      // v9.7.0：迁移函数返回非对象（含 undefined）时保留迁移前数据——
+      // 此前 {...undefined} 只剩 {version}，整模块数据被静默清空落盘
+      if (!migrated || typeof migrated !== 'object') {
+        console.warn(`【游戏雷达】 模块 ${key} 迁移步 ${step.from}→${step.to} 返回非法数据（保留迁移前数据）`);
+        break;
+      }
+      next = { ...migrated, version: step.to };
+      ver = step.to;
+      applied = true;
     }
+    if (!applied) return { migrated: false, version: current };
     await dataStore.writeModule(key, next);
     return { migrated: true, version: next.version };
   } catch (e) {

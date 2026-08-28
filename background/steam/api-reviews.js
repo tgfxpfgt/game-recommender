@@ -159,7 +159,9 @@ export async function fetchReviewSummary(appId) {
       const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&filter=recent&num_per_page=100&purchase_type=all`;
       const response = await fetchWithTimeout(reviewUrl);
       const data = await response.json();
-      recordSteamCall(true);
+      // v9.7.0：同 api-details——传入 status，非 2xx 不计成功（限流可感知）
+      recordSteamCall(response.ok, response.status);
+      if (!response.ok) continue;
       if (data.success === 1 && data.query_summary) {
         const qs = data.query_summary;
         const recent = summarizeRecentReviews(data.reviews);
@@ -173,7 +175,7 @@ export async function fetchReviewSummary(appId) {
         };
       }
     } catch {
-      recordSteamCall(false); // 重试一次 / retry once
+      recordSteamCall(false, 0); // 重试一次 / retry once
     }
   }
   return null;

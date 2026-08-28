@@ -138,6 +138,9 @@
       if (resp && resp.ok) {
         setRuleStatus('✅ 已恢复内置规则；刷新已打开的下载站页面后生效', 'ok');
         await loadRules();
+      } else {
+        // v9.7.0：补失败分支——此前仅成功分支存在，失败时界面毫无反馈
+        setRuleStatus('恢复失败: ' + ((resp && resp.error) || '未知错误'), 'error');
       }
     } catch (e) {
       setRuleStatus('恢复失败: ' + String(e), 'error');

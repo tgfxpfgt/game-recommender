@@ -278,6 +278,40 @@ node --check options/options.js
 
 ## 更新日志
 
+### v9.7.0（全项目自检修复：8 P1 + 21 P2 + 5 P3）
+
+编码模型切换（DeepSeek V4 Flash → GLM-5.3）后的全面自检与修复；完整清单见仓库根 `自检报告-2026-08-27.md`。自动化基线 640 test · E2E 46/46 · lint 0 · typecheck 0。
+
+**P1 严重（8 项全部修复）**：
+- 删除缓存条目不落盘：registry 删除路径未置 dirty → SW 重启后删除"复活"（新增 deleteGameRegistryEntry 显式置位）
+- 手动纠错映射永不保存：SAVE_MANUAL_MAPPING 主路径漏发 gameName 被契约拒绝（detail-page 补发）
+- 重置设置 UI 恒报失败：RESET_SETTINGS 响应缺 settings 字段 + 旧 DOM 值可覆盖回默认值；DELETE_ADAPTER_RULES 同类响应混用（统一响应结构 + 补失败反馈分支）
+- 适配规则存储分裂：后台写 OPFS、内容脚本读 storage.local 且无镜像——用户导入规则在内容侧永不生效（loadSiteRules 改走 GET_ADAPTER_RULES 消息 + 两级兼容回退）
+- 站点推断硬编码 3/6 站：3DM/游侠/游民与自定义站点的下载网址缓存写入全被丢弃（download-sites 按规则 domains 动态推断 + 内置静态兜底；history.js 补全 6 站）
+- displayName XSS：下载站面板站点名 / SteamSpy owners 未转义直拼 innerHTML（补 esc；appId 链接 href 统一 escapeAttr）
+- URL 索引击穿报错自愈：URL 命中无名称校验 + 报错不清 URL 索引 → 错配永久固化（命中加 namesRelated 校验不相关即清除绑定；报错 handler 接收 sender 清除当前页绑定）
+- 通知点击 30 秒后必失效：lastNotifyGames 纯内存（持久化到 chrome.storage.session，getLastNotifyGames 改 async）
+
+**P2 中危（21 项）**：api-monitor 传入 HTTP status（非 2xx 不计成功，429/503 限流可感知）；三处 flush 写失败回滚 dirty 并重试；OPFS 写失败降级前移除旧文件（防两后端脑裂）；removeModule 补 init + 进写队列（清缓存不被在途写复活）；清理过期缓存前先 flushAllCaches；画像/历史/日志 flush 读-改-写加串行锁；refreshFreeGames in-flight 复用；initStorage 与自动恢复串行化（恢复链路被 SW 杀死后可重试）；ITAD 校验补 host permission + 401/403 凭证失效告警；deepMergeSettings null 绕过修复；getAdapter 改规则 domains 匹配（自定义站点适配器可选中）；adapter 补 key 属性（站点失效告警从死代码变可用）；每批落盘（keepAlive 在 Chrome 110+ 失效时损失限单批）；gamer520/咸鱼单机详情正则收窄（含数字的一级路径）；migrate.js 链断开防护 + 迁移函数返回非法数据保留原状；showStatus 参数错位修复；限免日期回退转义；缓存表 colspan 统一；filterRules 转义统一 escapeAttr；网络故障期跳过负缓存固化（窗口内有 API 失败记录时不写 2h 负缓存）。
+
+**P3**：预取改后台分离任务（sendResponse 不再被占住数分钟）；批次观察器重建前断开旧实例；详情模板 appId 链接转义；dashboard reviewSummary 转义（防御未来字段填充）。
+
+### v9.6.0（五项用户需求）
+
+- appid 检索按 type 筛选（DLC/音乐集在存在游戏候选时剔除）；详情页评分区改 Steam 风格条形；数值滑块 + 输入框双向绑定（修复 type="gr-range" 组件化误改）；自动离线备份 + 首次启动优先加载（restoreLatestIfFresh）；dashboard 趋势图渐变/统计卡 hover 美化
+
+### v9.5.0（P2 体验与扩展：批次 C）
+
+- detail 样式迁移收尾（30+ 处行内样式类化，主题变量全量跟随）；UI 单测 +11（freegames 过滤抽纯函数 shared/freegames-filter.js / 串行保存队列 / parseLlmMatchResponse）；E2E fixture 扩充限免源（Epic/GOG/GamerPower）46/46；备份瘦身（默认高价值核心子集，缓存/日志可重建排除）；host_permissions 清理残留域；dashboard 数据管理入口指引收敛
+
+### v9.4.0（P1 架构治理：批次 B）
+
+- 打破 debug↔status-bar 循环依赖（回调注入）；规则新增 displayName 字段消除硬编码站点映射（自定义站点显示名生效）；串行链路并发化（标签推荐条目并发 / 下载站站点间并发）；options 去 8 个 adapters 脚本注入；质量护栏（tsconfig 覆盖补齐 / prettier devDep / 悬空测试条目清理）；storage.local 直操作清理（统一 dataStore.removeModule）
+
+### v9.3.0（P0 数据安全与正确性：批次 A）
+
+- flushAllCaches 聚合落盘补齐（url-index/wrong-reports/learned-noise/logger 纳入，SW 休眠防抖窗口不丢数据；顺带修复 resetUrlIndex 清除后"复活"）；8 文件 55 处裸 sendMessage 全量接入 __GR_MSG__ 超时封装；host_permissions 子域修复（www 通配）；站点规则失效告警（提取 0 上报 + 24h 限频落盘）
+
 ### v9.2.1（修复：搜索布局 / 限免筛选 / 分级分页）
 
 - popup 搜索框：输入框最大化 + 图标按钮；限免页筛选失效根治（组件化批量替换误改类名——E2E 回归）

@@ -29,10 +29,14 @@ export function deepMergeSettings(base, stored) {
   }
   const out = { ...base };
   for (const [k, v] of Object.entries(stored)) {
-    if (v === undefined) continue;
+    // v9.7.0：undefined 与 null 一律跳过——typeof null === 'object' 会绕过
+    // 下方类型判等，把对象型默认值（weights/llmConfig/badgeVisibility 等）
+    // 覆盖为 null（SAVE_SETTINGS 契约只校验顶层，嵌套 null 可入库；此后
+    // engine 读 settings.weights.clickRate 直接抛错，整批推荐请求失败）
+    if (v === undefined || v === null) continue;
     if (isPlainObject(base[k]) && isPlainObject(v)) {
       out[k] = deepMergeSettings(base[k], v);
-    } else if (typeof v === typeof base[k] || (base[k] === undefined && v !== null)) {
+    } else if (typeof v === typeof base[k] || base[k] === undefined) {
       out[k] = v;
     }
     // 类型不一致：保留默认值 / type mismatch: keep the default

@@ -141,7 +141,10 @@ function renderGames() {
 // 渲染单个游戏卡片 / Render a single game card
 function renderGameCard(game) {
   const platformClass = game.platform;
-  const endTimeHtml = game.endTime ? `<span class="game-endtime">截止: ${formatDate(game.endTime)}</span>` : '';
+  // v9.7.0：formatDate 非法日期回退原文（外部 API 字段），必须转义
+  const endTimeHtml = game.endTime
+    ? `<span class="game-endtime">截止: ${escapeHtml(formatDate(game.endTime))}</span>`
+    : '';
 
   const priceHtml =
     game.originalPrice && game.originalPrice !== '免费'

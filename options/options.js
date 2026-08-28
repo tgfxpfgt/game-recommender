@@ -174,9 +174,11 @@
         (rules || []).forEach((rule, idx) => {
           const row = document.createElement('div');
           row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-          row.innerHTML = `<input type="text" class="text-input" data-rk="${idx}" placeholder="关键词" value="${(rule.keyword || '').replace(/"/g, '&quot;')}" style="flex:1">
+          // v9.7.0：value 属性转义改用统一 escapeAttr（shared/escape.js 全局注入）——
+          // 此前只转义双引号，含 &quot; 等实体样式的关键词会显示错乱
+          row.innerHTML = `<input type="text" class="text-input" data-rk="${idx}" placeholder="关键词" value="${escapeAttr(rule.keyword || '')}" style="flex:1">
           <span style="font-size:11px;color:#8f98a0;">排除</span>
-          <input type="text" class="text-input" data-rx="${idx}" placeholder="排除误报词（可空）" value="${(rule.exclude || '').replace(/"/g, '&quot;')}" style="flex:1">
+          <input type="text" class="text-input" data-rx="${idx}" placeholder="排除误报词（可空）" value="${escapeAttr(rule.exclude || '')}" style="flex:1">
           <button class="btn btn-danger" data-rdel="${idx}" style="padding:4px 10px;">✕</button>`;
           box.appendChild(row);
           row.querySelector('[data-rdel]').addEventListener('click', () => {

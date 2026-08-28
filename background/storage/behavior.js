@@ -83,8 +83,25 @@ export function resetBehaviorMemory() {
 }
 
 // --- 游戏画像 / Game Profiles ---
+// v9.7.0：画像读-改-写串行锁（同 download-urls 的 withStoreLock 模式）——
+// 并发 TRACK_EVENT（多标签页列表页+详情页同时发事件）交错执行时，后写者
+// 以旧读为基覆盖，views/downloads 计数与 keywords 合并被丢
+let profilesLock = Promise.resolve();
+function withProfilesLock(task) {
+  const prev = profilesLock;
+  let release;
+  profilesLock = new Promise((res) => {
+    release = res;
+  });
+  return prev.then(() => task()).finally(release);
+}
+
 // 更新游戏画像（view/download 事件） / Update a game profile
-export async function updateGameProfile(gameInfo) {
+export function updateGameProfile(gameInfo) {
+  return withProfilesLock(() => doUpdateGameProfile(gameInfo));
+}
+
+async function doUpdateGameProfile(gameInfo) {
   const stored = await dataStore.readModule(DB_KEYS.GAME_PROFILES);
   const profiles = stored || {};
 

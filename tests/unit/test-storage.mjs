@@ -132,6 +132,39 @@ test('无记录返回 null', async () => {
   expect(await regMod.getGameRegistryEntry('999999')).toEqual(null);
 });
 
+test('v9.7.0：删除注册条目落盘（dirty 置位回归——SW 重启后不复活）', async () => {
+  storage._reset();
+  regMod.resetRegistry();
+  await regMod.recordGameInRegistry('275850', { cnName: '无人深空' });
+  await regMod.flushRegistry();
+  await regMod.deleteGameRegistryEntry('275850');
+  await regMod.flushRegistry();
+  // 绕过内存缓存直读存储（模拟 SW 重启后从磁盘加载）
+  const ds = (await import(new URL('../../data/data-store.js', import.meta.url).href)).dataStore;
+  const persisted = await ds.readModule('gameRegistry');
+  expect(persisted && persisted['275850'] === undefined).toEqual(true);
+});
+
+test('v9.7.0：flush 写失败回滚 dirty（下次 flush 重试落盘）', async () => {
+  storage._reset();
+  regMod.resetRegistry();
+  await regMod.recordGameInRegistry('730', { cnName: '反恐精英' });
+  const ds = (await import(new URL('../../data/data-store.js', import.meta.url).href)).dataStore;
+  const orig = ds.writeModule;
+  ds.writeModule = async () => {
+    throw new Error('boom');
+  };
+  try {
+    await regMod.flushRegistry(); // 内部吞错并回滚 dirty
+  } finally {
+    ds.writeModule = orig;
+  }
+  // dirty 已回滚 → 再次 flush 必须真正落盘（修复前 dirty=false 直接跳过）
+  await regMod.flushRegistry();
+  const persisted = await ds.readModule('gameRegistry');
+  expect(persisted && persisted['730'] && persisted['730'].cnName).toEqual('反恐精英');
+});
+
 test('行为日志 500 上限裁剪', async () => {
   for (let i = 0; i < 510; i++)
     await behMod.addBehaviorLog({ type: 'view_detail', gameName: `游戏${i % 3}`, timestamp: Date.now() + i });

@@ -8,8 +8,8 @@
  * 字段说明 / Field reference:
  *   key/name/domains/base/searchUrl  见 xdgame.js 说明 /
  *                                   see xdgame.js field reference
- *   detailUrlPatterns  详情页 URL 特征（数字.html 或任意一级路径）/
- *                      detail patterns (digits.html or any one-level path)
+ *   detailUrlPatterns  详情页 URL 特征（数字.html 或含数字的一级路径）/
+ *                      detail patterns (digits.html or digit-bearing 1-level path)
  *   imageAppId         封面 appId 直取开关：封面引用 Steam CDN，优先直取 /
  *                      cover-appId lookup: covers reference the Steam CDN
  *   listPage.urlPatterns  列表页识别：首页/分页/分类/搜索 /
@@ -27,7 +27,10 @@
     domains: ['gamer520.com'],
     base: 'https://www.gamer520.com',
     searchUrl: 'https://www.gamer520.com/?s={q}',
-    detailUrlPatterns: ['/\\d+\\.html?$', '/[^/]+/?$'],
+    // v9.7.0：单段路径收窄为"含数字"——原 /[^/]+/?$ 匹配所有一级路径，
+    // /about、/login、导航/分类链接全被当详情页（错误徽章/错误过滤）。
+    // 游戏资源站文章 slug 几乎必带数字，功能页几乎不含
+    detailUrlPatterns: ['/\\d+\\.html?$', '/[^/]*\\d[^/]*/?$'],
     imageAppId: true,
     listPage: {
       urlPatterns: ['^(/|$)', '/page/\\d+', '/category/', '\\bs=']

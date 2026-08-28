@@ -1,4 +1,4 @@
-import { getDownloadSites } from '../core/rules.js';
+import { getDownloadSites, getSiteRules } from '../core/rules.js';
 import { getSettings } from '../core/settings.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { searchDownloadSites, extractDetailMeta } from '../sites/search.js';
@@ -112,13 +112,31 @@ export async function handleGetDownloadHistory(message) {
 
 // 详情页访问记录（更新下载站网址缓存 lastAccessed）
 
+// v9.7.0：按适配规则 domains 动态推断站点（含自定义站点）——
+// 此前硬编码 3/6 内置站，3dmgame/ali213/gamersky 与自定义站点的下载网址
+// 缓存写入全被当 'unknown' 静默丢弃。规则系统不可用时回退内置静态映射
+async function inferSite(domain) {
+  if (!domain) return { key: 'unknown', name: '未知站点' };
+  try {
+    const rules = await getSiteRules();
+    for (const r of (rules && rules.sites) || []) {
+      if (r && Array.isArray(r.domains) && r.domains.some((d) => typeof d === 'string' && d && domain.includes(d))) {
+        return { key: r.key, name: r.displayName || r.name || r.key };
+      }
+    }
+  } catch {
+    /* 规则读取失败走内置静态兜底 */
+  }
+  return inferSiteFromDomain(domain);
+}
+
 // 详情页访问记录（更新下载站网址缓存 lastAccessed）
 export async function handleTrackDownloadSiteVisit(message) {
   const data = message.data || {};
   const appId = data.appId;
   const url = data.url || '';
   if (!appId || !url) return { success: false };
-  const siteInfo = inferSiteFromDomain(data.domain || '');
+  const siteInfo = await inferSite(data.domain || '');
   if (siteInfo.key === 'unknown') return { success: false };
   await recordDownloadUrl(String(appId), siteInfo.key, siteInfo.name, url);
   return { success: true };
@@ -127,7 +145,7 @@ export async function handleTrackDownloadSiteVisit(message) {
 // 列表页批量记录下载页地址
 export async function handleRecordDownloadUrlsBatch(message) {
   const data = message.data || {};
-  const siteInfo = inferSiteFromDomain(data.domain || '');
+  const siteInfo = await inferSite(data.domain || '');
   if (siteInfo.key === 'unknown') return { success: false };
   await recordDownloadUrlsBatch(siteInfo.key, siteInfo.name, data.entries || []);
   // v7.0.2：列表页匹配成功后记录 详情页网址 → appId（详情页检索第一候选）

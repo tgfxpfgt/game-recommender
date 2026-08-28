@@ -188,10 +188,13 @@ function renderDownloadSitePanel(panel, sites, gameName) {
     `;
 
   for (const site of sites) {
-    const name = siteNames[site.key] || site.key;
+    // v9.7.0：站点名（规则的 displayName）/key 均为外部输入，必须转义——
+    // 恶意规则包可借未转义 name 注入 HTML（同函数其余字段早已全部转义）
+    const name = esc(siteNames[site.key] || site.key);
+    const siteKeyAttr = common.escapeAttr(site.key);
     if (site.found && site.detailUrl) {
       html += `
-          <div data-site-key="${site.key}" style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
+          <div data-site-key="${siteKeyAttr}" style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <span style="font-size:12px;font-weight:bold;color:#67c1f5;">${name}</span>
               <a href="${common.escapeAttr(site.detailUrl)}" target="_blank" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>
@@ -458,6 +461,9 @@ export function injectSteamButton(gameName) {
           chrome.runtime
             .sendMessage({
               action: 'SAVE_MANUAL_MAPPING',
+              // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
+              // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
+              gameName,
               appId: selectedAppId
             })
             .catch(() => {});

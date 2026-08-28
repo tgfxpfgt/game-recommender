@@ -484,7 +484,7 @@ async function loadSteamRecommendations() {
           <div class="rec-card-title">${escapeHtml(game.name)}</div>
           <div class="rec-card-meta">
             ${game.price ? `💰 ${escapeHtml(game.price)}` : ''}
-            ${game.reviewSummary ? ` | ${game.reviewSummary}` : ''}
+            ${game.reviewSummary ? ` | ${escapeHtml(game.reviewSummary)}` : ''}
           </div>
           <div class="rec-card-tags">
             ${(game.matchTags || []).map((t) => `<span>${escapeHtml(t)}</span>`).join('')}

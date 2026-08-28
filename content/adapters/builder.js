@@ -15,18 +15,35 @@ let SITE_RULES = null;
 export async function loadSiteRules(force) {
   // v7.2.0：force 参数——测试/规则变更场景重置缓存重读
   if (SITE_RULES && !force) return SITE_RULES;
+  // v9.7.0：优先经后台消息读取生效规则（单一数据源：后台 dataStore/OPFS）。
+  // 此前直读 chrome.storage.local，而后台 v6.x 起写 OPFS 且无镜像代码——
+  // 用户导入的规则在内容侧永不生效（storage.local 只剩 pre-OPFS 旧副本，
+  // 两端"生效规则"不一致）。3s 短超时：boot 关键路径不被 SW 冷启动拖死
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' }, null, { timeout: 3000 });
+    const merged = resp && resp.rules && resp.rules.merged;
+    if (merged && merged.version && Array.isArray(merged.sites) && merged.sites.length > 0) {
+      SITE_RULES = merged.sites;
+      return SITE_RULES;
+    }
+  } catch {
+    /* SW 不可用/超时 → 走兼容回退链 */
+  }
+  // 兼容回退 1：storage.local 旧副本（消息路径不可用时兜底）
   try {
     const data = await chrome.storage.local.get('adapterRules');
     // v7.2.0：@types/chrome 下 storage.get 返回 unknown 值——显式断言
     /** @type {any} */
     const imported = data.adapterRules;
-    SITE_RULES =
-      imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0
-        ? imported.sites
-        : (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    if (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0) {
+      SITE_RULES = imported.sites;
+      return SITE_RULES;
+    }
   } catch {
-    SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
+    /* fall through */
   }
+  // 兼容回退 2：内容脚本注入的内置适配器常量
+  SITE_RULES = (globalThis.__GAME_RECOMMENDER_SITES__ || {}).sites || [];
   return SITE_RULES;
 }
 
@@ -95,6 +112,7 @@ function buildAdapter(rule) {
   };
 
   return {
+    key: rule.key, // v9.7.0：站点失效告警（SITE_ADAPTER_ALERT）依赖 adapter.key
     name: rule.name,
     isListPage: () => {
       const path = window.location.pathname;
@@ -211,6 +229,7 @@ function buildAdapter(rule) {
 // 常见下载站路径特征（v3.3.9 提为常量便于扩展；新站点路径风格不同时可在此追加）
 const GENERIC_DETAIL_PATHS = ['/game/', '/down/', '/soft/'];
 const DEFAULT_ADAPTER = {
+  key: '_default', // v9.7.0：与站点适配器形状一致（告警路径判 adapter.key）
   name: '通用',
   isListPage: () => {
     let gameLinks = 0;
@@ -277,6 +296,9 @@ export function getScanLimit() {
 let SITE_ADAPTERS = { _default: DEFAULT_ADAPTER };
 export function buildSiteAdapters(rules) {
   const adapters = {};
+  // v9.7.0：同步规则引用——getAdapter 的域名匹配依赖 SITE_RULES（与注册表
+  // 同源），仅经 buildSiteAdapters 传入规则的调用方也能正确匹配
+  if (Array.isArray(rules)) SITE_RULES = rules;
   for (const rule of rules || []) {
     adapters[rule.key] = buildAdapter(rule);
   }
@@ -284,24 +306,28 @@ export function buildSiteAdapters(rules) {
   SITE_ADAPTERS = adapters;
 }
 
+// v9.7.0：按规则 domains 匹配当前站点（与 isImageAppIdEnabled/list-page 一致）。
+// 此前用"key 当域名段"匹配（domain.split('.').includes(key)）——内置 6 站能用
+// 纯属 key 恰好等于域名去 TLD 段的巧合；自定义站点（key 如 mysite、domains
+// ['example.com']）永远匹配不上，回退 _default，规则里的选择器全部作废
+function findRuleByDomain() {
+  const domain = common.getCurrentDomain();
+  return (SITE_RULES || []).find(
+    (r) => r && Array.isArray(r.domains) && r.domains.some((d) => d && domain.includes(d))
+  );
+}
+
 // 获取当前站点适配器 / Get the current site's adapter
 export function getAdapter() {
-  const domain = common.getCurrentDomain();
-  for (const [key, adapter] of Object.entries(SITE_ADAPTERS)) {
-    // v3.3.9：域名段匹配（www.xianyudanji.gg → xianyudanji），
-    // 比子串匹配严格——xdgame2.com 不再误配 xdgame
-    if (key !== '_default' && domain.split('.').includes(key)) return adapter;
-  }
+  const rule = findRuleByDomain();
+  if (rule && SITE_ADAPTERS[rule.key]) return SITE_ADAPTERS[rule.key];
   return SITE_ADAPTERS['_default'];
 }
 
 // 当前站点的适配器 key（下载站网址缓存上报用）/ The current site's adapter key
 export function getAdapterKey() {
-  const domain = common.getCurrentDomain();
-  for (const key of Object.keys(SITE_ADAPTERS)) {
-    if (key !== '_default' && domain.split('.').includes(key)) return key;
-  }
-  return '';
+  const rule = findRuleByDomain();
+  return rule ? rule.key : '';
 }
 
 // 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）。

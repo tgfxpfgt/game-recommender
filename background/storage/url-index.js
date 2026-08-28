@@ -78,6 +78,17 @@ export async function setUrlAppId(url, appId) {
   writer.scheduleWrite();
 }
 
+// 删除单条网址映射（v9.7.0：人工报错/名称校验不相关时清除错误绑定——
+// 否则 URL 索引命中无校验短路返回，错误 appId 被永久固化）
+export async function deleteUrlAppId(url) {
+  const key = normalizeUrl(url);
+  if (!key) return;
+  await load();
+  if (delete urlIndexMemory[key]) {
+    writer.scheduleWrite();
+  }
+}
+
 // v7.1.0：网址索引规模（dashboard 诊断展示）
 export async function getUrlIndexSize() {
   await load();

@@ -163,6 +163,27 @@ test('手动映射写入三处落点', async () => {
   expect(corr && String(corr.correctAppId)).toEqual('730');
 });
 
+// ============ 4b. RESET_SETTINGS 响应结构（v9.7.0：UI 重渲染依赖 resp.settings） ============
+test('重置设置返回默认设置对象', async () => {
+  storage._reset();
+  const resp = await handleMessage({ action: 'RESET_SETTINGS' });
+  expect(resp.success).toEqual(true);
+  expect(resp.settings && typeof resp.settings === 'object' && !!resp.settings.weights).toEqual(true);
+});
+
+// ============ 4c. REPORT_WRONG_APPID 清除网址索引绑定（v9.7.0：报错自愈闭环） ============
+test('报错后当前页网址索引绑定被清除', async () => {
+  storage._reset();
+  const WRONG_URL = 'https://www.gamer520.com/999.html';
+  await urlIdx.setUrlAppId(WRONG_URL, '275850');
+  const resp = await handleMessage(
+    { action: 'REPORT_WRONG_APPID', appId: '275850', gameName: '无人深空' },
+    { tab: { url: WRONG_URL } }
+  );
+  expect(resp.success).toEqual(true);
+  expect(await urlIdx.getAppIdByUrl(WRONG_URL)).toEqual(null);
+});
+
 // ============ 5. TRACK_DOWNLOAD_SITE_VISIT ============
 test('访问记录写入下载站桶', async () => {
   storage._reset();
@@ -307,6 +328,20 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
       { tab: { url: TEST_URL } }
     );
     expect(resp.data).toEqual(null);
+    expect(await urlIdx.getAppIdByUrl(TEST_URL)).toEqual(null);
+  });
+
+  test('v9.7.0：URL 命中但名称不相关 → 清除错误绑定（报错自愈不被索引固化）', async () => {
+    await urlIdx.setUrlAppId(TEST_URL, 3764200);
+    // 同语言不相关标题（纯中文标题 vs 纯英文名走跨语言信任分支，语义校验
+    // 交由兜底链——见 namesRelated v6.4.17 设计；同语言才能被 namesRelated 拒绝）
+    const resp = await handleMessage(
+      { action: 'SEARCH_STEAM', gameName: 'Cyberpunk 2077' },
+      { tab: { url: TEST_URL } }
+    );
+    // 名称校验拒绝索引结果 → 标题搜索（mock 空）→ 未找到
+    expect(resp.data).toEqual(null);
+    // 错误绑定已清除（否则重载页面会再次命中同一错误 appId）
     expect(await urlIdx.getAppIdByUrl(TEST_URL)).toEqual(null);
   });
 });

@@ -99,7 +99,6 @@ export async function handleGetSteamRatings(message, sender) {
         let queue = names;
         let retried = false;
         let consecutiveAnomaly = 0;
-        let batchCount = 0;
         while (queue.length > 0) {
           const batch = queue.slice(0, batchSize);
           queue = queue.slice(batchSize);
@@ -124,11 +123,11 @@ export async function handleGetSteamRatings(message, sender) {
               }
             })
           );
-          // v3.4.0：每 5 批落盘一次 + 循环结束兜底（写放大 ~80% 下降）
-          batchCount++;
-          if (batchCount % 5 === 0 || queue.length === 0) {
-            await flushAllCaches();
-          }
+          // v9.7.0：每批落盘（原每 5 批）——Chrome 110+ SW 存活满 5 分钟后
+          // 扩展 API 调用不再重置空闲计时器（keepAlive 失效），长列表 +
+          // 限流 30s 暂停场景 SW 仍可能被杀；每批落盘把最大丢失窗口从
+          // 5 批降到 1 批
+          await flushAllCaches();
           push({ ratings: wave });
           // 限流降速：Steam API 异常状态时拉大批次间隔；连续异常暂停 30s 等窗口恢复
           if (getSteamApiStatus().anomaly) {
@@ -185,35 +184,44 @@ export async function handlePrefetchSteamRatings(message) {
   }
   if (needsPrefetch.length === 0) return { success: true };
 
-  // 预载同样批内保活，防 SW 休眠中断（见 handleGetSteamRatings 说明）
-  // Keep-alive during prefetch batches too (see handleGetSteamRatings)
-  const keepAlive = setInterval(() => {
-    chrome.runtime.getPlatformInfo().catch(() => {});
-  }, 10000);
-  try {
-    const batchSize = 4;
-    for (let i = 0; i < needsPrefetch.length; i += batchSize) {
-      const batch = needsPrefetch.slice(i, i + batchSize);
-      await Promise.all(
-        batch.map(async (name) => {
-          try {
-            const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
-            await getSteamPositiveRate(name, {
-              ignoreNegativeCache: true,
-              appId: img ? img.appId : null,
-              cover: img ? img.cover : null
-            });
-          } catch {}
-        })
-      );
-      // 预载同样限流降速 / same rate-limit slowdown as the main flow
-      if (getSteamApiStatus().anomaly) {
-        await new Promise((r) => setTimeout(r, 3000));
+  // v9.7.0：预取改后台分离任务（与 GET_STEAM_RATINGS 阶段 2 一致）——此前
+  // 整个循环在消息处理内 await，sendResponse 通道被占住数分钟，SW 中途被杀
+  // 时内容脚本收到 port closed 拒绝。预取本就不返回数据，立即响应无行为损失
+  (async () => {
+    // 预载同样批内保活，防 SW 休眠中断（见 handleGetSteamRatings 说明）
+    // Keep-alive during prefetch batches too (see handleGetSteamRatings)
+    const keepAlive = setInterval(() => {
+      chrome.runtime.getPlatformInfo().catch(() => {});
+    }, 10000);
+    try {
+      const batchSize = 4;
+      for (let i = 0; i < needsPrefetch.length; i += batchSize) {
+        const batch = needsPrefetch.slice(i, i + batchSize);
+        await Promise.all(
+          batch.map(async (name) => {
+            try {
+              const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
+              await getSteamPositiveRate(name, {
+                ignoreNegativeCache: true,
+                appId: img ? img.appId : null,
+                cover: img ? img.cover : null
+              });
+            } catch {}
+          })
+        );
+        // 预载同样限流降速 / same rate-limit slowdown as the main flow
+        if (getSteamApiStatus().anomaly) {
+          await new Promise((r) => setTimeout(r, 3000));
+        }
+        // v9.7.0：每批落盘（同主流程——SW 长循环被杀时损失限单批）
+        await flushAllCaches();
       }
+    } catch (e) {
+      Logger.warn('Steam', '预取好评率失败', String(e));
+    } finally {
+      clearInterval(keepAlive);
+      await flushAllCaches().catch(() => {});
     }
-    await flushAllCaches();
-    return { success: true };
-  } finally {
-    clearInterval(keepAlive);
-  }
+  })();
+  return { success: true, background: true };
 }

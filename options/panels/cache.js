@@ -169,7 +169,7 @@
     const tbody = document.getElementById('cacheTableBody');
     const statsEl = document.getElementById('cacheStats');
 
-    tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">加载中...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="11" class="cache-empty">加载中...</td></tr>';
     statsEl.textContent = '';
 
     try {
@@ -185,7 +185,7 @@
       });
 
       if (!resp || !resp.games) {
-        tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">加载失败，请重试</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="cache-empty">加载失败，请重试</td></tr>';
         return;
       }
 
@@ -203,7 +203,7 @@
           : '');
 
       if (resp.games.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="10" class="cache-empty">暂无缓存数据</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="11" class="cache-empty">暂无缓存数据</td></tr>';
         renderPagination(0, 1);
         return;
       }

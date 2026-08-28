@@ -256,6 +256,10 @@ export async function flushSteamCache() {
   try {
     await dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steamCacheMemory));
   } catch (e) {
+    // v9.7.0：写失败回滚 dirty 并重新调度——此前 dirty 已清零，本批修改
+    // 会随 SW 死亡静默丢失且永不重试（参照 logger.js flushLogBuffer 的回滚）
+    steamCacheDirty = true;
+    writer.scheduleWrite();
     console.error('Steam缓存写入失败:', String(e));
   }
 }

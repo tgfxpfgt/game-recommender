@@ -237,6 +237,14 @@ class DataStore {
           return;
         } catch (e) {
           console.warn(`[DataStore] 写入 ${moduleKey} 到 OPFS 失败:`, String(e));
+          // v9.7.0：降级前移除 OPFS 旧文件——否则读端（文件存在时优先 OPFS）
+          // 永远读回旧数据，降级写入成为不可见的僵尸副本（两后端脑裂）。
+          // 删除失败无妨：后续读取仍走 OPFS 旧数据，与降级前语义一致
+          try {
+            await this.dir.removeEntry(cfg.file);
+          } catch {
+            /* ignore */
+          }
         }
       }
       await chrome.storage.local.set({ [moduleKey]: value });
@@ -263,6 +271,12 @@ class DataStore {
           return;
         } catch (e) {
           console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, String(e));
+          // v9.7.0：同 writeModule——降级前移除 OPFS 旧文件防两后端脑裂
+          try {
+            await this.dir.removeEntry(cfg.file);
+          } catch {
+            /* ignore */
+          }
         }
       }
       // 降级：读-改-写 / fallback: read-modify-write
@@ -276,15 +290,22 @@ class DataStore {
   // 删除模块（OPFS 文件 + storage.local 键）
   // Remove a module (OPFS file + storage.local key)
   async removeModule(moduleKey) {
+    // v9.7.0：补 await init()——此前 init 前调用时 opfsAvailable 仍是构造器
+    // 默认 false，OPFS 文件不会被删除
+    await this.init();
     const cfg = MODULE_FILES[moduleKey];
-    if (this.opfsAvailable && cfg) {
-      try {
-        await this.dir.removeEntry(cfg.file);
-      } catch {
-        /* 文件不存在忽略 */
+    // v9.7.0：进同模块写队列——与在途/排队的 writeModule 竞态时，remove 先
+    // 执行、随后到达的写任务会重建文件写回旧数据（"清空缓存"被撤销）
+    return this._serialize(moduleKey, async () => {
+      if (this.opfsAvailable && cfg) {
+        try {
+          await this.dir.removeEntry(cfg.file);
+        } catch {
+          /* 文件不存在忽略 */
+        }
       }
-    }
-    await chrome.storage.local.remove(moduleKey);
+      await chrome.storage.local.remove(moduleKey);
+    });
   }
 }
 

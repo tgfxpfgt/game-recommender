@@ -11,6 +11,7 @@ import { dataStore } from '../../data/data-store.js';
 import { isPlainObject } from './utils.js';
 import { DB_KEYS, DEFAULT_SETTINGS } from './constants.js';
 
+/** @type {{version: number, sites: Array<any>}|null} */
 let siteRulesCache = null;
 /** @type {Array<{key: string, name: string, searchUrl: Function, base: string}>|null} */
 let downloadSitesCache = null;
