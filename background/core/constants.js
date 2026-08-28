@@ -29,7 +29,8 @@ export const DB_KEYS = {
   SEARCH_CACHE: 'searchCache', // 下载站搜索结果缓存（v6.4.3，24h TTL）
   LLM_SCORE: 'llmScore', // LLM 推荐评分缓存（v6.4.3，7d TTL）
   URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
-  SITE_HEALTH: 'siteHealth' // 站点适配器健康（v10.0.0：改版告警聚合）
+  SITE_HEALTH: 'siteHealth', // 站点适配器健康（v10.0.0：改版告警聚合）
+  APP_STATS: 'appStats' // AppID 维度行为统计（v10.1.0：下载 a/详情页打开 b，永不过期）
 };
 
 // 默认设置 / Default settings
@@ -61,12 +62,16 @@ export const DEFAULT_SETTINGS = {
   weights: {
     // v4.0.0：新增 SteamSpy 时长/热度信号（playTime/heat），四项原有权重
     // 同步下调，六项和保持 1.0（徽章百分比不超 100%）
-    clickRate: 0.15,
-    downloadRate: 0.3,
-    keywordMatch: 0.2,
-    steamRating: 0.15,
-    playTime: 0.1,
-    heat: 0.1
+    // v10.1.0：新增 AppID 行为统计信号（appStatDownload/appStatDetailView），
+    // 八项和保持 1.0（appStatDetailView 为负信号权重：a=0 且 b>0 时按 b 递减）
+    clickRate: 0.13,
+    downloadRate: 0.27,
+    keywordMatch: 0.18,
+    steamRating: 0.13,
+    playTime: 0.09,
+    heat: 0.09,
+    appStatDownload: 0.08,
+    appStatDetailView: 0.03
   },
   trackedSites: [
     '3dmgame.com',
@@ -271,7 +276,8 @@ export const DATA_MODULES = [
   { key: 'learnedNoise', name: '标题噪声词', desc: 'Learned Noise', storageKey: 'learnedNoise' },
   { key: 'wrongReports', name: '报错纠正记录', desc: 'Wrong Reports', storageKey: 'wrongReports' },
   { key: 'urlAppIdIndex', name: '详情页网址索引', desc: 'Detail URL Index', storageKey: 'urlAppIdIndex' },
-  { key: 'siteHealth', name: '站点健康', desc: 'Site Health', storageKey: 'siteHealth' }
+  { key: 'siteHealth', name: '站点健康', desc: 'Site Health', storageKey: 'siteHealth' },
+  { key: 'appStats', name: 'AppID 行为统计', desc: 'App Stats', storageKey: 'appStats' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

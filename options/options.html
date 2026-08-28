@@ -579,6 +579,43 @@
                     <span id="weightHeatVal" class="gr-range-value">0.10</span>
                   </div>
                 </div>
+                <!-- v10.1.0：AppID 行为统计信号权重（a 下载正向 / b 未下载惩罚） -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载计数权重</span>
+                    <span class="label-desc">App Downloads (a)</span>
+                  </div>
+                  <div class="gr-range-group">
+                    <input type="range" id="weightAppStatDownload" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightAppStatDownloadInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
+                    <span id="weightAppStatDownloadVal" class="gr-range-value">0.08</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">未下载惩罚权重</span>
+                    <span class="label-desc">View-only Penalty (b，仅 a=0 时生效)</span>
+                  </div>
+                  <div class="gr-range-group">
+                    <input type="range" id="weightAppStatDetailView" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightAppStatDetailViewInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
+                    <span id="weightAppStatDetailViewVal" class="gr-range-value">0.03</span>
+                  </div>
+                </div>
                 <div class="weight-sum-row">
                   <span class="weight-sum-label">权重总和 / Weight Sum</span>
                   <span id="weightSum" class="weight-sum-value">1.00</span>
@@ -919,7 +956,7 @@
                     <span id="ruleStatus" class="rule-status"></span>
                   </div>
                   <!-- v10.0.0：保存后逐站诊断 / per-site diagnostics after save -->
-                  <div id="ruleDiagnostics" class="rule-status" style="display:none;"></div>
+                  <div id="ruleDiagnostics" class="rule-status" style="display: none"></div>
                 </div>
               </div>
             </div>

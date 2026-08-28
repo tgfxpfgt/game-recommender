@@ -152,6 +152,14 @@
 .gr-badge-dashed {
   border-style: dashed;
 }
+/* v10.1.0：a-b 徽章（AppID 行为统计）——标题绿色警示（a=0 且 b>0 只看不下）*/
+.gr-badge-appstat {
+  font-size: 10px;
+}
+.gr-title-green,
+.gr-title-green a {
+  color: #2ecc71 !important;
+}
 .gr-badge-notfound {
   color: #666;
   border-color: #666;

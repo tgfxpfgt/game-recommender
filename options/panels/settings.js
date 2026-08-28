@@ -64,6 +64,11 @@
     document.getElementById('weightPlayTimeVal').textContent = pct2(w.playTime);
     document.getElementById('weightHeat').value = pct2(w.heat);
     document.getElementById('weightHeatVal').textContent = pct2(w.heat);
+    // v10.1.0：AppID 行为统计权重（a 下载正向 / b 未下载惩罚）
+    document.getElementById('weightAppStatDownload').value = pct2(w.appStatDownload);
+    document.getElementById('weightAppStatDownloadVal').textContent = pct2(w.appStatDownload);
+    document.getElementById('weightAppStatDetailView').value = pct2(w.appStatDetailView);
+    document.getElementById('weightAppStatDetailViewVal').textContent = pct2(w.appStatDetailView);
     updateWeightSum();
 
     // LLM 设置 / LLM settings

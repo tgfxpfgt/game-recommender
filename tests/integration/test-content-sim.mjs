@@ -29,10 +29,18 @@ class FakeEl {
     this._text = '';
     this._html = '';
     this._attrs = {};
+    // v10.1.0：classList 真实跟踪（此前 add 无操作/contains 恒 false——
+    // 绿标题 gr-title-green 等类断言无法验证）
     this.classList = {
-      add() {},
-      contains() {
-        return false;
+      _set: new Set(),
+      add(...cs) {
+        cs.forEach((c) => this._set.add(c));
+      },
+      remove(...cs) {
+        cs.forEach((c) => this._set.delete(c));
+      },
+      contains(c) {
+        return this._set.has(c);
       }
     };
   }
@@ -573,6 +581,14 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
     (msg.names || []).forEach((n) => {
       ratings[n] = { appId: '999', positiveRate: 90 };
     });
+    // v10.1.0：前两条带 a-b 统计——首条有下载（a=3 绿色徽章）/ 次条只看不下
+    // （a=0 且 b=7 → 橙色徽章 + 标题绿色 gr-title-green）
+    if (msg.names && msg.names[0]) {
+      ratings[msg.names[0]] = { appId: '999', positiveRate: 90, appDownloads: 3, appDetailViews: 5 };
+    }
+    if (msg.names && msg.names[1]) {
+      ratings[msg.names[1]] = { appId: '999', positiveRate: 90, appDownloads: 0, appDetailViews: 7 };
+    }
     return { ratings, pending: 0 }; // 全部缓存命中 → 无推送，自动衔接下一批
   };
   GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
@@ -588,6 +604,15 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   ).toEqual(true);
   const doneBar = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
   expect(doneBar ? doneBar.innerHTML.includes('Steam 好评率获取完成') : false).toEqual(true);
+
+  // v10.1.0：a-b 徽章渲染（下载 a-详情页打开 b）+ 只看不下绿标题
+  const statBadge0 = manyItems[0].link.children.find((c) => (c.className || '').includes('gr-badge-appstat'));
+  expect(statBadge0 && statBadge0._html).toEqual('3-5');
+  const statBadge1 = manyItems[1].link.children.find((c) => (c.className || '').includes('gr-badge-appstat'));
+  expect(statBadge1 && statBadge1._html).toEqual('0-7');
+  // a=0 且 b>0 → 标题绿色；a>0 → 标题不变绿
+  expect(manyItems[1].titleEl.classList.contains('gr-title-green')).toEqual(true);
+  expect(manyItems[0].titleEl.classList.contains('gr-title-green')).toEqual(false);
 
   // done 衔接场景：首批部分未命中（pending>0）→ 等后台 done → 衔接第二批
   const batchRequests2 = [];

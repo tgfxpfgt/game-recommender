@@ -13,6 +13,7 @@ import {
   collectExpiredDownloadUrls
 } from '../storage/cleanup.js';
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
+import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, deleteNameIndexEntries } from '../storage/name-index.js';
 import { flushRegistry, deleteGameRegistryEntry, getGameRegistry, recordGameInRegistry } from '../storage/registry.js';
@@ -109,7 +110,12 @@ export async function handleGetGameCacheList(message) {
   }
 
   // 推荐值（appId 维度个性化）：批量计算一次取齐画像/偏好，循环复用
-  const [gameProfiles, keywordWeights] = await Promise.all([readProfiles(), readKeywordWeights()]);
+  // v10.1.0：AppID 行为统计一并批量读（推荐信号 a 下载 / b 详情页打开）
+  const [gameProfiles, keywordWeights, appStats] = await Promise.all([
+    readProfiles(),
+    readKeywordWeights(),
+    getAppStats()
+  ]);
   const allProfiles = Object.values(gameProfiles);
   const globalStats = {
     maxViews: Math.max(1, ...allProfiles.map((p) => p.views || 0)),
@@ -144,6 +150,8 @@ export async function handleGetGameCacheList(message) {
         chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
         playTimeScore,
         heatScore,
+        appDownloads: appStats[appId] ? appStats[appId].downloads : null,
+        appDetailViews: appStats[appId] ? appStats[appId].detailViews : null,
         weights
       });
       recCache.set(recCacheKey, rec);

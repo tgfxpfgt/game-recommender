@@ -526,8 +526,17 @@
     // v6.4.19：关键词过滤（纯规则列表，简单关键词输入已移除）
     document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
 
-    // 权重滑块（v4.0.0：新增 playTime/heat）
-    const weightIds = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam', 'weightPlayTime', 'weightHeat'];
+    // 权重滑块（v4.0.0：新增 playTime/heat；v10.1.0：新增 appStat 两项）
+    const weightIds = [
+      'weightClick',
+      'weightDownload',
+      'weightKeyword',
+      'weightSteam',
+      'weightPlayTime',
+      'weightHeat',
+      'weightAppStatDownload',
+      'weightAppStatDetailView'
+    ];
     weightIds.forEach((id) => {
       document.getElementById(id).addEventListener('input', (e) => {
         document.getElementById(`${id}Val`).textContent = (e.target.value / 100).toFixed(2);
@@ -701,14 +710,16 @@
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
 
     // 权重（v4.0.0：新增 playTime/heat——必须写入保存映射，否则用户保存时
-    // 会抹掉新权重项的自定义值）
+    // 会抹掉新权重项的自定义值；v10.1.0：appStat 两项同理）
     OPTS.currentSettings.weights = {
       clickRate: document.getElementById('weightClick').value / 100,
       downloadRate: document.getElementById('weightDownload').value / 100,
       keywordMatch: document.getElementById('weightKeyword').value / 100,
       steamRating: document.getElementById('weightSteam').value / 100,
       playTime: document.getElementById('weightPlayTime').value / 100,
-      heat: document.getElementById('weightHeat').value / 100
+      heat: document.getElementById('weightHeat').value / 100,
+      appStatDownload: document.getElementById('weightAppStatDownload').value / 100,
+      appStatDetailView: document.getElementById('weightAppStatDetailView').value / 100
     };
 
     // LLM 配置

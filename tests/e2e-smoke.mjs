@@ -270,7 +270,7 @@ async function runChecks() {
         popupCover.filterMode &&
         popupCover.sortByRating &&
         popupCover.ruleBtn &&
-        popupCover.weights === 6 &&
+        popupCover.weights === 8 && // v10.1.0：权重滑块 6→8（appStat 两项）
         popupCover.badges &&
         popupCover.autoBackup &&
         popupCover.logLevel &&

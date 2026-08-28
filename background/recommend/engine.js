@@ -11,6 +11,7 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
+import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
 import { DB_KEYS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { lookupAppIdByName } from '../storage/name-index.js';
@@ -92,6 +93,30 @@ export function steamspyScores(spy) {
 }
 
 /**
+ * v10.1.0：AppID 行为统计信号（纯函数，可单测）
+ * a = 跨站点下载次数，b = 跨站点详情页打开次数（app-stats 模块，永不过期）。
+ * 规则（用户需求）：a>0 → 正向信号（对数饱和），b 不参与；a=0 且 b>0 →
+ * 负向信号（只看不下，b 越大越不推荐）；a=0 且 b=0 → 中性 0。
+ * 对数刻度：a=10 → 0.5、a=100 → 1 封顶（b 同理），避免少数高频游戏垄断。
+ * App-stat signal (pure): a>0 → positive log-saturated score, b ignored;
+ * a=0 & b>0 → negative penalty growing with b; a=b=0 → neutral 0.
+ * @param {number|null} a - 下载次数
+ * @param {number|null} b - 详情页打开次数
+ * @returns {{downloadStat: number, viewPenalty: number}}
+ */
+export function appStatScores(a, b) {
+  const downloads = typeof a === 'number' && a > 0 ? a : 0;
+  const detailViews = typeof b === 'number' && b > 0 ? b : 0;
+  if (downloads > 0) {
+    return { downloadStat: Math.min(Math.log10(downloads + 1) / 2, 1), viewPenalty: 0 };
+  }
+  if (detailViews > 0) {
+    return { downloadStat: 0, viewPenalty: -Math.min(Math.log10(detailViews + 1) / 2, 1) };
+  }
+  return { downloadStat: 0, viewPenalty: 0 };
+}
+
+/**
  * 单游戏推荐评分（纯计算，输入为聚合数据，可单测）
  * 信号：行为（详情打开/下载占比，归一化）、标签匹配（Steam 官方标签 vs 用户偏好）、
  * 好评率 + 中文支持。综合加权后返回 score 与 breakdown（徽章悬停展示用）。
@@ -107,7 +132,9 @@ export function steamspyScores(spy) {
  * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
  * @param {number|null} params.playTimeScore - SteamSpy 时长信号（0-1，null=缺省中性）
  * @param {number|null} params.heatScore - SteamSpy 热度信号（0-1，null=缺省中性）
- * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number}, method: string}}
+ * @param {number|null} [params.appDownloads] - AppID 下载次数 a（null=无统计）
+ * @param {number|null} [params.appDetailViews] - AppID 详情页打开次数 b（null=无统计）
+ * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number, appDownloadScore: number, appViewPenalty: number}, method: string}}
  */
 // v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
 // 权重六项（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
@@ -120,17 +147,33 @@ export function computeGameScore({
   chineseSupported = false,
   weights = {},
   playTimeScore = null,
-  heatScore = null
+  heatScore = null,
+  appDownloads = null,
+  appDetailViews = null
 }) {
   // v6.3.2 C3：用户标记不感兴趣 → 推荐归零（负信号优先于一切正信号）
   if (profile && profile.disliked) {
-    return { score: 0, breakdown: { clickScore: 0, downloadScore: 0, keywordScore: 0, steamScore: 0, playTimeScore: 0, heatScore: 0 }, method: 'disliked' };
+    return {
+      score: 0,
+      breakdown: {
+        clickScore: 0,
+        downloadScore: 0,
+        keywordScore: 0,
+        steamScore: 0,
+        playTimeScore: 0,
+        heatScore: 0,
+        appDownloadScore: 0,
+        appViewPenalty: 0
+      },
+      method: 'disliked'
+    };
   }
   const views = profile ? profile.views || 0 : 0;
   const downloads = profile ? profile.downloads || 0 : 0;
   // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）
   const clickScore = (globalStats.maxViews || 0) > 0 ? Math.min(views / (globalStats.maxViews || 1), 1) : 0;
-  const downloadScore = (globalStats.maxDownloads || 0) > 0 ? Math.min(downloads / (globalStats.maxDownloads || 1), 1) : 0;
+  const downloadScore =
+    (globalStats.maxDownloads || 0) > 0 ? Math.min(downloads / (globalStats.maxDownloads || 1), 1) : 0;
   // 2. 标签匹配：Steam 官方标签与用户偏好关键词的匹配度（无标签给中性值）
   const kw = calculateKeywordScore(tags || [], keywordWeights);
   const keywordScore = kw !== null ? kw : 0.3;
@@ -142,21 +185,28 @@ export function computeGameScore({
   // 4. SteamSpy 信号：时长/热度（缺省中性 0.3）
   const pTime = playTimeScore !== null && playTimeScore !== undefined ? playTimeScore : 0.3;
   const heat = heatScore !== null && heatScore !== undefined ? heatScore : 0.3;
+  // 5. AppID 行为统计信号（v10.1.0）：a>0 正向 / a=0 且 b>0 负向（b 越大越不推荐）
+  const { downloadStat, viewPenalty } = appStatScores(appDownloads, appDetailViews);
   const finalScore =
     clickScore * (weights.clickRate || 0) +
     downloadScore * (weights.downloadRate || 0) +
     keywordScore * (weights.keywordMatch || 0) +
     steamScore * (weights.steamRating || 0) +
     pTime * (weights.playTime || 0) +
-    heat * (weights.heat || 0);
+    heat * (weights.heat || 0) +
+    downloadStat * (weights.appStatDownload || 0) +
+    viewPenalty * (weights.appStatDetailView || 0);
   // v6.4.10：权重和超 1 时归一化（用户可配置任意权重，保证评分不超 100%）
+  // v10.1.0：负向 appStatDetailView 分量不参与"权重和"归一（它是惩罚项，
+  // 若计入会把惩罚稀释掉）——仅累计正向权重
   const weightSum =
     (weights.clickRate || 0) +
     (weights.downloadRate || 0) +
     (weights.keywordMatch || 0) +
     (weights.steamRating || 0) +
     (weights.playTime || 0) +
-    (weights.heat || 0);
+    (weights.heat || 0) +
+    (weights.appStatDownload || 0);
   const normalized = weightSum > 1 ? finalScore / weightSum : finalScore;
   return {
     score: Math.round(normalized * 100) / 100,
@@ -166,7 +216,9 @@ export function computeGameScore({
       keywordScore: Math.round(keywordScore * 100) / 100,
       steamScore: Math.round(steamScore * 100) / 100,
       playTimeScore: Math.round(pTime * 100) / 100,
-      heatScore: Math.round(heat * 100) / 100
+      heatScore: Math.round(heat * 100) / 100,
+      appDownloadScore: Math.round(downloadStat * 100) / 100,
+      appViewPenalty: Math.round(viewPenalty * 100) / 100
     },
     method: 'builtin'
   };
@@ -180,7 +232,7 @@ export function computeGameScore({
  * 计算推荐评分（strict 类型化，v6.3.1）
  * @param {Object} gameInfo - 游戏信息（name/appId/tags/...）
  * @param {boolean} [forceBuiltin] - 强制内置算法（跳过 LLM）
- * @param {{settings: import('../core/types.js').AppSettings, profiles: Object, keywordWeights: Object}|null} [shared] - 批量共享只读数据
+ * @param {{settings: import('../core/types.js').AppSettings, profiles: Object, keywordWeights: Object, appStats?: Object}|null} [shared] - 批量共享只读数据
  * @returns {Promise<import('../core/types.js').RecommendResult|{score: number}|null>}
  */
 export async function calculateRecommendation(gameInfo, forceBuiltin = false, shared = null) {
@@ -203,10 +255,11 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   }
 
   // 内置算法：聚合该游戏所需数据（行为画像/偏好/注册表/Steam 缓存）
-  const [profiles, keywordWeights] =
+  // v10.1.0：AppID 行为统计批量共享读（shared.appStats 由调用方加载一次）
+  const [profiles, keywordWeights, appStatsMap] =
     shared && shared.profiles
-      ? [shared.profiles, shared.keywordWeights || {}]
-      : await Promise.all([readProfiles(), readKeywordWeights()]);
+      ? [shared.profiles, shared.keywordWeights || {}, shared.appStats || null]
+      : await Promise.all([readProfiles(), readKeywordWeights(), getAppStats()]);
 
   // 解析 appId：列表页封面直取优先，否则名称索引
   let appId = gameInfo.appId || null;
@@ -223,6 +276,8 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
     maxViews: Math.max(1, ...allProfiles.map((p) => p.views || 0)),
     maxDownloads: Math.max(1, ...allProfiles.map((p) => p.downloads || 0))
   };
+  // v10.1.0：AppID 行为统计（a 下载 / b 详情页打开——推荐信号）
+  const appStat = appId && appStatsMap ? appStatsMap[String(appId)] : null;
   // v3.3.7：缓存为模块结构，用合并视图读字段
   const steamData = steamEntry ? getMergedData(steamEntry) : null;
   // v4.0.0：SteamSpy 时长/热度信号（spy 模块可能为 null，steamspyScores 兜底）
@@ -237,6 +292,8 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
     chineseSupported: steamData ? !!steamData.chineseSupported : false,
     playTimeScore,
     heatScore,
+    appDownloads: appStat ? appStat.downloads : null,
+    appDetailViews: appStat ? appStat.detailViews : null,
     weights
   });
 }

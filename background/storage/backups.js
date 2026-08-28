@@ -35,7 +35,8 @@ const BACKUP_CORE_KEYS = [
   'downloadHistory',
   'wrongReports',
   'learnedNoise',
-  'manualMappings'
+  'manualMappings',
+  'appStats' // v10.1.0：AppID 行为统计（a/b 计数，不可重建的高价值数据）
 ];
 
 export async function createBackup(manual = false, /** @type {string[]|null} */ moduleKeys = null) {

@@ -33,9 +33,18 @@ export function isDownloadText(text) {
 function recordDownload(url, text, method) {
   debug.DEBUG.downloadEvents++;
   debug.dbg(`📥 下载事件 [${method}]: ${text}`);
+  // v10.1.0：详情页解析出的 AppID 经 DOM 数据桥接随事件上报（后台累计跨站点
+  // 下载计数 a）；列表页等无 appId 场景不带上（后台不计数）
+  let appId;
+  try {
+    appId = document.documentElement.dataset.grAppId || undefined;
+  } catch {
+    appId = undefined;
+  }
   common.trackEvent('click_download', {
     gameName: debug.DEBUG.gameName || detail.detectGameName() || document.title,
     keywords: [],
+    appId,
     downloadUrl: url,
     downloadText: text,
     method: method

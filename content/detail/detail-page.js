@@ -396,7 +396,15 @@ export function injectSteamButton(gameName) {
     renderSteamSidebar(panel, data, hidePanel, cachedAt, makeOnRefresh(name), reportIssue);
     showPanel();
 
-    // 记录下载站详情页访问（Steam 匹配成功后补充记录）
+    // v10.1.0：AppID 写 DOM 数据桥接——download-tracking 的点击委托（隔离世界
+    // 同全局可读）随 click_download 事件带上 appId，后台据此累计下载计数 a
+    try {
+      if (data.appId) document.documentElement.dataset.grAppId = String(data.appId);
+    } catch {
+      /* ignore */
+    }
+
+    // 记录下载站详情页访问（Steam 匹配成功后补充记录；后台同时累计详情页打开计数 b）
     common.trackDownloadSiteVisit(data.appId, name);
 
     // 回写Steam标签

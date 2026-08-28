@@ -31,6 +31,7 @@ const regMod = await import('../../background/storage/registry.js');
 const wrongMod = await import('../../background/storage/wrong-reports.js');
 const urlMod = await import('../../background/storage/download-urls.js');
 const urlIdx = await import('../../background/storage/url-index.js');
+const appStatsMod = await import('../../background/storage/app-stats.js');
 
 // ============ 1. SEARCH_STEAM 完整链路 ============
 describe('SEARCH_STEAM 完整链路', () => {
@@ -174,6 +175,33 @@ test('重置设置返回默认设置对象', async () => {
   expect(resp.settings && typeof resp.settings === 'object' && !!resp.settings.weights).toEqual(true);
 });
 
+// ============ 4b2. 下载计数 a（v10.1.0：AppID 维度，跨站点聚合） ============
+test('click_download 带 appId → 下载计数累加（无 appId 不计）', async () => {
+  storage._reset();
+  await appStatsMod.resetAppStats();
+  await handleMessage({
+    action: 'TRACK_EVENT',
+    data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [] }
+  });
+  await handleMessage({
+    action: 'TRACK_EVENT',
+    data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [] }
+  });
+  // 不同站点同一 appId → 聚合到同一计数
+  await handleMessage({
+    action: 'TRACK_EVENT',
+    data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [], domain: 'other-site.com' }
+  });
+  // 无 appId → 不计数
+  await handleMessage({
+    action: 'TRACK_EVENT',
+    data: { type: 'click_download', gameName: '游戏B', keywords: [] }
+  });
+  const stats = await appStatsMod.getAppStats(['730', '999']);
+  expect(stats['730'] && stats['730'].downloads).toEqual(3);
+  expect(stats['999']).toEqual(undefined);
+});
+
 // ============ 4c. REPORT_WRONG_APPID 清除网址索引绑定（v9.7.0：报错自愈闭环） ============
 test('报错后当前页网址索引绑定被清除', async () => {
   storage._reset();
@@ -198,13 +226,21 @@ test('访问记录写入下载站桶', async () => {
   const store = await urlMod.readDownloadUrlsStore();
   expect(!!store.sites.xdgame && !!store.sites.xdgame['123']).toEqual(true);
 });
-test('未知站点拒绝记录', async () => {
+test('未知站点：b 计数仍记录、URL 缓存不写（v10.1.0 语义）', async () => {
   storage._reset();
+  await appStatsMod.resetAppStats();
   const resp = await handleMessage({
     action: 'TRACK_DOWNLOAD_SITE_VISIT',
     data: { appId: 123, url: 'https://evil.example.com/123.html', domain: 'evil.example.com' }
   });
-  expect(resp.success).toEqual(false);
+  // v10.1.0：详情页打开计数 b 不依赖站点识别成功——unknown 站点同样计数
+  expect(resp.success).toEqual(true);
+  expect(resp.statsRecorded).toEqual(true);
+  const stats = await appStatsMod.getAppStats([123]);
+  expect(stats['123'] && stats['123'].detailViews).toEqual(1);
+  // 下载站网址缓存仍不写（未识别站点）
+  const store = await urlMod.readDownloadUrlsStore();
+  expect(store.sites.evil === undefined || !store.sites.evil).toEqual(true);
 });
 
 // ============ 6. 缓存条目删除与清空 ============

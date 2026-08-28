@@ -247,7 +247,9 @@ function renderWeights(weights) {
     ['keywordMatch', '关键词'],
     ['steamRating', 'Steam 好评'],
     ['playTime', '游玩时长'],
-    ['heat', '热度']
+    ['heat', '热度'],
+    ['appStatDownload', '下载计数 a'],
+    ['appStatDetailView', '未下载惩罚 b']
   ];
   box.innerHTML = '';
   WEIGHT_KEYS.forEach(([key, label]) => {

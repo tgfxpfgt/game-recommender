@@ -198,6 +198,35 @@ export function prependBadge(item, rating, settings) {
     }
   }
   if (badges.length > 0) insertBadges(item, link, badges);
+
+  // v10.1.0：a-b 徽章（AppID 行为统计）——a = 跨站点下载次数，b = 详情页
+  // 打开次数；有下载（a>0）绿色、只看不下（a=0 且 b>0）橙色警示。数据随
+  // ratings 条目下发（appDownloads/appDetailViews），无记录的条目不渲染。
+  // 最后 push → insertBadges 逆序插入 → 渲染在所有徽章最左
+  if (rating && rating.appId && rating.appDownloads !== undefined) {
+    const a = rating.appDownloads || 0;
+    const b = rating.appDetailViews || 0;
+    const hasDownload = a > 0;
+    badges.length = 0; // 复用 insertBadges：清空后单插 a-b 徽章
+    badges.push(
+      createBadge(link, {
+        text: `${a}-${b}`,
+        color: hasDownload ? '#4caf50' : '#e67e22',
+        bg: hasDownload ? 'rgba(76,175,80,0.12)' : 'rgba(230,126,34,0.14)',
+        cls: 'gr-badge-appstat',
+        title:
+          `下载 ${a} 次 · 详情页打开 ${b} 次（跨站点累计，永不过期）` +
+          (hasDownload ? '' : '\n⚠ 只看不下：看的人越多越不推荐')
+      })
+    );
+    insertBadges(item, link, badges);
+    // 绿标题：a=0 且 b>0（只看不下）→ 标题变绿提示（content.css 单点样式）
+    if (!hasDownload && b > 0) {
+      const titleEl =
+        item.titleEl || (item.element && item.element.querySelector('h2, h3, h4, .title, .entry-title')) || null;
+      if (titleEl && titleEl.classList) titleEl.classList.add('gr-title-green');
+    }
+  }
 }
 
 // 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；

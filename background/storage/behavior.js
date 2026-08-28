@@ -22,6 +22,11 @@ export function getDataVersion() {
 function bumpVersion() {
   dataVersion++;
 }
+// v10.1.0：跨模块数据版本推进（app-stats 递增时调用——缓存面板推荐值
+// 缓存按 dataVersion 失效，下载/浏览计数变化需即时反映）
+export function bumpDataVersion() {
+  bumpVersion();
+}
 
 // 追加一条行为记录（ND-JSON 追加写入，仅超限时裁剪重写）
 // Append a behavior entry (ND-JSON append; trim only when over the limit)

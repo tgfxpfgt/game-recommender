@@ -25,7 +25,8 @@ export async function handleClearData() {
     dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
     dataStore.removeModule(DB_KEYS.NAME_INDEX),
     dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
-    dataStore.removeModule(DB_KEYS.LEARNED_NOISE)
+    dataStore.removeModule(DB_KEYS.LEARNED_NOISE),
+    dataStore.removeModule(DB_KEYS.APP_STATS) // v10.1.0：AppID 行为统计属学习数据，一并清除
   ]);
   await dataStore.removeModule(DB_KEYS.MANUAL_MAPPINGS).catch(() => {});
   resetInMemoryCaches();

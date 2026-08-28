@@ -215,3 +215,37 @@ test('updateGameProfile / maybeUpdatePreferences：偏好模型更新', async ()
   // 下载 +2、仅浏览 +1 → pos=2 neg=1 → 2/(2+1+1)=0.5
   expect(weights['开放世界']).toEqual(0.5);
 });
+
+// ============ v10.1.0：AppID 行为统计（a 下载 / b 详情页打开，永不过期） ============
+const appStatsMod = await import(
+  new URL('../../background/storage/app-stats.js', import.meta.url).href + '?t=' + Date.now()
+);
+
+test('appStats：递增聚合 + 批量读取 + 重置', async () => {
+  storage._reset();
+  appStatsMod.resetAppStats();
+  await appStatsMod.recordAppDownload('730');
+  await appStatsMod.recordAppDownload('730');
+  await appStatsMod.recordAppDetailView('730');
+  await appStatsMod.recordAppDetailView('730');
+  await appStatsMod.recordAppDetailView('730');
+  await appStatsMod.recordAppDetailView('275850');
+  const all = await appStatsMod.getAppStats();
+  expect(all['730'].downloads).toEqual(2);
+  expect(all['730'].detailViews).toEqual(3);
+  expect(all['275850'].detailViews).toEqual(1);
+  // 按 appId 子集读取
+  const subset = await appStatsMod.getAppStats(['730']);
+  expect(subset['275850']).toEqual(undefined);
+  appStatsMod.resetAppStats();
+  const empty = await appStatsMod.getAppStats();
+  expect(Object.keys(empty).length).toEqual(0);
+});
+
+test('appStats：无效 appId 拒绝', async () => {
+  storage._reset();
+  appStatsMod.resetAppStats();
+  await appStatsMod.recordAppDownload('');
+  await appStatsMod.recordAppDetailView(null);
+  expect(Object.keys(await appStatsMod.getAppStats()).length).toEqual(0);
+});

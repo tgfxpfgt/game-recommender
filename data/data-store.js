@@ -39,7 +39,8 @@ const MODULE_FILES = {
   searchCache: { file: 'search-cache.json', format: 'json' }, // v6.4.3
   llmScore: { file: 'llm-score.json', format: 'json' }, // v6.4.3
   urlAppIdIndex: { file: 'url-appid-index.json', format: 'json' }, // v7.0.2
-  siteHealth: { file: 'site-health.json', format: 'json' } // v10.0.0：站点适配器健康
+  siteHealth: { file: 'site-health.json', format: 'json' }, // v10.0.0：站点适配器健康
+  appStats: { file: 'app-stats.json', format: 'json' } // v10.1.0：AppID 行为统计（永不过期）
 };
 
 class DataStore {

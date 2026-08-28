@@ -16,6 +16,16 @@ import { getAppIdByUrl } from '../storage/url-index.js'; // v7.0.2：详情页�
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
 import { getSteamApiStatus } from '../core/api-monitor.js';
+import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：a-b 徽章数据并入 ratings
+
+// v10.1.0：把 AppID 行为统计（a 下载 / b 详情页打开）并入 rating 条目——
+// wave 1 / 推送 / 刷新全链路自动携带，内容侧 prependBadge 直接渲染 "a-b" 徽章
+function mergeAppStat(r, statsMap) {
+  if (!r || !r.appId || !statsMap) return r;
+  const stat = statsMap[String(r.appId)];
+  if (!stat) return r;
+  return { ...r, appDownloads: stat.downloads, appDetailViews: stat.detailViews };
+}
 
 // 列表页批量好评率查询（两阶段：缓存命中即时返回，未命中后台拉取后推送）
 // Two-phase list-page rating lookup: cached hits return immediately; misses are
@@ -46,6 +56,8 @@ export async function handleGetSteamRatings(message, sender) {
   }
 
   // 阶段1：仅查缓存（无网络），命中即时返回 / Phase 1: cache-only, instant hits
+  // v10.1.0：批量读 a-b 统计一次（内存缓存，零额外 IO）
+  const statsMap = await getAppStats();
   try {
     await Promise.all(
       ratingNames.map(async (name) => {
@@ -56,7 +68,7 @@ export async function handleGetSteamRatings(message, sender) {
             appId: urlAppId || (img ? img.appId : null),
             cover: img ? img.cover : null
           });
-          if (r) ratings[name] = r;
+          if (r) ratings[name] = mergeAppStat(r, statsMap);
           else pending.push(name);
         } catch {
           pending.push(name);
@@ -183,6 +195,8 @@ async function runRatingJob(job) {
   const keepAlive = setInterval(() => {
     chrome.runtime.getPlatformInfo().catch(() => {});
   }, 10000);
+  // v10.1.0：a-b 统计批量读一次（任务期共享）
+  const statsMap = await getAppStats();
   try {
     const push = (payload) => {
       if (job.tabId !== null && job.tabId !== undefined) {
@@ -211,7 +225,7 @@ async function runRatingJob(job) {
               appId: urlAppId || (img ? img.appId : null),
               cover: img ? img.cover : null
             });
-            wave[name] = r;
+            wave[name] = mergeAppStat(r, statsMap);
             // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
             if (!r || r.failed) retryBatch.push(name);
           } catch {

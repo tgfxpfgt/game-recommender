@@ -278,11 +278,26 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.1.0（AppID 行为统计：a-b 徽章 + 推荐信号 + 权重可调）
+
+列表页每个游戏链接新增 **"a-b" 徽章**（a = 跨站点下载次数，b = 详情页打开次数），并作为新信号参与推荐值计算。
+
+- **数据层**：新增 appStats 存储模块（OPFS，按 appId 聚合，**永不过期**、不参与 TTL 清理；上限 20000 条按最近活跃淘汰）——不同下载站的下载/详情页打开自动聚合到同一 appId
+- **计数接线**：详情页打开（TRACK_DOWNLOAD_SITE_VISIT，先于站点识别——未识别站点/自定义站同样计数）→ b+1；下载点击（TRACK_EVENT click_download，详情页解析出 appId 后经 DOM 数据桥接随事件上报）→ a+1；无 appId 场景（列表页直接点网盘）不计数
+- **推荐信号**（appStatScores 纯函数）：a>0 → 正向（对数饱和 a=100 封顶），**b 不参与**；a=0 且 b>0 → 负向（只看不下，b 越大越不推荐，b=100 封顶）；a=b=0 → 中性。负向惩罚不参与权重和归一
+- **徽章**：有下载（a>0）绿色、只看不下（a=0 且 b>0）橙色 + tooltip 说明；**a=0 且 b>0 时游戏标题变绿**（.gr-title-green）
+- **权重可调**：设置页/popup 新增"下载计数 a"与"未下载惩罚 b"两个权重滑块（八项权重默认和 1.0：原六项微调腾出空间）
+- **数据管理**：appStats 纳入模块清单/导出导入/默认备份子集/清除学习数据；统计变化即时推进 dataVersion（缓存面板推荐值缓存即时失效）
+- 测试 +8：appStatScores 三分支/加权排序、appStats 递增聚合/重置、click_download 计数接线、content-sim 徽章与绿标题断言（FakeEl classList 升级为真实跟踪）
+
+676 test · E2E 46/46（MOCK+真实网络）· visual 11/11 · lint 0 · typecheck 0
+
 ### v10.0.0（大版本：迭代路线全落地——技术债清偿 / MV3 根治 / 产品化）
 
 按 v9.7.0 后制定的迭代路线三阶段全量实施。
 
 **技术债清偿（v9.8 计划项）**：
+
 - tsconfig.ui.json 重复 exclude 键修复（content 双检查根治）；旧 storage.local 迁移残留键一次性清理（迁移成功后 remove，消除内容侧回退链读到陈旧 adapterRules 的隐患）
 - 移除 window.open 死代码（隔离世界覆盖对站点自身 JS 无效，下载路径由点击委托/copy 捕获覆盖）
 - GET_RECOMMENDATIONS 循环 per-game try/catch（单个畸形画像不再炸整批推荐）
@@ -290,12 +305,14 @@ node --check options/options.js
 - 覆盖率 63.96%→66%+（+21 测试：data-modules 接线/site-scripts 动态注册/历史记录/行为偏好/健康模块）；handlers.js 覆盖归因伪影定位（原生加载逃逸插桩，真实覆盖远高于读数）——已记录 CONTRIBUTING，修复留专项
 
 **MV3 生命周期根治 + 可观测性（v9.9 计划项）**：
+
 - **批量好评率任务可恢复化**：任务状态经批次边界检查点到 chrome.storage.session，SW 被 Chrome 110+ 的 5 分钟硬上限杀死后由 alarm（每分钟）唤醒新实例从最后边界续跑（done 推送不再丢失）；回归测试覆盖连续任务守卫复位（E2E 滚动节抓出的真实 bug：startRatingJob 未复位 jobRunning，第二批请求被静默丢弃）
 - 站点适配器健康模块（background/storage/site-health.js，OPFS 持久化）+ dashboard 健康看板卡片与明细列表——站点改版从"静默失效"变"主动可见"
 - 存储健康指标（flush 写失败计数 + OPFS/降级模式态，session 持久化）+ dashboard 卡片
 - 写放大实测（scripts/measure-write-amplification.mjs）：满负载单批落盘 ≈1MB，60 游戏会话总写量 1-6MB 可接受——保留每批落盘设计，缓存规模 5-10 倍增长时再做增量优化
 
 **产品化（v10.0 计划项）**：
+
 - 规则包生态：导入侧格式化升级 normalizeImportedRules（旧包 displayName 回填 + version 戳记）、逐站诊断 diagnoseAdapterRules（缺 displayName/过宽正则+fallbackLinks 组合等 warn/info）、规则面板"🩺 健康自检"按钮（配置诊断 × 运行时改版告警逐站展示）、保存后诊断反馈
 - 推荐反馈信号：aggregateFeedback 纯函数（dislike 闭环聚合）+ dashboard"🎯 推荐反馈信号"区块（负反馈总量/top 负反馈/top 下载）
 - 上架材料：PRIVACY.md 更新（session 存储/ITAD/Bing/新权限说明）、STORE.md 提交状态清单（CWS 开发者账号注册为用户操作项）
@@ -307,6 +324,7 @@ node --check options/options.js
 编码模型切换（DeepSeek V4 Flash → GLM-5.3）后的全面自检与修复；完整清单见仓库根 `自检报告-2026-08-27.md`。自动化基线 640 test · E2E 46/46 · lint 0 · typecheck 0。
 
 **P1 严重（8 项全部修复）**：
+
 - 删除缓存条目不落盘：registry 删除路径未置 dirty → SW 重启后删除"复活"（新增 deleteGameRegistryEntry 显式置位）
 - 手动纠错映射永不保存：SAVE_MANUAL_MAPPING 主路径漏发 gameName 被契约拒绝（detail-page 补发）
 - 重置设置 UI 恒报失败：RESET_SETTINGS 响应缺 settings 字段 + 旧 DOM 值可覆盖回默认值；DELETE_ADAPTER_RULES 同类响应混用（统一响应结构 + 补失败反馈分支）
@@ -334,7 +352,7 @@ node --check options/options.js
 
 ### v9.3.0（P0 数据安全与正确性：批次 A）
 
-- flushAllCaches 聚合落盘补齐（url-index/wrong-reports/learned-noise/logger 纳入，SW 休眠防抖窗口不丢数据；顺带修复 resetUrlIndex 清除后"复活"）；8 文件 55 处裸 sendMessage 全量接入 __GR_MSG__ 超时封装；host_permissions 子域修复（www 通配）；站点规则失效告警（提取 0 上报 + 24h 限频落盘）
+- flushAllCaches 聚合落盘补齐（url-index/wrong-reports/learned-noise/logger 纳入，SW 休眠防抖窗口不丢数据；顺带修复 resetUrlIndex 清除后"复活"）；8 文件 55 处裸 sendMessage 全量接入 **GR_MSG** 超时封装；host_permissions 子域修复（www 通配）；站点规则失效告警（提取 0 上报 + 24h 限频落盘）
 
 ### v9.2.1（修复：搜索布局 / 限免筛选 / 分级分页）
 

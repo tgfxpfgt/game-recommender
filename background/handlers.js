@@ -27,6 +27,7 @@ import { getSteamApiStatus } from './core/api-monitor.js';
 import { createSessionPersist } from './core/session-persist.js'; // v10.0.0：告警限频跨 SW 持久化
 import { recordSiteAlert, getSiteHealth } from './storage/site-health.js';
 import { getFlushHealth } from './storage/flush-health.js';
+import { recordAppDownload, getAppStats } from './storage/app-stats.js'; // v10.1.0：下载计数 a + 批量共享读
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
 import { validateMessage } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
@@ -71,6 +72,10 @@ async function handleTrackEvent(message) {
   await addBehaviorLog(message.data);
 
   if (message.data.type === 'click_download') {
+    // v10.1.0：下载计数 a（AppID 维度，跨站点聚合）——内容侧在详情页解析出
+    // appId 后经 DOM 数据桥接（documentElement.dataset.grAppId）随事件带上；
+    // 无 appId（列表页点击等场景）不计入（无法关联）
+    if (message.data.appId) await recordAppDownload(String(message.data.appId));
     await updateGameProfile({
       name: message.data.gameName,
       event: 'download',
@@ -118,12 +123,14 @@ async function handleGetRecommendations(message) {
   const shared =
     games.length > 1
       ? await (async () => {
-          const [profiles, keywordWeights, settings] = await Promise.all([
+          // v10.1.0：AppID 行为统计并入批量共享只读数据（推荐引擎信号）
+          const [profiles, keywordWeights, settings, appStats] = await Promise.all([
             readProfiles(),
             readKeywordWeights(),
-            getSettings()
+            getSettings(),
+            getAppStats()
           ]);
-          return { profiles, keywordWeights, settings };
+          return { profiles, keywordWeights, settings, appStats };
         })()
       : null;
   const results = [];
