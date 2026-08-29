@@ -21,7 +21,8 @@
    * @typedef {{
    *   common: any, floats: any, status: any, debug: any, builder: any,
    *   badges: any, listBatch: any, list: any, listState: any,
-   *   detailTemplates: any, detail: any, tracking: any
+   *   detailTemplates: any, detail: any, tracking: any,
+   *   qrUnlock: any, xdgrid: any
    * }} GRModules
    */
   /** @type {GRModules|null} */
@@ -43,7 +44,9 @@
       listState,
       detailTemplates,
       detail,
-      tracking
+      tracking,
+      qrUnlock,
+      xdgrid
     ] = await Promise.all([
       import(m('core/common.js')),
       import(m('core/floats.js')),
@@ -56,7 +59,9 @@
       import(m('list/list-state.js')),
       import(m('detail/detail-templates.js')),
       import(m('detail/detail-page.js')),
-      import(m('tracking/download-tracking.js'))
+      import(m('tracking/download-tracking.js')),
+      import(m('detail/qr-unlock.js')),
+      import(m('list/xdgrid.js'))
     ]);
     MODULES = {
       common,
@@ -70,7 +75,9 @@
       listState,
       detailTemplates,
       detail,
-      tracking
+      tracking,
+      qrUnlock,
+      xdgrid
     };
     return MODULES;
   }
@@ -212,6 +219,11 @@
 
     // === 2. 始终设置下载追踪 ===
     tracking.setupDownloadTracking();
+
+    // === v10.2.0：二维码转链接（gamer520 等站二维码网盘链接自动解码）===
+    M.qrUnlock.init();
+    // === v10.2.0：XDGAME 列表布局自定义（模块内按域名早退，其他站零开销）===
+    M.xdgrid.init();
 
     // === 3. 详情页：注入Steam浮窗和下载历史浮窗 ===
     const isDetail = detailByUrl || (!isList && !!document.querySelector('h1'));

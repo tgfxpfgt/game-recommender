@@ -1,0 +1,2 @@
+# v10.2.0：第三方 vendored 库不做格式化（压缩产物）
+lib/vendor/

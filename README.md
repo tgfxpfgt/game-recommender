@@ -278,6 +278,16 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.2.0（四项需求：xdgame 布局定制 / a-b 计数去重 / 二维码转链接 / AI 协作优化）
+
+- **XDGAME 列表布局自定义**（独立油猴脚本移植进扩展）：新内容模块 `content/list/xdgrid.js`——每行图标数（1-12）、图标宽度（固定/自适应压缩双模式）、封面高度（0=原始比例 92:43）、卡片间距；悬浮齿轮 + 设置面板；设置持久化 chrome.storage.local；模块内按域名早退（其他站零开销）
+- **a-b 计数去重**：同一 appId 在**同一站点** 24h 内重复下载/重复打开详情页不再重复计数；**跨站点分别计数**（xdgame 打开 b+1，再开 xianyudanji 的 b 再 +1；下载同理）——条目新增 dlSites/viewSites 每站去重表（LRU 24 站），站点键来自事件 domain（未识别站用 domain 独立去重）
+- **二维码转链接**：gamer520 等站以二维码提供网盘链接——新模块 `content/detail/qr-unlock.js` 自动解码页面上的二维码图片（vendored qrcode-reader v1.0.0，Apache-2.0，ESM 包装 lib/vendor/qrcode-reader.js，按需懒加载）并渲染可点击链接 + 一键复制；方形比例启发式过滤（跳过封面/横幅）、每元素仅试解一次、MutationObserver 兜底动态渲染；解码器加载失败才停用模块（画布污染仅跳过单元素）
+- **AI 协作 token 优化**：新增仓库级 `AGENTS.md`（浓缩架构铁律/命令/发布流程——AI 助手优先读它而非 141KB README）；项目记忆压缩为状态+教训索引
+- 工程配套：lib/vendor 豁免 eslint/prettier/typecheck（压缩产物惯例）；E2E popup 权重滑块断言 6→8（v10.1.0 遗漏同步）
+
+679 test · E2E 46/46（MOCK 三连 + 真实网络）· visual 11/11 · lint 0 · typecheck 0
+
 ### v10.1.0（AppID 行为统计：a-b 徽章 + 推荐信号 + 权重可调）
 
 列表页每个游戏链接新增 **"a-b" 徽章**（a = 跨站点下载次数，b = 详情页打开次数），并作为新信号参与推荐值计算。

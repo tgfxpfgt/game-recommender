@@ -139,8 +139,11 @@ export async function handleTrackDownloadSiteVisit(message) {
   if (!appId || !url) return { success: false };
   // v10.1.0：详情页打开计数 b（跨站点聚合到 appId；先于站点推断——
   // 未识别站点/自定义站点的详情页打开同样计数）
-  await recordAppDetailView(String(appId));
+  // v10.2.0：站点去重键（同站 24h 内重复打开不重复计数；未识别站点用
+  // domain 本身，各自独立去重——xdgame 与 xianyudanji 的打开分别计 b）
   const siteInfo = await inferSite(data.domain || '');
+  const siteKey = siteInfo.key !== 'unknown' ? siteInfo.key : String(data.domain || 'unknown').slice(0, 64);
+  await recordAppDetailView(String(appId), siteKey);
   if (siteInfo.key === 'unknown') return { success: true, statsRecorded: true };
   await recordDownloadUrl(String(appId), siteInfo.key, siteInfo.name, url);
   return { success: true };

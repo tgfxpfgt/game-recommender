@@ -176,22 +176,18 @@ test('重置设置返回默认设置对象', async () => {
 });
 
 // ============ 4b2. 下载计数 a（v10.1.0：AppID 维度，跨站点聚合） ============
-test('click_download 带 appId → 下载计数累加（无 appId 不计）', async () => {
+test('v10.2.0：click_download 计数——跨站累计、同站 24h 去重、无 appId 不计', async () => {
   storage._reset();
   await appStatsMod.resetAppStats();
-  await handleMessage({
-    action: 'TRACK_EVENT',
-    data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [] }
-  });
-  await handleMessage({
-    action: 'TRACK_EVENT',
-    data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [] }
-  });
-  // 不同站点同一 appId → 聚合到同一计数
-  await handleMessage({
-    action: 'TRACK_EVENT',
-    data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [], domain: 'other-site.com' }
-  });
+  const dl = (domain) =>
+    handleMessage({
+      action: 'TRACK_EVENT',
+      data: { type: 'click_download', gameName: '游戏A', appId: '730', keywords: [], domain }
+    });
+  await dl('www.xdgame.com');
+  await dl('www.xdgame.com'); // 同站 24h 内重复 → 不计数
+  await dl('www.xianyudanji.gg'); // 跨站 → 再计 1
+  await dl('www.3dmgame.com'); // 跨站 → 再计 1
   // 无 appId → 不计数
   await handleMessage({
     action: 'TRACK_EVENT',

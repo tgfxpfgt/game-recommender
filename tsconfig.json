@@ -9,21 +9,10 @@
     "strict": true,
     "noImplicitAny": false,
     "skipLibCheck": true,
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "types": [
-      "chrome"
-    ]
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "types": ["chrome"]
   },
-  "include": [
-    "background/**/*.js",
-    "data/**/*.js",
-    "lib/**/*.js",
-    "**/*.d.ts"
-  ],
+  "include": ["background/**/*.js", "data/**/*.js", "lib/**/*.js", "**/*.d.ts"],
   "exclude": [
     "node_modules",
     "tests",
@@ -33,6 +22,7 @@
     "dashboard",
     "freegames",
     "adapters",
-    "shared"
+    "shared",
+    "lib/vendor"
   ]
 }

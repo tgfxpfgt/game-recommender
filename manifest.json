@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "10.1.0",
+  "version": "10.2.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -98,7 +98,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["content/*.js"],
+      "resources": ["content/*.js", "lib/*.js"],
       "matches": [
         "http://*.xdgame.com/*",
         "https://*.xdgame.com/*",

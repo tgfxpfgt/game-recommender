@@ -7,8 +7,13 @@
  * 不参与清理），防抖 OPFS 落盘 + 读-改-写串行锁（同 download-urls 模式）。
  * 用途：列表页 "a-b" 徽章 + 推荐引擎信号（a>0 正向；a=0 且 b>0 负向——
  * 只看不下 = 负信号，b 越大越不推荐）。
- * Per-appId cross-site counters: a = downloads, b = detail-page opens.
- * Never expires; debounced OPFS persistence with an RMW lock.
+ *
+ * v10.2.0：防重复计数——同一 appId 在**同一站点** 24h 内重复下载/重复打开
+ * 详情页不重复计数；**跨站点分别计数**（xdgame 打开详情页 b+1，再打开
+ * xianyudanji 的 b 再 +1）。去重键 = appId + 站点 + 24h 窗口；站点键来自
+ * 事件 domain（未识别站点用 domain 本身，各自独立去重）。
+ * Per-appId cross-site counters with dedup: repeating the same action on the
+ * same site within 24h does not count again; a different site counts afresh.
  */
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
@@ -17,8 +22,12 @@ import { bumpDataVersion } from './behavior.js'; // v10.1.0：统计变化推进
 
 // 上限（防无界膨胀；按 updatedAt 最旧淘汰——正常使用远达不到）
 const APP_STATS_MAX_ENTRIES = 20000;
+// v10.2.0：同站点去重窗口（24h 内重复下载/打开详情页不重复计数）
+export const DEDUP_WINDOW_MS = 24 * 3600 * 1000;
+// 每条目的站点去重表上限（LRU 淘汰最旧站点；站点总数远小于此）
+const SITES_PER_ENTRY_MAX = 24;
 
-/** @type {Record<string, {downloads: number, detailViews: number, updatedAt: number}>|null} */
+/** @type {Record<string, {downloads: number, detailViews: number, updatedAt: number, dlSites: Object, viewSites: Object}>|null} */
 let statsMemory = null;
 let statsLoaded = false;
 
@@ -59,31 +68,63 @@ function enforceLimit() {
   for (const k of sorted.slice(0, keys.length - APP_STATS_MAX_ENTRIES)) delete mem[k];
 }
 
-// 递增一个计数（downloads | detailViews）/ Increment one counter
-async function increment(appId, field) {
+// 站点去重表 LRU 淘汰（超限时删最旧时间戳的站点）/ evict oldest site keys
+function enforceSiteLimit(siteMap) {
+  const keys = Object.keys(siteMap);
+  if (keys.length <= SITES_PER_ENTRY_MAX) return;
+  const sorted = keys.sort((a, b) => (siteMap[a] || 0) - (siteMap[b] || 0));
+  for (const k of sorted.slice(0, keys.length - SITES_PER_ENTRY_MAX)) delete siteMap[k];
+}
+
+/**
+ * v10.2.0：带去重的计数（field: 'downloads' | 'detailViews'）
+ * 同 appId + 同站点 + 24h 内重复 → 不计数（返回 false）；跨站点分别计数。
+ * Deduped increment: same app+site within the window is a no-op; a different
+ * site counts afresh (per-site maps live on the entry, never expire).
+ */
+async function incrementDeduped(appId, field, siteKey) {
   const key = String(appId || '').trim();
-  if (!key || (field !== 'downloads' && field !== 'detailViews')) return;
+  if (!key || (field !== 'downloads' && field !== 'detailViews')) return false;
+  const site = String(siteKey || 'unknown').slice(0, 64) || 'unknown';
+  const siteMapKey = field === 'downloads' ? 'dlSites' : 'viewSites';
+  let counted = false;
   await withStatsLock(async () => {
     await load();
     if (!statsMemory) statsMemory = {};
-    const entry = statsMemory[key] || { downloads: 0, detailViews: 0, updatedAt: 0 };
+    const now = Date.now();
+    const entry = statsMemory[key] || {
+      downloads: 0,
+      detailViews: 0,
+      updatedAt: 0,
+      dlSites: {},
+      viewSites: {}
+    };
+    if (!entry.dlSites) entry.dlSites = {};
+    if (!entry.viewSites) entry.viewSites = {};
+    const siteMap = entry[siteMapKey];
+    const last = siteMap[site] || 0;
+    if (now - last < DEDUP_WINDOW_MS) return; // 24h 内同站重复 → 不计数
+    siteMap[site] = now;
+    enforceSiteLimit(siteMap);
     entry[field] = (entry[field] || 0) + 1;
-    entry.updatedAt = Date.now();
+    entry.updatedAt = now;
     statsMemory[key] = entry;
     enforceLimit();
     bumpDataVersion();
     writer.scheduleWrite();
+    counted = true;
   });
+  return counted;
 }
 
-// 记录一次下载（跨站点聚合到 appId）/ Record one download
-export function recordAppDownload(appId) {
-  return increment(appId, 'downloads');
+// 记录一次下载（跨站点聚合到 appId；同站 24h 去重）/ Record one download
+export function recordAppDownload(appId, siteKey) {
+  return incrementDeduped(appId, 'downloads', siteKey);
 }
 
-// 记录一次详情页打开（跨站点聚合到 appId）/ Record one detail-page open
-export function recordAppDetailView(appId) {
-  return increment(appId, 'detailViews');
+// 记录一次详情页打开（跨站点分别计数）/ Record one detail-page open
+export function recordAppDetailView(appId, siteKey) {
+  return incrementDeduped(appId, 'detailViews', siteKey);
 }
 
 // v10.0.0 预热（SW 启动时调用）/ warm-up on SW start
@@ -94,7 +135,7 @@ export async function warmupAppStats() {
 /**
  * 批量读取统计（徽章/推荐引擎用）/ Batch read (badges + recommendation)
  * @param {Array<string|number>} [appIds] - 缺省返回全表
- * @returns {Promise<Record<string, {downloads: number, detailViews: number, updatedAt: number}>>}
+ * @returns {Promise<Record<string, {downloads: number, detailViews: number, updatedAt: number, dlSites: Object, viewSites: Object}>>}
  */
 export async function getAppStats(appIds) {
   await load();

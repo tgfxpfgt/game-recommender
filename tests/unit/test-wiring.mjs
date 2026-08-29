@@ -221,15 +221,17 @@ const appStatsMod = await import(
   new URL('../../background/storage/app-stats.js', import.meta.url).href + '?t=' + Date.now()
 );
 
-test('appStats：递增聚合 + 批量读取 + 重置', async () => {
+test('v10.2.0：appStats 去重——同站 24h 不重复、跨站分别计数', async () => {
   storage._reset();
   appStatsMod.resetAppStats();
-  await appStatsMod.recordAppDownload('730');
-  await appStatsMod.recordAppDownload('730');
-  await appStatsMod.recordAppDetailView('730');
-  await appStatsMod.recordAppDetailView('730');
-  await appStatsMod.recordAppDetailView('730');
-  await appStatsMod.recordAppDetailView('275850');
+  await appStatsMod.recordAppDownload('730', 'xdgame');
+  await appStatsMod.recordAppDownload('730', 'xdgame'); // 同站重复 → 不计
+  await appStatsMod.recordAppDownload('730', 'xianyudanji'); // 跨站 → 计
+  await appStatsMod.recordAppDetailView('730', 'xdgame');
+  await appStatsMod.recordAppDetailView('730', 'xdgame'); // 同站重复 → 不计
+  await appStatsMod.recordAppDetailView('730', 'xianyudanji'); // 跨站 → 计
+  await appStatsMod.recordAppDetailView('730', '3dmgame'); // 跨站 → 计
+  await appStatsMod.recordAppDetailView('275850', 'gamersky');
   const all = await appStatsMod.getAppStats();
   expect(all['730'].downloads).toEqual(2);
   expect(all['730'].detailViews).toEqual(3);
@@ -242,10 +244,42 @@ test('appStats：递增聚合 + 批量读取 + 重置', async () => {
   expect(Object.keys(empty).length).toEqual(0);
 });
 
+test('v10.2.0：无 siteKey 用 unknown 桶去重 + 无效 appId 拒绝', async () => {
+  storage._reset();
+  appStatsMod.resetAppStats();
+  await appStatsMod.recordAppDownload('730');
+  await appStatsMod.recordAppDownload('730'); // 同 unknown 桶 24h 内重复 → 不计
+  const all = await appStatsMod.getAppStats();
+  expect(all['730'].downloads).toEqual(1);
+  await appStatsMod.recordAppDownload('');
+  await appStatsMod.recordAppDetailView(null);
+  expect(Object.keys(await appStatsMod.getAppStats()).length).toEqual(1);
+  appStatsMod.resetAppStats();
+});
+
 test('appStats：无效 appId 拒绝', async () => {
   storage._reset();
   appStatsMod.resetAppStats();
   await appStatsMod.recordAppDownload('');
   await appStatsMod.recordAppDetailView(null);
   expect(Object.keys(await appStatsMod.getAppStats()).length).toEqual(0);
+});
+
+// ============ v10.2.0：XDGAME 列表布局自定义（油猴脚本移植） ============
+const xdgrid = await import(new URL('../../content/list/xdgrid.js', import.meta.url).href + '?t=' + Date.now());
+
+test('xdgrid buildCss：图标固定宽度模式（框架随列数放大）', () => {
+  const css = xdgrid.buildCss({ cols: 6, iconW: 258, iconH: 0, gap: 18 });
+  expect(css).toContain('width: ' + (6 * 258 + 5 * 18 + 36) + 'px !important');
+  expect(css).toContain('repeat(6, 258px)');
+  expect(css).toContain('gap: 18px !important');
+  expect(css).not.toContain('grid-cover'); // iconH=0 → 不改封面高度
+});
+
+test('xdgrid buildCss：自适应压缩 + 固定封面高度', () => {
+  const css = xdgrid.buildCss({ cols: 8, iconW: 0, iconH: 160, gap: 10 });
+  expect(css).toContain('repeat(8, minmax(0, 1fr))');
+  expect(css).not.toContain('width: 0px');
+  expect(css).toContain('height: 160px !important');
+  expect(css).toContain('object-fit: cover');
 });

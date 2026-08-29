@@ -28,6 +28,7 @@ import { createSessionPersist } from './core/session-persist.js'; // v10.0.0：�
 import { recordSiteAlert, getSiteHealth } from './storage/site-health.js';
 import { getFlushHealth } from './storage/flush-health.js';
 import { recordAppDownload, getAppStats } from './storage/app-stats.js'; // v10.1.0：下载计数 a + 批量共享读
+import { inferSiteFromDomain } from './storage/history.js'; // v10.2.0：站点去重键
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
 import { validateMessage } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
@@ -75,7 +76,13 @@ async function handleTrackEvent(message) {
     // v10.1.0：下载计数 a（AppID 维度，跨站点聚合）——内容侧在详情页解析出
     // appId 后经 DOM 数据桥接（documentElement.dataset.grAppId）随事件带上；
     // 无 appId（列表页点击等场景）不计入（无法关联）
-    if (message.data.appId) await recordAppDownload(String(message.data.appId));
+    // v10.2.0：站点去重键（同站 24h 内重复下载不重复计数；未识别站点用
+    // domain 本身，各自独立去重）
+    if (message.data.appId) {
+      const inferred = inferSiteFromDomain(message.data.domain || '');
+      const siteKey = inferred.key !== 'unknown' ? inferred.key : String(message.data.domain || 'unknown').slice(0, 64);
+      await recordAppDownload(String(message.data.appId), siteKey);
+    }
     await updateGameProfile({
       name: message.data.gameName,
       event: 'download',

@@ -8,6 +8,11 @@
  */
 export default [
   {
+    // v10.2.0：第三方 vendored 库（lib/vendor/**）豁免 lint——压缩产物不适用
+    // 源码风格规则（no-var/eqeqeq 等）
+    ignores: ['lib/vendor/**']
+  },
+  {
     files: ['**/*.js'],
     languageOptions: {
       ecmaVersion: 2022,
