@@ -46,6 +46,7 @@ export default defineConfig({
       'tests/unit/test-ratings-resume.mjs',
       'tests/unit/test-health.mjs',
       'tests/unit/test-wiring.mjs',
+      'tests/unit/test-settings-sync.mjs',
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',

@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "10.3.0",
+  "version": "10.3.1",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -20,7 +20,9 @@
     "test:timed": "node scripts/test-timing.mjs",
     "visual": "node tests/visual-regression.mjs",
     "package": "node scripts/package.mjs",
-    "test:changed": "vitest run --changed"
+    "test:changed": "vitest run --changed",
+    "gate": "node scripts/gate.mjs",
+    "gate:fast": "node scripts/gate.mjs --fast"
   },
   "devDependencies": {
     "@types/chrome": "^0.2.6",

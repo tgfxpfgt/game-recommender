@@ -128,9 +128,8 @@ test('v10.0.0：连续两个任务——第一个 done 后守卫必须复位（�
     startedAt: Date.now()
   });
   expect(started).toEqual(true);
-  for (let i = 0; i < 50 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
-  expect(sessionGet(JOB_KEY)).toEqual(undefined); // 第一个任务 done
-  // 第二个任务必须能发起（回归：jobRunning 未复位时 startRatingJob 返回 false）
+  // v10.3.0：按 tab 队列化——job2 同 tab 排队接档（立即入队即返回 true，
+  // 不会像旧 jobRunning 守卫那样被丢弃）；等待两个任务都完成
   const started2 = ratingsBatch.startRatingJob({
     tabId: 8,
     queue: ['艾尔登法环'],
@@ -141,8 +140,8 @@ test('v10.0.0：连续两个任务——第一个 done 后守卫必须复位（�
     startedAt: Date.now()
   });
   expect(started2).toEqual(true);
-  for (let i = 0; i < 50 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
-  expect(sessionGet(JOB_KEY)).toEqual(undefined);
+  for (let i = 0; i < 80 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
+  expect(sessionGet(JOB_KEY)).toEqual(undefined); // 全部任务 done 后检查点清除
   // 两次任务的评分推送都到达
   const ratingsPushes = pushed.filter((p) => p.msg.ratings && p.msg.ratings['艾尔登法环']);
   expect(ratingsPushes.length).toBeGreaterThanOrEqual(2);

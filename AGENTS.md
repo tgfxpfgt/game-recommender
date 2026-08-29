@@ -12,12 +12,10 @@
 ## 常用命令
 
 ```bash
-npm run check     # lint + typecheck + vitest（提交前必跑，pre-commit/pre-push 钩子会强制）
-npm test          # 仅 vitest
-npm run e2e       # E2E 冒烟（CI/离线用 E2E_MOCK=1；本地真实网络模式受外网延迟影响）
-npm run visual    # 视觉回归（基线含版本号文本——发版后需 --update）
-npm run coverage:gate  # 覆盖率门禁
-npm run package   # 打包 release zip
+npm run gate        # 全量门禁：check + E2E(MOCK) + visual（提交/发布前必跑）
+npm run gate:fast   # 快速门禁：跳过 E2E
+npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时）
+npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ```
 
 ## 架构（30 秒版）
@@ -46,8 +44,12 @@ npm run package   # 打包 release zip
 7. 消息契约：新 action 必须在 message-contract.js 加规则；响应形状与内容侧消费方一致。
 8. 出站请求只走 `fetchWithTimeout`（SSRF 校验/限速/审计内建）。
 9. 修复必须配回归测试；p1 级修复需复现路径说明。
-10. 权重/设置新增键：DEFAULT_SETTINGS + options 保存映射 + 渲染绑定 + popup（若入 popup）
-    四处同步——漏保存映射会被"全量保存"抹掉用户自定义值。
+10. **设置同步规则（test-settings-sync 强制）**：DEFAULT_SETTINGS 新增/调整/删除
+    任何键（含嵌套组 badgeVisibility/weights/cacheTtls/dataSources/steamApiModules）
+    必须同步设置层（options.js/panels 或 HTML）与 popup 必需集——漏同步 `npm run check`
+    直接失败；有意无 UI 的键加入测试内 OPTIONS_ALLOWLIST 并写明理由。
+11. 权重/设置新增键漏保存映射会被"全量保存"抹掉用户自定义值（历史事故）——保存映射
+    以 DEFAULT_SETTINGS 键名为对照逐项核对。
 
 ## 测试约定
 
@@ -57,9 +59,14 @@ npm run package   # 打包 release zip
 
 ## 发布流程
 
-见 CONTRIBUTING「版本与发布」：版本三处一致（manifest/package/README changelog）→
-`npm run check` + E2E + visual → package → commit（中文 conventional）→ tag/push →
-gh release（附 zip，含 Mimosa seal）→ 深度扫描。触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。
+触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。步骤（顺序固定）：
+
+1. `npm run gate`（全量门禁一条命令）
+2. bump manifest+package+README changelog → `npm run package`
+3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + Mimosa seal）
+4. 深度扫描（security_scan，focusFiles=改动文件）→ seal 补入 release notes
+   半自动脚本 scripts/release.mjs 存在但落后于当前流程（visual/双 E2E/zip 附件）——
+   以本清单为准，或先更新脚本再用。
 
 ## 明确不做（历史决策，勿再提议）
 

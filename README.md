@@ -278,6 +278,235 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.3.1（流程与规则：设置同步强制化 + 统一门禁 + 平台调研）
+
+- **设置同步强制规则**：新增 test-settings-sync——静态扫描 DEFAULT_SETTINGS 全部键
+  （顶层 + badgeVisibility/weights/cacheTtls/dataSources/steamApiModules 嵌套组），
+  强制其在设置层（options 层）与 popup 快捷层有引用，漏同步
+
+> game-recommender@10.3.0 check
+> npm run lint && npm run typecheck && npm test
+
+> game-recommender@10.3.0 lint
+> eslint background content options popup shared tests adapters dashboard data freegames lib hub --no-warn-ignored
+
+> game-recommender@10.3.0 typecheck
+> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.content.json
+
+> game-recommender@10.3.0 test
+> vitest run
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90mF:/data/browser extension/game-recommender[39m
+
+[32m✓[39m tests/integration/test-content-sim.mjs [2m([22m[2m16 tests[22m[2m)[22m[33m 2972[2mms[22m[39m
+[33m[2m✓[22m[39m 1. 顶层加载与预热 [33m 460[2mms[22m[39m
+[33m[2m✓[22m[39m 3. waitForListItems（AJAX 延迟渲染） [33m 470[2mms[22m[39m
+[33m[2m✓[22m[39m 4. 调试视图关闭后不自动复活 [33m 612[2mms[22m[39m
+[33m[2m✓[22m[39m 7. FORCE_REFRESH_PAGE（popup 强制刷新） [33m 314[2mms[22m[39m
+[33m[2m✓[22m[39m 8. 徽章开关与过滤/高亮联动 [33m 346[2mms[22m[39m
+[33m[2m✓[22m[39m 8b. 关全部好评率徽章 → 过滤停用 [33m 344[2mms[22m[39m
+[33m[2m✓[22m[39m 9. 详情页报错按钮（人工纠错重新检索） [33m 314[2mms[22m[39m
+[32m✓[39m tests/unit/test-ratings-resume.mjs [2m([22m[2m4 tests[22m[2m)[22m[33m 4039[2mms[22m[39m
+[33m[2m✓[22m[39m v10.0.0：连续两个任务——第一个 done 后守卫必须复位（滚动衔接第二批回归） [33m 4033[2mms[22m[39m
+[32m✓[39m tests/unit/test-properties.mjs [2m([22m[2m10 tests[22m[2m)[22m[32m 26[2mms[22m[39m
+[90mstdout[2m | tests/unit/test-storage.mjs
+[22m[39m9b. 分模块缓存命中率 getCacheStats
+
+[32m✓[39m tests/unit/test-storage.mjs [2m([22m[2m47 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+[32m✓[39m tests/integration/test-handlers.mjs [2m([22m[2m45 tests[22m[2m)[22m[32m 23[2mms[22m[39m
+[32m✓[39m tests/unit/test-health.mjs [2m([22m[2m6 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-api-pure.mjs [2m([22m[2m132 tests[22m[2m)[22m[32m 14[2mms[22m[39m
+[90mstdout[2m | tests/unit/test-wiring.mjs[2m > [22m[2msite-scripts 动态注册[2m > [22m[2m自定义域名注册 + 幂等重跑不重复 + 内置域跳过
+[22m[39m【游戏雷达】 动态注册自定义站点内容脚本: gr-site-example-custom.com
+
+[32m✓[39m tests/unit/test-wiring.mjs [2m([22m[2m21 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-freegames.mjs [2m([22m[2m33 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-engine.mjs [2m([22m[2m36 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-sites.mjs [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[32m✓[39m tests/unit/test-contract.mjs [2m([22m[2m100 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[32m✓[39m tests/unit/test-outbound.mjs [2m([22m[2m19 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-rules-cleanup.mjs [2m([22m[2m50 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+[32m✓[39m tests/unit/test-security.mjs [2m([22m[2m48 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+[32m✓[39m tests/unit/test-title-parser.mjs [2m([22m[2m38 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+[32m✓[39m tests/integration/test-integrity.mjs [2m([22m[2m21 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+[32m✓[39m tests/unit/test-settings-sync.mjs [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[32m✓[39m tests/unit/test-migrate.mjs [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[32m✓[39m tests/unit/test-trends.mjs [2m([22m[2m20 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+[32m✓[39m tests/unit/test-ui-pure.mjs [2m([22m[2m11 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+[32m✓[39m tests/integration/test-orchestrator.mjs [2m([22m[2m10 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m22 passed[39m[22m[90m (22)[39m
+[2m Tests [22m [1m[32m690 passed[39m[22m[90m (690)[39m
+[2m Start at [22m 12:01:39
+[2m Duration [22m 20.28s[2m (transform 1.30s, setup 0ms, import 10.28s, tests 7.20s, environment 1ms)[22m 失败；
+历史遗留键入 allowlist（须写明理由，防 stale 豁免）。规则同步写入 AGENTS.md 铁律
+
+- **统一质量门禁**：
+
+> game-recommender@10.3.0 gate
+> node scripts/gate.mjs
+
+===== check（lint + typecheck + vitest） =====
+
+> game-recommender@10.3.0 check
+> npm run lint && npm run typecheck && npm test
+
+> game-recommender@10.3.0 lint
+> eslint background content options popup shared tests adapters dashboard data freegames lib hub --no-warn-ignored
+
+> game-recommender@10.3.0 typecheck
+> tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.content.json
+
+> game-recommender@10.3.0 test
+> vitest run
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.10 [39m[90mF:/data/browser extension/game-recommender[39m
+
+[32m✓[39m tests/unit/test-ratings-resume.mjs [2m([22m[2m4 tests[22m[2m)[22m[33m 2261[2mms[22m[39m
+[33m[2m✓[22m[39m v10.0.0：连续两个任务——第一个 done 后守卫必须复位（滚动衔接第二批回归） [33m 2255[2mms[22m[39m
+[32m✓[39m tests/integration/test-content-sim.mjs [2m([22m[2m16 tests[22m[2m)[22m[33m 2953[2mms[22m[39m
+[33m[2m✓[22m[39m 1. 顶层加载与预热 [33m 452[2mms[22m[39m
+[33m[2m✓[22m[39m 3. waitForListItems（AJAX 延迟渲染） [33m 472[2mms[22m[39m
+[33m[2m✓[22m[39m 4. 调试视图关闭后不自动复活 [33m 603[2mms[22m[39m
+[33m[2m✓[22m[39m 7. FORCE_REFRESH_PAGE（popup 强制刷新） [33m 313[2mms[22m[39m
+[33m[2m✓[22m[39m 8. 徽章开关与过滤/高亮联动 [33m 343[2mms[22m[39m
+[33m[2m✓[22m[39m 8b. 关全部好评率徽章 → 过滤停用 [33m 342[2mms[22m[39m
+[33m[2m✓[22m[39m 9. 详情页报错按钮（人工纠错重新检索） [33m 316[2mms[22m[39m
+[32m✓[39m tests/unit/test-properties.mjs [2m([22m[2m10 tests[22m[2m)[22m[32m 27[2mms[22m[39m
+[32m✓[39m tests/integration/test-handlers.mjs [2m([22m[2m45 tests[22m[2m)[22m[32m 21[2mms[22m[39m
+[90mstdout[2m | tests/unit/test-storage.mjs
+[22m[39m9b. 分模块缓存命中率 getCacheStats
+
+[32m✓[39m tests/unit/test-storage.mjs [2m([22m[2m47 tests[22m[2m)[22m[32m 22[2mms[22m[39m
+[32m✓[39m tests/unit/test-api-pure.mjs [2m([22m[2m132 tests[22m[2m)[22m[32m 12[2mms[22m[39m
+[32m✓[39m tests/unit/test-freegames.mjs [2m([22m[2m33 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-health.mjs [2m([22m[2m6 tests[22m[2m)[22m[32m 18[2mms[22m[39m
+[90mstdout[2m | tests/unit/test-wiring.mjs[2m > [22m[2msite-scripts 动态注册[2m > [22m[2m自定义域名注册 + 幂等重跑不重复 + 内置域跳过
+[22m[39m【游戏雷达】 动态注册自定义站点内容脚本: gr-site-example-custom.com
+
+[32m✓[39m tests/unit/test-wiring.mjs [2m([22m[2m21 tests[22m[2m)[22m[32m 10[2mms[22m[39m
+[32m✓[39m tests/unit/test-outbound.mjs [2m([22m[2m19 tests[22m[2m)[22m[32m 9[2mms[22m[39m
+[32m✓[39m tests/unit/test-engine.mjs [2m([22m[2m36 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+[32m✓[39m tests/unit/test-contract.mjs [2m([22m[2m100 tests[22m[2m)[22m[32m 8[2mms[22m[39m
+[32m✓[39m tests/unit/test-sites.mjs [2m([22m[2m12 tests[22m[2m)[22m[32m 7[2mms[22m[39m
+[32m✓[39m tests/unit/test-title-parser.mjs [2m([22m[2m38 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+[32m✓[39m tests/unit/test-rules-cleanup.mjs [2m([22m[2m50 tests[22m[2m)[22m[32m 6[2mms[22m[39m
+[32m✓[39m tests/integration/test-integrity.mjs [2m([22m[2m21 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+[32m✓[39m tests/unit/test-security.mjs [2m([22m[2m48 tests[22m[2m)[22m[32m 5[2mms[22m[39m
+[32m✓[39m tests/unit/test-settings-sync.mjs [2m([22m[2m6 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[32m✓[39m tests/unit/test-migrate.mjs [2m([22m[2m5 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[32m✓[39m tests/unit/test-trends.mjs [2m([22m[2m20 tests[22m[2m)[22m[32m 4[2mms[22m[39m
+[32m✓[39m tests/unit/test-ui-pure.mjs [2m([22m[2m11 tests[22m[2m)[22m[32m 3[2mms[22m[39m
+[32m✓[39m tests/integration/test-orchestrator.mjs [2m([22m[2m10 tests[22m[2m)[22m[32m 2[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m22 passed[39m[22m[90m (22)[39m
+[2m Tests [22m [1m[32m690 passed[39m[22m[90m (690)[39m
+[2m Start at [22m 12:02:02
+[2m Duration [22m 18.72s[2m (transform 1.15s, setup 0ms, import 10.50s, tests 5.40s, environment 1ms)[22m
+
+✅ check（lint + typecheck + vitest） 通过
+
+===== E2E 冒烟（MOCK 离线） =====
+
+> game-recommender@10.3.0 e2e
+> node tests/e2e-smoke.mjs
+
+1. 扩展 **MSG_extName** v10.3.0
+   ✅ 扩展后台 Service Worker 已启动
+   1b. 欢迎页（首次安装自动打开）
+   ✅ 欢迎页功能导览渲染（安装模式）
+   ✅ 欢迎页更新模式（What's new 渲染 + 安装区隐藏）
+2. popup 冒烟
+   ✅ popup 标题渲染
+   ✅ popup 版本号显示
+   ✅ popup API 状态（v6.4.10 扁平修复后非失效）
+   ✅ popup 集中入口（设置中心按钮替代独立入口）
+   ✅ popup 全覆盖设置（30天过滤/模式/重排/规则入口/徽章/权重/备份/日志）
+   ✅ popup 无 console error
+   2a. popup 快速搜索
+   ✅ 搜索候选渲染（Steam 检索）
+   2b. options 设置页与双向状态一致性
+   ✅ options 设置渲染（启用开关+日志上限+自动备份）
+   ✅ options 标题
+   ✅ options 30 天过滤设置已保存（v6.4.11 修复）
+   ✅ options→popup 状态一致（VM 过滤开启）
+   ✅ options→popup 状态一致（30 天过滤开启）
+   ✅ popup→options 状态一致（VM 过滤回切）
+   ✅ options 无 console error
+   2b2. 过滤设置全量保存与并发防覆盖
+   ✅ 过滤设置全量保存（好评率开+阈值65/关系or）
+   ✅ 重开设置页回显（好评率过滤 开+65）
+   ✅ 快速连续 3 项修改全部保留（阈值40/关系and/重排开）
+   2c. 皮肤系统（Steam/Vista/Win 历代主题）
+   ✅ 皮肤选择器（默认 steam + 20 主题 + Vista 入口移除）
+   ✅ 皮肤切换立即生效（body[data-theme=ios17]）
+   ✅ 皮肤保存并重开生效（uiTheme=ios17）
+   ✅ 皮肤系统无 console error
+   2d. 设置中心 hub 集中入口
+   ✅ hub 渲染（3 个页面入口 + 默认加载设置页）
+   ✅ hub 切换到数据分析（iframe 渲染 dashboard）
+   ✅ hub 切换到限免游戏
+   ✅ 限免页筛选按钮生效（平台+领取方式）
+   ✅ 限免游戏卡片渲染（MOCK 回放限免源）
+   ✅ hub 无 console error
+3. 内容脚本注入（默认禁用状态浮窗，v3.3.15）
+   ✅ 状态浮窗默认禁用（不渲染）
+   ✅ 无 console error
+   3b. 开启状态浮窗后内容脚本注入
+   ✅ 开启后状态浮窗渲染
+   ✅ 列表页好评率流程已启动（徽章渲染）
+   ✅ 无 console error
+   3c. 扩展更新自检（版本变化 → toast 提示）
+   ✅ 旧版本记录 → 更新提示条出现
+   ✅ 版本一致 → 不再提示
+4. 详情页报错按钮（真实点击/录制回放）
+   ✅ 浮窗报错按钮存在
+   ✅ 浮窗显示主内容区游戏（非侧边推荐）
+   ✅ 报错重检索流程完成（手动选择或纠正渲染）
+   ✅ 报错流程无 console error
+5. 滚动批次与 dashboard 趋势图
+   ✅ 滚动触发第二批徽章（按需扫描）
+   ✅ dashboard 趋势图 SVG 渲染
+   ✅ 趋势统计显示浏览数据
+6. 重启持久化（保存 → 关闭浏览器 → 同一 profile 重启）
+   ✅ 重启后过滤设置持久化（写盘成功）
+7. 自定义站点内容脚本动态注册
+   ✅ 自定义站点脚本已注册（gr-site-localhost）
+
+===== E2E 冒烟结果 =====
+46 通过, 0 失败
+✅ E2E 冒烟（MOCK 离线） 通过
+
+===== visual（视觉回归） =====
+
+> game-recommender@10.3.0 visual
+> node tests/visual-regression.mjs
+
+视觉回归：扩展 v10.3.0
+✅ steam-popup 与基线一致（差异 0.000%）
+✅ steam-popup-expanded 与基线一致（差异 0.000%）
+✅ steam-options 与基线一致（差异 0.000%）
+✅ steam-options-filters 与基线一致（差异 0.000%）
+✅ ios17-options 与基线一致（差异 0.000%）
+✅ ios17-options-filters 与基线一致（差异 0.000%）
+✅ cyberpunk-options 与基线一致（差异 0.000%）
+✅ cyberpunk-options-filters 与基线一致（差异 0.000%）
+✅ morandi-options 与基线一致（差异 0.000%）
+✅ morandi-options-filters 与基线一致（差异 0.000%）
+✅ steam-dashboard 与基线一致（差异 0.000%）
+
+===== 视觉回归结果 =====
+11 通过, 0 失败
+✅ visual（视觉回归） 通过
+
+✅ 全部门禁通过（gate passed）（check + E2E MOCK + visual 一条命令）/ ；
+发布流程在 AGENTS.md 固化为 4 步清单
+
+- **平台调研**：新增 平台调研与迭代方案-2026-08.md（官方文档/工具调研——SW 生命周期
+  新行为已对齐、userScripts/browser namespace 评估、CWS 上架窗口、P1-P3 迭代建议）
+
+689 test（+6 settings-sync）· gate 全过 · 其余门禁同 v10.3.0
+
 ### v10.3.0（设置页全量审计：功能独立开关 + 计算参数可调 + 关断路径加固）
 
 对全部功能做开关/可调项盘点：新增 **6 个独立开关**、**3 个可调计算参数**、**1 个徽章开关**，并逐项验证"关闭后不影响其他功能、显示与运算无异常"。
