@@ -409,7 +409,8 @@ function isAllBadge(c) {
   return (
     c.className.includes('gr-rating-badge') &&
     !c.className.includes('gr-badge-recent') &&
-    !c.className.includes('gr-badge-update')
+    !c.className.includes('gr-badge-update') &&
+    !c.className.includes('gr-badge-appstat') // v10.4.3：a-b 徽章同基类，需排除
   );
 }
 
@@ -482,7 +483,8 @@ test('2. 列表页两波好评率流程', async () => {
   // 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）——轮询等待
   await waitFor(() => itemA.a.children.length >= 4);
   // v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
-  expect(itemA.a.children.length).toEqual(4);
+  // v10.4.3：a-b 徽章（0-0 灰）对所有已解析 appId 的游戏渲染 → 4+1
+  expect(itemA.a.children.length).toEqual(5);
   expect(itemA.a.children[0].className.includes('gr-badge-recent') && itemA.a.children[0].textContent === '—').toEqual(
     true
   );
@@ -492,12 +494,15 @@ test('2. 列表页两波好评率流程', async () => {
   expect(itemA.a.children[2].className.includes('gr-badge-update') && itemA.a.children[2].textContent === '—').toEqual(
     true
   );
-  expect(itemA.a.children[3].className.includes('gr-rec-badge')).toEqual(true);
-  expect(itemA.a.children[3].textContent).toEqual('🎯 85%');
+  // v10.4.3：a-b 徽章（0-0 灰）插在更新徽章与推荐徽章之间
+  expect(itemA.a.children[3].className.includes('gr-badge-appstat')).toEqual(true);
+  expect(itemA.a.children[3].textContent).toEqual('0-0');
+  expect(itemA.a.children[4].className.includes('gr-rec-badge')).toEqual(true);
+  expect(itemA.a.children[4].textContent).toEqual('🎯 85%');
   expect(
-    itemA.a.children[3].title.includes('点击率') &&
-      itemA.a.children[3].title.includes('下载率') &&
-      itemA.a.children[3].title.includes('Steam')
+    itemA.a.children[4].title.includes('点击率') &&
+      itemA.a.children[4].title.includes('下载率') &&
+      itemA.a.children[4].title.includes('Steam')
   ).toEqual(true);
 
   // 后台推送第 1 波增量：游戏B 拉取完成（含近30天/最近更新数据） / background push wave 1

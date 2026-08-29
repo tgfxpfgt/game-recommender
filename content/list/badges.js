@@ -225,19 +225,22 @@ export function prependBadge(item, rating, settings) {
   // 之前（此前 insertBadges 插到最左，用户要求位于两个好评率徽章后面）。
   // 锚点 = 主渲染 badges 数组的最后一个元素（逆序插入语义下即最右）；
   // 推荐值徽章的选择器以 gr-rating-badge 为基类，会自然接在本徽章之后
-  if (bv.appstat !== false && rating && rating.appId && rating.appDownloads !== undefined) {
+  // v10.4.3：所有已解析 appId 的游戏都渲染（原始需求「每个游戏链接增加一个
+  // 徽章」）——无行为记录显示 0-0 灰色（让功能可见、可自验证）
+  if (bv.appstat !== false && rating && rating.appId) {
     const a = rating.appDownloads || 0;
     const b = rating.appDetailViews || 0;
     const hasDownload = a > 0;
+    const hasViews = b > 0;
     const anchorBadge = badges.length > 0 ? badges[badges.length - 1] : null;
     const statBadge = createBadge(link, {
       text: `${a}-${b}`,
-      color: hasDownload ? '#4caf50' : '#e67e22',
-      bg: hasDownload ? 'rgba(76,175,80,0.12)' : 'rgba(230,126,34,0.14)',
+      color: hasDownload ? '#4caf50' : hasViews ? '#e67e22' : '#8f98a0',
+      bg: hasDownload ? 'rgba(76,175,80,0.12)' : hasViews ? 'rgba(230,126,34,0.14)' : 'rgba(143,152,160,0.12)',
       cls: 'gr-badge-appstat',
       title:
         `下载 ${a} 次 · 详情页打开 ${b} 次（跨站点累计，永不过期）` +
-        (hasDownload ? '' : '\n⚠ 只看不下：看的人越多越不推荐')
+        (hasDownload ? '' : hasViews ? '\n⚠ 只看不下：看的人越多越不推荐' : '\n暂无行为记录：打开详情页/下载后开始计数')
     });
     const statParent = anchorBadge
       ? anchorBadge.parentNode
