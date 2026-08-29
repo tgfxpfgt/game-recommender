@@ -124,6 +124,12 @@ export const DEFAULT_SETTINGS = {
   qrUnlockEnabled: true, // 二维码转链接（gamer520 等站二维码网盘链接自动解码）
   xdgridEnabled: true, // XDGAME 列表布局定制（xdgame.com 专属）
   notifyFreeGames: true, // 限免通知推送（新增限免时系统通知）
+  // v10.4.0：详情页浮窗（Steam 信息）默认形态
+  detailFloatExpanded: true, // 默认展开（false = 创建即折叠，可点击标题栏展开）
+  detailFloatSide: 'left', // 浮窗位置：left（左上，默认）| right（右上）
+  // v10.4.0：列表页标题变红阈值——总好评率与 30 天好评率**均大于**该值时
+  // 标题变红（0 = 关闭；默认 95）
+  redTitleRating: 95,
   maxScanLinks: 500, // 列表页链接扫描上限（大列表页性能保护，v3.3.9 可配置）
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
   // v6.4.19：外部数据源开关（站点按用途分类管理）——平台数据源（限免/评分）、

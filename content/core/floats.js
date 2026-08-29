@@ -119,6 +119,11 @@ export function create(zone, id, opts = {}) {
       remove(id);
       if (typeof opts.onClose === 'function') opts.onClose();
     });
+    // v10.4.0：默认折叠（settings.detailFloatExpanded 控制，详情页浮窗用）
+    if (opts.folded) {
+      body.style.display = 'none';
+      foldBtn.textContent = '▸';
+    }
   }
 
   document.body.appendChild(root);

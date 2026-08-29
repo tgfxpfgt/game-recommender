@@ -203,6 +203,22 @@ export function prependBadge(item, rating, settings) {
   // 打开次数；有下载（a>0）绿色、只看不下（a=0 且 b>0）橙色警示。数据随
   // ratings 条目下发（appDownloads/appDetailViews），无记录的条目不渲染。
   // 最后 push → insertBadges 逆序插入 → 渲染在所有徽章最左
+  // v10.4.0：标题变红——总好评率与 30 天好评率均大于 redTitleRating（0=关闭）。
+  // 红优先于绿（a-b 只看不下）：两者同时满足时高分游戏标红
+  const redThreshold = Number(settings && settings.redTitleRating) || 0;
+  const isRedTitle =
+    redThreshold > 0 &&
+    rating &&
+    rating.appId &&
+    rating.positiveRate != null &&
+    rating.recentPositiveRate != null &&
+    rating.positiveRate > redThreshold &&
+    rating.recentPositiveRate > redThreshold;
+  if (isRedTitle) {
+    const titleEl = item.titleEl || (item.element && item.element.querySelector('h2, h3, h4, .title, .entry-title'));
+    if (titleEl && titleEl.classList) titleEl.classList.add('gr-title-red');
+  }
+
   // v10.3.0：a-b 徽章独立开关（badgeVisibility.appstat，默认开）——关闭仅
   // 不渲染徽章与绿标题，评分数据获取与推荐计算不受影响
   if (bv.appstat !== false && rating && rating.appId && rating.appDownloads !== undefined) {
@@ -222,8 +238,8 @@ export function prependBadge(item, rating, settings) {
       })
     );
     insertBadges(item, link, badges);
-    // 绿标题：a=0 且 b>0（只看不下）→ 标题变绿提示（content.css 单点样式）
-    if (!hasDownload && b > 0) {
+    // 绿标题：a=0 且 b>0（只看不下）→ 标题变绿提示（红标题优先，content.css）
+    if (!hasDownload && b > 0 && !isRedTitle) {
       const titleEl =
         item.titleEl || (item.element && item.element.querySelector('h2, h3, h4, .title, .entry-title')) || null;
       if (titleEl && titleEl.classList) titleEl.classList.add('gr-title-green');

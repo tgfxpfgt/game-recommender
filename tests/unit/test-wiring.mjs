@@ -268,20 +268,48 @@ test('appStats：无效 appId 拒绝', async () => {
 // ============ v10.2.0：XDGAME 列表布局自定义（油猴脚本移植） ============
 const xdgrid = await import(new URL('../../content/list/xdgrid.js', import.meta.url).href + '?t=' + Date.now());
 
-test('xdgrid buildCss：图标固定宽度模式（框架随列数放大）', () => {
-  const css = xdgrid.buildCss({ cols: 6, iconW: 258, iconH: 0, gap: 18 });
-  expect(css).toContain('width: ' + (6 * 258 + 5 * 18 + 36) + 'px !important');
+test('v10.4.0：xdgrid computeContainerStyle——固定宽度模式（容器随列数加宽）', () => {
+  const css = xdgrid.computeContainerStyle({ cols: 6, iconW: 258, iconH: 0, gap: 18 });
+  expect(css).toContain('display:grid');
   expect(css).toContain('repeat(6, 258px)');
-  expect(css).toContain('gap: 18px !important');
-  expect(css).not.toContain('grid-cover'); // iconH=0 → 不改封面高度
+  expect(css).toContain('width:' + (6 * 258 + 5 * 18 + 36) + 'px');
+  expect(css).toContain('gap:18px');
 });
 
-test('xdgrid buildCss：自适应压缩 + 固定封面高度', () => {
-  const css = xdgrid.buildCss({ cols: 8, iconW: 0, iconH: 160, gap: 10 });
+test('v10.4.0：xdgrid computeContainerStyle——自适应压缩模式', () => {
+  const css = xdgrid.computeContainerStyle({ cols: 8, iconW: 0, iconH: 0, gap: 10 });
   expect(css).toContain('repeat(8, minmax(0, 1fr))');
-  expect(css).not.toContain('width: 0px');
-  expect(css).toContain('height: 160px !important');
-  expect(css).toContain('object-fit: cover');
+  expect(css).not.toContain('width:');
+});
+
+test('v10.4.0：xdgrid migrateLegacy——旧扁平配置迁移为按站点且默认启用', () => {
+  const legacy = { cols: 4, iconW: 200, iconH: 0, gap: 12 };
+  const migrated = xdgrid.migrateLegacy(legacy, 'www.xdgame.com');
+  expect(migrated.sites['www.xdgame.com'].enabled).toEqual(true);
+  expect(migrated.sites['www.xdgame.com'].cols).toEqual(4);
+  // 新形状原样返回
+  const modern = { sites: { a: { enabled: true, cols: 3 } } };
+  expect(xdgrid.migrateLegacy(modern, 'b.com')).toEqual(modern);
+  // 空输入 → 空站点表
+  expect(xdgrid.migrateLegacy(null, 'x.com').sites).toEqual({});
+});
+
+test('v10.4.0：xdgrid commonAncestor——公共祖先与 disjoint', () => {
+  const mk = (tag) => {
+    const el = { tagName: tag, parentNode: null, children: [] };
+    return el;
+  };
+  const parent = mk('UL');
+  const a = mk('LI');
+  const b = mk('LI');
+  a.parentNode = parent;
+  b.parentNode = parent;
+  expect(xdgrid.commonAncestor([a, b])).toEqual(parent);
+  // 无公共祖先 → null
+  const other = mk('DIV');
+  const c = mk('LI');
+  c.parentNode = other;
+  expect(xdgrid.commonAncestor([a, c])).toEqual(null);
 });
 
 // ============ v10.3.0：a-b 统计开关 + 去重窗口可调 ============

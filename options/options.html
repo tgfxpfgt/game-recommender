@@ -336,6 +336,38 @@
 
             <div class="settings-section">
               <div class="section-header">
+                <span class="section-icon">🪟</span>
+                <div class="section-title">
+                  <h3>详情页浮窗</h3>
+                  <span class="section-subtitle">Detail Float</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">默认展开</span>
+                    <span class="label-desc">Expanded by Default（关闭 = 创建即折叠）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="detailFloatExpanded" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">浮窗位置</span>
+                    <span class="label-desc">Position（左上 / 右上）</span>
+                  </div>
+                  <select id="detailFloatSide" class="log-filter" style="width: 110px">
+                    <option value="left">左侧</option>
+                    <option value="right">右侧</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
                 <span class="section-icon">🧩</span>
                 <div class="section-title">
                   <h3>内容功能开关</h3>
@@ -390,8 +422,8 @@
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
-                    <span class="label-text">XDGAME 列表布局定制</span>
-                    <span class="label-desc">XDGAME Grid（xdgame.com 专属）</span>
+                    <span class="label-text">列表布局定制</span>
+                    <span class="label-desc">Grid Customizer（所有下载站；每站独立配置）</span>
                   </div>
                   <label class="gr-switch">
                     <input type="checkbox" id="xdgridEnabled" />
@@ -475,6 +507,21 @@
                     <input type="checkbox" id="badgeAppstat" />
                     <span class="gr-slider-ui"></span>
                   </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">高分标题变红阈值</span>
+                    <span class="label-desc">Red Title（总好评率与 30 天均大于该值；0 = 关闭）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="redTitleRating"
+                    min="0"
+                    max="100"
+                    step="1"
+                    class="gr-input"
+                    style="width: 110px"
+                  />
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">

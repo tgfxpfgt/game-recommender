@@ -543,6 +543,11 @@
       const el = document.getElementById(id);
       if (el) el.addEventListener('change', () => scheduleAutoSave());
     });
+    // v10.4.0：详情浮窗形态 + 红标题阈值
+    ['detailFloatExpanded', 'detailFloatSide', 'redTitleRating'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => scheduleAutoSave());
+    });
 
     // 权重滑块（v4.0.0：新增 playTime/heat；v10.1.0：新增 appStat 两项）
     const weightIds = [

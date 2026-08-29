@@ -286,14 +286,21 @@ export function injectDownloadHistoryPanel(gameName) {
 
 // ============ Steam详情浮窗（v6.4.4 起左侧信息栏） ============
 // 容器经 GR.float 统一管理（左上区域，chrome 标题栏含折叠/关闭）
-export function injectSteamButton(gameName) {
+// v10.4.0：接收 settings——浮窗位置（detailFloatSide 左/右）与默认展开
+// （detailFloatExpanded）可配置
+export function injectSteamButton(gameName, settings) {
   dbg('注入Steam浮窗...');
 
-  const panel = float.create(float.ZONE.TOP_LEFT, 'gr-steam-float', {
-    chrome: true,
-    width: 320,
-    title: '🎮 Steam 信息'
-  });
+  const panel = float.create(
+    settings && settings.detailFloatSide === 'right' ? float.ZONE.TOP_RIGHT : float.ZONE.TOP_LEFT,
+    'gr-steam-float',
+    {
+      chrome: true,
+      width: 320,
+      title: '🎮 Steam 信息',
+      folded: settings ? settings.detailFloatExpanded === false : false
+    }
+  );
   // 初始隐藏，数据就绪后滑入显示（保留原动画语义）
   panel.style.cssText +=
     'opacity:0;transform:translateX(20px);pointer-events:none;transition:opacity 0.3s,transform 0.3s;';

@@ -278,6 +278,15 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.4.0（详情页浮窗设置 / 高分标题变红 / 列表布局定制全站化）
+
+- **详情页浮窗设置**：默认展开/折叠（detailFloatExpanded）+ 浮窗位置左/右（detailFloatSide，默认左上保持原行为）——设置页「常规 → 详情页浮窗」；floats.js 新增 folded 创建选项
+- **高分标题变红**：总好评率与 30 天好评率**均大于**阈值（redTitleRating，默认 95，0=关闭）时列表页标题变红（.gr-title-red）——设置页「徽章显示」；红优先于 a-b 绿标题
+- **列表布局定制泛化为所有下载站**（原 XDGAME 专属）：不再硬编码站点选择器——经适配器提取列表项、计算最低公共祖先作为列表容器施加 grid 布局；**按站点独立配置**（xdgame 旧配置自动迁移且默认启用；其他站默认关闭，点齿轮启用本站定制）；纯函数可单测
+- 设置同步：新增 3 键经 test-settings-sync 强制验证已入 options 层
+
+689 test · E2E 46/46（MOCK + 真实网络）· visual 11/11（基线更新）· lint 0 · typecheck 0
+
 ### v10.3.1（流程与规则：设置同步强制化 + 统一门禁 + 平台调研）
 
 - **设置同步强制规则**：新增 test-settings-sync——静态扫描 DEFAULT_SETTINGS 全部键

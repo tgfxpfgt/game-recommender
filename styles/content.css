@@ -160,6 +160,11 @@
 .gr-title-green a {
   color: #2ecc71 !important;
 }
+/* v10.4.0：标题变红（总好评率与 30 天好评率均大于阈值——高分游戏醒目）*/
+.gr-title-red,
+.gr-title-red a {
+  color: #e74c3c !important;
+}
 /* v10.2.0：二维码解码结果行（链接可点 + 复制按钮）*/
 .gr-qr-result {
   margin: 6px 0;

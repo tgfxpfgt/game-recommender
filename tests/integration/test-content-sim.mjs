@@ -588,7 +588,13 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
     // v10.1.0：前两条带 a-b 统计——首条有下载（a=3 绿色徽章）/ 次条只看不下
     // （a=0 且 b=7 → 橙色徽章 + 标题绿色 gr-title-green）
     if (msg.names && msg.names[0]) {
-      ratings[msg.names[0]] = { appId: '999', positiveRate: 90, appDownloads: 3, appDetailViews: 5 };
+      ratings[msg.names[0]] = {
+        appId: '999',
+        positiveRate: 98,
+        recentPositiveRate: 98,
+        appDownloads: 3,
+        appDetailViews: 5
+      };
     }
     if (msg.names && msg.names[1]) {
       ratings[msg.names[1]] = { appId: '999', positiveRate: 90, appDownloads: 0, appDetailViews: 7 };

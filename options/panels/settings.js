@@ -83,6 +83,11 @@
     document.getElementById('appStatDownloadCap').value = settings.appStatDownloadCap ?? 100;
     document.getElementById('appStatDetailViewCap').value = settings.appStatDetailViewCap ?? 100;
 
+    // v10.4.0：详情页浮窗形态 + 红标题阈值回显
+    document.getElementById('detailFloatExpanded').checked = settings.detailFloatExpanded !== false;
+    document.getElementById('detailFloatSide').value = settings.detailFloatSide || 'left';
+    document.getElementById('redTitleRating').value = settings.redTitleRating ?? 95;
+
     // LLM 设置 / LLM settings
     const llm = settings.llmConfig || {};
     document.getElementById('useLLM').checked = settings.useLLM;

@@ -231,7 +231,7 @@
         debug.DEBUG.gameName = gameName;
         dbg(`详情页游戏名: ${gameName}`);
         common.trackEvent('view_detail', { gameName: gameName, keywords: [], description: '' });
-        detail.injectSteamButton(gameName);
+        detail.injectSteamButton(gameName, settings);
         detail.injectDownloadHistoryPanel(gameName);
       } else if (appIdFromImg) {
         // 仅有 appId 无游戏名：用 document.title 作为回退名，仅注入 Steam 浮窗
@@ -239,7 +239,7 @@
         const fallbackName = common.cleanPageTitle(document.title);
         debug.DEBUG.gameName = fallbackName || `(appId:${appIdFromImg})`;
         dbg(`详情页游戏名为空，但图片含 appId: ${appIdFromImg}，使用回退名注入 Steam 浮窗`);
-        detail.injectSteamButton(fallbackName || '');
+        detail.injectSteamButton(fallbackName || '', settings);
       } else {
         dbg('⚠️ 详情页未检测到游戏名称');
       }
