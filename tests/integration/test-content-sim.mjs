@@ -636,6 +636,10 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   expect(statBadge0 && statBadge0._html).toEqual('3-5');
   const statBadge1 = manyItems[1].link.children.find((c) => (c.className || '').includes('gr-badge-appstat'));
   expect(statBadge1 && statBadge1._html).toEqual('0-7');
+  // v10.4.1：位置断言——a-b 徽章在好评率徽章组之后（不在最左）
+  const kidIdx = (el, cls) => el.children.findIndex((c) => (c.className || '').includes(cls));
+  expect(kidIdx(manyItems[0].link, 'gr-badge-appstat')).toBeGreaterThan(kidIdx(manyItems[0].link, 'gr-badge-recent'));
+  expect(kidIdx(manyItems[1].link, 'gr-badge-appstat')).toBeGreaterThan(kidIdx(manyItems[1].link, 'gr-badge-recent'));
   // a=0 且 b>0 → 标题绿色；a>0 → 标题不变绿
   expect(manyItems[1].titleEl.classList.contains('gr-title-green')).toEqual(true);
   expect(manyItems[0].titleEl.classList.contains('gr-title-green')).toEqual(false);

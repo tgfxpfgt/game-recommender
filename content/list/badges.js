@@ -221,23 +221,34 @@ export function prependBadge(item, rating, settings) {
 
   // v10.3.0：a-b 徽章独立开关（badgeVisibility.appstat，默认开）——关闭仅
   // 不渲染徽章与绿标题，评分数据获取与推荐计算不受影响
+  // v10.4.1：位置修正——插到好评率徽章组（最近/全部/更新）之后、推荐值徽章
+  // 之前（此前 insertBadges 插到最左，用户要求位于两个好评率徽章后面）。
+  // 锚点 = 主渲染 badges 数组的最后一个元素（逆序插入语义下即最右）；
+  // 推荐值徽章的选择器以 gr-rating-badge 为基类，会自然接在本徽章之后
   if (bv.appstat !== false && rating && rating.appId && rating.appDownloads !== undefined) {
     const a = rating.appDownloads || 0;
     const b = rating.appDetailViews || 0;
     const hasDownload = a > 0;
-    badges.length = 0; // 复用 insertBadges：清空后单插 a-b 徽章
-    badges.push(
-      createBadge(link, {
-        text: `${a}-${b}`,
-        color: hasDownload ? '#4caf50' : '#e67e22',
-        bg: hasDownload ? 'rgba(76,175,80,0.12)' : 'rgba(230,126,34,0.14)',
-        cls: 'gr-badge-appstat',
-        title:
-          `下载 ${a} 次 · 详情页打开 ${b} 次（跨站点累计，永不过期）` +
-          (hasDownload ? '' : '\n⚠ 只看不下：看的人越多越不推荐')
-      })
-    );
-    insertBadges(item, link, badges);
+    const anchorBadge = badges.length > 0 ? badges[badges.length - 1] : null;
+    const statBadge = createBadge(link, {
+      text: `${a}-${b}`,
+      color: hasDownload ? '#4caf50' : '#e67e22',
+      bg: hasDownload ? 'rgba(76,175,80,0.12)' : 'rgba(230,126,34,0.14)',
+      cls: 'gr-badge-appstat',
+      title:
+        `下载 ${a} 次 · 详情页打开 ${b} 次（跨站点累计，永不过期）` +
+        (hasDownload ? '' : '\n⚠ 只看不下：看的人越多越不推荐')
+    });
+    const statParent = anchorBadge
+      ? anchorBadge.parentNode
+      : item.titleEl || (item.element && item.element.querySelector('h2, h3, h4, .title, .entry-title')) || link;
+    if (anchorBadge && anchorBadge.nextSibling) {
+      statParent.insertBefore(statBadge, anchorBadge.nextSibling);
+    } else if (anchorBadge) {
+      statParent.appendChild(statBadge);
+    } else {
+      statParent.insertBefore(statBadge, statParent.firstChild);
+    }
     // 绿标题：a=0 且 b>0（只看不下）→ 标题变绿提示（红标题优先，content.css）
     if (!hasDownload && b > 0 && !isRedTitle) {
       const titleEl =

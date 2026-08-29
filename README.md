@@ -287,6 +287,13 @@ node --check options/options.js
 
 689 test · E2E 46/46（MOCK + 真实网络）· visual 11/11（基线更新）· lint 0 · typecheck 0
 
+### v10.4.1（修复：a-b 徽章位置）
+
+- a-b 徽章此前插在徽章组最左——修正为**两个好评率徽章之后、推荐值徽章之前**（锚点 = 好评率徽章组末尾；推荐值徽章的选择器以 gr-rating-badge 为基类自然接在其后）
+- content-sim 补位置断言（appstat 序位 > 近30天徽章）
+
+689 test · gate 全过
+
 ### v10.3.1（流程与规则：设置同步强制化 + 统一门禁 + 平台调研）
 
 - **设置同步强制规则**：新增 test-settings-sync——静态扫描 DEFAULT_SETTINGS 全部键
