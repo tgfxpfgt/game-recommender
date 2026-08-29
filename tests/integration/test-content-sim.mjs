@@ -883,7 +883,38 @@ test('8b. 关全部好评率徽章 → 过滤停用', async () => {
     })()
   ).toEqual(true);
 
-  // ============ 9. 详情页报错按钮（v3.3.11） ============
+  // ============ 8c. 关推荐度徽章 → 推荐徽章不渲染（v10.4.2 回归） ============
+});
+
+test('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
+  const recOffSettings = {
+    ...DEFAULT_SETTINGS,
+    badgeVisibility: { recent: true, all: true, update: true, rec: false, appstat: true }
+  };
+  presets['GET_SETTINGS'] = () => ({ settings: recOffSettings });
+  // 全新 item——沿用旧 item 会命中防重复守卫（旧徽章残留导致假失败）
+  const recItems = ['游戏R1', '游戏R2', '游戏R3'].map((n, i) => makeItem(n, 20 + i));
+  recItems.forEach((it) => documentMock.body.appendChild(it.li));
+  queryAllStub = (sel) => (sel === 'li.game-item' ? recItems.map((x) => x.li) : []);
+  presets['GET_STEAM_RATINGS'] = (msg) => {
+    const ratings = {};
+    (msg.names || []).forEach((n) => {
+      ratings[n] = { appId: '999', positiveRate: 90 };
+    });
+    return { ratings, pending: 0 };
+  };
+  presets['GET_RECOMMENDATIONS'] = (msg) => ({
+    results: (msg.games || []).map((g) => ({
+      name: g.name,
+      recommendation: { score: 0.85, breakdown: { clickScore: 0.9 } }
+    }))
+  });
+  GR.listBatch.requestSteamRatings(recItems, recOffSettings);
+  // 评分徽章正常渲染；推荐徽章被 badgeVisibility.rec 门控拦截不渲染
+  //（v10.4.2 回归：batchState 未存 settings，门控拿空对象恒放行）
+  await waitFor(() => recItems[0].a.children.some((c) => (c.className || '').includes('gr-rating-badge')));
+  expect(recItems[0].a.children.some((c) => (c.className || '').includes('gr-rec-badge'))).toEqual(false);
+  presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
 });
 
 test('9. 详情页报错按钮（人工纠错重新检索）', async () => {

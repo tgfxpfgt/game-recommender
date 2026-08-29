@@ -28,6 +28,9 @@ function initBatchState(settings) {
     if (prev.forceTimer) clearTimeout(prev.forceTimer);
   }
   _state.batchState = {
+    settings, // v10.4.2：存储 settings——推荐徽章门控（applyRecommendationResults/
+    // prependRecBadge 读 badgeVisibility.rec）此前拿到恒为 {} 的空对象，
+    // 导致「关闭推荐度显示」开关完全失效（用户报告）
     processItems: [], // 全部已发现 item（追加式）/ all discovered items
     itemsByName: new Map(), // name → item（同名取首个，按名回填/惰性提取用）
     nameToImage: {}, // name → {appId, cover}（惰性填充）/ lazy cover info
