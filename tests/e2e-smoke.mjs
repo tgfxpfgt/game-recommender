@@ -620,9 +620,24 @@ async function runChecks() {
     // v3.4.1：原先 `badgeCount >= 0` 恒真属空断言。改轮询等待真实徽章出现：
     // 成功/未找到均渲染徽章，网络失败不阻塞（不依赖 Steam 可用性）
     let badgeCount = domInfo2.badgeCount;
-    for (let i = 0; i < 60 && badgeCount === 0; i++) {
+    for (let i = 0; i < 120 && badgeCount === 0; i++) {
+      // v10.3.0：60→120（真实网络模式 Bing 兜底链路可超 30s）
       await new Promise((r) => setTimeout(r, 500));
       badgeCount = await page2b.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
+    }
+    if (badgeCount === 0) {
+      // v10.3.0：失败现场诊断——读取后台 runtimeLog（徽章流程卡点可见）
+      try {
+        const diagLogs = await page2b.evaluate(async () => {
+          const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 60 });
+          return (resp && resp.logs) || [];
+        });
+        console.log('  ⚠️ 3b 失败现场 runtimeLog:');
+        for (const l of diagLogs.slice(-25))
+          console.log(`    [${l.module}] ${l.level} ${String(l.message).slice(0, 130)}`);
+      } catch (e) {
+        console.log('  ⚠️ 诊断读取失败:', String(e).slice(0, 80));
+      }
     }
     check('列表页好评率流程已启动（徽章渲染）', badgeCount > 0, `(徽章 ${badgeCount} 个)`);
     check('无 console error', errors2b.length === 0, `(${errors2b.slice(0, 3).join(' | ')})`);
@@ -716,7 +731,8 @@ async function runChecks() {
     const badgesBefore = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
     await page4.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
     let badgesAfter = badgesBefore;
-    for (let i = 0; i < 40 && badgesAfter <= badgesBefore; i++) {
+    for (let i = 0; i < 80 && badgesAfter <= badgesBefore; i++) {
+      // v10.3.0：40→80（同上）
       await new Promise((r) => setTimeout(r, 500));
       badgesAfter = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
     }

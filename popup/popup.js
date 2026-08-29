@@ -101,6 +101,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ppBadgeAll').checked = bv.all !== false;
   document.getElementById('ppBadgeUpdate').checked = bv.update !== false;
   document.getElementById('ppBadgeRec').checked = bv.rec !== false;
+  document.getElementById('ppBadgeAppstat').checked = bv.appstat !== false;
+
+  // v10.3.0：内容功能开关回显（缺 key 经 deepMerge 补默认，均默认开）
+  document.getElementById('ppRecommendations').checked = settings.enableRecommendations !== false;
+  document.getElementById('ppDownloadTracking').checked = settings.downloadTrackingEnabled !== false;
+  document.getElementById('ppAppStats').checked = settings.appStatsEnabled !== false;
+  document.getElementById('ppQrUnlock').checked = settings.qrUnlockEnabled !== false;
+  document.getElementById('ppXdgrid').checked = settings.xdgridEnabled !== false;
+  document.getElementById('ppNotifyFreeGames').checked = settings.notifyFreeGames !== false;
   document.getElementById('ppMaxScan').value = settings.maxScanLinks || 500;
 
   // 数据与备份
@@ -130,6 +139,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['ppBadgeAll', 'badgeVisibility.all'],
     ['ppBadgeUpdate', 'badgeVisibility.update'],
     ['ppBadgeRec', 'badgeVisibility.rec'],
+    ['ppBadgeAppstat', 'badgeVisibility.appstat'],
+    ['ppRecommendations', 'enableRecommendations'],
+    ['ppDownloadTracking', 'downloadTrackingEnabled'],
+    ['ppAppStats', 'appStatsEnabled'],
+    ['ppQrUnlock', 'qrUnlockEnabled'],
+    ['ppXdgrid', 'xdgridEnabled'],
+    ['ppNotifyFreeGames', 'notifyFreeGames'],
     ['ppAutoBackup', 'autoBackup'],
     ['ppLogEnabled', 'enableLog']
   ];

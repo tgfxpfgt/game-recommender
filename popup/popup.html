@@ -95,6 +95,32 @@
               <span class="ctrl-label">行为记录上限</span>
               <input type="number" id="ppMaxLog" min="100" max="5000" step="100" class="mini-input" />
             </div>
+            <div class="section-divider"></div>
+            <div class="section-sub-title">功能开关 <span class="section-title-en">Features</span></div>
+            <label class="gr-check">
+              <input type="checkbox" id="ppRecommendations" />
+              <span>推荐值计算</span>
+            </label>
+            <label class="gr-check">
+              <input type="checkbox" id="ppDownloadTracking" />
+              <span>下载追踪（计数 a）</span>
+            </label>
+            <label class="gr-check">
+              <input type="checkbox" id="ppAppStats" />
+              <span>下载/浏览统计（a-b）</span>
+            </label>
+            <label class="gr-check">
+              <input type="checkbox" id="ppQrUnlock" />
+              <span>二维码转链接</span>
+            </label>
+            <label class="gr-check">
+              <input type="checkbox" id="ppXdgrid" />
+              <span>XDGAME 布局定制</span>
+            </label>
+            <label class="gr-check">
+              <input type="checkbox" id="ppNotifyFreeGames" />
+              <span>限免通知推送</span>
+            </label>
           </div>
         </details>
 
@@ -176,6 +202,10 @@
           <label class="gr-check">
             <input type="checkbox" id="ppBadgeRec" />
             <span>推荐值徽章（关闭则停用推荐高亮）</span>
+          </label>
+          <label class="gr-check">
+            <input type="checkbox" id="ppBadgeAppstat" />
+            <span>下载/浏览统计 (a-b)</span>
           </label>
           <div class="ctrl-row">
             <span class="ctrl-label">链接扫描上限</span>

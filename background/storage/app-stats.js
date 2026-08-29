@@ -19,11 +19,35 @@ import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { bumpDataVersion } from './behavior.js'; // v10.1.0：统计变化推进数据版本（推荐缓存失效）
+import { getSettings } from '../core/settings.js'; // v10.3.0：开关与去重窗口可配置
 
 // 上限（防无界膨胀；按 updatedAt 最旧淘汰——正常使用远达不到）
 const APP_STATS_MAX_ENTRIES = 20000;
-// v10.2.0：同站点去重窗口（24h 内重复下载/打开详情页不重复计数）
+// v10.2.0：同站点去重窗口默认值（24h；v10.3.0 起可由 settings.appStatDedupHours 覆盖）
 export const DEDUP_WINDOW_MS = 24 * 3600 * 1000;
+
+// v10.3.0：总开关（settings.appStatsEnabled，默认开）——关闭后不计数、
+// 徽章无数据不渲染、推荐信号回中性，互不影响其他功能
+async function isEnabled() {
+  try {
+    const settings = await getSettings();
+    return settings.appStatsEnabled !== false;
+  } catch {
+    return true;
+  }
+}
+
+// v10.3.0：去重窗口（settings.appStatDedupHours 小时；0 = 关闭去重每次都计）
+async function dedupWindowMs() {
+  try {
+    const settings = await getSettings();
+    const hours = Number(settings.appStatDedupHours);
+    if (!Number.isFinite(hours) || hours <= 0) return 0;
+    return hours * 3600 * 1000;
+  } catch {
+    return DEDUP_WINDOW_MS;
+  }
+}
 // 每条目的站点去重表上限（LRU 淘汰最旧站点；站点总数远小于此）
 const SITES_PER_ENTRY_MAX = 24;
 
@@ -87,6 +111,9 @@ async function incrementDeduped(appId, field, siteKey) {
   if (!key || (field !== 'downloads' && field !== 'detailViews')) return false;
   const site = String(siteKey || 'unknown').slice(0, 64) || 'unknown';
   const siteMapKey = field === 'downloads' ? 'dlSites' : 'viewSites';
+  // v10.3.0：总开关关闭 → 不计数（返回 false 与去重未命中同语义）
+  if (!(await isEnabled())) return false;
+  const windowMs = await dedupWindowMs();
   let counted = false;
   await withStatsLock(async () => {
     await load();
@@ -103,7 +130,8 @@ async function incrementDeduped(appId, field, siteKey) {
     if (!entry.viewSites) entry.viewSites = {};
     const siteMap = entry[siteMapKey];
     const last = siteMap[site] || 0;
-    if (now - last < DEDUP_WINDOW_MS) return; // 24h 内同站重复 → 不计数
+    // v10.3.0：窗口可配置；windowMs=0 表示关闭去重（每次都计数）
+    if (windowMs > 0 && now - last < windowMs) return; // 同站窗口内重复 → 不计数
     siteMap[site] = now;
     enforceSiteLimit(siteMap);
     entry[field] = (entry[field] || 0) + 1;
@@ -138,6 +166,8 @@ export async function warmupAppStats() {
  * @returns {Promise<Record<string, {downloads: number, detailViews: number, updatedAt: number, dlSites: Object, viewSites: Object}>>}
  */
 export async function getAppStats(appIds) {
+  // v10.3.0：总开关关闭 → 返回空表（徽章无数据不渲染、推荐信号中性）
+  if (!(await isEnabled())) return {};
   await load();
   const mem = statsMemory || {};
   if (!Array.isArray(appIds)) return mem;

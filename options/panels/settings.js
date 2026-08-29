@@ -71,6 +71,18 @@
     document.getElementById('weightAppStatDetailViewVal').textContent = pct2(w.appStatDetailView);
     updateWeightSum();
 
+    // v10.3.0：内容功能开关 + a-b 计算参数回显（缺 key 经 deepMerge 补默认）
+    document.getElementById('enableRecommendations').checked = settings.enableRecommendations !== false;
+    document.getElementById('downloadTrackingEnabled').checked = settings.downloadTrackingEnabled !== false;
+    document.getElementById('appStatsEnabled').checked = settings.appStatsEnabled !== false;
+    document.getElementById('qrUnlockEnabled').checked = settings.qrUnlockEnabled !== false;
+    document.getElementById('xdgridEnabled').checked = settings.xdgridEnabled !== false;
+    document.getElementById('notifyFreeGames').checked = settings.notifyFreeGames !== false;
+    document.getElementById('badgeAppstat').checked = (settings.badgeVisibility || {}).appstat !== false;
+    document.getElementById('appStatDedupHours').value = settings.appStatDedupHours ?? 24;
+    document.getElementById('appStatDownloadCap').value = settings.appStatDownloadCap ?? 100;
+    document.getElementById('appStatDetailViewCap').value = settings.appStatDetailViewCap ?? 100;
+
     // LLM 设置 / LLM settings
     const llm = settings.llmConfig || {};
     document.getElementById('useLLM').checked = settings.useLLM;

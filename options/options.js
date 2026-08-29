@@ -526,6 +526,24 @@
     // v6.4.19：关键词过滤（纯规则列表，简单关键词输入已移除）
     document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
 
+    // v10.3.0：内容功能开关 + a-b 计算参数（变更即自动保存）
+    const newToggleIds = [
+      'enableRecommendations',
+      'downloadTrackingEnabled',
+      'appStatsEnabled',
+      'qrUnlockEnabled',
+      'xdgridEnabled',
+      'notifyFreeGames',
+      'badgeAppstat',
+      'appStatDedupHours',
+      'appStatDownloadCap',
+      'appStatDetailViewCap'
+    ];
+    newToggleIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.addEventListener('change', () => scheduleAutoSave());
+    });
+
     // 权重滑块（v4.0.0：新增 playTime/heat；v10.1.0：新增 appStat 两项）
     const weightIds = [
       'weightClick',
@@ -700,8 +718,20 @@
       recent: document.getElementById('badgeRecent').checked,
       all: document.getElementById('badgeAll').checked,
       update: document.getElementById('badgeUpdate').checked,
-      rec: document.getElementById('badgeRec').checked
+      rec: document.getElementById('badgeRec').checked,
+      appstat: document.getElementById('badgeAppstat').checked // v10.3.0
     };
+
+    // v10.3.0：内容功能独立开关 + a-b 统计计算参数（全量收集保存）
+    OPTS.currentSettings.enableRecommendations = document.getElementById('enableRecommendations').checked;
+    OPTS.currentSettings.downloadTrackingEnabled = document.getElementById('downloadTrackingEnabled').checked;
+    OPTS.currentSettings.appStatsEnabled = document.getElementById('appStatsEnabled').checked;
+    OPTS.currentSettings.qrUnlockEnabled = document.getElementById('qrUnlockEnabled').checked;
+    OPTS.currentSettings.xdgridEnabled = document.getElementById('xdgridEnabled').checked;
+    OPTS.currentSettings.notifyFreeGames = document.getElementById('notifyFreeGames').checked;
+    OPTS.currentSettings.appStatDedupHours = parseInt(document.getElementById('appStatDedupHours').value) || 0;
+    OPTS.currentSettings.appStatDownloadCap = parseInt(document.getElementById('appStatDownloadCap').value) || 100;
+    OPTS.currentSettings.appStatDetailViewCap = parseInt(document.getElementById('appStatDetailViewCap').value) || 100;
     // 列表页链接扫描上限（v3.3.9）
     OPTS.currentSettings.maxScanLinks = parseInt(document.getElementById('maxScanLinks').value) || 500;
 

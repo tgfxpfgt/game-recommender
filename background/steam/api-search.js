@@ -284,7 +284,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
           `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
         );
         // v9.7.0：传入 status 且非 2xx 不计成功（与 api-details/reviews 一致）
-        recordSteamCall(resp.ok, resp.status);
+        recordSteamCall(resp.ok || resp.status === 404, resp.status); // v10.3.0：404=空结果非失败
         if (!resp.ok) continue;
         cnData = await resp.json();
       } catch {

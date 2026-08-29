@@ -104,14 +104,22 @@ export function steamspyScores(spy) {
  * @param {number|null} b - 详情页打开次数
  * @returns {{downloadStat: number, viewPenalty: number}}
  */
-export function appStatScores(a, b) {
+/**
+ * ...
+ * @param {{downloadCap?: number, viewCap?: number}|null} [caps] - 饱和封顶（可由设置覆盖）
+ */
+export function appStatScores(a, b, caps = null) {
+  // v10.3.0：饱和封顶可调（appStatDownloadCap/appStatDetailViewCap，默认 100）——
+  // 分母 = log10(cap+1)，a=cap 时信号恰好满分；封顶缩放保持单调
+  const downloadCap = caps && typeof caps.downloadCap === 'number' && caps.downloadCap >= 1 ? caps.downloadCap : 100;
+  const viewCap = caps && typeof caps.viewCap === 'number' && caps.viewCap >= 1 ? caps.viewCap : 100;
   const downloads = typeof a === 'number' && a > 0 ? a : 0;
   const detailViews = typeof b === 'number' && b > 0 ? b : 0;
   if (downloads > 0) {
-    return { downloadStat: Math.min(Math.log10(downloads + 1) / 2, 1), viewPenalty: 0 };
+    return { downloadStat: Math.min(Math.log10(downloads + 1) / Math.log10(downloadCap + 1), 1), viewPenalty: 0 };
   }
   if (detailViews > 0) {
-    return { downloadStat: 0, viewPenalty: -Math.min(Math.log10(detailViews + 1) / 2, 1) };
+    return { downloadStat: 0, viewPenalty: -Math.min(Math.log10(detailViews + 1) / Math.log10(viewCap + 1), 1) };
   }
   return { downloadStat: 0, viewPenalty: 0 };
 }
@@ -134,6 +142,7 @@ export function appStatScores(a, b) {
  * @param {number|null} params.heatScore - SteamSpy 热度信号（0-1，null=缺省中性）
  * @param {number|null} [params.appDownloads] - AppID 下载次数 a（null=无统计）
  * @param {number|null} [params.appDetailViews] - AppID 详情页打开次数 b（null=无统计）
+ * @param {{downloadCap?: number, viewCap?: number}|null} [params.appStatCaps] - a/b 对数饱和封顶（设置可调）
  * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number, appDownloadScore: number, appViewPenalty: number}, method: string}}
  */
 // v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
@@ -149,7 +158,8 @@ export function computeGameScore({
   playTimeScore = null,
   heatScore = null,
   appDownloads = null,
-  appDetailViews = null
+  appDetailViews = null,
+  appStatCaps = null
 }) {
   // v6.3.2 C3：用户标记不感兴趣 → 推荐归零（负信号优先于一切正信号）
   if (profile && profile.disliked) {
@@ -186,7 +196,7 @@ export function computeGameScore({
   const pTime = playTimeScore !== null && playTimeScore !== undefined ? playTimeScore : 0.3;
   const heat = heatScore !== null && heatScore !== undefined ? heatScore : 0.3;
   // 5. AppID 行为统计信号（v10.1.0）：a>0 正向 / a=0 且 b>0 负向（b 越大越不推荐）
-  const { downloadStat, viewPenalty } = appStatScores(appDownloads, appDetailViews);
+  const { downloadStat, viewPenalty } = appStatScores(appDownloads, appDetailViews, appStatCaps);
   const finalScore =
     clickScore * (weights.clickRate || 0) +
     downloadScore * (weights.downloadRate || 0) +
@@ -207,9 +217,12 @@ export function computeGameScore({
     (weights.playTime || 0) +
     (weights.heat || 0) +
     (weights.appStatDownload || 0);
+  // v10.3.0：clamp 到 [0,1]——未下载惩罚（负分量）可能把分数推为负数，
+  // 负推荐值无意义（徽章显示异常），下限 0
   const normalized = weightSum > 1 ? finalScore / weightSum : finalScore;
+  const clamped = Math.min(1, Math.max(0, normalized));
   return {
-    score: Math.round(normalized * 100) / 100,
+    score: Math.round(clamped * 100) / 100,
     breakdown: {
       clickScore: Math.round(clickScore * 100) / 100,
       downloadScore: Math.round(downloadScore * 100) / 100,
@@ -294,6 +307,10 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
     heatScore,
     appDownloads: appStat ? appStat.downloads : null,
     appDetailViews: appStat ? appStat.detailViews : null,
+    appStatCaps: {
+      downloadCap: settings.appStatDownloadCap,
+      viewCap: settings.appStatDetailViewCap
+    },
     weights
   });
 }

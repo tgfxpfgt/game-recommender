@@ -217,13 +217,8 @@
       }
     }
 
-    // === 2. 始终设置下载追踪 ===
-    tracking.setupDownloadTracking();
-
-    // === v10.2.0：二维码转链接（gamer520 等站二维码网盘链接自动解码）===
-    M.qrUnlock.init();
-    // === v10.2.0：XDGAME 列表布局自定义（模块内按域名早退，其他站零开销）===
-    M.xdgrid.init();
+    // === 2. 始终设置下载追踪（v10.3.0：独立开关，关闭仅停用点击/复制追踪）===
+    tracking.setupDownloadTracking(settings);
 
     // === 3. 详情页：注入Steam浮窗和下载历史浮窗 ===
     const isDetail = detailByUrl || (!isList && !!document.querySelector('h1'));
@@ -251,6 +246,13 @@
     } else if (!isList) {
       dbg('⚠️ 未识别页面类型');
     }
+
+    // === 4. v10.2.0：二维码转链接 + XDGAME 列表布局定制 ===
+    // v10.3.0：传入 settings（各内容功能独立开关，关闭早退互不影响）；放在
+    // 主流程末尾——二维码扫描/布局定制不与徽章/评分流程竞争初始化时序
+    //（E2E 间歇性 3b 失败定位：早期初始化的 MutationObserver 介入波次时序）
+    M.qrUnlock.init(settings);
+    M.xdgrid.init(settings);
 
     dbg('✅ 初始化完成');
   }

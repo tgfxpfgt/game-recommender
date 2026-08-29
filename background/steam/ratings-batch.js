@@ -109,8 +109,7 @@ export async function handleGetSteamRatings(message, sender) {
 const JOB_SESSION_KEY = 'grRatingsBatchJob';
 const JOB_MAX_AGE_MS = 60 * 60 * 1000; // 超过 1h 的任务视为陈旧丢弃
 const RESUME_ALARM = 'ratingsBatchResume';
-
-/** @type {boolean} */ let jobRunning = false; // 当前 SW 实例内的在途防护
+/** @type {boolean} */ let resumeInFlight = false; // 续跑互斥（alarm 重复唤醒幂等）
 
 async function persistJob(job) {
   try {
@@ -144,28 +143,53 @@ function teardownResumeAlarm() {
   }
 }
 
-// 发起任务（fire-and-forget；同实例内在途防护）/ start a job (fire-and-forget)
-export function startRatingJob(job) {
-  if (jobRunning) return false;
-  jobRunning = true;
+// v10.3.0：按 tab 队列化——此前单一 jobRunning 守卫在多标签页并发时
+// **整只丢弃**后到任务（对应页面徽章永不渲染，E2E 间歇性 3b 失败根因）。
+// 跨 tab 并发（推送各自独立互不干扰）、同 tab 串行（内容侧 done 衔接语义）
+/** @type {Map<string, {running: boolean, pending: Array<Object>}>} */
+const jobQueues = new Map();
+
+function queueKey(tabId) {
+  return tabId === null || tabId === undefined ? 'null' : String(tabId);
+}
+
+function runNextForTab(key) {
+  const q = jobQueues.get(key);
+  if (!q || q.running) return;
+  const job = q.pending.shift();
+  if (!job) return;
+  q.running = true;
   (async () => {
     try {
       await persistJob(job);
       setupResumeAlarm();
       await runRatingJob(job);
     } finally {
-      // v10.0.0：必须复位在途防护——否则任务 done 后本 SW 实例永远拒绝新
-      // 任务，列表页滚动衔接的第二批请求被静默丢弃（E2E 滚动节回归抓出）
-      jobRunning = false;
+      q.running = false;
+      runNextForTab(key);
     }
   })();
+}
+
+// 发起任务（fire-and-forget；同 tab 串行、跨 tab 并发，永不丢弃）
+// start a job (fire-and-forget; serialized per tab, concurrent across tabs)
+export function startRatingJob(job) {
+  const key = queueKey(job.tabId);
+  let q = jobQueues.get(key);
+  if (!q) {
+    q = { running: false, pending: [] };
+    jobQueues.set(key, q);
+  }
+  q.pending.push(job);
+  runNextForTab(key);
   return true;
 }
 
-// SW 冷启动/alarm 唤醒时续跑（新 SW 实例的 jobRunning 必为 false）
-// Resume after a SW cold start or alarm wake (jobRunning is always false there)
+// SW 冷启动/alarm 唤醒时续跑检查点任务（与按 tab 队列独立——续跑的是
+// 最后一次检查点的任务；其他 tab 未完成任务由内容侧 45s 强制收尾兜底）
+// Resume the checkpointed job after a SW cold start or alarm wake.
 export async function resumeRatingsBatch() {
-  if (jobRunning) return { resumed: false, reason: 'in-flight' };
+  if (resumeInFlight) return { resumed: false, reason: 'in-flight' };
   /** @type {any} */
   let job = null;
   try {
@@ -179,11 +203,11 @@ export async function resumeRatingsBatch() {
     await clearPersistedJob();
     return { resumed: false, reason: 'stale' };
   }
-  jobRunning = true;
+  resumeInFlight = true;
   try {
     await runRatingJob(job);
   } finally {
-    jobRunning = false;
+    resumeInFlight = false;
   }
   return { resumed: true, remaining: job.queue.length };
 }

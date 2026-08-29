@@ -73,6 +73,10 @@ export const DEFAULT_SETTINGS = {
     appStatDownload: 0.08,
     appStatDetailView: 0.03
   },
+  // v10.3.0：a-b 统计计算参数（用户可调）
+  appStatDedupHours: 24, // 同站点去重窗口小时数（0 = 关闭去重，每次都计数）
+  appStatDownloadCap: 100, // 下载计数 a 的对数饱和封顶（a≥cap 信号满分）
+  appStatDetailViewCap: 100, // 详情页打开 b 的对数饱和封顶
   trackedSites: [
     '3dmgame.com',
     'ali213.net',
@@ -111,7 +115,15 @@ export const DEFAULT_SETTINGS = {
   // 关闭"全部好评率"→ 好评率过滤停用；关闭"推荐值"→ 推荐高亮停用
   // List-page badge toggles (all on by default). Data fetching keeps running;
   // turning off "all" also disables the rating filter, "rec" the highlighting.
-  badgeVisibility: { recent: true, all: true, update: true, rec: true },
+  // v10.3.0：appstat（a-b 徽章）纳入徽章独立开关
+  badgeVisibility: { recent: true, all: true, update: true, rec: true, appstat: true },
+  // v10.3.0：内容功能独立开关（关闭只停用该功能，不影响其他功能与显示）
+  enableRecommendations: true, // 推荐值计算与推荐徽章（关闭后列表页不再请求推荐）
+  downloadTrackingEnabled: true, // 下载追踪（网盘点击委托/复制捕获 → click_download）
+  appStatsEnabled: true, // a-b 行为统计（下载 a/详情页打开 b 的计数+徽章+推荐信号）
+  qrUnlockEnabled: true, // 二维码转链接（gamer520 等站二维码网盘链接自动解码）
+  xdgridEnabled: true, // XDGAME 列表布局定制（xdgame.com 专属）
+  notifyFreeGames: true, // 限免通知推送（新增限免时系统通知）
   maxScanLinks: 500, // 列表页链接扫描上限（大列表页性能保护，v3.3.9 可配置）
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
   // v6.4.19：外部数据源开关（站点按用途分类管理）——平台数据源（限免/评分）、

@@ -336,6 +336,83 @@
 
             <div class="settings-section">
               <div class="section-header">
+                <span class="section-icon">🧩</span>
+                <div class="section-title">
+                  <h3>内容功能开关</h3>
+                  <span class="section-subtitle">Content Features</span>
+                </div>
+              </div>
+              <div class="section-body">
+                <p class="section-note">
+                  各功能独立开关：关闭仅停用该功能，其他功能与页面显示不受影响（部分开关对已打开页面需刷新生效）<br /><em
+                    >Independent toggles; turning one off never affects the others. Some need a page refresh</em
+                  >
+                </p>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">推荐值计算</span>
+                    <span class="label-desc">Recommendations（推荐徽章与高亮的数据来源）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="enableRecommendations" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载追踪</span>
+                    <span class="label-desc">Download Tracking（网盘点击/复制 → 下载计数 a）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="downloadTrackingEnabled" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载/浏览统计（a-b）</span>
+                    <span class="label-desc">App Stats（a-b 徽章数据与推荐信号）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="appStatsEnabled" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">二维码转链接</span>
+                    <span class="label-desc">QR Unlock（gamer520 等站二维码自动解码）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="qrUnlockEnabled" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">XDGAME 列表布局定制</span>
+                    <span class="label-desc">XDGAME Grid（xdgame.com 专属）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="xdgridEnabled" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">限免通知推送</span>
+                    <span class="label-desc">Free-game Notifications（限免页与角标不受影响）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="notifyFreeGames" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-section">
+              <div class="section-header">
                 <span class="section-icon">🏷️</span>
                 <div class="section-title">
                   <h3>徽章显示</h3>
@@ -386,6 +463,16 @@
                   </div>
                   <label class="gr-switch">
                     <input type="checkbox" id="badgeRec" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载/浏览统计 (a-b)</span>
+                    <span class="label-desc">App Stats Badge（关闭不影响统计与推荐）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="badgeAppstat" />
                     <span class="gr-slider-ui"></span>
                   </label>
                 </div>
@@ -615,6 +702,52 @@
                     />
                     <span id="weightAppStatDetailViewVal" class="gr-range-value">0.03</span>
                   </div>
+                </div>
+                <!-- v10.3.0：a-b 统计计算参数（去重窗口 + 对数封顶） -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">a-b 同站去重窗口</span>
+                    <span class="label-desc">Dedup Window（小时；0 = 关闭去重，每次都计数）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="appStatDedupHours"
+                    min="0"
+                    max="720"
+                    step="1"
+                    class="gr-input"
+                    style="width: 110px"
+                  />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">下载计数 a 封顶</span>
+                    <span class="label-desc">a Cap（a≥此值信号满分，默认 100）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="appStatDownloadCap"
+                    min="1"
+                    max="10000"
+                    step="10"
+                    class="gr-input"
+                    style="width: 110px"
+                  />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">打开计数 b 封顶</span>
+                    <span class="label-desc">b Cap（b≥此值惩罚满分，默认 100）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="appStatDetailViewCap"
+                    min="1"
+                    max="10000"
+                    step="10"
+                    class="gr-input"
+                    style="width: 110px"
+                  />
                 </div>
                 <div class="weight-sum-row">
                   <span class="weight-sum-label">权重总和 / Weight Sum</span>

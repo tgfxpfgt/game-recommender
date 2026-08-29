@@ -247,10 +247,13 @@ function buildUI(cfg, onChange) {
   syncHint();
 }
 
-// 初始化（仅 xdgame.com 生效；幂等）/ init (xdgame.com only; idempotent)
-export async function init() {
+// 初始化（仅 xdgame.com 生效；幂等；v10.3.0 支持独立开关）/ init
+export async function init(settings) {
   const domain = common.getCurrentDomain();
   if (!domain.includes('xdgame.com')) return; // 站点守卫 / site guard
+  // v10.3.0：独立开关（settings.xdgridEnabled，默认开）——关闭早退，
+  // 不应用样式、不注入面板（已开页面刷新后生效）
+  if (settings && settings.xdgridEnabled === false) return;
   try {
     const cfg = await loadSettings();
     applyStyle(cfg);

@@ -160,7 +160,7 @@ export async function fetchReviewSummary(appId) {
       const response = await fetchWithTimeout(reviewUrl);
       const data = await response.json();
       // v9.7.0：同 api-details——传入 status，非 2xx 不计成功（限流可感知）
-      recordSteamCall(response.ok, response.status);
+      recordSteamCall(response.ok || response.status === 404, response.status); // v10.3.0：404=空结果非失败
       if (!response.ok) continue;
       if (data.success === 1 && data.query_summary) {
         const qs = data.query_summary;

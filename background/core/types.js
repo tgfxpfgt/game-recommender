@@ -67,11 +67,21 @@
  * @property {string} llmConfig.model
  * @property {number} llmConfig.temperature
  * @property {Object} cacheTtls - 每模块 TTL（steamDynamic/detailSteam/spySteam/metaSteam/registryConfirm/downloadUrls/negativeCache）
- * @property {Object} badgeVisibility - recent/all/update/rec
+ * @property {Object} badgeVisibility - recent/all/update/rec/appstat
  * @property {boolean} badgeVisibility.recent
  * @property {boolean} badgeVisibility.all
  * @property {boolean} badgeVisibility.update
  * @property {boolean} badgeVisibility.rec
+ * @property {boolean} badgeVisibility.appstat
+ * @property {boolean} [enableRecommendations] - 推荐值计算开关（v10.3.0）
+ * @property {boolean} [downloadTrackingEnabled] - 下载追踪开关（v10.3.0）
+ * @property {boolean} [appStatsEnabled] - a-b 行为统计开关（v10.3.0）
+ * @property {boolean} [qrUnlockEnabled] - 二维码转链接开关（v10.3.0）
+ * @property {boolean} [xdgridEnabled] - XDGAME 布局定制开关（v10.3.0）
+ * @property {boolean} [notifyFreeGames] - 限免通知开关（v10.3.0）
+ * @property {number} [appStatDedupHours] - a-b 同站去重窗口小时（0=关闭，v10.3.0）
+ * @property {number} [appStatDownloadCap] - a 对数封顶（v10.3.0）
+ * @property {number} [appStatDetailViewCap] - b 对数封顶（v10.3.0）
  * @property {boolean} showStatusBar
  * @property {number} maxScanLinks
  * @property {Array<string>} trackedSites - 追踪下载站域名

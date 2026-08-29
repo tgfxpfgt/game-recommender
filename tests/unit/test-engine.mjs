@@ -293,3 +293,24 @@ test('computeGameScore：a=0 且 b>0 降低推荐值，b 越大越不推荐', ()
   // breakdown 带新分量
   expect(viewedMany.breakdown.appViewPenalty).toBeLessThan(0);
 });
+
+// ============ v10.3.0：a-b 封顶可调 + 推荐分 clamp ============
+test('appStatScores：封顶参数可调（cap 1000 时 a=500 未饱和）', () => {
+  const at500 = appStatScores(500, 0, { downloadCap: 1000, viewCap: 1000 });
+  expect(at500.downloadStat).toBeLessThan(1); // cap=1000 → a=500 未饱和
+  const at500Cap100 = appStatScores(500, 0, { downloadCap: 100, viewCap: 100 });
+  expect(at500Cap100.downloadStat).toEqual(1); // cap=100 → a=500 饱和满分
+  // 默认（无 caps）等价 cap=100
+  expect(appStatScores(500, 0).downloadStat).toEqual(1);
+});
+
+test('computeGameScore：未下载惩罚不产生负推荐值（clamp 0）', () => {
+  const extreme = computeGameScore({
+    ...base,
+    weights: { ...W, appStatDetailView: 0.9 },
+    appDownloads: 0,
+    appDetailViews: 100
+  });
+  expect(extreme.score).toBeGreaterThanOrEqual(0); // v10.3.0 clamp
+  expect(extreme.score).toEqual(0);
+});

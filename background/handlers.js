@@ -121,6 +121,12 @@ async function handleTrackEvent(message) {
 }
 
 async function handleGetRecommendations(message) {
+  // v10.3.0：推荐功能独立开关——关闭后返回空结果（内容侧不渲染推荐徽章，
+  // 列表页其余流程/显示不受影响）
+  {
+    const s = await getSettings();
+    if (s.enableRecommendations === false) return { results: [] };
+  }
   const games = message.games || [];
   const useBuiltinOnly = games.length > 1; // 批量时强制内置算法
   // v3.4.1：批量（列表页徽章）时共享只读数据——画像/关键词权重/设置仅读

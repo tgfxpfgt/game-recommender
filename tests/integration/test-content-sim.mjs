@@ -596,7 +596,23 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
     return { ratings, pending: 0 }; // 全部缓存命中 → 无推送，自动衔接下一批
   };
   GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
-  await waitFor(() => batchRequests.length >= 2); // 首批 60 + 全命中自动衔接第二批 40
+  // v10.3.0 诊断：超时转储批次状态（定位间歇性不衔接）
+  const chained = await waitFor(() => batchRequests.length >= 2);
+  if (!chained) {
+    const st = GR.list._state.batchState || {};
+    console.log(
+      '2b TIMEOUT:',
+      JSON.stringify({
+        batchRequests: batchRequests.length,
+        inflight: st.inflight,
+        queue: st.queue ? st.queue.length : null,
+        pendingDone: st.pendingDone,
+        requested: st.requested ? st.requested.size : null,
+        jobFinished: !!(GR.list._state.ratingsJob && GR.list._state.ratingsJob.finished)
+      })
+    );
+  }
+  // 首批 60 + 全命中自动衔接第二批 40
   expect(batchRequests[0] ? batchRequests[0].length : 0).toEqual(60);
   expect(batchRequests[1] ? batchRequests[1].length : 0).toEqual(40);
   expect(

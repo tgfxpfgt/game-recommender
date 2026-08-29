@@ -148,14 +148,18 @@ function scheduleScan(root) {
   }, 200);
 }
 
-// 初始化（幂等；tracker init 调用）/ init (idempotent)
-export function init() {
+// 初始化（幂等；tracker init 调用；v10.3.0 支持独立开关）/ init (idempotent)
+export function init(settings) {
+  // v10.3.0：独立开关（settings.qrUnlockEnabled，默认开）——关闭早退，
+  // 不注入观察器、不加载解码器，其他内容功能不受影响
+  if (settings && settings.qrUnlockEnabled === false) return;
   if (observer || decoderFailed) return;
   try {
     // 初始扫描 + 惰性渲染监听（二维码多为 JS 动态插入）
     scheduleScan(document);
-    observer = new MutationObserver((mutations) => {
-      for (const m of mutations) {
+    observer = new MutationObserver((mutations = []) => {
+      // v10.3.0：mutations 默认空数组——测试驱动器可能无参调用 cb()
+      for (const m of mutations || []) {
         for (const node of m.addedNodes || []) {
           if (node.nodeType !== 1) continue;
           const el = /** @type {Element} */ (node);

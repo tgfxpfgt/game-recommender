@@ -143,7 +143,10 @@ async function fireBatch(names) {
 
 // 按批发起推荐请求（fire-and-forget；失败不影响评分流程）
 // Per-batch recommendation request (fire-and-forget; failures don't block ratings)
+// v10.3.0：推荐功能独立开关——关闭后不发起请求（无推荐徽章，评分流程不受影响）
 async function fetchRecommendationsForBatch(names, imageData) {
+  const job = _state.ratingsJob;
+  if (job && job.settings && job.settings.enableRecommendations === false) return;
   try {
     const games = names.map((n) => {
       const img = imageData[n];

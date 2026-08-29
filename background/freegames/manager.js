@@ -472,6 +472,9 @@ async function verifyStorePageButtons(appId) {
 // Push notification for new free games (one aggregated notification)
 async function notifyNewFreeGames(newOnes) {
   try {
+    // v10.3.0：限免通知独立开关——关闭后跳过推送（限免页/角标不受影响）
+    const notifySettings = await getSettings();
+    if (notifySettings.notifyFreeGames === false) return;
     // v6.3.3：仅推送限时领取（limited）——weekend/f2p/key 不打扰
     let limited = newOnes.filter((g) => g.freeType !== 'weekend' && g.freeType !== 'f2p' && g.freeType !== 'key');
     if (!chrome.notifications || limited.length === 0) return;

@@ -152,6 +152,10 @@ export async function handleGetGameCacheList(message) {
         heatScore,
         appDownloads: appStats[appId] ? appStats[appId].downloads : null,
         appDetailViews: appStats[appId] ? appStats[appId].detailViews : null,
+        appStatCaps: {
+          downloadCap: settings.appStatDownloadCap,
+          viewCap: settings.appStatDetailViewCap
+        },
         weights
       });
       recCache.set(recCacheKey, rec);

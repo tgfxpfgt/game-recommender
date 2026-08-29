@@ -79,5 +79,6 @@ npm run coverage       # vitest 覆盖率
 - **content-sim 用自研 FakeEl**（v6.3.2 评估：jsdom 迁移收益有限——测试聚焦流程逻辑，FakeEl 已工作正常；若未来需标准 DOM 语义（选择器/事件冒泡）再评估 jsdom）
 - **UI 层 DOM 类型宽松化**（globals.d.ts）：document 返回 any（元素存在性由浏览器保证），类型化聚焦业务字段与消息形状
 - 发布前 Mimosa 深度扫描必须 0 findings。
+- **content-sim 节 2/2b 间歇性 flake（v6.4.10 起已知，负载敏感）**：itemB 徽章超时/第二批未衔接，~10-30% 频率出现于系统高负载时（测试内置 [DIA] 诊断块可定位）。与具体功能改动无关（v10.3.0 stash 对照实验曾误判，后证实样本不足）；重跑即可，CI 偶发红同因。
 - **覆盖率归因伪影（v10.0.0 定位，待专项修复）**：background/handlers.js 在 coverage 报告中恒为 ~15%（各次独立运行数值完全相同、新增 handleMessage 测试不改变读数；单文件探针则完全不出现条目）——根因是该文件经动态 import 加载时脱离 vite 转换管线（server.deps.inline 原生加载设计），V8 覆盖键与报告路径不匹配。真实覆盖率远高于此（40+ 集成测试贯穿 handleMessage）。修复前总覆盖率读数约被压低 3-4 点；专项方向：调整 tests 的导入方式使 handlers.js 进入插桩管线且不破坏同实例语义。
 - **发布频率规则**（见 memory：大版本/5 次小版本/单次>1000 行/累计>3000 行任一触发完整发布）：v9.2.2-v9.6.0 曾积压 7 版未发布——按节奏触发，勿积压。

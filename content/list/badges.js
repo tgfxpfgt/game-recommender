@@ -203,7 +203,9 @@ export function prependBadge(item, rating, settings) {
   // 打开次数；有下载（a>0）绿色、只看不下（a=0 且 b>0）橙色警示。数据随
   // ratings 条目下发（appDownloads/appDetailViews），无记录的条目不渲染。
   // 最后 push → insertBadges 逆序插入 → 渲染在所有徽章最左
-  if (rating && rating.appId && rating.appDownloads !== undefined) {
+  // v10.3.0：a-b 徽章独立开关（badgeVisibility.appstat，默认开）——关闭仅
+  // 不渲染徽章与绿标题，评分数据获取与推荐计算不受影响
+  if (bv.appstat !== false && rating && rating.appId && rating.appDownloads !== undefined) {
     const a = rating.appDownloads || 0;
     const b = rating.appDetailViews || 0;
     const hasDownload = a > 0;

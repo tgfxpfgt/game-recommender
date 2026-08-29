@@ -283,3 +283,39 @@ test('xdgrid buildCss：自适应压缩 + 固定封面高度', () => {
   expect(css).toContain('height: 160px !important');
   expect(css).toContain('object-fit: cover');
 });
+
+// ============ v10.3.0：a-b 统计开关 + 去重窗口可调 ============
+const settingsModWiring = await import(
+  new URL('../../background/core/settings.js', import.meta.url).href + '?t=' + Date.now()
+);
+
+test('v10.3.0：appStatsEnabled=false → 不计数且读取为空（其余功能不受影响）', async () => {
+  storage._reset();
+  appStatsMod.resetAppStats();
+  await settingsModWiring.saveSettings({ appStatsEnabled: false }); // deepMerge 自动补默认
+  expect(await appStatsMod.recordAppDownload('730', 'xdgame')).toEqual(false);
+  await appStatsMod.recordAppDetailView('730', 'xdgame');
+  expect(await appStatsMod.getAppStats()).toEqual({}); // 读取也为空（徽章/信号无数据）
+  // 重新开启 → 恢复计数
+  await settingsModWiring.saveSettings({ appStatsEnabled: true });
+  expect(await appStatsMod.recordAppDownload('730', 'xdgame')).toEqual(true);
+  const stats = await appStatsMod.getAppStats(['730']);
+  expect(stats['730'] && stats['730'].downloads).toEqual(1);
+});
+
+test('v10.3.0：appStatDedupHours=0 → 关闭去重（同站重复也计数）', async () => {
+  storage._reset();
+  appStatsMod.resetAppStats();
+  await settingsModWiring.saveSettings({ appStatDedupHours: 0 });
+  await appStatsMod.recordAppDownload('730', 'xdgame');
+  await appStatsMod.recordAppDownload('730', 'xdgame');
+  await appStatsMod.recordAppDownload('730', 'xdgame');
+  const stats = await appStatsMod.getAppStats(['730']);
+  expect(stats['730'].downloads).toEqual(3);
+  // 恢复默认 24h 窗口 → 同站重复被去重
+  await settingsModWiring.saveSettings({ appStatDedupHours: 24 });
+  await appStatsMod.recordAppDownload('888', 'xdgame');
+  await appStatsMod.recordAppDownload('888', 'xdgame');
+  const stats2 = await appStatsMod.getAppStats(['888']);
+  expect(stats2['888'].downloads).toEqual(1);
+});

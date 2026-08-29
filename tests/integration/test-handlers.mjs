@@ -175,6 +175,25 @@ test('重置设置返回默认设置对象', async () => {
   expect(resp.settings && typeof resp.settings === 'object' && !!resp.settings.weights).toEqual(true);
 });
 
+// ============ 4b1. 推荐功能独立开关（v10.3.0） ============
+test('enableRecommendations=false → GET_RECOMMENDATIONS 返回空 results', async () => {
+  storage._reset();
+  // 保存关闭推荐的设置（走 SAVE_SETTINGS 刷新设置缓存）
+  await handleMessage({ action: 'SAVE_SETTINGS', settings: { enableRecommendations: false } });
+  const resp = await handleMessage({
+    action: 'GET_RECOMMENDATIONS',
+    games: [{ name: '游戏A', url: '', appId: null }]
+  });
+  expect(resp.results).toEqual([]);
+  // 恢复开启
+  await handleMessage({ action: 'SAVE_SETTINGS', settings: { enableRecommendations: true } });
+  const resp2 = await handleMessage({
+    action: 'GET_RECOMMENDATIONS',
+    games: [{ name: '游戏A', url: '', appId: null }]
+  });
+  expect(resp2.results.length).toEqual(1);
+});
+
 // ============ 4b2. 下载计数 a（v10.1.0：AppID 维度，跨站点聚合） ============
 test('v10.2.0：click_download 计数——跨站累计、同站 24h 去重、无 appId 不计', async () => {
   storage._reset();
