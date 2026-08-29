@@ -278,6 +278,21 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.4.2（修复：推荐度徽章开关失效）
+
+- **「关闭推荐度显示」开关此前完全无效**：推荐徽章渲染链路读取的 batchState 从未存储 settings（initBatchState 收到参数但未入对象）→ 门控拿到恒为空的对象、badgeVisibility.rec 判定恒放行 → 推荐徽章无视开关永远渲染。修复后开关生效（刷新页面）
+- 该根因同时影响推荐高亮（highlightThreshold 判定同读该 settings 对象），一并修复
+- content-sim 补 8c 回归测试（rec=false → 评分徽章正常、推荐徽章不渲染；金标准验证：移除修复必失败）
+
+690 test · gate 全过
+
+### v10.4.1（修复：a-b 徽章位置）
+
+- a-b 徽章此前插在徽章组最左——修正为**两个好评率徽章之后、推荐值徽章之前**（锚点 = 好评率徽章组末尾；推荐值徽章的选择器以 gr-rating-badge 为基类自然接在其后）
+- content-sim 补位置断言（appstat 序位 > 近30天徽章）
+
+689 test · gate 全过
+
 ### v10.4.0（详情页浮窗设置 / 高分标题变红 / 列表布局定制全站化）
 
 - **详情页浮窗设置**：默认展开/折叠（detailFloatExpanded）+ 浮窗位置左/右（detailFloatSide，默认左上保持原行为）——设置页「常规 → 详情页浮窗」；floats.js 新增 folded 创建选项
