@@ -114,6 +114,11 @@ async function fireBatch(names) {
   fetchRecommendationsForBatch(names, imageData);
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData, urls });
+    // v10.5.0 P2-D：后台拒绝（契约/sender/异常）不再静默降级为空，显式告警便于定位
+    // Surface backend rejections instead of silently showing "no data".
+    if (response && response.error) {
+      console.warn('【游戏雷达】 GET_STEAM_RATINGS 被拒/失败（本批降级为空）:', response.error);
+    }
     const ratings = (response && response.ratings) || {};
     const pendingCount = (response && response.pending) || 0;
     // 第一波：缓存命中即时显示徽章 / wave 1: cached hits render instantly
@@ -201,7 +206,13 @@ function startListScan() {
     // 收集新增元素节点（容器级增量提取，不再整页重扫）
     for (const m of mutations) {
       for (const node of m.addedNodes) {
-        if (node.nodeType === 1) pendingNodes.push(node);
+        if (node.nodeType === 1) {
+          // v10.5.0 P2-C：跳过扩展自身注入的节点（哨兵等，带 data-gr-self 标记）
+          // 用显式标记而非 class 前缀匹配，避免误伤站点自身含 gr- 类的容器
+          const el = /** @type {Element} */ (node);
+          if (el.hasAttribute && el.hasAttribute('data-gr-self')) continue;
+          pendingNodes.push(node);
+        }
       }
     }
     if (scanTimer) clearTimeout(/** @type {any} */ (scanTimer));
@@ -228,6 +239,7 @@ function startListScan() {
   batchState.observer.observe(document.body, { childList: true, subtree: true });
   const sentinel = document.createElement('div');
   sentinel.style.cssText = 'height:1px;width:1px;opacity:0;pointer-events:none;';
+  sentinel.setAttribute('data-gr-self', '1'); // v10.5.0 P2-C：自注入标记，发现观察器据此跳过
   (document.body || document.documentElement).appendChild(sentinel);
   batchState.sentinelObserver = new IntersectionObserver(
     (entries) => {

@@ -54,12 +54,26 @@ const SITES_PER_ENTRY_MAX = 24;
 /** @type {Record<string, {downloads: number, detailViews: number, updatedAt: number, dlSites: Object, viewSites: Object}>|null} */
 let statsMemory = null;
 let statsLoaded = false;
+// v10.5.0 P1-B：脏标记——无变更时 flush/save 不写盘（防写放大，且让 flushAllCaches
+// 里的 flushAppStats 在无计数变更时零成本，不拖累批量收尾时序）
+let statsDirty = false;
 
 const writer = createDebouncedStore({
   name: 'AppID 行为统计',
   debounceMs: 2000,
-  save: () => dataStore.writeModule(DB_KEYS.APP_STATS, statsMemory || {})
+  save: async () => {
+    if (!statsDirty) return;
+    await dataStore.writeModule(DB_KEYS.APP_STATS, statsMemory || {});
+    statsDirty = false;
+  }
 });
+
+// v10.5.0 P1-B：强制立即落盘——纳入 flushAllCaches 聚合兜底（SW 空闲/被杀时不丢窗口内计数）
+// Force an immediate persist so flushAllCaches can cover the app-stats store.
+export async function flushAppStats() {
+  if (!statsDirty) return;
+  await writer.flush();
+}
 
 // 读-改-写串行锁（并发递增不互相覆盖）/ RMW lock (concurrent increments)
 let statsLock = Promise.resolve();
@@ -139,6 +153,7 @@ async function incrementDeduped(appId, field, siteKey) {
     statsMemory[key] = entry;
     enforceLimit();
     bumpDataVersion();
+    statsDirty = true; // v10.5.0 P1-B：有实际计数变更才写盘
     writer.scheduleWrite();
     counted = true;
   });
@@ -183,6 +198,7 @@ export async function getAppStats(appIds) {
 export function resetAppStats() {
   statsMemory = {};
   statsLoaded = true;
+  statsDirty = false; // v10.5.0 P1-B：重置后清脏标记，避免后续 flush 写空快照
   writer.reset && writer.reset();
   dataStore.removeModule(DB_KEYS.APP_STATS).catch(() => {});
 }

@@ -55,7 +55,13 @@ function recordDownload(url, text, method) {
 // 设置下载追踪（打开网盘即视为下载）
 // 策略：全局点击委托（capture 阶段）+ copy 事件捕获（v10.0.0 起不再拦截
 // window.open——隔离世界覆盖对站点自身 JS 无效，见文件头说明）。
-export function setupDownloadTracking() {
+export function setupDownloadTracking(settings = {}) {
+  // v10.5.0 P3：尊重独立开关——此前 tracker 传了 settings 但本函数忽略，导致
+  // downloadTrackingEnabled=false 仍全程追踪（死开关）。默认开启（true/未定义）。
+  if (settings && settings.downloadTrackingEnabled === false) {
+    debug.dbg('下载追踪已关闭（跳过点击/复制捕获）');
+    return;
+  }
   debug.dbg('设置下载追踪...');
 
   // 1. 全局点击委托（capture 阶段，覆盖静态与动态链接）

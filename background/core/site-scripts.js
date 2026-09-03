@@ -11,7 +11,7 @@
  * 跳过（getRegisteredContentScripts 比对 id）。移除站点不做 unregister——
  * tracker 按规则早退兜底（不再追踪的站点零工作）。
  */
-import { getSiteRules } from './rules.js';
+import { getSiteRules, isValidSiteDomain } from './rules.js';
 
 // 注：core 层不依赖 storage（分层约束）——日志用 console（SW 可见）
 
@@ -60,7 +60,11 @@ export async function syncSiteScripts() {
       const rules = /** @type {{ sites?: Array<{ domains?: string[] }> }} */ ((await getSiteRules()) || { sites: [] });
       const customDomains = (rules.sites || [])
         .flatMap((s) => s.domains || [])
-        .filter((d) => d && !BUILTIN_DOMAINS.includes(d));
+        // v10.5.0 P0-C：纵深防御——即便历史/导入规则绕过保存校验，含通配/协议/
+        // 路径的非法主机名也绝不进入 registerContentScripts 匹配模式
+        // Defense-in-depth: reject any non-hostname domain before it becomes a
+        // chrome.scripting match pattern, independent of save-time validation.
+        .filter((d) => isValidSiteDomain(d) && !BUILTIN_DOMAINS.includes(d));
       if (customDomains.length === 0) return;
       const registered = await chrome.scripting.getRegisteredContentScripts().catch(() => []);
       const registeredIds = new Set((registered || []).map((s) => s.id));

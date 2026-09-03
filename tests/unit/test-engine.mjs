@@ -314,3 +314,31 @@ test('computeGameScore：未下载惩罚不产生负推荐值（clamp 0）', () 
   expect(extreme.score).toBeGreaterThanOrEqual(0); // v10.3.0 clamp
   expect(extreme.score).toEqual(0);
 });
+
+// ============ v10.5.0 P2-B：脏权重/脏好评率不得产生 NaN 分 ============
+test('computeGameScore：字符串权重 → 有限分（不 NaN）', () => {
+  const r = computeGameScore({
+    ...base,
+    profile: { views: 8, downloads: 4 },
+    positiveRate: 90,
+    chineseSupported: true,
+    weights: {
+      clickRate: '0.9',
+      downloadRate: '0.9',
+      keywordMatch: '0.5',
+      steamRating: '0.9',
+      playTime: '0.5',
+      heat: '0.5'
+    }
+  });
+  expect(Number.isFinite(r.score)).toEqual(true);
+  expect(r.score).toEqual(0); // 全部权重非法 → 各项 0
+});
+test('computeGameScore：非法好评率字符串 → 有限分', () => {
+  const r = computeGameScore({ ...base, profile: null, positiveRate: 'abc', chineseSupported: false });
+  expect(Number.isFinite(r.score)).toEqual(true);
+});
+test('calculateKeywordScore：忽略非数值权重', () => {
+  expect(calculateKeywordScore(['RPG'], { RPG: '0.5' })).toEqual(null); // 仅字符串权重 → 无有效项
+  expect(calculateKeywordScore(['RPG', 'ACT'], { RPG: '0.5', ACT: 0.8 })).toEqual(0.8); // 只取有限数值
+});

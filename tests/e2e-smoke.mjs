@@ -295,7 +295,6 @@ async function runChecks() {
       await new Promise((r) => setTimeout(r, 500));
       searchOk = await searchPage.evaluate(() => {
         const box = document.getElementById('searchResults');
-        const text = box ? box.textContent : '';
         return !!box && box.querySelectorAll('.search-result-row').length > 0;
       });
     }

@@ -36,6 +36,7 @@ import { handleMessage } from './handlers.js';
 import { refreshFreeGames, getLastNotifyGames } from './freegames/manager.js';
 import { createBackup, restoreLatestIfFresh } from './storage/backups.js';
 import { syncSiteScripts } from './core/site-scripts.js';
+import { flushAllCaches } from './storage/flush.js';
 
 // v9.1.0：SW 启动计时（性能基线——Perf 日志落盘 runtimeLog，可脚本分析）
 const BOOT_START = Date.now();
@@ -174,6 +175,11 @@ async function setupBackupAlarm() {
 }
 setupBackupAlarm().catch((e) => console.error('自动备份定时器初始化失败:', String(e)));
 
+// v10.5.0 P1-B：周期性兜底落盘 alarm（5 分钟）——远大于 2s 防抖窗口，作为脏数据
+// 刷回存储的最低保障（SW 存活空闲时尤其有用）
+// Periodic durability flush (5 min, >> 2s debounce window).
+ensureAlarm('grPeriodicFlush', 5);
+
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {
     refreshFreeGames(true).catch((e) => console.error('限免刷新失败:', String(e)));
@@ -189,6 +195,12 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     import('./steam/ratings-batch.js')
       .then((m) => m.resumeRatingsBatch())
       .catch((e) => console.error('批量好评率续跑失败:', String(e)));
+  }
+  // v10.5.0 P1-B：周期性兜底落盘——SW 存活但空闲（两次操作之间的 2s 防抖窗口）时
+  // 也能把脏数据刷回存储，降低 MV3 SW 被回收导致的写入丢失概率
+  // Periodic durability net: flush dirty debounced stores during idle periods.
+  if (alarm.name === 'grPeriodicFlush') {
+    flushAllCaches().catch((e) => console.error('周期性落盘失败:', String(e)));
   }
 });
 

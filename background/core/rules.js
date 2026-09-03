@@ -81,6 +81,18 @@ const RULE_LIMITS = {
   maxDepth: 6 // 嵌套深度上限 / max nesting depth
 };
 
+// v10.5.0 P0-C：合法裸主机名——导入/自定义站点规则的 domains 会被拼进
+// chrome.scripting 的 `*://<d>/*` 匹配模式，若允许 "*" 或含协议/路径的值即
+// 等价全站注入，必须限定为裸主机名标签（允许 localhost 单标签，也允许
+// example.com 多标签；标签仅小写字母/数字/连字符、首尾非连字符、≤63 字符；
+// 拒绝通配符/协议/路径/端口/空）。
+// Bare-hostname validator: imported domains become chrome.scripting match
+// patterns, so wildcards / scheme / path must be rejected (fleet-level guard).
+export const SITE_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+export function isValidSiteDomain(d) {
+  return typeof d === 'string' && d.length > 0 && d.length <= RULE_LIMITS.maxFieldLen && SITE_DOMAIN_RE.test(d);
+}
+
 // 校验嵌套对象（listPage/listItem 等）：类型白名单 + 深度限制 + 数组条目检查
 // Validate nested objects: type whitelist + depth limit + array-item checks
 function validateNestedObject(siteKey, field, obj, depth) {
@@ -139,8 +151,8 @@ function validateSiteRule(site, depth) {
   if (site.domains.length > RULE_LIMITS.maxDomains)
     return `站点 "${site.key}" domains 超过 ${RULE_LIMITS.maxDomains} 个`;
   for (const d of site.domains) {
-    if (typeof d !== 'string' || !d || d.length > RULE_LIMITS.maxFieldLen) {
-      return `站点 "${site.key}" domains 含非法项`;
+    if (!isValidSiteDomain(d)) {
+      return `站点 "${site.key}" domains 含非法主机名（需为形如 example.com 的裸域名，禁止通配符/协议/路径/端口）`;
     }
   }
   // v3.4.1：正则字段试编译——非法正则会在内容脚本 new RegExp 时抛错

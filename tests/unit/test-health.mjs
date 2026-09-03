@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeAll } from 'vitest';
+import { test, expect, describe } from 'vitest';
 /**
  * 游戏雷达 Game Radar - 测试：健康模块（v10.0.0）
  *

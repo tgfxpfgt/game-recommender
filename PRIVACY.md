@@ -17,7 +17,8 @@
 | 诊断类瞬态数据（API 调用窗口/出站审计/任务检查点） | chrome.storage.session | 会话级诊断，浏览器关闭即清空 |
 
 OPFS（Origin Private File System）、chrome.storage.local 与 chrome.storage.session 均为
-浏览器提供的本地存储，**数据不离开本机**。
+浏览器提供的本地存储，**已存储的数据不离开本机、不上传至任何自有服务器**。仅功能必需的
+第三方源请求（见下节）会按需把"游戏名/AppID 查询"发往对应公开 API。
 
 ## 网络请求
 
@@ -28,7 +29,7 @@ OPFS（Origin Private File System）、chrome.storage.local 与 chrome.storage.s
 - **下载站域名**（6 个内置站点 + 用户导入的自定义站点）：资源检索
 - **限免源**（Epic/GOG/GamerPower）：限免游戏列表
 - **IsThereAnyDeal**（api.isthereanydeal.com，可选）：限免二次校验（用户配置 Key 时）
-- **Bing 搜索**（cn.bing.com，可选）：跨语言匹配兜底（可在设置关闭）
+- **Bing 搜索**（cn.bing.com，**默认关闭**）：跨语言匹配兜底；仅在设置中显式开启后，才会把游戏名作为查询发往 Bing（可在设置随时关闭）
 - **本地 LLM 端点**（可选，用户显式配置的 http(s) 地址）：AI 匹配兜底（默认关闭）
 
 所有请求均经 SSRF 校验（拒绝私有地址/非 http/https）、出站审计与每主机限速。

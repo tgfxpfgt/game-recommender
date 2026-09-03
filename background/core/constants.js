@@ -139,7 +139,8 @@ export const DEFAULT_SETTINGS = {
     epic: true, // 游戏平台：Epic 官方（限免）
     gog: true, // 游戏平台：GOG（限免）
     gamerpower: true, // 聚合源：GamerPower（限免聚合）
-    bing: true // 辅助站：Bing 搜索（appid 匹配兜底）
+    bing: false // 辅助站：Bing 搜索（appid 匹配兜底）——v10.5.0 改为默认关闭，
+    // 开启后会把抓取到的游戏名作为查询发往 cn.bing.com（隐私默认最小化，用户显式开启）
   },
   // v6.4.19：Steam API 获取模块开关——每种信息对应独立缓存与 TTL；
   // 关闭的模块不调用其接口（如关闭好评率则不请求 appreviews）。

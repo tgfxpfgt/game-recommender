@@ -141,7 +141,7 @@ for (const file of jsFiles) {
     if (!m) continue;
     let end = i,
       depth = 0;
-    let text = lines[i].substring(lines[i].indexOf('='));
+    const text = lines[i].substring(lines[i].indexOf('='));
     for (const ch of text) {
       if (ch === '{' || ch === '[' || ch === '(') depth++;
       if (ch === '}' || ch === ']' || ch === ')') depth--;
@@ -191,7 +191,7 @@ let syntaxFail = 0;
 for (const f of jsFiles) {
   try {
     execSync(`node --check "${f}"`, { stdio: 'pipe' });
-  } catch (e) {
+  } catch {
     syntaxFail++;
     console.log('  ❌', path.relative(ROOT, f));
   }
@@ -294,4 +294,75 @@ test('快捷键命令注册（manifest commands + SW onCommand）', () => {
 test('manifest 只注入内置站点 + Steam（无全站匹配）', () => {
   expect(manifestMatches.some((m) => m === 'http://*/*' || m === 'https://*/*')).toEqual(false);
   expect(manifestMatches.filter((m) => m.includes('steampowered.com')).length).toBeGreaterThan(0);
+});
+
+// ============ 8. v10.5.0 安全 / 健壮接线静态断言（防未来静默移除） ============
+const handlersSrc = fs.readFileSync(path.join(BG, 'handlers.js'), 'utf-8');
+const contractSrc = fs.readFileSync(path.join(BG, 'core/message-contract.js'), 'utf-8');
+const rulesSrc = fs.readFileSync(path.join(BG, 'core/rules.js'), 'utf-8');
+const swSrc8 = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
+const loggerSrc8 = fs.readFileSync(path.join(BG, 'storage/logger.js'), 'utf-8');
+
+test('P0-A：sender 来源门已接线（拒绝非扩展页特权 action）', () => {
+  expect(handlersSrc.includes('isTrustedSender')).toEqual(true);
+  expect(handlersSrc.includes('CONTENT_ALLOWED_ACTIONS')).toEqual(true);
+  expect(handlersSrc.includes('forbidden-sender')).toEqual(true);
+});
+test('P0-A：内容白名单不含特权 action', () => {
+  const block = contractSrc.slice(
+    contractSrc.indexOf('CONTENT_ALLOWED_ACTIONS'),
+    contractSrc.indexOf('export function isTrustedSender')
+  );
+  expect(block.includes('SAVE_SETTINGS')).toEqual(false);
+  expect(block.includes('CLEAR_DATA')).toEqual(false);
+  expect(block.includes('TRACK_EVENT')).toEqual(true);
+});
+test('P0-C：站点域名严格校验已接线（裸主机名，防全站注入）', () => {
+  expect(rulesSrc.includes('export function isValidSiteDomain')).toEqual(true);
+  expect(rulesSrc.includes('if (!isValidSiteDomain(d))')).toEqual(true);
+});
+test('P1-B：周期性兜底落盘 alarm 已接线', () => {
+  expect(swSrc8.includes("ensureAlarm('grPeriodicFlush'")).toEqual(true);
+  expect(swSrc8.includes("alarm.name === 'grPeriodicFlush'")).toEqual(true);
+  expect(swSrc8.includes('flushAllCaches')).toEqual(true);
+});
+test('P1-B：日志写失败回滚后重排一次', () => {
+  expect(loggerSrc8.includes('writer.scheduleWrite()')).toEqual(true);
+});
+test('P2-D：每个 MESSAGE_HANDLERS action 都有契约规则（默认拒绝前提）', () => {
+  const hs = handlersSrc.slice(handlersSrc.indexOf('export const MESSAGE_HANDLERS'));
+  const handlerKeys = [...hs.matchAll(/^\s{2}([A-Z][A-Z0-9_]+):\s/gm)].map((m) => m[1]);
+  const ruleKeys = new Set([...contractSrc.matchAll(/^\s{2}([A-Z][A-Z0-9_]+):\s/gm)].map((m) => m[1]));
+  const missing = [...new Set(handlerKeys)].filter((k) => !ruleKeys.has(k));
+  expect(
+    missing,
+    '以下 action 缺契约规则（validateMessage 现默认拒绝，会导致其被挡）:\n  ' + missing.join('\n  ')
+  ).toEqual([]);
+  expect(contractSrc.includes('未契约化')).toEqual(true);
+});
+
+// v10.5.0 P2：存储模块新增需同步 4 处（constants DB_KEYS/DATA_MODULES、data-store
+// MODULE_FILES、reset/backups）。此前漂移静默。此处强制 DATA_MODULES ⊆ DB_KEYS ∩
+// MODULE_FILES——新增模块漏登记即在 check 失败（把"演进税"变成构建护栏）。
+const constantsMod = await import(
+  new URL('../../background/core/constants.js', import.meta.url).href + '?t=' + Date.now()
+);
+const dsSrc = fs.readFileSync(path.join(ROOT, 'data/data-store.js'), 'utf-8');
+const moduleFileKeys = new Set(
+  [...dsSrc.slice(dsSrc.indexOf('const MODULE_FILES')).matchAll(/^\s{2}([A-Za-z0-9_]+):\s*\{\s*file:/gm)].map(
+    (m) => m[1]
+  )
+);
+const dbKeyValues = new Set(Object.values(constantsMod.DB_KEYS));
+test('P2：DATA_MODULES 每个 storageKey 均在 DB_KEYS 值集合中', () => {
+  const bad = constantsMod.DATA_MODULES.filter((m) => !dbKeyValues.has(m.storageKey)).map(
+    (m) => `${m.key}→${m.storageKey}`
+  );
+  expect(bad, 'storageKey 不在 DB_KEYS（漏登记）:\n  ' + bad.join('\n  ')).toEqual([]);
+});
+test('P2：DATA_MODULES 每个 storageKey 均在 MODULE_FILES 中', () => {
+  const bad = constantsMod.DATA_MODULES.filter((m) => !moduleFileKeys.has(m.storageKey)).map(
+    (m) => `${m.key}→${m.storageKey}`
+  );
+  expect(bad, 'storageKey 不在 data-store MODULE_FILES（漏文件映射）:\n  ' + bad.join('\n  ')).toEqual([]);
 });

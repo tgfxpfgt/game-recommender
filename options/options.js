@@ -609,7 +609,26 @@
     // 添加网站
     document.getElementById('addSite').addEventListener('click', () => {
       const input = document.getElementById('newSite');
-      const site = input.value.trim().toLowerCase();
+      // v10.5.0 P0-C：归一 + 严格校验为裸主机名，绝不向 permissions.request 传入
+      // 通配/协议/路径（否则会误授予宽范围 origin）
+      // Normalize to a bare hostname and validate strictly so we never request a
+      // wildcard / malformed origin (least privilege).
+      let raw = input.value.trim().toLowerCase();
+      if (raw.includes('://')) {
+        try {
+          raw = new URL(raw).hostname;
+        } catch {
+          /* 解析失败保留原值，下面正则再拒 / keep raw on parse failure; regex rejects below */
+        }
+      } else {
+        raw = raw.split('/')[0];
+      }
+      const SITE_HOST_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/;
+      const site = raw;
+      if (!SITE_HOST_RE.test(site)) {
+        window.alert('请输入合法域名（形如 example.com 或 localhost，禁止 * / 协议 / 路径 / 端口）');
+        return;
+      }
       if (site && !OPTS.currentSettings.trackedSites.includes(site)) {
         OPTS.currentSettings.trackedSites.push(site);
         // v6.3.0：host_permissions 已收窄到内置域名，自定义站点经

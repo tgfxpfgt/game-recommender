@@ -14,10 +14,12 @@ import { flushUrlIndex } from './url-index.js';
 import { flushWrongReports } from './wrong-reports.js';
 import { flushLearnedNoise } from './learned-noise.js';
 import { flushLogBuffer } from './logger.js';
+import { flushAppStats } from './app-stats.js';
 
 // v9.3.0：聚合落盘全覆盖——此前仅 steam/name-index/registry 三层；
 // url-index（2s 防抖）/wrong-reports/learned-noise/logger（日志缓冲）不在
 // 聚合范围，SW 休眠时存在防抖窗口内写入丢失。download-urls 为即时写（无需）。
+// v10.5.0 P1-B：补 app-stats（2s 防抖计数）纳入聚合，供周期性兜底 flush 全覆盖。
 // Flush every debounced store (SW-suspend safety net for debounce windows).
 export async function flushAllCaches() {
   await flushSteamCache();
@@ -26,5 +28,6 @@ export async function flushAllCaches() {
   await flushUrlIndex();
   await flushWrongReports();
   await flushLearnedNoise();
+  await flushAppStats();
   await flushLogBuffer();
 }

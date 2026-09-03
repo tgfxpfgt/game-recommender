@@ -537,7 +537,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
       listEl.innerHTML = candidates
         .map(
           (c) => `
-          <div class="gr-candidate-item" data-appid="${c.appId}" style="
+          <div class="gr-candidate-item" data-appid="${common.escapeAttr(c.appId)}" style="
             display:flex;align-items:center;gap:10px;padding:8px;margin:4px 0;
             background:rgba(0,0,0,0.2);border:1px solid #2a475e;border-radius:3px;
             cursor:pointer;transition:background 0.2s,border-color 0.2s;
@@ -545,7 +545,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
             ${c.image ? `<img src="${common.escapeAttr(c.image)}" style="width:46px;height:17px;border-radius:2px;flex-shrink:0;">` : ''}
             <div style="flex:1;min-width:0;">
               <div style="font-size:12px;color:#c7d5e0;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(c.name)}</div>
-              <div style="font-size:10px;color:#8f98a0;">App ID: ${c.appId}${c.price !== null && c.price !== undefined ? ` · ¥${c.price}` : ''}</div>
+              <div style="font-size:10px;color:#8f98a0;">App ID: ${esc(c.appId)}${c.price !== null && c.price !== undefined ? ` · ¥${esc(c.price)}` : ''}</div>
             </div>
           </div>
         `

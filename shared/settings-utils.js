@@ -52,7 +52,8 @@
   function goHub(page) {
     const inHub = typeof location !== 'undefined' && location.search && location.search.indexOf('hub=1') !== -1;
     if (inHub && typeof window !== 'undefined' && window.parent !== window) {
-      window.parent.postMessage({ type: 'GR_HUB_SWITCH', page: page || 'options' }, '*');
+      // v10.5.0 P3：定向扩展自身源（父级 hub 与本 iframe 同源），不再用 '*'
+      window.parent.postMessage({ type: 'GR_HUB_SWITCH', page: page || 'options' }, location.origin);
       return;
     }
     if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {

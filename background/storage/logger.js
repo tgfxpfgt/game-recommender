@@ -88,7 +88,10 @@ export function flushLogBuffer() {
       }
     } catch {
       // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
+      // v10.5.0 P1-B：回滚缓冲并重排一次防抖写入——否则这批日志在 SW 空闲/被杀时永久丢失
+      // Roll back the buffer AND reschedule so these logs are not orphaned on SW idle/kill.
       logBuffer = [...pending, ...logBuffer];
+      writer.scheduleWrite();
     }
   });
 }

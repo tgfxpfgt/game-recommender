@@ -84,7 +84,7 @@ test('applyVmFilter 结果 ⊆ 输入且不突变输入数组', () => {
         filterMatchMode: 'contains',
         enableVmFilter: true
       });
-      const inSet = new Set(snapshot);
+      const _inSet = new Set(snapshot);
       const outNames = out.map((i) => i.name);
       // 子集：输出每个名字都来自输入；顺序保持原顺序的子序列
       const filtered = snapshot.filter((n) => outNames.includes(n));

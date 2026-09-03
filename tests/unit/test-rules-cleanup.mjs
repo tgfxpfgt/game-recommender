@@ -123,7 +123,7 @@ const steamEntries = {
   // 旧平铺结构含有效模块字段（25h 前详情，迁移后 detail 仍有效）→ 保留
   5: { data: { appId: '5', url: 'https://x' }, timestamp: now - 25 * 3600e3, version: 6 }
 };
-let steamResult = cleanupMod.collectExpiredSteamCache(steamEntries);
+const steamResult = cleanupMod.collectExpiredSteamCache(steamEntries);
 test('仅删除全过期条目（2 条）', () => {
   expect(steamResult.removed).toEqual(2);
 });

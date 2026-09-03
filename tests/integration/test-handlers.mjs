@@ -299,9 +299,33 @@ test('DELETE_GAME_CACHE_ENTRY 非数字 appId 被拒绝', async () => {
   const resp = await handleMessage({ action: 'DELETE_GAME_CACHE_ENTRY', appId: 'abc' });
   expect(String(resp.error || '').startsWith('invalid-message')).toEqual(true);
 });
-test('未知 action 返回 Unknown action', async () => {
+test('未知 action 被契约默认拒绝（v10.5.0 P2-D）', async () => {
   const resp = await handleMessage({ action: 'NO_SUCH_ACTION' });
-  expect(String(resp.error || '').startsWith('Unknown action')).toEqual(true);
+  expect(String(resp.error || '').startsWith('invalid-message')).toEqual(true);
+});
+
+// ============ 7b. v10.5.0 P0-A：sender 来源门（被注入内容脚本不可发特权 action） ============
+const CONTENT_SENDER = { url: 'https://www.xdgame.com/1.html', tab: { id: 1 } };
+test('内容脚本 sender 发特权 action 被拒（forbidden-sender）', async () => {
+  storage._reset();
+  const resp = await handleMessage({ action: 'SAVE_SETTINGS', settings: { theme: 'evil' } }, CONTENT_SENDER);
+  expect(String(resp.error || '').startsWith('forbidden-sender')).toEqual(true);
+  const resp2 = await handleMessage({ action: 'CLEAR_DATA' }, CONTENT_SENDER);
+  expect(String(resp2.error || '').startsWith('forbidden-sender')).toEqual(true);
+});
+test('内容脚本 sender 发白名单 action 正常放行', async () => {
+  storage._reset();
+  const resp = await handleMessage(
+    { action: 'TRACK_EVENT', data: { type: 'view_list', keywords: [] } },
+    CONTENT_SENDER
+  );
+  expect(resp.success).toEqual(true);
+});
+test('无 sender（扩展页/内部）发特权 action 不受来源门限制', async () => {
+  storage._reset();
+  const resp = await handleMessage({ action: 'SAVE_SETTINGS', settings: { enableRecommendations: true } });
+  expect(String(resp.error || '').startsWith('forbidden-sender')).toEqual(false);
+  expect(resp.success).toEqual(true);
 });
 
 // ============ v7.0.2：详情页网址索引第一候选 ============
@@ -636,6 +660,10 @@ describe('parseBingSearchAppIds（Bing HTML → appid 提取）', () => {
 describe('webSearchFallback（Bing 搜索 → appdetails 校验）', () => {
   const { webSearchFallback } = aiMod;
   let fetchMock, restoreFetch;
+  // v10.5.0 P1-C：bing 默认关闭，本组测试显式开启该数据源作为前置条件
+  beforeAll(() => {
+    seedSettings({ dataSources: { bing: true } });
+  });
 
   test('搜索结果含正确 appid → 校验通过采用（109515 场景，无需 LLM 配置）', async () => {
     fetchMock = createFetchMock({
@@ -710,5 +738,53 @@ describe('GET_STATS 诊断字段（网址索引规模/负缓存条数）', () =>
     expect(typeof resp.urlIndexSize).toEqual('number');
     expect(typeof resp.negativeCacheCount).toEqual('number');
     expect(resp.cacheStats && typeof resp.cacheStats.modules).toEqual('object');
+  });
+});
+
+// ============ v10.5.0 P1-D：数据模块导出/导入与备份/恢复往返（data-modules/backups 覆盖） ============
+describe('数据模块导出/导入与备份/恢复往返', () => {
+  test('GET_DATA_MODULES 返回模块清单', async () => {
+    storage._reset();
+    const resp = await handleMessage({ action: 'GET_DATA_MODULES' });
+    expect(Array.isArray(resp.modules)).toEqual(true);
+    expect(resp.modules.some((m) => 'count' in m && 'key' in m)).toEqual(true);
+  });
+  test('导出 → 清空 → 导入往返（nameIndex 恢复）', async () => {
+    storage._reset();
+    await nameIdx.resetNameIndex();
+    await nameIdx.recordNameIndex('往返游戏', '12345');
+    await nameIdx.flushNameIndex();
+    const ex = await handleMessage({ action: 'EXPORT_DATA' });
+    expect(ex.success).toEqual(true);
+    expect(ex.data && ex.data.modules && ex.data.modules.nameIndex).toBeTruthy();
+    const clr = await handleMessage({ action: 'CLEAR_DATA' });
+    expect(clr.success).toEqual(true);
+    expect(await nameIdx.lookupAppIdByName('往返游戏')).toEqual(null);
+    const im = await handleMessage({ action: 'IMPORT_DATA', data: ex.data });
+    expect(im.success).toEqual(true);
+    expect(im.imported).toContain('nameIndex');
+    expect(await nameIdx.lookupAppIdByName('往返游戏')).toEqual('12345');
+  });
+  test('导入畸形 payload 被拒', async () => {
+    const bad = await handleMessage({ action: 'IMPORT_DATA', data: { format: 'x', version: -1, modules: {} } });
+    expect(bad.success).toEqual(false);
+    expect(typeof bad.error).toEqual('string');
+  });
+  test('创建 → 列举 → 恢复 → 删除备份往返', async () => {
+    storage._reset();
+    await handleMessage({ action: 'SAVE_SETTINGS', settings: { enableRecommendations: true } });
+    const create = await handleMessage({ action: 'CREATE_BACKUP' });
+    expect(create.success).toEqual(true);
+    const id = create.backup && create.backup.id;
+    expect(!!id).toEqual(true);
+    const list = await handleMessage({ action: 'GET_BACKUPS' });
+    expect(Array.isArray(list.backups)).toEqual(true);
+    expect(list.backups.some((b) => b.id === id)).toEqual(true);
+    const restore = await handleMessage({ action: 'RESTORE_BACKUP', backupId: id });
+    expect(restore.success).toEqual(true);
+    const del = await handleMessage({ action: 'DELETE_BACKUP', backupId: id });
+    expect(del.success).toEqual(true);
+    const list2 = await handleMessage({ action: 'GET_BACKUPS' });
+    expect(list2.backups.some((b) => b.id === id)).toEqual(false);
   });
 });

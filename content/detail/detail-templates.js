@@ -69,10 +69,10 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   if (hasSpyData) {
     spyBody = `
         <div style="display:flex;flex-direction:column;gap:4px;font-size:12px;">
-          ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div class="gr-detail-dim">好评率: <span class="gr-detail-blue">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${spy.reviewCount} 条` : ''}</div>` : ''}
-          ${spy.currentPlayers ? `<div class="gr-detail-dim">当前在线: <span class="gr-detail-green">${spy.currentPlayers}</span> 人</div>` : ''}
+          ${spy.positiveRate !== null && spy.positiveRate !== undefined ? `<div class="gr-detail-dim">好评率: <span class="gr-detail-blue">${spy.positiveRate}%</span>${spy.reviewCount ? ` · ${esc(spy.reviewCount)} 条` : ''}</div>` : ''}
+          ${spy.currentPlayers ? `<div class="gr-detail-dim">当前在线: <span class="gr-detail-green">${esc(spy.currentPlayers)}</span> 人</div>` : ''}
           ${spy.owners ? `<div class="gr-detail-dim">拥有者: <span class="gr-detail-strong">${esc(spy.owners)}</span>${spyHeatLabel() ? ` · 热度 <span class="gr-detail-green">${spyHeatLabel()}</span>` : ''}</div>` : ''}
-          ${spy.averagePlaytime ? `<div class="gr-detail-dim">平均时长: <span class="gr-detail-strong">${spy.averagePlaytime}</span></div>` : ''}
+          ${spy.averagePlaytime ? `<div class="gr-detail-dim">平均时长: <span class="gr-detail-strong">${esc(spy.averagePlaytime)}</span></div>` : ''}
         </div>
       `;
   } else {
@@ -147,7 +147,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
               '<span class="gr-detail-rate-desc" style="color:' +
               color +
               '">' +
-              desc +
+              esc(desc) +
               '</span>' +
               '</div>' +
               '<div class="gr-detail-rate-bar"><div class="gr-detail-rate-fill" style="width:' +

@@ -27,8 +27,11 @@ export function calculateKeywordScore(keywords, keywordWeights) {
   let matchScore = 0;
   let matchCount = 0;
   keywords.forEach((kw) => {
-    if (keywordWeights[kw] !== undefined) {
-      matchScore += keywordWeights[kw];
+    const w = keywordWeights[kw];
+    // v10.5.0 P2-B：仅累加有限数值权重，防脏数据（字符串/NaN）污染均值
+    // Only accumulate finite numeric weights (guard against corrupt disk data).
+    if (typeof w === 'number' && Number.isFinite(w)) {
+      matchScore += w;
       matchCount++;
     }
   });
@@ -180,6 +183,12 @@ export function computeGameScore({
   }
   const views = profile ? profile.views || 0 : 0;
   const downloads = profile ? profile.downloads || 0 : 0;
+  // v10.5.0 P2-B：权重取值一律过有限数值门（缺失/字符串/NaN → 0），防脏权重产 NaN 分
+  // Every weight is coerced through a finite-number gate (missing/string/NaN → 0).
+  const W = (key) => {
+    const v = weights[key];
+    return typeof v === 'number' && Number.isFinite(v) ? v : 0;
+  };
   // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）
   const clickScore = (globalStats.maxViews || 0) > 0 ? Math.min(views / (globalStats.maxViews || 1), 1) : 0;
   const downloadScore =
@@ -189,8 +198,9 @@ export function computeGameScore({
   const keywordScore = kw !== null ? kw : 0.3;
   // 3. Steam 信号：好评率 70% + 中文支持 30%
   let steamScore = 0.4;
-  if (positiveRate !== null && positiveRate !== undefined) {
-    steamScore = Math.min((positiveRate / 100) * 0.7 + (chineseSupported ? 0.3 : 0), 1);
+  const pr = Number(positiveRate);
+  if (positiveRate !== null && positiveRate !== undefined && Number.isFinite(pr)) {
+    steamScore = Math.min((pr / 100) * 0.7 + (chineseSupported ? 0.3 : 0), 1);
   }
   // 4. SteamSpy 信号：时长/热度（缺省中性 0.3）
   const pTime = playTimeScore !== null && playTimeScore !== undefined ? playTimeScore : 0.3;
@@ -198,29 +208,30 @@ export function computeGameScore({
   // 5. AppID 行为统计信号（v10.1.0）：a>0 正向 / a=0 且 b>0 负向（b 越大越不推荐）
   const { downloadStat, viewPenalty } = appStatScores(appDownloads, appDetailViews, appStatCaps);
   const finalScore =
-    clickScore * (weights.clickRate || 0) +
-    downloadScore * (weights.downloadRate || 0) +
-    keywordScore * (weights.keywordMatch || 0) +
-    steamScore * (weights.steamRating || 0) +
-    pTime * (weights.playTime || 0) +
-    heat * (weights.heat || 0) +
-    downloadStat * (weights.appStatDownload || 0) +
-    viewPenalty * (weights.appStatDetailView || 0);
+    clickScore * W('clickRate') +
+    downloadScore * W('downloadRate') +
+    keywordScore * W('keywordMatch') +
+    steamScore * W('steamRating') +
+    pTime * W('playTime') +
+    heat * W('heat') +
+    downloadStat * W('appStatDownload') +
+    viewPenalty * W('appStatDetailView');
   // v6.4.10：权重和超 1 时归一化（用户可配置任意权重，保证评分不超 100%）
   // v10.1.0：负向 appStatDetailView 分量不参与"权重和"归一（它是惩罚项，
   // 若计入会把惩罚稀释掉）——仅累计正向权重
   const weightSum =
-    (weights.clickRate || 0) +
-    (weights.downloadRate || 0) +
-    (weights.keywordMatch || 0) +
-    (weights.steamRating || 0) +
-    (weights.playTime || 0) +
-    (weights.heat || 0) +
-    (weights.appStatDownload || 0);
+    W('clickRate') +
+    W('downloadRate') +
+    W('keywordMatch') +
+    W('steamRating') +
+    W('playTime') +
+    W('heat') +
+    W('appStatDownload');
   // v10.3.0：clamp 到 [0,1]——未下载惩罚（负分量）可能把分数推为负数，
   // 负推荐值无意义（徽章显示异常），下限 0
   const normalized = weightSum > 1 ? finalScore / weightSum : finalScore;
-  const clamped = Math.min(1, Math.max(0, normalized));
+  // v10.5.0 P2-B：非有限结果（理论上已被上游门挡住）兜底为 0，绝不产出 NaN 分
+  const clamped = Number.isFinite(normalized) ? Math.min(1, Math.max(0, normalized)) : 0;
   return {
     score: Math.round(clamped * 100) / 100,
     breakdown: {
@@ -402,6 +413,9 @@ function parseLLMResponse(text) {
     const jsonMatch = text.match(/\{[\s\S]*?"score"[\s\S]*?\}/);
     if (jsonMatch) {
       const parsed = JSON.parse(jsonMatch[0]);
+      // v10.5.0 P2-B：score 必须是有限数值，否则视为解析失败（NaN 会被缓存 7 天）
+      // A non-finite score must not be cached — treat as parse failure.
+      if (typeof parsed.score !== 'number' || !Number.isFinite(parsed.score)) return null;
       return {
         score: Math.max(0, Math.min(1, parsed.score)),
         reason: parsed.reason || '',

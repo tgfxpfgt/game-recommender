@@ -50,7 +50,8 @@ export default defineConfig({
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',
-      'tests/integration/test-integrity.mjs'
+      'tests/integration/test-integrity.mjs',
+      'tests/integration/test-data-store-opfs.mjs'
     ],
     server: {
       deps: {
@@ -58,6 +59,18 @@ export default defineConfig({
         //（vite-node 转换会与测试的直接 import 分裂，导致全局状态互不可见）
         inline: [/\/content\//, /\/background\//]
       }
+    },
+    // v10.5.0 P1-D：all:true 修复"覆盖率假象"——此前只统计测试恰好加载到的
+    // 模块，27 个从未加载的文件被隐藏。开启后 npm run coverage 反映全量真实覆盖。
+    coverage: {
+      provider: 'v8',
+      all: true,
+      include: ['background/**/*.js', 'content/**/*.js', 'shared/**/*.js', 'adapters/**/*.js', 'data/**/*.js'],
+      reporter: ['text', 'json-summary'],
+      // v10.5.0 P1-D：全局硬下限——基于全量真实覆盖（lines ≈ 66%）留 ~4pt 余量，
+      // 防止新增未测代码拉低整体；随测试补齐逐步上调（ratchet）。
+      // Global floor from measured all-in coverage (~66% lines) with headroom.
+      thresholds: { lines: 62, statements: 60, functions: 60, branches: 54 }
     },
     testTimeout: 120000
   }

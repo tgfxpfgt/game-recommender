@@ -110,8 +110,21 @@ const RULES = {
   },
   DELETE_BACKUP: idRule('DELETE_BACKUP.backupId'),
   // 设置透传：必须是纯对象（避免数组/null 入库）
-  SAVE_SETTINGS: (m) =>
-    isPlainObject(m && m.settings) ? { ok: true } : { error: 'SAVE_SETTINGS.settings 必须是对象' },
+  SAVE_SETTINGS: (m) => {
+    const s = m && m.settings;
+    if (!isPlainObject(s)) return { error: 'SAVE_SETTINGS.settings 必须是对象' };
+    // v10.5.0 P2-B：weights 组每个值必须是有限数值（防字符串/NaN 权重产 NaN 分）
+    // Every weights value must be a finite number (guards against NaN scores).
+    if (s.weights !== undefined && s.weights !== null) {
+      if (!isPlainObject(s.weights)) return { error: 'SAVE_SETTINGS.settings.weights 必须是对象' };
+      for (const [k, v] of Object.entries(s.weights)) {
+        if (typeof v !== 'number' || !Number.isFinite(v)) {
+          return { error: `SAVE_SETTINGS.settings.weights.${k} 必须是有限数值` };
+        }
+      }
+    }
+    return { ok: true };
+  },
   // ---- v4.1.0 第二批（读字段但此前零校验 + 有崩溃风险）----
   GET_RECOMMENDATIONS: (m) => {
     const games = m && m.games;
@@ -229,13 +242,75 @@ const RULES = {
     if (typeof m.siteKey !== 'string' || m.siteKey.length > 64) return { error: 'SITE_ADAPTER_ALERT.siteKey 非法' };
     if (typeof m.host !== 'string' || m.host.length > 255) return { error: 'SITE_ADAPTER_ALERT.host 非法' };
     return { ok: true };
-  }
+  },
+  // v10.5.0 P2-D：补齐两处遗漏，使默认拒绝安全
+  LOG_PERF: (m) => {
+    if (!optStr(m && m.source, 64)) return { error: 'LOG_PERF.source 可选字符串（≤64）' };
+    if (!optStr(m && m.metric, 64)) return { error: 'LOG_PERF.metric 可选字符串（≤64）' };
+    const d = m && m.durationMs;
+    if (d !== undefined && d !== null && (typeof d !== 'number' || !Number.isFinite(d) || d < 0)) {
+      return { error: 'LOG_PERF.durationMs 可选非负数值' };
+    }
+    return { ok: true };
+  },
+  OPEN_HUB: () => ({ ok: true })
 };
 
-// 统一校验入口：未契约化 action 放行 / unified entry; uncovered actions pass
+// 统一校验入口：未契约化 action **默认拒绝**（v10.5.0 P2-D 收紧——此前未覆盖
+// 一律放行是隐患面；新增 action 必须在 RULES 补规则，对齐 AGENTS.md 铁律 #7）
+// Unified entry: uncontracted actions are now DENIED (fail-closed).
 export function validateMessage(action, msg) {
   const rule = RULES[action];
-  if (!rule) return { ok: true };
+  if (!rule) return { ok: false, error: `未契约化的 action（需在 message-contract.js RULES 登记）: ${action}` };
   const r = rule(msg);
   return r.ok ? { ok: true } : { ok: false, error: r.error };
+}
+
+/**
+ * v10.5.0 P0-A：内容脚本可发 action 白名单 / content-script action allowlist.
+ *
+ * 非扩展页来源（内容脚本 http 源）仅允许发起以下读/埋点 action；其余特权
+ * action（SAVE_SETTINGS / RESET_SETTINGS / CLEAR_DATA / IMPORT_DATA /
+ * SAVE_ADAPTER_RULES / CREATE_BACKUP / RESTORE_BACKUP / OPEN_HUB …）必须来自
+ * 扩展页或内部调用。与 content/ 侧 window.__GR_MSG__.sendMessage 的字面 action
+ * 集保持一致——新增内容侧 action 时须同步加入本集合（否则该内容 action 被拒）。
+ * Web-origin (content-script) senders may only invoke the read/telemetry actions
+ * below; privileged actions require an extension-page or internal sender.
+ */
+export const CONTENT_ALLOWED_ACTIONS = new Set([
+  'CACHE_STEAM_PAGE',
+  'CLEAR_CACHE_FOR_PAGE',
+  'GET_ADAPTER_RULES',
+  'GET_DOWNLOAD_HISTORY',
+  'GET_RECOMMENDATIONS',
+  'GET_SETTINGS',
+  'GET_STEAM_BY_APPID',
+  'GET_STEAM_RATINGS',
+  'LOG_PERF',
+  'PREFETCH_STEAM_RATINGS',
+  'RECORD_DOWNLOAD_URLS_BATCH',
+  'REFRESH_STEAM_CACHE',
+  'REPORT_WRONG_APPID',
+  'SAVE_MANUAL_MAPPING',
+  'SEARCH_DOWNLOAD_SITES',
+  'SEARCH_STEAM',
+  'SEARCH_STEAM_CANDIDATES',
+  'SITE_ADAPTER_ALERT',
+  'TRACK_DOWNLOAD_SITE_VISIT',
+  'TRACK_EVENT'
+]);
+
+/**
+ * sender 是否可信（扩展页 / 内部调用）/ whether the sender is trusted.
+ * 纯函数，extOrigin 由调用方（handlers）注入，便于单测。规则：
+ *  - 无 sender 或无 url：视为内部/CLI/测试直调 → 可信（内容脚本一定有 http url）；
+ *  - url 以扩展自身 origin（chrome-extension://<id>/）开头 → 扩展页，可信；
+ *  - 其余（如内容脚本注入页的 http(s) url）→ 不可信，仅可发白名单 action。
+ * No url is treated as an internal/test caller; extension-origin urls are
+ * trusted; any other origin (a content script's host page) is untrusted.
+ */
+export function isTrustedSender(sender, extOrigin) {
+  const url = sender && sender.url;
+  if (!url) return true;
+  return typeof extOrigin === 'string' && extOrigin.length > 0 && url.startsWith(extOrigin);
 }

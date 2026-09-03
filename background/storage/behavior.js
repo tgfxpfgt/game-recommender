@@ -16,6 +16,12 @@ import { getSettings } from '../core/settings.js';
 /** @type {{log: Array<Object>|null, profiles: Object|null, keywordWeights: Object|null}} */
 let behaviorCache = { log: null, profiles: null, keywordWeights: null };
 let dataVersion = 0;
+
+// v10.5.0 P2-A：游戏画像上限（对齐 name-index LRU）——doUpdateGameProfile 每次
+// 事件全量重写画像，无上限会同时造成存储无界增长 + 写放大。超限时按 lastSeen
+// 淘汰最旧且非高价值（未下载、非不感兴趣）的画像。
+// Cap game-profiles growth (LRU by lastSeen) to bound storage size + write amp.
+const GAME_PROFILES_MAX_ENTRIES = 5000;
 export function getDataVersion() {
   return dataVersion;
 }
@@ -134,6 +140,22 @@ async function doUpdateGameProfile(gameInfo) {
   if (gameInfo.steamAppId) profile.steamAppId = gameInfo.steamAppId;
   if (gameInfo.steamRating) profile.steamRating = gameInfo.steamRating;
   profile.lastSeen = Date.now();
+
+  // v10.5.0 P2-A：画像超限 LRU 淘汰——按 lastSeen 升序删最旧且非高价值项
+  // （保留有下载或不感兴趣的画像：它们是推荐算法的有效信号）。
+  // Bound profiles: evict oldest non-valuable entries by lastSeen when over cap.
+  const pk = Object.keys(profiles);
+  if (pk.length > GAME_PROFILES_MAX_ENTRIES) {
+    let toRemove = pk.length - GAME_PROFILES_MAX_ENTRIES;
+    pk.sort((a, b) => (profiles[a].lastSeen || 0) - (profiles[b].lastSeen || 0));
+    for (const k of pk) {
+      if (toRemove <= 0) break;
+      const p = profiles[k];
+      if (p && (p.disliked || (p.downloads || 0) > 0)) continue; // 高价值保留
+      delete profiles[k];
+      toRemove--;
+    }
+  }
 
   await dataStore.writeModule(DB_KEYS.GAME_PROFILES, profiles);
   behaviorCache.profiles = profiles; // v7.0.4：写回内存缓存（读写一致）

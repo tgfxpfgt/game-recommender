@@ -1,4 +1,4 @@
-import { test, expect, describe, afterAll } from 'vitest';
+import { test, expect, describe } from 'vitest';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 /**
  * 游戏雷达 Game Radar - 测试：Steam API 纯函数 / Steam API Pure Functions

@@ -278,6 +278,45 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.5.0（安全加固 / 隐私默认 / 测试可信度 / 健壮性——独立审计报告全量落地）
+
+**安全（P0）**
+
+- **消息分发新增 sender 来源门**（`handlers.js` + `message-contract.js`）：非扩展页来源（内容脚本 http 源）仅可发白名单读/埋点 action，被注入内容脚本无法再伪造 `SAVE_SETTINGS`/`CLEAR_DATA`/`IMPORT_DATA`/`SAVE_ADAPTER_RULES` 等特权 action（拒绝返回 `forbidden-sender`）。附伪造 sender 集成回归。
+- **内容脚本转义补齐**：详情页 `ratingDesc`/SteamSpy 文本字段、候选项 `data-appid`/价格全部走 `esc`/`escapeAttr`；二维码解码链接改 `new URL` 仅放行 http(s)，杜绝 `javascript:`/`data:` 伪协议跳转。
+- **站点域名严格校验（最小权限）**：导入/自定义规则 `domains` 必须为裸主机名（`isValidSiteDomain` 拒绝通配符/协议/路径/端口），`site-scripts` 注册前二次校验、options 添加站点前归一+校验，堵住"加一个站=全站注入"。
+
+**隐私（P1-C）**
+
+- **Bing 搜索兜底默认关闭**（`dataSources.bing:false`）：开启才会把游戏名作为查询发往 cn.bing.com，改为显式启用；PRIVACY 相应说明"已存数据不出本机、仅第三方源查询按需外发"。
+
+**健壮与测试可信度（P1-A/B/D）**
+
+- **OPFS 写路径集成测试**：新增内存假 OPFS 套件真实驱动 `dataStore` 写/追加/删除/损坏恢复（此前单测仅覆盖 storage.local 回退路径）。
+- **生命周期兜底落盘**：新增 5 分钟 `grPeriodicFlush` alarm 聚合刷盘；`flushAllCaches` 纳入 app-stats；logger 写失败回滚后重排一次；app-stats 加脏标记（防写放大 + 不拖累批量收尾时序）。
+- **覆盖率"去假象"**：vitest `coverage.all:true` 纳入全部源文件 + 设全局硬下限（lines62/stmt60/func60/branch54），CI 新增全量下限步骤与发布 zip 构建冒烟校验步骤；`eslint` 纳入 `.mjs` 测试（错误级正确性规则）。新增备份/导出/导入往返、数据模块清单等集成测试。全量真实覆盖 lines≈67%。
+
+**契约与持久化（P2）**
+
+- **消息契约默认拒绝**：未登记 action 一律拒绝（补 LOG_PERF/OPEN_HUB），`test-integrity` 断言每个 handler 都有契约规则；`SAVE_SETTINGS.weights` 值必须为有限数值。
+- **推荐引擎 NaN 防护**：权重/好评率/LLM 分数落库与计算前 `Number.isFinite` 校验，脏数据不再产出 NaN 分。
+- **存储模块一致性护栏**：`test-integrity` 断言 DATA_MODULES ⊆ DB_KEYS ∩ MODULE_FILES（新增模块漏同步即失败）；游戏画像 LRU 上限（5000，保留下载/不感兴趣高价值项）。
+- **列表消费方不再静默降级**：`GET_STEAM_RATINGS` 被拒/失败时显式告警。
+
+**性能与清理（P2-C/P3）**
+
+- 列表发现观察器跳过扩展自身注入节点（`data-gr-self` 标记，避免反馈回环）。
+- **修复 downloadTrackingEnabled 死开关**（v10.4.2 同类）：关闭后不再接线点击/复制追踪。
+- hub `message` 监听加同源校验；`goHub` postMessage 目标由 `*` 收敛为扩展自身源。
+- vendored 第三方库（qrcode-reader v1.0.0 / Apache-2.0）已有版本与来源标注，保持固定。
+
+**已知取舍 / 后续（诚实记录，未纳入本版）**
+
+- 统一响应信封 `{ok,data|error}`（全量改写 handler + UI 消费方，改动面过大，建议独立版本）；
+- 数据层读路径入写队列 / `restoreBackup` 全事务化（核心存储高风险，现有 `.corrupt` 备份 + 恢复前安全网备份已缓解，风险可控，另立专项）；
+- 视觉基线跨 OS/字体矩阵（Windows runner 成本对单人项目不划算，维持 Linux CI + 手动 `--update`）；
+- 分层依赖 ESLint 化——实际已由 `test-integrity` 的 `ALLOWED` 矩阵（0 违规）强制，未重复实现。
+
 ### v10.4.3（修复：a-b 徽章对所有已解析游戏渲染）
 
 - **a-b 徽章此前仅对"有行为记录"的游戏渲染**（appDownloads 字段存在判定）——计数自 v10.1.0 起才积累，多数游戏无记录 → 徽章不显示。现改为**所有已解析 appId 的游戏都渲染**（原始需求「每个游戏链接增加一个徽章」）：无记录显示灰色 0-0，tooltip 提示"打开详情页/下载后开始计数"

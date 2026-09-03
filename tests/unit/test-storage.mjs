@@ -16,7 +16,7 @@ import { createStorageMock, installChromeStorageMock } from '../helpers/storage-
 
 // OPFS 不可用 → dataStore 降级 chrome.storage.local（统一 mock）
 const storage = createStorageMock();
-const restoreChrome = installChromeStorageMock(storage);
+const _restoreChrome = installChromeStorageMock(storage);
 
 const wrongMod = await import(
   new URL('../../background/storage/wrong-reports.js', import.meta.url).href + '?t=' + Date.now()
@@ -177,6 +177,26 @@ test('裁剪保留最新（末条为最后写入）', async () => {
   const log = await behMod.getBehaviorLog();
   expect(log[log.length - 1].gameName).toEqual('游戏2');
 });
+
+// v10.5.0 P2-A：游戏画像 LRU 上限（保留下载/不感兴趣高价值项）
+const { DB_KEYS } = await import(new URL('../../background/core/constants.js', import.meta.url).href);
+test('gameProfiles 超限 LRU 淘汰（下载/不感兴趣受保护）', async () => {
+  const CAP = 5000;
+  const big = {};
+  for (let i = 0; i < CAP; i++)
+    big['旧' + i] = { name: '旧' + i, views: 1, downloads: 0, keywords: [], lastSeen: 10000 + i };
+  big['高价值下载'] = { name: '高价值下载', views: 1, downloads: 5, keywords: [], lastSeen: 1 }; // 最旧但有下载
+  big['不感兴趣'] = { name: '不感兴趣', views: 1, downloads: 0, disliked: true, keywords: [], lastSeen: 2 }; // 最旧但不感兴趣
+  storage._reset({ [DB_KEYS.GAME_PROFILES]: big });
+  if (behMod.resetBehaviorMemory) behMod.resetBehaviorMemory();
+  await behMod.updateGameProfile({ name: '新游戏', event: 'view' });
+  const profs = await behMod.readProfiles();
+  expect(Object.keys(profs).length).toEqual(CAP);
+  expect(!!profs['新游戏']).toEqual(true);
+  expect(!!profs['高价值下载']).toEqual(true);
+  expect(!!profs['不感兴趣']).toEqual(true);
+});
+
 await behMod.updateGameProfile({ name: '无人深空', event: 'view' });
 await behMod.updateGameProfile({ name: '无人深空', event: 'download' });
 

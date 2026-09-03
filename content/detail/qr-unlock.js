@@ -11,7 +11,6 @@
  * Auto-decodes QR images on download-site pages and renders the decoded
  * link next to the QR (clickable + copy button). Lazy-loads the decoder.
  */
-import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
 
 const dbg = (...a) => debug.dbg(...a);
@@ -95,11 +94,21 @@ function insertResult(el, url) {
 
   const link = document.createElement('a');
   link.className = 'gr-qr-link';
-  link.href = common.escapeAttr(url);
+  // 解码结果是攻击者可控输入——仅接受 http(s)，拒绝 javascript:/data: 等伪协议
+  // v10.5.0：此前把 escapeAttr 赋给 href 属性（既破坏 & 又放行伪协议）
+  // Decoded QR text is attacker-controlled: allow only http(s) schemes.
+  let safeHref = '';
+  try {
+    const parsed = new URL(url);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') safeHref = parsed.href;
+  } catch {
+    /* 非法 URL → 不设置 href / invalid URL: leave href unset */
+  }
+  if (safeHref) link.href = safeHref;
   link.target = '_blank';
   link.rel = 'noopener';
   link.textContent = `🔗 二维码链接: ${url.length > 60 ? url.slice(0, 60) + '…' : url}`;
-  link.title = '二维码解码结果（点击打开）';
+  link.title = safeHref ? '二维码解码结果（点击打开）' : '二维码解码结果（非 http 链接，不提供跳转）';
 
   const copyBtn = document.createElement('button');
   copyBtn.className = 'gr-qr-copy';

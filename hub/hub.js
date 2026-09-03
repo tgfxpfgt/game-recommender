@@ -54,6 +54,8 @@ document.querySelectorAll('.hub-item').forEach((btn) => {
 
 // 子页面请求切换（goHub 在 iframe 内发 postMessage）
 window.addEventListener('message', (e) => {
+  // v10.5.0 P3：仅接受同源（扩展 origin）消息——hub 与子 iframe 同为 chrome-extension 源
+  if (e.origin !== location.origin) return;
   if (e.data && e.data.type === 'GR_HUB_SWITCH' && PAGES[e.data.page]) {
     switchPage(e.data.page);
   }

@@ -5,28 +5,56 @@ import { test, expect } from 'vitest';
  * v4.2.0：classifyGamerPowerGiveaway（官方直领 vs 第三方 key 领取）与
  * extractThirdPartySource（来源识别）——v4.1.0 起已导出纯函数。
  */
-'use strict';
-
+('use strict');
 
 const mod = await import(new URL('../../background/freegames/manager.js', import.meta.url).href + '?t=' + Date.now());
 const { classifyGamerPowerGiveaway, extractThirdPartySource } = mod;
 
-test('无 key 标记 → direct', () => { expect(classifyGamerPowerGiveaway({ title: '某游戏', instructions: '登录 Epic 领取' })).toEqual('direct'); });
-test('标题含 key → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'Free Game Key', instructions: '' })).toEqual('thirdparty'); });
-test('instructions 含 alienware → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Get your key at Alienware Arena' })).toEqual('thirdparty'); });
-test('instructions 含 redeem your key → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Redeem your key on Steam' })).toEqual('thirdparty'); });
-test('instructions 含 humble bundle → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Claim on Humble Bundle' })).toEqual('thirdparty'); });
-test('instructions 含 fanatical → thirdparty', () => { expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Your free key at Fanatical' })).toEqual('thirdparty'); });
-test('空对象 → direct', () => { expect(classifyGamerPowerGiveaway({})).toEqual('direct'); });
-test('大小写不敏感', () => { expect(classifyGamerPowerGiveaway({ title: 'FREE GAME KEY', instructions: '' })).toEqual('thirdparty'); });
+test('无 key 标记 → direct', () => {
+  expect(classifyGamerPowerGiveaway({ title: '某游戏', instructions: '登录 Epic 领取' })).toEqual('direct');
+});
+test('标题含 key → thirdparty', () => {
+  expect(classifyGamerPowerGiveaway({ title: 'Free Game Key', instructions: '' })).toEqual('thirdparty');
+});
+test('instructions 含 alienware → thirdparty', () => {
+  expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Get your key at Alienware Arena' })).toEqual(
+    'thirdparty'
+  );
+});
+test('instructions 含 redeem your key → thirdparty', () => {
+  expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Redeem your key on Steam' })).toEqual('thirdparty');
+});
+test('instructions 含 humble bundle → thirdparty', () => {
+  expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Claim on Humble Bundle' })).toEqual('thirdparty');
+});
+test('instructions 含 fanatical → thirdparty', () => {
+  expect(classifyGamerPowerGiveaway({ title: 'X', instructions: 'Your free key at Fanatical' })).toEqual('thirdparty');
+});
+test('空对象 → direct', () => {
+  expect(classifyGamerPowerGiveaway({})).toEqual('direct');
+});
+test('大小写不敏感', () => {
+  expect(classifyGamerPowerGiveaway({ title: 'FREE GAME KEY', instructions: '' })).toEqual('thirdparty');
+});
 
-test('alienware → Alienware Arena', () => { expect(extractThirdPartySource({ instructions: 'claim at Alienware' })).toEqual('Alienware Arena'); });
-test('indiegala → IndieGala', () => { expect(extractThirdPartySource({ instructions: 'get key at IndieGala' })).toEqual('IndieGala'); });
-test('humble → Humble Bundle', () => { expect(extractThirdPartySource({ instructions: 'redeem on humble bundle' })).toEqual('Humble Bundle'); });
-test('fanatical → Fanatical', () => { expect(extractThirdPartySource({ instructions: 'key via Fanatical' })).toEqual('Fanatical'); });
-test('未知来源 → 第三方平台', () => { expect(extractThirdPartySource({ instructions: 'something else' })).toEqual('第三方平台'); });
-test('无 instructions → 第三方平台', () => { expect(extractThirdPartySource({})).toEqual('第三方平台'); });
-
+test('alienware → Alienware Arena', () => {
+  expect(extractThirdPartySource({ instructions: 'claim at Alienware' })).toEqual('Alienware Arena');
+});
+test('indiegala → IndieGala', () => {
+  expect(extractThirdPartySource({ instructions: 'get key at IndieGala' })).toEqual('IndieGala');
+});
+test('humble → Humble Bundle', () => {
+  expect(extractThirdPartySource({ instructions: 'redeem on humble bundle' })).toEqual('Humble Bundle');
+});
+test('fanatical → Fanatical', () => {
+  expect(extractThirdPartySource({ instructions: 'key via Fanatical' })).toEqual('Fanatical');
+});
+test('未知来源 → 第三方平台', () => {
+  expect(extractThirdPartySource({ instructions: 'something else' })).toEqual('第三方平台');
+});
+test('无 instructions → 第三方平台', () => {
+  expect(extractThirdPartySource({})).toEqual('第三方平台');
+});
 
 // ============ 2. 限免抓取与领取主体（v6.3.0 盲区补强） ============
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
@@ -38,19 +66,49 @@ installChromeStorageMock(storage);
 test('refreshFreeGames 聚合四源并去重', async () => {
   storage._reset();
   const fetchMock = createFetchMock({
-    'freeGamesPromotions': {
-      data: { Catalog: { searchStore: { elements: [
-        {
-          id: 'epic1', title: '免费游戏A', productSlug: 'game-a',
-          promotions: { promotionalOffers: [{ promotionalOffers: [{ startDate: new Date(Date.now() - 86400e3).toISOString(), endDate: new Date(Date.now() + 86400e3).toISOString() }] }] },
-          keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/a.jpg' }]
+    freeGamesPromotions: {
+      data: {
+        Catalog: {
+          searchStore: {
+            elements: [
+              {
+                id: 'epic1',
+                title: '免费游戏A',
+                productSlug: 'game-a',
+                promotions: {
+                  promotionalOffers: [
+                    {
+                      promotionalOffers: [
+                        {
+                          startDate: new Date(Date.now() - 86400e3).toISOString(),
+                          endDate: new Date(Date.now() + 86400e3).toISOString()
+                        }
+                      ]
+                    }
+                  ]
+                },
+                keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/a.jpg' }]
+              }
+            ]
+          }
         }
-      ] } } }
+      }
     },
     'ajax/filtered': { products: [{ title: '免费游戏B', url: '/game/b', image: 'https://img.gog.com/b.jpg' }] },
-    'featuredcategories': { specials: { items: [{ id: 999, name: '免费游戏C', final_price: 0, large_capsule_image: 'https://cdn.steam.com/c.jpg' }] } },
+    featuredcategories: {
+      specials: {
+        items: [{ id: 999, name: '免费游戏C', final_price: 0, large_capsule_image: 'https://cdn.steam.com/c.jpg' }]
+      }
+    },
     'api/giveaways': [
-      { id: 1001, title: '免费游戏D', platforms: 'Epic Games', thumbnail: 'https://img.gp.com/d.jpg', instructions: '登录 Epic 领取', open_giveaway_url: 'https://www.gamerpower.com/click/1001' }
+      {
+        id: 1001,
+        title: '免费游戏D',
+        platforms: 'Epic Games',
+        thumbnail: 'https://img.gp.com/d.jpg',
+        instructions: '登录 Epic 领取',
+        open_giveaway_url: 'https://www.gamerpower.com/click/1001'
+      }
     ]
   });
   const restoreFetch = installFetchMock(fetchMock);
@@ -87,7 +145,7 @@ test('force 强制刷新（突破一天缓存）', async () => {
   storage._reset({
     freeGames: { lastUpdate: Date.now() - 3600e3, games: [] }
   });
-  const fetchMock = createFetchMock({ 'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [] } } } } });
+  const fetchMock = createFetchMock({ freeGamesPromotions: { data: { Catalog: { searchStore: { elements: [] } } } } });
   const restoreFetch = installFetchMock(fetchMock);
   try {
     const result = await mod.refreshFreeGames(true);
@@ -112,7 +170,14 @@ test('第三方 URL 协议白名单净化（恶意协议拒绝）', async () => 
   storage._reset();
   const fetchMock = createFetchMock({
     'api/giveaways': [
-      { id: 2001, title: '恶意游戏', platforms: 'Epic Games', thumbnail: 'javascript:alert(1)', instructions: '登录领取', open_giveaway_url: 'javascript:alert(2)' }
+      {
+        id: 2001,
+        title: '恶意游戏',
+        platforms: 'Epic Games',
+        thumbnail: 'javascript:alert(1)',
+        instructions: '登录领取',
+        open_giveaway_url: 'javascript:alert(2)'
+      }
     ]
   });
   const restoreFetch = installFetchMock(fetchMock);
@@ -134,14 +199,33 @@ test('新限免触发推送通知（聚合一条）', async () => {
   const notified = [];
   globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
   const fetchMock = createFetchMock({
-    'freeGamesPromotions': {
-      data: { Catalog: { searchStore: { elements: [
-        {
-          id: 'new1', title: '新限免A', productSlug: 'new-a',
-          promotions: { promotionalOffers: [{ promotionalOffers: [{ startDate: new Date(Date.now() - 3600e3).toISOString(), endDate: new Date(Date.now() + 86400e3).toISOString() }] }] },
-          keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/new-a.jpg' }]
+    freeGamesPromotions: {
+      data: {
+        Catalog: {
+          searchStore: {
+            elements: [
+              {
+                id: 'new1',
+                title: '新限免A',
+                productSlug: 'new-a',
+                promotions: {
+                  promotionalOffers: [
+                    {
+                      promotionalOffers: [
+                        {
+                          startDate: new Date(Date.now() - 3600e3).toISOString(),
+                          endDate: new Date(Date.now() + 86400e3).toISOString()
+                        }
+                      ]
+                    }
+                  ]
+                },
+                keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/new-a.jpg' }]
+              }
+            ]
+          }
         }
-      ] } } }
+      }
     }
   });
   const restoreFetch = installFetchMock(fetchMock);
@@ -163,7 +247,7 @@ test('无新游戏不触发通知', async () => {
   const notified = [];
   globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
   const fetchMock = createFetchMock({
-    'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [] } } } }
+    freeGamesPromotions: { data: { Catalog: { searchStore: { elements: [] } } } }
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
@@ -180,7 +264,9 @@ test('标题含 Free Weekend → weekend', () => {
   expect(mod.classifyFreeType({ title: 'Cyberpunk 2077 Free Weekend', instructions: '' }, true)).toEqual('weekend');
 });
 test('无结束时间 + F2P 特征 → f2p', () => {
-  expect(mod.classifyFreeType({ title: 'Warframe', description: 'Free to Play 游戏', instructions: '' }, false)).toEqual('f2p');
+  expect(
+    mod.classifyFreeType({ title: 'Warframe', description: 'Free to Play 游戏', instructions: '' }, false)
+  ).toEqual('f2p');
 });
 test('有限时 + 无特征 → limited', () => {
   expect(mod.classifyFreeType({ title: '古墓丽影', instructions: '登录领取' }, true)).toEqual('limited');
@@ -192,8 +278,22 @@ test('GamerPower 源：key 活动被过滤（不收录）', async () => {
   storage._reset();
   const fetchMock = createFetchMock({
     'api/giveaways': [
-      { id: 3001, title: '垃圾 Key 活动', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: 'Get your key at Fanatical', end_date: '2026-09-01' },
-      { id: 3002, title: '正当限免', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录 Steam 领取', end_date: '2026-09-01' }
+      {
+        id: 3001,
+        title: '垃圾 Key 活动',
+        platforms: 'Steam',
+        thumbnail: 'https://x.jpg',
+        instructions: 'Get your key at Fanatical',
+        end_date: '2026-09-01'
+      },
+      {
+        id: 3002,
+        title: '正当限免',
+        platforms: 'Steam',
+        thumbnail: 'https://x.jpg',
+        instructions: '登录 Steam 领取',
+        end_date: '2026-09-01'
+      }
     ]
   });
   const restoreFetch = installFetchMock(fetchMock);
@@ -213,13 +313,45 @@ test('通知仅限时领取（weekend/f2p 不推送）', async () => {
   const notified = [];
   globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
   const fetchMock = createFetchMock({
-    'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [
-      { id: 'w1', title: '周末游戏', productSlug: 'w', promotions: { promotionalOffers: [{ promotionalOffers: [{ startDate: new Date(Date.now() - 3600e3).toISOString(), endDate: new Date(Date.now() + 86400e3).toISOString() }] }] }, keyImages: [] }
-    ] } } } },
+    freeGamesPromotions: {
+      data: {
+        Catalog: {
+          searchStore: {
+            elements: [
+              {
+                id: 'w1',
+                title: '周末游戏',
+                productSlug: 'w',
+                promotions: {
+                  promotionalOffers: [
+                    {
+                      promotionalOffers: [
+                        {
+                          startDate: new Date(Date.now() - 3600e3).toISOString(),
+                          endDate: new Date(Date.now() + 86400e3).toISOString()
+                        }
+                      ]
+                    }
+                  ]
+                },
+                keyImages: []
+              }
+            ]
+          }
+        }
+      }
+    },
     'ajax/filtered': { products: [] },
-    'featuredcategories': { specials: { items: [] } },
+    featuredcategories: { specials: { items: [] } },
     'api/giveaways': [
-      { id: 4001, title: '真限免', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录领取', end_date: '2026-09-01' }
+      {
+        id: 4001,
+        title: '真限免',
+        platforms: 'Steam',
+        thumbnail: 'https://x.jpg',
+        instructions: '登录领取',
+        end_date: '2026-09-01'
+      }
     ]
   });
   const restoreFetch = installFetchMock(fetchMock);
@@ -239,75 +371,119 @@ test('通知仅限时领取（weekend/f2p 不推送）', async () => {
 // ============ 5. Steam 官方判定（v6.4.2：喜加一 vs 免费周末 vs F2P） ============
 test('is_free=true → f2p（永久免费）', async () => {
   const fetchMock = createFetchMock({
-    '/api/appdetails': { '999': { success: true, data: { is_free: true } } }
+    '/api/appdetails': { 999: { success: true, data: { is_free: true } } }
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
     expect(await mod.determineSteamFreeType('999')).toEqual('f2p');
-  } finally { restoreFetch(); }
+  } finally {
+    restoreFetch();
+  }
 });
 test('原价>0 现价 0 + 商店页 Add to Cart → limited（喜加一入库）', async () => {
   const fetchMock = createFetchMock({
-    '/api/appdetails': { '1245620': { success: true, data: { is_free: false, price_overview: { initial: 29800, final: 0, discount_percent: 100 } } } },
+    '/api/appdetails': {
+      1245620: {
+        success: true,
+        data: { is_free: false, price_overview: { initial: 29800, final: 0, discount_percent: 100 } }
+      }
+    },
     '/app/1245620/': '<html><body><div class="btn_addtocart">Add to Cart</div></body></html>'
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
     expect(await mod.determineSteamFreeType('1245620')).toEqual('limited');
-  } finally { restoreFetch(); }
+  } finally {
+    restoreFetch();
+  }
 });
 test('原价>0 现价 0 + 商店页 Play Now → weekend（免费周末）', async () => {
   const fetchMock = createFetchMock({
-    '/api/appdetails': { '730': { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 0, discount_percent: 100 } } } },
+    '/api/appdetails': {
+      730: {
+        success: true,
+        data: { is_free: false, price_overview: { initial: 5800, final: 0, discount_percent: 100 } }
+      }
+    },
     '/app/730/': '<html><body><div class="playbtn">Play Now 立即游玩</div></body></html>'
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
     expect(await mod.determineSteamFreeType('730')).toEqual('weekend');
-  } finally { restoreFetch(); }
+  } finally {
+    restoreFetch();
+  }
 });
 test('现价 0 无原价 → weekend（Play Now 模式保守处理）', async () => {
   const fetchMock = createFetchMock({
-    '/api/appdetails': { '123': { success: true, data: { is_free: false, price_overview: { initial: 0, final: 0 } } } }
+    '/api/appdetails': { 123: { success: true, data: { is_free: false, price_overview: { initial: 0, final: 0 } } } }
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
     expect(await mod.determineSteamFreeType('123')).toEqual('weekend');
-  } finally { restoreFetch(); }
+  } finally {
+    restoreFetch();
+  }
 });
 test('当前非免费 → null（数据过期）', async () => {
   const fetchMock = createFetchMock({
-    '/api/appdetails': { '456': { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 5800 } } } }
+    '/api/appdetails': {
+      456: { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 5800 } } }
+    }
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
     expect(await mod.determineSteamFreeType('456')).toEqual(null);
-  } finally { restoreFetch(); }
+  } finally {
+    restoreFetch();
+  }
 });
 test('通知：Steam 官方判定 weekend 的候选不推送', async () => {
   storage._reset({ freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [] } });
   const notified = [];
   globalThis.chrome.notifications = { create: (id, opts) => notified.push({ id, opts }) };
   const fetchMock = createFetchMock({
-    'freeGamesPromotions': { data: { Catalog: { searchStore: { elements: [] } } } },
+    freeGamesPromotions: { data: { Catalog: { searchStore: { elements: [] } } } },
     'ajax/filtered': { products: [] },
-    'featuredcategories': { specials: { items: [] } },
+    featuredcategories: { specials: { items: [] } },
     'api/giveaways': [
       // 周末活动：标题无特征词（靠官方判定拦截）
-      { id: 5001, title: '神秘周末游戏', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录 Steam 领取', end_date: '2026-09-01', open_giveaway_url: 'https://store.steampowered.com/app/730/' },
+      {
+        id: 5001,
+        title: '神秘周末游戏',
+        platforms: 'Steam',
+        thumbnail: 'https://x.jpg',
+        instructions: '登录 Steam 领取',
+        end_date: '2026-09-01',
+        open_giveaway_url: 'https://store.steampowered.com/app/730/'
+      },
       // 真喜加一：官方判定 limited
-      { id: 5002, title: '真喜加一', platforms: 'Steam', thumbnail: 'https://x.jpg', instructions: '登录 Steam 领取', end_date: '2026-09-01', open_giveaway_url: 'https://store.steampowered.com/app/1245620/' }
+      {
+        id: 5002,
+        title: '真喜加一',
+        platforms: 'Steam',
+        thumbnail: 'https://x.jpg',
+        instructions: '登录 Steam 领取',
+        end_date: '2026-09-01',
+        open_giveaway_url: 'https://store.steampowered.com/app/1245620/'
+      }
     ],
     '/api/appdetails': {
-      '730': { success: true, data: { is_free: false, price_overview: { initial: 5800, final: 0, discount_percent: 100 } } },
-      '1245620': { success: true, data: { is_free: false, price_overview: { initial: 29800, final: 0, discount_percent: 100 } } }
+      730: {
+        success: true,
+        data: { is_free: false, price_overview: { initial: 5800, final: 0, discount_percent: 100 } }
+      },
+      1245620: {
+        success: true,
+        data: { is_free: false, price_overview: { initial: 29800, final: 0, discount_percent: 100 } }
+      }
     },
     '/app/730/': '<html><body><div class="playbtn">Play Now 立即游玩</div></body></html>',
     '/app/1245620/': '<html><body><div class="btn_addtocart">Add to Cart</div></body></html>'
   });
   const restoreFetch = installFetchMock(fetchMock);
   try {
-    const result = await mod.refreshFreeGames(true);
+    const _result = await mod.refreshFreeGames(true);
     // 两个候选都进列表（展示），但通知只发喜加一
     expect(notified.length).toEqual(1);
     expect(notified[0].opts.message).toContain('真喜加一');

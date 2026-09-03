@@ -54,9 +54,11 @@ if (newFiles.length === 0) {
 console.log(`📁 新增文件 ${newFiles.length} 个，运行覆盖率门禁（行覆盖 ≥ ${MIN_LINES}%）...`);
 newFiles.forEach((f) => console.log('   -', f));
 
-// 2. 跑 vitest 覆盖率（仅统计新增文件）
+// 2. 跑 vitest 覆盖率（仅统计新增文件）——显式关闭全局 thresholds，本脚本自带逐文件门槛
 const includes = newFiles.map((f) => `--coverage.include=${f}`).join(' ');
-const output = run(`npx vitest run --coverage ${includes} --coverage.reporter=text`);
+const noThresh =
+  '--coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0';
+const output = run(`npx vitest run --coverage ${includes} ${noThresh} --coverage.reporter=text`);
 console.log(output.slice(-3000));
 
 // 3. 解析文本表格：filename | stmts | branch | funcs | lines
