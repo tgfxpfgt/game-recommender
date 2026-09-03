@@ -135,9 +135,36 @@ jobs:
         run: npx playwright-core install chromium
       - name: 运行 E2E 冒烟（离线回放全量）/ Run E2E smoke (offline replay, full)
         run: xvfb-run -a env E2E_MOCK=1 npm run e2e
-      # v7.3.0：UI 视觉回归（4 扩展页基线对比；版本/主题变更后需本地 --update 更新基线）
-      - name: 运行视觉回归 / Run visual regression
+
+  visual:
+    # v10.5.1 任务3：视觉回归独立作业且**非阻断**——基线在开发者 Windows 机采集，
+    # Linux CI 字体/抗锯齿导致全页 ~3% 均匀像素差（与真实回归无关）。故设为 advisory：
+    # 仍运行并上传 diff 供人工审阅，但不 fail 整个流水线（e2e 冒烟才是功能门禁）。
+    # 这正是审计报告记为"已知取舍"的跨 OS/字体矩阵问题的务实处理。
+    # Visual regression is advisory (non-blocking): Windows-captured baselines vs
+    # Linux CI fonts yield ~3% uniform diff unrelated to regressions.
+    runs-on: ubuntu-latest
+    needs: [coverage-gate]
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: 安装依赖 / Install dependencies
+        run: npm ci
+      - name: 安装 Playwright Chromium / Install pinned Playwright Chromium
+        run: npx playwright-core install chromium
+      - name: 运行视觉回归（advisory）/ Run visual regression (advisory)
         run: xvfb-run -a npm run visual
+      - name: 上传视觉 diff / Upload visual diffs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: visual-diff
+          path: tests/visual/diff/
+          if-no-files-found: ignore
 
   security:
     # v7.0.7 S1/S2：依赖漏洞审计 + Secret 泄漏扫描（密钥/Token 防泄漏防线）
