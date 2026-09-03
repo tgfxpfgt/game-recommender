@@ -278,6 +278,12 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.5.1（列表页过滤实时控件 / xdgame 布局对称扩展 / CI e2e 修复）
+
+- **列表页好评率过滤悬浮控件**：列表页左下常驻 FAB（🎚），展开含"启用好评率过滤"开关 + 0–100 滑块，**实时**对已渲染项显示/隐藏（复用已取好评率，不重新请求），并同步持久化到全局设置（复用既有 `enableRatingFilter`/`minSteamRatingFilter` 键，不新增设置项、不触发设置同步门禁）。`list-state` 新增 `applyLiveRatingFilter` + 保留完整评分（`ratingsByName`）供实时重算；附回归测试。
+- **xdgame 列表布局定制（任务2）**：固定图标宽模式容器改为 `margin-left/right:auto` 水平居中——增加每行列数时容器**向两侧对称扩展**，右列图标不再溢出/被裁、显示完整；自适应模式不变。更新面板提示文案与 `test-wiring` 断言。
+- **CI 托管 e2e 红修复（任务3）**：托管机最新版系统 Chrome 偶发让 playwright-core 发现不到 MV3 Service Worker（扩展 id=null），导致 e2e/视觉回归启动即失败（既有问题，非本次代码引入）。e2e/visual 作业改跑 `npx playwright-core install chromium` 的**固定版本 Chromium**（与本地一致、可稳定发现 SW），去除 `E2E_CHANNEL=chrome`。
+
 ### v10.5.0（安全加固 / 隐私默认 / 测试可信度 / 健壮性——独立审计报告全量落地）
 
 **安全（P0）**

@@ -274,12 +274,17 @@ test('v10.4.0：xdgrid computeContainerStyle——固定宽度模式（容器随
   expect(css).toContain('repeat(6, 258px)');
   expect(css).toContain('width:' + (6 * 258 + 5 * 18 + 36) + 'px');
   expect(css).toContain('gap:18px');
+  // v10.5.1 任务2：固定宽容器水平居中（增列向两侧对称扩展，右列不被裁）
+  expect(css).toContain('margin-left:auto');
+  expect(css).toContain('margin-right:auto');
 });
 
 test('v10.4.0：xdgrid computeContainerStyle——自适应压缩模式', () => {
   const css = xdgrid.computeContainerStyle({ cols: 8, iconW: 0, iconH: 0, gap: 10 });
   expect(css).toContain('repeat(8, minmax(0, 1fr))');
   expect(css).not.toContain('width:');
+  // 自适应无定宽 → 不居中（无需向两侧扩展）
+  expect(css).not.toContain('margin-left:auto');
 });
 
 test('v10.4.0：xdgrid migrateLegacy——旧扁平配置迁移为按站点且默认启用', () => {
@@ -346,4 +351,68 @@ test('v10.3.0：appStatDedupHours=0 → 关闭去重（同站重复也计数）'
   await appStatsMod.recordAppDownload('888', 'xdgame');
   const stats2 = await appStatsMod.getAppStats(['888']);
   expect(stats2['888'].downloads).toEqual(1);
+});
+
+// ============ v10.5.1 任务1：列表页好评率过滤实时重算（applyLiveRatingFilter） ============
+const listState = await import(new URL('../../content/list/list-state.js', import.meta.url).href + '?t=' + Date.now());
+
+test('v10.5.1：applyLiveRatingFilter 按阈值实时隐藏/恢复已渲染项', () => {
+  const container = {
+    children: [],
+    appendChild(el) {
+      el.parentNode = container;
+      this.children.push(el);
+    }
+  };
+  const mk = (name) => {
+    const el = {
+      parentNode: container,
+      closest: () => null,
+      remove() {
+        if (this.parentNode) {
+          const p = this.parentNode;
+          p.children = p.children.filter((x) => x !== this);
+          this.parentNode = null;
+        }
+      }
+    };
+    container.children.push(el);
+    return { name, url: 'u' + name, element: el };
+  };
+  const A = mk('A'),
+    B = mk('B'),
+    C = mk('C');
+  const ratingsByName = {
+    A: { appId: 1, positiveRate: 95 },
+    B: { appId: 2, positiveRate: 80 },
+    C: { appId: 3, positiveRate: 40 }
+  };
+  listState._state.ratingsJob = {
+    processItems: [A, B, C],
+    settings: {},
+    uniqueNames: ['A', 'B', 'C'],
+    ratingMap: { A: 95, B: 80, C: 40 },
+    ratingsByName,
+    container,
+    processed: new Set(['A', 'B', 'C']),
+    shown: 0,
+    filtered: 0,
+    filteredNames: [],
+    notFoundNames: [],
+    urlEntries: [],
+    finished: true,
+    forceTimer: null
+  };
+  const off = listState.applyLiveRatingFilter({ enableRatingFilter: false });
+  expect(off.shown).toEqual(3);
+  expect(off.filtered).toEqual(0);
+  const on = listState.applyLiveRatingFilter({ enableRatingFilter: true, minSteamRatingFilter: 80 });
+  expect(on.shown).toEqual(2);
+  expect(on.filtered).toEqual(1);
+  expect(C.element.parentNode).toEqual(null);
+  expect(listState._state.ratingsJob.filteredNames).toEqual(['C']);
+  const back = listState.applyLiveRatingFilter({ enableRatingFilter: true, minSteamRatingFilter: 30 });
+  expect(back.shown).toEqual(3);
+  expect(C.element.parentNode).toEqual(container);
+  listState._state.ratingsJob = null;
 });

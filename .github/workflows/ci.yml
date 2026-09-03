@@ -127,14 +127,17 @@ jobs:
         with:
           node-version: 20
           cache: npm
-      # v9.1.0：默认 Chrome（ubuntu-latest 自带）——移除 Edge 安装步骤
       - name: 安装依赖 / Install dependencies
         run: npm ci
+      # v10.5.1 任务3：改用固定版本 Playwright Chromium（匹配 playwright-core），
+      # 规避托管机最新版系统 Chrome 偶发发现不到 MV3 Service Worker（扩展 id=null）
+      - name: 安装 Playwright Chromium / Install pinned Playwright Chromium
+        run: npx playwright-core install chromium
       - name: 运行 E2E 冒烟（离线回放全量）/ Run E2E smoke (offline replay, full)
-        run: xvfb-run -a env E2E_MOCK=1 E2E_CHANNEL=chrome npm run e2e
+        run: xvfb-run -a env E2E_MOCK=1 npm run e2e
       # v7.3.0：UI 视觉回归（4 扩展页基线对比；版本/主题变更后需本地 --update 更新基线）
       - name: 运行视觉回归 / Run visual regression
-        run: xvfb-run -a env E2E_CHANNEL=chrome npm run visual
+        run: xvfb-run -a npm run visual
 
   security:
     # v7.0.7 S1/S2：依赖漏洞审计 + Secret 泄漏扫描（密钥/Token 防泄漏防线）

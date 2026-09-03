@@ -52,7 +52,10 @@ export function computeContainerStyle(cfg) {
   let css = 'display:grid;';
   if (iconW > 0) {
     css += `grid-template-columns:repeat(${cols}, ${iconW}px);`;
-    css += `width:${computeFrameWidth(cfg)}px;max-width:none;`;
+    // v10.5.1 任务2：固定宽模式下容器按列数定宽；站点把容器钉在左侧导致只向
+    // 右扩展（右列溢出/被裁）。margin auto 水平居中 → 增列时向两侧对称扩展，
+    // 每格图标完整可见。
+    css += `width:${computeFrameWidth(cfg)}px;max-width:none;margin-left:auto;margin-right:auto;`;
   } else {
     css += `grid-template-columns:repeat(${cols}, minmax(0, 1fr));`;
   }
@@ -245,7 +248,7 @@ function buildUI(all, host, cfg) {
         <input data-xg="iconW" type="number" min="0" max="600" step="2" value="${cfg.iconW}"
           style="width:64px;padding:2px 4px;border:1px solid #ddd;border-radius:4px">
       </div>
-      <div data-xg="modeHint" style="color:#4a9eff;margin-bottom:8px">图标大小不变，容器随列数加宽</div>
+      <div data-xg="modeHint" style="color:#4a9eff;margin-bottom:8px">图标大小不变，容器加宽并向两侧居中扩展</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span>封面高度(px)</span>
         <input data-xg="iconH" type="number" min="0" max="500" step="5" value="${cfg.iconH}"
@@ -267,7 +270,7 @@ function buildUI(all, host, cfg) {
 
   const syncHint = () => {
     const w = parseInt($('iconW').value, 10) || 0;
-    $('modeHint').textContent = w > 0 ? '图标大小不变，容器随列数加宽' : '自适应压缩：图标变小，容器不变';
+    $('modeHint').textContent = w > 0 ? '图标大小不变，容器加宽并向两侧居中扩展' : '自适应压缩：图标变小，容器不变';
   };
 
   const refresh = () => {

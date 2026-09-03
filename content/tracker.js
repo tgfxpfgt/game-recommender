@@ -22,7 +22,7 @@
    *   common: any, floats: any, status: any, debug: any, builder: any,
    *   badges: any, listBatch: any, list: any, listState: any,
    *   detailTemplates: any, detail: any, tracking: any,
-   *   qrUnlock: any, xdgrid: any
+   *   qrUnlock: any, xdgrid: any, filterFab: any
    * }} GRModules
    */
   /** @type {GRModules|null} */
@@ -46,7 +46,8 @@
       detail,
       tracking,
       qrUnlock,
-      xdgrid
+      xdgrid,
+      filterFab
     ] = await Promise.all([
       import(m('core/common.js')),
       import(m('core/floats.js')),
@@ -61,7 +62,8 @@
       import(m('detail/detail-page.js')),
       import(m('tracking/download-tracking.js')),
       import(m('detail/qr-unlock.js')),
-      import(m('list/xdgrid.js'))
+      import(m('list/xdgrid.js')),
+      import(m('list/filter-fab.js'))
     ]);
     MODULES = {
       common,
@@ -77,7 +79,8 @@
       detail,
       tracking,
       qrUnlock,
-      xdgrid
+      xdgrid,
+      filterFab
     };
     return MODULES;
   }
@@ -215,6 +218,8 @@
         dbg('⚠️ 适配器未提取到游戏项');
         status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
       }
+      // v10.5.1 任务1：列表页好评率过滤悬浮控件（开关+滑块，实时调节）
+      M.filterFab.init(settings);
     }
 
     // === 2. 下载追踪（v10.3.0 独立开关；v10.5.0 P3 起真正生效——关闭则不接线）===

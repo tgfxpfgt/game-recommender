@@ -29,6 +29,8 @@ const dbg = (...a) => debug.dbg(...a);
  * @property {any} settings
  * @property {Array<string>} uniqueNames
  * @property {Record<string, number|null>} ratingMap
+ * @property {Record<string, any>} ratingsByName
+ * @property {any} container
  * @property {Set<string>} processed
  * @property {number} shown
  * @property {number} filtered
@@ -47,6 +49,8 @@ function createRatingsJob(processItems, settings, uniqueNames) {
     settings,
     uniqueNames,
     ratingMap: {}, // v6.4.4：name → positiveRate（重排序用）/ for re-sorting
+    ratingsByName: {}, // v10.5.1 任务1：name → 完整 rating（实时调阈值复用）/ full rating for live re-filter
+    container: null, // v10.5.1 任务1：列表容器（实时过滤恢复项时 append 目标）/ list container
     processed: new Set(), // 已出结果的游戏名（徽章已显示）/ names already resolved
     shown: 0,
     filtered: 0,
@@ -111,6 +115,8 @@ export function applyRatingsResponse(ratings, mode) {
     if (rating && rating.appId) {
       job.processed.add(item.name);
       job.ratingMap[item.name] = rating.positiveRate ?? null; // v6.4.4 排序用
+      job.ratingsByName[item.name] = rating; // v10.5.1 任务1：保留完整评分供实时调阈值
+      if (!job.container && item.element && item.element.parentNode) job.container = item.element.parentNode;
       changed = true;
       // 合集等 type 徽章：appId 非本体，不写入下载站网址缓存
       const isTypeBadge = rating.type && rating.type !== 'game' && rating.type !== 'demo';
@@ -246,6 +252,57 @@ function scheduleFallbacks() {
     if (!_state.ratingsJob || _state.ratingsJob.finished) return;
     finishRatings();
   }, 45000);
+}
+
+/**
+ * v10.5.1 任务1：列表页悬浮控件——实时调节好评率过滤（不重新取数）。
+ * 复用 job 已存的完整评分（ratingsByName）即时显示/隐藏已渲染项。
+ * Live re-filter: re-evaluate already-rendered items against a new threshold
+ * (toggle + slider on the list-page FAB), showing/hiding without re-fetching.
+ * @param {{enableRatingFilter?: boolean, minSteamRatingFilter?: number}} settingsPatch
+ * @returns {{shown: number, filtered: number}}
+ */
+export function applyLiveRatingFilter(settingsPatch) {
+  const job = _state.ratingsJob;
+  if (!job) return { shown: 0, filtered: 0 };
+  job.settings = { ...(job.settings || {}), ...(settingsPatch || {}) };
+  const bv = job.settings.badgeVisibility || {};
+  const filterEnabled = !!job.settings.enableRatingFilter && bv.all !== false;
+  const minRating = filterEnabled ? job.settings.minSteamRatingFilter || 0 : 0;
+  // 捕获容器（供恢复被隐藏项时 append）
+  if (!job.container) {
+    const live = job.processItems.find((i) => i.element && i.element.parentNode);
+    if (live) job.container = live.element.parentNode;
+  }
+  const doFilter = filterEnabled || !!job.settings.enableRecentFilter;
+  let shown = 0;
+  let filtered = 0;
+  const filteredNames = [];
+  for (const item of job.processItems) {
+    const rating = job.ratingsByName[item.name];
+    if (!rating || !rating.appId) continue; // 未取到数据/未找到徽章 → 不参与
+    const inDom = !!(item.element && item.element.parentNode);
+    let passes = true;
+    if (doFilter && (rating.positiveRate != null || rating.recentPositiveRate != null)) {
+      passes = ratingFilterPass(rating, {
+        ...job.settings,
+        enableRatingFilter: filterEnabled,
+        minSteamRatingFilter: minRating
+      });
+    }
+    if (passes) {
+      if (!inDom && job.container) job.container.appendChild(item.element);
+      shown++;
+    } else {
+      if (inDom) badges.removeItemFromDom(item);
+      filtered++;
+      filteredNames.push(item.name);
+    }
+  }
+  job.shown = shown;
+  job.filtered = filtered;
+  job.filteredNames = filteredNames;
+  return { shown, filtered };
 }
 
 // 评分状态机句柄（list-batch 经此调用；不含 applySteamRatingsUpdate——
