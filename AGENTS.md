@@ -51,6 +51,16 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 11. 权重/设置新增键漏保存映射会被"全量保存"抹掉用户自定义值（历史事故）——保存映射
     以 DEFAULT_SETTINGS 键名为对照逐项核对。
 
+## 文档同步（默认启用）
+
+技能包 `docs/skills/neat-freak-person/`（源自 lsa03/neat-freak-person，MIT）已安装并
+**默认启用**：功能批次合并后，AI 助手按其纪律同步三层知识（AGENTS.md 规则 /
+README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。要点：
+- 同步触发：功能新增/调整/删除合并后（说"同步一下"或自动执行）
+- 尺寸红线：AGENTS.md ~300 行软上限；记忆毕业机制（稳定教训迁入本文件/CONTRIBUTING，
+  记忆瘦身防膨胀）——v10.3.1 的记忆精简即该实践
+- 完整流程与自检清单见 `docs/skills/neat-freak-person/SKILL.md`
+
 ## 测试约定
 
 - 单测入 vitest.config.js 的 include 显式清单；storage/fetch mock 在 tests/helpers。
