@@ -375,7 +375,8 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
   });
 
   test('GET_STEAM_RATINGS：urls 索引命中 → 缓存直取该 appId', async () => {
-    // 预置 3764200 的 rating 缓存
+    // 预置 3764200 的 rating 缓存（v10.5.3：含好评/差评原始条数——综合评分
+    // 徽章数据源，随 wave-1 缓存命中一并返回）
     await cacheMod.setSteamCacheEntry(3764200, {
       appId: 3764200,
       name: 'Resident Evil Requiem',
@@ -384,6 +385,8 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
       positiveRate: 90,
       ratingDesc: '特别好评',
       totalReviews: 100,
+      positiveReviews: 90,
+      negativeReviews: 10,
       recentPositiveRate: 85,
       recentTotalReviews: 50,
       url: 'https://store.steampowered.com/app/3764200/'
@@ -395,6 +398,9 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     );
     const r = resp.ratings && resp.ratings['生化危机9 安魂曲'];
     expect(r && String(r.appId)).toEqual('3764200');
+    // v10.5.3：好评/差评原始条数穿透 wave-1（按 appId 多站共用的缓存字段）
+    expect(r && r.positiveReviews).toEqual(90);
+    expect(r && r.negativeReviews).toEqual(10);
     expect(resp.pending).toEqual(0);
   });
 

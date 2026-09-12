@@ -460,6 +460,16 @@
                 </p>
                 <div class="setting-row">
                   <div class="setting-label">
+                    <span class="label-text">综合评分</span>
+                    <span class="label-desc">Score Badge (XDGame)</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="badgeScore" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
                     <span class="label-text">近30天好评率</span>
                     <span class="label-desc">30-day Rating Badge</span>
                   </div>
@@ -698,7 +708,7 @@
                 <div class="setting-row">
                   <div class="setting-label">
                     <span class="label-text">热度权重</span>
-                    <span class="label-desc">Heat (SteamSpy owners)</span>
+                    <span class="label-desc">Heat (SteamSpy CCU)</span>
                   </div>
                   <div class="gr-range-group">
                     <input type="range" id="weightHeat" min="0" max="50" step="5" />
@@ -711,6 +721,43 @@
                       title="手动输入数值"
                     />
                     <span id="weightHeatVal" class="gr-range-value">0.10</span>
+                  </div>
+                </div>
+                <!-- v10.5.3 任务3：SteamSpy 销量/评论数信号权重（heat 已改 CCU 口径） -->
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">销量权重</span>
+                    <span class="label-desc">Sales (SteamSpy owners)</span>
+                  </div>
+                  <div class="gr-range-group">
+                    <input type="range" id="weightSales" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightSalesInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
+                    <span id="weightSalesVal" class="gr-range-value">0.05</span>
+                  </div>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">评论数权重</span>
+                    <span class="label-desc">Reviews (SteamSpy total)</span>
+                  </div>
+                  <div class="gr-range-group">
+                    <input type="range" id="weightReviews" min="0" max="50" step="5" />
+                    <input
+                      type="number"
+                      id="weightReviewsInput"
+                      class="mini-input"
+                      step="5"
+                      style="width: 64px"
+                      title="手动输入数值"
+                    />
+                    <span id="weightReviewsVal" class="gr-range-value">0.05</span>
                   </div>
                 </div>
                 <!-- v10.1.0：AppID 行为统计信号权重（a 下载正向 / b 未下载惩罚） -->

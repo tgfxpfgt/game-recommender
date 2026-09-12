@@ -55,6 +55,10 @@ export function buildSteamResult(
     rating: reviewSummary ? reviewSummary.score : null,
     ratingDesc: reviewSummary ? reviewSummary.desc : null,
     totalReviews: reviewSummary ? reviewSummary.total : 0,
+    // v10.5.3：好评/差评原始条数——内嵌信息区（XDGame 同款）「好评/差评/
+    // 修正口碑」行与修正口碑精确计算需要；旧缓存缺失时模板按整数好评率回退
+    positiveReviews: reviewSummary ? reviewSummary.positive : null,
+    negativeReviews: reviewSummary ? reviewSummary.negative : null,
     positiveRate:
       reviewSummary && reviewSummary.total > 0
         ? Math.round((reviewSummary.positive / reviewSummary.total) * 100)
@@ -129,7 +133,12 @@ export async function fetchSteamFullDetailsByAppId(appId) {
   const storeHtml = mods.detail === false ? null : await fetchStorePageHtml(appId);
   const [langInfo, userTags, reviews] = await Promise.all([
     mods.detail === false
-      ? Promise.resolve({ chineseSupported: false, simplifiedChinese: false, chineseHasAudio: false, chineseHasSubtitles: false })
+      ? Promise.resolve({
+          chineseSupported: false,
+          simplifiedChinese: false,
+          chineseHasAudio: false,
+          chineseHasSubtitles: false
+        })
       : Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData)),
     mods.detail === false ? Promise.resolve([]) : Promise.resolve(parseUserTags(storeHtml, gameData)),
     mods.rating === false ? Promise.resolve(null) : fetchSteamReviews(appId)
@@ -142,16 +151,7 @@ export async function fetchSteamFullDetailsByAppId(appId) {
     mods.detail === false ? Promise.resolve(null) : fetchLastUpdate(appId).catch(() => null)
   ]);
 
-  return buildSteamResult(
-    appId,
-    gameData,
-    langInfo,
-    userTags,
-    reviews,
-    steamspyInfo,
-    enGameData,
-    lastUpdate
-  );
+  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamspyInfo, enGameData, lastUpdate);
 }
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）

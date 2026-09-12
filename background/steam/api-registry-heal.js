@@ -4,10 +4,21 @@ import { getGameRegistry, getGameRegistryEntry, recordGameInRegistry, flushRegis
 import { fetchSteamAppDetails } from './api-details.js';
 import { DEMO_NAME_PATTERN } from './api-search.js';
 
+// v10.5.2：自愈退避窗口与上限（防 Map 无界增长）/ heal backoff window & cap
+const HEAL_BACKOFF_MS = 10 * 60 * 1000; // 10 分钟 / 10 minutes
+const HEAL_BACKOFF_MAX = 500;
+/** @type {Map<string, number>} */
+const healAttemptedAt = new Map();
+
 /**
  * 游戏雷达 Game Radar - Steam API 子模块：api-registry-heal.js
  *
  * v5.0.0：由 steam/api.js 按职能拆分。
+ * v10.5.2：healRegistryNames 新增按 appId 的 10 分钟退避——上次尝试无改进
+ * （Steam 不可达或官方确无对应语言名）时窗口内跳过重试，成功自愈即清除
+ * 退避。缓存命中每次都会触发自愈检查，无退避则持续空耗 Steam 配额。
+ * v10.5.2: per-appId heal backoff (10 min) — skip doomed retries after an
+ * unimproved attempt; cache hits fire heal checks on every hit.
  */
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）
@@ -61,6 +72,19 @@ export async function healRegistryNames(appId, { cnName, enName, gameName }) {
   const cnOk = cnName && /[\u4e00-\u9fff]/.test(cnName);
   const enOk = enName && /[A-Za-z]{2,}/.test(enName);
   if (cnOk && enOk) return false; // 正常，无需修复 / healthy
+  // v10.5.2：自愈尝试退避——名称不健康且上次尝试未产生改进（Steam 不可达或
+  // 官方确无对应语言名）时，窗口内不再重复发起 doomed 请求（缓存命中每次
+  // 都会触发自愈，无退避则持续消耗 Steam API 配额并推高限流风险）。
+  // Backoff per appId: a previous attempt that produced no improvement makes
+  // retries pointless within the window (heal fires on every cache hit).
+  const backoffKey = String(appId);
+  const lastAttempt = healAttemptedAt.get(backoffKey);
+  if (lastAttempt && Date.now() - lastAttempt < HEAL_BACKOFF_MS) return false;
+  healAttemptedAt.set(backoffKey, Date.now());
+  if (healAttemptedAt.size > HEAL_BACKOFF_MAX) {
+    const oldest = healAttemptedAt.keys().next().value;
+    if (oldest !== undefined) healAttemptedAt.delete(oldest);
+  }
   try {
     const [cnData, enData] = await Promise.all([
       fetchSteamAppDetails(appId, 'schinese').catch(() => null),
@@ -76,6 +100,7 @@ export async function healRegistryNames(appId, { cnName, enName, gameName }) {
         enName: newEn || '',
         gameName: gameName || ''
       });
+      healAttemptedAt.delete(backoffKey); // 成功自愈 → 清除退避 / healed: clear backoff
       Logger.warn(
         'Steam',
         `名称异常自愈: appId ${appId} cn "${cnName || '空'}"→"${newCn || '空'}" en "${enName || '空'}"→"${newEn || '空'}"`

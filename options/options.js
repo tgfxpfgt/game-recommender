@@ -557,6 +557,8 @@
       'weightSteam',
       'weightPlayTime',
       'weightHeat',
+      'weightSales',
+      'weightReviews',
       'weightAppStatDownload',
       'weightAppStatDetailView'
     ];
@@ -737,8 +739,9 @@
     OPTS.currentSettings.ratingFilterMode = document.getElementById('ratingFilterMode').value;
     OPTS.currentSettings.enableSortByRating = document.getElementById('sortByRatingEnabled').checked;
 
-    // 徽章显示开关（v3.3.8）
+    // 徽章显示开关（v3.3.8；v10.5.3 新增 score 综合评分）
     OPTS.currentSettings.badgeVisibility = {
+      score: document.getElementById('badgeScore').checked, // v10.5.3
       recent: document.getElementById('badgeRecent').checked,
       all: document.getElementById('badgeAll').checked,
       update: document.getElementById('badgeUpdate').checked,
@@ -764,7 +767,8 @@
     OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
 
     // 权重（v4.0.0：新增 playTime/heat——必须写入保存映射，否则用户保存时
-    // 会抹掉新权重项的自定义值；v10.1.0：appStat 两项同理）
+    // 会抹掉新权重项的自定义值；v10.1.0：appStat 两项、v10.5.3：sales/
+    // reviews 两项同理）
     OPTS.currentSettings.weights = {
       clickRate: document.getElementById('weightClick').value / 100,
       downloadRate: document.getElementById('weightDownload').value / 100,
@@ -772,6 +776,8 @@
       steamRating: document.getElementById('weightSteam').value / 100,
       playTime: document.getElementById('weightPlayTime').value / 100,
       heat: document.getElementById('weightHeat').value / 100,
+      sales: document.getElementById('weightSales').value / 100,
+      reviews: document.getElementById('weightReviews').value / 100,
       appStatDownload: document.getElementById('weightAppStatDownload').value / 100,
       appStatDetailView: document.getElementById('weightAppStatDetailView').value / 100
     };

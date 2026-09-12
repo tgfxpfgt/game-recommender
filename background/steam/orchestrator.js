@@ -3,8 +3,12 @@
  *
  * 详情页查询（searchSteamGame）与列表页轻量好评率查询（getSteamPositiveRate）：
  * 缓存优先 → Demo 自愈重搜 → 0 评测验证 → 三层缓存写入。
+ * v10.5.2：applyCacheHit 名称自愈改后台执行——缓存命中路径（列表页第一波）
+ * 恢复"零网络请求"契约，不再同步 await 最多 2 次 Steam 请求。
  * Detail-page search and list-page lightweight rating lookup: cache-first,
  * Demo self-heal, zero-review verification, 3-layer cache writes.
+ * v10.5.2: applyCacheHit's name self-heal is fire-and-forget now, restoring
+ * the zero-network contract of the cache-hit (wave-1) path.
  */
 import {
   searchSteamAppId,
@@ -195,7 +199,14 @@ async function applyCacheHit(merged, appId, gameName) {
     merged.headerImage || '',
     merged.type
   );
-  await ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName);
+  // v10.5.2：名称自愈改为后台执行（不阻塞返回）——缓存命中路径（列表页第一波
+  // getSteamRatingsFromCacheOnly 的"零网络请求"契约）此前会同步 await 最多 2 次
+  // Steam API 调用；Steam 不可达/官方无英文名时每次命中都阻塞数秒并空耗配额。
+  // 自愈结果非徽章渲染依赖，失败由退避机制兜底（见 api-registry-heal.js）。
+  // Name self-heal now runs in the background: the cache-hit path previously
+  // awaited up to 2 Steam API calls, breaking the zero-network wave-1 contract
+  // and burning quota on every hit when Steam is unreachable or has no EN name.
+  ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName).catch(() => {});
   return {
     positiveRate: merged.positiveRate,
     ratingDesc: merged.ratingDesc || null,
@@ -204,6 +215,10 @@ async function applyCacheHit(merged, appId, gameName) {
     type: merged.type || 'game',
     // v3.3.6：近 30 天好评率/最近更新随缓存返回（徽章三段式）
     totalReviews: merged.totalReviews || 0,
+    // v10.5.3：好评/差评原始条数随缓存返回——列表页综合评分徽章（XDGame
+    // 同口径修正口碑÷10）数据源；旧缓存缺失 → null，内容侧按整数好评率回退
+    positiveReviews: merged.positiveReviews ?? null,
+    negativeReviews: merged.negativeReviews ?? null,
     recentPositiveRate: merged.recentPositiveRate ?? null,
     recentTotalReviews: merged.recentTotalReviews ?? 0,
     lastUpdate: merged.lastUpdate || null,
@@ -338,6 +353,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //    获取失败（网络/限流）→ 不写缓存并标记 failed，
     //    下次访问自动重试（避免 null 固化导致长期只显示 AppID）。
     const reviewSummary = await fetchReviewSummary(foundAppId);
+    // v10.5.3：最终生效的评测统计——0 评测重搜本体成功后由 rs2 覆盖（此前
+    // mergedData/返回值仍读旧 appId 的 reviewSummary，total 与新 appId 不一致）
+    let finalSummary = reviewSummary;
     if (!reviewSummary) {
       Logger.warn('Steam', `好评率获取失败: ${gameName} (appId ${foundAppId})，不写缓存待重试`);
       return {
@@ -393,6 +411,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           officialEn = reSearch.englishName || officialCn;
           const rs2 = await fetchReviewSummary(foundAppId);
           if (rs2) {
+            finalSummary = rs2; // v10.5.3：重搜后以新 appId 的统计为准
             ratingDesc = rs2.desc || null;
             if (rs2.total > 0) positiveRate = Math.round((rs2.positive / rs2.total) * 100);
             if (rs2.recent) {
@@ -426,7 +445,11 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       ratingDesc,
       headerImage,
       type: appType || 'game',
-      totalReviews: reviewSummary ? reviewSummary.total : 0,
+      // v10.5.3：totalReviews/positiveReviews/negativeReviews 统一读
+      // finalSummary（0 评测重搜后以新 appId 为准，修复旧值不一致）
+      totalReviews: finalSummary ? finalSummary.total : 0,
+      positiveReviews: finalSummary ? finalSummary.positive : null,
+      negativeReviews: finalSummary ? finalSummary.negative : null,
       recentPositiveRate: recentRate,
       recentTotalReviews: recentTotal,
       lastUpdate: lastUpdate || existing.lastUpdate || null,
@@ -449,7 +472,11 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       ratingDesc,
       appId: foundAppId,
       name: foundName,
-      totalReviews: reviewSummary ? reviewSummary.total : 0,
+      // v10.5.3：好评/差评原始条数随返回（列表页综合评分徽章数据源；
+      // finalSummary 同 mergedData——重搜后以新 appId 统计为准）
+      totalReviews: finalSummary ? finalSummary.total : 0,
+      positiveReviews: finalSummary ? finalSummary.positive : null,
+      negativeReviews: finalSummary ? finalSummary.negative : null,
       recentPositiveRate: recentRate,
       recentTotalReviews: recentTotal,
       lastUpdate: lastUpdate || existing.lastUpdate || null,

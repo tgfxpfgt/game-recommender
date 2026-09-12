@@ -4,7 +4,7 @@
 
 ## 项目心智模型（先读这个）
 
-- **三套运行时并存**：`background/`（ES module Service Worker，单向分层 `core → storage → 业务层(steam/recommend/sites/freegames) → handlers → 入口`，静态断言拦截回归——见"依赖分层"）；`content/`（经典入口 tracker.js + 11 个 ESM 模块动态 import 注入，`__GR__` 命名空间已退场）；UI 页（options/popup/dashboard/freegames，经典脚本顺序加载，`__OPTS__` 共享）。
+- **三套运行时并存**：`background/`（ES module Service Worker，单向分层 `core → storage → 业务层(steam/recommend/sites/freegames) → handlers → 入口`，静态断言拦截回归——见"依赖分层"）；`content/`（经典入口 tracker.js + 15 个 ESM 模块动态 import 注入，`__GR__` 命名空间已退场）；UI 页（options/popup/dashboard/freegames，经典脚本顺序加载，`__OPTS__` 共享）。
 - **数据流**：下载站页面 → content 提取游戏名 → 后台按名搜索 Steam（storesearch → appdetails → appreviews）→ 三层缓存（Steam 动态缓存模块化 meta/rating/detail/spy + 游戏注册表 + 名称索引）→ 推送回 content 渲染徽章。
 - **缓存优先原则**：名称索引直取 → 模块化缓存命中 → 官方 API 直取 → 搜索；搜索只发中文（v6.2.1 起英文名由 appdetails 直取覆盖）；出站请求统一经 `fetchWithTimeout`（SSRF 校验 + 审计 + 限速）。
 - **预取架构（v6.3.0 评估结论）**：详情页预取（CACHE_STEAM_PAGE）、列表批次调度 + 滚动哨兵、推荐本地计算（零网络）已覆盖主要预取场景，**不再新增请求路径**（新增预取需先论证命中率）。
@@ -17,7 +17,7 @@ npm ci                 # 安装依赖（vitest/eslint/typescript/playwright-core
 npm run install-hooks  # 安装 git 钩子（提交信息格式 + 暂存 JS 语法检查）
 npm run check          # lint + vitest 全量
 npm run typecheck      # tsc --noEmit（background/** 全层 checkJs）
-npm run e2e            # 浏览器冒烟（E2E_FAST=1 跳过真实网络段）
+npm run e2e            # 浏览器冒烟（E2E_MOCK=1 离线回放全量；E2E_FAST=1 跳过真实网络段）
 npm run coverage       # vitest 覆盖率
 ```
 
@@ -37,8 +37,8 @@ npm run coverage       # vitest 覆盖率
   - `commit-msg`：提交信息 conventional 格式（feat|fix|refactor|docs|chore|test|style|perf|build|ci(scope)?: 描述）
   - `pre-push`：push 前跑 `npm run check`（lint + typecheck + vitest）——坏提交本地拦截
 - **依赖与密钥防线**：`npm run audit`（devDeps 漏洞）；CI security job 跑 npm audit + gitleaks（Secret 扫描）
-- **CI**：test job（lint + typecheck + vitest + coverage:gate）；e2e job 用 **E2E_FAST 离线模式**（真实 Steam 网络段不可控，本地全量覆盖）
-- **发布**：`node scripts/release.mjs [版本号]` 半自动（门禁 → bump → changelog 草稿 → commit/tag/push → release 草稿）——**Mimosa seal 仍人工补入**
+- **CI**（7 job，v10.5.1 现状）：test + test-2（vitest 双分片并行，CI 墙钟减半）；coverage-gate（新增文件行覆盖 ≥50% + 全局覆盖率下限）；release-smoke（CI 构建 zip + 产物校验——manifest/service-worker 在、node_modules/tests 不泄漏）；perf（全量 vitest ≤90s 预算）；e2e（xvfb + 固定版 Playwright Chromium，**E2E_MOCK=1 离线回放全量**，不依赖外网）；visual（**advisory 非阻断**——Windows 基线 vs Linux 字体 ~3% 均匀差，diff 上传 artifact 供人工审）；security（npm audit + gitleaks Secret 扫描）
+- **发布**：以 AGENTS.md「发布流程」清单为准（gate → bump → package → commit/tag/push → gh release 附 zip + Mimosa seal + 深度扫描）。`scripts/release.mjs` 半自动脚本存在但**落后于当前流程**（无 visual/双 E2E/zip 附件）——先更新再用，勿直接依赖
 
 ## 代码约定
 

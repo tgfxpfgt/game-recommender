@@ -11,10 +11,12 @@
 - 自动追踪用户在下载站（XDGame、咸鱼单机、Gamer520、3DM、游侠、游民星空等）的浏览行为
 - 基于浏览历史学习用户偏好，智能推荐相关游戏
 - 在列表页实时显示推荐分数徽章
+- 推荐信号融合 Steam 好评率、游玩时长、热度（当前在线）、销量、评论数与个人行为数据（v10.5.3 起销量/评论数入算）
 
 ### 2. Steam 信息集成
 
 - 在下载站详情页自动注入 Steam 信息浮窗
+- 咸鱼单机 / Gamer520 详情页标题下方内嵌 Steam 玩家评价卡（与 XDGame 原生信息区 1:1 复刻：综合评分 / 好评率 / 评测数 / 好评差评 / 修正口碑，v10.5.3）
 - 显示 Steam 总体评价、简体中文评价、SteamDB 评分三重评价体系
 - 展示中文支持情况（简/繁体中文、音频、字幕）
 - 显示热门用户标签、发行日期、开发商等信息
@@ -22,7 +24,7 @@
 
 ### 3. Steam 好评率过滤
 
-- 在列表页自动显示每个游戏的 Steam 好评率徽章
+- 在列表页自动显示每个游戏的 Steam 好评率徽章；最前面另有 ⭐ 综合评分徽章（XDGame「Steam 玩家评价」同口径：综合评分 = 修正口碑 ÷ 10，悬停显示评级/好评差评/修正口碑明细，按 AppID 多站共用缓存，v10.5.3）
 - 支持按好评率阈值过滤，隐藏低评分游戏
 - 过滤后自动重排列表，不留空白
 - 阈值可在扩展菜单和设置页面中调整（0%-95%，步进 5%）
@@ -126,7 +128,7 @@ game-recommender/
 │   └── data-store.js          # OPFS 数据存储层
 ├── lib/
 │   └── ndjson.js              # ND-JSON 编解码库
-├── tests/                     # 自动化测试套件（vitest 15 套件单 runner）
+├── tests/                     # 自动化测试套件（vitest 23 套件单 runner）
 ├── styles/content.css
 ├── popup/                     # 工具栏弹窗
 ├── options/                   # 设置页（入口 + panels/ 四面板）
@@ -251,8 +253,8 @@ flowchart LR
 # 一键验证（lint + 单测）/ full check (lint + unit tests)
 npm run check
 
-# 单测（v6.2.0 起单 runner 全量统一）：vitest 覆盖全部 15 套件（464 test）
-npm test          # vitest run（15 套件，含 content-sim 与 handlers 集成）
+# 单测（v6.2.0 起单 runner 全量统一）：vitest 覆盖全部 23 套件（748 test）
+npm test          # vitest run（23 套件，含 content-sim 与 handlers 集成）
 npm run coverage  # vitest 覆盖率（v8 provider）
 
 # 安装 git 钩子（提交信息格式校验 + 暂存 JS 语法检查，v4.1.2）
@@ -277,6 +279,55 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v10.5.3（内嵌 Steam 信息区 / 列表页综合评分徽章 / 首页错位修复 / 销量评论数入推荐）
+
+**新功能**
+
+- **列表页综合评分徽章**（badges.js / steam-cache.js / orchestrator.js / 各 UI）：各下载站列表页每个游戏标题最前新增 ⭐ **综合评分徽章**，口径与 XDGame 原生「Steam 玩家评价」完全一致（综合评分 = 修正口碑 ÷ 10；好评率贝叶斯收缩，参数经 XDGame 线上接口回归校准）。悬停显示与 XDGame 卡片一致的明细（评级 / 综合评分 / 修正口碑 / Steam 好评率 / 评测数 / 好评差评 / 结论文案），点击跳转 Steam 详情页，配色取 XDGame 评级胶囊三档（绿 / 黄 / 红）。数据随 Steam 动态缓存 rating 模块存取——新增 `positiveReviews` / `negativeReviews` 原始条数字段，按 appId 多站共用（旧缓存缺失按整数好评率近似回退）；0 评测重搜本体后评测统计统一以新 appId 为准（修复 totalReviews 与新 appId 不一致）。设置页 / 弹窗新增「综合评分」徽章开关（默认开，与三段式徽章开关并列）。
+- **销量与评论数参与推荐计算**（engine.js / api-supplement.js）：SteamSpy 补充数据新增原始数值 `totalReviews`（评论总数）与 `ccu`（当前在线），随 spy 模块缓存（7 天 TTL，旧缓存到期自动补齐）。推荐引擎 `steamspyScores` 拆分为四信号：**销量** = owners 区间中点对数 / 7（原"热度"口径本质是销量，移交本信号）；**评论数** = totalReviews 对数 / 5；**热度** 改 CCU 当前在线口径（对数 / 5，真正的"当下热度"）；时长不变。权重默认 `sales: 0.05 / reviews: 0.05`（十项和保持 1.0；未配置新权重的旧调用方贡献恰为 0，行为不变）。设置页 / 弹窗滑块 / 推荐徽章悬停明细全链路同步。
+
+**修复**
+
+- **下载站首页显示错位**（tracker.js / list-page.js）：各下载站首页混排轮播 / 新闻 / 多尺寸卡片，列表功能（徽章插入 / 网格重排 / 过滤控件）会打破站点原生布局。新增 `isHomePageUrl` 判定（根路径或 `/index.html` 且无查询串）：首页暂停列表与详情功能，仅保留下载追踪与二维码转链接；带查询串的根路径（如 WordPress 搜索 `/?s=`）不受影响仍按列表页处理；popup 的推荐刷新消息在首页同样静默跳过。
+
+**界面**
+
+- 设置页"热度权重"说明更新为 CCU 口径（`Heat (SteamSpy CCU)`）；新增"销量权重 / 评论数权重"滑块（0–50%，步进 5，支持手动输入双向绑定）。
+- 权重总和指示器修正：此前漏计 v10.1.0 的两项 a-b 权重（默认和显示 0.89 误报 warn），现全量十项合计，默认恰为 1.00。
+- 推荐徽章悬停明细新增「📊 销量 · 📝 评论数」一行。
+
+**测试**
+
+- 新增 14 项回归（全量 vitest 748/748 通过）：engine 8 项——四信号归一化（CCU 封顶与刻度 / 缺 CCU 中性不抬热度 / 销量口径 / 评论数刻度 / 非法值回中性）、权重未配置行为不变、满分分量进 breakdown 且提分、缺数据不抬分；content-sim 9a——目标站注入位置与内容、非目标站门控、同游戏幂等、模板降级、站点门控名单源码守护，8d——综合评分徽章渲染（首位置 / ⭐ 8.3 = 修正口碑 83.3÷10 / 悬停明细 / 绿色三档配色 / 显式好评差评缓存字段）与旧缓存无 positiveReviews 字段的整数好评率回退（游戏B ⭐ 5.8）；ui-pure 4 项——修正口碑 XDGame 线上样本回归（7 组 ≤0.5pp）、结论分档阈值边界、评级描述中英映射与回退、信息卡模板口径（综合评分 = 修正口碑 ÷ 10）；handlers——GET_STEAM_RATINGS 缓存命中穿透返回 positiveReviews / negativeReviews（按 appId 多站共用字段）。
+
+### v10.5.2（缓存命中零网络契约修复 / LLM Token 优化 / 无障碍焦点）
+
+**修复（P1）**
+
+- **缓存命中路径零网络契约修复**（orchestrator.js `applyCacheHit`）：此前同步 `await` 名称自愈（最多 2 次 Steam 请求）——列表页第一波 `getSteamRatingsFromCacheOnly` 声明的"零网络请求"契约被打破，Steam 不可达 / 官方无英文名（中文站常见）时**每次缓存命中都阻塞数秒并空耗 API 配额**，慢网下直接拖慢徽章首屏渲染。现自愈改后台执行（不阻塞返回），结果非徽章渲染依赖。
+- **名称自愈退避**（api-registry-heal.js）：新增按 appId 的 10 分钟退避——上次尝试无改进（Steam 不可达或官方确无对应语言名）时窗口内不再重复发起注定失败的请求；成功自愈即清除退避。上限 500 条防 Map 无界增长。
+- **test-ratings-resume 间歇失败根因修复**：顶层测试在 describe `afterAll`（恢复真实 fetch）之后运行，两个任务经名称自愈路径发起**真实 Steam 请求**（每个 0.5~7s 网络延迟），负载下超出轮询预算而间歇失败（全量跑失败、单独跑通过的"幽灵"用例）。移入 describe 后 fetch mock 覆盖全部用例（1.4~4.9s → 63ms），并附根因说明注释。
+
+**性能**
+
+- **下一页预载解析让出主线程**（list-page.js）：整页 HTML 的同步 `DOMParser` 可达数十毫秒，移入 `requestIdleCallback`（无该 API 环境回退 `setTimeout`），不再与页面渲染/交互竞争。
+- **分层修复**（recommend/engine.js）：LLM 路径关键词权重此前直读 `dataStore` 绕过缓存层（每次 LLM 调用多一次磁盘 IO），改走 `behavior.js` 内存缓存读取。
+
+**Token 消耗（LLM 评分链路）**
+
+- **输出上限**：Ollama `num_predict: 100` / OpenAI 兼容 `max_tokens: 100`——评分输出只是一小段 JSON，此前无上限时模型可能长篇发挥。
+- **输入截断**：prompt 中游戏描述限 100 字——输入 token 随描述线性增长，评分对长描述几乎无贡献。配合既有 7 天评分缓存与自愈退避，重复请求显著减少。
+
+**界面与无障碍（ui-theme.css，惠及 popup/options/dashboard/hub/freegames 全部扩展页）**
+
+- **键盘焦点可见性**：按钮/导航项/开关/复选框补 `:focus-visible` 描边——此前键盘导航无任何视觉反馈（无障碍缺口）；鼠标操作不受影响。
+- **prefers-reduced-motion**：尊重系统级"减少动态"偏好，装饰性过渡/动画降为瞬时。
+- 滚动条 hover 颜色修正（原误用背景色变量）；清理重复的 `.gr-input:focus` 规则。
+
+**测试**
+
+- 新增 2 项回归（test-orchestrator）：① 缓存命中零网络契约——挂起 fetch mock 下瞬时返回且好评率正确；② 自愈退避——首次尝试后窗口内不重复请求。全量 vitest 734/734、视觉回归 11/11 基线一致。
 
 ### v10.5.1（列表页过滤实时控件 / xdgame 布局对称扩展 / CI e2e 修复）
 
@@ -587,7 +638,7 @@ node --check options/options.js
 发布流程在 AGENTS.md 固化为 4 步清单
 
 - **平台调研**：新增 平台调研与迭代方案-2026-08.md（官方文档/工具调研——SW 生命周期
-  新行为已对齐、userScripts/browser namespace 评估、CWS 上架窗口、P1-P3 迭代建议）
+  新行为已对齐、userScripts/browser namespace 评估、CWS 上架窗口、P1-P3 迭代建议；2026-09-12 迁入 docs/reports/）
 
 689 test（+6 settings-sync）· gate 全过 · 其余门禁同 v10.3.0
 
@@ -675,7 +726,7 @@ node --check options/options.js
 
 ### v9.7.0（全项目自检修复：8 P1 + 20 P2 + 5 P3）
 
-编码模型切换（DeepSeek V4 Flash → GLM-5.3）后的全面自检与修复；完整清单见仓库根 `自检报告-2026-08-27.md`。自动化基线 640 test · E2E 46/46 · lint 0 · typecheck 0。
+编码模型切换（DeepSeek V4 Flash → GLM-5.3）后的全面自检与修复；完整清单见 `docs/reports/自检报告-2026-08-27.md`。自动化基线 640 test · E2E 46/46 · lint 0 · typecheck 0。
 
 **P1 严重（8 项全部修复）**：
 

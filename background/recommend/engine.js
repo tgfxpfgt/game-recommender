@@ -5,14 +5,23 @@
  * 推荐值 = 该游戏的浏览/下载行为信号 + Steam 官方标签与用户偏好匹配 +
  * 好评率 + 中文支持 的综合加权，不同游戏得到不同分值（此前全站统计与
  * 空关键词导致所有游戏分数相同）。LLM 推荐（Ollama / OpenAI）保留。
+ * v10.5.2：LLM 链路 Token 优化——输出上限（num_predict/max_tokens 100）、
+ * prompt 描述截断 100 字、关键词权重改走 behavior.js 内存缓存（不再直读
+ * dataStore 绕过缓存层）。
  * Built-in algorithm rebuilt as an appId-level personalised probability: a
  * game's score combines its own view/download signals, tag-preference match,
  * positive rate and Chinese support — distinct per game. LLM stays.
+ * v10.5.2: LLM token savings — output caps, prompt truncation and cached
+ * keyword-weight reads (no more direct dataStore bypass).
+ * v10.5.3 任务3：新增销量（sales=SteamSpy owners 区间）与评论数（reviews=
+ * totalReviews）信号参与推荐计算，热度 heat 改 CCU（当前在线）口径——
+ * steamspyScores 拆分为四信号，权重默认值/设置页/弹窗/徽章全链路同步。
+ * v10.5.3: sales and review-count signals join the score; heat switches to
+ * the CCU basis (steamspyScores splits into four signals, weights synced
+ * across defaults/options/popup/badge tooltip).
  */
-import { dataStore } from '../../data/data-store.js';
 import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
-import { DB_KEYS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
@@ -70,29 +79,46 @@ export function findProfile(profiles, name, registryEntry) {
 }
 
 // v4.0.0：SteamSpy 时长/热度信号归一化（纯函数，可单测）。
-// playTime：平均游玩分钟 / 600（10 小时封顶）；heat：owners 区间中点对数 / 7
-//（千万封顶，热度分布极偏故用对数）。缺数据 → 中性 0.3（对齐 keywordScore
+// v10.5.3 任务3：拆分为四信号——playTime（平均游玩分钟 / 600，10 小时封顶）、
+// heat（改为 CCU 当前在线对数 / 5，10 万封顶——原 owners 口径本质是销量，
+// 移交 salesScore）、sales（owners 区间中点对数 / 7，千万封顶）、reviews
+//（totalReviews 对数 / 5，10 万封顶）。缺数据 → 中性 0.3（对齐 keywordScore
 // 无标签 0.3 的模式），保证有数据游戏的分数可靠超过缺省值。
-// SteamSpy playtime/heat signal normalisation (pure). playTime caps at 600min;
-// heat is log10(owners midpoint)/7 (log scale for skewed distribution). Missing
-// data yields a neutral 0.3, matching the no-tags keywordScore convention.
+// SteamSpy signal normalisation (pure), four signals since v10.5.3:
+// playTime caps at 600min; heat is log10(ccu)/5 (CCU-based, now that owners
+// moved to the sales signal); sales is log10(owners midpoint)/7; reviews is
+// log10(totalReviews)/5. Missing data yields a neutral 0.3.
 /**
- * SteamSpy 时长/热度归一化信号（纯函数，可单测）
- * @param {Object|null|undefined} spy - SteamSpy 原始数据（averageForeverMin/ownersLow/ownersHigh）
- * @returns {{playTimeScore: number, heatScore: number}}
+ * SteamSpy 时长/热度/销量/评论数归一化信号（纯函数，可单测）
+ * @param {Object|null|undefined} spy - SteamSpy 原始数据（averageForeverMin/ccu/ownersLow/ownersHigh/totalReviews）
+ * @returns {{playTimeScore: number, heatScore: number, salesScore: number, reviewScore: number}}
  */
 export function steamspyScores(spy) {
-  if (!spy || typeof spy !== 'object') return { playTimeScore: 0.3, heatScore: 0.3 };
+  if (!spy || typeof spy !== 'object') {
+    return { playTimeScore: 0.3, heatScore: 0.3, salesScore: 0.3, reviewScore: 0.3 };
+  }
   let playTimeScore = 0.3;
   if (typeof spy.averageForeverMin === 'number' && spy.averageForeverMin > 0) {
     playTimeScore = Math.min(spy.averageForeverMin / 600, 1);
   }
+  // v10.5.3：热度改 CCU 口径（当前在线人数，对数 / 5）——原 owners 口径
+  // 实为销量语义，由下方 salesScore 承接
   let heatScore = 0.3;
+  if (typeof spy.ccu === 'number' && spy.ccu > 0) {
+    heatScore = Math.min(Math.log10(spy.ccu) / 5, 1);
+  }
+  // v10.5.3：销量 = owners 区间中点对数 / 7（千万封顶，分布极偏故用对数）
+  let salesScore = 0.3;
   if (typeof spy.ownersLow === 'number' && typeof spy.ownersHigh === 'number' && spy.ownersHigh > 0) {
     const mid = (spy.ownersLow + spy.ownersHigh) / 2;
-    if (mid > 0) heatScore = Math.min(Math.log10(mid) / 7, 1);
+    if (mid > 0) salesScore = Math.min(Math.log10(mid) / 7, 1);
   }
-  return { playTimeScore, heatScore };
+  // v10.5.3：评论数 = totalReviews 对数 / 5（10 万封顶，与热度同刻度）
+  let reviewScore = 0.3;
+  if (typeof spy.totalReviews === 'number' && spy.totalReviews > 0) {
+    reviewScore = Math.min(Math.log10(spy.totalReviews) / 5, 1);
+  }
+  return { playTimeScore, heatScore, salesScore, reviewScore };
 }
 
 /**
@@ -140,16 +166,19 @@ export function appStatScores(a, b, caps = null) {
  * @param {Object} params.keywordWeights - 用户偏好关键词权重表
  * @param {number|null} params.positiveRate - 好评率（0-100，null=未知）
  * @param {boolean} params.chineseSupported - 是否支持中文
- * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
+ * @param {Object} params.weights - 各信号权重（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat/sales/reviews）
  * @param {number|null} params.playTimeScore - SteamSpy 时长信号（0-1，null=缺省中性）
- * @param {number|null} params.heatScore - SteamSpy 热度信号（0-1，null=缺省中性）
+ * @param {number|null} params.heatScore - SteamSpy 热度信号（0-1，v10.5.3 起 CCU 口径，null=缺省中性）
+ * @param {number|null} [params.salesScore] - SteamSpy 销量信号（0-1，owners 口径，null=缺省中性）
+ * @param {number|null} [params.reviewScore] - SteamSpy 评论数信号（0-1，null=缺省中性）
  * @param {number|null} [params.appDownloads] - AppID 下载次数 a（null=无统计）
  * @param {number|null} [params.appDetailViews] - AppID 详情页打开次数 b（null=无统计）
  * @param {{downloadCap?: number, viewCap?: number}|null} [params.appStatCaps] - a/b 对数饱和封顶（设置可调）
- * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number, appDownloadScore: number, appViewPenalty: number}, method: string}}
+ * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number, salesScore: number, reviewScore: number, appDownloadScore: number, appViewPenalty: number}, method: string}}
  */
 // v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
-// 权重六项（clickRate/downloadRate/keywordMatch/steamRating/playTime/heat）
+// v10.5.3 任务3：新增 salesScore/reviewScore 分量（同缺省中性 0.3），权重键
+// sales/reviews——未配置新权重的旧调用方贡献恰为 0，行为不变
 export function computeGameScore({
   profile = null,
   globalStats = {},
@@ -160,6 +189,8 @@ export function computeGameScore({
   weights = {},
   playTimeScore = null,
   heatScore = null,
+  salesScore = null,
+  reviewScore = null,
   appDownloads = null,
   appDetailViews = null,
   appStatCaps = null
@@ -175,6 +206,8 @@ export function computeGameScore({
         steamScore: 0,
         playTimeScore: 0,
         heatScore: 0,
+        salesScore: 0,
+        reviewScore: 0,
         appDownloadScore: 0,
         appViewPenalty: 0
       },
@@ -202,9 +235,12 @@ export function computeGameScore({
   if (positiveRate !== null && positiveRate !== undefined && Number.isFinite(pr)) {
     steamScore = Math.min((pr / 100) * 0.7 + (chineseSupported ? 0.3 : 0), 1);
   }
-  // 4. SteamSpy 信号：时长/热度（缺省中性 0.3）
+  // 4. SteamSpy 信号：时长/热度/销量/评论数（缺省中性 0.3；v10.5.3 拆分
+  // 热度为 CCU 口径并新增销量/评论数信号）
   const pTime = playTimeScore !== null && playTimeScore !== undefined ? playTimeScore : 0.3;
   const heat = heatScore !== null && heatScore !== undefined ? heatScore : 0.3;
+  const sales = salesScore !== null && salesScore !== undefined ? salesScore : 0.3;
+  const review = reviewScore !== null && reviewScore !== undefined ? reviewScore : 0.3;
   // 5. AppID 行为统计信号（v10.1.0）：a>0 正向 / a=0 且 b>0 负向（b 越大越不推荐）
   const { downloadStat, viewPenalty } = appStatScores(appDownloads, appDetailViews, appStatCaps);
   const finalScore =
@@ -214,6 +250,8 @@ export function computeGameScore({
     steamScore * W('steamRating') +
     pTime * W('playTime') +
     heat * W('heat') +
+    sales * W('sales') +
+    review * W('reviews') +
     downloadStat * W('appStatDownload') +
     viewPenalty * W('appStatDetailView');
   // v6.4.10：权重和超 1 时归一化（用户可配置任意权重，保证评分不超 100%）
@@ -226,6 +264,8 @@ export function computeGameScore({
     W('steamRating') +
     W('playTime') +
     W('heat') +
+    W('sales') +
+    W('reviews') +
     W('appStatDownload');
   // v10.3.0：clamp 到 [0,1]——未下载惩罚（负分量）可能把分数推为负数，
   // 负推荐值无意义（徽章显示异常），下限 0
@@ -241,6 +281,8 @@ export function computeGameScore({
       steamScore: Math.round(steamScore * 100) / 100,
       playTimeScore: Math.round(pTime * 100) / 100,
       heatScore: Math.round(heat * 100) / 100,
+      salesScore: Math.round(sales * 100) / 100,
+      reviewScore: Math.round(review * 100) / 100,
       appDownloadScore: Math.round(downloadStat * 100) / 100,
       appViewPenalty: Math.round(viewPenalty * 100) / 100
     },
@@ -305,7 +347,10 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   // v3.3.7：缓存为模块结构，用合并视图读字段
   const steamData = steamEntry ? getMergedData(steamEntry) : null;
   // v4.0.0：SteamSpy 时长/热度信号（spy 模块可能为 null，steamspyScores 兜底）
-  const { playTimeScore, heatScore } = steamspyScores(steamData && steamData.steamspy ? steamData.steamspy : null);
+  // v10.5.3 任务3：拆分出销量/评论数信号（owners/totalReviews 随 spy 缓存）
+  const { playTimeScore, heatScore, salesScore, reviewScore } = steamspyScores(
+    steamData && steamData.steamspy ? steamData.steamspy : null
+  );
 
   return computeGameScore({
     profile,
@@ -316,6 +361,8 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
     chineseSupported: steamData ? !!steamData.chineseSupported : false,
     playTimeScore,
     heatScore,
+    salesScore,
+    reviewScore,
     appDownloads: appStat ? appStat.downloads : null,
     appDetailViews: appStat ? appStat.detailViews : null,
     appStatCaps: {
@@ -331,8 +378,10 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
 async function calculateWithLLM(gameInfo, settings) {
   const { llmConfig } = settings;
 
-  const kwData = await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS);
-  const keywordWeights = kwData || {};
+  // v10.5.2：改用 behavior.js 内存缓存读（此前直读 dataStore 绕过缓存层，
+  // 破坏分层约定且每次 LLM 调用多一次磁盘 IO）
+  // Read via the behavior.js memory cache instead of hitting dataStore directly.
+  const keywordWeights = (await readKeywordWeights()) || {};
   const topKeywords = Object.entries(keywordWeights)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 15)
@@ -356,7 +405,10 @@ async function calculateWithLLM(gameInfo, settings) {
           model: llmConfig.model,
           prompt,
           stream: false,
-          options: { temperature: llmConfig.temperature }
+          // v10.5.2：num_predict 上限——评分输出只是一小段 JSON，无上限时模型
+          // 可能长篇发挥，白白消耗 token/时间
+          // Cap generated tokens: the score is a tiny JSON blob.
+          options: { temperature: llmConfig.temperature, num_predict: 100 }
         })
       },
       LLM_FETCH_TIMEOUT
@@ -384,7 +436,9 @@ async function calculateWithLLM(gameInfo, settings) {
             },
             { role: 'user', content: prompt }
           ],
-          temperature: llmConfig.temperature
+          temperature: llmConfig.temperature,
+          // v10.5.2：max_tokens 上限（同 num_predict——限制输出长度降 token 消耗）
+          max_tokens: 100
         })
       },
       LLM_FETCH_TIMEOUT
@@ -395,11 +449,16 @@ async function calculateWithLLM(gameInfo, settings) {
 }
 
 function buildLLMPrompt(gameInfo, userKeywords) {
+  // v10.5.2：描述截断至 100 字——输入 token 随描述线性增长，评分只需类型/氛围
+  // 提示，长描述对分数几乎无贡献
+  // Truncate the description: prompt tokens grow linearly with it while the
+  // score barely benefits beyond the first sentence.
+  const desc = String(gameInfo.description || '').slice(0, 100);
   return `请根据以下信息评估用户下载该游戏的概率（0-1）：
 
 游戏名称：${gameInfo.name}
 游戏类型：${(gameInfo.keywords || []).join('、') || '未知'}
-游戏描述：${gameInfo.description || '无'}
+游戏描述：${desc || '无'}
 Steam评分：${gameInfo.steamRating || '未知'}/10
 Steam好评率：${gameInfo.positiveRate || '未知'}%
 

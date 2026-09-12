@@ -4,7 +4,11 @@
  * v6.4.5：参考 Steam 主页美术风格（深蓝黑 + 蓝色强调 + 卡片渐变）——
  * 所有扩展 UI（popup/options/dashboard/freegames）统一视觉。
  * CSS 变量驱动：页面在此之后加载自身样式，组件类可直接复用。
+ * v10.5.2：键盘焦点可见性（:focus-visible 描边，无障碍）与
+ * prefers-reduced-motion 支持；清理重复 focus 规则与滚动条 hover 色。
  * Steam-inspired design system: dark blue-black, blue accents, gradient cards.
+ * v10.5.2: keyboard focus visibility (:focus-visible) + reduced-motion
+ * support; deduped focus rules and scrollbar hover color.
  */
 :root {
   /* ===== v9.2.0：默认主题 = Steam 旧客户端深色工业风 =====
@@ -242,9 +246,6 @@ body {
     inset 0 2px 4px rgba(0, 0, 0, 0.35),
     0 0 0 1px rgba(20, 184, 166, 0.2);
 }
-.gr-input:focus {
-  border-color: var(--gr-accent-btn);
-}
 .gr-input::placeholder {
   color: var(--gr-text-dim);
 }
@@ -479,5 +480,40 @@ body {
   border-radius: 5px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--gr-card);
+  background: #4a5460;
+}
+
+/* ============ v10.5.2：键盘焦点可见性（无障碍） ============ */
+/* Keyboard focus visibility: visible outlines for keyboard users only;
+   mouse clicks keep the clean look (focus-visible ignores pointer). */
+.gr-btn:focus-visible,
+.gr-nav-item:focus-visible {
+  outline: 2px solid var(--gr-accent);
+  outline-offset: 1px;
+}
+.gr-check input[type='checkbox']:focus-visible {
+  outline: 2px solid var(--gr-accent);
+  outline-offset: 1px;
+}
+.gr-switch input:focus-visible + .gr-slider-ui {
+  outline: 2px solid var(--gr-accent);
+  outline-offset: 2px;
+}
+.gr-input:focus-visible,
+.gr-range:focus-visible,
+select:focus-visible {
+  outline: none; /* 已有 border/box-shadow 焦点样式 / already styled */
+}
+
+/* ============ v10.5.2：减少动态偏好（prefers-reduced-motion） ============ */
+/* Respect the OS-level reduced-motion preference: drop decorative
+   transitions/animations, keep color-only state changes. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }

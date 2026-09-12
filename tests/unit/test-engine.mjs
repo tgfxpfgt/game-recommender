@@ -5,6 +5,8 @@ import { test, expect } from 'vitest';
  * v3.2.8：验证 appId 维度个性化评分——不同游戏的推荐值不同，
  * 行为信号/标签匹配/好评率/中文支持各分量正确，画像查找兼容名称变体。
  * v4.0.0：新增 SteamSpy 时长/热度分量（playTimeScore/heatScore）与六项权重。
+ * v10.5.3 任务3：新增销量/评论数分量（salesScore/reviewScore），热度 heat
+ * 改 CCU（当前在线）口径——owners 口径移交销量信号。
  */
 ('use strict');
 
@@ -70,11 +72,12 @@ test('评分在 0-1 区间（六项权重和 1.0）', () => {
   expect(hot.score >= 0 && hot.score <= 1).toEqual(true);
 });
 
-test('无 spy 数据 → 双中性 0.3', () => {
-  expect(steamspyScores(null)).toEqual({ playTimeScore: 0.3, heatScore: 0.3 });
+// v10.5.3 任务3：四信号（时长/热度[CCU]/销量[owners]/评论数）——缺数据中性 0.3
+test('无 spy 数据 → 四信号中性 0.3', () => {
+  expect(steamspyScores(null)).toEqual({ playTimeScore: 0.3, heatScore: 0.3, salesScore: 0.3, reviewScore: 0.3 });
 });
-test('空对象 → 双中性 0.3', () => {
-  expect(steamspyScores({})).toEqual({ playTimeScore: 0.3, heatScore: 0.3 });
+test('空对象 → 四信号中性 0.3', () => {
+  expect(steamspyScores({})).toEqual({ playTimeScore: 0.3, heatScore: 0.3, salesScore: 0.3, reviewScore: 0.3 });
 });
 test('时长 600 分钟封顶 1.0', () => {
   expect(steamspyScores({ averageForeverMin: 600, ownersLow: 1, ownersHigh: 2 }).playTimeScore).toEqual(1);
@@ -82,16 +85,36 @@ test('时长 600 分钟封顶 1.0', () => {
 test('时长 300 分钟 = 0.5', () => {
   expect(steamspyScores({ averageForeverMin: 300 }).playTimeScore).toEqual(0.5);
 });
-test('热度千万封顶 1.0', () => {
-  expect(steamspyScores({ ownersLow: 10000000, ownersHigh: 10000000 }).heatScore).toEqual(1);
+// 热度改 CCU 口径（v10.5.3）
+test('热度 CCU 10 万封顶 1.0', () => {
+  expect(steamspyScores({ ccu: 100000 }).heatScore).toEqual(1);
 });
-test('热度 10 万 ≈ 0.714', () => {
-  expect(Math.round(steamspyScores({ ownersLow: 100000, ownersHigh: 100000 }).heatScore * 1000) / 1000).toEqual(0.714);
+test('热度 CCU 100 = 0.4', () => {
+  expect(Math.round(steamspyScores({ ccu: 100 }).heatScore * 1000) / 1000).toEqual(0.4);
+});
+test('无 CCU（旧缓存）→ 热度中性 0.3，owners 不再抬热度', () => {
+  expect(steamspyScores({ ownersLow: 100000, ownersHigh: 100000 }).heatScore).toEqual(0.3);
+});
+// 销量 = owners 区间中点对数 / 7（原热度口径移交）
+test('销量千万封顶 1.0', () => {
+  expect(steamspyScores({ ownersLow: 10000000, ownersHigh: 10000000 }).salesScore).toEqual(1);
+});
+test('销量 10 万 ≈ 0.714', () => {
+  expect(Math.round(steamspyScores({ ownersLow: 100000, ownersHigh: 100000 }).salesScore * 1000) / 1000).toEqual(0.714);
+});
+// 评论数 = totalReviews 对数 / 5
+test('评论数 10 万封顶 1.0', () => {
+  expect(steamspyScores({ totalReviews: 100000 }).reviewScore).toEqual(1);
+});
+test('评论数 100 = 0.4', () => {
+  expect(Math.round(steamspyScores({ totalReviews: 100 }).reviewScore * 1000) / 1000).toEqual(0.4);
 });
 test('非法数值忽略（回中性）', () => {
   expect(steamspyScores({ averageForeverMin: 'x', ownersLow: 'y' })).toEqual({
     playTimeScore: 0.3,
-    heatScore: 0.3
+    heatScore: 0.3,
+    salesScore: 0.3,
+    reviewScore: 0.3
   });
 });
 const spyGame = computeGameScore({
@@ -110,6 +133,38 @@ test('满分时长/热度分量进入 breakdown', () => {
 });
 test('缺数据 breakdown 中性 0.3', () => {
   expect(noSpyGame.breakdown.heatScore).toEqual(0.3);
+});
+// v10.5.3 任务3：销量/评论数分量（未配置权重 → 行为不变；配置后进入计算）
+const spyFullGame = computeGameScore({
+  ...base,
+  profile: null,
+  positiveRate: null,
+  weights: { ...W, sales: 0.05, reviews: 0.05 },
+  playTimeScore: 1,
+  heatScore: 1,
+  salesScore: 1,
+  reviewScore: 1
+});
+test('未配置销量/评论数权重 → 旧权重行为不变（分量缺省中性）', () => {
+  expect(spyGame.breakdown.salesScore).toEqual(0.3);
+  expect(spyGame.breakdown.reviewScore).toEqual(0.3);
+});
+test('销量/评论数满分分量进入 breakdown 且提分', () => {
+  expect(spyFullGame.breakdown.salesScore).toEqual(1);
+  expect(spyFullGame.breakdown.reviewScore).toEqual(1);
+  expect(spyFullGame.score > spyGame.score).toEqual(true);
+});
+test('销量/评论数缺数据（中性 0.3）不抬分', () => {
+  const neutralSpy = computeGameScore({
+    ...base,
+    profile: null,
+    positiveRate: null,
+    weights: { ...W, sales: 0.05, reviews: 0.05 },
+    playTimeScore: 1,
+    heatScore: 1
+    // salesScore/reviewScore 不传 → 中性 0.3
+  });
+  expect(neutralSpy.score < spyFullGame.score).toEqual(true);
 });
 
 const profiles = {

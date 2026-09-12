@@ -231,7 +231,7 @@ const DEFAULT_SETTINGS = {
   trackedSites: [],
   steamSiteSearch: [],
   highlightThreshold: 0.6,
-  badgeVisibility: { recent: true, all: true, update: true, rec: true }
+  badgeVisibility: { recent: true, all: true, update: true, rec: true, score: true }
 };
 
 // ============ Fake chrome API（预设按 action 分发）/ fake chrome with presets ============
@@ -412,7 +412,8 @@ function isAllBadge(c) {
     c.className.includes('gr-rating-badge') &&
     !c.className.includes('gr-badge-recent') &&
     !c.className.includes('gr-badge-update') &&
-    !c.className.includes('gr-badge-appstat') // v10.4.3：a-b 徽章同基类，需排除
+    !c.className.includes('gr-badge-appstat') && // v10.4.3：a-b 徽章同基类，需排除
+    !c.className.includes('gr-score-badge') // v10.5.3：综合评分徽章同基类，需排除
   );
 }
 
@@ -540,18 +541,26 @@ test('2. 列表页两波好评率流程', async () => {
 
   expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
   expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);
-  // v3.3.6：游戏B 三段徽章（近30天 55% / 全部 60% / 更新 08-01）
+  // v3.3.6：游戏B 三段徽章（近30天 55% / 全部 60% / 更新 08-01）+
+  // v10.5.3 段0 综合评分（⭐ 5.8 = 修正口碑 58.5 ÷ 10；旧缓存无
+  // positiveReviews 字段 → 按整数好评率回退 positive = 60% × 500 = 300）
   expect(
-    itemB.a.children[0].className.includes('gr-badge-recent') && itemB.a.children[0].textContent === '55%'
-  ).toEqual(true);
-  expect(itemB.a.children[0].title.includes('55%') && itemB.a.children[0].title.includes('120')).toEqual(true);
-  expect(
-    itemB.a.children[1].className.includes('gr-rating-badge') && itemB.a.children[1].textContent === '▲ 60%'
+    itemB.a.children[0].className.includes('gr-score-badge') && itemB.a.children[0].textContent === '⭐ 5.8'
   ).toEqual(true);
   expect(
-    itemB.a.children[2].className.includes('gr-badge-update') && itemB.a.children[2].textContent === '🛠 08-01'
+    itemB.a.children[0].title.includes('综合评分 5.8/10') && itemB.a.children[0].title.includes('修正口碑 58.5%')
   ).toEqual(true);
-  expect(itemB.a.children[2].title.includes('2026-08-01') && itemB.a.children[2].title.includes('2025-03-30')).toEqual(
+  expect(
+    itemB.a.children[1].className.includes('gr-badge-recent') && itemB.a.children[1].textContent === '55%'
+  ).toEqual(true);
+  expect(itemB.a.children[1].title.includes('55%') && itemB.a.children[1].title.includes('120')).toEqual(true);
+  expect(
+    itemB.a.children[2].className.includes('gr-rating-badge') && itemB.a.children[2].textContent === '▲ 60%'
+  ).toEqual(true);
+  expect(
+    itemB.a.children[3].className.includes('gr-badge-update') && itemB.a.children[3].textContent === '🛠 08-01'
+  ).toEqual(true);
+  expect(itemB.a.children[3].title.includes('2026-08-01') && itemB.a.children[3].title.includes('2025-03-30')).toEqual(
     true
   );
 
@@ -924,6 +933,51 @@ test('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
   presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
 });
 
+test('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async () => {
+  const scoreSettings = {
+    ...DEFAULT_SETTINGS,
+    badgeVisibility: { score: true, recent: true, all: true, update: true, rec: false }
+  };
+  presets['GET_SETTINGS'] = () => ({ settings: scoreSettings });
+  const scoreItem = makeItem('评分测试游戏', 99);
+  queryAllStub = (sel) => (sel === 'li.game-item' ? [scoreItem.li] : []);
+  presets['GET_STEAM_RATINGS'] = (msg) => ({
+    ratings: {
+      评分测试游戏: {
+        appId: '777',
+        positiveRate: 88,
+        ratingDesc: '特别好评',
+        totalReviews: 1000,
+        positiveReviews: 880,
+        negativeReviews: 120,
+        recentPositiveRate: 85,
+        recentTotalReviews: 200,
+        lastUpdate: '2026-08-01'
+      }
+    },
+    pending: 0
+  });
+  presets['GET_RECOMMENDATIONS'] = () => ({ results: [] });
+  const adapter = GR.builder.getAdapter();
+  const items = GR.list.getListItemsSmart(adapter);
+  GR.list.trackListView(adapter, items, scoreSettings);
+  await waitFor(() => scoreItem.a.children.some((c) => c.className.includes('gr-score-badge')));
+  // 段0 渲染在最前：⭐ 8.3 = 修正口碑 83.3 ÷ 10（好评 880 / 总评 1000，
+  // 走缓存显式 positiveReviews/negativeReviews 字段路径）
+  const scoreBadge = scoreItem.a.children.find((c) => c.className.includes('gr-score-badge'));
+  expect(scoreItem.a.children[0]).toEqual(scoreBadge);
+  expect(scoreBadge.textContent).toEqual('⭐ 8.3');
+  expect(scoreBadge.title.includes('Steam 玩家评价：特别好评')).toEqual(true);
+  expect(scoreBadge.title.includes('综合评分 8.3/10')).toEqual(true);
+  expect(scoreBadge.title.includes('修正口碑 83.3%')).toEqual(true);
+  expect(scoreBadge.title.includes('好评 880 · 差评 120')).toEqual(true);
+  expect(scoreBadge.title.includes('1,000 条评价')).toEqual(true);
+  expect(scoreBadge.title.includes('整体口碑很好，值得下载体验')).toEqual(true);
+  // 特别好评 → positive 三档配色（XDGame 绿 #2e8660）
+  expect(scoreBadge.style.cssText.includes('#2e8660')).toEqual(true);
+  presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
+});
+
 test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   await reloadContentScripts();
   presets['GET_SETTINGS'] = () => ({
@@ -1013,6 +1067,135 @@ test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   const detailAllSrc = detailSrc + fs.readFileSync(path.join(ROOT, 'content/detail/detail-templates.js'), 'utf-8');
   expect(detailAllSrc.includes('\\b(demo|trial)\\b')).toEqual(true);
   expect(steamApiSrc.includes("gameData.type === 'demo'")).toEqual(true);
+});
+
+// ============ 9a. 内嵌 Steam 信息区（v10.5.3 任务1：咸鱼单机/gamer520） ============
+test('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门控 + 模板降级）', async () => {
+  await reloadContentScripts();
+  presets['GET_SETTINGS'] = () => ({
+    settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
+  });
+  // 构造带父节点的 h1（内嵌区经 parentNode.insertBefore 注入标题之后）
+  const h1El = new FakeEl('h1');
+  h1El._text = '北方之魂/Spirit of the North';
+  const article = new FakeEl('article');
+  article.appendChild(h1El);
+  queryOneStub = (sel) => {
+    if (sel === 'h1, h2.entry-title') return h1El;
+    if (sel === '.entry-content, .post-content, .article-content, article, main') return article;
+    return null;
+  };
+  queryAllStub = () => [];
+  // documentMock.getElementById 恒 null——按 article 子树查找，幂等逻辑才可测
+  const origGetById = documentMock.getElementById;
+  documentMock.getElementById = (id) => article.children.find((c) => c.id === id) || null;
+  const inlineSection = () => article.children.find((c) => c.id === 'gr-steam-inline-section') || null;
+
+  const steamData = {
+    appId: '1213700',
+    name: '北方之魂',
+    positiveRate: 90,
+    positiveReviews: 4500,
+    negativeReviews: 500,
+    ratingDesc: 'Very Positive',
+    totalReviews: 5000,
+    releaseDate: '2024-01-01',
+    url: 'https://store.steampowered.com/app/1213700/',
+    userTags: ['冒险'],
+    genres: ['RPG'],
+    chineseSupported: true,
+    steamspy: { owners: '1000000 .. 2000000', ownersLow: 1000000, ownersHigh: 2000000, totalReviews: 3000, ccu: 1200 }
+  };
+  presets['SEARCH_STEAM'] = () => ({ data: steamData, cachedAt: Date.now() });
+  presets['GET_STEAM_BY_APPID'] = () => ({ data: null });
+
+  // 门控：非目标站（无匹配规则 → _default 适配器）→ 浮窗渲染但内嵌区不注入
+  globalThis.location = {
+    hostname: 'www.xdgame.com',
+    pathname: '/game/123.html',
+    href: 'https://www.xdgame.com/game/123.html'
+  };
+  window.location = globalThis.location;
+  GR.detail.injectSteamButton('北方之魂/Spirit of the North');
+  await waitFor(() => {
+    const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
+    return root && root.children.length >= 2 && (root.children[1]._html || '').includes('北方之魂');
+  });
+  expect(inlineSection()).toEqual(null); // 非目标站（XDGame 原生已有）不注入
+
+  // 目标站（xianyudanji）→ 标题之后注入内嵌信息区
+  globalThis.location = {
+    hostname: 'www.xianyudanji.gg',
+    pathname: '/16598.html',
+    href: 'https://www.xianyudanji.gg/16598.html'
+  };
+  window.location = globalThis.location;
+  GR.detail.injectSteamButton('北方之魂/Spirit of the North');
+  await waitFor(() => inlineSection() !== null);
+  const section = inlineSection();
+  const html = section ? section._html : '';
+  // 信息卡与 XDGame 原生区完全一致：结构 + 数据口径（综合评分/好评率/评测数/
+  // 结论/口碑进度条/好评差评修正口碑）；评级文本英文 → 中文映射（4500/5000
+  // → 好评率 90.0% / 修正口碑 87.0% / 评分 8.7 / 结论 ≥85 档「口碑表现出色」）
+  expect(html.includes('steam-review-card') && html.includes('Steam 玩家评价')).toEqual(true);
+  expect(html.includes('is-positive') && html.includes('fa-thumbs-up') && html.includes('特别好评')).toEqual(true);
+  expect(html.includes('data-steam-score>8.7</strong>') && html.includes('综合评分')).toEqual(true);
+  expect(html.includes('90.0%') && html.includes('5,000') && html.includes('条评价')).toEqual(true);
+  expect(html.includes('口碑表现出色，推荐下载体验')).toEqual(true);
+  expect(html.includes('修正口碑') && html.includes('87.0%') && html.includes('width:87.0%')).toEqual(true);
+  expect(html.includes('data-steam-positive>4,500<') && html.includes('data-steam-negative>500<')).toEqual(true);
+  expect(html.includes('数据更新于')).toEqual(true);
+  // 样式表随卡片注入（XDGame 同款 CSS，作用域挂在容器 id 上）
+  expect(documentMock.head.children.some((c) => c.id === 'gr-steam-inline-style')).toEqual(true);
+  expect(section.getAttribute('data-gr-appid')).toEqual('1213700');
+  // 注入位置：紧随 h1 之后
+  expect(article.children.indexOf(section)).toEqual(article.children.indexOf(h1El) + 1);
+  // 幂等：同游戏重复渲染不重复注入
+  GR.detail.injectSteamButton('北方之魂/Spirit of the North');
+  await new Promise((r) => setTimeout(r, 300));
+  expect(article.children.filter((c) => c.id === 'gr-steam-inline-section').length).toEqual(1);
+
+  // 模板降级：无评测 → 空串（与 XDGame 无数据隐藏一致，SteamSpy 评测数不再
+  // 兜底——XDGame 卡无此口径）；旧缓存无原始计数 → 按整数好评率近似回退；
+  // Mixed → is-mixed + fa-adjust + 褒贬不一（50/100 → 修正口碑 50.0 → 尚可档）
+  expect(GR.detailTemplates.steamInlineSection({ appId: '1', name: '空数据' })).toEqual('');
+  expect(
+    GR.detailTemplates.steamInlineSection({ appId: '2', name: '空数据', steamspy: { totalReviews: 321 } })
+  ).toEqual('');
+  const legacyHtml = GR.detailTemplates.steamInlineSection({
+    appId: '3',
+    name: '旧缓存',
+    positiveRate: 90,
+    totalReviews: 5000,
+    ratingDesc: '特别好评'
+  });
+  expect(legacyHtml.includes('data-steam-positive>4,500<') && legacyHtml.includes('90.0%')).toEqual(true);
+  const mixedHtml = GR.detailTemplates.steamInlineSection({
+    appId: '4',
+    name: '褒贬不一',
+    positiveRate: 50,
+    positiveReviews: 50,
+    negativeReviews: 50,
+    totalReviews: 100,
+    ratingDesc: 'Mixed'
+  });
+  expect(mixedHtml.includes('is-mixed') && mixedHtml.includes('fa-adjust') && mixedHtml.includes('褒贬不一')).toEqual(
+    true
+  );
+  expect(mixedHtml.includes('口碑尚可，建议结合玩法判断')).toEqual(true);
+
+  // 源码级守护：站点门控名单（XDGame 原生已有信息区，不重复注入）
+  const detailSrc2 = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
+  expect(detailSrc2.includes("INLINE_SECTION_SITES = ['xianyudanji', 'gamer520']")).toEqual(true);
+
+  // 还原 mock（后续节不受影响）
+  documentMock.getElementById = origGetById;
+  globalThis.location = {
+    hostname: 'www.xianyudanji.gg',
+    pathname: '/16598.html',
+    href: 'https://www.xianyudanji.gg/16598.html'
+  };
+  window.location = globalThis.location;
 });
 
 // ============ 9b. 详情浮窗模板全量渲染（v9.1.0 覆盖率） ============

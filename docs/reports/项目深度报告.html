@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>游戏雷达 Game Radar · 项目深度报告</title>
+<style>
+:root{
+  --bg:#0e1621; --panel:#1b2838; --panel2:#22303f; --line:#2a3f55;
+  --txt:#c7d5e0; --muted:#8f98a0; --white:#ffffff;
+  --accent:#66c0f4; --teal:#2dd4bf; --green:#a3cf06; --amber:#f0a93b;
+  --orange:#ff7b00; --red:#e5534b; --purple:#b07cf0; --cyan:#4dd0e1;
+  --sidebar-w:264px;
+  --mono:Consolas,"JetBrains Mono","Cascadia Code","Courier New",monospace;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--txt);
+  font-family:-apple-system,"Segoe UI","Microsoft YaHei","PingFang SC",sans-serif;
+  line-height:1.7;font-size:15px}
+::selection{background:rgba(102,192,244,.35)}
+
+/* ===== 侧栏导航 ===== */
+nav.side{position:fixed;top:0;left:0;bottom:0;width:var(--sidebar-w);
+  background:#101a26;border-right:1px solid var(--line);overflow-y:auto;
+  padding:18px 0 40px;z-index:50}
+nav.side .brand{padding:6px 20px 16px;border-bottom:1px solid var(--line);margin-bottom:12px}
+nav.side .brand b{color:var(--white);font-size:16px;display:block;letter-spacing:.5px}
+nav.side .brand span{color:var(--muted);font-size:11.5px;font-family:var(--mono)}
+nav.side a{display:block;color:var(--muted);text-decoration:none;font-size:13.5px;
+  padding:6px 20px;border-left:3px solid transparent;transition:all .15s}
+nav.side a:hover{color:var(--accent);background:rgba(102,192,244,.06)}
+nav.side a.on{color:var(--accent);border-left-color:var(--accent);background:rgba(102,192,244,.09);font-weight:600}
+nav.side a .no{font-family:var(--mono);color:var(--teal);margin-right:6px;font-size:12px}
+
+/* ===== 主区 ===== */
+main{margin-left:var(--sidebar-w);padding:34px 44px 90px;max-width:1100px}
+header.hero{background:linear-gradient(135deg,#101826 0%,#1c2a42 55%,#173a4a 100%);
+  border:1px solid var(--line);border-radius:16px;padding:36px 34px;position:relative;overflow:hidden;margin-bottom:30px}
+header.hero::after{content:'';position:absolute;right:-70px;top:-70px;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,rgba(102,192,244,.18),transparent 70%)}
+header.hero::before{content:'';position:absolute;left:-40px;bottom:-60px;width:200px;height:200px;border-radius:50%;
+  background:radial-gradient(circle,rgba(45,212,191,.10),transparent 70%)}
+header.hero h1{margin:0 0 10px;font-size:30px;color:var(--white);letter-spacing:1px}
+header.hero .tagline{color:var(--txt);font-size:14.5px;max-width:760px}
+.meta-chips{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px;position:relative;z-index:1}
+.chip{font-size:12.5px;font-family:var(--mono);padding:4px 12px;border-radius:20px;
+  background:rgba(102,192,244,.10);border:1px solid rgba(102,192,244,.35);color:var(--accent)}
+.chip.t{background:rgba(45,212,191,.10);border-color:rgba(45,212,191,.35);color:var(--teal)}
+.chip.g{background:rgba(163,207,6,.10);border-color:rgba(163,207,6,.35);color:var(--green)}
+
+h2{margin:52px 0 16px;font-size:23px;color:var(--white);border-left:5px solid var(--accent);
+  padding-left:14px;letter-spacing:.5px;scroll-margin-top:20px}
+h2 .no{color:var(--teal);font-family:var(--mono);font-size:18px;margin-right:10px}
+h3{margin:26px 0 10px;font-size:17px;color:var(--accent);scroll-margin-top:20px}
+h4{margin:20px 0 8px;font-size:15px;color:var(--teal)}
+p{margin:10px 0}
+ul,ol{margin:10px 0;padding-left:24px}
+li{margin:5px 0}
+b,strong{color:var(--white)}
+code{background:#0c1420;border:1px solid #1d2c3e;padding:1px 6px;border-radius:4px;
+  color:#9fd0ff;font-size:13px;font-family:var(--mono)}
+pre{background:#0c1420;border:1px solid var(--line);border-radius:10px;padding:16px 18px;
+  overflow-x:auto;font-size:13px;line-height:1.6;color:#a9c9e8;font-family:var(--mono)}
+pre code{background:none;border:none;padding:0}
+hr.sep{border:none;border-top:1px dashed var(--line);margin:44px 0}
+
+/* ===== 表格 ===== */
+table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13.5px;
+  background:var(--panel);border-radius:10px;overflow:hidden}
+th,td{border:1px solid var(--line);padding:9px 12px;text-align:left;vertical-align:top}
+th{background:var(--panel2);color:var(--white);font-weight:600;font-size:13px}
+tr:nth-child(even) td{background:rgba(255,255,255,.02)}
+td.num,th.num{text-align:center;font-family:var(--mono)}
+
+/* ===== 通用卡片/提示 ===== */
+.note{background:rgba(240,169,59,.07);border:1px solid rgba(240,169,59,.3);border-radius:10px;
+  padding:12px 16px;font-size:13.5px;color:#e8d5ae;margin:14px 0}
+.warnbox{background:rgba(229,83,75,.07);border:1px solid rgba(229,83,75,.32);border-radius:10px;
+  padding:12px 16px;font-size:13.5px;color:#f2c4c0;margin:14px 0}
+.goodbox{background:rgba(163,207,6,.07);border:1px solid rgba(163,207,6,.3);border-radius:10px;
+  padding:12px 16px;font-size:13.5px;color:#d6e8a8;margin:14px 0}
+.infobox{background:rgba(102,192,244,.06);border:1px solid rgba(102,192,244,.28);border-radius:10px;
+  padding:12px 16px;font-size:13.5px;color:#bcd9ef;margin:14px 0}
+.tag{display:inline-block;padding:1px 9px;border-radius:11px;font-size:12px;font-weight:600;font-family:var(--mono)}
+.tag.p0{background:rgba(229,83,75,.16);color:#ff8a80;border:1px solid rgba(229,83,75,.45)}
+.tag.p1{background:rgba(240,169,59,.15);color:var(--amber);border:1px solid rgba(240,169,59,.45)}
+.tag.p2{background:rgba(102,192,244,.13);color:var(--accent);border:1px solid rgba(102,192,244,.4)}
+.tag.ok{background:rgba(163,207,6,.14);color:var(--green);border:1px solid rgba(163,207,6,.4)}
+
+/* ===== KPI ===== */
+.kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:20px 0}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:16px 14px;text-align:center;
+  transition:transform .18s,border-color .18s}
+.kpi:hover{transform:translateY(-3px);border-color:var(--accent)}
+.kpi .v{font-size:22px;font-weight:700;color:var(--white);font-family:var(--mono)}
+.kpi .l{font-size:12px;color:var(--muted);margin-top:5px}
+
+/* ===== 图表通用 ===== */
+.chart-card{background:var(--panel);border:1px solid var(--line);border-radius:14px;
+  padding:20px 22px;margin:18px 0}
+.chart-card .ct{font-size:15px;font-weight:700;color:var(--white);margin-bottom:4px}
+.chart-card .cs{font-size:12px;color:var(--muted);margin-bottom:14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+/* 环形仪表 */
+.ring-wrap{text-align:center}
+.ring-wrap svg{display:block;margin:0 auto}
+.ring-wrap .rl{font-size:12.5px;color:var(--muted);margin-top:6px}
+/* CSS 条形图 */
+.hbar{display:grid;grid-template-columns:170px 1fr 74px;align-items:center;gap:10px;margin:8px 0;font-size:13px}
+.hbar .hl{color:var(--txt);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar .ht{height:16px;background:#223048;border-radius:8px;overflow:hidden}
+.hbar .ht i{display:block;height:100%;border-radius:8px}
+.hbar .hv{font-family:var(--mono);color:var(--green);font-weight:700;font-size:13px}
+/* 风险矩阵 */
+.riskrow{display:grid;grid-template-columns:200px 1fr 54px;align-items:center;gap:10px;margin:9px 0;font-size:13px}
+.riskrow .rl2{text-align:right;color:var(--txt)}
+.riskrow .cells{display:flex;gap:5px}
+.riskrow .cells i{width:26px;height:20px;border-radius:4px;display:block}
+.riskrow .rv{font-family:var(--mono);font-weight:700;color:var(--white);text-align:center}
+
+/* ===== 架构图 ===== */
+.arch{display:grid;gap:14px;margin:16px 0}
+.arch .layer{border:1px solid var(--line);border-radius:12px;padding:14px 16px;position:relative}
+.arch .layer .lt{font-size:12px;font-family:var(--mono);color:var(--muted);margin-bottom:10px;letter-spacing:1px}
+.arch .boxes{display:flex;flex-wrap:wrap;gap:8px}
+.arch .box{border-radius:8px;padding:7px 12px;font-size:12.5px;border:1px solid;line-height:1.45}
+.arch .box small{display:block;color:var(--muted);font-size:11px}
+.arch .l-site{background:rgba(45,212,191,.05);border-color:rgba(45,212,191,.35)}
+.arch .l-site .box{background:rgba(45,212,191,.08);border-color:rgba(45,212,191,.4);color:#a7ecdd}
+.arch .l-ui{background:rgba(176,124,240,.05);border-color:rgba(176,124,240,.35)}
+.arch .l-ui .box{background:rgba(176,124,240,.08);border-color:rgba(176,124,240,.4);color:#dcc2fa}
+.arch .l-sw{background:rgba(102,192,244,.05);border-color:rgba(102,192,244,.35)}
+.arch .l-sw .box{background:rgba(102,192,244,.08);border-color:rgba(102,192,244,.4);color:#bfe2fb}
+.arch .l-infra{background:rgba(240,169,59,.05);border-color:rgba(240,169,59,.35)}
+.arch .l-infra .box{background:rgba(240,169,59,.08);border-color:rgba(240,169,59,.4);color:#f3d9a8}
+.arch .arrow{ text-align:center;color:var(--muted);font-size:12px;font-family:var(--mono);margin:-6px 0}
+
+/* ===== 时序图 ===== */
+.seq{overflow-x:auto}
+.seq table{background:none;border-radius:0}
+.seq th{background:var(--panel2);font-size:12px;font-family:var(--mono);text-align:center}
+.seq td{border:1px dashed #22334a;font-size:12px;height:34px;padding:4px 8px}
+.seq td.act{background:rgba(102,192,244,.10);color:#bfe2fb;border:1px solid rgba(102,192,244,.4)}
+.seq td.act2{background:rgba(45,212,191,.10);color:#a7ecdd;border:1px solid rgba(45,212,191,.4)}
+.seq td.ret{background:rgba(163,207,6,.09);color:#d6e8a8;border:1px solid rgba(163,207,6,.35)}
+
+/* ===== 时间轴 ===== */
+.timeline{position:relative;margin:24px 0 10px;padding-left:0;display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.timeline .phase{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:18px;position:relative}
+.timeline .phase::before{content:'';position:absolute;top:-9px;left:22px;width:16px;height:16px;border-radius:50%;
+  background:var(--bg);border:3px solid var(--accent)}
+.timeline .phase:nth-child(2)::before{border-color:var(--teal)}
+.timeline .phase:nth-child(3)::before{border-color:var(--purple)}
+.timeline .phase h4{margin:2px 0 6px;color:var(--white);font-size:15px}
+.timeline .phase .pd{font-size:12px;color:var(--muted);margin-bottom:8px;font-family:var(--mono)}
+.timeline .phase ul{margin:6px 0;padding-left:18px;font-size:13px}
+.timeline .bar-line{grid-column:1/-1;height:3px;background:linear-gradient(90deg,var(--accent),var(--teal),var(--purple));
+  border-radius:2px;margin-top:-2px}
+
+/* ===== 响应式 ===== */
+@media(max-width:960px){
+  nav.side{position:static;width:auto;bottom:auto;border-right:none;border-bottom:1px solid var(--line);
+    padding:10px 0;display:flex;flex-wrap:wrap;gap:2px}
+  nav.side .brand{border-bottom:none;padding:4px 14px;margin:0}
+  nav.side a{border-left:none;border-bottom:2px solid transparent;padding:5px 10px}
+  nav.side a.on{border-bottom-color:var(--accent)}
+  main{margin-left:0;padding:20px 18px 60px}
+  .kpis{grid-template-columns:repeat(2,1fr)}
+  .grid2,.grid4{grid-template-columns:1fr}
+  .timeline{grid-template-columns:1fr}
+  .hbar{grid-template-columns:110px 1fr 60px}
+}
+@media print{
+  nav.side{display:none}
+  main{margin-left:0}
+  body{background:#fff;color:#222}
+}
+footer{margin-top:60px;padding-top:18px;border-top:1px solid var(--line);
+  color:var(--muted);font-size:12.5px;text-align:center}
+</style>
+</head>
+<body>
+
+<!-- ============ 侧栏导航 ============ -->
+<nav class="side">
+  <div class="brand"><b>游戏雷达 Game Radar</b><span>项目深度报告 · v9.2.0 · 2026-08-16</span></div>
+  <a href="#ch1"><span class="no">01</span>执行摘要</a>
+  <a href="#ch2"><span class="no">02</span>项目定位与核心功能</a>
+  <a href="#ch3"><span class="no">03</span>整体架构与目录组织</a>
+  <a href="#ch4"><span class="no">04</span>职责划分与协作关系</a>
+  <a href="#ch5"><span class="no">05</span>关键业务流程梳理</a>
+  <a href="#ch6"><span class="no">06</span>存储·配置·消息·权限</a>
+  <a href="#ch7"><span class="no">07</span>质量保障体系</a>
+  <a href="#ch8"><span class="no">08</span>风险与问题分析</a>
+  <a href="#ch9"><span class="no">09</span>待确认事项清单</a>
+  <a href="#ch10"><span class="no">10</span>改进建议与实施路线</a>
+  <a href="#ch11"><span class="no">11</span>附录：关键文件索引</a>
+</nav>
+
+<main>
+<!-- ============ 页头元信息 ============ -->
+<header class="hero">
+  <h1>游戏雷达 Game Radar · 项目深度报告</h1>
+  <div class="tagline">Chrome MV3 浏览器扩展——在下载站与 Steam 商店之上缝合口碑数据与个性化推荐。本报告基于三份源码级调研综合生成，已经 QA 事实校验；标注"待确认"处建议逐项核实。</div>
+  <div class="meta-chips">
+    <span class="chip">版本 v9.2.0</span>
+    <span class="chip t">生成日期 2026-08-16</span>
+    <span class="chip g">纯 JS + JSDoc · 无构建</span>
+    <span class="chip">MV3 Service Worker</span>
+    <span class="chip t">49 个消息 action</span>
+  </div>
+</header>
+
+<!-- ============ 1 执行摘要 ============ -->
+<h2 id="ch1"><span class="no">01</span>执行摘要</h2>
+<p><b>一句话定位</b>：游戏雷达是一款运行于中文游戏下载站与 Steam 商店之上的 Chrome MV3 扩展——它在用户浏览下载站列表/详情页时，自动反查 Steam 官方数据（好评率、中文支持、热度），叠加用户行为学习输出个性化推荐，并提供下载站反查、限免监控、规则驱动站点适配等配套能力，全部数据本地化存储。</p>
+<p><b>成熟度判断</b>：项目处于<b>功能完备、工程化程度较高的中后期成熟阶段</b>。证据链：</p>
+<ul>
+  <li>功能面：七大核心能力全部落地并经历多轮版本迭代（代码注释中可见 v3.1.2 → v9.2.0 的演进痕迹）；</li>
+  <li>工程面：18 个 Vitest 测试套件（约 615 项用例）、E2E 冒烟、视觉回归、覆盖率门禁、CI 6 job、Git 三钩子、ESLint + 三 tsconfig + Prettier 静态检查齐备；</li>
+  <li>数据面：OPFS 优先的统一持久层 + 18 个存储模块 + schema 迁移框架（已就位未启用）+ 模块化备份体系。</li>
+</ul>
+
+<h3>核心亮点速览</h3>
+<ol>
+  <li><b>纯本地化、权限刻意收窄</b>：仅 5 项 permissions 且无 tabs/history 等敏感项，后台仅通过消息上下文 <code>sender.tab.url</code> 获取页面网址；出站请求有 SSRF 防护（<code>isSafeFetchUrl</code>）与环形审计 + 每主机限速。</li>
+  <li><b>缓存体系精细</b>：Steam 缓存模块化（meta/rating/detail/spy 四模块独立 TTL、部分刷新）、名称索引负缓存、URL→appId 索引统一两条匹配路径、命中率统计与 LRU 淘汰齐备。</li>
+  <li><b>两波好评率渲染</b>：列表页第一波纯缓存秒出徽章，第二波后台批量拉取经 <code>STEAM_RATINGS_UPDATE</code> 增量推送，体验与网络压力兼顾。</li>
+  <li><b>规则驱动可扩展</b>：内置 6 站 IIFE 规则 + 用户自定义 JSON 规则双层来源、双端一致消费，后台统一校验（含 ReDoS 启发式防护）。</li>
+  <li><b>质量门禁成体系</b>：CI 分片测试、新增文件覆盖率 ≥50% 门禁、测试耗时预算 90s、npm audit + gitleaks 安全扫描、Conventional Commits 钩子。</li>
+</ol>
+
+<h3>核心风险速览</h3>
+<ol>
+  <li><b>MV3 Service Worker 生命周期</b>：大量内存态（2s 防抖未落盘窗口、api-monitor/outbound-audit 统计）依赖保活 hack 与显式 flush 补救，SW 被终止时存在数据丢失窗口；</li>
+  <li><b>通信双轨制</b>：<code>shared/msg.js</code> 超时封装与裸 <code>chrome.runtime.sendMessage</code> 并存，options/dashboard/detail-page 等多处无超时兜底；</li>
+  <li><b>性能长尾</b>：单游戏最坏 5–6 个串行 Steam 请求、批次串行衔接、<code>fetchSteamTagRecommendations</code> 约 15 次顺序请求、下载站搜索全串行；</li>
+  <li><b>耦合与技术债</b>：debug.js↔status-bar.js 循环依赖、硬编码站点映射第二事实来源、样式半迁移、主题清单三份手工维护、全量序列化写放大；</li>
+  <li><b>测试盲区</b>：LLM 评分路径、UI 页面逻辑、限免通知/ITAD 链路、非 Steam 数据源 E2E fixture 均缺乏直接覆盖；全局分支覆盖仅 56.1%，门禁只卡新增文件。</li>
+</ol>
+
+<h3>关键数据速览</h3>
+<div class="kpis">
+  <div class="kpi"><div class="v">49</div><div class="l">消息 action（9 领域）</div></div>
+  <div class="kpi"><div class="v">18</div><div class="l">存储模块（OPFS）</div></div>
+  <div class="kpi"><div class="v">66.0%</div><div class="l">行覆盖率</div></div>
+  <div class="kpi"><div class="v">21</div><div class="l">风险条目（5 大类）</div></div>
+  <div class="kpi"><div class="v">18</div><div class="l">改进项（4P0/8P1/6P2）</div></div>
+</div>
+<table>
+  <tr><th>维度</th><th>数据</th></tr>
+  <tr><td>测试覆盖率</td><td>语句 63.3% / 分支 56.1% / 函数 65.3% / 行 66.0%</td></tr>
+  <tr><td>测试套件分布</td><td>单元 14 + 集成 4 + content-sim + E2E 冒烟 + 视觉回归（Vitest 共 18 套件，约 615 用例）</td></tr>
+  <tr><td>消息契约</td><td>49 个 action（9 个领域），46 个进契约 RULES 表</td></tr>
+  <tr><td>存储模块</td><td>18 个（dataStore OPFS 分文件 + storage.local 降级）</td></tr>
+  <tr><td>内置适配站点</td><td>6 个下载站 + Steam 商店页</td></tr>
+  <tr><td>限免数据源</td><td>4 个（Epic/GOG/Steam/GamerPower）</td></tr>
+  <tr><td>host_permissions</td><td>28 条条目，覆盖 17 个不同主机</td></tr>
+  <tr><td>风险条目</td><td>5 大类 21 条（详见第 8 章）</td></tr>
+  <tr><td>改进项</td><td>P0×4 / P1×8 / P2×6（详见第 10 章）</td></tr>
+  <tr><td>CI 流水线</td><td>6 job（分片测试×2 / 覆盖率门禁 / 耗时预算 / E2E / 安全）</td></tr>
+</table>
+
+<!-- ============ 2 项目定位与核心功能 ============ -->
+<h2 id="ch2"><span class="no">02</span>项目定位与核心功能概览</h2>
+<p>游戏雷达解决的核心问题是：<b>中文游戏下载站缺乏官方评价数据，用户难以在下载前判断游戏质量与中文支持情况；同时 Steam 商店与下载站是两个割裂的信息世界</b>。扩展把两个世界缝合起来，具体通过七大能力：</p>
+<table>
+  <tr><th>#</th><th>能力</th><th>说明</th><th>主要载体</th></tr>
+  <tr><td class="num">1</td><td><b>智能推荐</b></td><td>六信号加权（点击/下载/关键词/Steam 评分/时长/热度）+ 行为学习画像，输出 0–1 推荐分；支持 LLM 模式替代内置算法</td><td><code>background/recommend/engine.js</code>、<code>background/storage/behavior.js</code></td></tr>
+  <tr><td class="num">2</td><td><b>Steam 信息集成</b></td><td>在详情页/Steam 商店页注入信息浮窗：头图、四重评价区（总体/近 30 天/简体中文/SteamSpy）、综合推荐分、标签、SteamDB、中文评测</td><td><code>content/detail/detail-page.js</code>、<code>detail-templates.js</code>、<code>background/steam/*</code></td></tr>
+  <tr><td class="num">3</td><td><b>好评率徽章与过滤</b></td><td>列表页每个游戏项注入三段式徽章（近 30 天好评率/全部好评率/最近更新），支持按阈值过滤低分游戏并可一键恢复</td><td><code>content/list/*</code>、<code>background/steam/ratings-batch.js</code></td></tr>
+  <tr><td class="num">4</td><td><b>下载站反查</b></td><td>在 Steam 商店页反查内置/自定义下载站的资源链接，含网盘链接与提取码提取</td><td><code>background/sites/search.js</code>、<code>content/detail/detail-page.js</code></td></tr>
+  <tr><td class="num">5</td><td><b>限免监控</b></td><td>4 数据源（Epic/GOG/Steam/GamerPower）每日聚合，区分限时/免费周末/永久免费，ITAD 二次校验，桌面通知 + 角标</td><td><code>background/freegames/manager.js</code>、<code>freegames/</code> UI</td></tr>
+  <tr><td class="num">6</td><td><b>规则驱动适配</b></td><td>站点列表项提取、详情页判定、站内搜索 URL 全部由 JSON 规则描述；用户可在 options 面板自定义新站点规则</td><td><code>adapters/*</code>、<code>background/core/rules.js</code>、<code>content/adapters/builder.js</code></td></tr>
+  <tr><td class="num">7</td><td><b>数据本地化</b></td><td>全部用户数据存于本地：OPFS 优先 + storage.local 降级，18 个数据模块可导出/导入/备份/恢复</td><td><code>data/data-store.js</code>、<code>background/storage/*</code></td></tr>
+</table>
+<p>辅助能力还包括：右键菜单"选中文本搜 Steam"、快捷键 <code>Alt+Shift+G</code> 强制刷新、扩展更新 toast、行为趋势图表（dashboard）、出站请求审计查看器等。</p>
+
+<!-- ============ 3 整体架构 ============ -->
+<h2 id="ch3"><span class="no">03</span>整体架构与目录组织说明</h2>
+<h3>3.1 分层架构总览</h3>
+<p>项目为三层结构：<b>注入层（content/adapters/shared）→ 后台层（background）→ 基础设施层（data/lib）</b>，另有独立 UI 页面层与样式层。</p>
+<div class="chart-card">
+<div class="ct">分层架构与消息流向图</div>
+<div class="cs">替代 mermaid 图：注入层/UI 层 ⇄ 后台 Service Worker → 基础设施层</div>
+<div class="arch">
+  <div class="layer l-site">
+    <div class="lt">目标站点页面（isolated world）</div>
+    <div class="boxes">
+      <div class="box">content/tracker.js<small>经典脚本壳·总入口</small></div>
+      <div class="box">core/list/detail/tracking<small>12 个 ESM 模块（动态 import）</small></div>
+      <div class="box">adapters/*.js<small>IIFE 规则（6 站）</small></div>
+      <div class="box">shared/<small>patterns · msg · escape</small></div>
+    </div>
+  </div>
+  <div class="arrow">↓ chrome.runtime.sendMessage（49 action 上行）↑ chrome.tabs.sendMessage（4 种下行推送）</div>
+  <div class="layer l-sw">
+    <div class="lt">background Service Worker（ES Module）</div>
+    <div class="boxes">
+      <div class="box">service-worker.js<small>装配入口（178 行）</small></div>
+      <div class="box">handlers.js<small>49 action 路由</small></div>
+      <div class="box">core/<small>常量·契约·规则·设置·工具</small></div>
+      <div class="box">steam/<small>编排·搜索·详情·评分·AI兜底</small></div>
+      <div class="box">recommend/engine.js<small>六信号推荐</small></div>
+      <div class="box">sites/search.js<small>下载站反查</small></div>
+      <div class="box">freegames/manager.js<small>限免监控</small></div>
+      <div class="box">storage/<small>18 个存储模块</small></div>
+    </div>
+  </div>
+  <div class="arrow">↓ 依赖方向：handlers/steam/sites/freegames → storage + core；storage → core + data；core → data（core 不依赖 storage）</div>
+  <div class="layer l-infra">
+    <div class="lt">基础设施层</div>
+    <div class="boxes">
+      <div class="box">data/data-store.js<small>OPFS + storage.local 降级</small></div>
+      <div class="box">data/migrate.js<small>schema 迁移框架（未启用）</small></div>
+      <div class="box">lib/ndjson.js<small>NDJSON 编解码</small></div>
+    </div>
+  </div>
+  <div class="layer l-ui">
+    <div class="lt">扩展 UI 页面（经 sendMessage 与 SW 通信）</div>
+    <div class="boxes">
+      <div class="box">popup<small>快捷设置</small></div>
+      <div class="box">options + panels<small>重设置中心</small></div>
+      <div class="box">dashboard<small>数据驾驶舱</small></div>
+      <div class="box">hub<small>iframe 聚合壳→ options/dashboard/freegames</small></div>
+      <div class="box">freegames<small>限免列表</small></div>
+      <div class="box">welcome<small>安装/更新引导</small></div>
+    </div>
+  </div>
+</div>
+</div>
+
+<h3>3.2 目录组织与依赖方向约定</h3>
+<table>
+  <tr><th>目录</th><th>定位</th><th>说明</th></tr>
+  <tr><td><code>background/service-worker.js</code></td><td>SW 装配入口</td><td>只做装配不含业务逻辑（文件头注释明确声明）：副作用导入适配规则 → 消息监听 → 初始化 → 事件注册 → 存储预热 → Alarms → 启动副作用</td></tr>
+  <tr><td><code>background/core/</code></td><td>核心基础层</td><td>常量中枢（<code>constants.js</code> 刻意零依赖）、消息契约校验、规则管理、设置、API 监测、趋势聚合、标题解析、出站审计、动态脚本注册、安全 fetch 工具、JSDoc 类型</td></tr>
+  <tr><td><code>background/handlers/</code></td><td>领域 handler</td><td>steam/cache-manager/data-modules/stats/download-sites 五个子模块按领域导出函数，聚合进 <code>handlers.js</code> 的 <code>MESSAGE_HANDLERS</code> 静态表</td></tr>
+  <tr><td><code>background/steam/</code></td><td>Steam 数据域</td><td><code>api.js</code> 仅为 barrel（16 行），实现按职能拆为 orchestrator/api-search/api-details/api-reviews/api-supplement/api-assemble/api-registry-heal/ratings-batch/ai-fallback（v5.0.0 由 858 行单文件拆分）</td></tr>
+  <tr><td><code>background/storage/</code></td><td>存储模块层</td><td>18 个模块统一模式：内存缓存 + 惰性加载 + 防抖批量落盘 + dirty 标志 + reset/warmup</td></tr>
+  <tr><td><code>content/</code></td><td>内容脚本</td><td>tracker.js 入口壳 + core（基础设施四件套）/list（徽章与批次）/detail（详情页）/tracking（下载行为）/adapters（规则构建器）</td></tr>
+  <tr><td><code>adapters/</code></td><td>内置站点规则</td><td>IIFE 挂全局变量，manifest 声明顺序敏感：default → sites → index</td></tr>
+  <tr><td><code>shared/</code></td><td>双端共享工具</td><td>msg.js（消息封装）、patterns.js（噪声正则与好评率分级色单源）、escape.js（XSS 转义）、settings-utils.js（补丁保存/主题/跳转）</td></tr>
+  <tr><td><code>data/</code>、<code>lib/</code></td><td>持久层与编解码</td><td>data-store.js 单例（OPFS 优先）、migrate.js schema 迁移框架、ndjson.js</td></tr>
+  <tr><td>popup/options/dashboard/hub/freegames/welcome/</td><td>UI 页面</td><td>各自 html+css+js；hub 以 iframe 聚合 options/dashboard/freegames 三个重页面</td></tr>
+  <tr><td><code>styles/</code></td><td>三层样式体系</td><td>content.css（内容侧）、ui-theme.css（扩展页设计系统）、themes.css（扩展页皮肤）</td></tr>
+</table>
+<div class="infobox"><b>依赖方向约定</b>（由 <code>site-scripts.js</code> 注释确认）：<b>core 层不依赖 storage 层</b>；实际方向为 <code>core → data/</code>，<code>storage → core + data</code>，<code>handlers/steam/sites/freegames → storage + core</code>。单向依赖由集成测试 <code>test-integrity.mjs</code> 静态校验（依赖分层单向、TDZ/噪声双源/语法扫描、manifest 引用与版本一致性）。</div>
+
+<h3>3.3 模块装配方式与混合注入模式</h3>
+<p><b>后台侧</b>：<code>service-worker.js</code>（178 行，ES Module，manifest <code>background.type = "module"</code>）按固定顺序装配：</p>
+<ol>
+  <li>副作用导入适配规则链（<code>adapters/default.js</code> → <code>adapters/sites/*.js</code> → <code>adapters/index.js</code>，聚合挂 <code>globalThis.__GAME_RECOMMENDER_SITES__</code>）；</li>
+  <li>唯一 <code>chrome.runtime.onMessage.addListener</code>，委托 <code>handleMessage</code>，<code>.then(sendResponse)</code> + <code>return true</code> 保持异步通道；</li>
+  <li><code>initStorage()</code> 初始化 + 冷启动耗时日志 + <code>syncSiteScripts()</code> 动态注册自定义站点内容脚本；</li>
+  <li>事件注册：<code>onInstalled</code>（打开 welcome 页）、<code>notifications.onClicked</code>（限免通知）、右键菜单 <code>gr-search-steam</code>、commands <code>gr-force-refresh</code>；</li>
+  <li><code>Promise.allSettled</code> 并行预热 8 个存储模块（steam-cache/name-index/registry/wrong-reports/learned-noise/url-index/behavior/download-urls）；</li>
+  <li><code>ensureAlarm()</code> 幂等创建两个 alarm：<code>refreshFreeGames</code>（24h）与 <code>autoBackup</code>（默认 24h）。注释记录 v3.4.1 修复：<code>alarms.create</code> 会替换同名 alarm 重启周期，盲目重建会让 24h 任务永不触发；</li>
+  <li>启动即 <code>refreshFreeGames(false)</code> 并打印版本号。</li>
+</ol>
+<div class="note">生命周期特点：<b>没有 <code>chrome.runtime.onStartup</code> 监听器</b>——所有初始化在顶层代码完成，依赖 MV3"每次冷启动重跑顶层"语义。这是刻意设计（配合幂等 alarm 与惰性加载兜底），代价是每次唤醒都重新执行规则导入、预热与限免刷新调用。</div>
+<p><b>内容侧——混合注入模式"经典脚本壳 + 动态 import ESM"</b>：</p>
+<ul>
+  <li>manifest <code>content_scripts</code> 声明式注入，<code>run_at: document_start</code>，<b>默认 isolated world</b>（未配置 <code>world: "MAIN"</code>）；</li>
+  <li>注入 12 个经典脚本（顺序即依赖）：<code>shared/patterns.js</code> → <code>shared/msg.js</code> → <code>shared/escape.js</code> → <code>adapters/default.js</code> → <code>adapters/sites/*</code>（6 个）→ <code>adapters/index.js</code> → <code>content/tracker.js</code>，外加 <code>styles/content.css</code>；</li>
+  <li><code>tracker.js</code> 本体是经典脚本，但通过 <code>chrome.runtime.getURL('content/*.js')</code> + <code>Promise.all([import(...)])</code> <b>动态 import 12 个 ESM 模块</b>，依赖 <code>web_accessible_resources</code> 暴露的 <code>content/*.js</code>；</li>
+  <li>选择该模式的原因（代码注释说明）：<b>MV3 Service Worker 禁止顶层动态 import，而 content script 允许</b>；经典脚本壳保证 document_start 时机，ESM 模块保证依赖清晰；</li>
+  <li><code>ensureModules()</code> 任一模块加载失败即整体放弃注入；<code>bootPromise</code> 在模块加载前即发出 <code>GET_SETTINGS</code>、<code>builder.loadSiteRules()</code>、<code>LOG_PERF</code>，实现顶层预热。</li>
+</ul>
+
+<!-- ============ 4 职责划分 ============ -->
+<h2 id="ch4"><span class="no">04</span>职责划分与协作关系</h2>
+<h3>4.1 各角色职责</h3>
+<table>
+  <tr><th>角色</th><th>核心职责</th><th>关键文件</th></tr>
+  <tr><td><b>后台 Service Worker</b></td><td>唯一的消息路由与业务中枢：49 个 action 的注册与分发、Steam 数据编排、推荐计算、限免监控、站点搜索、全部持久化</td><td><code>service-worker.js</code>、<code>handlers.js</code>、<code>handlers/*.js</code></td></tr>
+  <tr><td><b>内容脚本</b></td><td>页面识别、列表项提取、徽章/浮窗注入、行为埋点、下载行为采集；不含业务计算，全部数据经消息向后台索取</td><td><code>content/tracker.js</code> 及 <code>content/{core,list,detail,tracking,adapters}</code></td></tr>
+  <tr><td><b>站点适配器</b></td><td>以声明式 JSON 规则描述"列表项在哪、详情页长什么样、站内搜索怎么拼"，双端消费同一数据源</td><td><code>adapters/*</code>、<code>core/rules.js</code>、<code>content/adapters/builder.js</code></td></tr>
+  <tr><td><b>popup</b></td><td>全量快捷设置面板（8 个折叠区）+ 统计/限免数速览 + 向当前标签发刷新指令</td><td><code>popup/popup.js</code>（426 行）</td></tr>
+  <tr><td><b>options</b></td><td>重设置中心：7 个面板（general/filters/recommend/sites/rules/cache/logging）+ 数据管理 + ITAD 配置 + 运行日志查看</td><td><code>options/options.js</code>（765 行）+ <code>panels/*</code></td></tr>
+  <tr><td><b>dashboard</b></td><td>数据驾驶舱：14 卡概览、趋势图、标签云、Steam 推荐、行为/运行日志、出站审计、备份管理</td><td><code>dashboard/dashboard.js</code>（792 行）</td></tr>
+  <tr><td><b>hub</b></td><td>iframe 聚合壳：左侧导航 + hash 路由 <code>#page=</code>，统一包装 options/dashboard/freegames（<code>?hub=1</code> 内嵌模式），监听 <code>GR_HUB_SWITCH</code> postMessage 实现子页面间跳转</td><td><code>hub/hub.js</code></td></tr>
+  <tr><td><b>freegames</b></td><td>限免列表页：平台 + 领取方式双层过滤、领取标记、safeUrl 防 <code>javascript:</code> 注入</td><td><code>freegames/freegames.js</code>（225 行）</td></tr>
+  <tr><td><b>welcome</b></td><td>安装/更新引导页：<code>?source=install|update</code> 切换功能导览/changelog</td><td><code>welcome/welcome.js</code>（30 行）</td></tr>
+</table>
+
+<h3>4.2 消息协作关系</h3>
+<p><b>传输层结构</b>：</p>
+<ul>
+  <li>后台侧：单一 <code>onMessage</code> 监听 + <code>handleMessage(message, sender)</code> 分发；缺 action → <code>{error}</code>，契约校验不过 → <code>{error:'invalid-message: ...'}</code>，未注册 action → <code>{error:'Unknown action'}</code>，handler 异常被捕获后回 <code>{error: err.message}</code>；</li>
+  <li>发送侧封装 <code>shared/msg.js</code>：挂 <code>window.__GR_MSG__.sendMessage(action, payload, {timeout})</code>，默认 10s 超时 race 兜底 + 错误归一。<b>不一致点</b>：<code>content/tracker.js</code> 与 <code>popup/popup.js</code> 使用该封装，而 <code>options/options.js</code>、<code>dashboard/dashboard.js</code>、<code>content/detail/detail-page.js</code> 等多处直接调用裸 <code>chrome.runtime.sendMessage</code>，无超时保护；</li>
+  <li>请求格式 <code>{action: string, ...payload}</code>（payload 类型定义于 <code>core/types.js#MessagePayload</code>）；<b>响应无统一信封</b>——各 handler 自由返回 <code>{success}</code>/<code>{error}</code>/<code>{data, cachedAt}</code>/<code>{results}</code>/<code>{sites}</code> 等。</li>
+</ul>
+<p><b>三类消息方向</b>：</p>
+<ol>
+  <li><b>UI/content → 后台</b>（49 个上行 action，经 <code>handleMessage</code>）；</li>
+  <li><b>后台/popup → content</b>（<code>chrome.tabs.sendMessage</code> 下行）：<code>STEAM_RATINGS_UPDATE</code>、<code>REFRESH_RECOMMENDATIONS</code>、<code>SHOW_LAST_STATS</code>、<code>FORCE_REFRESH_PAGE</code>（快捷键触发，先清缓存再 reload）；</li>
+  <li><b>UI 页面 ↔ hub</b>（<code>window.postMessage</code>）：<code>GR_HUB_SWITCH</code> 面板切换。</li>
+</ol>
+<p><b>消息全景表</b>（内容侧视角）：</p>
+<table>
+  <tr><th>Action</th><th>方向</th><th>说明</th></tr>
+  <tr><td>GET_SETTINGS / SAVE_SETTINGS</td><td>内容/UI→后台</td><td>设置读写，全端共用</td></tr>
+  <tr><td>LOG_PERF</td><td>内容→后台</td><td>注入启动耗时上报</td></tr>
+  <tr><td>GET_STEAM_RATINGS</td><td>内容→后台</td><td>第一波批量评分（缓存命中即时返回）</td></tr>
+  <tr><td>STEAM_RATINGS_UPDATE</td><td>后台→内容</td><td>第二波增量推送（含 done 标志）</td></tr>
+  <tr><td>PREFETCH_STEAM_RATINGS</td><td>内容→后台</td><td>下一页预取预热</td></tr>
+  <tr><td>GET_RECOMMENDATIONS</td><td>内容→后台</td><td>批次推荐分</td></tr>
+  <tr><td>RECORD_DOWNLOAD_URLS_BATCH / TRACK_DOWNLOAD / TRACK_EVENT / TRACK_DOWNLOAD_SITE_VISIT</td><td>内容→后台</td><td>行为采集</td></tr>
+  <tr><td>GET_STEAM_BY_APPID / SEARCH_STEAM / REPORT_WRONG_APPID / SAVE_MANUAL_MAPPING</td><td>内容→后台</td><td>详情页 Steam 匹配链与纠错闭环</td></tr>
+  <tr><td>SEARCH_DOWNLOAD_SITES</td><td>内容→后台</td><td>Steam 页反查下载站</td></tr>
+  <tr><td>GET_DOWNLOAD_HISTORY</td><td>内容→后台</td><td>下载历史面板</td></tr>
+  <tr><td>CACHE_STEAM_PAGE / CLEAR_CACHE_FOR_PAGE</td><td>内容→后台</td><td>Steam 页缓存预取 / 强刷前清缓存</td></tr>
+  <tr><td>REFRESH_RECOMMENDATIONS / SHOW_LAST_STATS / FORCE_REFRESH_PAGE</td><td>后台/popup→内容</td><td>下行指令</td></tr>
+</table>
+<p>完整 49 个 action 分域分布见第 6.3 节。</p>
+<h3>4.3 协作关系要点</h3>
+<ul>
+  <li><b>内容脚本零业务逻辑</b>：列表页徽章数据、详情页 Steam 信息、推荐分全部由后台计算，内容侧只做 DOM 读写与渲染；</li>
+  <li><b>后台是唯一持久化入口</b>：所有存储模块仅在 SW 内被访问，UI 页面通过数据治理类 action 间接操作；</li>
+  <li><b>popup 与 content 的横向联动</b>：popup 的刷新按钮经 <code>chrome.tabs.sendMessage</code> 直达当前标签内容脚本，不绕道后台业务逻辑；</li>
+  <li><b>hub 是三个重页面的统一外壳</b>：options/dashboard/freegames 既可独立打开也可被 iframe 内嵌，<code>shared/settings-utils.js#goHub</code> 实现双模式跳转。</li>
+</ul>
+
+<!-- ============ 5 关键业务流程 ============ -->
+<h2 id="ch5"><span class="no">05</span>关键业务流程梳理</h2>
+<h3>5.1 Steam 数据获取</h3>
+<p><b>模块分工</b>（<code>background/steam/</code>）：</p>
+<table>
+  <tr><th>文件</th><th>职责</th></tr>
+  <tr><td><code>orchestrator.js</code>（452 行）</td><td>编排入口：<code>searchSteamGame</code>（详情页全量）、<code>getSteamRatingsFromCacheOnly</code>（列表页第一波零网络）、<code>getSteamPositiveRate</code>（列表页轻量好评率）</td></tr>
+  <tr><td><code>api-search.js</code></td><td><code>searchSteamAppId</code>：storesearch 中/英搜索 + 名称相关性多候选打分 + 删词变体扩展 + 噪声词自学习 + 版本后缀变体</td></tr>
+  <tr><td><code>api-details.js</code></td><td><code>fetchSteamAppDetails</code>（中英文）、商店页 HTML、中文语言支持/用户标签解析、DLC/Demo→本体解析</td></tr>
+  <tr><td><code>api-reviews.js</code></td><td><code>fetchReviewSummary</code>（一次请求同取全时段与最近 100 条→本地统计 30 天窗口）、中文评测、GetNewsForApp 近似"最近更新"、重试冷却（5 分钟/1 小时）</td></tr>
+  <tr><td><code>api-supplement.js</code></td><td><code>fetchSteamSpyInfo</code>（ccu/owners/average_forever）；SteamDB 抓取已于 v6.2.1 移除，改为模板拼链接</td></tr>
+  <tr><td><code>api-assemble.js</code></td><td><code>fetchSteamFullDetailsByAppId</code>：并行中英文 appdetails → 本体校验 → 商店页 HTML →（语言/标签/评测）并行 →（SteamSpy + lastUpdate）并行；支持模块开关</td></tr>
+  <tr><td><code>api-registry-heal.js</code></td><td>注册表自愈：ensure/heal/scan（每批 3 并发，默认限 20 条）</td></tr>
+  <tr><td><code>ratings-batch.js</code></td><td>列表页批量好评率两阶段调度 + 下一页预载</td></tr>
+  <tr><td><code>ai-fallback.js</code></td><td>Bing 搜索兜底 + LLM 匹配（Ollama/OpenAI 兼容，二次校验防幻觉）；成功缓存 7 天、失败 24 小时</td></tr>
+</table>
+<p><b>详情页查询链</b>（<code>searchSteamGame</code> 端到端）：</p>
+<pre><code>名称索引 lookup → 人工纠错知识库（wrong-reports：用户确认优先、黑名单排除错误 appId）
+  → Steam 动态缓存（模块化 meta/rating/detail/spy；命中须满足完整性 + namesRelated 标题相关性校验 + 非"失败固化"）
+  → Demo 自愈（Demo 版无好评率 → 清缓存重搜完整版）
+  → 负缓存拦截
+  → storesearch（失败进 Bing → LLM 兜底）
+  → fetchSteamFullDetailsByAppId
+  → 三层缓存写入：Steam 动态缓存（24h）+ 游戏注册表（永久）+ 名称索引</code></pre>
+<div class="note">好评率失败计 <code>ratingFailCount</code>：重试上限 3 次后转 1 小时长冷却，防止失败结果永久固化。</div>
+<p><b>数据源</b>：<code>store.steampowered.com</code>（storesearch/appdetails/appreviews/featuredcategories）、<code>api.steampowered.com</code>（GetNewsForApp）、<code>steamspy.com</code>、<code>cn.bing.com</code>（兜底）、可选用户配置 LLM endpoint、<code>cdn.akamai.steamstatic.com</code>（封面拼接，无请求）。</p>
+<p><b>限流/重试体系（三级）</b>：</p>
+<ol>
+  <li><b>单请求级</b>：<code>fetchWithTimeout</code>（15s 超时、<code>redirect:'manual'</code> 逐跳重校验、最多 5 跳、限速 + 审计）；搜索网络失败整体重试 1 次、<code>fetchReviewSummary</code> 内部重试 1 次、storesearch 单词重试 2 次；</li>
+  <li><b>批级</b>（<code>ratings-batch.js</code>）：正常 6 并发，异常降 2；<code>core/api-monitor.js</code> 滑动窗口（5 分钟、≥8 样本、失败率 >40% 判 anomaly）→ 批次间隔 5s、连续异常暂停 30s；失败/限流游戏自动进重试队列（最多一轮）；</li>
+  <li><b>SW 保活</b>：批处理期间每 10s 调 <code>chrome.runtime.getPlatformInfo()</code> 防 MV3 30s 空闲休眠；落盘降频每 5 批 <code>flushAllCaches()</code> 一次。</li>
+</ol>
+
+<h3>5.2 列表页徽章注入（两波好评率 + 推荐徽章）</h3>
+<div class="chart-card">
+<div class="ct">徽章注入时序图</div>
+<div class="cs">替代 mermaid sequenceDiagram：两波好评率 + 推荐徽章全流程（→ 请求 / ⇠ 响应推送）</div>
+<div class="seq">
+<table>
+  <tr><th>#</th><th>content/tracker.js</th><th>list-page.js</th><th>list-batch.js</th><th>list-state.js</th><th>ratings-batch.js<br>（后台）</th><th>orchestrator<br>+缓存层</th><th>列表页 DOM</th></tr>
+  <tr><td class="num">1</td><td class="act">isListPageByUrl 判定通过 → 移交</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td class="num">2</td><td></td><td class="act">getListItemsSmart（适配器优先，回退全页扫描）+ waitForListItems（MutationObserver，4s）+ applyVmFilter</td><td></td><td></td><td></td><td></td><td></td></tr>
+  <tr><td class="num">3</td><td></td><td class="act">trackListView 启动批次调度 →</td><td class="act">GET_STEAM_RATINGS（names+imageData+urls，批 ≤60）→</td><td></td><td class="act">阶段0 URL 索引第一候选 → 阶段1 纯缓存</td><td class="act">getSteamRatingsFromCacheOnly</td><td></td></tr>
+  <tr><td class="num">4</td><td></td><td></td><td class="ret">⇠ 第一波响应（缓存命中部分）</td><td class="ret">applyRatingsResponse(ratings,'first')</td><td></td><td></td><td class="ret">badges.js 渲染三段式徽章</td></tr>
+  <tr><td class="num">5</td><td></td><td></td><td></td><td></td><td class="act">阶段2 异步批量拉取未命中项（6/2 自适应并发）</td><td class="act">网络拉取 + 写缓存</td><td></td></tr>
+  <tr><td class="num">6</td><td></td><td></td><td></td><td class="ret">⇠ STEAM_RATINGS_UPDATE 增量推送（每批完成，tabs.sendMessage）→ applySteamRatingsUpdate</td><td class="act">循环推送…</td><td></td><td class="ret">增量渲染徽章</td></tr>
+  <tr><td class="num">7</td><td></td><td></td><td class="ret">⇠ done 推送 → maybeFetchNextBatch（批间串行衔接）</td><td></td><td></td><td></td><td></td></tr>
+  <tr><td class="num">8</td><td></td><td></td><td class="act">GET_RECOMMENDATIONS（批次推荐分）⇠ 推荐值</td><td></td><td></td><td></td><td class="ret">prependRecBadge + highlightItem（≥0.6 高亮）</td></tr>
+  <tr><td class="num">9</td><td></td><td></td><td></td><td class="act">finishRatings → RECORD_DOWNLOAD_URLS_BATCH + showStats（含"恢复被过滤游戏"）</td><td></td><td></td><td></td></tr>
+  <tr><td class="num">10</td><td></td><td class="act2">预载：preloadNextPage 延迟 2s 同源抓取下一页 → PREFETCH_STEAM_RATINGS（后台 4 并发预热）</td><td></td><td></td><td class="act2">预热缓存</td><td></td><td></td></tr>
+</table>
+</div>
+</div>
+<p><b>关键实现细节</b>：</p>
+<ul>
+  <li><code>list-page.js</code>：页面判定（详情页 <code>/\d+\.html</code>）；<code>waitForListItems</code> MutationObserver 等待 AJAX 渲染；<code>preloadNextPage</code> 有同源校验 + 15s AbortController 超时；</li>
+  <li><code>list-batch.js</code>：<code>RATINGS_BATCH_SIZE=60</code>，inflight 门控保证批间串行（done 推送驱动下一批）；<code>startListScan</code> MutationObserver 增量发现 + IntersectionObserver 底部哨兵（<code>rootMargin: 400px</code>）滚动触发；</li>
+  <li><code>list-state.js</code>（v7.3.0 拆出以打破 list-page↔list-batch 循环依赖）：单一状态容器；<code>ratingFilterPass</code> 好评率过滤纯函数（and/or/not/hybrid 四模式）；<code>finishRatings</code> 收尾统计行含可点击"恢复被过滤游戏"；<code>scheduleFallbacks</code> 45s 强制收尾兜底定时器；</li>
+  <li><code>badges.js</code>：三段式徽章受 <code>badgeVisibility</code> 逐项开关控制；颜色统一取自 <code>__GR_PATTERNS__</code> 单源（≥80 → #66c0f4，≥60 → #a3cf06，<60 → #ff7b00）；推荐徽章 hover tooltip 展示六信号 breakdown，附"不感兴趣"按钮（发 <code>TRACK_EVENT { type:'dislike_game' }</code>）。</li>
+</ul>
+
+<h3>5.3 详情页处理</h3>
+<p><b>调用链</b>（<code>content/detail/detail-page.js</code>，643 行）：</p>
+<ol>
+  <li><b>游戏名识别 <code>detectGameName</code></b>（多级提取）：移除 h1 徽章节点 → 取英文子元素 → 用全局噪声正则剔除噪声词分段 → Steam 图片 alt "X on Steam" 提取 → <code>document.title</code> 回退；汇总/索引页跳过；</li>
+  <li><b>appId 提取 <code>injectSteamButton</code></b>：在主内容区限定选择器（<code>article, .entry-content, .post-content</code> 等）内找图片提取 Steam appId——防侧边推荐图误取（E2E 冒烟复刻过 16598 误配场景）；</li>
+  <li><b>匹配链</b>：<code>GET_STEAM_BY_APPID</code> 直取（封面直取 + 名称相关性校验 + 版本后缀补搜）→ 未命中回退 <code>SEARCH_STEAM</code> 全链 → 仍未命中 <code>renderManualSelectPanel</code>（候选手选）；</li>
+  <li><b>纠错闭环</b>：报错按钮 → <code>REPORT_WRONG_APPID</code>（写 wrong-reports 知识库、清错误映射、保注册表）→ 重检索；仍同 appId 或未找到 → 手动选择面板 → <code>SAVE_MANUAL_MAPPING</code> 固化（同时写 name-index + registry + wrong-reports 纠正知识）；手动刷新走 <code>REFRESH_STEAM_CACHE</code>；</li>
+  <li><b>渲染</b>：数据就绪 → <code>renderSteamSidebar</code>（仿 Steam 信息栏：头图、四重评价区、综合推荐分——好评率 70% + 中文支持 30% 口径 + 热度/时长因子，注释声明与推荐引擎同源）经 <code>floats.js</code> 统一浮窗渲染；同时下载历史浮窗与 Steam 标签回写。</li>
+</ol>
+<p><b>Steam 商店页分支</b>：在 store.steampowered.com 上执行 <code>injectDownloadSitePanel</code> 反查下载站（先 cacheOnly 立即渲染缓存，再完整搜索补全），并并发 <code>CACHE_STEAM_PAGE</code> 预取当前页数据。</p>
+
+<h3>5.4 站点适配机制</h3>
+<p><b>双层规则来源，双端一致消费</b>：</p>
+<ul>
+  <li><b>内置规则</b>（<code>adapters/</code>）：6 个站点规则文件为 IIFE 挂全局变量；<code>index.js</code> 最后执行，与 defaults 浅合并聚合为 <code>__GAME_RECOMMENDER_SITES__</code>。依赖 manifest 声明的脚本顺序（sites 先于 index，index 先于 tracker）；</li>
+  <li><b>用户自定义规则</b>：存 <code>storage.adapterRules</code>，经 options rules 面板编辑（前端 JSON.parse 预校验 + 后台 <code>validateAdapterRules</code> 二次校验，双层防御）；</li>
+  <li><b>一致性约定</b>：内容侧 <code>builder.loadSiteRules()</code> 与后台 <code>rules.getSiteRules()</code> 均遵循"storage.adapterRules 用户规则优先，否则内置聚合"——两端读同一事实来源。</li>
+</ul>
+<table>
+  <tr><th>站点</th><th>关键规则特征</th></tr>
+  <tr><td>xdgame</td><td><code>searchUrl: 'https://xdgame.com/so/{q}.html'</code>；<code>titleLink: 'a.tit'</code>；<code>minDetailLinks: 5</code></td></tr>
+  <tr><td>xianyudanji</td><td><code>searchUrl</code> 带 <code>?s={q}</code>；<code>detailPatterns</code> 含一级路径（详情 URL 无数字特征）</td></tr>
+  <tr><td>gamer520</td><td>列表封面即 Steam CDN 图，可 appId 直取（<code>imageAppId</code> 路径）</td></tr>
+  <tr><td>3dmgame</td><td><code>searchUrl</code> 为空 = 无站内搜索，仅行为追踪与徽章；selectors 式列表</td></tr>
+  <tr><td>ali213</td><td>同 3dm：无 searchUrl，<code>detailUrlPatterns</code> 空数组 → 回退 default</td></tr>
+  <tr><td>gamersky</td><td>同上：无 searchUrl，selectors 式列表</td></tr>
+</table>
+<ul>
+  <li><b>内容侧构建器</b>（<code>content/adapters/builder.js</code>，345 行）：<code>buildAdapter(rule)</code> 按三策略生成 <code>getListItems</code>——① titleLink 直取；② 容器内找详情链接；③ fallbackLinks 全页扫描；<code>DEFAULT_ADAPTER</code> 含泛化详情路径 <code>['/game/','/down/','/soft/']</code>；图片懒加载属性优先，URL 正则 <code>/\/steam\/apps\/(\d+)\//</code> 提取 appId；<code>SCAN_LIMIT</code> 默认 500；</li>
+  <li><b>校验与 ReDoS 防护</b>（<code>background/core/rules.js</code>）：字段类型白名单 + 规模上限 + 正则逐个试编译 + 单条长度 >200 拒绝；<code>hasReDoSRisk</code>（v7.0.5）启发式拒绝嵌套量词/交替分组/超长正则；导入/恢复共用 sanitize 白名单（endpoint 仅 http(s)、单模块 16MB/总量 64MB 上限）；</li>
+  <li><b>动态注册</b>（<code>background/core/site-scripts.js</code>）：<code>syncSiteScripts</code> 为自定义站点动态注册与内置同等清单的 content script（MV3 持久化），幂等 + 单飞锁；移除站点不 unregister，由 tracker 早退兜底。<code>BUILTIN_DOMAINS</code>（6 个内置域）与 manifest 的一致性由集成测试断言。</li>
+</ul>
+
+<h3>5.5 推荐逻辑</h3>
+<p><b>六信号加权</b>（<code>background/recommend/engine.js</code>，v3.2.8 起为 appId 维度个性化概率预测；<code>computeGameScore</code> 纯函数）：</p>
+<div class="chart-card">
+<div class="ct">推荐引擎六信号默认权重</div>
+<div class="cs">权重合计 1.0；权重和 >1 时自动归一化；用户可在设置中自定义全部权重</div>
+  <div class="hbar"><div class="hl">downloadRate（下载量）</div><div class="ht"><i style="width:100%;background:var(--accent)"></i></div><div class="hv">0.30</div></div>
+  <div class="hbar"><div class="hl">keywordMatch（关键词匹配）</div><div class="ht"><i style="width:66.7%;background:var(--teal)"></i></div><div class="hv">0.20</div></div>
+  <div class="hbar"><div class="hl">clickRate（点击浏览）</div><div class="ht"><i style="width:50%;background:var(--green)"></i></div><div class="hv">0.15</div></div>
+  <div class="hbar"><div class="hl">steamRating（Steam 评分）</div><div class="ht"><i style="width:50%;background:var(--amber)"></i></div><div class="hv">0.15</div></div>
+  <div class="hbar"><div class="hl">playTime（游玩时长）</div><div class="ht"><i style="width:33.3%;background:var(--purple)"></i></div><div class="hv">0.10</div></div>
+  <div class="hbar"><div class="hl">heat（热度 owners）</div><div class="ht"><i style="width:33.3%;background:var(--cyan)"></i></div><div class="hv">0.10</div></div>
+</div>
+<table>
+  <tr><th>信号</th><th>计算方式</th><th>默认权重</th><th>缺省值策略</th></tr>
+  <tr><td>clickScore</td><td>该游戏 views / 全站 maxViews（归一化饱和）</td><td class="num">0.15</td><td>无浏览记录为 0</td></tr>
+  <tr><td>downloadScore</td><td>downloads / 全站 maxDownloads</td><td class="num">0.30</td><td>无下载记录为 0</td></tr>
+  <tr><td>keywordScore</td><td>Steam 官方标签 vs 用户偏好关键词权重</td><td class="num">0.20</td><td>无标签给中性 0.3</td></tr>
+  <tr><td>steamScore</td><td>好评率×0.7 + 中文支持×0.3</td><td class="num">0.15</td><td>未知给中性 0.4</td></tr>
+  <tr><td>playTimeScore</td><td>SteamSpy 时长 /600 分钟封顶</td><td class="num">0.10</td><td>缺数据中性 0.3</td></tr>
+  <tr><td>heatScore</td><td>SteamSpy owners 中点 log10/7</td><td class="num">0.10</td><td>缺数据中性 0.3</td></tr>
+</table>
+<div class="note"><b>负信号优先</b>：<code>profile.disliked</code> → 直接 0 分。</div>
+<ul>
+  <li><b>行为学习</b>（<code>background/storage/behavior.js</code>）：<code>TRACK_EVENT</code> → NDJSON 追加（超 500 条裁剪重写）+ <code>updateGameProfile</code> + <code>maybeUpdatePreferences</code>（60s 节流，下载事件强制；关键词权重 = pos/(pos+neg+1)，下载+2/仅浏览+1）。画像匹配：精确名 → 清洗名 → 注册表名称变体 → 模糊包含；</li>
+  <li><b>趋势聚合</b>（<code>core/trends.js</code>）：纯函数按天/周分桶输出 <code>[{date,views,downloads,rate}]</code> 供 dashboard 趋势图；</li>
+  <li><b>LLM 模式</b>：<code>settings.useLLM</code> 开启时输出 0–1 评分，结果缓存 7 天（llm-cache），失败回退内置算法。</li>
+</ul>
+
+<h3>5.6 限免监控</h3>
+<p><b>4 数据源并行拉取</b>（<code>background/freegames/manager.js</code>）：</p>
+<table>
+  <tr><th>数据源</th><th>端点与判定</th></tr>
+  <tr><td>Epic</td><td><code>store-site-backend-official.ak.epicgames.com/freeGamesPromotions</code>（官方直连，按促销时间窗过滤）</td></tr>
+  <tr><td>GOG</td><td><code>gog.com/games/ajax/filtered?price=free</code>（原价>0 现价 0 = 限时；原价 0 = 永免）</td></tr>
+  <tr><td>Steam</td><td><code>featuredcategories</code> 的 specials（final_price=0 或 -100%）</td></tr>
+  <tr><td>GamerPower</td><td><code>gamerpower.com/api/giveaways</code>（平台归类 + 过滤第三方 key 活动）</td></tr>
+</table>
+<p><b>刷新与分类机制</b>：</p>
+<ul>
+  <li><code>refreshFreeGames</code> 每日节流（<code>ONE_DAY</code>，非强制刷新直接返回存储数据）；SW 启动副作用与 24h alarm 双触发；</li>
+  <li>按 id 合并保留 claimed/firstSeen；名称规范化去重；url/image 协议白名单清洗（仅 http(s)）；当天新增数写工具栏 badge；</li>
+  <li><b>分类</b>：新游戏触发聚合通知（仅 limited 类）。Steam 平台候选经 ITAD 二次校验（可选 API key）+ Steam 官方判定（is_free→f2p；商店页按钮复核 Play Now/Add to Cart 区分 weekend/limited；内存缓存 12h）。四类处置：<b>limited 入库推送 / weekend 不入库 / f2p 不推送 / key 过滤</b>；</li>
+  <li><b>通知</b>：<code>chrome.notifications</code> 聚合通知（id <code>gr-free-games</code>），点击打开商店页；</li>
+  <li><b>领取</b>：<code>claimFreeGame</code> 写回 OPFS（CLAIM_FREE_GAME action），freegames 页更新角标。</li>
+</ul>
+
+<h3>5.7 缓存与索引机制</h3>
+<p><b>steam-cache 模块化</b>：条目结构 <code>{modules: {meta|rating|detail|spy: {data, ts}}}</code>；字段按 <code>FIELD_MODULES</code> 映射路由；每模块独立 TTL、部分刷新；旧平铺结构加载时迁移；内存 Map 上限 1200（LRU 淘汰，仅删全模块过期条目）；命中率统计（全局 + 分模块）。防抖 2s、<code>STEAM_CACHE_VERSION=6</code>。</p>
+<table>
+  <tr><th>模块</th><th>机制</th></tr>
+  <tr><td><code>name-index.js</code></td><td>游戏名→appId 反查；正缓存附清洗名键（跨站变体命中）；负缓存（appId=null，TTL 默认 2h）；正缓存上限 5000（LRU by lastSearched）</td></tr>
+  <tr><td><code>url-index.js</code>（v7.0.2）</td><td>详情页 URL→appId 索引，统一列表页/详情页两条匹配路径的"第一候选"；URL 规范化去 hash/query；上限 5000（按插入序淘汰）</td></tr>
+  <tr><td><code>search-cache.js</code>（v6.4.3）</td><td>下载站搜索结果缓存，24h TTL、上限 200、siteKeys 变更即失效、写穿持久化（防 SW 休眠丢失）</td></tr>
+  <tr><td><code>llm-cache.js</code>（v6.4.3）</td><td>LLM 评分缓存（7d）+ AI 匹配兜底（成功 7d/失败 24h）+ 搜索引擎兜底，同 Map 复用、上限 300、写穿</td></tr>
+  <tr><td><code>registry.js</code></td><td>游戏注册表（appId → 元数据），永久保留 + 30 天重确认；上限 10000（v8.2.0，按 lastConfirmed 最旧淘汰）</td></tr>
+  <tr><td><code>download-urls.js</code></td><td>下载站网址缓存 <code>{v:2, sites: {siteKey: {appId: entry}}}</code>；读-改-写串行锁；URL 经 <code>isSafeFetchUrl</code> 校验（SSRF 纵深防御）</td></tr>
+</table>
+<p><b>统一持久层与防抖落盘</b>：全部模块走 <code>data/data-store.js</code> 单例；统一模式 = 内存缓存 + 惰性加载 + 防抖批量落盘（多数防抖 2s）+ dirty 标志 + reset/warmup。聚合编排：<code>flushAllCaches</code>（steam/name-index/registry 三连落盘）、<code>resetInMemoryCaches</code>（14 个 reset 聚合）。</p>
+<div class="warnbox"><b>注意</b>：<code>flushAllCaches</code> 仅覆盖三层，download-urls/wrong-reports/url-index/learned-noise/logBuffer 不在聚合落盘范围（部分各自即时写）。</div>
+
+<h3>5.8 站点搜索（下载站反查）补充细节</h3>
+<p><code>searchDownloadSites(gameName, appId, siteKeys)</code> 完整流程（<code>background/sites/search.js</code>）：</p>
+<ol>
+  <li>24h 搜索结果缓存命中即返回；</li>
+  <li>站点列表来自 JSON 规则（含内置 6 站与用户自定义）；</li>
+  <li>多搜索词生成（清洗主名→候选→原始名），对每站<b>逐词串行</b>请求站内搜索页；</li>
+  <li>正则提取候选详情链接（含 title 属性回退），按 <code>calcLinkMatchScore</code>（0-100：全等 100/包含 85/分段/跨语言中英独立比较，含续作数字保护）选最优；≥80 提前终止换词循环；≥60 判 found；</li>
+  <li>详情链接同域白名单校验（防恶意规则注入外站/伪协议）；</li>
+  <li>≥80 分写入 download-urls（appId 键，30 天）并抓详情页 <code>extractDetailMeta</code>（更新日期/版本/大小/网盘链接+提取码，百度/阿里/115/夸克/微云），百度网盘自动拼 <code>?pwd=</code>（仅允许 pan.baidu.com 域）；</li>
+  <li>结果整体写 24h 缓存。</li>
+</ol>
+
+<!-- ============ 6 存储·配置·消息·权限 ============ -->
+<h2 id="ch6"><span class="no">06</span>数据存储、配置管理、消息通信与权限边界</h2>
+<h3>6.1 数据存储：OPFS 优先 + storage.local 降级</h3>
+<p><b><code>data/data-store.js</code>（单例 <code>dataStore</code>）</b>是整个项目的统一持久层：</p>
+<ul>
+  <li><b>OPFS 分文件存储</b>（<code>navigator.storage.getDirectory()</code>），突破 storage.local 5MB 配额；<code>MODULE_FILES</code> 映射 18 个模块 → 文件名与格式；日志类（behaviorLog/runtimeLog）用 NDJSON（decode 跳过损坏行），其余 JSON；</li>
+  <li><b>API</b>：<code>init</code>（幂等 + 首次从 storage.local 自动迁移）、<code>readModule</code>（OPFS 优先；文件缺失时先 <code>.tmp</code> 救援——v6.4.14 修复历史 move() bug 遗留数据，再回退 storage.local）、<code>writeModule</code>、<code>appendModule</code>（仅 NDJSON，定位追加）、<code>removeModule</code>（双删）；</li>
+  <li><b>写串行</b>：<code>_serialize(moduleKey, task)</code> 每模块队列；</li>
+  <li><b>损坏恢复</b>：JSON.parse 失败 → 备份为 <code>&lt;name&gt;.corrupt-&lt;ts&gt;</code> → 重置为空；NDJSON 靠逐行容错。</li>
+</ul>
+<div class="warnbox"><b>重要历史教训</b>（文件注释记载）：v3.4.1 曾用"临时文件 + move() 原子替换"，实测 Chromium 的 move() 对已存在目标<b>静默不替换</b>，导致写入从未真正落盘（被内存缓存掩盖）；v6.4.14 改为直接截断覆盖——代价是崩溃时可能留半截文件，由读取侧 corrupt 备份兜底。<b>备份机制是唯一的数据安全网</b>。</div>
+<p><b>schema 迁移框架</b>（<code>data/migrate.js</code>，v8.2.0）：<code>registerMigration(key, from, to, fn)</code>（版本必须连续）+ <code>migrateModuleIfNeeded</code>（读时链式迁移、幂等、失败不阻断）。当前<b>无任何迁移注册</b>——既有兼容逻辑内嵌在各模块，框架服务未来升级，即迁移机制已就位但尚未启用。</p>
+
+<h3>6.2 配置管理</h3>
+<ul>
+  <li><b><code>background/core/constants.js</code></b>：全局常量中枢，刻意零依赖（TDZ 免疫）。含 <code>DB_KEYS</code>（19 个存储键）、<code>DEFAULT_SETTINGS</code>（完整默认设置）、TTL 体系（0=永久→Infinity）、<code>DATA_MODULES</code>（17 个可备份/导入导出模块注册表）、<code>EXPORT_FORMAT/EXPORT_VERSION</code>；</li>
+  <li><b><code>background/core/settings.js</code></b>：设置读取（5s 内存缓存）/保存/初始化；<code>initStorage</code>（dataStore.init + 写默认设置 + refreshTtlConfig）、<code>deepMergeSettings</code>（深合并补默认值、类型不符回退默认）；</li>
+  <li><b>UI 侧保存机制</b>：popup 采用 <code>saveSettingsPatch</code> <b>串行队列</b>（GET_SETTINGS → applyPatch → SAVE_SETTINGS，防并发快照互相覆盖）；options 采用 800ms 防抖 + saveQueue 串行 + <code>pagehide</code> 兜底落盘。</li>
+</ul>
+
+<h3>6.3 消息通信契约（49 个 action）</h3>
+<p><b>契约校验</b>（<code>background/core/message-contract.js</code>）：<code>validateMessage(action, msg)</code> 纯函数；<code>RULES</code> 表覆盖约 46 个 action（分四批演进：v4.0.0 高风险 9 个 → v6.3.0 100% 覆盖）。校验要点：appId 统一正则 <code>/^\d{1,10}$/</code>；gameName ≤200 字符；TRACK_EVENT 的 type 白名单 6 种；moduleKeys 字符串数组；limit 区间。<b>当前仅 <code>OPEN_HUB</code> 与 <code>LOG_PERF</code> 未进 RULES 表</b>（未契约化 action 默认放行）。</p>
+<div class="chart-card">
+<div class="ct">49 个消息 action 分域分布</div>
+<div class="cs">MESSAGE_HANDLERS 全量：2+11+6+3+8+4+5+2+8 = 49（9 个领域）</div>
+  <div class="hbar"><div class="hl">Steam 查询</div><div class="ht"><i style="width:100%;background:var(--accent)"></i></div><div class="hv">11</div></div>
+  <div class="hbar"><div class="hl">数据治理</div><div class="ht"><i style="width:72.7%;background:var(--teal)"></i></div><div class="hv">8</div></div>
+  <div class="hbar"><div class="hl">日志/诊断</div><div class="ht"><i style="width:72.7%;background:var(--purple)"></i></div><div class="hv">8</div></div>
+  <div class="hbar"><div class="hl">设置/规则</div><div class="ht"><i style="width:54.5%;background:var(--green)"></i></div><div class="hv">6</div></div>
+  <div class="hbar"><div class="hl">缓存管理</div><div class="ht"><i style="width:45.5%;background:var(--amber)"></i></div><div class="hv">5</div></div>
+  <div class="hbar"><div class="hl">下载站</div><div class="ht"><i style="width:36.4%;background:var(--cyan)"></i></div><div class="hv">4</div></div>
+  <div class="hbar"><div class="hl">统计</div><div class="ht"><i style="width:27.3%;background:var(--orange)"></i></div><div class="hv">3</div></div>
+  <div class="hbar"><div class="hl">行为与推荐</div><div class="ht"><i style="width:18.2%;background:var(--red)"></i></div><div class="hv">2</div></div>
+  <div class="hbar"><div class="hl">限免</div><div class="ht"><i style="width:18.2%;background:var(--muted)"></i></div><div class="hv">2</div></div>
+</div>
+<table>
+  <tr><th>领域</th><th class="num">数量</th><th>Action</th></tr>
+  <tr><td>行为与推荐</td><td class="num">2</td><td>TRACK_EVENT、GET_RECOMMENDATIONS</td></tr>
+  <tr><td>Steam 查询</td><td class="num">11</td><td>SEARCH_STEAM、REFRESH_STEAM_CACHE、GET_STEAM_BY_APPID、SAVE_MANUAL_MAPPING、SEARCH_STEAM_CANDIDATES、GET_STEAM_RATINGS、PREFETCH_STEAM_RATINGS、CACHE_STEAM_PAGE、CLEAR_CACHE_FOR_PAGE、REPORT_WRONG_APPID、HEAL_REGISTRY_NAMES</td></tr>
+  <tr><td>设置/规则</td><td class="num">6</td><td>GET_SETTINGS、SAVE_SETTINGS、RESET_SETTINGS、GET_ADAPTER_RULES、SAVE_ADAPTER_RULES、DELETE_ADAPTER_RULES</td></tr>
+  <tr><td>统计</td><td class="num">3</td><td>GET_STATS、GET_TRENDS、GET_STEAM_RECOMMENDATIONS</td></tr>
+  <tr><td>数据治理</td><td class="num">8</td><td>CLEAR_DATA、GET_DATA_MODULES、EXPORT_DATA、IMPORT_DATA、CREATE_BACKUP、GET_BACKUPS、RESTORE_BACKUP、DELETE_BACKUP</td></tr>
+  <tr><td>下载站</td><td class="num">4</td><td>SEARCH_DOWNLOAD_SITES、GET_DOWNLOAD_HISTORY、TRACK_DOWNLOAD_SITE_VISIT、RECORD_DOWNLOAD_URLS_BATCH</td></tr>
+  <tr><td>缓存管理</td><td class="num">5</td><td>GET_GAME_CACHE_LIST、DELETE_GAME_CACHE_ENTRY、CLEAR_GAME_CACHE、REFRESH_GAME_CACHE_ENTRY、CLEAN_EXPIRED_CACHE</td></tr>
+  <tr><td>限免</td><td class="num">2</td><td>GET_FREE_GAMES、CLAIM_FREE_GAME</td></tr>
+  <tr><td>日志/诊断</td><td class="num">8</td><td>GET_RUNTIME_LOGS、CLEAR_RUNTIME_LOGS、EXPORT_LOGS、GET_API_STATUS、GET_OUTBOUND_AUDIT、CLEAR_OUTBOUND_AUDIT、LOG_PERF、OPEN_HUB</td></tr>
+  <tr><td><b>合计</b></td><td class="num"><b>49</b></td><td>2+11+6+3+8+4+5+2+8</td></tr>
+</table>
+<p>另有 tab→content 下行消息：<code>FORCE_REFRESH_PAGE</code>（快捷键触发）与 <code>STEAM_RATINGS_UPDATE</code>/<code>REFRESH_RECOMMENDATIONS</code>/<code>SHOW_LAST_STATS</code>。</p>
+
+<h3>6.4 权限边界设计（manifest.json）</h3>
+<p><b>permissions（5 项，无敏感项，刻意收窄）</b>：<code>storage</code>、<code>alarms</code>、<code>notifications</code>、<code>scripting</code>（动态注册自定义站点脚本）、<code>contextMenus</code>。<b>未申请 tabs/history/webNavigation/cookies</b>——后台仅通过 <code>sender.tab.url</code>（消息上下文）获取页面网址，是刻意收窄的隐私设计。</p>
+<p><b>host_permissions（共 28 条条目，覆盖 17 个不同主机）</b>：3dmgame/ali213/gamersky/yystv/fitgirl/rutracker/gamer520/xianyudanji/xdgame 等下载/游戏站 + Steam（store/api）+ steamspy + Epic 限免 API + GOG + GamerPower + <code>cn.bing.com</code>（appId 匹配兜底）+ <code>localhost/127.0.0.1</code>（本地 LLM/Ollama）。注意<b>绝大多数为顶级域条目</b>（gog、gamerpower 为 www 子域条目，均无 <code>*.</code> 通配）——对 www 等子域后台 fetch 的实际覆盖情况<b>待确认</b>（见第 9 章）。</p>
+<p><b>optional_host_permissions</b>：<code>http://*/*</code>、<code>https://*/*</code>——为用户自定义/导入适配规则的任意站点预留（运行时授权）。调研未检索到调用 <code>chrome.permissions.request</code> 的 UI 代码位置（<b>待确认</b>）。</p>
+<p><b>其他关键条目</b>：</p>
+<ul>
+  <li>CSP：<code>extension_pages: script-src 'self'; object-src 'self'</code>（MV3 默认值，无放宽）；</li>
+  <li>content_scripts：静态注入 6 个内置下载站 + <code>*.steampowered.com</code>；<code>run_at: document_start</code>；12 个经典脚本 + <code>styles/content.css</code>；</li>
+  <li>web_accessible_resources：<code>content/*.js</code> 仅对上述站点域开放——支撑 tracker.js 动态加载 ESM 子模块；</li>
+  <li><code>minimum_chrome_version: 109</code>；command <code>gr-force-refresh</code>（Alt+Shift+G）；<code>default_locale: zh_CN</code>。</li>
+</ul>
+
+<h3>6.5 SSRF 防护与出站审计</h3>
+<ul>
+  <li><b><code>core/utils.js#isSafeFetchUrl</code></b>：拒绝 localhost/私有 IPv4/完整 IPv6 解析（含 6to4/Teredo/ULA/尾点绕过）；<code>fetchWithTimeout</code> 15s 超时、<code>redirect:'manual'</code> 逐跳重校验（最多 5 跳）、限速 + 审计；<code>allowPrivateHosts</code> 仅供本地 LLM 端点放行；</li>
+  <li><b><code>core/outbound-audit.js</code></b>：出站请求环形审计（300 条）+ 每主机滑动窗口限速（10s/100 次），dashboard 提供查看/清空入口；</li>
+  <li><b>纵深防御</b>：<code>download-urls.js</code> 写入的 URL 亦经 <code>isSafeFetchUrl</code> 校验；freegames 的 <code>safeUrl</code> 仅允许 http(s) 防 <code>javascript:</code> 伪协议；站点搜索的详情链接有同域白名单校验（防恶意规则注入外站）。</li>
+</ul>
+
+<!-- ============ 7 质量保障 ============ -->
+<h2 id="ch7"><span class="no">07</span>质量保障体系</h2>
+<h3>7.1 测试金字塔</h3>
+<p><b>Vitest 收集 18 个套件</b>（<code>vitest.config.js</code> 显式 include；pool=forks、isolate、fileParallelism=false 串行求稳定、testTimeout 120s），约 615 项用例。套件分布：</p>
+<div class="chart-card">
+<div class="ct">测试套件分布（Vitest 18 套件 + 脚本级 2 项）</div>
+<div class="cs">单元 14 / 集成 4 / E2E 冒烟 1 / 视觉回归 1</div>
+  <div class="hbar"><div class="hl">单元测试</div><div class="ht"><i style="width:100%;background:var(--accent)"></i></div><div class="hv">14</div></div>
+  <div class="hbar"><div class="hl">集成测试</div><div class="ht"><i style="width:28.6%;background:var(--teal)"></i></div><div class="hv">4</div></div>
+  <div class="hbar"><div class="hl">E2E 冒烟</div><div class="ht"><i style="width:7.1%;background:var(--amber)"></i></div><div class="hv">1</div></div>
+  <div class="hbar"><div class="hl">视觉回归</div><div class="ht"><i style="width:7.1%;background:var(--purple)"></i></div><div class="hv">1</div></div>
+</div>
+<table>
+  <tr><th>层级</th><th class="num">数量</th><th>套件</th></tr>
+  <tr><td>单元测试</td><td class="num">14</td><td>title-parser/engine/api-pure/contract/freegames/sites/trends/storage/backups/migrate/security/outbound/rules-cleanup/properties</td></tr>
+  <tr><td>集成测试</td><td class="num">4</td><td>content-sim/orchestrator/handlers/integrity</td></tr>
+  <tr><td>E2E 冒烟</td><td class="num">1</td><td>e2e-smoke.mjs（playwright-core，录制/离线回放双模式）</td></tr>
+  <tr><td>视觉回归</td><td class="num">1</td><td>visual-regression.mjs（pixelmatch 0.5% 阈值）</td></tr>
+</table>
+<p><b>单元 14 个套件覆盖明细</b>（tests/unit/）：</p>
+<table>
+  <tr><th>套件</th><th>覆盖</th></tr>
+  <tr><td><code>test-title-parser.mjs</code></td><td>标题解析/搜索变体/噪声词提取</td></tr>
+  <tr><td><code>test-engine.mjs</code></td><td>推荐引擎纯函数（calculateKeywordScore/findProfile/steamspyScores/computeGameScore）</td></tr>
+  <tr><td><code>test-api-pure.mjs</code>（30KB，最大）</td><td>steam api 全部纯函数（nameMatchesSearch/summarizeRecentReviews/needsRatingRefetch/isCompleteCacheData/parseBingSearchAppIds/parseLlmMatchResponse 等）</td></tr>
+  <tr><td><code>test-contract.mjs</code></td><td>消息契约形状校验</td></tr>
+  <tr><td><code>test-freegames.mjs</code></td><td>限免分类纯函数（classifyFreeType/classifyGamerPowerGiveaway/activeItadKey）</td></tr>
+  <tr><td><code>test-sites.mjs</code></td><td>calcLinkMatchScore/extractDetailMeta/buildBaiduPanUrlWithPwd</td></tr>
+  <tr><td><code>test-trends.mjs</code> / <code>test-storage.mjs</code> / <code>test-backups.mjs</code> / <code>test-migrate.mjs</code></td><td>趋势聚合 / 存储模块 / 备份 / 数据迁移</td></tr>
+  <tr><td><code>test-security.mjs</code></td><td>SSRF/XSS/协议白名单（并断言 title-parser 与 shared/patterns 噪声正则双源一致，防漂移）</td></tr>
+  <tr><td><code>test-outbound.mjs</code></td><td>出站审计</td></tr>
+  <tr><td><code>test-rules-cleanup.mjs</code> / <code>test-properties.mjs</code></td><td>规则清洗 / fast-check 属性测试</td></tr>
+</table>
+<p><b>集成 4 个套件职责</b>（tests/integration/）：</p>
+<table>
+  <tr><th>套件</th><th>覆盖</th></tr>
+  <tr><td><code>test-content-sim.mjs</code>（1165 行）</td><td>Node 模拟 window/document/chrome，按 manifest 顺序加载全部内容脚本，验证 document_start 预热、两波好评率流程、AJAX 等待</td></tr>
+  <tr><td><code>test-orchestrator.mjs</code></td><td>mock fetch+storage 驱动 <code>getSteamRatingsFromCacheOnly</code>/<code>getSteamPositiveRate</code> 真实后台链路</td></tr>
+  <tr><td><code>test-handlers.mjs</code></td><td>handleMessage → 领域 handler → 存储写入的完整消息管线</td></tr>
+  <tr><td><code>test-integrity.mjs</code></td><td>依赖分层单向校验、TDZ/噪声双源/语法静态扫描、manifest 引用与版本一致性</td></tr>
+</table>
+<ul>
+  <li><b>helpers 与 fixtures</b>：<code>fetch-mock.mjs</code>（URL 路由 fetch mock + 调用追踪）、<code>storage-mock.mjs</code>（统一了此前 3 份重复实现）；<code>tests/fixtures/http/</code> 下 80 个录制响应（E2E 离线回放）+ <code>list-page.html</code>；</li>
+  <li><b>E2E 冒烟</b>（779 行，playwright-core + 系统 Chrome/Edge）：扩展可加载、popup 无 console error、fixture 列表页徽章注入、详情页 appId 主内容区限定（复刻 16598 误配场景）；<code>E2E_RECORD=1</code> 录制 / <code>E2E_MOCK=1</code> 离线回放，CI 全离线；</li>
+  <li><b>视觉回归</b>：popup/options（三主题+过滤面板）/dashboard 截图与基线 pixelmatch 对比，阈值 0.5% 像素差；freegames 页因动态数据被显式排除。</li>
+</ul>
+
+<h3>7.2 覆盖率现状与门禁策略</h3>
+<div class="chart-card">
+<div class="ct">测试覆盖率四指标</div>
+<div class="cs">最近一次 npm run coverage 产物；全局分支覆盖 56.1% 为最短板</div>
+<div class="grid4">
+  <div class="ring-wrap">
+    <svg width="150" height="150" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#223048" stroke-width="12"/>
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#66c0f4" stroke-width="12" stroke-linecap="round" stroke-dasharray="214.77 339.29" transform="rotate(-90 70 70)"/>
+      <text x="70" y="66" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">63.3%</text>
+      <text x="70" y="84" text-anchor="middle" fill="#8f98a0" font-size="10">3303/5216</text>
+    </svg>
+    <div class="rl">Statements 语句</div>
+  </div>
+  <div class="ring-wrap">
+    <svg width="150" height="150" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#223048" stroke-width="12"/>
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#e5534b" stroke-width="12" stroke-linecap="round" stroke-dasharray="190.34 339.29" transform="rotate(-90 70 70)"/>
+      <text x="70" y="66" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">56.1%</text>
+      <text x="70" y="84" text-anchor="middle" fill="#8f98a0" font-size="10">2778/4956</text>
+    </svg>
+    <div class="rl">Branches 分支</div>
+  </div>
+  <div class="ring-wrap">
+    <svg width="150" height="150" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#223048" stroke-width="12"/>
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#f0a93b" stroke-width="12" stroke-linecap="round" stroke-dasharray="221.56 339.29" transform="rotate(-90 70 70)"/>
+      <text x="70" y="66" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">65.3%</text>
+      <text x="70" y="84" text-anchor="middle" fill="#8f98a0" font-size="10">553/847</text>
+    </svg>
+    <div class="rl">Functions 函数</div>
+  </div>
+  <div class="ring-wrap">
+    <svg width="150" height="150" viewBox="0 0 140 140">
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#223048" stroke-width="12"/>
+      <circle cx="70" cy="70" r="54" fill="none" stroke="#a3cf06" stroke-width="12" stroke-linecap="round" stroke-dasharray="223.93 339.29" transform="rotate(-90 70 70)"/>
+      <text x="70" y="66" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">66.0%</text>
+      <text x="70" y="84" text-anchor="middle" fill="#8f98a0" font-size="10">2953/4477</text>
+    </svg>
+    <div class="rl">Lines 行</div>
+  </div>
+</div>
+</div>
+<p><b>门禁策略</b>（<code>scripts/coverage-gate.mjs</code>）：<b>精准增量门禁</b>——只对相对 origin/main <b>新增</b>的业务文件（background/content/adapters/data/shared 下 A 状态 .js/.mjs）跑覆盖率，要求<b>行覆盖 ≥50%</b>（COVERAGE_MIN_LINES 可调）；无 origin/main 回退 HEAD~1，无新增文件直接通过。<b>非全局硬门槛</b>——存量代码无下限约束。</p>
+
+<h3>7.3 静态检查</h3>
+<ul>
+  <li><b>eslint.config.js</b>（flat config）：ecmaVersion 2022 + module；规则聚焦正确性（no-undef/no-dupe-keys/no-unreachable + no-unused-vars 升 error，<code>_</code> 前缀豁免 + eqeqeq(smart)/no-var/prefer-const）；curly 显式不启用（约 196 处单行花括号历史现状）；tests 单独块豁免；</li>
+  <li><b>三 tsconfig 分工</b>（均 allowJs+checkJs+noEmit+strict，noImplicitAny:false）：① <code>tsconfig.json</code>：background/** + data/** + lib/**（全 strict）；② <code>tsconfig.ui.json</code>：content/options/popup/dashboard/freegames/adapters/shared，<b>strictNullChecks:false</b>（UI 层放宽）；③ <code>tsconfig.content.json</code>：仅 content/** + globals.d.ts（全 strict）。注意 <b>content 目录被 ui 与 content 两个配置重复检查</b>（宽严不同），typecheck 串行跑三遍；</li>
+  <li><b>.prettierrc</b>：semi、singleQuote、printWidth 120、trailingComma none、tabWidth 2、LF；<b>.editorconfig</b>：utf-8、LF（bat/ps1 为 CRLF）、2 空格缩进。</li>
+</ul>
+
+<h3>7.4 CI 流水线与 Git 钩子</h3>
+<p><b>.github/workflows/ci.yml（6 job）</b>：</p>
+<table>
+  <tr><th>#</th><th>Job</th><th>内容</th></tr>
+  <tr><td class="num">1</td><td><code>test</code></td><td>checkout 全历史 → Node 20 + npm ci → lint → typecheck → vitest shard 1/2</td></tr>
+  <tr><td class="num">2</td><td><code>test-2</code></td><td>vitest shard 2/2（分片并行减墙钟）</td></tr>
+  <tr><td class="num">3</td><td><code>coverage-gate</code></td><td>新增文件覆盖率门禁</td></tr>
+  <tr><td class="num">4</td><td><code>perf</code></td><td>测试耗时预算 <code>test:timed --budget 90</code>（90s 超预算拒绝）</td></tr>
+  <tr><td class="num">5</td><td><code>e2e</code></td><td>xvfb 非无头，E2E_MOCK=1 离线回放全量 + 视觉回归</td></tr>
+  <tr><td class="num">6</td><td><code>security</code></td><td>npm audit（high）+ gitleaks Secret 扫描；concurrency 自动取消旧运行</td></tr>
+</table>
+<p><b>.githooks/</b>（<code>scripts/install-hooks.sh</code> 设 <code>core.hooksPath=.githooks</code>）：</p>
+<table>
+  <tr><th>钩子</th><th>内容</th></tr>
+  <tr><td><code>pre-commit</code></td><td>仅暂存文件三层快检：node --check 语法 → eslint → prettier --check</td></tr>
+  <tr><td><code>commit-msg</code></td><td>Conventional Commits 前缀校验（feat|fix|refactor|docs|chore|test|style|perf|build|ci），Merge/Revert 豁免</td></tr>
+  <tr><td><code>pre-push</code></td><td>完整 <code>npm run check</code>（lint+typecheck+vitest），失败输出 tail -40 日志</td></tr>
+</table>
+
+<!-- ============ 8 风险 ============ -->
+<h2 id="ch8"><span class="no">08</span>风险与问题分析</h2>
+<div class="chart-card">
+<div class="ct">风险总览：5 大类 21 条</div>
+<div class="cs">每个色块代表 1 条风险条目（R5-5 测试盲区另含 8 个子项）</div>
+  <div class="riskrow"><div class="rl2">MV3 生命周期与持久化</div><div class="cells"><i style="background:var(--red)"></i><i style="background:var(--red)"></i><i style="background:var(--red)"></i><i style="background:var(--red)"></i><i style="background:var(--red)"></i></div><div class="rv">5</div></div>
+  <div class="riskrow"><div class="rl2">性能隐患</div><div class="cells"><i style="background:var(--orange)"></i><i style="background:var(--orange)"></i><i style="background:var(--orange)"></i><i style="background:var(--orange)"></i><i style="background:var(--orange)"></i><i style="background:var(--orange)"></i></div><div class="rv">6</div></div>
+  <div class="riskrow"><div class="rl2">耦合与技术债</div><div class="cells"><i style="background:var(--amber)"></i><i style="background:var(--amber)"></i><i style="background:var(--amber)"></i><i style="background:var(--amber)"></i><i style="background:var(--amber)"></i><i style="background:var(--amber)"></i></div><div class="rv">6</div></div>
+  <div class="riskrow"><div class="rl2">兼容性与安全边界</div><div class="cells"><i style="background:var(--purple)"></i><i style="background:var(--purple)"></i><i style="background:var(--purple)"></i><i style="background:var(--purple)"></i></div><div class="rv">4</div></div>
+  <div class="riskrow"><div class="rl2">可维护性</div><div class="cells"><i style="background:var(--accent)"></i><i style="background:var(--accent)"></i><i style="background:var(--accent)"></i><i style="background:var(--accent)"></i><i style="background:var(--accent)"></i><i style="background:var(--accent)"></i></div><div class="rv">6</div></div>
+</div>
+<p>以下逐条说明现象、成因与影响，全部引用调研中发现的具体证据。</p>
+
+<h3>8.1 MV3 生命周期与数据持久化风险</h3>
+<table>
+  <tr><th>编号</th><th>风险</th><th>现象/成因与影响</th></tr>
+  <tr><td><b>R1-1</b></td><td>SW 休眠与内存态丢失（最关键）</td><td>大量状态常驻内存（api-monitor/outbound-audit 统计、settings 5s 缓存、各模块内存 Map + <b>2s 防抖未落盘窗口</b>）；SW 空闲约 30s 即被终止，防抖窗口内的写入丢失。<code>flushAllCaches</code> 仅覆盖 steam/name-index/registry 三层，download-urls/wrong-reports/url-index/learned-noise/logBuffer 不在聚合落盘范围</td></tr>
+  <tr><td><b>R1-2</b></td><td>保活 hack 的脆弱性</td><td>批处理期间 setInterval 每 10s 调 <code>getPlatformInfo()</code> 对抗休眠；若保活调用被 Chrome 节流，存在批次中断风险（实际表现待确认）</td></tr>
+  <tr><td><b>R1-3</b></td><td>截断式写入的崩溃窗口</td><td>v6.4.14 放弃 move() 原子替换后，写中途崩溃产生半截文件；JSON 模块靠 corrupt 备份+重置恢复（该模块数据即丢失）。备份机制（默认 7 份 FIFO）是唯一数据安全网</td></tr>
+  <tr><td><b>R1-4</b></td><td>预热未 await</td><td>SW 顶层 <code>Promise.allSettled([...warmup])</code> 不等待完成；SW 若很快休眠，预热效果落空（各模块惰性加载兜底，属已注明的设计取舍）</td></tr>
+  <tr><td><b>R1-5</b></td><td>TTL 配置竞态</td><td><code>TTL_CONFIG</code> 是 constants.js 内可变模块状态；SW 冷启动若未走完 initStorage→refreshTtlConfig 前就有缓存判定调用，理论上短暂使用默认 TTL（实际风险低，待确认）</td></tr>
+</table>
+
+<h3>8.2 性能隐患</h3>
+<table>
+  <tr><th>编号</th><th>风险与说明</th></tr>
+  <tr><td><b>R2-1</b></td><td>单游戏请求链偏长：最坏路径 storesearch + 可选 DLC 校验 appdetails + appreviews + 0 评测时 2 个 appdetails + GetNewsForApp，单游戏最多 5–6 个串行请求；60 项批次叠加后同域配额压力大。已有并发 6/2 自适应 + api-monitor 降速治理，但中国网络下仍可能长尾挂起</td></tr>
+  <tr><td><b>R2-2</b></td><td>批次串行衔接：批间必须等 done 推送才发下一批（inflight 门控），大列表后段徽章延迟明显（代码注释自述 3 并发时 50 游戏约 1 分钟）</td></tr>
+  <tr><td><b>R2-3</b></td><td><code>fetchSteamTagRecommendations</code> 串行瓶颈：最多 3 标签 × 4 条目的 storesearch+appdetails 全部 await 串行，最多约 15 次顺序请求，无并发/缓存</td></tr>
+  <tr><td><b>R2-4</b></td><td><code>searchDownloadSites</code> 全串行：站点间串行、搜索词间串行、再加详情页 meta 抓取——N 站 × M 词最坏请求数随规则配置线性增长，仅靠 24h 缓存缓解</td></tr>
+  <tr><td><b>R2-5</b></td><td>全量序列化写放大：steam-cache（≤1200 条）、registry（≤10000 条）每次 flush 全量 JSON 序列化；备份默认 7 份全量快照存于 backups.json，备份文件可能成为 OPFS 中最大单体（体积待确认）</td></tr>
+  <tr><td><b>R2-6</b></td><td>fire-and-forget 无显式取消：阶段 2 异步闭包，标签页提前关闭仅靠 sendMessage 的 catch 兜底（可接受但无显式取消机制）</td></tr>
+</table>
+
+<h3>8.3 耦合与技术债</h3>
+<table>
+  <tr><th>编号</th><th>风险与说明</th></tr>
+  <tr><td><b>R3-1</b></td><td>循环依赖：<code>content/core/debug.js ↔ status-bar.js</code> 互相 import，初始化顺序敏感、难以单独测试。先例：list-page↔list-batch 曾有同样问题，v7.3.0 拆出 list-state.js 解决——同一手法可复用</td></tr>
+  <tr><td><b>R3-2</b></td><td>通信双轨制：<code>__GR_MSG__</code> 超时封装与裸 <code>chrome.runtime.sendMessage</code> 并存（options/dashboard/detail-page/list-batch 多处裸调用）。SW 休眠时挂起的 handler 让 sendResponse 永不触发，裸调用者无超时防线；响应信封也不统一（<code>{success}</code>/<code>{data}</code> 各自解析）</td></tr>
+  <tr><td><b>R3-3</b></td><td>globalThis 副作用耦合：适配规则经副作用 import 挂全局变量，依赖加载顺序；badges.js 颜色若全局未就绪走本地回退；options.html 仅为读 <code>__GAME_RECOMMENDER_SITES__</code> 一个常量而注入 8 个脚本（后台已有 getAllRules() API 可替代）</td></tr>
+  <tr><td><b>R3-4</b></td><td>硬编码站点映射第二事实来源：detail-page.js 内硬编码 {xdgame,xianyudanji,gamer520} 中文名映射，与 adapters/ 站点清单脱节；history.js 同样硬编码仅识别这三站——自定义站点的下载访问会被记为 unknown 而丢弃。新增站点需多处同步修改</td></tr>
+  <tr><td><b>R3-5</b></td><td>噪声正则双源副本：title-parser.js 与 shared/patterns.js 两份副本（靠 test-security.mjs 断言防漂移）——已知且受测试约束的技术债</td></tr>
+  <tr><td><b>R3-6</b></td><td>历史耦合残留：<code>handleClearGameCache</code>/<code>handleClearData</code> 直接操作 chrome.storage.local 删 manualMappings（旧版遗留键），绕开 dataStore 抽象</td></tr>
+</table>
+
+<h3>8.4 兼容性与安全边界</h3>
+<table>
+  <tr><th>编号</th><th>风险与说明</th></tr>
+  <tr><td><b>R4-1</b></td><td>host_permissions 顶级域条目与子域：manifest 绝大多数为顶级域条目（无 <code>*.</code> 通配；gog、gamerpower 为 www 子域条目）。Chrome match pattern 无通配时不匹配子域；若实际站点在子域，后台请求可能依赖 optional 授权或失败降级（待实测验证）</td></tr>
+  <tr><td><b>R4-2</b></td><td>isolated world 的作用域限制：download-tracking.js 的 window.open 包裹与 click capture 仅能影响隔离世界可见的调用路径，页面自身脚本发起的下载窗口可能绕过追踪；全覆盖须改用 MAIN world 注入（代价：与页面 JS 冲突及安全面扩大）</td></tr>
+  <tr><td><b>R4-3</b></td><td>DOM 选择器脆弱性：六站适配器的容器/标题选择器完全依赖目标站 DOM，站点改版即静默失效；缓解手段已存在（全页回退扫描、用户自定义 rules），但<b>无失效告警机制</b>（是否已有失效埋点待确认）</td></tr>
+  <tr><td><b>R4-4</b></td><td>i18n 缺位：<code>_locales/zh_CN/messages.json</code> 仅 2 条消息（extName/extDescription），全仓 chrome.i18n 调用为 0 处，所有 UI 文案硬编码中文</td></tr>
+</table>
+
+<h3>8.5 可维护性问题</h3>
+<table>
+  <tr><th>编号</th><th>风险与说明</th></tr>
+  <tr><td><b>R5-1</b></td><td>样式体系半迁移：v8.1.0 类化只完成一半——detail-templates.js 与 detail-page.js 仍大量行内 style（写死十六进制色值），与 content.css 的 .gr-detail-* 类及 --gr-float-* 变量并存，主题切换时行内样式无法跟随皮肤</td></tr>
+  <tr><td><b>R5-2</b></td><td>主题清单三份手工维护：content.css 的 [data-theme] 覆盖块与 settings-utils VALID_THEMES、themes.css 的 body[data-theme] 是三份需手工对齐的清单，且两侧主题集合不完全相同（完整对应关系待确认）</td></tr>
+  <tr><td><b>R5-3</b></td><td>陈旧注释：<code>content/core/common.js</code> 文件头自称"经典脚本非 module"，实际是 ESM export，误导后续维护者</td></tr>
+  <tr><td><b>R5-4</b></td><td>数据管理入口重复：options data-manage 面板与 dashboard 备份区功能高度重叠（同一组 action），逻辑分别实现在两处，存在行为漂移风险</td></tr>
+  <tr><td><b>R5-5</b></td><td>测试盲区（8 个子项）：① LLM 评分路径私有未导出无直接单测（待确认）；② UI 页面逻辑无单测；③ E2E fixture 仅录制 store.steampowered.com；④ 通知/ITAD/商店页按钮复核未见针对性测试；⑤ content-sim 是 Node 模拟而非真实浏览器；⑥ 预载与 URL 索引第一候选等较新链路覆盖深度有限（待确认）；⑦ 门禁只卡新增文件，存量无下限；⑧ 全局分支覆盖仅 56.1%</td></tr>
+  <tr><td><b>R5-6</b></td><td>content 双 tsconfig 重复检查：content 目录被 tsconfig.ui.json（strictNullChecks:false）与 tsconfig.content.json（全 strict）重复检查，typecheck 串行跑三遍，宽严不同易造成困惑</td></tr>
+</table>
+
+<!-- ============ 9 待确认 ============ -->
+<h2 id="ch9"><span class="no">09</span>待确认事项清单</h2>
+<p>汇总三份调研中所有未能在只读代码调研中证实的事项（14 项），逐条给出建议的核实方式：</p>
+<table>
+  <tr><th>#</th><th>待确认事项</th><th>来源</th><th>建议核实方式</th></tr>
+  <tr><td class="num">1</td><td>host_permissions 顶级域条目对 www 等子域后台请求的实际覆盖情况</td><td>报告 1</td><td>浏览器实测：<code>chrome.permissions.contains</code> 验证，或在子域页面观察后台 fetch 是否成功</td></tr>
+  <tr><td class="num">2</td><td>optional_host_permissions 的运行时授权入口（何处调用 permissions.request）</td><td>报告 1</td><td>全仓 grep；若确无调用，确认自定义站点是否仅靠动态 content script 注入</td></tr>
+  <tr><td class="num">3</td><td>备份/OPFS 实际体积占用</td><td>报告 1</td><td>运行时采样：重度使用一段时间后检查 OPFS 目录大小与 backups.json 体积</td></tr>
+  <tr><td class="num">4</td><td>TTL_CONFIG 冷启动竞态（initStorage 完成前是否有缓存判定调用）</td><td>报告 1</td><td>阅读启动时序 + 补充针对冷启动顺序的集成用例</td></tr>
+  <tr><td class="num">5</td><td>SW 保活调用是否会被 Chrome 节流导致批次中断</td><td>报告 3</td><td>真实浏览器长时间批处理实验，观察批次中断日志</td></tr>
+  <tr><td class="num">6</td><td>LLM 评分路径（calculateWithLLM/buildLLMPrompt/parseLLMResponse）是否有直接单测</td><td>报告 3</td><td>检查测试文件 import 清单；若无，补充导出化后的单测</td></tr>
+  <tr><td class="num">7</td><td>限免通知/ITAD/商店页按钮复核是否有针对性测试</td><td>报告 3</td><td>grep 测试文件中的函数引用</td></tr>
+  <tr><td class="num">8</td><td>预载下一页与 URL 索引第一候选（v7.0.2）在 content-sim 中的覆盖深度</td><td>报告 3</td><td>审查 test-content-sim.mjs 用例清单，必要时补充用例</td></tr>
+  <tr><td class="num">9</td><td>window.open 拦截在 isolated world 下的实际覆盖率</td><td>报告 2</td><td>运行时验证：在真实下载站点击下载，观察 TRACK_DOWNLOAD 是否触发</td></tr>
+  <tr><td class="num">10</td><td>站点规则失效是否有后台日志埋点与告警</td><td>报告 2</td><td>grep Logger.warn 在 builder/list-page 中的调用；若无，列入改进项</td></tr>
+  <tr><td class="num">11</td><td>content.css 浮窗主题块与 themes.css 扩展页皮肤的完整对应关系</td><td>报告 2</td><td>人工比对三份主题清单，输出对照表</td></tr>
+  <tr><td class="num">12</td><td>lib/ndjson.js 是否仅后台消费</td><td>报告 2</td><td>grep 内容侧引用；预期仅后台静态 import</td></tr>
+  <tr><td class="num">13</td><td>dashboard.js 个别图表渲染函数未逐行核对</td><td>报告 2</td><td>后续针对性代码审查</td></tr>
+  <tr><td class="num">14</td><td>freegames 页渲染是否有特殊逻辑</td><td>报告 3</td><td>已通读 freegames.js（225 行，消息驱动渲染），风险低，可结合 UI 单测补齐</td></tr>
+</table>
+
+<!-- ============ 10 改进建议 ============ -->
+<h2 id="ch10"><span class="no">10</span>改进建议与实施路线</h2>
+<div class="grid2">
+<div class="chart-card">
+<div class="ct">改进项优先级分布（共 18 项）</div>
+<div class="cs">P0×4 数据安全与正确性 / P1×8 架构治理与性能 / P2×6 能力扩展与体验</div>
+  <div class="hbar"><div class="hl"><span class="tag p0">P0</span> 高优先级</div><div class="ht"><i style="width:50%;background:var(--red)"></i></div><div class="hv">4</div></div>
+  <div class="hbar"><div class="hl"><span class="tag p1">P1</span> 中优先级</div><div class="ht"><i style="width:100%;background:var(--amber)"></i></div><div class="hv">8</div></div>
+  <div class="hbar"><div class="hl"><span class="tag p2">P2</span> 低优先级</div><div class="ht"><i style="width:75%;background:var(--accent)"></i></div><div class="hv">6</div></div>
+</div>
+<div class="chart-card">
+<div class="ct">优先级总览</div>
+<div class="cs">每项均对应第 8 章风险编号与第 9 章待确认事项</div>
+<table style="margin:8px 0">
+  <tr><th>优先级</th><th class="num">数量</th><th>主题</th><th>建议周期</th></tr>
+  <tr><td><span class="tag p0">P0</span></td><td class="num">4</td><td>数据安全与正确性</td><td>近期 1–2 周</td></tr>
+  <tr><td><span class="tag p1">P1</span></td><td class="num">8</td><td>架构治理与性能</td><td>中期 1–2 月</td></tr>
+  <tr><td><span class="tag p2">P2</span></td><td class="num">6</td><td>能力扩展与体验</td><td>按需求排期</td></tr>
+</table>
+</div>
+</div>
+
+<h3>10.1 改进项清单（按优先级）</h3>
+<h4>P0 高优先级（数据安全与正确性）</h4>
+<table>
+  <tr><th>#</th><th>改进项</th><th>目标（对应风险）</th><th>建议做法</th><th>预期收益</th></tr>
+  <tr><td>P0-1</td><td>补齐聚合落盘范围</td><td>消除 SW 休眠导致的未落盘丢失窗口（R1-1）；涉及 <code>storage/flush.js</code> 及 download-urls/wrong-reports/url-index/learned-noise/logger</td><td>将缺失模块纳入 <code>flushAllCaches</code>；或改用写穿/更短防抖；在 SW 终止前事件触发 flush</td><td>消除高频行为数据的丢失窗口</td></tr>
+  <tr><td>P0-2</td><td>统一消息封装</td><td>消除通信双轨制（R3-2）；涉及 options/dashboard/detail-page/list-batch</td><td>全部改走 <code>shared/msg.js</code> 的 <code>__GR_MSG__.sendMessage</code>；同步考虑统一响应信封 <code>{ok, data, error}</code></td><td>SW 挂起时全部调用方有超时兜底；错误处理一致</td></tr>
+  <tr><td>P0-3</td><td>核实并修复 host_permissions 子域覆盖</td><td>保证子域站点后台请求可用（R4-1、待确认 #1）</td><td>实测确认后，必要时改为 <code>*://*.domain.com/*</code> 形式</td><td>避免子域站点功能静默失效</td></tr>
+  <tr><td>P0-4</td><td>站点规则失效告警</td><td>消除选择器静默失效（R4-3）；涉及 builder/list-page/logger</td><td>列表项提取数为 0 且回退扫描也为 0 时发 LOG_PERF/Logger.warn 埋点；dashboard 或 popup 展示告警</td><td>站点改版时用户/维护者可感知</td></tr>
+</table>
+<h4>P1 中优先级（架构治理与性能）</h4>
+<table>
+  <tr><th>#</th><th>改进项</th><th>目标（对应风险）</th><th>建议做法</th><th>预期收益</th></tr>
+  <tr><td>P1-1</td><td>打破 debug↔status-bar 循环依赖</td><td>消除初始化顺序敏感（R3-1）</td><td>复用 list-state.js 手法：抽出共享状态/工具到第三个模块</td><td>可单独测试、依赖清晰</td></tr>
+  <tr><td>P1-2</td><td>消除硬编码站点映射</td><td>单一事实来源（R3-4）；涉及 detail-page/history/rules</td><td>站点中文名改由规则携带（新增 displayName 字段）；inferSiteFromDomain 改读规则清单</td><td>新增站点只需一处配置；自定义站点下载行为不再丢失</td></tr>
+  <tr><td>P1-3</td><td>串行链路并发化</td><td>缩短长尾耗时（R2-3/R2-4）；涉及 api-search/sites-search</td><td>标签推荐改受控并发（复用 6/2 自适应模式）；站点搜索站点间并发、词间保持串行</td><td>统计/反查耗时大幅下降</td></tr>
+  <tr><td>P1-4</td><td>样式迁移收尾</td><td>主题可全量跟随（R5-1/R5-2）；涉及 detail-templates/detail-page/content.css</td><td>行内 style 全部类化到 .gr-detail-* + --gr-float-* 变量；输出三份主题清单对照表并收敛为单源生成</td><td>主题切换无死角；维护成本下降</td></tr>
+  <tr><td>P1-5</td><td>options.html 去脚本注入</td><td>减轻耦合（R3-3）</td><td>改为经消息调后台 getAllRules() 取内置规则</td><td>移除 8 个脚本注入；页面加载更轻</td></tr>
+  <tr><td>P1-6</td><td>备份瘦身/增量备份</td><td>缓解写放大与体积膨胀（R2-5）；涉及 backups.js</td><td>备份改只含高价值模块（registry/wrong-reports/behavior/settings）或压缩；监控体积并告警</td><td>OPFS 占用显著下降</td></tr>
+  <tr><td>P1-7</td><td>UI 页面单测补齐</td><td>消除测试盲区（R5-5）；涉及 popup/freegames/hub 等</td><td>优先抽取纯函数（过滤逻辑、safeUrl、串行保存队列）做单测；LLM 路径函数导出化后补测</td><td>回归风险下降；覆盖率提升</td></tr>
+  <tr><td>P1-8</td><td>tsconfig 去重</td><td>消除 content 双检查困惑（R5-6）</td><td>从 ui 配置排除 content，或统一宽严后合并</td><td>typecheck 提速约三分之一；语义清晰</td></tr>
+</table>
+<h4>P2 低优先级（能力扩展与体验）</h4>
+<table>
+  <tr><th>#</th><th>改进项</th><th>目标（对应风险）</th><th>建议做法</th><th>预期收益</th></tr>
+  <tr><td>P2-1</td><td>批次流水线化</td><td>大列表后段徽章提速（R2-2）；涉及 list-batch/ratings-batch</td><td>在保活可靠前提下允许 2 批流水线（前批 done 前预发下一批缓存波）</td><td>大列表整体耗时下降</td></tr>
+  <tr><td>P2-2</td><td>i18n 基建</td><td>为多语言预留（R4-4）</td><td>新增文案先进 messages.json，存量逐步替换；短期无多语言需求可暂缓</td><td>具备国际化扩展性</td></tr>
+  <tr><td>P2-3</td><td>E2E fixture 扩充</td><td>补齐非 Steam 数据源回放（R5-5）</td><td>录制 Epic/GOG/GamerPower/steamspy/下载站响应，扩充 e2e-smoke 场景</td><td>限免/反查链路有浏览器级保障</td></tr>
+  <tr><td>P2-4</td><td>optional 权限入口落地</td><td>自定义站点体验闭环（待确认 #2）</td><td>若确认无 permissions.request 调用，在自定义站点保存时引导授权</td><td>自定义站点后台能力完整</td></tr>
+  <tr><td>P2-5</td><td>数据管理入口收敛</td><td>消除行为漂移风险（R5-4）；涉及 data-manage/dashboard</td><td>提取共享渲染逻辑到 shared 或统一指向一处</td><td>单一实现，降低维护成本</td></tr>
+  <tr><td>P2-6</td><td>陈旧注释清理</td><td>降低误导（R5-3）；涉及 content/core/common.js 等</td><td>修正文件头注释；顺手清理其他陈旧注释</td><td>可读性提升</td></tr>
+</table>
+
+<h3>10.2 分阶段实施路线</h3>
+<div class="timeline">
+  <div class="phase">
+    <div class="pd">阶段一 · 近期 1–2 周</div>
+    <h4>近期稳定化</h4>
+    <ul>
+      <li><b>目标</b>：消除数据丢失窗口与静默失效，不动大结构</li>
+      <li><b>内容</b>：P0-1～P0-4 + 完成第 9 章待确认事项的运行时核实（尤其 #1/#2/#5/#9）</li>
+      <li><b>验收</b>：新增/修改文件过 ≥50% 行覆盖门禁；<code>npm run check</code> 全绿；实测 SW 休眠后数据无丢失</li>
+    </ul>
+  </div>
+  <div class="phase">
+    <div class="pd">阶段二 · 中期 1–2 个月</div>
+    <h4>中期架构治理</h4>
+    <ul>
+      <li><b>目标</b>：清偿主要技术债，提升可维护性与性能</li>
+      <li><b>内容</b>：P1-1～P1-8，按"先解耦（P1-1/2/5）→ 再提速（P1-3）→ 后收尾样式与测试（P1-4/7）"推进</li>
+      <li><b>验收</b>：主题切换在详情页浮窗全量生效；标签推荐耗时明显下降（LOG_PERF 对比）；全局行覆盖向 70%+ 迈进</li>
+    </ul>
+  </div>
+  <div class="phase">
+    <div class="pd">阶段三 · 按需求排期</div>
+    <h4>长期能力扩展</h4>
+    <ul>
+      <li><b>目标</b>：体验与能力边界扩展</li>
+      <li><b>内容</b>：P2-1～P2-6；可视情况启用 migrate.js 迁移框架承接 schema 变更、评估 MAIN world 注入收益与代价</li>
+      <li><b>验收</b>：新能力均带测试与门禁，不回退既有质量水平</li>
+    </ul>
+  </div>
+  <div class="bar-line"></div>
+</div>
+
+<h3>10.3 实施注意事项</h3>
+<ol>
+  <li><b>MV3 约束不可破</b>：SW 仍禁止顶层动态 import；内容侧混合注入模式（经典壳 + 动态 import ESM）是当前约束下的最优解，重构时应保持；新增后台定时能力必须走 alarms（注意 ensureAlarm 幂等语义，勿盲目重建同名 alarm）；</li>
+  <li><b>不破坏双端规则一致性</b>："storage.adapterRules 优先、内置聚合兜底"是内容侧与后台的共同约定，修改 rules.js/builder.js 时两端必须同步；BUILTIN_DOMAINS 与 manifest 的一致性有集成测试断言；</li>
+  <li><b>保持测试门禁</b>：新增业务文件必须过 ≥50% 行覆盖门禁与 90s 耗时预算；E2E 依赖离线 fixture，新增外部请求链路应同步补录制；</li>
+  <li><b>数据兼容</b>：任何存储结构变更应使用 <code>data/migrate.js</code> 注册连续版本迁移，而非内嵌兼容逻辑；导入/恢复必须走 sanitize 白名单；</li>
+  <li><b>安全红线</b>：所有新增外部请求必须走 <code>fetchWithTimeout</code>（自带 SSRF 校验/限速/审计）；用户可输入 URL 处坚持 http(s) 白名单；新增正则必须过 <code>hasReDoSRisk</code> 校验；</li>
+  <li><b>消息契约同步</b>：新增 action 必须同时更新 MESSAGE_HANDLERS 与 message-contract.js RULES 表（当前仅剩 OPEN_HUB/LOG_PERF 未契约化，建议新增时一并补齐而非继续欠账）；</li>
+  <li><b>渐进式重构</b>：项目已有成功先例（list-state.js 拆分解循环依赖、api.js 拆分为 6 子模块），同类手法优先于推倒重写；每次重构后跑全量 <code>npm run check</code> + E2E 冒烟。</li>
+</ol>
+
+<!-- ============ 11 附录 ============ -->
+<h2 id="ch11"><span class="no">11</span>附录：关键文件索引</h2>
+<p>按目录分组列出核心文件及其一句话职责。</p>
+<h3>11.1 background/（后台）</h3>
+<table>
+  <tr><th>文件</th><th>职责</th></tr>
+  <tr><td><code>background/service-worker.js</code></td><td>SW 装配入口：规则导入/消息监听/初始化/事件/预热/alarms，不含业务逻辑</td></tr>
+  <tr><td><code>background/handlers.js</code></td><td>49 个 action 的静态路由表与统一分发入口 handleMessage</td></tr>
+  <tr><td><code>background/core/constants.js</code></td><td>全局常量中枢：DB_KEYS/DEFAULT_SETTINGS/TTL 体系/DATA_MODULES</td></tr>
+  <tr><td><code>background/core/message-contract.js</code></td><td>消息入参契约校验纯函数（约 46 个 action）</td></tr>
+  <tr><td><code>background/core/rules.js</code></td><td>适配规则读取/校验/导入清洗 + ReDoS 防护</td></tr>
+  <tr><td><code>background/core/settings.js</code></td><td>设置读写（5s 缓存）与深合并初始化</td></tr>
+  <tr><td><code>background/core/api-monitor.js</code></td><td>Steam API 滑动窗口健康监测</td></tr>
+  <tr><td><code>background/core/trends.js</code></td><td>行为日志按天/周分桶聚合纯函数</td></tr>
+  <tr><td><code>background/core/title-parser.js</code></td><td>下载站标题解析/去噪/搜索变体生成</td></tr>
+  <tr><td><code>background/core/outbound-audit.js</code></td><td>出站请求环形审计 + 每主机限速</td></tr>
+  <tr><td><code>background/core/site-scripts.js</code></td><td>自定义站点 content script 动态注册</td></tr>
+  <tr><td><code>background/core/utils.js</code></td><td>安全 fetch（SSRF 防护）与正则工具</td></tr>
+  <tr><td><code>background/core/types.js</code></td><td>纯 JSDoc typedef（零运行时）</td></tr>
+  <tr><td><code>background/handlers/steam.js</code></td><td>Steam 查询域 handler（搜索/直取/纠错/手动映射）</td></tr>
+  <tr><td><code>background/handlers/cache-manager.js</code></td><td>缓存管理域 handler（列表/删除/刷新/清理）</td></tr>
+  <tr><td><code>background/handlers/data-modules.js</code></td><td>数据治理域 handler（导出/导入/备份/清除）</td></tr>
+  <tr><td><code>background/handlers/stats.js</code></td><td>统计域 handler（统计/趋势/标签推荐）</td></tr>
+  <tr><td><code>background/handlers/download-sites.js</code></td><td>下载站域 handler（搜索/历史/访问追踪/批量记录）</td></tr>
+  <tr><td><code>background/steam/orchestrator.js</code></td><td>Steam 数据编排入口（三条查询路径）</td></tr>
+  <tr><td><code>background/steam/api.js</code></td><td>barrel，再导出 6 个子模块</td></tr>
+  <tr><td><code>background/steam/api-search.js</code></td><td>storesearch 搜索/候选打分/变体扩展/标签推荐</td></tr>
+  <tr><td><code>background/steam/api-details.js</code></td><td>appdetails/商店页 HTML/中文支持与标签解析/DLC 本体解析</td></tr>
+  <tr><td><code>background/steam/api-reviews.js</code></td><td>appreviews/30 天窗口统计/中文评测/最近更新/重试冷却</td></tr>
+  <tr><td><code>background/steam/api-supplement.js</code></td><td>SteamSpy 数据补充</td></tr>
+  <tr><td><code>background/steam/api-assemble.js</code></td><td>多源并行拉取与结果组装</td></tr>
+  <tr><td><code>background/steam/api-registry-heal.js</code></td><td>注册表自愈（幂等补写/名称修复/批量扫描）</td></tr>
+  <tr><td><code>background/steam/ratings-batch.js</code></td><td>列表页批量好评率两阶段调度 + 预载 + SW 保活</td></tr>
+  <tr><td><code>background/steam/ai-fallback.js</code></td><td>Bing/LLM 匹配兜底（带防幻觉二次校验）</td></tr>
+  <tr><td><code>background/recommend/engine.js</code></td><td>推荐引擎：六信号加权/画像匹配/LLM 模式</td></tr>
+  <tr><td><code>background/sites/search.js</code></td><td>下载站反查：多词串行搜索/链接打分/网盘提取</td></tr>
+  <tr><td><code>background/freegames/manager.js</code></td><td>限免监控：4 源拉取/分类/ITAD 校验/通知/领取</td></tr>
+  <tr><td><code>background/storage/</code>（18 个模块）</td><td>缓存/索引/行为/备份清理四类存储模块（见 5.7 表）</td></tr>
+</table>
+<h3>11.2 content/（内容脚本）</h3>
+<table>
+  <tr><th>文件</th><th>职责</th></tr>
+  <tr><td><code>content/tracker.js</code></td><td>总入口：防重入/模块加载/页面分流/消息监听/更新自检</td></tr>
+  <tr><td><code>content/core/common.js</code></td><td>域名/转义/埋点等基础工具</td></tr>
+  <tr><td><code>content/core/debug.js</code></td><td>环形日志与诊断视图</td></tr>
+  <tr><td><code>content/core/floats.js</code></td><td>浮窗管理器：四区域/折叠/防重叠/主题</td></tr>
+  <tr><td><code>content/core/status-bar.js</code></td><td>状态浮窗：进度/耗时/汇总</td></tr>
+  <tr><td><code>content/list/list-page.js</code></td><td>列表页判定/列表项提取/过滤/预载</td></tr>
+  <tr><td><code>content/list/list-batch.js</code></td><td>批次调度：两波好评率 + 推荐并入 + 滚动增量</td></tr>
+  <tr><td><code>content/list/list-state.js</code></td><td>单一状态容器/过滤纯函数/收尾统计/排序</td></tr>
+  <tr><td><code>content/list/badges.js</code></td><td>三段式好评率徽章与推荐徽章渲染</td></tr>
+  <tr><td><code>content/detail/detail-page.js</code></td><td>详情页：游戏名识别/appId 提取/匹配链/纠错闭环/下载站反查</td></tr>
+  <tr><td><code>content/detail/detail-templates.js</code></td><td>详情浮窗 HTML 模板</td></tr>
+  <tr><td><code>content/tracking/download-tracking.js</code></td><td>下载行为采集：window.open/click/copy 三路监听</td></tr>
+  <tr><td><code>content/adapters/builder.js</code></td><td>内容侧规则构建器：三策略适配器/域名匹配/appId 图片提取</td></tr>
+</table>
+<h3>11.3 adapters/ 与 shared/、lib/</h3>
+<table>
+  <tr><th>文件</th><th>职责</th></tr>
+  <tr><td><code>adapters/default.js</code></td><td>默认规则（详情 URL 模式/容器/名称长度/imageAppId）</td></tr>
+  <tr><td><code>adapters/sites/*.js</code>（6 个）</td><td>六站内置 IIFE 规则</td></tr>
+  <tr><td><code>adapters/index.js</code></td><td>聚合入口：浅合并挂 __GAME_RECOMMENDER_SITES__</td></tr>
+  <tr><td><code>shared/msg.js</code></td><td>消息封装：10s 超时 + 错误归一</td></tr>
+  <tr><td><code>shared/patterns.js</code></td><td>噪声正则源与好评率分级色单源</td></tr>
+  <tr><td><code>shared/escape.js</code></td><td>XSS 转义基础设施</td></tr>
+  <tr><td><code>shared/settings-utils.js</code></td><td>补丁保存/goHub 双模式跳转/主题应用</td></tr>
+  <tr><td><code>lib/ndjson.js</code></td><td>NDJSON 编解码（损坏行容错）</td></tr>
+</table>
+<h3>11.4 data/、UI 页面与样式</h3>
+<table>
+  <tr><th>文件</th><th>职责</th></tr>
+  <tr><td><code>data/data-store.js</code></td><td>统一持久层：OPFS 优先 + storage.local 降级 + 损坏恢复</td></tr>
+  <tr><td><code>data/migrate.js</code></td><td>schema 迁移框架（已就位未启用）</td></tr>
+  <tr><td><code>popup/popup.js</code></td><td>快捷设置面板 + 刷新指令下发</td></tr>
+  <tr><td><code>options/options.js</code> + <code>panels/*</code></td><td>重设置中心：7 面板 + 数据管理 + 规则编辑</td></tr>
+  <tr><td><code>dashboard/dashboard.js</code></td><td>数据驾驶舱：10 大区块</td></tr>
+  <tr><td><code>hub/hub.js</code></td><td>iframe 聚合壳：hash 路由 + GR_HUB_SWITCH</td></tr>
+  <tr><td><code>freegames/freegames.js</code></td><td>限免列表：双层过滤 + 领取标记</td></tr>
+  <tr><td><code>welcome/welcome.js</code></td><td>安装/更新引导页</td></tr>
+  <tr><td><code>styles/content.css</code></td><td>内容侧样式：.gr-* 类化 + 浮窗主题变量覆盖</td></tr>
+  <tr><td><code>styles/ui-theme.css</code></td><td>扩展页设计系统：:root 变量 + 组件类</td></tr>
+  <tr><td><code>styles/themes.css</code></td><td>扩展页皮肤：8+ 套 body[data-theme] 覆盖</td></tr>
+</table>
+<h3>11.5 质量保障与工程配置</h3>
+<table>
+  <tr><th>文件</th><th>职责</th></tr>
+  <tr><td><code>tests/unit/*.mjs</code>（14 个）</td><td>单元测试套件</td></tr>
+  <tr><td><code>tests/integration/*.mjs</code>（4 个）</td><td>集成测试：content-sim/orchestrator/handlers/integrity</td></tr>
+  <tr><td><code>tests/e2e-smoke.mjs</code></td><td>E2E 冒烟（录制/离线回放）</td></tr>
+  <tr><td><code>tests/visual-regression.mjs</code></td><td>视觉回归（pixelmatch 0.5% 阈值）</td></tr>
+  <tr><td><code>tests/fixtures/http/</code>（80 个录制响应）</td><td>E2E 离线回放数据</td></tr>
+  <tr><td><code>vitest.config.js</code></td><td>测试配置：显式 include/串行/120s 超时</td></tr>
+  <tr><td><code>scripts/coverage-gate.mjs</code></td><td>新增文件行覆盖 ≥50% 精准门禁</td></tr>
+  <tr><td><code>eslint.config.js</code></td><td>ESLint flat config（正确性规则集）</td></tr>
+  <tr><td><code>tsconfig.json</code> / <code>tsconfig.ui.json</code> / <code>tsconfig.content.json</code></td><td>三层类型检查分工</td></tr>
+  <tr><td><code>.github/workflows/ci.yml</code></td><td>CI 6 job：分片测试/门禁/耗时/E2E/安全</td></tr>
+  <tr><td><code>.githooks/*</code></td><td>pre-commit 快检 / commit-msg 规范 / pre-push 全量检查</td></tr>
+  <tr><td><code>manifest.json</code></td><td>MV3 清单：权限/host/注入/web_accessible_resources</td></tr>
+</table>
+
+<div class="infobox">报告完（生成于 2026-08-16）。全部结论来自三份源码级调研报告的交叉综合，已经 QA 事实校验；标注"待确认"处建议按第 9 章所列方式逐项核实后再纳入后续版本规划。</div>
+
+<footer>
+  游戏雷达 Game Radar · 项目深度报告 · v9.2.0 · 生成于 2026-08-16 · 自包含单文件 HTML（零外部依赖）
+</footer>
+</main>
+
+<script>
+// 侧栏导航滚动高亮（原生 JS，无依赖）
+(function(){
+  var links = Array.prototype.slice.call(document.querySelectorAll('nav.side a'));
+  var map = {};
+  links.forEach(function(a){
+    var id = a.getAttribute('href').slice(1);
+    var sec = document.getElementById(id);
+    if(sec) map[id] = a;
+  });
+  function setActive(id){
+    links.forEach(function(a){ a.classList.remove('on'); });
+    if(map[id]) map[id].classList.add('on');
+  }
+  var headings = Object.keys(map).map(function(id){ return document.getElementById(id); });
+  function onScroll(){
+    var cur = headings[0] && headings[0].id;
+    var top = window.scrollY + 90;
+    for(var i=0;i<headings.length;i++){
+      if(headings[i].offsetTop <= top) cur = headings[i].id;
+    }
+    setActive(cur);
+  }
+  window.addEventListener('scroll', onScroll, {passive:true});
+  onScroll();
+  links.forEach(function(a){
+    a.addEventListener('click', function(){ setTimeout(function(){ setActive(a.getAttribute('href').slice(1)); }, 60); });
+  });
+})();
+</script>
+</body>
+</html>

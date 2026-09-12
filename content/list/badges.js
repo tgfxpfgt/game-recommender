@@ -3,9 +3,15 @@
  *
  * v5.0.0：由 list-page.js 拆分——徽章创建/插入/三段式渲染/推荐徽章/
  * 高亮/DOM 移除。纯 DOM 无调度状态（prependBadge 的 settings 参数化）。
+ * v10.5.3：新增段0「综合评分」徽章——XDGame「Steam 玩家评价」同口径
+ * （修正口碑 ÷ 10，好评率贝叶斯收缩；口径函数与详情页内嵌信息卡同源，
+ * 见 detail-templates.js）；悬停展示与 XDGame 卡片一致的详细信息。
  * Badge rendering split from list-page.js (v5.0.0); pure DOM, no scheduler
- * state (prependBadge takes settings as a parameter).
+ * state. v10.5.3 adds the leading composite-score badge (XDGame-native
+ * semantics, helpers shared with the detail inline card).
  */
+import { adjustedReputation, verdictFor, ratingTextInfo } from '../detail/detail-templates.js';
+
 // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
 export function removeItemFromDom(item) {
   if (!item.element || !item.element.parentNode) return;
@@ -71,6 +77,7 @@ export function prependBadge(item, rating, settings) {
   const showRecent = bv.recent !== false;
   const showAll = bv.all !== false;
   const showUpdate = bv.update !== false;
+  const showScore = bv.score !== false; // v10.5.3：综合评分徽章（默认开）
 
   const isNotFound = !rating || !rating.appId;
   const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
@@ -113,6 +120,49 @@ export function prependBadge(item, rating, settings) {
       })
     );
   } else {
+    // 段0：综合评分徽章（v10.5.3，渲染在最前）——与 XDGame 原生「Steam 玩家
+    // 评价」完全同口径：综合评分 = 修正口碑 ÷ 10（好评率贝叶斯收缩，参数经
+    // XDGame 线上接口回归校准）；好评/差评原始条数随评分缓存按 appId 存取
+    // （多站共用），旧缓存缺失时按整数好评率近似回退（同详情页信息卡）。
+    // 悬停展示与 XDGame 卡片一致的明细；颜色取其评级胶囊三档（绿/黄/红）。
+    if (showScore) {
+      const total = rating.totalReviews || 0;
+      let positive = typeof rating.positiveReviews === 'number' ? rating.positiveReviews : null;
+      if (positive === null && total > 0 && typeof rate === 'number') {
+        positive = Math.round((rate / 100) * total); // 旧缓存回退 / legacy fallback
+      }
+      const adjusted = positive !== null ? adjustedReputation(positive, total) : null;
+      if (adjusted !== null) {
+        const { text: ratingText, sentiment } = ratingTextInfo(rating.ratingDesc, rate);
+        const score = (adjusted / 10).toFixed(1);
+        const fmt = (n) => Number(n).toLocaleString('zh-CN'); // 千分位（XDGame 同款）
+        const negative =
+          typeof rating.negativeReviews === 'number' ? rating.negativeReviews : Math.max(total - positive, 0);
+        // XDGame steam-review-level 三档配色（正文/底色同源转化）
+        const LEVEL_STYLE = {
+          positive: { color: '#2e8660', bg: 'rgba(46,134,96,0.12)' },
+          mixed: { color: '#a26c17', bg: 'rgba(162,108,23,0.14)' },
+          negative: { color: '#bd545d', bg: 'rgba(189,84,93,0.12)' }
+        }[sentiment];
+        badges.push(
+          createBadge(link, {
+            text: `⭐ ${score}`,
+            color: LEVEL_STYLE.color,
+            bg: LEVEL_STYLE.bg,
+            cls: 'gr-score-badge',
+            title:
+              `Steam 玩家评价：${ratingText}` +
+              `\n综合评分 ${score}/10 · 修正口碑 ${adjusted.toFixed(1)}%` +
+              `\nSteam 好评率 ${rate}% · ${fmt(total)} 条评价` +
+              `\n好评 ${fmt(positive)} · 差评 ${fmt(negative)}` +
+              `\n${verdictFor(adjusted)}` +
+              `\n点击跳转 Steam 详情页`,
+            clickable: true,
+            appId: rating.appId
+          })
+        );
+      }
+    }
     // 段1：近 30 天好评率（浅蓝固定色；无近期评测 → 灰 —）
     if (showRecent) {
       const recentRate = rating.recentPositiveRate;
@@ -295,12 +345,14 @@ export function prependRecBadge(item, recommendation, settings) {
   badge.className = 'gr-rec-badge';
   badge.textContent = `🎯 ${pct}%`;
   badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:default;`;
-  // v7.0.5：推荐理由可解释——六信号明细全量展示（点击/下载/关键词/Steam/时长/热度）
+  // v7.0.5：推荐理由可解释——信号明细全量展示（点击/下载/关键词/Steam/
+  // 时长/热度；v10.5.3 任务3 新增销量/评论数两行）
   badge.title =
     `推荐度: ${pct}%` +
     `\n🖱 点击率: ${fmt(b.clickScore)} · ⬇ 下载率: ${fmt(b.downloadScore)}` +
     `\n🏷 关键词: ${fmt(b.keywordScore)} · ⭐ Steam: ${fmt(b.steamScore)}` +
     `\n⏱ 游玩时长: ${fmt(b.playTimeScore)} · 🔥 热度: ${fmt(b.heatScore)}` +
+    `\n📊 销量: ${fmt(b.salesScore)} · 📝 评论数: ${fmt(b.reviewScore)}` +
     `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）`;
 
   // v6.3.2 C3：不感兴趣按钮（推荐反馈循环）——点击标记负信号并淡化徽章

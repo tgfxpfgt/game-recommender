@@ -2,8 +2,12 @@
  * 游戏雷达 Game Radar - 列表页模块 / List Page Module
  *
  * 页面类型检测、列表项提取、好评率徽章与过滤、推荐高亮、下一页预载。
+ * v10.5.2：下一页预载的整页 HTML 解析移入 requestIdleCallback——同步
+ * DOMParser 可达数十毫秒，不再与页面渲染/交互竞争主线程。
  * Page-type detection, list-item extraction, rating badges & filtering,
  * recommendation highlighting and next-page prefetch.
+ * v10.5.2: next-page HTML parsing defers to requestIdleCallback so the
+ * full-page sync DOMParser no longer blocks rendering/interaction.
  */
 import * as listBatch from './list-batch.js';
 import { _state, applyRatingsResponse, finishRatings } from './list-state.js';
@@ -33,6 +37,17 @@ function isListPageByUrl() {
     /\/list\//i.test(path) ||
     /\/page\/\d+/i.test(path)
   );
+}
+
+// v10.5.3 任务2：下载站首页判定（根路径或 /index.html 且无查询串）——
+// 首页混排轮播/新闻/多尺寸卡片，列表功能（徽章/过滤/网格重排）会打破站点
+// 原生布局（用户反馈各站首页显示错位）。tracker 初始化与消息处理统一经
+// 此函数门控；带查询串的根路径（如 WordPress 搜索 /?s=）仍按列表页处理。
+// Homepage (root or /index.html, no query string): mixed layouts break under
+// list features; shared gate for tracker init and message handlers. Root
+// paths WITH a query string (e.g. /?s=) still run the list flow.
+function isHomePageUrl() {
+  return /^\/(?:index\.html?)?$/i.test(window.location.pathname || '/') && !window.location.search;
 }
 
 // 智能获取列表项：优先适配器，回退通用链接提取（v3.3.9：回退扫描受
@@ -247,7 +262,17 @@ function preloadNextPage() {
       }
       const html = await response.text();
 
-      const doc = new DOMParser().parseFromString(html, 'text/html');
+      // v10.5.2：解析让出主线程——整页 HTML 同步解析可达数十毫秒，放入空闲
+      // 回调避免与页面渲染/交互竞争（无 requestIdleCallback 环境回退 setTimeout）
+      // Parse off the critical path: a full-page sync parse can block tens of
+      // milliseconds; defer to an idle callback (setTimeout fallback).
+      const parseInIdle = (cb) =>
+        typeof window.requestIdleCallback === 'function'
+          ? window.requestIdleCallback(cb, { timeout: 2000 })
+          : setTimeout(cb, 0);
+      const doc = await new Promise((resolve) =>
+        parseInIdle(() => resolve(new DOMParser().parseFromString(html, 'text/html')))
+      );
       const { names: gameNames, appIds, covers } = extractGameNamesFromDoc(doc);
       if (gameNames.length === 0) {
         dbg('预载：未提取到游戏名');
@@ -395,6 +420,7 @@ export { _state, _internal, ratingFilterPass, sortItemsByRating } from './list-s
 export {
   isDetailPageByUrl,
   isListPageByUrl,
+  isHomePageUrl,
   getListItemsSmart,
   trackListView,
   applyVmFilter,

@@ -64,14 +64,19 @@ export const DEFAULT_SETTINGS = {
     // 同步下调，六项和保持 1.0（徽章百分比不超 100%）
     // v10.1.0：新增 AppID 行为统计信号（appStatDownload/appStatDetailView），
     // 八项和保持 1.0（appStatDetailView 为负信号权重：a=0 且 b>0 时按 b 递减）
-    clickRate: 0.13,
-    downloadRate: 0.27,
-    keywordMatch: 0.18,
-    steamRating: 0.13,
-    playTime: 0.09,
-    heat: 0.09,
-    appStatDownload: 0.08,
-    appStatDetailView: 0.03
+    // v10.5.3 任务3：新增 SteamSpy 销量（sales=owners 区间）与评论数
+    //（reviews=totalReviews）信号，heat 改 CCU（当前在线）口径；十项和保持
+    // 1.0（旧设置缺 key 由 deepMerge 补默认值，权重和超 1 时引擎自动归一）
+    clickRate: 0.12,
+    downloadRate: 0.25,
+    keywordMatch: 0.16,
+    steamRating: 0.12,
+    playTime: 0.08,
+    heat: 0.08,
+    sales: 0.05,
+    reviews: 0.05,
+    appStatDownload: 0.07,
+    appStatDetailView: 0.02
   },
   // v10.3.0：a-b 统计计算参数（用户可调）
   appStatDedupHours: 24, // 同站点去重窗口小时数（0 = 关闭去重，每次都计数）
@@ -116,7 +121,7 @@ export const DEFAULT_SETTINGS = {
   // List-page badge toggles (all on by default). Data fetching keeps running;
   // turning off "all" also disables the rating filter, "rec" the highlighting.
   // v10.3.0：appstat（a-b 徽章）纳入徽章独立开关
-  badgeVisibility: { recent: true, all: true, update: true, rec: true, appstat: true },
+  badgeVisibility: { recent: true, all: true, update: true, rec: true, appstat: true, score: true }, // v10.5.3 score=综合评分徽章
   // v10.3.0：内容功能独立开关（关闭只停用该功能，不影响其他功能与显示）
   enableRecommendations: true, // 推荐值计算与推荐徽章（关闭后列表页不再请求推荐）
   downloadTrackingEnabled: true, // 下载追踪（网盘点击委托/复制捕获 → click_download）

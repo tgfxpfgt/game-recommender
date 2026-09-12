@@ -7,6 +7,10 @@
  * Since v6.0.0 modules load via dynamic import() from this classic entry;
  * module-to-module dependencies are explicit ESM imports (no __GR__ namespace).
  *
+ * v10.5.3：下载站首页（根路径/无查询串）暂停列表与详情功能，仅保留下载
+ * 追踪与二维码——首页混排布局会被列表功能打破（错位反馈），详见 init 内
+ * isHomePageUrl 门控。
+ *
  * 本文件仅负责：模块加载（boot）、预热、主流程（init）、启动与消息监听。
  */
 (function () {
@@ -191,6 +195,22 @@
       if (!isTracked) return; // Steam页只注入下载站浮窗，不做行为追踪
     }
 
+    // === v10.5.3 任务2：下载站首页错位修复 ===
+    // 各下载站首页混排轮播/新闻/多尺寸卡片，列表功能（徽章插入/网格重排/
+    // 过滤控件）会打破站点原生布局（用户反馈首页显示错位）。首页（根路径或
+    // /index.html 且无查询串）暂停列表与详情功能，仅保留下载追踪与二维码
+    // 转链接；带查询串的根路径（如 WordPress 搜索 /?s=）仍按列表页处理。
+    // Download-site homepages mix carousels/news/varied cards and break under
+    // list features; suspend them there (keep download tracking + QR unlock).
+    // Root paths WITH a query string (e.g. /?s=) still run the list flow.
+    if (list.isHomePageUrl()) {
+      debug.DEBUG.pageType = '首页';
+      dbg('🏠 下载站首页：跳过列表/详情功能（防错位），仅保留下载追踪与二维码');
+      tracking.setupDownloadTracking(settings);
+      M.qrUnlock.init(settings);
+      return;
+    }
+
     const adapter = builder.getAdapter();
     debug.DEBUG.adapter = adapter.name;
 
@@ -333,7 +353,9 @@
             return;
           }
           const adapter = M.builder.getAdapter();
-          if (M.list.isListPageByUrl() || adapter.isListPage()) {
+          // v10.5.3 任务2：首页不响应推荐刷新（首页无列表功能，防止徽章
+          // 经消息通道错位注入）/ skip on homepages (no list features there)
+          if (!M.list.isHomePageUrl() && (M.list.isListPageByUrl() || adapter.isListPage())) {
             let items = M.list.getListItemsSmart(adapter);
             // 应用关键词过滤规则（若已启用；v7.2.0 修正参数——原传 vmFilterKeywords 数组）
             if (settings.enableVmFilter) {

@@ -36,6 +36,10 @@ const FIELD_MODULES = {
   positiveRate: 'rating',
   ratingDesc: 'rating',
   totalReviews: 'rating',
+  // v10.5.3：好评/差评原始条数——列表页综合评分徽章（XDGame 同口径）与
+  // 详情页内嵌信息卡共用；随 rating 模块存取与过期（按 appId 多站共享）
+  positiveReviews: 'rating',
+  negativeReviews: 'rating',
   recentPositiveRate: 'rating',
   recentTotalReviews: 'rating',
   ratingRetriedAt: 'rating',

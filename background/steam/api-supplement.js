@@ -8,6 +8,8 @@ import { Logger } from '../storage/logger.js';
  * v6.2.1：SteamDB 网页抓取移除（fetchSteamDbInfo 仅产出展示链接且解析字段
  * 从未被消费——链接改模板拼接，官方 API 优先）；SteamSpy 保留（玩家人数/
  * 热度无官方替代，spy 模块 7 天缓存）。
+ * v10.5.3 任务3：SteamSpy 返回新增原始数值 totalReviews（评论总数）与
+ * ccu（当前在线）——推荐引擎销量/评论数信号与热度（改 CCU 口径）的数据源。
  */
 
 // --- SteamSpy 信息（玩家人数/热度补充数据） ---
@@ -46,10 +48,17 @@ export async function fetchSteamSpyInfo(appId) {
     const avgMin = typeof data.average_forever === 'number' ? data.average_forever : null;
     const ownersMatch =
       typeof data.owners === 'string' ? data.owners.replace(/,/g, '').match(/(\d+)\s*\.\.\s*(\d+)/) : null;
+    // v10.5.3 任务3：新增原始数值字段——totalReviews（评论总数，推荐引擎
+    // reviewScore 信号）与 ccu（当前在线人数，heatScore 由 owners 改用 CCU
+    // 口径）。旧缓存无这两个字段，spy 模块 7 天 TTL 后自动刷新补齐。
+    // v10.5.3: raw totalReviews (reviewScore signal) and ccu (heat now uses
+    // CCU instead of owners); stale cache entries regain them on TTL refresh.
     return {
       positiveRate: total > 0 ? Math.round((data.positive / total) * 100) : null,
       reviewCount: total > 0 ? total.toLocaleString() : null,
+      totalReviews: total > 0 ? total : null,
       currentPlayers: data.ccu ? data.ccu.toLocaleString() : null,
+      ccu: typeof data.ccu === 'number' ? data.ccu : null,
       owners: data.owners || null,
       ownersLow: ownersMatch ? parseInt(ownersMatch[1], 10) : null,
       ownersHigh: ownersMatch ? parseInt(ownersMatch[2], 10) : null,

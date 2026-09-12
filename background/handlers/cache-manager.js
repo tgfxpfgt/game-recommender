@@ -138,7 +138,8 @@ export async function handleGetGameCacheList(message) {
       // 推荐值计算（纯函数，行为/Steam 信息动态反映）
       const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
       // v4.0.0：SteamSpy 时长/热度信号（与 calculateRecommendation 两处评分一致）
-      const { playTimeScore, heatScore } = steamspyScores(
+      // v10.5.3 任务3：销量/评论数信号同步拆分（两处评分口径保持一致）
+      const { playTimeScore, heatScore, salesScore, reviewScore } = steamspyScores(
         cachedData && cachedData.steamspy ? cachedData.steamspy : null
       );
       rec = computeGameScore({
@@ -150,6 +151,8 @@ export async function handleGetGameCacheList(message) {
         chineseSupported: cachedData ? !!cachedData.chineseSupported : false,
         playTimeScore,
         heatScore,
+        salesScore,
+        reviewScore,
         appDownloads: appStats[appId] ? appStats[appId].downloads : null,
         appDetailViews: appStats[appId] ? appStats[appId].detailViews : null,
         appStatCaps: {

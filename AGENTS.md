@@ -81,3 +81,5 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 ## 明确不做（历史决策，勿再提议）
 
 i18n、云同步、跨浏览器、规则市场、MAIN world 注入、全量 TypeScript。
+
+<!-- neat-freak: initialized at 2026-09-12 -->

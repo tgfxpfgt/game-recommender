@@ -32,8 +32,9 @@
     document.getElementById('ratingFilterMode').value = settings.ratingFilterMode || 'and';
     document.getElementById('sortByRatingEnabled').checked = settings.enableSortByRating || false;
 
-    // 徽章显示开关（v3.3.8，默认全开）
+    // 徽章显示开关（v3.3.8，默认全开；v10.5.3 新增 score 综合评分）
     const bv = settings.badgeVisibility || {};
+    document.getElementById('badgeScore').checked = bv.score !== false; // v10.5.3
     document.getElementById('badgeRecent').checked = bv.recent !== false;
     document.getElementById('badgeAll').checked = bv.all !== false;
     document.getElementById('badgeUpdate').checked = bv.update !== false;
@@ -64,6 +65,11 @@
     document.getElementById('weightPlayTimeVal').textContent = pct2(w.playTime);
     document.getElementById('weightHeat').value = pct2(w.heat);
     document.getElementById('weightHeatVal').textContent = pct2(w.heat);
+    // v10.5.3 任务3：销量/评论数权重（heat 已改 CCU 口径）
+    document.getElementById('weightSales').value = pct2(w.sales);
+    document.getElementById('weightSalesVal').textContent = pct2(w.sales);
+    document.getElementById('weightReviews').value = pct2(w.reviews);
+    document.getElementById('weightReviewsVal').textContent = pct2(w.reviews);
     // v10.1.0：AppID 行为统计权重（a 下载正向 / b 未下载惩罚）
     document.getElementById('weightAppStatDownload').value = pct2(w.appStatDownload);
     document.getElementById('weightAppStatDownloadVal').textContent = pct2(w.appStatDownload);
@@ -211,8 +217,22 @@
 
   // ============ Weight Sum Indicator / 权重总和指示器 ============
   function updateWeightSum() {
-    // v4.0.0：新增 playTime/heat 滑块
-    const ids = ['weightClick', 'weightDownload', 'weightKeyword', 'weightSteam', 'weightPlayTime', 'weightHeat'];
+    // v10.5.3：全量十项——v10.1.0 的 appStat 两项此前漏计（默认和显示 0.89
+    // 误报 warn），新增 sales/reviews 一并纳入后默认和恰为 1.00
+    // All ten weights: the two appStat sliders were missing here (sum showed
+    // 0.89 by default); sales/reviews join the sum, which is 1.00 by default.
+    const ids = [
+      'weightClick',
+      'weightDownload',
+      'weightKeyword',
+      'weightSteam',
+      'weightPlayTime',
+      'weightHeat',
+      'weightSales',
+      'weightReviews',
+      'weightAppStatDownload',
+      'weightAppStatDetailView'
+    ];
     const sum = ids.reduce((acc, id) => acc + (parseInt(document.getElementById(id).value, 10) || 0), 0) / 100;
     const el = document.getElementById('weightSum');
     if (!el) return;

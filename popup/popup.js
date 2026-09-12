@@ -97,6 +97,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // 徽章
   const bv = settings.badgeVisibility || {};
+  document.getElementById('ppBadgeScore').checked = bv.score !== false; // v10.5.3
   document.getElementById('ppBadgeRecent').checked = bv.recent !== false;
   document.getElementById('ppBadgeAll').checked = bv.all !== false;
   document.getElementById('ppBadgeUpdate').checked = bv.update !== false;
@@ -135,6 +136,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['ppSortByRating', 'enableSortByRating'],
     ['ppVmFilter', 'enableVmFilter'],
     ['ppUseLLM', 'useLLM'],
+    ['ppBadgeScore', 'badgeVisibility.score'], // v10.5.3：综合评分徽章
     ['ppBadgeRecent', 'badgeVisibility.recent'],
     ['ppBadgeAll', 'badgeVisibility.all'],
     ['ppBadgeUpdate', 'badgeVisibility.update'],
@@ -264,6 +266,8 @@ function renderWeights(weights) {
     ['steamRating', 'Steam 好评'],
     ['playTime', '游玩时长'],
     ['heat', '热度'],
+    ['sales', '销量'],
+    ['reviews', '评论数'],
     ['appStatDownload', '下载计数 a'],
     ['appStatDetailView', '未下载惩罚 b']
   ];

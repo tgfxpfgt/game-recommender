@@ -112,37 +112,43 @@ describe('批量好评率任务可恢复化（v10.0.0）', () => {
     const resp = await ratingsBatch.resumeRatingsBatch();
     expect(resp.resumed).toEqual(false);
   });
-});
-
-test('v10.0.0：连续两个任务——第一个 done 后守卫必须复位（滚动衔接第二批回归）', async () => {
-  storage._reset();
-  pushed.length = 0;
-  // 第一个任务：经 startRatingJob 发起（与真实 GET_STEAM_RATINGS 路径一致）
-  const started = ratingsBatch.startRatingJob({
-    tabId: 8,
-    queue: ['艾尔登法环'],
-    retried: false,
-    urlAppIds: {},
-    imageData: {},
-    appIds: {},
-    startedAt: Date.now()
+  // v10.5.2 回归修复：本测试原位于 describe 顶层——vitest 先运行 describe 的
+  // afterAll（恢复真实 fetch）再运行顶层测试，导致两个任务通过名称自愈路径
+  // 发起真实 Steam 请求（网络延迟 0.5~7s），在负载下超出轮询预算而间歇失败。
+  // 移入 describe 后 fetch mock 覆盖全部用例（配 applyCacheHit 自愈后台化双保险）。
+  // Regression fix: this test was top-level, so the describe's afterAll restored
+  // the real fetch before it ran — jobs then made real Steam calls via the name
+  // self-heal path (0.5-7s each) and blew the polling budget under load.
+  test('v10.0.0：连续两个任务——第一个 done 后守卫必须复位（滚动衔接第二批回归）', async () => {
+    storage._reset();
+    pushed.length = 0;
+    // 第一个任务：经 startRatingJob 发起（与真实 GET_STEAM_RATINGS 路径一致）
+    const started = ratingsBatch.startRatingJob({
+      tabId: 8,
+      queue: ['艾尔登法环'],
+      retried: false,
+      urlAppIds: {},
+      imageData: {},
+      appIds: {},
+      startedAt: Date.now()
+    });
+    expect(started).toEqual(true);
+    // v10.3.0：按 tab 队列化——job2 同 tab 排队接档（立即入队即返回 true，
+    // 不会像旧 jobRunning 守卫那样被丢弃）；等待两个任务都完成
+    const started2 = ratingsBatch.startRatingJob({
+      tabId: 8,
+      queue: ['艾尔登法环'],
+      retried: false,
+      urlAppIds: {},
+      imageData: {},
+      appIds: {},
+      startedAt: Date.now()
+    });
+    expect(started2).toEqual(true);
+    for (let i = 0; i < 80 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
+    expect(sessionGet(JOB_KEY)).toEqual(undefined); // 全部任务 done 后检查点清除
+    // 两次任务的评分推送都到达
+    const ratingsPushes = pushed.filter((p) => p.msg.ratings && p.msg.ratings['艾尔登法环']);
+    expect(ratingsPushes.length).toBeGreaterThanOrEqual(2);
   });
-  expect(started).toEqual(true);
-  // v10.3.0：按 tab 队列化——job2 同 tab 排队接档（立即入队即返回 true，
-  // 不会像旧 jobRunning 守卫那样被丢弃）；等待两个任务都完成
-  const started2 = ratingsBatch.startRatingJob({
-    tabId: 8,
-    queue: ['艾尔登法环'],
-    retried: false,
-    urlAppIds: {},
-    imageData: {},
-    appIds: {},
-    startedAt: Date.now()
-  });
-  expect(started2).toEqual(true);
-  for (let i = 0; i < 80 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
-  expect(sessionGet(JOB_KEY)).toEqual(undefined); // 全部任务 done 后检查点清除
-  // 两次任务的评分推送都到达
-  const ratingsPushes = pushed.filter((p) => p.msg.ratings && p.msg.ratings['艾尔登法环']);
-  expect(ratingsPushes.length).toBeGreaterThanOrEqual(2);
 });
