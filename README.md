@@ -307,6 +307,12 @@ node --check options/options.js
 
 758 test · gate 全过（check + E2E MOCK + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-12T18-19-37.799Z-465677f556cb`
+- seal: `sha256:2da23dc6742e2b48c7e6da2fd3e5936968afe43c4c4faa763b62f54601630c2e`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.5.4（Steam250 排名引入 / gamers520 双域名 + 跨域二维码解码 / tags 页不注入 / 浮窗标签可点击 / 条件加载）
 
 **新功能**
