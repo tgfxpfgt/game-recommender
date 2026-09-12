@@ -1,6 +1,7 @@
 import { recordSteamCall } from '../core/api-monitor.js';
 import { generateSearchVariants, extractNoiseCandidates } from '../core/title-parser.js';
 import { fetchWithTimeout } from '../core/utils.js';
+import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 import { Logger } from '../storage/logger.js';
 import { fetchSteamAppDetails } from './api-details.js';
@@ -82,7 +83,7 @@ export function digitSetsOverlap(a, b) {
 export async function fetchSteamTagRecommendations(tags, limit = 9) {
   const recGames = [];
   for (const tag of tags.slice(0, 3)) {
-    const searchUrl = `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
+    const searchUrl = `${ENDPOINTS.steamSearch}?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
     const resp = await fetchWithTimeout(searchUrl);
     const data = await resp.json();
 
@@ -95,7 +96,7 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
           /** @type {{name?: string, header_image?: string, price_overview?: {final_formatted?: string}}|null} */
           let detail = null;
           try {
-            const detUrl = `https://store.steampowered.com/api/appdetails?appids=${item.id}&l=schinese&filters=basic,price_overview`;
+            const detUrl = `${ENDPOINTS.steamAppDetails}?appids=${item.id}&l=schinese&filters=basic,price_overview`;
             const detResp = await fetchWithTimeout(detUrl);
             const detData = await detResp.json();
             if (detData[item.id]?.success) {
@@ -111,7 +112,7 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
         recGames.push({
           appId: item.id,
           name: detail?.name || item.name,
-          image: detail?.header_image || `https://cdn.akamai.steamstatic.com/steam/apps/${item.id}/header.jpg`,
+          image: detail?.header_image || ENDPOINTS.steamCdnHeader(item.id),
           price: detail?.price_overview ? detail.price_overview.final_formatted : '免费',
           reviewSummary: '',
           url: `https://store.steampowered.com/app/${item.id}/`,
@@ -281,7 +282,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
         const resp = await fetchWithTimeout(
-          `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
+          `${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
         );
         // v9.7.0：传入 status 且非 2xx 不计成功（与 api-details/reviews 一致）
         recordSteamCall(resp.ok || resp.status === 404, resp.status); // v10.3.0：404=空结果非失败
@@ -448,9 +449,7 @@ export async function findVersionVariant(appId, title) {
 async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = false) {
   try {
     const data = await (
-      await fetchWithTimeout(
-        `https://store.steampowered.com/api/storesearch/?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
-      )
+      await fetchWithTimeout(`${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)
     ).json();
     const items = (data && data.items) || [];
     if (items.length === 0) return null;

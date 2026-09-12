@@ -353,14 +353,7 @@
     }
   });
 
-  // 工具 / utilities
-  function escapeHtml(s) {
-    return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
-  }
+  // 工具：escapeHtml 用 shared/escape.js 全局单源（v10.7.0 删除本页重复实现）
 
   // v6.4.19：密钥脱敏显示（保留末 4 位）
   function maskKey(key) {

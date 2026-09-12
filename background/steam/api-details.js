@@ -1,5 +1,6 @@
 import { recordSteamCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
+import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
 import { Logger } from '../storage/logger.js';
 import { ADDON_NAME_PATTERN } from './api-search.js';
 
@@ -75,7 +76,7 @@ export function baseAppIdFromDetails(data) {
 // Cover URL: keep the provided cover, else build the Steam CDN header URL
 export function coverImageFor(appId, fallback) {
   if (fallback && /^https?:\/\//i.test(fallback)) return fallback;
-  if (appId) return `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`;
+  if (appId) return ENDPOINTS.steamCdnHeader(appId); // v10.7.0：端点单源
   return '';
 }
 
@@ -90,7 +91,7 @@ export function coverImageFor(appId, fallback) {
 
 // 获取应用详情（language: schinese/english 等，name 随语言） / Fetch app details
 export async function fetchSteamAppDetails(appId, language = 'schinese') {
-  const detailUrl = `https://store.steampowered.com/api/appdetails?appids=${appId}&l=${language}`;
+  const detailUrl = `${ENDPOINTS.steamAppDetails}?appids=${appId}&l=${language}`;
   try {
     const response = await fetchWithTimeout(detailUrl);
     const detailData = await response.json();

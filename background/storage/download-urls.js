@@ -9,6 +9,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, DOWNLOAD_URLS_VERSION } from '../core/constants.js';
 import { isSafeFetchUrl } from '../core/utils.js';
+import { withLock } from '../core/mechanisms.js';
 
 // v3.4.1：整个存储的读-改-写串行锁（并发 record* 调用不互相覆盖）。
 // 注意 dataStore.writeModule 的串行化只保护写入本身，无法覆盖
@@ -16,15 +17,8 @@ import { isSafeFetchUrl } from '../core/utils.js';
 // Module-wide read-modify-write lock (concurrent record* calls cannot
 // overwrite each other; the store-level write serialization alone cannot
 // cover the read→modify→write span, so we lock at the business layer)
-let storeLock = Promise.resolve();
-function withStoreLock(task) {
-  const prev = storeLock;
-  let release;
-  storeLock = new Promise((res) => {
-    release = res;
-  });
-  return prev.then(() => task()).finally(release);
-}
+// v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
+const withStoreLock = withLock();
 
 // 读取整个存储结构（含版本校验，版本不符视为空）
 // Read the whole store (version-checked; mismatches treated as empty)

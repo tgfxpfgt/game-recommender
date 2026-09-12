@@ -1,5 +1,6 @@
 import { recordSteamCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
+import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
 import { Logger } from '../storage/logger.js';
 
 /**
@@ -156,7 +157,7 @@ export async function fetchReviewSummary(appId) {
   // reviews (time-descending) used to compute the 30-day rate.
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const reviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=all&filter=recent&num_per_page=100&purchase_type=all`;
+      const reviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=all&filter=recent&num_per_page=100&purchase_type=all`;
       const response = await fetchWithTimeout(reviewUrl);
       const data = await response.json();
       // v9.7.0：同 api-details——传入 status，非 2xx 不计成功（限流可感知）
@@ -199,9 +200,7 @@ export async function fetchReviewSummary(appId) {
  */
 export async function fetchLastUpdate(appId) {
   try {
-    const resp = await fetchWithTimeout(
-      `https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid=${appId}&count=1&maxlength=0&format=json`
-    );
+    const resp = await fetchWithTimeout(`${ENDPOINTS.steamAppNews}?appid=${appId}&count=1&maxlength=0&format=json`);
     if (!resp.ok) return null;
     const data = await resp.json();
     const item = data && data.appnews && data.appnews.newsitems && data.appnews.newsitems[0];
@@ -219,7 +218,7 @@ export async function fetchChineseReviews(appId) {
   let cnReviewSummary = null;
   let chineseReviews = [];
   try {
-    const cnReviewUrl = `https://store.steampowered.com/appreviews/${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
+    const cnReviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
     const resp = await fetchWithTimeout(cnReviewUrl);
     const data = await resp.json();
     if (data.success === 1) {

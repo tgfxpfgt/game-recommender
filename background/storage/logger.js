@@ -8,8 +8,9 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
-import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE } from '../core/constants.js';
+import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE, STORAGE_CAPS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
+import { withLock } from '../core/mechanisms.js';
 
 let logBuffer = [];
 /** @type {{enableLog: boolean, minLevel: number, logStorage: string, logRetentionDays: number, maxRuntimeLog: number}|null} */
@@ -27,7 +28,7 @@ async function getLogConfig() {
     minLevel: LOG_LEVELS[settings.logLevel] !== undefined ? LOG_LEVELS[settings.logLevel] : LOG_LEVELS.info,
     logStorage: settings.logStorage,
     logRetentionDays: settings.logRetentionDays || 0,
-    maxRuntimeLog: settings.maxRuntimeLog || 300
+    maxRuntimeLog: settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault
   };
   logConfigChecked = now;
   return logConfig;
@@ -44,15 +45,8 @@ const writer = createDebouncedStore({
 // v9.7.0：flush 互斥锁——定时器触发的 flush 与显式 flush（getRuntimeLogs /
 // flushAllCaches）可重叠：两个 flush 各自以同一磁盘基线读-改-写覆盖，先写
 // 者的日志批次被静默丢弃（_serialize 只串行化写，不覆盖读段）
-let flushLock = Promise.resolve();
-function withFlushLock(task) {
-  const prev = flushLock;
-  let release;
-  flushLock = new Promise((res) => {
-    release = res;
-  });
-  return prev.then(() => task()).finally(release);
-}
+// v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
+const withFlushLock = withLock();
 
 export function flushLogBuffer() {
   return withFlushLock(async () => {
@@ -77,7 +71,7 @@ export function flushLogBuffer() {
         logs = logs.filter((l) => l && l.timestamp >= cutoff);
       }
 
-      const max = settings.maxRuntimeLog || 300;
+      const max = settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault;
       while (logs.length > max) logs.shift();
 
       // 按设置的存储形式落盘 / Persist per the configured storage format

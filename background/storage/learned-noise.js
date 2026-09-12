@@ -10,12 +10,12 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 
 // 同一词被确认多少次后生效 / times a word must be confirmed to become active
 export const LEARN_THRESHOLD = 3;
 // 词表上限（超出删除计数最低的词）/ max entries (lowest-count words evicted)
-const MAX_WORDS = 200;
+const MAX_WORDS = STORAGE_CAPS.learnedNoise; // v10.7.0：单源 STORAGE_CAPS
 // 防抖写入 / debounced write
 const WRITE_DEBOUNCE = 2000;
 

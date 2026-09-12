@@ -8,10 +8,10 @@
  * suspected) for the dashboard health board; debounced OPFS persistence.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 import { createDebouncedStore } from './debounced-store.js';
 
-const MAX_SITES = 50;
+const MAX_SITES = STORAGE_CAPS.siteHealth; // v10.7.0：单源 STORAGE_CAPS
 
 /** @type {Record<string, {siteKey: string, host: string, alertCount: number, firstAlertAt: number, lastAlertAt: number}>|null} */
 let healthMemory = null;

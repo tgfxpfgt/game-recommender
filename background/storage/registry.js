@@ -9,7 +9,7 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
-import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE } from '../core/constants.js';
+import { DB_KEYS, REGISTRY_WRITE_DEBOUNCE, STORAGE_CAPS } from '../core/constants.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
 /** @type {Record<string, any>} */
@@ -17,7 +17,7 @@ let registryMemory = {};
 let registryMemoryLoaded = false;
 // v8.2.0：注册表上限（防长期运行无界膨胀——超限按 lastConfirmed 最旧淘汰；
 // 正常用户远低于此，仅极端累积触发）
-const REGISTRY_MAX_ENTRIES = 10000;
+const REGISTRY_MAX_ENTRIES = STORAGE_CAPS.registry; // v10.7.0：单源 STORAGE_CAPS
 function enforceRegistryLimit() {
   const keys = Object.keys(registryMemory);
   if (keys.length <= REGISTRY_MAX_ENTRIES) return;

@@ -9,9 +9,9 @@
  * surfaced first). Fully local via the OPFS data store.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 
-const MAX_FAVORITES = 500;
+const MAX_FAVORITES = STORAGE_CAPS.favorites; // v10.7.0：单源 STORAGE_CAPS
 
 /**
  * 读取收藏清单（appId 升序稳定；新增时间随条目返回）

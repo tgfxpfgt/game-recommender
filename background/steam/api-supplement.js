@@ -1,4 +1,5 @@
 import { fetchWithTimeout } from '../core/utils.js';
+import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
 import { Logger } from '../storage/logger.js';
 
 /**
@@ -31,7 +32,7 @@ import { Logger } from '../storage/logger.js';
 // exist and were always null.
 export async function fetchSteamSpyInfo(appId) {
   try {
-    const resp = await fetchWithTimeout(`https://steamspy.com/api.php?request=appdetails&appid=${appId}`);
+    const resp = await fetchWithTimeout(`${ENDPOINTS.steamSpy}?request=appdetails&appid=${appId}`);
     if (!resp.ok) return null;
     const data = await resp.json();
     if (!data || !data.appid) return null;

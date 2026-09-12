@@ -23,6 +23,7 @@
 import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
 import { getSettings } from '../core/settings.js';
+import { SPY_SCALES } from '../core/constants.js'; // v10.7.0：信号刻度单源
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 import { getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';
@@ -95,28 +96,29 @@ export function findProfile(profiles, name, registryEntry) {
  */
 export function steamspyScores(spy) {
   if (!spy || typeof spy !== 'object') {
-    return { playTimeScore: 0.3, heatScore: 0.3, salesScore: 0.3, reviewScore: 0.3 };
+    const n = SPY_SCALES.neutral;
+    return { playTimeScore: n, heatScore: n, salesScore: n, reviewScore: n };
   }
-  let playTimeScore = 0.3;
+  let playTimeScore = SPY_SCALES.neutral;
   if (typeof spy.averageForeverMin === 'number' && spy.averageForeverMin > 0) {
-    playTimeScore = Math.min(spy.averageForeverMin / 600, 1);
+    playTimeScore = Math.min(spy.averageForeverMin / SPY_SCALES.playTimeDivisor, 1);
   }
   // v10.5.3：热度改 CCU 口径（当前在线人数，对数 / 5）——原 owners 口径
   // 实为销量语义，由下方 salesScore 承接
-  let heatScore = 0.3;
+  let heatScore = SPY_SCALES.neutral;
   if (typeof spy.ccu === 'number' && spy.ccu > 0) {
-    heatScore = Math.min(Math.log10(spy.ccu) / 5, 1);
+    heatScore = Math.min(Math.log10(spy.ccu) / SPY_SCALES.heatLogDivisor, 1);
   }
   // v10.5.3：销量 = owners 区间中点对数 / 7（千万封顶，分布极偏故用对数）
-  let salesScore = 0.3;
+  let salesScore = SPY_SCALES.neutral;
   if (typeof spy.ownersLow === 'number' && typeof spy.ownersHigh === 'number' && spy.ownersHigh > 0) {
     const mid = (spy.ownersLow + spy.ownersHigh) / 2;
-    if (mid > 0) salesScore = Math.min(Math.log10(mid) / 7, 1);
+    if (mid > 0) salesScore = Math.min(Math.log10(mid) / SPY_SCALES.salesLogDivisor, 1);
   }
   // v10.5.3：评论数 = totalReviews 对数 / 5（10 万封顶，与热度同刻度）
-  let reviewScore = 0.3;
+  let reviewScore = SPY_SCALES.neutral;
   if (typeof spy.totalReviews === 'number' && spy.totalReviews > 0) {
-    reviewScore = Math.min(Math.log10(spy.totalReviews) / 5, 1);
+    reviewScore = Math.min(Math.log10(spy.totalReviews) / SPY_SCALES.reviewLogDivisor, 1);
   }
   return { playTimeScore, heatScore, salesScore, reviewScore };
 }
@@ -230,7 +232,7 @@ export function computeGameScore({
   const kw = calculateKeywordScore(tags || [], keywordWeights);
   const keywordScore = kw !== null ? kw : 0.3;
   // 3. Steam 信号：好评率 70% + 中文支持 30%
-  let steamScore = 0.4;
+  let steamScore = SPY_SCALES.steamNeutral; // v10.7.0：刻度单源
   const pr = Number(positiveRate);
   if (positiveRate !== null && positiveRate !== undefined && Number.isFinite(pr)) {
     steamScore = Math.min((pr / 100) * 0.7 + (chineseSupported ? 0.3 : 0), 1);

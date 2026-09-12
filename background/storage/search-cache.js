@@ -11,10 +11,10 @@
 'use strict';
 
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 
 const SEARCH_CACHE_TTL = 24 * 3600e3; // 24 小时 / 24 hours
-const MAX_ENTRIES = 200; // 上限裁剪（LRU 按 ts）/ LRU cap
+const MAX_ENTRIES = STORAGE_CAPS.searchCache; // 上限裁剪（LRU 按 ts）/ LRU cap；v10.7.0 单源
 
 /** @type {Map<string, {appId: string|null, siteKeys: Array<string>, results: Array<Object>, ts: number}>} */
 let searchCacheMemory = new Map();

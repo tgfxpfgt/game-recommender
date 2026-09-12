@@ -13,6 +13,7 @@
  * so diagnostic in-memory state survives SW cold starts; sync memory-first
  * interface; silently degrades to memory-only when session storage is absent.
  */
+import { debounce } from './mechanisms.js';
 /**
  * 创建 session 持久化句柄（内存优先同步接口）
  * @param {string} key chrome.storage.session 键
@@ -26,8 +27,10 @@ export function createSessionPersist(key, options = {}) {
   /** @type {any} */
   let memory = cloneInitial();
   let loaded = false;
-  /** @type {ReturnType<typeof setTimeout>|null} */
-  let timer = null;
+  // v10.7.0：防抖实现收敛至 core/mechanisms.js 工厂（原手写 timer 同构）
+  const persistSave = debounce(() => {
+    saveNow().catch(() => {});
+  }, debounceMs);
 
   // 从 session 读回（SW 启动时调用一次；之后内存为权威）
   async function load() {
@@ -41,20 +44,17 @@ export function createSessionPersist(key, options = {}) {
     }
   }
 
-  // 防抖落盘（内存变更后调用）/ debounced persist after memory changes
-  function scheduleSave() {
-    if (timer) clearTimeout(timer);
-    timer = setTimeout(() => {
-      saveNow().catch(() => {});
-    }, debounceMs);
-  }
-
   async function saveNow() {
     try {
       await chrome.storage.session.set({ [key]: memory });
     } catch {
       /* 落盘失败忽略（下次防抖重试） */
     }
+  }
+
+  // 防抖落盘（内存变更后调用）/ debounced persist after memory changes
+  function scheduleSave() {
+    persistSave();
   }
 
   return {
@@ -73,10 +73,7 @@ export function createSessionPersist(key, options = {}) {
     // 清空（测试/清理用——保持 loaded，不再从 session 读回旧数据）
     reset() {
       memory = cloneInitial();
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
+      persistSave.cancel();
     }
   };
 }

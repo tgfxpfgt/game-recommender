@@ -10,7 +10,7 @@
  * state. v10.5.3 adds the leading composite-score badge (XDGame-native
  * semantics, helpers shared with the detail inline card).
  */
-import { adjustedReputation, verdictFor, ratingTextInfo } from '../detail/detail-templates.js';
+import { adjustedReputation, verdictFor, ratingTextInfo } from '../core/steam-rating-logic.js'; // v10.7.0：评分口径单源（不再反向依赖 detail 模板）
 
 // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
 export function removeItemFromDom(item) {
@@ -192,23 +192,12 @@ export function prependBadge(item, rating, settings) {
         );
       }
     }
-    // 段2：全部好评率（分级色，可点击跳转；v3.4.0 颜色单源 shared/patterns.js）
+    // 段2：全部好评率（分级色，可点击跳转；v3.4.0 颜色单源 shared/patterns.js；
+    // v10.7.0：删除字面量 fallback——patterns.js 与内容脚本同注入必在，假单源是漂移温床）
     if (showAll) {
-      const P = globalThis.__GR_PATTERNS__ || {};
-      const color = P.ratingColorFor
-        ? P.ratingColorFor(rate)
-        : rate >= 80
-          ? '#66c0f4'
-          : rate >= 60
-            ? '#a3cf06'
-            : '#ff7b00';
-      const bg = P.ratingBgFor
-        ? P.ratingBgFor(rate)
-        : rate >= 80
-          ? 'rgba(102,192,244,0.15)'
-          : rate >= 60
-            ? 'rgba(163,207,6,0.15)'
-            : 'rgba(255,123,0,0.15)';
+      const P = globalThis.__GR_PATTERNS__;
+      const color = P.ratingColorFor(rate);
+      const bg = P.ratingBgFor(rate);
       // v7.4.0：色盲友好——符号前缀（✓ ≥80 / ▲ ≥60 / ✕ <60，与分级色一致）
       // Color-blind friendly: symbol prefix matching the grade colors
       const sym = rate >= 80 ? '✓ ' : rate >= 60 ? '▲ ' : '✕ ';

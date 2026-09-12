@@ -7,9 +7,10 @@
  * name-based dedup, badge count for today's new items and claim states.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, ENDPOINTS } from '../core/constants.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { getSettings } from '../core/settings.js';
+import { createTtlCache } from '../core/mechanisms.js';
 import { Logger } from '../storage/logger.js';
 
 // v7.4.0：最近一次限免通知内容（SW 点击通知时读取）
@@ -376,9 +377,7 @@ async function checkItadFree(appId) {
     const settings = await getSettings();
     const key = activeItadKey(settings);
     if (!key || !appId) return null;
-    const resp = await fetchWithTimeout(
-      `https://api.isthereanydeal.com/v02/game/prices/?key=${key}&appids=steam/${appId}`
-    );
+    const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${key}&appids=steam/${appId}`);
     // v9.7.0：非 2xx 区分凭证失效（401/403 → key 失效告警）与其他失败
     if (resp.status === 401 || resp.status === 403) {
       Logger.warn('FreeGames', `ITAD校验凭证失效（HTTP ${resp.status}，检查激活 Key 是否有效）`);
@@ -402,9 +401,8 @@ async function checkItadFree(appId) {
 // 复用 v02/game/prices 端点的 lowest 字段（与 checkItadFree 同源）。
 // ITAD all-time-low price for the detail float (same endpoint as the free
 // check); 12h in-memory cache.
-/** @type {Map<string, {info: {price: number, shop: string}|null, ts: number}>} */
-/** @type {Map<string, {info: {price: number, shop: string}|null, ts: number}|null>} */
-const itadLowestCache = new Map();
+// v10.7.0：TTL 缓存收敛至 core/mechanisms.js 工厂（值可为 null = 负缓存）
+const itadLowestCache = createTtlCache({ ttlMs: 12 * 3600 * 1000 });
 
 export async function getItadLowest(appId) {
   const key = String(appId || '').trim();
@@ -412,17 +410,15 @@ export async function getItadLowest(appId) {
   const settings = await getSettings();
   const apiKey = activeItadKey(settings);
   if (!apiKey) return null; // 未配置 Key → 功能静默（与限免校验同策略）
-  const cached = itadLowestCache.get(key);
-  if (cached && Date.now() - cached.ts < 12 * 3600 * 1000) return cached.info === null ? null : cached.info;
+  const cached = itadLowestCache.peek(key);
+  if (cached !== undefined) return cached; // 命中（含 null 负缓存）
   /** @type {{price: number, shop: string}|null} */
   let info = null;
   try {
-    const resp = await fetchWithTimeout(
-      `https://api.isthereanydeal.com/v02/game/prices/?key=${apiKey}&appids=steam/${key}&region=cn`
-    );
+    const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${apiKey}&appids=steam/${key}&region=cn`);
     if (resp.status === 401 || resp.status === 403) {
       Logger.warn('FreeGames', `ITAD 最低价查询凭证失效（HTTP ${resp.status}）`);
-      itadLowestCache.set(key, { info: null, ts: Date.now() });
+      itadLowestCache.set(key, null);
       return null;
     }
     if (!resp.ok) return null;
@@ -435,7 +431,7 @@ export async function getItadLowest(appId) {
   } catch (e) {
     Logger.debug('FreeGames', 'ITAD 最低价查询失败:', String(e));
   }
-  itadLowestCache.set(key, { info, ts: Date.now() });
+  itadLowestCache.set(key, info);
   return info;
 }
 
@@ -457,17 +453,16 @@ export function activeItadKey(settings) {
 // Steam official judgment: is_free (F2P), price_overview initial>0 & final=0
 // (limited claim), initial=0 free (weekend); store-page button double-check.
 // v6.4.3：Steam 官方判定结果内存缓存（12h——通知去重，防重复 appdetails+商店页请求）
-/** @type {Map<string, {type: string|null, ts: number}>} */
-const steamTypeCache = new Map();
-const STEAM_TYPE_CACHE_TTL = 12 * 3600e3;
+// v10.7.0：TTL 缓存收敛至 core/mechanisms.js 工厂（值可为 null = 负缓存）
+const steamTypeCache = createTtlCache({ ttlMs: 12 * 3600e3 });
 
 export async function determineSteamFreeType(appId) {
   // 缓存命中（含 null 结果）→ 直接返回
-  const hit = steamTypeCache.get(String(appId));
-  if (hit && Date.now() - hit.ts < STEAM_TYPE_CACHE_TTL) return hit.type;
+  const hit = steamTypeCache.peek(String(appId));
+  if (hit !== undefined) return hit;
   try {
     const resp = await fetchWithTimeout(
-      `https://store.steampowered.com/api/appdetails?appids=${appId}&l=schinese&cc=cn&filters=basic,price_overview`
+      `${ENDPOINTS.steamAppDetails}?appids=${appId}&l=schinese&cc=cn&filters=basic,price_overview`
     );
     if (!resp.ok) return null;
     const data = await resp.json();
@@ -475,7 +470,7 @@ export async function determineSteamFreeType(appId) {
     if (!d) return null;
     // F2P 永久免费：官方 is_free 权威信号（Dota 2 等无价格区）
     if (d.is_free === true) {
-      steamTypeCache.set(String(appId), { type: 'f2p', ts: Date.now() });
+      steamTypeCache.set(String(appId), 'f2p');
       return 'f2p';
     }
     const price = d.price_overview;
@@ -485,20 +480,20 @@ export async function determineSteamFreeType(appId) {
       // 商店页按钮复核：Play Now（免费周末）会显示立即游玩而非加入购物车
       const type = await verifyStorePageButtons(appId);
       const t = type === 'weekend' ? 'weekend' : 'limited';
-      steamTypeCache.set(String(appId), { type: t, ts: Date.now() });
+      steamTypeCache.set(String(appId), t);
       return t;
     }
     // 现价 0 但无原价：免费周末（Play Now 模式）或数据异常 → weekend 保守处理
     if (price.final === 0) {
-      steamTypeCache.set(String(appId), { type: 'weekend', ts: Date.now() });
+      steamTypeCache.set(String(appId), 'weekend');
       return 'weekend';
     }
     const result = null; // 当前非免费（数据过期）
-    steamTypeCache.set(String(appId), { type: result, ts: Date.now() });
+    steamTypeCache.set(String(appId), result);
     return result;
   } catch (e) {
     Logger.debug('FreeGames', 'Steam官方判定失败:', String(e));
-    steamTypeCache.set(String(appId), { type: null, ts: Date.now() });
+    steamTypeCache.set(String(appId), null);
     return null;
   }
 }

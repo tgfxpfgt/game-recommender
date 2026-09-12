@@ -13,10 +13,10 @@
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, ENDPOINTS } from '../core/constants.js';
 import { Logger } from '../storage/logger.js';
 
-const TOP250_URL = 'https://steam250.com/top250';
+const TOP250_URL = ENDPOINTS.steam250Top250; // v10.7.0：端点单源
 const REFRESH_MS = 24 * 3600 * 1000;
 const MIN_ENTRIES = 100; // 解析数量下限（结构变更哨兵）
 

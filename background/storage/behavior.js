@@ -6,8 +6,9 @@
  * 关键词权重偏好模型（60s 节流更新）。
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS, PREF_UPDATE_INTERVAL } from '../core/constants.js';
+import { DB_KEYS, PREF_UPDATE_INTERVAL, STORAGE_CAPS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
+import { withLock } from '../core/mechanisms.js';
 
 // --- 行为日志 / Behavior Log ---
 // v7.0.4：内存缓存（内存换延迟）——行为日志/画像/关键词权重常被读取（推荐
@@ -21,7 +22,7 @@ let dataVersion = 0;
 // 事件全量重写画像，无上限会同时造成存储无界增长 + 写放大。超限时按 lastSeen
 // 淘汰最旧且非高价值（未下载、非不感兴趣）的画像。
 // Cap game-profiles growth (LRU by lastSeen) to bound storage size + write amp.
-const GAME_PROFILES_MAX_ENTRIES = 5000;
+const GAME_PROFILES_MAX_ENTRIES = STORAGE_CAPS.gameProfiles; // v10.7.0：单源 STORAGE_CAPS
 export function getDataVersion() {
   return dataVersion;
 }
@@ -46,7 +47,7 @@ export async function addBehaviorLog(entry) {
 
   const settings = await getSettings();
   const log = behaviorCache.log;
-  const maxLog = settings.maxBehaviorLog || 500;
+  const maxLog = settings.maxBehaviorLog || STORAGE_CAPS.behaviorLogDefault;
   if (log.length > maxLog) {
     const trimmed = log.slice(-maxLog);
     await dataStore.writeModule(DB_KEYS.BEHAVIOR_LOG, trimmed);
@@ -97,15 +98,8 @@ export function resetBehaviorMemory() {
 // v9.7.0：画像读-改-写串行锁（同 download-urls 的 withStoreLock 模式）——
 // 并发 TRACK_EVENT（多标签页列表页+详情页同时发事件）交错执行时，后写者
 // 以旧读为基覆盖，views/downloads 计数与 keywords 合并被丢
-let profilesLock = Promise.resolve();
-function withProfilesLock(task) {
-  const prev = profilesLock;
-  let release;
-  profilesLock = new Promise((res) => {
-    release = res;
-  });
-  return prev.then(() => task()).finally(release);
-}
+// v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
+const withProfilesLock = withLock();
 
 // 更新游戏画像（view/download 事件） / Update a game profile
 export function updateGameProfile(gameInfo) {

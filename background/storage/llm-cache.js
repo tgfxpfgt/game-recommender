@@ -9,10 +9,10 @@
 'use strict';
 
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 
 const LLM_SCORE_TTL = 7 * 86400e3; // 7 天 / 7 days
-const MAX_ENTRIES = 300;
+const MAX_ENTRIES = STORAGE_CAPS.llmCache; // v10.7.0：单源 STORAGE_CAPS
 
 /** @type {Map<string, {score: Object, ts: number}>} */
 let llmCacheMemory = new Map();

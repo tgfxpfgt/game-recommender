@@ -146,7 +146,7 @@
     box.style.display = 'block';
     box.innerHTML = diagnostics
       .map((d) => {
-        const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const esc = (t) => globalThis.escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
         const color = d.level === 'warn' ? '#e67e22' : '#8f98a0';
         return `<div style="color:${color};">⚠ [${esc(d.site)}] ${esc(d.message)}</div>`;
       })
@@ -166,7 +166,7 @@
       const alerts = (healthResp && healthResp.sites) || [] || [];
       const alertByKey = {};
       for (const a of alerts) alertByKey[a.siteKey] = a;
-      const esc = (t) => String(t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      const esc = (t) => globalThis.escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
       const lines = [];
       for (const s of sites) {
         const alert = alertByKey[s.key];

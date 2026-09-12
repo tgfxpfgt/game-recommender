@@ -5,9 +5,10 @@
  * Records per-game download behavior (count/site/url/pan-url), max 200 entries.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
+import { withLock } from '../core/mechanisms.js';
 
-const MAX_HISTORY_ENTRIES = 200;
+const MAX_HISTORY_ENTRIES = STORAGE_CAPS.downloadHistory; // v10.7.0：单源 STORAGE_CAPS
 
 // 从 domain 推断站点 key 和名称 / Infer the site key/name from a domain
 // v9.7.0：补全 6 个内置站的静态兜底（此前缺 3dmgame/ali213/gamersky——
@@ -34,15 +35,8 @@ export async function getDownloadHistory() {
 // 记录一次下载 / Record a download
 // v9.7.0：读-改-写串行锁（同 behavior/download-urls 模式）——并发下载事件
 // 以旧读为基覆盖会丢计数
-let historyLock = Promise.resolve();
-function withHistoryLock(task) {
-  const prev = historyLock;
-  let release;
-  historyLock = new Promise((res) => {
-    release = res;
-  });
-  return prev.then(() => task()).finally(release);
-}
+// v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
+const withHistoryLock = withLock();
 
 export function recordDownloadHistory(data) {
   return withHistoryLock(() => doRecordDownloadHistory(data));

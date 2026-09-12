@@ -7,7 +7,7 @@
  * negative cache (appId=null) with expiry cleanup.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE, nameNegativeCacheTtlMs } from '../core/constants.js';
+import { DB_KEYS, NAME_INDEX_WRITE_DEBOUNCE, STORAGE_CAPS, nameNegativeCacheTtlMs } from '../core/constants.js';
 import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
@@ -67,7 +67,7 @@ export async function isRecentlySearchedNotFound(gameName) {
 // 名称→appId 映射永不删除会随浏览无限膨胀；超出后按 lastSearched LRU 裁剪）
 // Positive-entry cap (v3.4.0: only negative entries were purged before; the
 // unbounded positive map now gets LRU-trimmed by lastSearched when over the cap)
-const NAME_INDEX_MAX_ENTRIES = 5000;
+const NAME_INDEX_MAX_ENTRIES = STORAGE_CAPS.nameIndex; // v10.7.0：单源 STORAGE_CAPS
 
 // 记录"游戏名→appId"映射（appId=null 表示"搜索过但未找到"）
 // 正向映射同时记录清理名；负缓存不共享清理名（避免误伤其他站变体）。

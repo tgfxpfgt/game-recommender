@@ -16,13 +16,14 @@
  * same site within 24h does not count again; a different site counts afresh.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { bumpDataVersion } from './behavior.js'; // v10.1.0：统计变化推进数据版本（推荐缓存失效）
 import { getSettings } from '../core/settings.js'; // v10.3.0：开关与去重窗口可配置
+import { withLock } from '../core/mechanisms.js'; // v10.7.0：锁工厂
 
 // 上限（防无界膨胀；按 updatedAt 最旧淘汰——正常使用远达不到）
-const APP_STATS_MAX_ENTRIES = 20000;
+const APP_STATS_MAX_ENTRIES = STORAGE_CAPS.appStats; // v10.7.0：单源 STORAGE_CAPS
 // v10.2.0：同站点去重窗口默认值（24h；v10.3.0 起可由 settings.appStatDedupHours 覆盖）
 export const DEDUP_WINDOW_MS = 24 * 3600 * 1000;
 
@@ -76,15 +77,8 @@ export async function flushAppStats() {
 }
 
 // 读-改-写串行锁（并发递增不互相覆盖）/ RMW lock (concurrent increments)
-let statsLock = Promise.resolve();
-function withStatsLock(task) {
-  const prev = statsLock;
-  let release;
-  statsLock = new Promise((res) => {
-    release = res;
-  });
-  return prev.then(() => task()).finally(release);
-}
+// v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
+const withStatsLock = withLock();
 
 async function load() {
   if (statsLoaded) return;

@@ -39,6 +39,54 @@ export const DB_KEYS = {
   FAVORITES: 'favorites' // 收藏/关注清单（v10.6.0：本地数据，与限免监控联动）
 };
 
+// v10.7.0 批次1：存储容量上限单源（原 14 处散落各存储文件顶部——调参需逐文件
+// 找；现集中声明、各文件引用同一常量，批次2 存储注册表将直接消费此表）
+// v10.7.0: single source for storage caps (was scattered across 14 files).
+export const STORAGE_CAPS = {
+  gameProfiles: 5000, // 游戏画像条目上限
+  favorites: 500, // 收藏上限
+  downloadHistory: 200, // 下载历史上限
+  learnedNoise: 200, // 学习噪声词上限
+  appStats: 20000, // AppID 行为统计上限
+  registry: 10000, // 游戏注册表上限
+  nameIndex: 5000, // 名称索引上限
+  urlIndex: 5000, // 网址索引上限
+  searchCache: 200, // 搜索缓存 LRU
+  llmCache: 300, // LLM 评分缓存 LRU
+  siteHealth: 50, // 站点健康聚合上限
+  runtimeLogDefault: 300, // 运行日志默认条数（设置 maxRuntimeLog 的兜底）
+  behaviorLogDefault: 500 // 行为日志默认条数（设置 maxBehaviorLog 的兜底）
+};
+
+// v10.7.0 批次1：SteamSpy 信号归一化刻度单源（推荐引擎纯逻辑——权重可调但
+// 刻度此前写死在 engine.js 内；对数分母与中性缺省是评分语义的一部分）
+// v10.7.0: SteamSpy signal normalization scales (weights are user-tunable;
+// these denominators & neutral defaults are part of the scoring semantics).
+export const SPY_SCALES = {
+  playTimeDivisor: 600, // 平均时长分钟 ÷600 饱和
+  heatLogDivisor: 5, // CCU 对数 ÷5（10 万人封顶）
+  salesLogDivisor: 7, // owners 中点对数 ÷7（千万人封顶）
+  reviewLogDivisor: 5, // 评论数对数 ÷5（10 万封顶）
+  neutral: 0.3, // 无数据时的中性缺省分
+  steamNeutral: 0.4 // Steam 无评分时的中性分
+};
+
+// v10.7.0 批次1：后台出站端点单源（原 storesearch ×3 / appdetails ×2 /
+// ITAD ×2 / 商店页前缀散落多处——纯重复漂移风险最高的一类）
+// v10.7.0: backend endpoint single source (highest-duplication literals).
+export const ENDPOINTS = {
+  steamStoreApp: 'https://store.steampowered.com/app/',
+  steamStoreApi: 'https://store.steampowered.com/api/',
+  steamSearch: 'https://store.steampowered.com/api/storesearch/',
+  steamAppDetails: 'https://store.steampowered.com/api/appdetails',
+  steamAppReviews: 'https://store.steampowered.com/appreviews/',
+  steamAppNews: 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/',
+  steamSpy: 'https://steamspy.com/api.php',
+  steamCdnHeader: (appId) => `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
+  steam250Top250: 'https://steam250.com/top250',
+  itadPrices: 'https://api.isthereanydeal.com/v02/game/prices/'
+};
+
 // 默认设置 / Default settings
 export const DEFAULT_SETTINGS = {
   enabled: true,
