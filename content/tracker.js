@@ -35,63 +35,41 @@
   // v10.4.4：可选模块按设置条件导入——关闭后**模块代码完全不加载**
   //（资源占用需求）；settings 为 null（SW 冷启动超时）时默认全加载，
   // init 的重试路径会补齐设置
+  // v10.7.0 批次4：模块清单由 content/module-manifest.js 单源驱动（原 12+2
+  // 个 import 字面量与测试/校验两处手工同步）
   async function ensureModules(settings) {
     if (MODULES) return MODULES;
     // 逐模块 getURL（动态 import 的 URL 由浏览器解析；测试环境 getURL 可 mock）
-    const m = (p) => chrome.runtime.getURL('content/' + p);
-    const [
-      common,
-      floats,
-      status,
-      debug,
-      builder,
-      badges,
-      listBatch,
-      list,
-      listState,
-      detailTemplates,
-      detail,
-      tracking
-    ] = await Promise.all([
-      import(m('core/common.js')),
-      import(m('core/floats.js')),
-      import(m('core/status-bar.js')),
-      import(m('core/debug.js')),
-      import(m('adapters/builder.js')),
-      import(m('list/badges.js')),
-      import(m('list/list-batch.js')),
-      import(m('list/list-page.js')),
-      import(m('list/list-state.js')),
-      import(m('detail/detail-templates.js')),
-      import(m('detail/detail-page.js')),
-      import(m('tracking/download-tracking.js'))
-    ]);
-    // 可选模块（开关默认开；settings 缺失视为开）
-    const want = (key) => !settings || settings[key] !== false;
-    const optionalNames = [];
-    if (want('qrUnlockEnabled')) optionalNames.push('detail/qr-unlock.js');
-    if (want('xdgridEnabled')) optionalNames.push('list/xdgrid.js');
-    const optionalMods = await Promise.all(optionalNames.map((p) => import(m(p))));
-    const optional = {};
-    optionalNames.forEach((p, i) => {
-      const key = p.split('/')[1].replace(/\.js$/, '');
-      optional[key === 'qr-unlock' ? 'qrUnlock' : key] = optionalMods[i];
+    const m = (p) => chrome.runtime.getURL(p);
+    const { CORE_MODULES, OPTIONAL_MODULES } = await import(m('content/module-manifest.js'));
+    const coreMods = await Promise.all(CORE_MODULES.map((mod) => import(m(mod.file))));
+    /** @type {any} */
+    const loaded = {};
+    CORE_MODULES.forEach((mod, i) => {
+      loaded[mod.key] = coreMods[i];
     });
+    // 可选模块（开关默认开；settings 缺失视为开）
+    await Promise.all(
+      OPTIONAL_MODULES.map(async (mod) => {
+        if (settings && settings[mod.setting] === false) return;
+        loaded[mod.key] = await import(m(mod.file));
+      })
+    );
     MODULES = {
-      common,
-      floats,
-      status,
-      debug,
-      builder,
-      badges,
-      listBatch,
-      list,
-      listState,
-      detailTemplates,
-      detail,
-      tracking,
-      qrUnlock: optional.qrUnlock || null,
-      xdgrid: optional.xdgrid || null
+      common: loaded.common,
+      floats: loaded.floats,
+      status: loaded.status,
+      debug: loaded.debug,
+      builder: loaded.builder,
+      badges: loaded.badges,
+      listBatch: loaded.listBatch,
+      list: loaded.list,
+      listState: loaded.listState,
+      detailTemplates: loaded.detailTemplates,
+      detail: loaded.detail,
+      tracking: loaded.tracking,
+      qrUnlock: loaded.qrUnlock || null,
+      xdgrid: loaded.xdgrid || null
     };
     return MODULES;
   }

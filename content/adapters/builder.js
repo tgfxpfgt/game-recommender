@@ -114,6 +114,7 @@ function buildAdapter(rule) {
   return {
     key: rule.key, // v9.7.0：站点失效告警（SITE_ADAPTER_ALERT）依赖 adapter.key
     name: rule.name,
+    features: rule.features || {}, // v10.7.0 批次4：per-site feature 声明透传
     isListPage: () => {
       const path = window.location.pathname;
       // 1. URL 特征 / URL patterns（非法正则跳过）
@@ -322,6 +323,15 @@ export function getAdapter() {
   const rule = findRuleByDomain();
   if (rule && SITE_ADAPTERS[rule.key]) return SITE_ADAPTERS[rule.key];
   return SITE_ADAPTERS['_default'];
+}
+
+// v10.7.0 批次4：当前站点 feature 读取（await 版——规则未加载时先加载一次；
+// 调用方处于异步上下文，替代散落业务里的 host/key 硬编码判断）
+// Await-able per-site feature lookup (loads rules first if needed).
+export async function getSiteFeatures() {
+  await loadSiteRules();
+  const rule = findRuleByDomain();
+  return (rule && rule.features) || {};
 }
 
 // 当前站点的适配器 key（下载站网址缓存上报用）/ The current site's adapter key

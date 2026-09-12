@@ -286,6 +286,37 @@ test('网站范围三方一致（manifest matches = site-scripts 内置 = 规则
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(builtinDomains));
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(siteRuleDomains));
 });
+// v10.7.0 批次4：内容模块清单（module-manifest.js）中每个文件必须真实存在
+// ——tracker 装载/测试加载/integrity 校验三处消费同一清单，杜绝漂移
+test('内容模块清单文件齐全（module-manifest）', async () => {
+  const manifestMod = await import(
+    new URL('../../content/module-manifest.js', import.meta.url).href + '?t=' + Date.now()
+  );
+  const missing = [...manifestMod.CORE_MODULES, ...manifestMod.OPTIONAL_MODULES]
+    .filter((mod) => !fs.existsSync(path.join(ROOT, mod.file)))
+    .map((mod) => `${mod.key}→${mod.file}`);
+  expect(missing, '清单中文件不存在:\n  ' + missing.join('\n  ')).toEqual([]);
+  // 可选模块的 setting 键必须在 DEFAULT_SETTINGS 中（防改键名后条件加载失效）
+  const swKeys = Object.keys(constantsMod.DEFAULT_SETTINGS);
+  const badSettings = manifestMod.OPTIONAL_MODULES.filter((mod) => !swKeys.includes(mod.setting)).map(
+    (mod) => `${mod.key}→${mod.setting}`
+  );
+  expect(badSettings, '可选模块 setting 键不在 DEFAULT_SETTINGS:\n  ' + badSettings.join('\n  ')).toEqual([]);
+});
+
+// v10.7.0 批次4：web_accessible_resources.matches 是域名的第 4 份拷贝且此前
+// 无一致性测试覆盖——漏改会导致动态 import 的内容模块在该站加载失败
+// WAR matches must cover every content-script domain (4th copy of the domain
+// list; a missed entry breaks dynamic module loading on that site).
+test('web_accessible_resources.matches 覆盖全部注入域名', () => {
+  const warMatches = (manifest.web_accessible_resources || []).flatMap((r) => r.matches || []);
+  const warDomains = new Set(
+    warMatches.filter((m) => m.startsWith('http')).map((m) => m.replace(/^https?:\/\/\*\./, '').replace(/\/\*$/, ''))
+  );
+  // WAR ⊇ content_scripts（WAR 可额外含 steampowered.com——Steam 页浮窗资源）
+  const missing = manifestDomains.filter((d) => !warDomains.has(d));
+  expect(missing, 'WAR 缺少注入域名（动态模块在该站将加载失败）:\n  ' + missing.join('\n  ')).toEqual([]);
+});
 test('快捷键命令注册（manifest commands + SW onCommand）', () => {
   const cmds = (manifest.commands || {})['gr-force-refresh'];
   expect(!!cmds && !!cmds.suggested_key).toEqual(true);

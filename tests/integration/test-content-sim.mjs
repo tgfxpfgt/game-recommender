@@ -263,12 +263,15 @@ globalThis.chrome = {
 };
 
 // 简化站点规则（模拟咸鱼单机）/ simplified site rule
+// v10.7.0 批次4：features.inlineSteamCard 与内置规则同步（内嵌卡门控已
+// 改由规则 features 声明驱动）
 const SITE_RULES = [
   {
     key: 'xianyudanji',
     name: '咸鱼单机',
     domains: ['xianyudanji.gg'],
     imageAppId: true,
+    features: { inlineSteamCard: true },
     listPage: { urlPatterns: ['/pcdj'] },
     detailUrlPatterns: ['\\/\\d+\\.html?$'],
     listItem: { containers: ['li.game-item'], titleLink: 'a.tit', minLen: 2, maxLen: 200 }
@@ -282,22 +285,11 @@ globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: SITE_RULES };
 // 恢复动态 import 方案；storage mock 返回测试规则（更健壮）
 const SCRIPT_FILES = ['shared/patterns.js', 'shared/escape.js', 'shared/msg.js', 'content/tracker.js'];
 // 模块加载（动态 import + GR shim 兼容层；固定 ?t= 与 tracker 的 getURL 共享实例）
-const MODULE_FILES = [
-  'content/core/common.js',
-  'content/core/floats.js',
-  'content/core/status-bar.js',
-  'content/core/debug.js',
-  'content/adapters/builder.js',
-  'content/list/badges.js',
-  'content/list/list-batch.js',
-  'content/list/list-page.js',
-  'content/list/list-state.js',
-  'content/detail/detail-templates.js',
-  'content/detail/detail-page.js',
-  'content/tracking/download-tracking.js',
-  'content/detail/qr-unlock.js',
-  'content/list/xdgrid.js'
-];
+// v10.7.0 批次4：加载文件表由 content/module-manifest.js 单源派生（核心 +
+// 可选；模拟环境可选模块恒加载）。MODULE_KEYS 保持本测试的 GR shim 契约
+//（顺序与清单一致）。
+import { CORE_MODULES, OPTIONAL_MODULES } from '../../content/module-manifest.js';
+const MODULE_FILES = [...CORE_MODULES, ...OPTIONAL_MODULES].map((mod) => mod.file);
 const MODULE_KEYS = [
   'common',
   'float',
@@ -1182,9 +1174,16 @@ test('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门控
   );
   expect(mixedHtml.includes('口碑尚可，建议结合玩法判断')).toEqual(true);
 
-  // 源码级守护：站点门控名单（XDGame 原生已有信息区，不重复注入）
+  // 源码级守护：站点门控走规则 features 声明（v10.7.0 批次4——原硬编码名单
+  // INLINE_SECTION_SITES 已删除，XDGame 等原生卡站点默认不声明即不注入）
   const detailSrc2 = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
-  expect(detailSrc2.includes("INLINE_SECTION_SITES = ['xianyudanji', 'gamer520']")).toEqual(true);
+  expect(detailSrc2.includes('features || {}).inlineSteamCard')).toEqual(true);
+  const xdgameAdapterSrc = fs.readFileSync(path.join(ROOT, 'adapters/sites/xdgame.js'), 'utf-8');
+  expect(xdgameAdapterSrc.includes('inlineSteamCard')).toEqual(false); // XDGame 不声明内嵌卡
+  const builtinInline = ['adapters/sites/xianyudanji.js', 'adapters/sites/gamer520.js']
+    .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf-8'))
+    .map((src) => src.includes('inlineSteamCard: true'));
+  expect(builtinInline.every(Boolean)).toEqual(true);
 
   // 还原 mock（后续节不受影响）
   documentMock.getElementById = origGetById;

@@ -34,7 +34,7 @@ export async function getSiteRules() {
 // 下载站配置（含站内搜索的站点，从规则构建）/ Download-site config (searchable sites)
 export async function getDownloadSites() {
   if (downloadSitesCache) return downloadSitesCache;
-  /** @type {{sites: Array<{key: string, name: string, searchUrl: string, base: string}>}} */
+  /** @type {{sites: Array<{key: string, name: string, searchUrl: string, base: string, features?: Object<string, boolean>}>}} */
   const rules = (await getSiteRules()) || { sites: [] };
   downloadSitesCache = (rules.sites || [])
     .filter((s) => s.searchUrl)
@@ -42,7 +42,8 @@ export async function getDownloadSites() {
       key: s.key,
       name: s.name,
       searchUrl: (q) => s.searchUrl.replace('{q}', encodeURIComponent(q)),
-      base: s.base
+      base: s.base,
+      features: s.features || {} // v10.7.0 批次4：feature 声明随规则透传
     }));
   return downloadSitesCache;
 }
@@ -66,6 +67,7 @@ const SITE_FIELD_TYPES = {
   searchUrl: 'string',
   detailUrlPatterns: 'array',
   imageAppId: 'boolean',
+  features: 'object', // v10.7.0 批次4：per-site feature 开关（布尔值子键，如 inlineSteamCard/gridLayoutDefault/detailMetaVersion）
   listPage: 'object',
   listItem: 'object'
 };

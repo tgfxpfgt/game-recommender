@@ -153,8 +153,12 @@ export function applyLayout(cfg, items) {
 }
 
 // 检测列表容器并应用（重试适配 AJAX 延迟渲染）/ detect + apply with retries
+// v10.7.0 批次4：默认启用改由 adapter 规则 features.gridLayoutDefault 声明
+//（内置 xdgame 规则声明为 true）——不再写死 host 判断；自定义站经规则即可启用
 async function detectAndApply(all, host) {
-  const cfg = normalizeCfg((all.sites && all.sites[host]) || { ...DEFAULTS, enabled: host.includes('xdgame.com') });
+  const features = await builder.getSiteFeatures();
+  const defaultEnabled = features.gridLayoutDefault === true || host.includes('xdgame.com'); // host 判断兜底（规则加载失败时保底）
+  const cfg = normalizeCfg((all.sites && all.sites[host]) || { ...DEFAULTS, enabled: defaultEnabled });
   if (!cfg.enabled) return null;
   const adapter = builder.getAdapter();
   const scan = () => {
@@ -420,7 +424,9 @@ export async function init(settings) {
   if (settings && settings.xdgridEnabled === false) return;
   const host = common.getCurrentDomain();
   const all = await loadAllSettings();
-  const cfg = normalizeCfg((all.sites && all.sites[host]) || { ...DEFAULTS, enabled: host.includes('xdgame.com') });
+  const features = await builder.getSiteFeatures();
+  const defaultEnabled = features.gridLayoutDefault === true || host.includes('xdgame.com'); // 兜底同上
+  const cfg = normalizeCfg((all.sites && all.sites[host]) || { ...DEFAULTS, enabled: defaultEnabled });
   await detectAndApply(all, host);
   try {
     if (document.body) buildUI(all, host, cfg);

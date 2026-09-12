@@ -136,6 +136,9 @@ export const DEFAULT_SETTINGS = {
   appStatDedupHours: 24, // 同站点去重窗口小时数（0 = 关闭去重，每次都计数）
   appStatDownloadCap: 100, // 下载计数 a 的对数饱和封顶（a≥cap 信号满分）
   appStatDetailViewCap: 100, // 详情页打开 b 的对数饱和封顶
+  // v10.7.0 批次4：注意——yystv/fitgirl/rutracker 等非注入站是**有意保留**的：
+  // 它们是用户自定义规则站（动态注册脚本）的追踪门控种子，删除会使这些站
+  // 的自定义规则失效（tracker 早退）
   trackedSites: [
     '3dmgame.com',
     'ali213.net',

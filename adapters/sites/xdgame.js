@@ -52,6 +52,13 @@
     searchUrl: 'https://www.xdgame.com/so/{q}.html',
     detailUrlPatterns: ['/game/\\d+\\.html?$', '/\\d+\\.html?$'],
     imageAppId: true,
+    // v10.7.0 批次4：per-site feature 声明（此前以 host.includes/siteKey 硬编码
+    // 散落在 xdgrid.js 与 sites/search.js 业务里——现收编进规则 schema）
+    // Per-site feature flags (previously hardcoded host/key checks).
+    features: {
+      gridLayoutDefault: true, // 列表布局定制默认启用（原 xdgrid host 判断）
+      detailMetaVersion: true // 详情页"版本介绍"段落解析（原 search.js siteKey 特判）
+    },
     listPage: {
       urlPatterns: ['^/so/', '/page/\\d+', '/list/', '^(/|$)'],
       minDetailLinks: 5

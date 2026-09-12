@@ -107,7 +107,10 @@ export function calcLinkMatchScore(linkText, searchName) {
 
 // 详情页元信息提取（更新日期/版本/大小/网盘链接与提取码）
 // Detail-page meta extraction (date/version/size/pan URL & code)
-export function extractDetailMeta(html, siteKey) {
+// v10.7.0 批次4：第 2 参改传站点规则对象（读 features.detailMetaVersion 声明，
+// 不再写死 siteKey === 'xdgame'；自定义站声明该 feature 即获得同款解析）
+export function extractDetailMeta(html, site) {
+  const features = (site && site.features) || {};
   const meta = { updateDate: '', version: '', size: '', panUrl: '', panCode: '' };
   if (!html) return meta;
 
@@ -123,8 +126,8 @@ export function extractDetailMeta(html, siteKey) {
     meta.updateDate = dateLabelMatch[1].replace(/[年月]/g, '-').replace(/日$/, '');
   }
 
-  // 版本 + 大小（按站点适配）
-  if (siteKey === 'xdgame') {
+  // 版本 + 大小（按站点 feature 声明解析）
+  if (features.detailMetaVersion === true) {
     const verIntroMatch = regexMatch(html, /版本介绍<\/h[0-9]>\s*<p>([\s\S]*?)<\/p>/i);
     if (verIntroMatch) {
       const verLine = verIntroMatch[1].replace(/<[^>]+>/g, '');
@@ -313,7 +316,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
               const dResp = await fetchWithTimeout(safeDetailUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
               if (dResp.ok) {
                 const dHtml = await dResp.text();
-                const meta = extractDetailMeta(dHtml, site.key);
+                const meta = extractDetailMeta(dHtml, site);
                 // v6.4.4：搜索结果元数据合并进网址缓存（与上次调用合并）——
                 // detail 页二次展示免重抓；recordDownloadUrl 同 url 时更新 meta + lastCalled
                 if (appId && bestScore >= 80 && meta && (meta.updateDate || meta.version || meta.size || meta.panUrl)) {

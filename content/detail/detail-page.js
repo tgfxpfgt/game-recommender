@@ -601,7 +601,6 @@ export function injectSteamButton(gameName, settings) {
 // below translated 1:1 from XDGame's own CSS. Display-only companion to the
 // interactive float, gated by adapter key.
 const INLINE_SECTION_ID = 'gr-steam-inline-section';
-const INLINE_SECTION_SITES = ['xianyudanji', 'gamer520'];
 const INLINE_SECTION_STYLE_ID = 'gr-steam-inline-style';
 
 // XDGame article_steam_rating_20260905.css 1:1 译本：
@@ -731,14 +730,16 @@ function hostIsDarkMode() {
 function renderInlineSteamSection(data, cachedAt) {
   try {
     if (!data) return;
-    // 站点门控：仅目标站注入（含 XDGame 在内的其他站不注入，防重复）
-    let siteKey = '';
+    // 站点门控（v10.7.0 批次4）：由 adapter 规则的 features.inlineSteamCard 声明
+    // 决定（内置 xianyudanji/gamer520 打开；自定义站可经规则包启用）——
+    // 此前为 INLINE_SECTION_SITES 硬编码数组，规则站无法获得该能力
+    let inlineEnabled = false;
     try {
-      siteKey = (builder.getAdapter() || {}).key || '';
+      inlineEnabled = !!((builder.getAdapter() || {}).features || {}).inlineSteamCard;
     } catch {
       /* 适配器不可用时跳过 / skip when the adapter is unavailable */
     }
-    if (!INLINE_SECTION_SITES.includes(siteKey)) return;
+    if (!inlineEnabled) return;
 
     const html = detailTemplates.steamInlineSection(data, cachedAt);
     const existing = document.getElementById(INLINE_SECTION_ID);

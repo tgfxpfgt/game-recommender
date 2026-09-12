@@ -55,7 +55,7 @@ export async function handleSearchDownloadSites(message) {
         try {
           const dResp = await fetchWithTimeout(entry.url, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
           if (dResp.ok) {
-            const meta = extractDetailMeta(await dResp.text(), s.key);
+            const meta = extractDetailMeta(await dResp.text(), s);
             Object.assign(s, {
               updateDate: meta.updateDate,
               version: meta.version,

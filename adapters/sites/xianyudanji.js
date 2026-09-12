@@ -24,6 +24,8 @@
   'use strict';
 
   global.__GAME_RECOMMENDER_SITE_XIANYUDANJI__ = {
+    // v10.7.0 批次4：内嵌 Steam 评价卡（原 detail-page INLINE_SECTION_SITES 硬编码）
+    features: { inlineSteamCard: true },
     key: 'xianyudanji',
     name: '咸鱼单机',
     displayName: '咸鱼单机',
