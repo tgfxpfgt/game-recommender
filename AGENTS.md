@@ -24,13 +24,17 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   OPFS 分文件持久化经 `data/data-store.js`）→ steam/recommend/sites/freegames 业务 → handlers
   （消息分发，`handlers.js` 聚合 MESSAGE_HANDLERS）。依赖分层单向，`test-integrity` 强制。
 - `content/`：内容脚本。`tracker.js` 经典入口 + 动态 `import(getURL('content/...'))`
-  加载 ESM 模块（core/list/detail/tracking）。**新内容模块必须同步三处**：
-  tracker ensureModules、tests/integration/test-content-sim.mjs 的 MODULE_FILES/MODULE_KEYS、
+  加载 ESM 模块（core/list/detail/tracking）；可选功能模块（qr-unlock/xdgrid）按设置
+  **条件加载**（want() → tracker optional 键映射，禁用 = 代码零加载）。
+  **新内容模块必须同步三处**：tracker ensureModules（可选模块另加 optional 映射）、
+  tests/integration/test-content-sim.mjs 的 MODULE_FILES/MODULE_KEYS、
   （若走 manifest 静态注入）manifest content_scripts + site-scripts SITE_SCRIPT_FILES。
 - `shared/`：内容/扩展页共用（escape/msg/patterns）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
 - 存储模块新增套路：constants.js 的 DB_KEYS + DATA_MODULES、data-store.js MODULE_FILES、
   reset.js 重置、backups.js 核心子集（按需）、消息契约 message-contract.js。
+  steam 缓存为 4 分文件（meta/rating/detail/spy，steam-cache.js dirtyModules 子集写入）——
+  动其持久化须四处同步并保持旧单文件迁移兼容。
 
 ## 铁律（违反 = 测试/钩子拦截或线上事故）
 
@@ -50,12 +54,16 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     直接失败；有意无 UI 的键加入测试内 OPTIONS_ALLOWLIST 并写明理由。
 11. 权重/设置新增键漏保存映射会被"全量保存"抹掉用户自定义值（历史事故）——保存映射
     以 DEFAULT_SETTINGS 键名为对照逐项核对。
+12. **徽章组标记契约**：`gr-rating-badge` 是好评率徽章**组标记**（prependBadge 防重复
+    守卫/推荐徽章插入锚点/测试选择器三重身份）——经 createBadge 创建的组外徽章
+    （推荐值等）必须传 `base:'gr-badge'`，否则污染守卫导致好评率徽章缺失（v10.6.0 事故）。
 
 ## 文档同步（默认启用）
 
 技能包 `docs/skills/neat-freak-person/`（源自 lsa03/neat-freak-person，MIT）已安装并
 **默认启用**：功能批次合并后，AI 助手按其纪律同步三层知识（AGENTS.md 规则 /
 README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。要点：
+
 - 同步触发：功能新增/调整/删除合并后（说"同步一下"或自动执行）
 - 尺寸红线：AGENTS.md ~300 行软上限；记忆毕业机制（稳定教训迁入本文件/CONTRIBUTING，
   记忆瘦身防膨胀）——v10.3.1 的记忆精简即该实践
@@ -65,6 +73,9 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 
 - 单测入 vitest.config.js 的 include 显式清单；storage/fetch mock 在 tests/helpers。
 - content-sim：FakeEl DOM 模拟 + `__grImport` 注入；模块实例共享依赖"无 ?t= 导入"。
+- 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
+  真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
+  主世界 evaluate 读不到，模块加载以网络请求为准）；不进门禁。
 - 已知问题：background/handlers.js 的 coverage 归因伪影（见 CONTRIBUTING 末尾）。
 
 ## 发布流程
