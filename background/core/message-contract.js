@@ -192,6 +192,20 @@ const RULES = {
   GET_SITE_HEALTH: () => ({ ok: true }),
   // v10.4.4：二维码跨域取图（url 必须为 https 图片地址——后台另有 SSRF/大小/类型三重校验）
   GET_STEAM250_RANK: (m) => (m && m.appId ? { ok: true } : { error: 'GET_STEAM250_RANK.appId 必填' }),
+  TOGGLE_FAVORITE: (m) => {
+    if (!m || !m.appId) return { error: 'TOGGLE_FAVORITE.appId 必填' };
+    if (typeof m.appId !== 'string' || !/^\d{2,10}$/.test(m.appId))
+      return { error: 'TOGGLE_FAVORITE.appId 必须为数字字符串' };
+    if (m.name !== undefined && (typeof m.name !== 'string' || m.name.length > 200))
+      return { error: 'TOGGLE_FAVORITE.name 超长' };
+    return { ok: true };
+  },
+  GET_FAVORITES: () => ({ ok: true }),
+  GET_ITAD_LOWEST: (m) => (m && m.appId ? { ok: true } : { error: 'GET_ITAD_LOWEST.appId 必填' }),
+  SEARCH_CACHED_GAMES: (m) =>
+    m && typeof m.query === 'string' && m.query.trim().length >= 2 && m.query.length <= 100
+      ? { ok: true }
+      : { error: 'SEARCH_CACHED_GAMES.query 必填（2-100 字符）' },
   FETCH_IMAGE_DATA_URL: (m) =>
     m && typeof m.url === 'string' && /^https:\/\/[^\s/"']+$/.test(m.url)
       ? { ok: true }
@@ -302,6 +316,9 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'SEARCH_STEAM',
   'SEARCH_STEAM_CANDIDATES',
   'SITE_ADAPTER_ALERT',
+  'TOGGLE_FAVORITE',
+  'GET_FAVORITES',
+  'GET_STEAM250_RANK',
   'TRACK_DOWNLOAD_SITE_VISIT',
   'TRACK_EVENT'
 ]);

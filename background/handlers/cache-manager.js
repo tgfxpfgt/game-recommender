@@ -52,17 +52,40 @@ export async function handleCleanExpiredCache() {
   const negTtl = resolveTtlMs('negativeCache', ttl.negativeCache);
   const urlTtl = resolveTtlMs('downloadUrls', ttl.downloadUrls);
 
-  const [steamData, nameData, urlStore] = await Promise.all([
-    dataStore.readModule(DB_KEYS.STEAM_CACHE),
+  // v10.6.0 C1：Steam 缓存拆为 4 个分模块文件——合并为内存结构后统一走
+  // collectExpiredSteamCache，再按模块写回（清理语义不变）
+  const PART_KEYS = [
+    DB_KEYS.STEAM_CACHE_META,
+    DB_KEYS.STEAM_CACHE_RATING,
+    DB_KEYS.STEAM_CACHE_DETAIL,
+    DB_KEYS.STEAM_CACHE_SPY
+  ];
+  const PART_NAMES = ['meta', 'rating', 'detail', 'spy'];
+  const [partRaw, nameData, urlStore] = await Promise.all([
+    Promise.all(PART_KEYS.map((k) => dataStore.readModule(k))),
     dataStore.readModule(DB_KEYS.NAME_INDEX),
     readDownloadUrlsStore()
   ]);
-  const steam = collectExpiredSteamCache(steamData || {});
+  const combined = {};
+  PART_NAMES.forEach((m, i) => {
+    for (const [id, mod] of Object.entries(partRaw[i] || {})) {
+      if (!mod || !mod.data) continue;
+      combined[id] = combined[id] || { modules: {} };
+      combined[id].modules[m] = mod;
+    }
+  });
+  const steam = collectExpiredSteamCache(combined);
   const names = collectExpiredNegativeNames(nameData || {}, negTtl);
   const urls = collectExpiredDownloadUrls(urlStore, urlTtl);
 
+  // 写回：每个分模块文件从清理后的合并结构提取自己的子集
   await Promise.all([
-    dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steam.map)),
+    ...PART_NAMES.map((m, i) =>
+      dataStore.writeModule(
+        PART_KEYS[i],
+        Object.fromEntries(Object.entries(steam.map).filter(([, e]) => e.modules && e.modules[m]))
+      )
+    ),
     dataStore.writeModule(DB_KEYS.NAME_INDEX, Object.fromEntries(names.map)),
     dataStore.writeModule(DB_KEYS.DOWNLOAD_URLS, urls.store)
   ]);
@@ -266,6 +289,11 @@ export async function handleClearGameCache() {
   await Promise.all([
     dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
     dataStore.removeModule(DB_KEYS.STEAM_CACHE),
+    // v10.6.0 C1：分模块文件一并清除
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_META),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_RATING),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_DETAIL),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_SPY),
     dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
     dataStore.removeModule(DB_KEYS.NAME_INDEX)
   ]);

@@ -77,8 +77,23 @@ function enqueueItems(items) {
 export function maybeFetchNextBatch() {
   const batchState = _state.batchState;
   if (!batchState || batchState.inflight) return false;
-  const names = batchState.queue.filter((n) => !batchState.requested.has(n)).slice(0, RATINGS_BATCH_SIZE);
-  if (names.length === 0) return false;
+  const pending = batchState.queue.filter((n) => !batchState.requested.has(n));
+  if (pending.length === 0) return false;
+  // v10.6.0 S1：视口内优先——按距视口的排序取本批（可见的最先，已在视口上方
+  // 的沉底），用户正看着的区域先出徽章
+  const withPos = pending.map((n) => {
+    let top = Number.MAX_SAFE_INTEGER - 1;
+    try {
+      const it = batchState.itemsByName.get(n);
+      const r = it && it.element && it.element.getBoundingClientRect();
+      if (r) top = r.top < 0 ? 1e12 - r.top : r.top;
+    } catch {
+      /* rect 不可得（测试模拟 DOM）→ 保持原序 */
+    }
+    return { n, top };
+  });
+  withPos.sort((a, b) => a.top - b.top);
+  const names = withPos.slice(0, RATINGS_BATCH_SIZE).map((x) => x.n);
   names.forEach((n) => batchState.requested.add(n));
   batchState.queue = batchState.queue.filter((n) => !batchState.requested.has(n));
   batchState.inflight = true;

@@ -23,6 +23,10 @@ export async function handleClearData() {
     dataStore.removeModule(DB_KEYS.GAME_PROFILES),
     dataStore.removeModule(DB_KEYS.KEYWORD_WEIGHTS),
     dataStore.removeModule(DB_KEYS.STEAM_CACHE),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_META), // v10.6.0 C1：分模块文件一并清除
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_RATING),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_DETAIL),
+    dataStore.removeModule(DB_KEYS.STEAM_CACHE_SPY),
     dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
     dataStore.removeModule(DB_KEYS.NAME_INDEX),
     dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
@@ -48,7 +52,9 @@ export async function handleGetDataModules() {
   const modules = [];
   for (const m of DATA_MODULES) {
     const value = await dataStore.readModule(m.storageKey);
-    modules.push({ key: m.key, name: m.name, desc: m.desc, count: countModuleItems(value) });
+    // v10.6.0 C5：序列化体积（数据健康可视化——storage-health 卡片的明细支撑）
+    const bytes = value === undefined || value === null ? 0 : JSON.stringify(value).length;
+    modules.push({ key: m.key, name: m.name, desc: m.desc, count: countModuleItems(value), bytes });
   }
   return { modules };
 }

@@ -325,6 +325,17 @@ export function refreshFreeGames(force = false) {
 }
 
 async function doRefreshFreeGames(force = false) {
+  // v10.6.0 N4：限免监控总开关——关闭后跳过全部外部源抓取与通知
+  //（限免页显示上次数据；角标不受影响）
+  const fgSettings = await getSettings();
+  if (fgSettings.freeGamesEnabled === false && !force) {
+    await updateFreeGamesBadge();
+    return (await dataStore.readModule(DB_KEYS.FREE_GAMES)) || { lastUpdate: 0, games: [] };
+  }
+  if (fgSettings.freeGamesEnabled === false) {
+    Logger.info('FreeGames', '限免监控已关闭，跳过刷新');
+    return { lastUpdate: 0, games: [] };
+  }
   const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
   const existing = stored || { lastUpdate: 0, games: [] };
 
@@ -385,6 +396,47 @@ async function checkItadFree(appId) {
     Logger.warn('FreeGames', 'ITAD校验请求失败（网络不可达或被拦截，按原分类放行）:', String(e));
     return null;
   }
+}
+
+// v10.6.0 F1：ITAD 历史最低价（详情浮窗展示；12h 内存缓存防频繁请求）。
+// 复用 v02/game/prices 端点的 lowest 字段（与 checkItadFree 同源）。
+// ITAD all-time-low price for the detail float (same endpoint as the free
+// check); 12h in-memory cache.
+/** @type {Map<string, {info: {price: number, shop: string}|null, ts: number}>} */
+/** @type {Map<string, {info: {price: number, shop: string}|null, ts: number}|null>} */
+const itadLowestCache = new Map();
+
+export async function getItadLowest(appId) {
+  const key = String(appId || '').trim();
+  if (!key) return null;
+  const settings = await getSettings();
+  const apiKey = activeItadKey(settings);
+  if (!apiKey) return null; // 未配置 Key → 功能静默（与限免校验同策略）
+  const cached = itadLowestCache.get(key);
+  if (cached && Date.now() - cached.ts < 12 * 3600 * 1000) return cached.info === null ? null : cached.info;
+  /** @type {{price: number, shop: string}|null} */
+  let info = null;
+  try {
+    const resp = await fetchWithTimeout(
+      `https://api.isthereanydeal.com/v02/game/prices/?key=${apiKey}&appids=steam/${key}&region=cn`
+    );
+    if (resp.status === 401 || resp.status === 403) {
+      Logger.warn('FreeGames', `ITAD 最低价查询凭证失效（HTTP ${resp.status}）`);
+      itadLowestCache.set(key, { info: null, ts: Date.now() });
+      return null;
+    }
+    if (!resp.ok) return null;
+    const data = await resp.json();
+    const entry = data && data['steam/' + key];
+    const lowest = entry && entry.lowest;
+    if (lowest && lowest.price !== undefined) {
+      info = { price: lowest.price, shop: (lowest.shop && lowest.shop.name) || '' };
+    }
+  } catch (e) {
+    Logger.debug('FreeGames', 'ITAD 最低价查询失败:', String(e));
+  }
+  itadLowestCache.set(key, { info, ts: Date.now() });
+  return info;
 }
 
 // v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）
@@ -509,10 +561,24 @@ async function notifyNewFreeGames(newOnes) {
       .slice(0, 3)
       .map((g) => g.name)
       .join('、');
+    // v10.6.0 F2：收藏游戏进限免 → 通知标题优先提示（愿望单联动）
+    /** @type {any|null} */
+    let favHit = null;
+    try {
+      const { getFavorites } = await import('../storage/favorites.js');
+      const favs = await getFavorites();
+      /** @type {any} */
+      favHit = newOnes.find((g) => {
+        const appId = ((g.url && g.url.match(/\/app\/(\d+)/)) || [])[1] || (g.steamId && String(g.steamId));
+        return appId && favs[appId];
+      });
+    } catch {
+      /* 收藏读取失败不影响通知 */
+    }
     chrome.notifications.create('gr-free-games', {
       type: 'basic',
       iconUrl: 'icons/icon128.png',
-      title: `🎮 新增 ${newOnes.length} 款限免游戏`,
+      title: favHit ? `⭐ 收藏游戏进限免：${(favHit.name || '').slice(0, 30)}` : `🎮 新增 ${newOnes.length} 款限免游戏`,
       message: names + (newOnes.length > 3 ? ` 等 ${newOnes.length} 款` : ''),
       priority: 1
     });

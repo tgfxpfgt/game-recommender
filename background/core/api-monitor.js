@@ -21,9 +21,18 @@ const MAX_SAMPLES = 200; // 窗口内样本上限（防内存膨胀）
 
 const persist = createSessionPersist('grApiMonitor', { initial: [] });
 
+// v10.6.0 N1：会话累计计数器（与滑动窗口分离）——浏览器会话内的 Steam API
+// 总调用/失败/限流次数，供 GET_API_STATUS 透出，量化缓存策略省下的请求量
+// Session-lifetime counters (separate from the sliding window): total/failed/
+// limited Steam API calls this browser session, surfaced via GET_API_STATUS.
+const counters = createSessionPersist('grApiCounters', {
+  initial: /** @type {{total: number, failed: number, limited: number}} */ ({ total: 0, failed: 0, limited: 0 })
+});
+
 // 预热（SW 启动时调用——从 session 读回调用窗口）
 export async function warmupApiMonitor() {
   await persist.load();
+  await counters.load();
 }
 
 // 记录一次 Steam API 调用（status 为 HTTP 状态码，0 = 网络异常）
@@ -40,6 +49,12 @@ export function recordSteamCall(ok, status = 0) {
     calls.push(...kept);
   }
   persist.scheduleSave();
+  // v10.6.0 N1：会话累计（读-改-写经 session-persist 单飞队列，无并发丢失）
+  const c = counters.peek();
+  c.total += 1;
+  if (!ok) c.failed += 1;
+  if (status === 429 || status === 503) c.limited += 1;
+  counters.scheduleSave();
 }
 
 // 获取当前 API 状态（纯函数，可单测）
@@ -65,10 +80,15 @@ export function getSteamApiStatus() {
       break;
     }
   }
+  const cAll = counters.peek();
   return {
     total,
     failed,
     limited,
+    // v10.6.0 N1：浏览器会话累计（区别于上方 5 分钟窗口值）
+    sessionTotal: cAll.total,
+    sessionFailed: cAll.failed,
+    sessionLimited: cAll.limited,
     failRate: Math.round(failRate * 100),
     anomaly,
     windowSec: Math.round(WINDOW_MS / 1000),
@@ -79,4 +99,5 @@ export function getSteamApiStatus() {
 // 重置（测试/清理用）/ Reset
 export function resetApiMonitor() {
   persist.reset();
+  counters.reset();
 }

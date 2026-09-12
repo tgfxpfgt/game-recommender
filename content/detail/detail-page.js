@@ -291,6 +291,62 @@ export function injectDownloadHistoryPanel(gameName) {
     .catch(() => {});
 }
 
+// v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2）
+// ITAD：Key 未配置或查询失败 → 行隐藏；收藏：按钮切换 + 状态持久化
+async function fillItadAndFavorites(appId, name) {
+  const itadEl = document.getElementById('gr-itad-row');
+  // —— 收藏按钮（状态经 GET_FAVORITES 查询；点击 TOGGLE_FAVORITE）——
+  if (itadEl) {
+    const favRow = document.createElement('div');
+    favRow.id = 'gr-fav-row-inner';
+    favRow.style.marginTop = '4px';
+    itadEl.parentNode.insertBefore(favRow, itadEl);
+    const renderFav = (favorited) => {
+      favRow.innerHTML = '';
+      const btn = document.createElement('button');
+      btn.textContent = favorited ? '★ 已收藏' : '☆ 收藏';
+      btn.style.cssText = `padding:2px 10px;font-size:11px;cursor:pointer;border-radius:3px;border:1px solid ${favorited ? '#f1c40f' : '#666'};background:transparent;color:${favorited ? '#f1c40f' : '#aaa'}`;
+      btn.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        try {
+          const resp = await window.__GR_MSG__.sendMessage(
+            { action: 'TOGGLE_FAVORITE', appId, name: name || '' },
+            null,
+            { timeout: 5000 }
+          );
+          if (resp && resp.favorited !== undefined) renderFav(resp.favorited);
+        } catch {
+          /* 后台不可达静默 */
+        }
+      });
+      favRow.appendChild(btn);
+    };
+    try {
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' }, null, { timeout: 5000 });
+      const favs = (resp && resp.favorites) || {};
+      renderFav(!!favs[appId]);
+    } catch {
+      favRow.style.display = 'none';
+    }
+  }
+  // —— ITAD 最低价行（Key 未配置时后台返回 null → 行隐藏）——
+  if (!itadEl) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ITAD_LOWEST', appId }, null, { timeout: 20000 });
+    const info = resp && resp.info;
+    if (!info || info.price === undefined || info.price === null) {
+      itadEl.style.display = 'none';
+      return;
+    }
+    const shop = info.shop ? ` @ ${info.shop}` : '';
+    itadEl.innerHTML = `💰 ITAD 历史最低: <b style="color:#67c1f5;">${Number(info.price).toFixed(2)}</b>${esc(shop)} <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
+    itadEl.style.display = '';
+  } catch {
+    itadEl.style.display = 'none';
+  }
+}
+
 // v10.4.4：Steam250 排名行填充（查询后台快照；游戏不在前 250 时隐藏）
 async function fillSteam250Info(appId) {
   if (!appId) return;
@@ -448,6 +504,8 @@ export function injectSteamButton(gameName, settings) {
 
     // v10.4.4：Steam250 排名行（浮窗 + 内嵌卡双挂点；异步填充，无数据隐藏）
     fillSteam250Info(String(data.appId));
+    // v10.6.0：ITAD 最低价行 + 收藏按钮（Key 未配置/无数据时自动隐藏）
+    fillItadAndFavorites(String(data.appId), name);
 
     // 回写Steam标签
     if (data.genres && data.genres.length > 0) {
@@ -881,10 +939,18 @@ function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport)
     }
   }
 
-  // 头部图片加载失败时隐藏（addEventListener 替代内联 onerror）
+  // 头部图片加载失败时按备选 CDN 域回退（v10.6.0），全部失败才隐藏
   const headerImg = panel.querySelector('#gr-header-image');
   if (headerImg)
     headerImg.addEventListener('error', () => {
+      // CDN 备选域链：akamai → cloudflare → media（替代域对同一资源同路径）
+      const hosts = ['cdn.akamai.steamstatic.com', 'cdn.cloudflare.steamstatic.com', 'media.steampowered.com'];
+      const cur = hosts.indexOf(new URL(headerImg.src, window.location.href).hostname);
+      const next = hosts[cur + 1];
+      if (cur >= 0 && next) {
+        headerImg.src = headerImg.src.replace(hosts[cur], next);
+        return;
+      }
       headerImg.style.display = 'none';
     });
 

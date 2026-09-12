@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const s = r && r.settings;
       if (s && globalThis.__GR_SETTINGS_UTILS__) {
         const u = globalThis.__GR_SETTINGS_UTILS__;
-        if (u.applyTheme) u.applyTheme(s.uiTheme);
+        if (u.applyThemeAuto) u.applyThemeAuto(s);
+        else if (u.applyTheme) u.applyTheme(s.uiTheme); // v10.6.0 F4
         if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
       }
     } catch {}
@@ -279,6 +280,8 @@ async function loadStats() {
     document.getElementById('diagUrlIndex').textContent = response.urlIndexSize ?? 0;
     document.getElementById('diagNegativeCache').textContent = response.negativeCacheCount ?? 0;
     loadHealthCards().catch(() => {}); // v10.0.0：站点/存储健康卡片（失败不影响主统计）
+    loadFavorites().catch(() => {}); // v10.6.0 F2：收藏清单
+    bindGameSearch(); // v10.6.0 F3：搜索框绑定
     // v6.3.2 B3：缓存命中率（hits+misses 计数）
     // v7.1.0：分模块命中率（meta 基础 / rating 好评率 / detail 详情 / spy 热度）
     const cs = response.cacheStats || {};
@@ -845,6 +848,84 @@ function renderFeedback(feedback) {
   listEl.innerHTML =
     renderList('👎 负反馈最多：', fb.topDisliked, 'dislikes') +
     renderList('⬇️ 下载最多：', fb.topDownloaded, 'downloads');
+}
+
+// v10.6.0 F2：收藏清单渲染（移除按钮 + Steam 外链）
+async function loadFavorites() {
+  const el = document.getElementById('favList');
+  if (!el) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' });
+    const favs = (resp && resp.favorites) || {};
+    const entries = Object.entries(favs).sort((a, b) => (b[1].addedAt || 0) - (a[1].addedAt || 0));
+    if (entries.length === 0) {
+      el.textContent = '暂无收藏（在游戏详情浮窗点 ☆ 收藏）';
+      return;
+    }
+    el.innerHTML = entries
+      .map(([appId, f]) => {
+        const esc2 = (t) => escapeHtml(String(t || ''));
+        return `<div class="fav-row" data-appid="${escapeAttr(String(appId))}" style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+          <span style="flex:1;">⭐ ${esc2(f.name)} <small style="color:#8f98a0;">(${esc2(String(appId))})</small></span>
+          <a href="https://store.steampowered.com/app/${escapeAttr(String(appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;font-size:11px;">Steam ↗</a>
+          <button class="gr-btn gr-btn-sm fav-remove" style="padding:1px 8px;">移除</button>
+        </div>`;
+      })
+      .join('');
+    el.querySelectorAll('.fav-remove').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        const appId2 = btn.closest('.fav-row').dataset.appid;
+        await window.__GR_MSG__.sendMessage({ action: 'TOGGLE_FAVORITE', appId: appId2, name: '' });
+        loadFavorites().catch(() => {});
+      });
+    });
+  } catch {
+    el.textContent = '加载失败';
+  }
+}
+
+// v10.6.0 F3：跨缓存游戏搜索
+async function runGameSearch() {
+  const input = document.getElementById('gameSearchInput');
+  const out = document.getElementById('gameSearchResults');
+  if (!input || !out) return;
+  const q = input.value.trim();
+  if (q.length < 2) {
+    out.textContent = '请输入至少 2 个字符';
+    return;
+  }
+  out.textContent = '搜索中...';
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_CACHED_GAMES', query: q });
+    const results = (resp && resp.results) || [];
+    if (results.length === 0) {
+      out.textContent = '无匹配游戏（仅搜索已缓存的游戏）';
+      return;
+    }
+    const esc2 = (t) => escapeHtml(String(t || ''));
+    out.innerHTML = results
+      .map((g) => {
+        const s250 = g.steam250 ? ` · Steam250 #${g.steam250.rank}（${g.steam250.score} 分）` : '';
+        const rate = g.positiveRate != null ? ` · 好评率 ${g.positiveRate}%` : '';
+        const fav = g.favorited ? ' ⭐' : '';
+        return `<div style="margin-top:3px;"><a href="https://store.steampowered.com/app/${escapeAttr(String(g.appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">${esc2(g.name)}</a>${fav}${rate}${s250}</div>`;
+      })
+      .join('');
+  } catch (e) {
+    out.textContent = '搜索失败: ' + escapeHtml(String(e));
+  }
+}
+
+// v10.6.0 F3：游戏搜索框绑定（幂等）
+function bindGameSearch() {
+  const btn = document.getElementById('gameSearchBtn');
+  const input = document.getElementById('gameSearchInput');
+  if (!btn || !input || btn.dataset.grBound) return;
+  btn.dataset.grBound = '1';
+  btn.addEventListener('click', runGameSearch);
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') runGameSearch();
+  });
 }
 
 // v9.1.0：性能基线（从 runtimeLog 读最近 Perf 条目——启动耗时）

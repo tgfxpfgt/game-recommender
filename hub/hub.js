@@ -18,7 +18,7 @@ const frame = document.getElementById('hubFrame');
   try {
     const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
     if (resp && resp.settings && window.__GR_SETTINGS_UTILS__) {
-      window.__GR_SETTINGS_UTILS__.applyTheme(resp.settings.uiTheme || 'steam');
+      window.__GR_SETTINGS_UTILS__.applyThemeAuto(resp.settings); // v10.6.0 F4：定时切换
     }
   } catch {
     /* 后台不可达时保持默认主题 */

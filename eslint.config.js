@@ -66,7 +66,10 @@ const baseGlobals = {
   vi: 'readonly', // v10.5.0 P1-E：test-content-sim.mjs 引用 vitest 的 vi
   performance: 'readonly',
   btoa: 'readonly', // v10.4.4：SW 内 base64 编码（二维码跨域取图）
-  Image: 'readonly' // v10.4.4：内容脚本构造图片对象（跨域二维码 dataURL 解码）
+  atob: 'readonly', // v10.6.0：crypto-utils 信封 base64 解码
+  Image: 'readonly', // v10.4.4：内容脚本构造图片对象（跨域二维码 dataURL 解码）
+  prompt: 'readonly', // v10.6.0 F5：加密备份导入口令输入（options 页）
+  TextDecoder: 'readonly' // v10.6.0：crypto-utils 明文解码
 };
 
 // 错误级正确性规则（源码 + 测试共用）/ shared correctness rules

@@ -34,7 +34,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   const utils = globalThis.__GR_SETTINGS_UTILS__ || { applyPatch: (o, p) => Object.assign(o, p) };
 
   // v6.4.19：应用皮肤主题 + v7.0.5：自定义主题 CSS
-  if (utils.applyTheme) utils.applyTheme(settings.uiTheme);
+  if (utils.applyThemeAuto) utils.applyThemeAuto(settings);
+  else if (utils.applyTheme) utils.applyTheme(settings.uiTheme); // v10.6.0 F4
   if (utils.applyCustomTheme) utils.applyCustomTheme(settings.customThemeCss);
 
   // ============ 保存（保存前重读最新设置，防快照覆盖） ============
@@ -331,7 +332,12 @@ async function loadApiStatus() {
       info.innerHTML = `<span style="font-size:12px;color:#8f98a0;">采样中：近 5 分钟 ${resp.total} 次调用（${resp.failed} 次失败）</span>`;
     } else {
       dot.className = 'status-dot ok';
-      info.innerHTML = `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${resp.windowSec / 60} 分钟 ${resp.total} 次调用，失败 ${resp.failed} 次（${resp.failRate}%）${resp.limited > 0 ? `，限流 ${resp.limited} 次` : ''}</span>`;
+      info.innerHTML =
+        `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${resp.windowSec / 60} 分钟 ${resp.total} 次调用，失败 ${resp.failed} 次（${resp.failRate}%）${resp.limited > 0 ? `，限流 ${resp.limited} 次` : ''}</span>` +
+        // v10.6.0 N1：会话累计出网请求量（缓存命中越多，该值越低）
+        (resp.sessionTotal > 0
+          ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">本次浏览器会话已出网 ${resp.sessionTotal} 次 Steam 请求${resp.sessionFailed > 0 ? `（失败 ${resp.sessionFailed}）` : ''}</div>`
+          : '');
     }
   } catch {
     info.innerHTML = '<span class="no-data">无法获取状态</span>';

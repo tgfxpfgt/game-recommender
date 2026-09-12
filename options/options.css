@@ -1128,6 +1128,27 @@ input[type='number']::-webkit-outer-spin-button {
   min-height: 18px;
 }
 
+/* v10.6.0 F5：加密导出行（口令输入不驻留/不回显到日志）*/
+.encrypt-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+.encrypt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.encrypt-password {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+}
+
 .data-op-status.ok {
   color: var(--steam-green);
 }

@@ -131,6 +131,24 @@
         <div id="feedbackLists" style="margin-top:6px;"></div>
       </section>
 
+      <!-- 收藏清单 / Favorites watchlist (v10.6.0 F2) -->
+      <section class="section">
+        <h2>⭐ 收藏清单</h2>
+        <p class="section-desc">本地收藏的游戏；进限免时通知优先提示（v10.6.0）</p>
+        <div id="favList" class="backup-status">加载中...</div>
+      </section>
+
+      <!-- 跨缓存游戏搜索 / Cross-cache game search (v10.6.0 F3) -->
+      <section class="section">
+        <h2>🔎 游戏搜索</h2>
+        <p class="section-desc">在已缓存的游戏（注册表/评分/Steam250/收藏）中搜索（v10.6.0）</p>
+        <div class="section-toolbar">
+          <input type="text" id="gameSearchInput" class="gr-input" style="width: 240px" placeholder="输入游戏名（≥2 字符）" />
+          <button id="gameSearchBtn" class="gr-btn gr-btn-sm">搜索</button>
+        </div>
+        <div id="gameSearchResults" class="backup-status" style="margin-top:6px;">输入关键词后搜索</div>
+      </section>
+
       <!-- 标签偏好 / Tag preferences -->
       <section class="section">
         <h2>📊 Steam标签偏好（学习结果）</h2>

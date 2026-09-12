@@ -23,6 +23,13 @@ import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, STEAM_CACHE_WRITE_DEBOUNCE, STEAM_CACHE_MAX_ENTRIES, moduleTtlMs } from '../core/constants.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
+// v10.6.0 C1：持久层拆为 4 个模块文件（meta/rating/detail/spy 各一，
+// {appId: {data, ts}}），flush 只写脏模块——原单文件全量序列化在 500+ 条目
+// 时单批 ~1MB（写放大，v10.4.3 实测），拆分后写量降 ~60-75%。
+// 内存结构（steamCacheMemory 统一 Map）与全部读取方保持不变。
+// v10.6.0 C1: persistence split into 4 per-module files; flush writes only
+// dirty modules. The unified in-memory Map and all readers stay unchanged.
+
 // 字段 → 模块归属映射（v3.3.7 模块化；未知新字段默认进 detail）
 // Field → module routing (modular since v3.3.7; unknown fields go to detail)
 const FIELD_MODULES = {
@@ -77,6 +84,16 @@ function moduleOf(field) {
 let steamCacheMemory = new Map(); // Map: appId -> entry（modules 结构）
 let steamCacheMemoryLoaded = false;
 let steamCacheDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
+// v10.6.0 C1：脏模块集合（flush 只写脏模块文件）
+const CACHE_PART_KEYS = {
+  meta: DB_KEYS.STEAM_CACHE_META,
+  rating: DB_KEYS.STEAM_CACHE_RATING,
+  detail: DB_KEYS.STEAM_CACHE_DETAIL,
+  spy: DB_KEYS.STEAM_CACHE_SPY
+};
+const CACHE_PART_NAMES = Object.keys(CACHE_PART_KEYS);
+const dirtyModules = new Set();
+let legacyMigrated = false; // 旧单文件已拆分（拆分完成后删除旧文件）
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
 // Is one module valid? (exists and not past its own TTL)
@@ -132,15 +149,47 @@ export function isSteamCacheValid(entry) {
   return false;
 }
 
-// 加载缓存到内存（首次从存储读取；旧平铺结构自动迁移为模块结构）
-// Load cache into memory (once); legacy flat entries are migrated
+// 加载缓存到内存（首次）：读 4 个分模块文件合并；旧单文件存在时一次性
+// 拆分迁移（拆分后旧文件在 flush 成功时删除）
+// Load: merge the 4 per-module files; migrate the legacy single file once.
 export async function loadSteamCacheToMemory() {
   if (steamCacheMemoryLoaded) return;
-  const stored = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
   steamCacheMemory = new Map();
-  for (const [key, entry] of Object.entries(stored || {})) {
-    // v3.4.1：历史 number 键（storesearch 搜索路径写入）统一规范化为 string
-    steamCacheMemory.set(String(key), migrateEntry(entry));
+  // 1. 分模块文件
+  const parts = await Promise.all(CACHE_PART_NAMES.map((m) => dataStore.readModule(CACHE_PART_KEYS[m])));
+  CACHE_PART_NAMES.forEach((m, i) => {
+    const part = parts[i];
+    if (!part || typeof part !== 'object') return;
+    for (const [key, mod] of Object.entries(part)) {
+      if (!mod || !mod.data) continue;
+      const entry = steamCacheMemory.get(String(key)) || { modules: {} };
+      entry.modules[m] = mod; // {data, ts}
+      steamCacheMemory.set(String(key), entry);
+    }
+  });
+  // 2. 旧单文件迁移（一次性）：存在非空旧文件 → 拆入内存并标记全模块重写
+  try {
+    const legacy = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
+    if (legacy && typeof legacy === 'object' && Object.keys(legacy).length > 0) {
+      for (const [key, entry] of Object.entries(legacy)) {
+        const migrated = migrateEntry(entry);
+        if (!migrated) continue;
+        const id = String(key);
+        const existing = steamCacheMemory.get(id) || { modules: {} };
+        // 旧模块让位于分模块文件中更新的同名字段（按 ts 比较）
+        for (const [m, mod] of Object.entries(migrated.modules)) {
+          const cur = existing.modules[m];
+          if (!cur || (mod.ts || 0) >= (cur.ts || 0)) existing.modules[m] = mod;
+        }
+        steamCacheMemory.set(id, existing);
+      }
+      legacyMigrated = true;
+      steamCacheDirty = true;
+      CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m));
+      writer.scheduleWrite(); // 拆分结果尽快落盘（flush 成功后删除旧文件）
+    }
+  } catch {
+    /* 旧文件读取失败 → 按无旧数据处理 */
   }
   steamCacheMemoryLoaded = true;
 }
@@ -234,6 +283,8 @@ export async function setSteamCacheEntry(cacheKey, data) {
     for (const key of touched) nextModules[key].ts = now;
   }
   steamCacheMemory.set(cacheKey, { modules: nextModules });
+  // v10.6.0 C1：记录脏模块（flush 只写脏模块文件）
+  for (const key of Object.keys(nextModules)) dirtyModules.add(key);
   scheduleSteamCacheWrite();
 }
 
@@ -251,15 +302,28 @@ function scheduleSteamCacheWrite() {
 }
 
 // 强制立即写入 / Force flush
+// v10.6.0 C1：只写脏模块文件（原单文件全量序列化 ~1MB/批 → 每模块子集）
 export async function flushSteamCache() {
   // v6.1.0：timer 管理收敛至工厂
-  // v3.4.1：无未落盘修改时跳过整次全量序列化（批量场景每 5 批一次 flush，
-  // 无脏数据时避免重复写盘）
-  if (!steamCacheMemory || !steamCacheDirty) return;
+  // v3.4.1：无未落盘修改时跳过（批量场景无脏数据时避免重复写盘）
+  if (!steamCacheMemory || !steamCacheDirty || dirtyModules.size === 0) return;
   steamCacheDirty = false;
   cleanupSteamCacheMemory(); // 写入前清理过期和超量条目 / Purge before persisting
   try {
-    await dataStore.writeModule(DB_KEYS.STEAM_CACHE, Object.fromEntries(steamCacheMemory));
+    for (const m of dirtyModules) {
+      const subset = {};
+      for (const [id, entry] of steamCacheMemory) {
+        const mod = entry.modules && entry.modules[m];
+        if (mod && mod.data) subset[id] = mod; // {data, ts}
+      }
+      await dataStore.writeModule(CACHE_PART_KEYS[m], subset);
+    }
+    // 拆分迁移完成：删除旧单文件（一次性）
+    if (legacyMigrated) {
+      await dataStore.removeModule(DB_KEYS.STEAM_CACHE).catch(() => {});
+      legacyMigrated = false;
+    }
+    dirtyModules.clear();
   } catch (e) {
     // v9.7.0：写失败回滚 dirty 并重新调度——此前 dirty 已清零，本批修改
     // 会随 SW 死亡静默丢失且永不重试（参照 logger.js flushLogBuffer 的回滚）
@@ -314,6 +378,7 @@ export async function deleteSteamCacheEntry(appId) {
   await loadSteamCacheToMemory();
   if (steamCacheMemory && steamCacheMemory.delete(String(appId))) {
     steamCacheDirty = true; // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
+    CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m)); // v10.6.0：条目从所有模块文件移除
   }
 }
 
@@ -322,4 +387,6 @@ export function resetSteamCache() {
   steamCacheMemory = new Map();
   steamCacheMemoryLoaded = false;
   steamCacheDirty = false;
+  dirtyModules.clear();
+  legacyMigrated = false;
 }

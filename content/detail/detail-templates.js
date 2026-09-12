@@ -93,6 +93,8 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         ${spyBody}
       </div>
       <div id="gr-steam250-row" style="display:none;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#8f98a0;line-height:1.6;"></div>
+      <div id="gr-itad-row" style="display:none;margin-top:6px;font-size:11px;color:#8f98a0;line-height:1.6;"></div>
+      <div id="gr-fav-row" style="display:none;margin-top:6px;font-size:11px;"></div>
     `;
 
   return `

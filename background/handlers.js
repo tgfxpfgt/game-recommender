@@ -32,6 +32,7 @@ import { inferSiteFromDomain } from './storage/history.js'; // v10.2.0：站点�
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
 import { fetchWithTimeout } from './core/utils.js'; // v10.4.4：二维码跨域取图（SSRF 校验内建）
 import { getSteam250Info } from './steam/steam250.js'; // v10.4.4：Steam250 排名
+import { toggleFavorite, getFavorites } from './storage/favorites.js'; // v10.6.0 F2 收藏
 import { validateMessage, CONTENT_ALLOWED_ACTIONS, isTrustedSender } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
 import {
@@ -353,6 +354,17 @@ export const MESSAGE_HANDLERS = {
   SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
   FETCH_IMAGE_DATA_URL: handleFetchImageDataUrl,
   GET_STEAM250_RANK: handleGetSteam250Rank,
+  TOGGLE_FAVORITE: async (msg) => toggleFavorite(msg && msg.appId, msg && msg.name),
+  GET_FAVORITES: async () => ({ favorites: await getFavorites() }),
+  GET_ITAD_LOWEST: async (msg) => {
+    const { getItadLowest } = await import('./freegames/manager.js');
+    const info = await getItadLowest(msg && msg.appId);
+    return { info };
+  },
+  SEARCH_CACHED_GAMES: async (msg) => {
+    const { searchCachedGames } = await import('./handlers/stats.js');
+    return searchCachedGames(msg);
+  },
   GET_SITE_HEALTH: handleGetSiteHealth,
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),

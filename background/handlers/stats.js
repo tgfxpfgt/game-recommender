@@ -1,10 +1,12 @@
 import { dataStore } from '../../data/data-store.js';
 import { readProfiles, readKeywordWeights, getBehaviorLog, getDataVersion } from '../storage/behavior.js';
-import { getCacheStats } from '../storage/steam-cache.js';
+import { getCacheStats, getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';
 import { getUrlIndexSize } from '../storage/url-index.js';
 import { getNegativeCacheCount } from '../storage/name-index.js';
 import { DB_KEYS } from '../core/constants.js';
 import { aggregateTrends, aggregateFeedback } from '../core/trends.js';
+import { getSteam250Info } from '../steam/steam250.js';
+import { getFavorites } from '../storage/favorites.js';
 import { fetchSteamTagRecommendations } from '../steam/api-search.js';
 import { Logger } from '../storage/logger.js';
 
@@ -115,3 +117,36 @@ export async function handleGetSteamRecommendations() {
 // v3.4.0：语义统一——"清除学习数据"同时删除 learnedNoise 存储（此前仅清
 // 内存、存储保留导致下次加载恢复）；wrongReports（人工纠正知识库）为有意
 // 保留的长期数据，不随本操作删除。
+
+// v10.6.0 F3：跨缓存游戏搜索——registry（中英名/变体）模糊匹配，合并
+// 好评率（steam-cache）/ Steam250 排名 / a-b 统计 / 收藏标记。
+// Cross-cache game search: fuzzy match over the registry, merged with
+// rating / steam250 rank / app stats / favorite flag.
+export async function searchCachedGames(message) {
+  const q = String((message && message.query) || '')
+    .trim()
+    .toLowerCase();
+  if (q.length < 2) return { results: [] };
+  const registry = await dataStore.readModule(DB_KEYS.GAME_REGISTRY);
+  const results = [];
+  for (const [appId, entry] of Object.entries(registry || {})) {
+    const haystacks = [entry.cnName, entry.enName, ...(entry.names || [])].filter(Boolean).map((n) => n.toLowerCase());
+    if (!haystacks.some((n) => n.includes(q))) continue;
+    const cachedEntry = await getSteamCacheEntry(appId);
+    const merged = getMergedData(cachedEntry);
+    const [steam250, favs] = await Promise.all([getSteam250Info(appId), getFavorites()]);
+    results.push({
+      appId,
+      name: entry.cnName || entry.enName || '',
+      enName: entry.enName || '',
+      positiveRate: merged ? merged.positiveRate : null,
+      ratingDesc: merged ? merged.ratingDesc : null,
+      steam250: steam250 ? { rank: steam250.rank, score: steam250.score, votes: steam250.votes } : null,
+      appDownloads: null, // a-b 统计按需另行查询（避免逐条放大）
+      favorited: !!favs[appId],
+      coverImage: entry.coverImage || null
+    });
+    if (results.length >= 20) break;
+  }
+  return { results };
+}

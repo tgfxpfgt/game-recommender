@@ -534,6 +534,10 @@
       'qrUnlockEnabled',
       'xdgridEnabled',
       'notifyFreeGames',
+      'freeGamesEnabled',
+      'themeAutoSwitch',
+      'uiThemeDay',
+      'uiThemeNight',
       'badgeAppstat',
       'appStatDedupHours',
       'appStatDownloadCap',
@@ -756,6 +760,10 @@
     OPTS.currentSettings.qrUnlockEnabled = document.getElementById('qrUnlockEnabled').checked;
     OPTS.currentSettings.xdgridEnabled = document.getElementById('xdgridEnabled').checked;
     OPTS.currentSettings.notifyFreeGames = document.getElementById('notifyFreeGames').checked;
+    OPTS.currentSettings.freeGamesEnabled = document.getElementById('freeGamesEnabled').checked;
+    OPTS.currentSettings.themeAutoSwitch = document.getElementById('themeAutoSwitch').checked;
+    OPTS.currentSettings.uiThemeDay = document.getElementById('uiThemeDay').value.trim() || 'steam';
+    OPTS.currentSettings.uiThemeNight = document.getElementById('uiThemeNight').value.trim() || 'oled';
     OPTS.currentSettings.appStatDedupHours = parseInt(document.getElementById('appStatDedupHours').value) || 0;
     OPTS.currentSettings.appStatDownloadCap = parseInt(document.getElementById('appStatDownloadCap').value) || 100;
     OPTS.currentSettings.appStatDetailViewCap = parseInt(document.getElementById('appStatDetailViewCap').value) || 100;

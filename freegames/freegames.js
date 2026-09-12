@@ -27,7 +27,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const s = r && r.settings;
       if (s && globalThis.__GR_SETTINGS_UTILS__) {
         const u = globalThis.__GR_SETTINGS_UTILS__;
-        if (u.applyTheme) u.applyTheme(s.uiTheme);
+        if (u.applyThemeAuto) u.applyThemeAuto(s);
+        else if (u.applyTheme) u.applyTheme(s.uiTheme); // v10.6.0 F4
         if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
       }
     } catch {}

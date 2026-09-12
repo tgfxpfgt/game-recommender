@@ -37,7 +37,7 @@
       <label class="module-check-item">
         <input type="checkbox" class="module-check" data-module="${escapeAttr(m.key)}" ${selectedModules.has(m.key) ? 'checked' : ''}>
         <span class="module-check-name">${escapeHtml(m.name)}</span>
-        <small class="module-check-desc">${escapeHtml(m.desc)}${m.count ? ` · ${m.count} 条` : ''}</small>
+        <small class="module-check-desc">${escapeHtml(m.desc)}${m.count ? ` · ${m.count} 条` : ''}${m.bytes ? ` · ${(m.bytes / 1024).toFixed(1)} KB` : ''}</small>
       </label>
     `
       )
@@ -67,6 +67,7 @@
   }
 
   // ============ Data Management / 数据管理 ============
+  // v10.6.0 F5：加密导出——勾选后用口令对导出文件做 AES-GCM 加密（信封格式）
   async function exportData() {
     const keys = getSelectedModuleKeys();
     if (keys.length === 0) {
@@ -79,14 +80,28 @@
         showDataOpStatus('导出失败', true);
         return;
       }
-      const blob = new Blob([JSON.stringify(resp.data, null, 2)], { type: 'application/json' });
+      let payload = JSON.stringify(resp.data, null, 2);
+      const encToggle = document.getElementById('exportEncryptToggle');
+      const encInput = document.getElementById('exportEncryptPassword');
+      if (encToggle && encToggle.checked) {
+        const pwd = encInput ? encInput.value : '';
+        if (!global.__GR_CRYPTO__) throw new Error('加密组件未加载');
+        if (!pwd || pwd.length < 6) {
+          showDataOpStatus('加密导出需要至少 6 位口令', true);
+          return;
+        }
+        const envelope = await global.__GR_CRYPTO__.encryptJson(resp.data, pwd);
+        payload = JSON.stringify(envelope);
+        encInput.value = ''; // 口令用后即清（不驻留 DOM）/ clear passphrase after use
+      }
+      const blob = new Blob([payload], { type: 'application/json' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `game-recommender-data-${new Date().toISOString().slice(0, 10)}.json`;
       a.click();
       URL.revokeObjectURL(url);
-      showDataOpStatus(`✅ 已导出 ${keys.length} 个模块`);
+      showDataOpStatus(`✅ 已导出 ${keys.length} 个模块${encToggle && encToggle.checked ? '（已加密）' : ''}`);
     } catch (e) {
       showDataOpStatus('导出失败: ' + String(e), true);
     }
@@ -97,7 +112,22 @@
     if (!file) return;
     try {
       const text = await file.text();
-      const payload = JSON.parse(text);
+      let payload = JSON.parse(text);
+      // v10.6.0 F5：加密备份自动识别——按 format 提示输入口令解密（2 次机会）
+      if (global.__GR_CRYPTO__ && global.__GR_CRYPTO__.isEnvelope(payload)) {
+        let decrypted = null;
+        for (let i = 0; i < 2 && !decrypted; i++) {
+          const pwd = prompt(i === 0 ? '该备份已加密，请输入解密口令：' : '口令不正确，请重试：');
+          if (pwd === null) break; // 用户取消
+          try {
+            decrypted = await global.__GR_CRYPTO__.decryptJson(payload, pwd);
+          } catch {
+            /* 口令错误/文件损坏 → 重试 */
+          }
+        }
+        if (!decrypted) throw new Error('解密失败（口令错误或文件已损坏）');
+        payload = decrypted;
+      }
       // 校验导出文件格式
       if (!payload || payload.format !== 'game-recommender-backup') {
         throw new Error('不是有效的 游戏雷达 Game Radar 导出文件');

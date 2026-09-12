@@ -25,7 +25,11 @@ const MODULE_FILES = {
   behaviorLog: { file: 'behavior-log.ndjson', format: 'ndjson' },
   gameProfiles: { file: 'game-profiles.json', format: 'json' },
   keywordWeights: { file: 'keyword-weights.json', format: 'json' },
-  steamCache: { file: 'steam-cache.json', format: 'json' },
+  steamCache: { file: 'steam-cache.json', format: 'json' }, // 旧版单文件（迁移期读取）
+  steamCacheMeta: { file: 'steam-cache-meta.json', format: 'json' }, // v10.6.0 C1 分模块
+  steamCacheRating: { file: 'steam-cache-rating.json', format: 'json' },
+  steamCacheDetail: { file: 'steam-cache-detail.json', format: 'json' },
+  steamCacheSpy: { file: 'steam-cache-spy.json', format: 'json' },
   gameRegistry: { file: 'game-registry.json', format: 'json' },
   nameIndex: { file: 'name-index.json', format: 'json' },
   downloadUrls: { file: 'download-urls.json', format: 'json' },
@@ -41,7 +45,8 @@ const MODULE_FILES = {
   urlAppIdIndex: { file: 'url-appid-index.json', format: 'json' }, // v7.0.2
   siteHealth: { file: 'site-health.json', format: 'json' }, // v10.0.0：站点适配器健康
   appStats: { file: 'app-stats.json', format: 'json' }, // v10.1.0：AppID 行为统计（永不过期）
-  steam250Rank: { file: 'steam250-rank.json', format: 'json' } // v10.4.4：Steam250 榜单快照（24h 刷新）
+  steam250Rank: { file: 'steam250-rank.json', format: 'json' }, // v10.4.4：Steam250 榜单快照（24h 刷新）
+  favorites: { file: 'favorites.json', format: 'json' } // v10.6.0：收藏清单
 };
 
 class DataStore {

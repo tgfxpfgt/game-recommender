@@ -14,6 +14,7 @@
 import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';
+import * as listState from './list-state.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
@@ -229,10 +230,15 @@ function buildUI(all, host, cfg) {
     'display:none'
   ].join(';');
   panel.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-        <b style="font-size:13px">列表布局设置（本站）</b>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <b style="font-size:13px">列表页工具（本站）</b>
         <span data-xg="close" style="cursor:pointer;color:#999;padding:0 4px;font-size:14px">✕</span>
       </div>
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <button data-xg="tabLayout" style="flex:1;padding:5px 0;border:1px solid #4a9eff;border-radius:6px;cursor:pointer;background:#eaf3ff;color:#2d6cb5;font-weight:bold">布局</button>
+        <button data-xg="tabFilter" style="flex:1;padding:5px 0;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#f5f5f5;color:#666">过滤</button>
+      </div>
+      <div data-xg="paneLayout">
       <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer">
         <span>启用本站定制</span>
         <input data-xg="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}
@@ -248,7 +254,7 @@ function buildUI(all, host, cfg) {
         <input data-xg="iconW" type="number" min="0" max="600" step="2" value="${cfg.iconW}"
           style="width:64px;padding:2px 4px;border:1px solid #ddd;border-radius:4px">
       </div>
-      <div data-xg="modeHint" style="color:#4a9eff;margin-bottom:8px">图标大小不变，容器加宽并向两侧居中扩展</div>
+      <div data-xg="modeHint" style="color:#4a9eff;margin-bottom:8px">图标大小不变，容器随列数加宽</div>
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
         <span>封面高度(px)</span>
         <input data-xg="iconH" type="number" min="0" max="500" step="5" value="${cfg.iconH}"
@@ -263,7 +269,22 @@ function buildUI(all, host, cfg) {
       <button data-xg="reset"
         style="width:100%;padding:6px 0;border:none;border-radius:6px;cursor:pointer;
         background:#f0f2f5;color:#666">恢复默认（本站）</button>
+      </div>
+      <div data-xg="paneFilter" style="display:none">
+        <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;cursor:pointer">
+          <span>启用好评率过滤</span>
+          <input data-rf="enabled" type="checkbox" style="width:16px;height:16px;cursor:pointer">
+        </label>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span>最低好评率</span><b><span data-rf="rateVal">0</span>%</b>
+        </div>
+        <input data-rf="slider" type="range" min="0" max="100" step="5" value="0"
+          style="width:100%;margin-bottom:8px">
+        <div data-rf="hint" style="color:#4a9eff;margin-bottom:4px">过滤关闭</div>
+        <div style="color:#999">实时作用于当前列表（不重新取数）；设置全站生效</div>
+      </div>
     `;
+  document.body.appendChild(panel);
   document.body.appendChild(panel);
 
   const $ = (name) => panel.querySelector(`[data-xg="${name}"]`);
@@ -304,8 +325,79 @@ function buildUI(all, host, cfg) {
     panel.style.display = 'none';
   });
   fab.addEventListener('click', () => {
-    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    const opening = panel.style.display === 'none';
+    panel.style.display = opening ? 'block' : 'none';
+    if (opening) refreshFilterControls();
   });
+  // v10.6.0：双标签切换（布局/过滤）
+  const paneL = $('paneLayout');
+  const paneF = $('paneFilter');
+  const tabL = $('tabLayout');
+  const tabF = $('tabFilter');
+  const switchTab = (showLayout) => {
+    paneL.style.display = showLayout ? '' : 'none';
+    paneF.style.display = showLayout ? 'none' : '';
+    tabL.style.background = showLayout ? '#eaf3ff' : '#f5f5f5';
+    tabL.style.color = showLayout ? '#2d6cb5' : '#666';
+    tabF.style.background = showLayout ? '#f5f5f5' : '#eaf3ff';
+    tabF.style.color = showLayout ? '#666' : '#2d6cb5';
+  };
+  tabL.addEventListener('click', () => switchTab(true));
+  tabF.addEventListener('click', () => switchTab(false));
+
+  // ============ 过滤标签页（自 filter-fab 合并，v10.6.0） ============
+  const rf = {
+    enabled: panel.querySelector('[data-rf="enabled"]'),
+    slider: panel.querySelector('[data-rf="slider"]'),
+    rateVal: panel.querySelector('[data-rf="rateVal"]'),
+    hint: panel.querySelector('[data-rf="hint"]')
+  };
+  const applyFilterChange = () => {
+    const enabled = rf.enabled.checked;
+    const min = Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0));
+    rf.rateVal.textContent = String(min);
+    rf.slider.disabled = !enabled;
+    rf.hint.textContent = enabled ? `已隐藏好评率 < ${min}% 的游戏` : '过滤关闭（显示全部已取好评率的游戏）';
+    // 1) 实时作用于当前列表（不重新取数）
+    const { shown, filtered } = listState.applyLiveRatingFilter({
+      enableRatingFilter: enabled,
+      minSteamRatingFilter: min
+    });
+    dbg(`实时好评率过滤：显示 ${shown} / 隐藏 ${filtered}（阈值 ${enabled ? min : 'off'}）`);
+    // 2) GET→patch→SAVE 整包回存（saveSettings 全量覆盖语义）
+    (async () => {
+      try {
+        const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+        const full = resp && resp.settings;
+        if (!full) return;
+        full.enableRatingFilter = enabled;
+        full.minSteamRatingFilter = min;
+        await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: full });
+      } catch {
+        /* 后台不可达：本地实时过滤仍生效，仅不落盘 */
+      }
+    })();
+  };
+  const refreshFilterControls = async () => {
+    try {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const fs2 = (resp && resp.settings) || {};
+      const enabled = fs2.enableRatingFilter === true;
+      const min = Math.min(100, Math.max(0, parseInt(fs2.minSteamRatingFilter, 10) || 0));
+      rf.enabled.checked = enabled;
+      rf.slider.value = String(min);
+      rf.slider.disabled = !enabled;
+      rf.rateVal.textContent = String(min);
+      rf.hint.textContent = enabled ? `已隐藏好评率 < ${min}% 的游戏` : '过滤关闭';
+    } catch {
+      /* 读取失败保持默认 */
+    }
+  };
+  rf.enabled.addEventListener('change', applyFilterChange);
+  rf.slider.addEventListener('input', () => {
+    rf.rateVal.textContent = String(Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0)));
+  });
+  rf.slider.addEventListener('change', applyFilterChange);
   $('reset').addEventListener('click', () => {
     cfg.enabled = DEFAULTS.enabled;
     cfg.cols = DEFAULTS.cols;

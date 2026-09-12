@@ -79,6 +79,10 @@
  * @property {boolean} [qrUnlockEnabled] - 二维码转链接开关（v10.3.0）
  * @property {boolean} [xdgridEnabled] - XDGAME 布局定制开关（v10.3.0）
  * @property {boolean} [notifyFreeGames] - 限免通知开关（v10.3.0）
+ * @property {boolean} [freeGamesEnabled] - 限免监控开关（v10.6.0）
+ * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
+ * @property {string} [uiThemeDay] - 日间主题名（v10.6.0）
+ * @property {string} [uiThemeNight] - 夜间主题名（v10.6.0）
  * @property {number} [appStatDedupHours] - a-b 同站去重窗口小时（0=关闭，v10.3.0）
  * @property {number} [appStatDownloadCap] - a 对数封顶（v10.3.0）
  * @property {number} [appStatDetailViewCap] - b 对数封顶（v10.3.0）

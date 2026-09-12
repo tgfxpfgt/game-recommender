@@ -280,6 +280,33 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.6.0（性能与体验批次 / 收藏·ITAD·主题定时·备份加密 / steam 缓存分文件）
+
+**新功能**
+
+- **视口优先批量调度**（list-batch.js S1）：滚动批次按「距视口距离」排序取批——正在看的区域先出徽章，已在视口上方的沉底
+- **列表浮窗合并面板**（xdgrid.js I1）：过滤标签页（开关 + 滑块实时调节好评率过滤，含持久化）与布局标签页（列数/间距，对称扩展）合并进同一齿轮浮窗，替代独立 filter-fab
+- **浮窗折叠状态记忆**（floats.js I2）：折叠状态按浮窗 id 存 chrome.storage.local，刷新后保持
+- **ITAD 最低价行**（F1）：Steam 浮窗显示 IsThereAnyDeal 历史最低价（12h 缓存，需配置 ITAD API Key）
+- **收藏功能**（F2）：详情浮窗 ☆ 一键收藏（上限 500）/ dashboard 收藏区管理 / 收藏游戏进限免时通知标题前缀提示；favorites 独立存储模块（TOGGLE_FAVORITE / GET_FAVORITES）
+- **dashboard 离线搜索**（F3）：SEARCH_CACHED_GAMES——已缓存游戏名子串检索，合并评分/排名/收藏信息
+- **主题定时切换**（F4）：themeAutoSwitch 总开关 + uiThemeDay/uiThemeNight 双主题（07:00-19:00 日间 / 夜间自动），shared/settings-utils.js resolveTheme 单源，popup/options/dashboard/hub/freegames 五页接入
+- **离线备份加密**（F5）：shared/crypto-utils.js（WebCrypto AES-GCM + PBKDF2 15 万次派生，口令不落盘）——数据管理页「🔐 加密导出」勾选 + 口令输入，导入自动识别加密信封（2 次口令重试）；6 个单测
+- **会话出网计数**（N1）：api-monitor 新增浏览器会话累计 Steam 请求计数（与 5 分钟滑动窗口分离），popup 状态区显示「本次会话已出网 N 次」——量化缓存策略省下的请求量
+- **限免监控总开关**（N4）：freeGamesEnabled——关闭后后台完全不抓取各限免源（页面显示旧数据）
+
+**优化/修复**
+
+- **steam 缓存 4 分文件**（C1）：单文件 steamCache 拆分为 meta/rating/detail/spy 四模块独立持久化——dirtyModules 子集写入（单模块更新不再全量重写）、旧单文件自动迁移（ts 择新合并后移除）、过期清理/清除/重置全链路适配
+- **修复推荐徽章污染徽章组标记**（U1）：prependRecBadge 走 createBadge 统一基类后，推荐徽章带上了 gr-rating-badge 组标记——推荐响应先于评分返回时污染防重复守卫，导致好评率徽章可能永久缺失（真机级 bug，content-sim 抓出）；现组外徽章以 base:'gr-badge' 渲染
+- **徽章统一**（U1）：rec 徽章并入 createBadge 基类（.gr-badge 统一规格），样式差异收敛到 CSS
+- **导出/模块列表体积列**（C5）：GET_DATA_MODULES 返回各模块字节数，数据管理页显示「· x KB」
+- **未找到徽章提示**（E1）：tooltip 增加 Alt+Shift+G 强制刷新与负缓存自动重查说明
+- **E2E 探针工具化**（E5）：tests/e2e-probe.mjs 参数化（--url/--count/--timeout/--dump-logs/--keep-profile），常驻真机诊断
+- **CI 视觉连续失败升级**（E4）：单次失败保持 advisory；连续 2 次失败经 cache 传递标记升级为阻断
+
+758 test · gate 全过（check + E2E MOCK + visual 11/11）
+
 ### v10.5.4（Steam250 排名引入 / gamers520 双域名 + 跨域二维码解码 / tags 页不注入 / 浮窗标签可点击 / 条件加载）
 
 **新功能**

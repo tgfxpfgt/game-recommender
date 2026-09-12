@@ -84,6 +84,10 @@
     document.getElementById('qrUnlockEnabled').checked = settings.qrUnlockEnabled !== false;
     document.getElementById('xdgridEnabled').checked = settings.xdgridEnabled !== false;
     document.getElementById('notifyFreeGames').checked = settings.notifyFreeGames !== false;
+    document.getElementById('freeGamesEnabled').checked = settings.freeGamesEnabled !== false;
+    document.getElementById('themeAutoSwitch').checked = settings.themeAutoSwitch === true;
+    document.getElementById('uiThemeDay').value = settings.uiThemeDay || 'steam';
+    document.getElementById('uiThemeNight').value = settings.uiThemeNight || 'oled';
     document.getElementById('badgeAppstat').checked = (settings.badgeVisibility || {}).appstat !== false;
     document.getElementById('appStatDedupHours').value = settings.appStatDedupHours ?? 24;
     document.getElementById('appStatDownloadCap').value = settings.appStatDownloadCap ?? 100;

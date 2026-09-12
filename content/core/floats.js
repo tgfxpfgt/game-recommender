@@ -110,11 +110,32 @@ export function create(zone, id, opts = {}) {
     root.appendChild(body);
 
     // 折叠：隐藏内容区（高度变化由 ResizeObserver 感知，自动重排同区浮窗）
+    // v10.6.0：折叠状态按浮窗 id 记忆（chrome.storage.local），刷新后恢复
+    const foldKey = 'grFloatFolded:' + id;
+    const setFolded = (folded) => {
+      body.style.display = folded ? 'none' : '';
+      foldBtn.textContent = folded ? '▸' : '▾';
+      try {
+        chrome.storage.local.set({ [foldKey]: folded }).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    };
     foldBtn.addEventListener('click', () => {
-      const folded = body.style.display === 'none';
-      body.style.display = folded ? '' : 'none';
-      foldBtn.textContent = folded ? '▾' : '▸';
+      setFolded(body.style.display === 'none');
     });
+    // 恢复上次折叠状态（覆盖 opts.folded 默认——用户手动展开过则保持展开）
+    try {
+      chrome.storage.local
+        .get(foldKey)
+        .then((d) => {
+          if (d && d[foldKey] === true) setFolded(true);
+        })
+        .catch(() => {});
+    } catch {
+      /* ignore */
+    }
+    void foldBtn;
     closeBtn.addEventListener('click', () => {
       remove(id);
       if (typeof opts.onClose === 'function') opts.onClose();

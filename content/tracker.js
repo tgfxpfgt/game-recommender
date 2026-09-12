@@ -26,7 +26,7 @@
    *   common: any, floats: any, status: any, debug: any, builder: any,
    *   badges: any, listBatch: any, list: any, listState: any,
    *   detailTemplates: any, detail: any, tracking: any,
-   *   qrUnlock: any, xdgrid: any, filterFab: any
+   *   qrUnlock: any, xdgrid: any
    * }} GRModules
    */
   /** @type {GRModules|null} */
@@ -71,12 +71,11 @@
     const optionalNames = [];
     if (want('qrUnlockEnabled')) optionalNames.push('detail/qr-unlock.js');
     if (want('xdgridEnabled')) optionalNames.push('list/xdgrid.js');
-    if (want('filterFabEnabled')) optionalNames.push('list/filter-fab.js');
     const optionalMods = await Promise.all(optionalNames.map((p) => import(m(p))));
     const optional = {};
     optionalNames.forEach((p, i) => {
       const key = p.split('/')[1].replace(/\.js$/, '');
-      optional[key === 'qr-unlock' ? 'qrUnlock' : key === 'filter-fab' ? 'filterFab' : key] = optionalMods[i];
+      optional[key === 'qr-unlock' ? 'qrUnlock' : key] = optionalMods[i];
     });
     MODULES = {
       common,
@@ -92,8 +91,7 @@
       detail,
       tracking,
       qrUnlock: optional.qrUnlock || null,
-      xdgrid: optional.xdgrid || null,
-      filterFab: optional.filterFab || null
+      xdgrid: optional.xdgrid || null
     };
     return MODULES;
   }
@@ -159,7 +157,13 @@
     // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
     status.setEnabled(settings.showStatusBar !== false);
     // v8.1.0：浮窗主题跟随设置页皮肤系统（内容侧 data-theme）
-    M.floats.applyFloatTheme(settings.uiTheme || 'steam');
+    // v10.6.0 F4：主题定时切换解析（浮窗 data-theme 跟随日/夜选择）
+    let effectiveTheme = settings.uiTheme || 'steam';
+    if (settings.themeAutoSwitch === true) {
+      const h = new Date().getHours();
+      effectiveTheme = h >= 19 || h < 7 ? settings.uiThemeNight || 'oled' : settings.uiThemeDay || 'steam';
+    }
+    M.floats.applyFloatTheme(effectiveTheme);
 
     // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
     await builder.loadSiteRules();
@@ -258,7 +262,6 @@
         status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
       }
       // v10.5.1 任务1：列表页好评率过滤悬浮控件（开关+滑块，实时调节）
-      M.filterFab?.init?.(settings);
     }
 
     // === 2. 下载追踪（v10.3.0 独立开关；v10.5.0 P3 起真正生效——关闭则不接线）===

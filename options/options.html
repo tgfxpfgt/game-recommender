@@ -440,6 +440,40 @@
                     <span class="gr-slider-ui"></span>
                   </label>
                 </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">限免监控</span>
+                    <span class="label-desc">Free-games Tracking（关闭后不抓取各源，页面显示旧数据）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="freeGamesEnabled" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">主题定时切换</span>
+                    <span class="label-desc">Auto Theme（19:00-07:00 用夜间主题）</span>
+                  </div>
+                  <label class="gr-switch">
+                    <input type="checkbox" id="themeAutoSwitch" />
+                    <span class="gr-slider-ui"></span>
+                  </label>
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">日间主题</span>
+                    <span class="label-desc">Day Theme</span>
+                  </div>
+                  <input type="text" id="uiThemeDay" class="gr-input" style="width: 110px" placeholder="steam" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">夜间主题</span>
+                    <span class="label-desc">Night Theme</span>
+                  </div>
+                  <input type="text" id="uiThemeNight" class="gr-input" style="width: 110px" placeholder="oled" />
+                </div>
               </div>
             </div>
 
@@ -1468,6 +1502,19 @@
                   </button>
                 </div>
                 <input type="file" id="importFile" accept=".json" class="hidden-file" />
+                <div class="encrypt-row">
+                  <label class="encrypt-toggle">
+                    <input type="checkbox" id="exportEncryptToggle" />
+                    <span>🔐 加密导出</span>
+                  </label>
+                  <input
+                    type="password"
+                    id="exportEncryptPassword"
+                    class="gr-input encrypt-password"
+                    placeholder="加密口令（≥6 位，导入时需输入）"
+                    autocomplete="new-password"
+                  />
+                </div>
                 <div id="dataOpStatus" class="data-op-status"></div>
               </div>
             </div>
@@ -1603,6 +1650,7 @@
     <script src="../shared/escape.js"></script>
     <script src="../shared/msg.js"></script>
     <script src="../shared/settings-utils.js"></script>
+    <script src="../shared/crypto-utils.js"></script>
     <script src="panels/settings.js"></script>
     <script src="panels/cache.js"></script>
     <script src="panels/data-manage.js"></script>

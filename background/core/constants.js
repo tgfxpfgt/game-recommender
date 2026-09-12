@@ -13,7 +13,11 @@ export const DB_KEYS = {
   BEHAVIOR_LOG: 'behaviorLog',
   GAME_PROFILES: 'gameProfiles',
   SETTINGS: 'settings',
-  STEAM_CACHE: 'steamCache',
+  STEAM_CACHE: 'steamCache', // 旧版单文件（v10.6.0 起拆分，仅迁移期读取）
+  STEAM_CACHE_META: 'steamCacheMeta', // v10.6.0 C1：分模块持久化（写放大优化）
+  STEAM_CACHE_RATING: 'steamCacheRating',
+  STEAM_CACHE_DETAIL: 'steamCacheDetail',
+  STEAM_CACHE_SPY: 'steamCacheSpy',
   KEYWORD_WEIGHTS: 'keywordWeights',
   FREE_GAMES: 'freeGames',
   RUNTIME_LOG: 'runtimeLog',
@@ -31,7 +35,8 @@ export const DB_KEYS = {
   URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
   SITE_HEALTH: 'siteHealth', // 站点适配器健康（v10.0.0：改版告警聚合）
   APP_STATS: 'appStats', // AppID 维度行为统计（v10.1.0：下载 a/详情页打开 b，永不过期）
-  STEAM250_RANK: 'steam250Rank' // Steam250 榜单快照（v10.4.4：排名/评分，24h 刷新）
+  STEAM250_RANK: 'steam250Rank', // Steam250 榜单快照（v10.4.4：排名/评分，24h 刷新）
+  FAVORITES: 'favorites' // 收藏/关注清单（v10.6.0：本地数据，与限免监控联动）
 };
 
 // 默认设置 / Default settings
@@ -131,6 +136,11 @@ export const DEFAULT_SETTINGS = {
   qrUnlockEnabled: true, // 二维码转链接（gamer520 等站二维码网盘链接自动解码）
   xdgridEnabled: true, // XDGAME 列表布局定制（xdgame.com 专属）
   notifyFreeGames: true, // 限免通知推送（新增限免时系统通知）
+  freeGamesEnabled: true, // v10.6.0：限免监控总开关（关闭后不抓取各源，页面显示旧数据）
+  // v10.6.0：主题定时切换（日/夜双主题 + 按小时自动切换）
+  themeAutoSwitch: false,
+  uiThemeDay: 'steam', // 日间主题（themeAutoSwitch 开启时 07:00-19:00 生效）
+  uiThemeNight: 'oled', // 夜间主题（19:00-07:00 生效）
   // v10.4.0：详情页浮窗（Steam 信息）默认形态
   detailFloatExpanded: true, // 默认展开（false = 创建即折叠，可点击标题栏展开）
   detailFloatSide: 'left', // 浮窗位置：left（左上，默认）| right（右上）
@@ -289,7 +299,10 @@ export const DATA_MODULES = [
   { key: 'behaviorLog', name: '浏览记录', desc: 'Behavior Log', storageKey: 'behaviorLog' },
   { key: 'gameProfiles', name: '游戏画像', desc: 'Game Profiles', storageKey: 'gameProfiles' },
   { key: 'keywordWeights', name: '推荐模型', desc: 'Keyword Weights', storageKey: 'keywordWeights' },
-  { key: 'steamCache', name: 'Steam 缓存', desc: 'Steam Cache', storageKey: 'steamCache' },
+  { key: 'steamCacheMeta', name: 'Steam 基础缓存', desc: 'Steam Meta Cache', storageKey: 'steamCacheMeta' },
+  { key: 'steamCacheRating', name: 'Steam 好评率缓存', desc: 'Steam Rating Cache', storageKey: 'steamCacheRating' },
+  { key: 'steamCacheDetail', name: 'Steam 详情缓存', desc: 'Steam Detail Cache', storageKey: 'steamCacheDetail' },
+  { key: 'steamCacheSpy', name: 'Steam 热度缓存', desc: 'Steam Spy Cache', storageKey: 'steamCacheSpy' },
   { key: 'gameRegistry', name: '游戏注册表', desc: 'Game Registry', storageKey: 'gameRegistry' },
   { key: 'nameIndex', name: '名称索引', desc: 'Name Index', storageKey: 'nameIndex' },
   { key: 'downloadUrls', name: '下载站网址缓存', desc: 'Download URLs', storageKey: 'downloadUrls' },
@@ -304,7 +317,8 @@ export const DATA_MODULES = [
   { key: 'urlAppIdIndex', name: '详情页网址索引', desc: 'Detail URL Index', storageKey: 'urlAppIdIndex' },
   { key: 'siteHealth', name: '站点健康', desc: 'Site Health', storageKey: 'siteHealth' },
   { key: 'appStats', name: 'AppID 行为统计', desc: 'App Stats', storageKey: 'appStats' },
-  { key: 'steam250Rank', name: 'Steam250 榜单', desc: 'Steam250 Rank', storageKey: 'steam250Rank' }
+  { key: 'steam250Rank', name: 'Steam250 榜单', desc: 'Steam250 Rank', storageKey: 'steam250Rank' },
+  { key: 'favorites', name: '收藏清单', desc: 'Favorites', storageKey: 'favorites' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

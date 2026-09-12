@@ -23,14 +23,16 @@ export function removeItemFromDom(item) {
 // 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）
 // Create one badge span (shared styling; clickable badges open the store)
 /**
- * 创建徽章元素
+ * 创建徽章元素。base 默认含 gr-rating-badge（好评率徽章组标记——prependBadge
+ * 防重复守卫、推荐徽章插入锚点与测试契约都依赖它）；组外徽章（推荐值）必须
+ * 传 base:'gr-badge'，否则推荐徽章先渲染时会污染守卫导致好评率徽章永久缺失。
  * @param {any} link
- * @param {{text: string, color: string, bg: string, cls: string, title: string, clickable?: boolean, appId?: any, dashed?: boolean}} opts
+ * @param {{text: string, color: string, bg: string, cls: string, title: string, clickable?: boolean, appId?: any, dashed?: boolean, base?: string}} opts
  */
-export function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed }) {
+export function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed, base }) {
   // v8.1.0：公共样式走 .gr-badge 基类（content.css）；动态颜色与变体类仍由调用方提供
   const badge = document.createElement('span');
-  badge.className = 'gr-badge gr-rating-badge ' + (cls || '');
+  badge.className = (base || 'gr-badge gr-rating-badge') + ' ' + (cls || '');
   badge.textContent = text;
   badge.style.cssText = `color:${color};background:${bg};border-color:${color};${clickable ? 'cursor:pointer;text-decoration:none;' : ''}`;
   if (dashed) badge.classList.add('gr-badge-dashed');
@@ -91,7 +93,8 @@ export function prependBadge(item, rating, settings) {
         color: '#666',
         bg: 'rgba(102,102,102,0.08)',
         cls: 'gr-badge-notfound',
-        title: '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）',
+        title:
+          '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）\n可按 Alt+Shift+G 强制刷新本页重试；负缓存 2h 后自动重查',
         dashed: true
       })
     );
@@ -341,19 +344,24 @@ export function prependRecBadge(item, recommendation, settings) {
 
   const b = recommendation.breakdown || {};
   const fmt = (v) => Math.round((v || 0) * 100) + '%';
-  const badge = document.createElement('span');
-  badge.className = 'gr-rec-badge';
-  badge.textContent = `🎯 ${pct}%`;
-  badge.style.cssText = `display:inline-block;margin-right:6px;padding:1px 6px;font-size:11px;font-weight:bold;color:${color};background:${bg};border:1px solid ${color};border-radius:3px;vertical-align:middle;cursor:default;`;
-  // v7.0.5：推荐理由可解释——信号明细全量展示（点击/下载/关键词/Steam/
-  // 时长/热度；v10.5.3 任务3 新增销量/评论数两行）
-  badge.title =
-    `推荐度: ${pct}%` +
-    `\n🖱 点击率: ${fmt(b.clickScore)} · ⬇ 下载率: ${fmt(b.downloadScore)}` +
-    `\n🏷 关键词: ${fmt(b.keywordScore)} · ⭐ Steam: ${fmt(b.steamScore)}` +
-    `\n⏱ 游玩时长: ${fmt(b.playTimeScore)} · 🔥 热度: ${fmt(b.heatScore)}` +
-    `\n📊 销量: ${fmt(b.salesScore)} · 📝 评论数: ${fmt(b.reviewScore)}` +
-    `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）`;
+  // v10.6.0 U1：走 createBadge 基类（.gr-badge 统一规格），样式差异收敛到 CSS；
+  // base:'gr-badge'——推荐徽章在好评率组之外，不得带 gr-rating-badge 组标记
+  //（否则先于评分渲染时污染防重复守卫/测试契约）
+  const badge = createBadge(link, {
+    text: `🎯 ${pct}%`,
+    color,
+    bg,
+    cls: 'gr-rec-badge',
+    base: 'gr-badge',
+    title:
+      `推荐度: ${pct}%` +
+      `\n🖱 点击率: ${fmt(b.clickScore)} · ⬇ 下载率: ${fmt(b.downloadScore)}` +
+      `\n🏷 关键词: ${fmt(b.keywordScore)} · ⭐ Steam: ${fmt(b.steamScore)}` +
+      `\n⏱ 游玩时长: ${fmt(b.playTimeScore)} · 🔥 热度: ${fmt(b.heatScore)}` +
+      `\n📊 销量: ${fmt(b.salesScore)} · 📝 评论数: ${fmt(b.reviewScore)}` +
+      `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）`
+  });
+  badge.style.cursor = 'default';
 
   // v6.3.2 C3：不感兴趣按钮（推荐反馈循环）——点击标记负信号并淡化徽章
   const dislikeBtn = document.createElement('span');

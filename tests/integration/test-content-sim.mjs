@@ -296,8 +296,7 @@ const MODULE_FILES = [
   'content/detail/detail-page.js',
   'content/tracking/download-tracking.js',
   'content/detail/qr-unlock.js',
-  'content/list/xdgrid.js',
-  'content/list/filter-fab.js'
+  'content/list/xdgrid.js'
 ];
 const MODULE_KEYS = [
   'common',
@@ -313,8 +312,7 @@ const MODULE_KEYS = [
   'detail',
   'tracking',
   'qrUnlock',
-  'xdgrid',
-  'filterFab'
+  'xdgrid'
 ];
 
 // v7.2.0：tracker 的副作用 import（adapters/index.js）会把 __GAME_RECOMMENDER_SITES__

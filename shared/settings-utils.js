@@ -93,6 +93,26 @@
     document.body.dataset.theme = t;
   }
 
+  // v10.6.0 F4：主题定时切换解析（纯函数，可单测）——themeAutoSwitch 开启时
+  // 按 19:00-07:00 窗口选日/夜主题，否则用 uiTheme
+  // Theme auto-switch resolution (pure): night window 19:00-07:00.
+  function resolveTheme(settings, hour) {
+    if (!settings) return 'steam';
+    const h = typeof hour === 'number' ? hour : new Date().getHours();
+    if (settings.themeAutoSwitch === true) {
+      const night = h >= 19 || h < 7;
+      const t = night ? settings.uiThemeNight : settings.uiThemeDay;
+      return t || settings.uiTheme || 'steam';
+    }
+    return settings.uiTheme || 'steam';
+  }
+
+  // 应用解析后的主题（定时切换入口；无 settings 时回退 applyTheme）
+  function applyThemeAuto(settings) {
+    if (!settings) return;
+    applyTheme(resolveTheme(settings));
+  }
+
   // v7.0.5：应用自定义主题 CSS（覆盖任意主题变量；空值移除）
   // Apply user custom theme CSS (overrides any theme variables; empty removes).
   function applyCustomTheme(css) {
@@ -133,6 +153,8 @@
     applyPatch,
     goHub,
     applyTheme,
+    applyThemeAuto,
+    resolveTheme,
     applyCustomTheme,
     createSaveQueue
   };
