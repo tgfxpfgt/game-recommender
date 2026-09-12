@@ -32,7 +32,10 @@
   /** @type {GRModules|null} */
   let MODULES = null;
 
-  async function ensureModules() {
+  // v10.4.4：可选模块按设置条件导入——关闭后**模块代码完全不加载**
+  //（资源占用需求）；settings 为 null（SW 冷启动超时）时默认全加载，
+  // init 的重试路径会补齐设置
+  async function ensureModules(settings) {
     if (MODULES) return MODULES;
     // 逐模块 getURL（动态 import 的 URL 由浏览器解析；测试环境 getURL 可 mock）
     const m = (p) => chrome.runtime.getURL('content/' + p);
@@ -48,10 +51,7 @@
       listState,
       detailTemplates,
       detail,
-      tracking,
-      qrUnlock,
-      xdgrid,
-      filterFab
+      tracking
     ] = await Promise.all([
       import(m('core/common.js')),
       import(m('core/floats.js')),
@@ -64,11 +64,20 @@
       import(m('list/list-state.js')),
       import(m('detail/detail-templates.js')),
       import(m('detail/detail-page.js')),
-      import(m('tracking/download-tracking.js')),
-      import(m('detail/qr-unlock.js')),
-      import(m('list/xdgrid.js')),
-      import(m('list/filter-fab.js'))
+      import(m('tracking/download-tracking.js'))
     ]);
+    // 可选模块（开关默认开；settings 缺失视为开）
+    const want = (key) => !settings || settings[key] !== false;
+    const optionalNames = [];
+    if (want('qrUnlockEnabled')) optionalNames.push('detail/qr-unlock.js');
+    if (want('xdgridEnabled')) optionalNames.push('list/xdgrid.js');
+    if (want('filterFabEnabled')) optionalNames.push('list/filter-fab.js');
+    const optionalMods = await Promise.all(optionalNames.map((p) => import(m(p))));
+    const optional = {};
+    optionalNames.forEach((p, i) => {
+      const key = p.split('/')[1].replace(/\.js$/, '');
+      optional[key === 'qr-unlock' ? 'qrUnlock' : key === 'filter-fab' ? 'filterFab' : key] = optionalMods[i];
+    });
     MODULES = {
       common,
       floats,
@@ -82,9 +91,9 @@
       detailTemplates,
       detail,
       tracking,
-      qrUnlock,
-      xdgrid,
-      filterFab
+      qrUnlock: optional.qrUnlock || null,
+      xdgrid: optional.xdgrid || null,
+      filterFab: optional.filterFab || null
     };
     return MODULES;
   }
@@ -94,15 +103,18 @@
   // ============ 预热（模块加载 + 设置/规则并行） ============
   // Warm-up: module load, settings and site rules all run in parallel.
   const bootPromise = (async () => {
-    const M = await ensureModules();
+    // v10.4.4：设置先行——可选模块的加载与否取决于开关状态
+    const settingsEarly = await (async () => {
+      try {
+        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
+        return resp?.settings || null;
+      } catch {
+        return null; // 后台不可达时 init 会自行重试
+      }
+    })();
+    const M = await ensureModules(settingsEarly);
     /** @type {any} */
-    let settings = null;
-    try {
-      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
-      settings = resp?.settings;
-    } catch {
-      /* 后台不可达时 init 会自行重试 */
-    }
+    const settings = settingsEarly;
     try {
       await M.builder.loadSiteRules();
       M.builder.buildSiteAdapters(M.builder.getSITE_RULES());
@@ -174,6 +186,13 @@
     dbg('插件初始化...');
     dbg(`域名: ${domain}, 追踪: ${isTracked ? '是' : '否'}, Steam: ${isSteamPage ? '是' : '否'}`);
 
+    // v10.4.4：Steam 标签页（/tags/）不注入——标签聚合页没有单一游戏对象，
+    // 浮窗/评分/追踪均无意义且干扰浏览（用户需求：扩展在 tags 页应不工作）
+    if (isSteamPage && window.location.pathname.startsWith('/tags/')) {
+      dbg('Steam 标签页：跳过注入');
+      return;
+    }
+
     // === 功能3：Steam页面 → 注入下载站跳转浮窗 ===
     if (isSteamPage) {
       detail.injectDownloadSitePanel();
@@ -239,7 +258,7 @@
         status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
       }
       // v10.5.1 任务1：列表页好评率过滤悬浮控件（开关+滑块，实时调节）
-      M.filterFab.init(settings);
+      M.filterFab?.init?.(settings);
     }
 
     // === 2. 下载追踪（v10.3.0 独立开关；v10.5.0 P3 起真正生效——关闭则不接线）===
@@ -276,8 +295,8 @@
     // v10.3.0：传入 settings（各内容功能独立开关，关闭早退互不影响）；放在
     // 主流程末尾——二维码扫描/布局定制不与徽章/评分流程竞争初始化时序
     //（E2E 间歇性 3b 失败定位：早期初始化的 MutationObserver 介入波次时序）
-    M.qrUnlock.init(settings);
-    M.xdgrid.init(settings);
+    M.qrUnlock?.init?.(settings);
+    M.xdgrid?.init?.(settings);
 
     dbg('✅ 初始化完成');
   }

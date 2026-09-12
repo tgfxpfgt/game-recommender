@@ -268,7 +268,7 @@ const manifestDomains = [
 const builtinDomains = [
   ...fs
     .readFileSync(path.join(BG, 'core/site-scripts.js'), 'utf-8')
-    .matchAll(/'(xdgame\.com|xianyudanji\.gg|gamer520\.com|3dmgame\.com|ali213\.net|gamersky\.com)'/g)
+    .matchAll(/'(xdgame\.com|xianyudanji\.gg|gamer520\.com|gamers520\.com|3dmgame\.com|ali213\.net|gamersky\.com)'/g)
 ]
   .map((m) => m[1])
   .sort();
@@ -276,9 +276,11 @@ const siteRuleDomains = [
   ...collectJs(path.join(ROOT, 'adapters/sites'), [])
     .map((f) => fs.readFileSync(f, 'utf-8'))
     .join('\n')
-    .matchAll(/domains:\s*\['([^']+)'\]/g)
+    // v10.4.4：支持多域名数组（gamer520 双域名此前被单元素正则漏解析）
+    .matchAll(/domains:\s*\[([^\]]+)\]/g)
 ]
-  .map((m) => m[1])
+  .flatMap((m) => m[1].split(',').map((x) => x.trim().replace(/^'|'$/g, '')))
+  .filter(Boolean)
   .sort();
 test('网站范围三方一致（manifest matches = site-scripts 内置 = 规则 domains）', () => {
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(builtinDomains));

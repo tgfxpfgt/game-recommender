@@ -30,6 +30,8 @@ import { getFlushHealth } from './storage/flush-health.js';
 import { recordAppDownload, getAppStats } from './storage/app-stats.js'; // v10.1.0：下载计数 a + 批量共享读
 import { inferSiteFromDomain } from './storage/history.js'; // v10.2.0：站点去重键
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
+import { fetchWithTimeout } from './core/utils.js'; // v10.4.4：二维码跨域取图（SSRF 校验内建）
+import { getSteam250Info } from './steam/steam250.js'; // v10.4.4：Steam250 排名
 import { validateMessage, CONTENT_ALLOWED_ACTIONS, isTrustedSender } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
 import {
@@ -209,6 +211,38 @@ async function handleGetApiStatus() {
   return getSteamApiStatus();
 }
 
+// v10.4.4：二维码跨域取图——内容脚本 canvas 对跨域图片会被污染无法解码，
+// 由后台代取图片（fetchWithTimeout 内建 SSRF 校验）并转为 dataURL 回传。
+// 仅接受 https 图片 URL，大小上限 3MB，content-type 必须 image/*
+// v10.4.4：Steam250 排名查询（appId → {rank, score, votes}；无记录 null）
+async function handleGetSteam250Rank(message) {
+  const appId = message && message.appId;
+  if (!appId) return { info: null };
+  const info = await getSteam250Info(appId);
+  return { info };
+}
+
+async function handleFetchImageDataUrl(message) {
+  const url = String((message && message.url) || '');
+  if (!/^https:\/\//i.test(url)) return { success: false, error: '仅接受 https 图片 URL' };
+  try {
+    const resp = await fetchWithTimeout(url, {}, 15000);
+    if (!resp.ok) return { success: false, error: 'HTTP ' + resp.status };
+    const type = (resp.headers && resp.headers.get('content-type')) || 'image/png';
+    if (!type.startsWith('image/')) return { success: false, error: '非图片响应' };
+    const buf = await resp.arrayBuffer();
+    if (buf.byteLength > 3 * 1024 * 1024) return { success: false, error: '图片超过 3MB 上限' };
+    const bytes = new Uint8Array(buf);
+    let binary = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
+    }
+    return { success: true, dataUrl: 'data:' + type + ';base64,' + btoa(binary) };
+  } catch (e) {
+    return { success: false, error: String(e) };
+  }
+}
+
 // v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）
 // v10.0.0：限频表持久化 storage.session（防抖）——SW 冷启动后 24h 限频连续
 const siteAlertPersist = createSessionPersist('grSiteAlertLast', { initial: {} });
@@ -317,6 +351,8 @@ export const MESSAGE_HANDLERS = {
   OPEN_HUB: handleOpenHub,
   LOG_PERF: handleLogPerf,
   SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
+  FETCH_IMAGE_DATA_URL: handleFetchImageDataUrl,
+  GET_STEAM250_RANK: handleGetSteam250Rank,
   GET_SITE_HEALTH: handleGetSiteHealth,
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),

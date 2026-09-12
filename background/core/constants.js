@@ -30,7 +30,8 @@ export const DB_KEYS = {
   LLM_SCORE: 'llmScore', // LLM 推荐评分缓存（v6.4.3，7d TTL）
   URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
   SITE_HEALTH: 'siteHealth', // 站点适配器健康（v10.0.0：改版告警聚合）
-  APP_STATS: 'appStats' // AppID 维度行为统计（v10.1.0：下载 a/详情页打开 b，永不过期）
+  APP_STATS: 'appStats', // AppID 维度行为统计（v10.1.0：下载 a/详情页打开 b，永不过期）
+  STEAM250_RANK: 'steam250Rank' // Steam250 榜单快照（v10.4.4：排名/评分，24h 刷新）
 };
 
 // 默认设置 / Default settings
@@ -90,6 +91,7 @@ export const DEFAULT_SETTINGS = {
     'fitgirl-repacks.site',
     'rutracker.org',
     'gamer520.com',
+    'gamers520.com', // v10.4.4：gamer520 旧域名
     'xianyudanji.gg',
     'xdgame.com'
   ],
@@ -301,7 +303,8 @@ export const DATA_MODULES = [
   { key: 'wrongReports', name: '报错纠正记录', desc: 'Wrong Reports', storageKey: 'wrongReports' },
   { key: 'urlAppIdIndex', name: '详情页网址索引', desc: 'Detail URL Index', storageKey: 'urlAppIdIndex' },
   { key: 'siteHealth', name: '站点健康', desc: 'Site Health', storageKey: 'siteHealth' },
-  { key: 'appStats', name: 'AppID 行为统计', desc: 'App Stats', storageKey: 'appStats' }
+  { key: 'appStats', name: 'AppID 行为统计', desc: 'App Stats', storageKey: 'appStats' },
+  { key: 'steam250Rank', name: 'Steam250 榜单', desc: 'Steam250 Rank', storageKey: 'steam250Rank' }
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

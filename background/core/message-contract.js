@@ -190,6 +190,12 @@ const RULES = {
   CLEAN_EXPIRED_CACHE: () => ({ ok: true }),
   // v10.0.0：健康读类（无参）
   GET_SITE_HEALTH: () => ({ ok: true }),
+  // v10.4.4：二维码跨域取图（url 必须为 https 图片地址——后台另有 SSRF/大小/类型三重校验）
+  GET_STEAM250_RANK: (m) => (m && m.appId ? { ok: true } : { error: 'GET_STEAM250_RANK.appId 必填' }),
+  FETCH_IMAGE_DATA_URL: (m) =>
+    m && typeof m.url === 'string' && /^https:\/\/[^\s/"']+$/.test(m.url)
+      ? { ok: true }
+      : { error: 'FETCH_IMAGE_DATA_URL.url 必须为 https 源' },
   GET_STORAGE_HEALTH: () => ({ ok: true }),
   // 缓存条目级操作：appId 必填
   DELETE_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'DELETE_GAME_CACHE_ENTRY.appId'),

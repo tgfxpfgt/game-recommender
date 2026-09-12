@@ -280,6 +280,23 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.5.4（Steam250 排名引入 / gamers520 双域名 + 跨域二维码解码 / tags 页不注入 / 浮窗标签可点击 / 条件加载）
+
+**新功能**
+
+- **Steam250 排名引入**（steam250.js / handlers / detail-templates / detail-page）：后台按 24h 快照抓取 steam250.com/top250（服务端渲染榜单，appId ↔ 排名/评分/评价数映射，数量下限哨兵防结构变更），Steam 浮窗与咸鱼单机/Gamer520 内嵌评价卡新增「🏆 Steam250 排名」行（排名/评分/评价数 + 榜单外链），游戏不在前 250 时自动隐藏。新增 `GET_STEAM250_RANK` 消息（contract 校验）+ `steam250Rank` 存储模块（导出/导入/清除全链路）
+- **浮窗用户标签可点击**：Steam 浮窗「热门用户标签」改为链接跳转 Steam 标签页（新窗口，href 全量编码）
+- **tracker 条件加载**：qr-unlock / xdgrid / filter-fab 模块按设置**条件导入**——关闭后模块代码完全不加载（降低资源占用）；boot 顺序调整为设置先行（缺失时默认全加载）
+
+**修复**
+
+- **gamers520.com（旧域名）全覆盖**：manifest 注入/WAR/适配器 domains/站点脚本/trackedSites 五处补齐——此前旧域名访问时扩展完全不注入，二维码功能自然失效
+- **跨域二维码解码**（qr-unlock / FETCH_IMAGE_DATA_URL）：跨域图片污染 canvas 导致解码跳过——现由后台代取图片（fetchWithTimeout 内建 SSRF 校验，https-only、3MB 上限、image/* 校验）转 dataURL 后解码；contract 新增白名单规则
+- **XDGame 链接统一 www**：adapter base/searchUrl 补 www（裸域会 301）
+- **Steam 标签页不注入**：store.steampowered.com/tags/* 页 tracker 提前退出（标签聚合页无单一游戏对象）
+
+752 test · gate 全过（check + E2E MOCK + visual）
+
 ### v10.5.3（内嵌 Steam 信息区 / 列表页综合评分徽章 / 首页错位修复 / 销量评论数入推荐）
 
 **新功能**
@@ -307,7 +324,7 @@ node --check options/options.js
 
 - **缓存命中路径零网络契约修复**（orchestrator.js `applyCacheHit`）：此前同步 `await` 名称自愈（最多 2 次 Steam 请求）——列表页第一波 `getSteamRatingsFromCacheOnly` 声明的"零网络请求"契约被打破，Steam 不可达 / 官方无英文名（中文站常见）时**每次缓存命中都阻塞数秒并空耗 API 配额**，慢网下直接拖慢徽章首屏渲染。现自愈改后台执行（不阻塞返回），结果非徽章渲染依赖。
 - **名称自愈退避**（api-registry-heal.js）：新增按 appId 的 10 分钟退避——上次尝试无改进（Steam 不可达或官方确无对应语言名）时窗口内不再重复发起注定失败的请求；成功自愈即清除退避。上限 500 条防 Map 无界增长。
-- **test-ratings-resume 间歇失败根因修复**：顶层测试在 describe `afterAll`（恢复真实 fetch）之后运行，两个任务经名称自愈路径发起**真实 Steam 请求**（每个 0.5~7s 网络延迟），负载下超出轮询预算而间歇失败（全量跑失败、单独跑通过的"幽灵"用例）。移入 describe 后 fetch mock 覆盖全部用例（1.4~4.9s → 63ms），并附根因说明注释。
+- **test-ratings-resume 间歇失败根因修复**：顶层测试在 describe `afterAll`（恢复真实 fetch）之后运行，两个任务经名称自愈路径发起**真实 Steam 请求**（每个 0.5~~7s 网络延迟），负载下超出轮询预算而间歇失败（全量跑失败、单独跑通过的"幽灵"用例）。移入 describe 后 fetch mock 覆盖全部用例（1.4~~4.9s → 63ms），并附根因说明注释。
 
 **性能**
 

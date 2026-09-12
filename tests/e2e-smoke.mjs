@@ -136,7 +136,10 @@ await new Promise((r) => server.listen(0, '127.0.0.1', r));
 // 用 host-resolver-rules 把下载站域名映射到本地 fixture（内容脚本对非追踪
 // 站点会早退，域名必须是已追踪的下载站）
 const FIXTURE_PORT = server.address().port;
-const FIXTURE_URL = `http://www.xianyudanji.gg:${FIXTURE_PORT}/`;
+// v10.5.3 起根路径被识别为站点首页（列表功能暂停防首页错位）——E2E 列表页
+// 固定带查询串（首页门控放行带查询串的根路径）；详情/滚动页单独构造
+const FIXTURE_URL = `http://www.xianyudanji.gg:${FIXTURE_PORT}/?e2e=1`;
+const FIXTURE_ROOT = `http://www.xianyudanji.gg:${FIXTURE_PORT}/`;
 
 const manifest = JSON.parse(fs.readFileSync(path.join(EXTENSION_DIR, 'manifest.json'), 'utf-8'));
 console.log(`1. 扩展 ${manifest.name} v${manifest.version}`);
@@ -270,7 +273,7 @@ async function runChecks() {
         popupCover.filterMode &&
         popupCover.sortByRating &&
         popupCover.ruleBtn &&
-        popupCover.weights === 8 && // v10.1.0：权重滑块 6→8（appStat 两项）
+        popupCover.weights === 10 && // v10.5.3：权重滑块 8→10（sales/reviews 两项）
         popupCover.badges &&
         popupCover.autoBackup &&
         popupCover.logLevel &&
@@ -678,7 +681,7 @@ async function runChecks() {
       await page3.close();
       return;
     }
-    await page3.goto(`${FIXTURE_URL}16598.html`);
+    await page3.goto(`${FIXTURE_ROOT}16598.html`);
     // 等浮窗渲染（真实 Steam 搜索 + 完整详情拉取需数秒）
     await page3.waitForSelector('#gr-report-issue-btn', { timeout: 20000 }).catch(() => {});
     const hasReportBtn = await page3.evaluate(() => !!document.querySelector('#gr-report-issue-btn'));
@@ -725,7 +728,7 @@ async function runChecks() {
     console.log('5. 滚动批次与 dashboard 趋势图');
     // 5a. 滚动批次：130 项大列表 → 滚动底部触发 IO 哨兵 → 第二批徽章
     const page4 = await context.newPage();
-    await page4.goto(`${FIXTURE_URL}?scroll=1`);
+    await page4.goto(`${FIXTURE_ROOT}?scroll=1`);
     await page4.waitForTimeout(1200); // 首屏批（60 项）发起
     const badgesBefore = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
     await page4.evaluate(() => window.scrollTo(0, document.body.scrollHeight));

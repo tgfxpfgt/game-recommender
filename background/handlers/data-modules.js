@@ -4,6 +4,7 @@ import { sanitizeImportedModule, IMPORT_MODULE_BYTES_LIMIT, IMPORT_TOTAL_BYTES_L
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from '../storage/backups.js';
 import { Logger } from '../storage/logger.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
+import { resetSteam250 } from '../steam/steam250.js'; // v10.4.4：榜单快照重置（storage 层不能反向 import steam，故在业务层调用）
 
 /**
  * 游戏雷达 Game Radar - 消息处理：数据模块与备份 / Data-Module Handlers
@@ -113,6 +114,7 @@ export async function handleImportData(message) {
       imported.push(key);
     }
     resetInMemoryCaches();
+    resetSteam250(); // v10.4.4：Steam250 榜单快照随清理重置
     Logger.info('Import', `导入数据模块: ${imported.join(', ')}`);
     return { success: true, imported };
   } catch (e) {

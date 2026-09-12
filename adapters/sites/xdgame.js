@@ -46,8 +46,10 @@
     name: 'XDGame',
     displayName: 'XDGame',
     domains: ['xdgame.com'],
-    base: 'https://xdgame.com',
-    searchUrl: 'https://xdgame.com/so/{q}.html',
+    // v10.4.4：链接统一 www——裸域会 301 到 www，浮窗跳转少一跳且避免相对
+    // 资源跨域
+    base: 'https://www.xdgame.com',
+    searchUrl: 'https://www.xdgame.com/so/{q}.html',
     detailUrlPatterns: ['/game/\\d+\\.html?$', '/\\d+\\.html?$'],
     imageAppId: true,
     listPage: {

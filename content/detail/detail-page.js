@@ -291,6 +291,31 @@ export function injectDownloadHistoryPanel(gameName) {
     .catch(() => {});
 }
 
+// v10.4.4：Steam250 排名行填充（查询后台快照；游戏不在前 250 时隐藏）
+async function fillSteam250Info(appId) {
+  if (!appId) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, { timeout: 25000 });
+    const info = resp && resp.info;
+    const html = info
+      ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${info.rank}</b> · ${info.score} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` +
+        `<a href="https://steam250.com/top250" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">Steam250 ↗</a>`
+      : '';
+    for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      if (html) {
+        el.innerHTML = html;
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+  } catch {
+    /* 查询失败静默（行保持隐藏） */
+  }
+}
+
 // ============ Steam详情浮窗（v6.4.4 起左侧信息栏） ============
 // 容器经 GR.float 统一管理（左上区域，chrome 标题栏含折叠/关闭）
 // v10.4.0：接收 settings——浮窗位置（detailFloatSide 左/右）与默认展开
@@ -420,6 +445,9 @@ export function injectSteamButton(gameName, settings) {
 
     // 记录下载站详情页访问（Steam 匹配成功后补充记录；后台同时累计详情页打开计数 b）
     common.trackDownloadSiteVisit(data.appId, name);
+
+    // v10.4.4：Steam250 排名行（浮窗 + 内嵌卡双挂点；异步填充，无数据隐藏）
+    fillSteam250Info(String(data.appId));
 
     // 回写Steam标签
     if (data.genres && data.genres.length > 0) {

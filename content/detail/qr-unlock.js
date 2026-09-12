@@ -60,28 +60,61 @@ async function decodeElement(el) {
     }
   }
   try {
-    const canvas = document.createElement('canvas');
-    canvas.width = w;
-    canvas.height = h;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return null;
-    ctx.drawImage(el, 0, 0);
-    const imageData = ctx.getImageData(0, 0, w, h);
-    return await new Promise((resolve) => {
+    return await decodeFromElement(el);
+  } catch (e) {
+    // v10.4.4：跨域图片会污染 canvas（SecurityError）——改经后台代取图片
+    //（fetchWithTimeout 内建 SSRF 校验）转 dataURL 后解码。
+    // gamer520/gamers520 的网盘二维码即为此场景（站点刻意不放明文链接）
+    const src = (el.currentSrc || el.src || el.getAttribute('data-src') || '').toString();
+    if (/SecurityError|tainted|insecure/i.test(String(e)) && /^https:\/\//i.test(src)) {
       try {
-        const qr = new QrCode();
-        qr.callback = (err, value) => {
-          const text = !err && value && value.result ? String(value.result) : '';
-          resolve(text);
-        };
-        qr.decode(imageData);
-      } catch {
-        resolve('');
+        const resp = await window.__GR_MSG__.sendMessage(
+          { action: 'FETCH_IMAGE_DATA_URL', url: src.split('#')[0] },
+          null,
+          { timeout: 20000 }
+        );
+        if (resp && resp.success && resp.dataUrl) {
+          const img = new Image();
+          await new Promise((resolve, reject) => {
+            img.onload = () => resolve(undefined);
+            img.onerror = () => reject(new Error('dataURL load failed'));
+            img.src = resp.dataUrl;
+          });
+          const text = await decodeFromElement(img);
+          if (text) return text;
+        }
+      } catch (e2) {
+        dbg('跨域二维码取图失败: ' + String(e2));
       }
-    });
-  } catch {
-    return null; // cross-origin 画布污染/解码失败 → 仅跳过该元素
+    }
+    return null; // 解码失败 → 仅跳过该元素
   }
+}
+
+// 从元素绘制并解码（可能因跨域污染抛 SecurityError）/ draw + decode
+async function decodeFromElement(el) {
+  const w = el.naturalWidth || el.width || 0;
+  const h = el.naturalHeight || el.height || 0;
+  if (w < 60 || h < 60) return null;
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+  ctx.drawImage(el, 0, 0);
+  const imageData = ctx.getImageData(0, 0, w, h);
+  return await new Promise((resolve) => {
+    try {
+      const qr = new QrCode();
+      qr.callback = (err, value) => {
+        const text = !err && value && value.result ? String(value.result) : '';
+        resolve(text);
+      };
+      qr.decode(imageData);
+    } catch {
+      resolve('');
+    }
+  });
 }
 
 // 在二维码元素旁插入解码结果（链接可点 + 复制按钮）/ render decoded link row

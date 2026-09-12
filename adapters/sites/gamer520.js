@@ -24,7 +24,7 @@
     key: 'gamer520',
     name: 'Gamer520',
     displayName: 'Gamer520',
-    domains: ['gamer520.com'],
+    domains: ['gamer520.com', 'gamers520.com'], // v10.4.4：新旧双域名
     base: 'https://www.gamer520.com',
     searchUrl: 'https://www.gamer520.com/?s={q}',
     // v9.7.0：单段路径收窄为"含数字"——原 /[^/]+/?$ 匹配所有一级路径，

@@ -25,6 +25,9 @@ import { resetSearchCache } from './search-cache.js';
 import { resetLlmCache } from './llm-cache.js';
 import { resetSiteHealth } from './site-health.js';
 import { resetAppStats } from './app-stats.js';
+// 注意：Steam250 榜单快照（steam250Rank）的重置在业务层调用
+//（reset.js 属 storage 层，不能 import steam 层模块——分层矩阵强制）；
+// 见 handlers/data-modules.js 的 resetSteam250() 调用点
 
 // 重置所有内存缓存 / Reset all in-memory caches
 export function resetInMemoryCaches() {

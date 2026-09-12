@@ -23,6 +23,7 @@ export const BUILTIN_DOMAINS = [
   'xdgame.com',
   'xianyudanji.gg',
   'gamer520.com',
+  'gamers520.com', // v10.4.4：旧域名（裸域访问同样注入）
   '3dmgame.com',
   'ali213.net',
   'gamersky.com'

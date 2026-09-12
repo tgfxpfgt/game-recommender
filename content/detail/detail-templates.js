@@ -92,6 +92,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         </div>
         ${spyBody}
       </div>
+      <div id="gr-steam250-row" style="display:none;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#8f98a0;line-height:1.6;"></div>
     `;
 
   return `
@@ -230,7 +231,13 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
           <div style="margin-bottom:12px;">
             <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">🔥 热门用户标签</div>
             <div class="gr-detail-flex-wrap">
-              ${data.userTags.map((t) => `<span style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:default;">${esc(t)}</span>`).join('')}
+              ${data.userTags
+                .map(
+                  (t) =>
+                    // v10.4.4：标签可点击跳转 Steam 标签页（新窗口；href 全量编码）
+                    `<a href="${common.escapeAttr('https://store.steampowered.com/tags/zh-CN/' + encodeURIComponent(t))}" target="_blank" rel="noopener" title="在 Steam 查看标签「${esc(t)}」" style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:pointer;text-decoration:none;display:inline-block;">${esc(t)}</a>`
+                )
+                .join('')}
             </div>
           </div>
         `
@@ -473,6 +480,7 @@ export function steamInlineSection(data, cachedAt) {
           <p class="steam-review-verdict" data-steam-verdict>${esc(verdict)}</p>
           <div class="steam-review-meter" role="meter" aria-label="综合口碑" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${adjusted.toFixed(1)}" aria-valuetext="综合口碑 ${adjusted.toFixed(1)}%"><span data-steam-positive-bar style="width:${adjusted.toFixed(1)}%"></span></div>
           <p class="steam-review-meta"><span>好评 <b class="is-positive" data-steam-positive>${fmt(positive)}</b></span><span>差评 <b class="is-negative" data-steam-negative>${fmt(Math.max(total - positive, 0))}</b></span><span>修正口碑 <b data-steam-adjusted>${adjusted.toFixed(1)}%</b></span></p>
+          <div id="gr-steam250-inline" style="display:none;margin-top:6px;font-size:12px;color:#7c8999;line-height:20px;"></div>
         </div>
       </div>
     </section>`;

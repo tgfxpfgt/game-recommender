@@ -64,7 +64,9 @@ const baseGlobals = {
   require: 'readonly',
   __dirname: 'readonly',
   vi: 'readonly', // v10.5.0 P1-E：test-content-sim.mjs 引用 vitest 的 vi
-  performance: 'readonly'
+  performance: 'readonly',
+  btoa: 'readonly', // v10.4.4：SW 内 base64 编码（二维码跨域取图）
+  Image: 'readonly' // v10.4.4：内容脚本构造图片对象（跨域二维码 dataURL 解码）
 };
 
 // 错误级正确性规则（源码 + 测试共用）/ shared correctness rules
