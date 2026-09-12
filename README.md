@@ -297,6 +297,12 @@ node --check options/options.js
 
 752 test · gate 全过（check + E2E MOCK + visual）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-12T16-52-08.863Z-4b094333ff7a`
+- seal: `sha256:2d687002fca3bd4e92abcc661189819b9348d8546586b2498e15b9c1fea7d66b`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.5.3（内嵌 Steam 信息区 / 列表页综合评分徽章 / 首页错位修复 / 销量评论数入推荐）
 
 **新功能**
