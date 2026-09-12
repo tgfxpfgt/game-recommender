@@ -17,37 +17,15 @@
  * storage.local data is auto-migrated on first run.
  */
 import { NDJSON } from '../lib/ndjson.js';
+import { STORAGE_MODULES } from './storage-registry.js';
 
-// 模块 → 文件与格式映射（模块键与 storage.local 键一致，便于降级与迁移）
-// Module → file/format mapping (module keys equal the storage.local keys)
-const MODULE_FILES = {
-  settings: { file: 'settings.json', format: 'json' },
-  behaviorLog: { file: 'behavior-log.ndjson', format: 'ndjson' },
-  gameProfiles: { file: 'game-profiles.json', format: 'json' },
-  keywordWeights: { file: 'keyword-weights.json', format: 'json' },
-  steamCache: { file: 'steam-cache.json', format: 'json' }, // 旧版单文件（迁移期读取）
-  steamCacheMeta: { file: 'steam-cache-meta.json', format: 'json' }, // v10.6.0 C1 分模块
-  steamCacheRating: { file: 'steam-cache-rating.json', format: 'json' },
-  steamCacheDetail: { file: 'steam-cache-detail.json', format: 'json' },
-  steamCacheSpy: { file: 'steam-cache-spy.json', format: 'json' },
-  gameRegistry: { file: 'game-registry.json', format: 'json' },
-  nameIndex: { file: 'name-index.json', format: 'json' },
-  downloadUrls: { file: 'download-urls.json', format: 'json' },
-  freeGames: { file: 'free-games.json', format: 'json' },
-  runtimeLog: { file: 'runtime-log.ndjson', format: 'ndjson' },
-  downloadHistory: { file: 'download-history.json', format: 'json' },
-  adapterRules: { file: 'adapter-rules.json', format: 'json' },
-  backups: { file: 'backups.json', format: 'json' },
-  learnedNoise: { file: 'learned-noise.json', format: 'json' },
-  wrongReports: { file: 'wrong-reports.json', format: 'json' },
-  searchCache: { file: 'search-cache.json', format: 'json' }, // v6.4.3
-  llmScore: { file: 'llm-score.json', format: 'json' }, // v6.4.3
-  urlAppIdIndex: { file: 'url-appid-index.json', format: 'json' }, // v7.0.2
-  siteHealth: { file: 'site-health.json', format: 'json' }, // v10.0.0：站点适配器健康
-  appStats: { file: 'app-stats.json', format: 'json' }, // v10.1.0：AppID 行为统计（永不过期）
-  steam250Rank: { file: 'steam250-rank.json', format: 'json' }, // v10.4.4：Steam250 榜单快照（24h 刷新）
-  favorites: { file: 'favorites.json', format: 'json' } // v10.6.0：收藏清单
-};
+// 模块 → 文件与格式映射（v10.7.0 批次2：由 storage-registry.js 单源派生——
+// 此前与 DATA_MODULES/BACKUP_CORE_KEYS 三表手工同步已漂移；新模块只登记注册表）
+// Module → file/format map, derived from the storage registry single source.
+/** @type {Object<string, {file: string, format: string}>} */
+const MODULE_FILES = Object.fromEntries(
+  Object.entries(STORAGE_MODULES).map(([key, m]) => [key, { file: m.file, format: m.format }])
+);
 
 class DataStore {
   constructor() {

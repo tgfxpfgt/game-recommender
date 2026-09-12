@@ -39,7 +39,13 @@ export async function recordWrongReport(gameName, info = {}) {
   await loadWrongReports();
   const now = Date.now();
   /** @type {{wrongAppId: string|null, correctAppId: string|null, count: number, reportedAt: number, correctedAt: number|null}} */
-  const existing = wrongReportsMemory.get(name) || { wrongAppId: null, correctAppId: null, count: 0, reportedAt: 0, correctedAt: null };
+  const existing = wrongReportsMemory.get(name) || {
+    wrongAppId: null,
+    correctAppId: null,
+    count: 0,
+    reportedAt: 0,
+    correctedAt: null
+  };
   const entry = {
     wrongAppId: info.wrongAppId !== undefined ? String(info.wrongAppId) : existing.wrongAppId || null,
     correctAppId: info.correctAppId !== undefined ? String(info.correctAppId) : existing.correctAppId || null,
@@ -48,6 +54,7 @@ export async function recordWrongReport(gameName, info = {}) {
     correctedAt: info.correctAppId !== undefined ? now : existing.correctedAt || null
   };
   wrongReportsMemory.set(name, entry);
+  wrongReportsDirty = true;
   scheduleWrite();
   return entry;
 }
@@ -73,12 +80,15 @@ export async function lookupWrongReportCorrection(gameName) {
 }
 
 // v5.1.0：防抖写入收敛至 debounced-store 工厂
+// v10.7.0 批次2：dirty 标记——聚合 flush 此前无条件全量重写本文件
+let wrongReportsDirty = false;
 const writer = createDebouncedStore({
   name: '报错记录',
   debounceMs: NAME_INDEX_WRITE_DEBOUNCE,
   save: async () => {
-    if (!wrongReportsMemory) return;
+    if (!wrongReportsMemory || !wrongReportsDirty) return;
     await dataStore.writeModule(DB_KEYS.WRONG_REPORTS, Object.fromEntries(wrongReportsMemory));
+    wrongReportsDirty = false; // 仅成功后清除（失败保留待重试）
   }
 });
 const scheduleWrite = writer.scheduleWrite;
@@ -89,6 +99,7 @@ export const flushWrongReports = writer.flush;
 // 重置（备份恢复/导入/清除后调用）/ Reset
 export function resetWrongReports() {
   wrongReportsMemory = new Map();
+  wrongReportsDirty = false;
   wrongReportsLoaded = false;
   writer.reset();
 }

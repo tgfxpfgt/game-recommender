@@ -339,34 +339,28 @@ export const LOG_FLUSH_DEBOUNCE = 2000;
 // 偏好模型更新节流 / Preference-model update throttle
 export const PREF_UPDATE_INTERVAL = 60000;
 
-// 数据模块注册表：所有可备份/导入/导出的数据按模块组织，支持自定义勾选。
-// storageKey 使用字符串字面量，彻底免疫顶层初始化顺序依赖（TDZ 防御）。
-// Data-module registry (string-literal keys; TDZ-proof).
-export const DATA_MODULES = [
-  { key: 'settings', name: '扩展配置', desc: 'Settings', storageKey: 'settings' },
-  { key: 'behaviorLog', name: '浏览记录', desc: 'Behavior Log', storageKey: 'behaviorLog' },
-  { key: 'gameProfiles', name: '游戏画像', desc: 'Game Profiles', storageKey: 'gameProfiles' },
-  { key: 'keywordWeights', name: '推荐模型', desc: 'Keyword Weights', storageKey: 'keywordWeights' },
-  { key: 'steamCacheMeta', name: 'Steam 基础缓存', desc: 'Steam Meta Cache', storageKey: 'steamCacheMeta' },
-  { key: 'steamCacheRating', name: 'Steam 好评率缓存', desc: 'Steam Rating Cache', storageKey: 'steamCacheRating' },
-  { key: 'steamCacheDetail', name: 'Steam 详情缓存', desc: 'Steam Detail Cache', storageKey: 'steamCacheDetail' },
-  { key: 'steamCacheSpy', name: 'Steam 热度缓存', desc: 'Steam Spy Cache', storageKey: 'steamCacheSpy' },
-  { key: 'gameRegistry', name: '游戏注册表', desc: 'Game Registry', storageKey: 'gameRegistry' },
-  { key: 'nameIndex', name: '名称索引', desc: 'Name Index', storageKey: 'nameIndex' },
-  { key: 'downloadUrls', name: '下载站网址缓存', desc: 'Download URLs', storageKey: 'downloadUrls' },
-  { key: 'freeGames', name: '限免游戏', desc: 'Free Games', storageKey: 'freeGames' },
-  { key: 'runtimeLog', name: '运行日志', desc: 'Runtime Logs', storageKey: 'runtimeLog' },
-  { key: 'downloadHistory', name: '下载历史', desc: 'Download History', storageKey: 'downloadHistory' },
-  { key: 'adapterRules', name: '适配规则', desc: 'Adapter Rules', storageKey: 'adapterRules' },
-  { key: 'searchCache', name: '下载站搜索缓存', desc: 'Search Cache', storageKey: 'searchCache' },
-  { key: 'llmScore', name: 'LLM 评分缓存', desc: 'LLM Score Cache', storageKey: 'llmScore' },
-  { key: 'learnedNoise', name: '标题噪声词', desc: 'Learned Noise', storageKey: 'learnedNoise' },
-  { key: 'wrongReports', name: '报错纠正记录', desc: 'Wrong Reports', storageKey: 'wrongReports' },
-  { key: 'urlAppIdIndex', name: '详情页网址索引', desc: 'Detail URL Index', storageKey: 'urlAppIdIndex' },
-  { key: 'siteHealth', name: '站点健康', desc: 'Site Health', storageKey: 'siteHealth' },
-  { key: 'appStats', name: 'AppID 行为统计', desc: 'App Stats', storageKey: 'appStats' },
-  { key: 'steam250Rank', name: 'Steam250 榜单', desc: 'Steam250 Rank', storageKey: 'steam250Rank' },
-  { key: 'favorites', name: '收藏清单', desc: 'Favorites', storageKey: 'favorites' }
+// 数据模块清单（v10.7.0 批次2：由 data/storage-registry.js 单源派生——此前与
+// data-store.js MODULE_FILES、backups.js BACKUP_CORE_KEYS 三表手工同步已漂移；
+// storageKey 字符串字面量语义保留：彻底免疫顶层初始化顺序依赖（TDZ 防御））
+// Data-module list, derived from the storage registry single source.
+import { STORAGE_MODULES } from '../../data/storage-registry.js';
+export { STORAGE_MODULES }; // v10.7.0：注册表单源透出（data-modules 等消费）
+
+export const DATA_MODULES = Object.entries(STORAGE_MODULES)
+  .filter(([, m]) => m.name && !m.legacy)
+  .map(([key, m]) => ({ key, name: m.name, desc: m.desc, storageKey: key }));
+
+// 默认备份子集（v9.3.0 语义：高价值不可重建数据；缓存/日志类可重建 → 排除）。
+// 由注册表 backup 标记派生；manualMappings 为无 OPFS 文件的遗留模块（仅
+// storage.local），保留显式列出。v10.7.0 修正：旧表中的 'behavior' 为幽灵键
+// （实际键为 behaviorLog/gameProfiles，永不匹配 → 默认备份一直缺 nothing），
+// favorites（用户精选、不可重建）纳入默认备份。
+// Default backup subset derived from registry `backup` flags.
+export const BACKUP_CORE_KEYS = [
+  ...Object.entries(STORAGE_MODULES)
+    .filter(([, m]) => m.backup)
+    .map(([key]) => key),
+  'manualMappings'
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

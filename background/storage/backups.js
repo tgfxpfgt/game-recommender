@@ -7,7 +7,7 @@
  * safety-net backup, list & delete. Legacy backups are treated as full.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS, DATA_MODULES } from '../core/constants.js';
+import { DB_KEYS, DATA_MODULES, BACKUP_CORE_KEYS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { sanitizeImportedModule } from '../core/rules.js';
 import { resetInMemoryCaches } from './reset.js';
@@ -23,21 +23,8 @@ import { Logger } from './logger.js';
 // v9.3.0：默认备份高价值子集（缓存/日志类可重建——steamCache/downloadUrls/
 // searchCache/llmScore/runtimeLog/behaviorLog/freeGames 排除，显著降低备份体积
 // 与全量序列化写放大）；moduleKeys 参数仍支持全量/自定义勾选
-/** @type {string[]} */
-const BACKUP_CORE_KEYS = [
-  'settings',
-  'adapterRules',
-  'behavior',
-  'gameProfiles',
-  'keywordWeights',
-  'gameRegistry',
-  'nameIndex',
-  'downloadHistory',
-  'wrongReports',
-  'learnedNoise',
-  'manualMappings',
-  'appStats' // v10.1.0：AppID 行为统计（a/b 计数，不可重建的高价值数据）
-];
+// v10.7.0 批次2：BACKUP_CORE_KEYS 由存储注册表 backup 标记派生（constants.js），
+// 并修正旧表幽灵键 'behavior'、纳入 favorites
 
 export async function createBackup(manual = false, /** @type {string[]|null} */ moduleKeys = null) {
   try {

@@ -35,11 +35,15 @@ async function load() {
 }
 
 // v5.1.0：防抖写入收敛至 debounced-store 工厂
+// v10.7.0 批次2：dirty 标记——聚合 flush 此前无条件全量重写本文件
+let noiseDirty = false;
 const writer = createDebouncedStore({
   name: '噪声词表',
   debounceMs: WRITE_DEBOUNCE,
   save: async () => {
+    if (!noiseDirty) return;
     await dataStore.writeModule(DB_KEYS.LEARNED_NOISE, noiseMemory);
+    noiseDirty = false; // 仅成功后清除（失败保留待重试）
   }
 });
 const scheduleWrite = writer.scheduleWrite;
@@ -77,12 +81,16 @@ export async function recordNoiseCandidates(words) {
       delete noiseMemory[word];
     }
   }
-  if (changed) scheduleWrite();
+  if (changed) {
+    noiseDirty = true;
+    scheduleWrite();
+  }
 }
 
 // 重置（备份恢复/导入/清除后调用）/ Reset（v5.1.0：writer.reset 收敛）
 export function resetLearnedNoise() {
   noiseMemory = {};
+  noiseDirty = false;
   loaded = false;
   writer.reset();
 }

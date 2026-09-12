@@ -1,5 +1,5 @@
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS, DATA_MODULES, EXPORT_FORMAT, EXPORT_VERSION } from '../core/constants.js';
+import { DB_KEYS, DATA_MODULES, STORAGE_MODULES, EXPORT_FORMAT, EXPORT_VERSION } from '../core/constants.js';
 import { sanitizeImportedModule, IMPORT_MODULE_BYTES_LIMIT, IMPORT_TOTAL_BYTES_LIMIT } from '../core/rules.js';
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from '../storage/backups.js';
 import { Logger } from '../storage/logger.js';
@@ -17,22 +17,13 @@ import { resetSteam250 } from '../steam/steam250.js'; // v10.4.4：榜单快照�
 // v3.4.0：语义统一——"清除学习数据"同时删除 learnedNoise 存储（此前仅清
 // 内存、存储保留导致下次加载恢复）；wrongReports（人工纠正知识库）为有意
 // 保留的长期数据，不随本操作删除。
+// v10.7.0 批次2：清除范围由注册表 clearOnDataReset 标记派生（新增学习类
+// 模块只需在注册表打标记，不再漏改本清单）
 export async function handleClearData() {
-  await Promise.all([
-    dataStore.removeModule(DB_KEYS.BEHAVIOR_LOG),
-    dataStore.removeModule(DB_KEYS.GAME_PROFILES),
-    dataStore.removeModule(DB_KEYS.KEYWORD_WEIGHTS),
-    dataStore.removeModule(DB_KEYS.STEAM_CACHE),
-    dataStore.removeModule(DB_KEYS.STEAM_CACHE_META), // v10.6.0 C1：分模块文件一并清除
-    dataStore.removeModule(DB_KEYS.STEAM_CACHE_RATING),
-    dataStore.removeModule(DB_KEYS.STEAM_CACHE_DETAIL),
-    dataStore.removeModule(DB_KEYS.STEAM_CACHE_SPY),
-    dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
-    dataStore.removeModule(DB_KEYS.NAME_INDEX),
-    dataStore.removeModule(DB_KEYS.DOWNLOAD_URLS),
-    dataStore.removeModule(DB_KEYS.LEARNED_NOISE),
-    dataStore.removeModule(DB_KEYS.APP_STATS) // v10.1.0：AppID 行为统计属学习数据，一并清除
-  ]);
+  const clearKeys = Object.entries(STORAGE_MODULES)
+    .filter(([, m]) => m.clearOnDataReset)
+    .map(([key]) => key);
+  await Promise.all(clearKeys.map((key) => dataStore.removeModule(key)));
   await dataStore.removeModule(DB_KEYS.MANUAL_MAPPINGS).catch(() => {});
   resetInMemoryCaches();
   return { success: true };

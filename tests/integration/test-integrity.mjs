@@ -349,12 +349,10 @@ test('P2-D：每个 MESSAGE_HANDLERS action 都有契约规则（默认拒绝前
 const constantsMod = await import(
   new URL('../../background/core/constants.js', import.meta.url).href + '?t=' + Date.now()
 );
-const dsSrc = fs.readFileSync(path.join(ROOT, 'data/data-store.js'), 'utf-8');
-const moduleFileKeys = new Set(
-  [...dsSrc.slice(dsSrc.indexOf('const MODULE_FILES')).matchAll(/^\s{2}([A-Za-z0-9_]+):\s*\{\s*file:/gm)].map(
-    (m) => m[1]
-  )
-);
+// v10.7.0 批次2：MODULE_FILES 由 data/storage-registry.js 派生——断言对象
+// 改为注册表源（data-store.js 只是消费者，不再含字面量表）
+const regSrc = fs.readFileSync(path.join(ROOT, 'data/storage-registry.js'), 'utf-8');
+const moduleFileKeys = new Set([...regSrc.matchAll(/^  ([A-Za-z0-9_]+):\s*\{/gm)].map((m) => m[1]));
 const dbKeyValues = new Set(Object.values(constantsMod.DB_KEYS));
 test('P2：DATA_MODULES 每个 storageKey 均在 DB_KEYS 值集合中', () => {
   const bad = constantsMod.DATA_MODULES.filter((m) => !dbKeyValues.has(m.storageKey)).map(

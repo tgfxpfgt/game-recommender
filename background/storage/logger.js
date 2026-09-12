@@ -13,6 +13,8 @@ import { getSettings } from '../core/settings.js';
 import { withLock } from '../core/mechanisms.js';
 
 let logBuffer = [];
+// v10.7.0 批次2：OPFS 落盘条数内存计数（-1 = 未探底）——支持真追加写路径
+let persistedLogCount = -1;
 /** @type {{enableLog: boolean, minLevel: number, logStorage: string, logRetentionDays: number, maxRuntimeLog: number}|null} */
 let logConfig = null; // 日志配置缓存（v3.4.1：高频 writeLog 不再每次读设置）
 let logConfigChecked = 0; // 上次刷新时间戳
@@ -60,7 +62,34 @@ export function flushLogBuffer() {
       const settings = await getSettings();
       if (!settings.enableLog) return; // 日志开关已关闭，丢弃缓冲 / Logging disabled; drop buffer
 
-      const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+      const max = settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault;
+      // v10.7.0 批次2：OPFS 文件模式改**真追加**——此前每次 flush 全量读回
+      // （300 条 NDJSON parse）再整文件重写（~50-150KB），而 data-store 的
+      // appendModule 尾部追加能力完全闲置。仅当"条数超上限需要截断"时才
+      // 走全量重写路径；保留天数清理随重写惰性执行（条数由 max 封顶，语义
+      // 不受影响）。storage.local 模式无追加能力，保持读-改-写。
+      // OPFS file mode now truly appends (per-entry); full rewrite only on
+      // trim; retention purge rides the rewrite (count capped by max).
+      if (settings.logStorage !== 'local') {
+        if (persistedLogCount < 0) {
+          // 首次 flush 探底一次（此后内存计数权威）/ probe once, then track
+          const stored = await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
+          persistedLogCount = (stored || []).length;
+        }
+        if (persistedLogCount + pending.length <= max) {
+          for (const entry of pending) {
+            await dataStore.appendModule(DB_KEYS.RUNTIME_LOG, entry);
+          }
+          persistedLogCount += pending.length;
+          return;
+        }
+      }
+
+      // 全量重写路径（截断/保留清理/降级 local）/ full rewrite path
+      const stored =
+        settings.logStorage === 'local'
+          ? (await chrome.storage.local.get(DB_KEYS.RUNTIME_LOG))[DB_KEYS.RUNTIME_LOG]
+          : await dataStore.readModule(DB_KEYS.RUNTIME_LOG);
       let logs = stored || [];
       logs.push(...pending);
 
@@ -71,7 +100,6 @@ export function flushLogBuffer() {
         logs = logs.filter((l) => l && l.timestamp >= cutoff);
       }
 
-      const max = settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault;
       while (logs.length > max) logs.shift();
 
       // 按设置的存储形式落盘 / Persist per the configured storage format
@@ -80,10 +108,12 @@ export function flushLogBuffer() {
       } else {
         await dataStore.writeModule(DB_KEYS.RUNTIME_LOG, logs);
       }
+      persistedLogCount = logs.length;
     } catch {
       // 日志写入失败不应影响主流程 / Log write failures must not affect the main flow
       // v10.5.0 P1-B：回滚缓冲并重排一次防抖写入——否则这批日志在 SW 空闲/被杀时永久丢失
       // Roll back the buffer AND reschedule so these logs are not orphaned on SW idle/kill.
+      persistedLogCount = -1; // 计数失真风险 → 下次 flush 重新探底
       logBuffer = [...pending, ...logBuffer];
       writer.scheduleWrite();
     }
@@ -140,6 +170,7 @@ export async function getRuntimeLogs(limit) {
 // 清空日志 / Clear runtime logs
 export async function clearRuntimeLogs() {
   logBuffer = [];
+  persistedLogCount = 0;
   const settings = await getSettings();
   if (settings.logStorage === 'local') {
     await chrome.storage.local.set({ [DB_KEYS.RUNTIME_LOG]: [] });
@@ -151,6 +182,7 @@ export async function clearRuntimeLogs() {
 // 重置缓冲（备份恢复/导入/清除后调用）/ Reset the buffer
 export function resetLogBuffer() {
   logBuffer = [];
+  persistedLogCount = -1; // 磁盘可能已被导入/恢复改写 → 下次 flush 重新探底
   logConfig = null;
   logConfigChecked = 0;
 }

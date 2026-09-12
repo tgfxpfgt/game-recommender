@@ -19,6 +19,9 @@ import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败�
 /** @type {Record<string, string|number>} */
 let urlIndexMemory = {};
 let loaded = false;
+// v10.7.0 批次2：dirty 标记——flushAllCaches/告警落盘此前无条件全量重写本文件
+//（上限 5000 条 ≈ 100-300KB/次），是写放大热点之一
+let urlIndexDirty = false;
 // v8.2.0：网址索引上限（对象键序 = 插入序，超限淘汰最旧——URL→appId
 // 映射为缓存性质数据，无界增长无意义）
 const URL_INDEX_MAX_ENTRIES = 5000;
@@ -46,8 +49,10 @@ const writer = createDebouncedStore({
   name: '网址索引',
   debounceMs: 2000,
   save: async () => {
+    if (!urlIndexDirty) return;
     try {
       await dataStore.writeModule(DB_KEYS.URL_APPID_INDEX, urlIndexMemory);
+      urlIndexDirty = false; // v10.7.0：仅成功后清除（失败保留待重试）
     } catch (e) {
       // v10.0.0：写失败计数可见（flush-health）——此前静默失败
       recordFlushFailure('urlIndexWriteFails');
@@ -84,6 +89,7 @@ export async function setUrlAppId(url, appId) {
   await load();
   urlIndexMemory[key] = appId;
   enforceUrlIndexLimit();
+  urlIndexDirty = true;
   writer.scheduleWrite();
 }
 
@@ -94,6 +100,7 @@ export async function deleteUrlAppId(url) {
   if (!key) return;
   await load();
   if (delete urlIndexMemory[key]) {
+    urlIndexDirty = true;
     writer.scheduleWrite();
   }
 }
@@ -110,6 +117,7 @@ export async function getUrlIndexSize() {
 export async function resetUrlIndex() {
   urlIndexMemory = {};
   loaded = false;
+  urlIndexDirty = false;
   writer.reset && writer.reset();
   await dataStore.removeModule(DB_KEYS.URL_APPID_INDEX).catch(() => {});
 }
