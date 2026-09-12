@@ -17,6 +17,12 @@ const dbg = (...a) => debug.dbg(...a);
 
 const RATINGS_BATCH_SIZE = 60; // 每批请求上限（与后台批处理规模对应）
 
+// v10.7.0 批次3：processItems 硬上限（内存保护）——无限滚动的长列表此前
+// 无界追加，每项持 DOM 元素引用；正常页面远达不到该值（maxScanLinks 默认
+// 500 只约束首屏扫描，不约束 observer 增量发现）
+// Hard cap on tracked items (memory guard for infinite-scroll pages).
+const PROCESS_ITEMS_HARD_CAP = 2000;
+
 function initBatchState(settings) {
   // v9.7.0：重建前先断开旧观察器/定时器——重复调用（SPA 重入/强制刷新）
   // 时旧 MutationObserver/IntersectionObserver 仍持有旧 batchState 闭包，
@@ -64,6 +70,7 @@ function enqueueItems(items) {
   const seen = new Set(batchState.processItems.map((i) => i.url));
   for (const item of items || []) {
     if (!item || !item.name || item.name.length < 2 || seen.has(item.url)) continue;
+    if (batchState.processItems.length >= PROCESS_ITEMS_HARD_CAP) break;
     seen.add(item.url);
     batchState.processItems.push(item);
     if (!batchState.itemsByName.has(item.name)) batchState.itemsByName.set(item.name, item);

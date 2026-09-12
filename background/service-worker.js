@@ -131,22 +131,33 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // 内存，首个列表页/详情页查询零磁盘等待；失败不影响主流程（各模块惰性
 // 加载兜底）。Memory warm-up: parallel preload of local stores so the first
 // list/detail queries never wait on disk IO.
+// v10.7.0 批次3：分级预热——热层（steam 缓存/名称索引/任务续跑）保持启动即载；
+// 温层（注册表/索引/行为/审计等大而低频的模块）延迟 15s 再载：SW 若在 15s 内
+// 休眠则完全跳过这 14 文件中约 2/3 的冷启动 IO；温层模块均有惰性加载兜底，
+// 最坏情况只是首个查询多付一次磁盘读。
+// Tiered warm-up: hot stores load immediately; warm stores (lazy-loading
+// anyway) are deferred so short-lived SWs skip ~2/3 of cold-start IO.
 Promise.allSettled([
   import('./storage/steam-cache.js').then((m) => m.loadSteamCacheToMemory()),
   import('./storage/name-index.js').then((m) => m.warmupNameIndex()),
-  import('./storage/registry.js').then((m) => m.warmupRegistry()),
-  import('./storage/wrong-reports.js').then((m) => m.warmupWrongReports()),
-  import('./storage/learned-noise.js').then((m) => m.warmupLearnedNoise()),
-  import('./storage/url-index.js').then((m) => m.warmupUrlIndex()),
-  import('./storage/behavior.js').then((m) => m.warmupBehavior()),
-  import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls()),
   // v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
   // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
   import('./core/api-monitor.js').then((m) => m.warmupApiMonitor()),
-  import('./core/outbound-audit.js').then((m) => m.warmupOutboundAudit()),
-  import('./handlers.js').then((m) => m.warmupSiteAlertPersist()),
   import('./steam/ratings-batch.js').then((m) => m.resumeRatingsBatch())
 ]);
+const WARM_TIER_DELAY_MS = 15000;
+setTimeout(() => {
+  Promise.allSettled([
+    import('./storage/registry.js').then((m) => m.warmupRegistry()),
+    import('./storage/wrong-reports.js').then((m) => m.warmupWrongReports()),
+    import('./storage/learned-noise.js').then((m) => m.warmupLearnedNoise()),
+    import('./storage/url-index.js').then((m) => m.warmupUrlIndex()),
+    import('./storage/behavior.js').then((m) => m.warmupBehavior()),
+    import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls()),
+    import('./core/outbound-audit.js').then((m) => m.warmupOutboundAudit()),
+    import('./handlers.js').then((m) => m.warmupSiteAlertPersist())
+  ]);
+}, WARM_TIER_DELAY_MS);
 
 // 定时器幂等创建：MV3 SW 每次冷启动都会重跑顶层代码，`alarms.create`
 // 对同名 alarm 是替换（重新起算周期）——重复创建会让 24h 任务永远不触发。
@@ -175,10 +186,13 @@ async function setupBackupAlarm() {
 }
 setupBackupAlarm().catch((e) => console.error('自动备份定时器初始化失败:', String(e)));
 
-// v10.5.0 P1-B：周期性兜底落盘 alarm（5 分钟）——远大于 2s 防抖窗口，作为脏数据
-// 刷回存储的最低保障（SW 存活空闲时尤其有用）
-// Periodic durability flush (5 min, >> 2s debounce window).
-ensureAlarm('grPeriodicFlush', 5);
+// v10.5.0 P1-B：周期性兜底落盘 alarm——远大于 2s 防抖窗口，作为脏数据刷回
+// 存储的最低保障。v10.7.0 批次3：5min → 30min——每次 alarm 唤醒 SW 都要付
+// 冷启动成本，而它守护的只是 2s 防抖窗口（防抖 + 批次收尾 flush 已覆盖
+// 常规路径；30min 仅为极端断电场景兜底）。
+// Periodic durability flush (30 min): alarm wake-ups pay a full cold start,
+// so the floor only needs to cover pathological cases.
+ensureAlarm('grPeriodicFlush', 30);
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {

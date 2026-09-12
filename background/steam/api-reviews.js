@@ -1,6 +1,7 @@
 import { recordSteamCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
+import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
 import { Logger } from '../storage/logger.js';
 
 /**
@@ -198,17 +199,39 @@ export async function fetchReviewSummary(appId) {
  * @param {string|number} appId
  * @returns {Promise<string|null>} - YYYY-MM-DD
  */
+// v10.7.0 批次3：会话内去重缓存（24h，含 null 负缓存）——lastUpdate 变更
+// 极低频，同一 appId 在缓存过期重建/多批次重复解析时不再重复打
+// api.steampowered.com（与 appreviews 共享限流域）
+// Session dedupe cache for news lookups (24h incl. negative), cutting repeat
+// GetNewsForApp calls on cache rebuilds and repeated resolutions.
+const lastUpdateCache = createTtlCache({ ttlMs: 24 * 3600e3 });
+
 export async function fetchLastUpdate(appId) {
+  const key = String(appId);
+  const cached = lastUpdateCache.peek(key);
+  if (cached !== undefined) return cached;
   try {
     const resp = await fetchWithTimeout(`${ENDPOINTS.steamAppNews}?appid=${appId}&count=1&maxlength=0&format=json`);
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      lastUpdateCache.set(key, null);
+      return null;
+    }
     const data = await resp.json();
     const item = data && data.appnews && data.appnews.newsitems && data.appnews.newsitems[0];
-    if (!item || !item.date) return null;
+    if (!item || !item.date) {
+      lastUpdateCache.set(key, null);
+      return null;
+    }
     const d = new Date(item.date * 1000);
-    if (isNaN(d.getTime())) return null;
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (isNaN(d.getTime())) {
+      lastUpdateCache.set(key, null);
+      return null;
+    }
+    const out = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    lastUpdateCache.set(key, out);
+    return out;
   } catch {
+    lastUpdateCache.set(key, null);
     return null;
   }
 }

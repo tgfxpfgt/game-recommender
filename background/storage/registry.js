@@ -80,20 +80,39 @@ export async function recordGameInRegistry(
       names: /** @type {Array<string>} */ ([])
     });
 
-  if (cnName) existing.cnName = cnName;
-  if (enName) existing.enName = enName;
+  // v10.7.0 批次3：仅在实际变更时置 dirty——缓存命中路径此前每次都 bump
+  // lastConfirmed + 调度写入，纯命中波也会触发注册表（上限 10000 条）全量重写
+  // Only schedule a write when something actually changed (cache hits no
+  // longer trigger full registry rewrites).
+  let changed = false;
+  if (cnName && existing.cnName !== cnName) {
+    existing.cnName = cnName;
+    changed = true;
+  }
+  if (enName && existing.enName !== enName) {
+    existing.enName = enName;
+    changed = true;
+  }
 
   // Steam 条目类型（game/dlc/demo/bundle 等，管理页筛选用）
-  if (type) existing.type = type;
+  if (type && existing.type !== type) {
+    existing.type = type;
+    changed = true;
+  }
 
   // 更新封面图 URL（仅 http/https，安全校验）/ Update the cover URL (http/https only)
-  if (coverImage && /^https?:\/\//i.test(coverImage)) {
+  if (coverImage && /^https?:\/\//i.test(coverImage) && existing.coverImage !== coverImage) {
     existing.coverImage = coverImage;
+    changed = true;
   }
 
   // 更新 Steam 官方类型标签（去重合并，最多 20 个）/ Merge Steam genre tags (dedup, max 20)
   if (tags && Array.isArray(tags) && tags.length > 0) {
-    existing.tags = [...new Set([...(existing.tags || []), ...tags])].slice(0, 20);
+    const merged = [...new Set([...(existing.tags || []), ...tags])].slice(0, 20);
+    if (JSON.stringify(merged) !== JSON.stringify(existing.tags)) {
+      existing.tags = merged;
+      changed = true;
+    }
   }
 
   // 触发名加入名称变体（去重，最多 10 个）/ Add the triggering name to variants
@@ -102,13 +121,17 @@ export async function recordGameInRegistry(
     if (lower && !existing.names.includes(lower)) {
       existing.names.push(lower);
       if (existing.names.length > 10) existing.names.shift();
+      changed = true;
     }
   }
 
-  existing.lastConfirmed = Date.now();
-  registryMemory[key] = existing;
-  enforceRegistryLimit();
-  scheduleRegistryWrite();
+  if (!registryMemory[key]) changed = true; // 新条目必须落盘
+  if (changed) {
+    existing.lastConfirmed = Date.now();
+    registryMemory[key] = existing;
+    enforceRegistryLimit();
+    scheduleRegistryWrite();
+  }
 }
 
 // 防抖写入 / Debounced write

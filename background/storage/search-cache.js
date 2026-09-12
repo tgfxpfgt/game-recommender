@@ -12,6 +12,7 @@
 
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
+import { debounce } from '../core/mechanisms.js'; // v10.7.0：防抖工厂
 
 const SEARCH_CACHE_TTL = 24 * 3600e3; // 24 小时 / 24 hours
 const MAX_ENTRIES = STORAGE_CAPS.searchCache; // 上限裁剪（LRU 按 ts）/ LRU cap；v10.7.0 单源
@@ -66,15 +67,20 @@ export async function setSearchCache(gameName, appId, siteKeys, results) {
       searchCacheMemory.delete(entries[i][0]);
     }
   }
-  try {
-    await dataStore.writeModule(DB_KEYS.SEARCH_CACHE, Object.fromEntries(searchCacheMemory));
-  } catch {
-    /* 写失败仅丢失缓存，不影响主流程 */
-  }
+  // v10.7.0 批次3：防抖写穿（1s）——纯缓存数据，每次搜索即时全量重写
+  // （200 条 LRU）是写放大点；SW 被杀最多丢最后 1s 的缓存条目（可重建）
+  schedulePersist();
 }
+
+const schedulePersist = debounce(() => {
+  dataStore.writeModule(DB_KEYS.SEARCH_CACHE, Object.fromEntries(searchCacheMemory)).catch(() => {
+    /* 写失败仅丢失缓存，不影响主流程 */
+  });
+}, 1000);
 
 // 清空（导入/清除数据时调用）/ Clear (on import/data clear)
 export function resetSearchCache() {
   searchCacheMemory = new Map();
   loaded = false;
+  schedulePersist.cancel(); // 防 reset 后防抖写回旧数据
 }
