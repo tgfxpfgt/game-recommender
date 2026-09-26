@@ -307,6 +307,12 @@ options 主题定时标签写死时段文案、withRetry 标注预留 API、cons
 
 779 test · gate 全过（check + E2E MOCK 46/46 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-26T17-52-20.322Z-d28eea5e820d`
+- seal: `sha256:cf58fe9f07ce4cccaf886d1c31f854b5347f3f41277f9fcb458c4eef6fb28831`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.7.0（机制与架构优化：四单源化 + 开销治理 + 量化框架）
 
 源自 2026-09 迭代方案研究（见 `迭代方案研究-2026-09-机制与架构.md`）：功能已收敛，
