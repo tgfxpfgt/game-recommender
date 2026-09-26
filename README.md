@@ -333,6 +333,12 @@ node --check options/options.js
 
 805 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-26T18-22-05.998Z-543b20d7e444`
+- seal: `sha256:7c07f9f62c10b470c32661d598e4d7f12037b98a94f14cb79d566f539426b2bd`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.7.1（自检修复：跨域二维码解码契约失效 / 备份单源闭环 / 写放大回归防线）
 
 **修复**
