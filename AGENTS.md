@@ -28,6 +28,8 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   按 setting 键条件加载，禁用 = 代码零加载）。**新内容模块只改该清单一行**——tracker
   装载、test-content-sim 文件表、test-integrity 存在性校验均由其派生。站点静态注入脚本
   另走 `background/core/site-scripts.js` 的 SITE_SCRIPT_FILES（manifest content_scripts）。
+- 站点专属功能（内嵌 Steam 卡/布局默认/详情解析）走 adapter 规则 `features` 字段声明，
+  **勿在业务里写 siteKey/host 判断**（v10.7.0 收编三处）。运行指标用 core/metrics.js。
 - `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils 等 6 个）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
 - 存储模块新增 = `data/storage-registry.js` 的 STORAGE_MODULES 一行 + 业务文件：
@@ -52,6 +54,8 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     任何键（含嵌套组 badgeVisibility/weights/cacheTtls/dataSources/steamApiModules）
     必须同步设置层（options.js/panels 或 HTML）与 popup 必需集——漏同步 `npm run check`
     直接失败；有意无 UI 的键加入测试内 OPTIONS_ALLOWLIST 并写明理由。
+    （v10.7.0 新增样例：uiThemeNightStart/End、ratingsBatchSize、qrImageMaxKb——保存映射
+    以 DEFAULT_SETTINGS 键名为对照，越界回默认）
 11. 权重/设置新增键漏保存映射会被"全量保存"抹掉用户自定义值（历史事故）——保存映射
     以 DEFAULT_SETTINGS 键名为对照逐项核对。
 12. **徽章组标记契约**：`gr-rating-badge` 是好评率徽章**组标记**（prependBadge 防重复
