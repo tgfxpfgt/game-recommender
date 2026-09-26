@@ -101,9 +101,21 @@
             <div class="stat-value" id="diagSiteAlerts">—</div>
             <div class="stat-label">站点改版告警（v10.0.0 健康）</div>
           </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagBatchMs">—</div>
+            <div class="stat-label">评分批次耗时 P95 ms（v10.7.0 指标）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagOpfsWrites">—</div>
+            <div class="stat-label">会话 OPFS 写次数（v10.7.0 指标）</div>
+          </div>
+          <div class="gr-stat-card">
+            <div class="stat-value" id="diagMsgTotal">—</div>
+            <div class="stat-label">会话消息总数（v10.7.0 指标）</div>
+          </div>
         </section>
         <!-- v10.0.0：站点适配器健康明细（改版可感知） -->
-        <div id="siteHealthList" class="backup-status" style="margin-top:8px;display:none;"></div>
+        <div id="siteHealthList" class="backup-status" style="margin-top: 8px; display: none"></div>
       </div>
 
       <!-- 行为趋势 / Behavior trends (v4.0.0) -->
@@ -128,7 +140,7 @@
         <h2>🎯 推荐反馈信号</h2>
         <p class="section-desc">dislike 负反馈闭环与 view→download 转化的按游戏聚合（v10.0.0）</p>
         <div id="feedbackSummary" class="backup-status">暂无数据</div>
-        <div id="feedbackLists" style="margin-top:6px;"></div>
+        <div id="feedbackLists" style="margin-top: 6px"></div>
       </section>
 
       <!-- 收藏清单 / Favorites watchlist (v10.6.0 F2) -->
@@ -143,10 +155,16 @@
         <h2>🔎 游戏搜索</h2>
         <p class="section-desc">在已缓存的游戏（注册表/评分/Steam250/收藏）中搜索（v10.6.0）</p>
         <div class="section-toolbar">
-          <input type="text" id="gameSearchInput" class="gr-input" style="width: 240px" placeholder="输入游戏名（≥2 字符）" />
+          <input
+            type="text"
+            id="gameSearchInput"
+            class="gr-input"
+            style="width: 240px"
+            placeholder="输入游戏名（≥2 字符）"
+          />
           <button id="gameSearchBtn" class="gr-btn gr-btn-sm">搜索</button>
         </div>
-        <div id="gameSearchResults" class="backup-status" style="margin-top:6px;">输入关键词后搜索</div>
+        <div id="gameSearchResults" class="backup-status" style="margin-top: 6px">输入关键词后搜索</div>
       </section>
 
       <!-- 标签偏好 / Tag preferences -->

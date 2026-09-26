@@ -185,13 +185,19 @@ export const DEFAULT_SETTINGS = {
   downloadTrackingEnabled: true, // 下载追踪（网盘点击委托/复制捕获 → click_download）
   appStatsEnabled: true, // a-b 行为统计（下载 a/详情页打开 b 的计数+徽章+推荐信号）
   qrUnlockEnabled: true, // 二维码转链接（gamer520 等站二维码网盘链接自动解码）
+  qrImageMaxKb: 3072, // v10.7.0 批次5：二维码代取图片大小上限 KB（原 3MB 写死）
   xdgridEnabled: true, // XDGAME 列表布局定制（xdgame.com 专属）
   notifyFreeGames: true, // 限免通知推送（新增限免时系统通知）
   freeGamesEnabled: true, // v10.6.0：限免监控总开关（关闭后不抓取各源，页面显示旧数据）
   // v10.6.0：主题定时切换（日/夜双主题 + 按小时自动切换）
   themeAutoSwitch: false,
-  uiThemeDay: 'steam', // 日间主题（themeAutoSwitch 开启时 07:00-19:00 生效）
-  uiThemeNight: 'oled', // 夜间主题（19:00-07:00 生效）
+  uiThemeDay: 'steam', // 日间主题（themeAutoSwitch 开启时按 uiThemeNightStart/End 生效）
+  uiThemeNight: 'oled', // 夜间主题
+  // v10.7.0 批次5：夜间窗口小时数可调（原 19/7 写死在 resolveTheme）
+  uiThemeNightStart: 19, // 夜间主题起始小时（含）
+  uiThemeNightEnd: 7, // 夜间主题结束小时（不含；跨零点窗口 = start > end）
+  // v10.7.0 批次5：列表评分批次大小可调（原 60 写死；调大 = 首屏快但请求数多）
+  ratingsBatchSize: 60,
   // v10.4.0：详情页浮窗（Steam 信息）默认形态
   detailFloatExpanded: true, // 默认展开（false = 创建即折叠，可点击标题栏展开）
   detailFloatSide: 'left', // 浮窗位置：left（左上，默认）| right（右上）

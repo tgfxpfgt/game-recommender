@@ -23,18 +23,18 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 - `background/`：MV3 Service Worker。core（常量/设置/规则/契约）→ storage（各数据模块，
   OPFS 分文件持久化经 `data/data-store.js`）→ steam/recommend/sites/freegames 业务 → handlers
   （消息分发，`handlers.js` 聚合 MESSAGE_HANDLERS）。依赖分层单向，`test-integrity` 强制。
-- `content/`：内容脚本。`tracker.js` 经典入口 + 动态 `import(getURL('content/...'))`
-  加载 ESM 模块（core/list/detail/tracking）；可选功能模块（qr-unlock/xdgrid）按设置
-  **条件加载**（want() → tracker optional 键映射，禁用 = 代码零加载）。
-  **新内容模块必须同步三处**：tracker ensureModules（可选模块另加 optional 映射）、
-  tests/integration/test-content-sim.mjs 的 MODULE_FILES/MODULE_KEYS、
-  （若走 manifest 静态注入）manifest content_scripts + site-scripts SITE_SCRIPT_FILES。
-- `shared/`：内容/扩展页共用（escape/msg/patterns）。
+- `content/`：内容脚本。`tracker.js` 经典入口 + 动态 `import(getURL('content/...'))`，
+  装载清单单源 = `content/module-manifest.js`（CORE_MODULES 并行加载；OPTIONAL_MODULES
+  按 setting 键条件加载，禁用 = 代码零加载）。**新内容模块只改该清单一行**——tracker
+  装载、test-content-sim 文件表、test-integrity 存在性校验均由其派生。站点静态注入脚本
+  另走 `background/core/site-scripts.js` 的 SITE_SCRIPT_FILES（manifest content_scripts）。
+- `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils 等 6 个）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
-- 存储模块新增套路：constants.js 的 DB_KEYS + DATA_MODULES、data-store.js MODULE_FILES、
-  reset.js 重置、backups.js 核心子集（按需）、消息契约 message-contract.js。
-  steam 缓存为 4 分文件（meta/rating/detail/spy，steam-cache.js dirtyModules 子集写入）——
-  动其持久化须四处同步并保持旧单文件迁移兼容。
+- 存储模块新增 = `data/storage-registry.js` 的 STORAGE_MODULES 一行 + 业务文件：
+  data-store 的 file/format 映射、DATA_MODULES、备份子集（backup 标记）、清除范围
+  （clearOnDataReset 标记）全部由该表派生——**勿再手改 MODULE_FILES / DATA_MODULES /
+  BACKUP_CORE_KEYS**。steam 缓存为 4 分文件（meta/rating/detail/spy，steam-cache.js
+  dirtyModules 子集写入）——动其持久化须四处同步并保持旧单文件迁移兼容。
 
 ## 铁律（违反 = 测试/钩子拦截或线上事故）
 
@@ -57,6 +57,10 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 12. **徽章组标记契约**：`gr-rating-badge` 是好评率徽章**组标记**（prependBadge 防重复
     守卫/推荐徽章插入锚点/测试选择器三重身份）——经 createBadge 创建的组外徽章
     （推荐值等）必须传 `base:'gr-badge'`，否则污染守卫导致好评率徽章缺失（v10.6.0 事故）。
+13. **单源优先**：写互斥锁/防抖/Map+TTL 缓存/重试前先查 `core/mechanisms.js`（withLock /
+    debounce / TtlCache / withRetry）；写死值入 `constants.js` 单源组（STORAGE_CAPS /
+    ENDPOINTS / SPY_SCALES）；新增注册表条目走 STORAGE_MODULES / module-manifest。
+    发现"改一处要同步 N 个文件"= 该做单源化，不要照抄第 N 份。
 
 ## 文档同步（默认启用）
 

@@ -50,6 +50,7 @@ export default defineConfig({
       'tests/unit/test-steam250.mjs',
       'tests/unit/test-crypto-utils.mjs',
       'tests/unit/test-mechanisms.mjs',
+      'tests/unit/test-metrics.mjs',
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',

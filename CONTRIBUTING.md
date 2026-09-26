@@ -4,7 +4,7 @@
 
 ## 项目心智模型（先读这个）
 
-- **三套运行时并存**：`background/`（ES module Service Worker，单向分层 `core → storage → 业务层(steam/recommend/sites/freegames) → handlers → 入口`，静态断言拦截回归——见"依赖分层"）；`content/`（经典入口 tracker.js + 15 个 ESM 模块动态 import 注入，`__GR__` 命名空间已退场）；UI 页（options/popup/dashboard/freegames，经典脚本顺序加载，`__OPTS__` 共享）。
+- **三套运行时并存**：`background/`（ES module Service Worker，单向分层 `core → storage → 业务层(steam/recommend/sites/freegames) → handlers → 入口`，静态断言拦截回归——见"依赖分层"）；`content/`（经典入口 tracker.js + `content/module-manifest.js` 清单驱动的 14 个 ESM 模块动态 import 注入——12 核心并行 + 2 可选按设置条件加载，`__GR__` 命名空间已退场）；UI 页（options/popup/dashboard/freegames，经典脚本顺序加载，`__OPTS__` 共享）。
 - **数据流**：下载站页面 → content 提取游戏名 → 后台按名搜索 Steam（storesearch → appdetails → appreviews）→ 三层缓存（Steam 动态缓存模块化 meta/rating/detail/spy + 游戏注册表 + 名称索引）→ 推送回 content 渲染徽章。
 - **缓存优先原则**：名称索引直取 → 模块化缓存命中 → 官方 API 直取 → 搜索；搜索只发中文（v6.2.1 起英文名由 appdetails 直取覆盖）；出站请求统一经 `fetchWithTimeout`（SSRF 校验 + 审计 + 限速）。
 - **预取架构（v6.3.0 评估结论）**：详情页预取（CACHE_STEAM_PAGE）、列表批次调度 + 滚动哨兵、推荐本地计算（零网络）已覆盖主要预取场景，**不再新增请求路径**（新增预取需先论证命中率）。
@@ -23,7 +23,7 @@ npm run coverage       # vitest 覆盖率
 
 ## 测试体系
 
-- **单 runner（v6.2.0 起）**：`npm test` = vitest run，15+ 套件全部由 vitest 收集（content-sim 经 `__grImport` 注入兼容 eval 动态 import）。
+- **单 runner（v6.2.0 起）**：`npm test` = vitest run，26 套件全部由 vitest 收集（content-sim 经 `__grImport` 注入兼容 eval 动态 import）。
 - **目录**：`tests/unit/`（纯函数单测）+ `tests/integration/`（content-sim 内容脚本模拟 / test-handlers 消息链路 / test-orchestrator Steam 编排 / test-integrity 项目完整性）。
 - **新增测试文件必须加入 `vitest.config.js` 的 include 显式列表**（vitest 默认只匹配 `.test.` 后缀）。
 - **转换教训（重要）**：check 线性脚本（顶层准备 + 立即断言）转 vitest 时，**凡"顶层状态 + 延迟断言"必须打包进同一 test/beforeAll**——顶层准备在收集阶段全部提前执行，断言运行阶段读到最终状态（v6.1.1 根因）。多 fetch mock 必须按 describe 作用域安装/卸载（顶层多 mock 后装覆盖前者，v6.2.0 教训）。
@@ -37,7 +37,7 @@ npm run coverage       # vitest 覆盖率
   - `commit-msg`：提交信息 conventional 格式（feat|fix|refactor|docs|chore|test|style|perf|build|ci(scope)?: 描述）
   - `pre-push`：push 前跑 `npm run check`（lint + typecheck + vitest）——坏提交本地拦截
 - **依赖与密钥防线**：`npm run audit`（devDeps 漏洞）；CI security job 跑 npm audit + gitleaks（Secret 扫描）
-- **CI**（7 job，v10.5.1 现状）：test + test-2（vitest 双分片并行，CI 墙钟减半）；coverage-gate（新增文件行覆盖 ≥50% + 全局覆盖率下限）；release-smoke（CI 构建 zip + 产物校验——manifest/service-worker 在、node_modules/tests 不泄漏）；perf（全量 vitest ≤90s 预算）；e2e（xvfb + 固定版 Playwright Chromium，**E2E_MOCK=1 离线回放全量**，不依赖外网）；visual（**advisory 非阻断**——Windows 基线 vs Linux 字体 ~3% 均匀差，diff 上传 artifact 供人工审）；security（npm audit + gitleaks Secret 扫描）
+- **CI**（8 job，v10.5.1 现状）：test + test-2（vitest 双分片并行，CI 墙钟减半）；coverage-gate（新增文件行覆盖 ≥50% + 全局覆盖率下限）；release-smoke（CI 构建 zip + 产物校验——manifest/service-worker 在、node_modules/tests 不泄漏）；perf（全量 vitest ≤90s 预算）；e2e（xvfb + 固定版 Playwright Chromium，**E2E_MOCK=1 离线回放全量**，不依赖外网）；visual（**advisory 非阻断**——Windows 基线 vs Linux 字体 ~3% 均匀差，diff 上传 artifact 供人工审）；security（npm audit + gitleaks Secret 扫描）
 - **发布**：以 AGENTS.md「发布流程」清单为准（gate → bump → package → commit/tag/push → gh release 附 zip + Mimosa seal + 深度扫描）。`scripts/release.mjs` 半自动脚本存在但**落后于当前流程**（无 visual/双 E2E/zip 附件）——先更新再用，勿直接依赖
 
 ## 代码约定
@@ -47,6 +47,7 @@ npm run coverage       # vitest 覆盖率
 - JSDoc `/** */` 必须紧贴其描述的函数（中间插入其他函数会错位绑定，v6.3.0 engine.js 教训）。
 - 新消息 action 必须加入 `message-contract.js` 的 RULES 表（契约化 100%，v6.3.0 收尾）+ test-contract 同步。
 - 新后台模块注意依赖分层（ALLOWED 矩阵在 test-integrity）。
+- **单源表优先**：存储模块走 `data/storage-registry.js`、内容模块走 `content/module-manifest.js`、通用机制（互斥锁/防抖/TTL 缓存/重试）走 `background/core/mechanisms.js`——先查再用，勿新增第 N 份同构实现。
 
 ## 已决策不做的路线（v6.3.3 正式关闭，勿再提议）
 

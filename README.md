@@ -110,8 +110,9 @@ game-recommender/
 │   └── escape.js              # 共享 HTML 转义工具（popup/options/dashboard/freegames）
 ├── background/                # 后台（模块化）
 │   ├── service-worker.js      # 入口（导入/监听/定时/初始化）
-│   ├── handlers.js            # 消息处理与分发映射
-│   ├── core/                  # 常量/工具/设置/规则/重置
+│   ├── handlers.js            # 消息处理与分发映射（聚合 MESSAGE_HANDLERS）
+│   ├── handlers/              # 分组 handler（steam/cache-manager/data-modules/stats/download-sites）
+│   ├── core/                  # 常量/工具/设置/规则/重置/机制工厂
 │   ├── storage/               # 数据模块（缓存/注册表/索引/日志/备份/噪声词...）
 │   ├── steam/                 # 标题解析/API/编排器
 │   ├── recommend/engine.js    # 推荐算法
@@ -119,16 +120,18 @@ game-recommender/
 │   └── freegames/manager.js   # 限免管理
 ├── content/                   # 内容脚本（模块化）
 │   ├── tracker.js             # 入口（预热/init/启动/监听）
+│   ├── module-manifest.js     # 内容模块清单（单源：核心并行 + 可选按设置条件加载）
 │   ├── core/                  # common 工具 / floats 统一浮窗 / status-bar 状态栏 / debug 调试
 │   ├── adapters/builder.js    # 适配器构建
 │   ├── list/list-page.js      # 列表页功能
 │   ├── detail/detail-page.js  # 详情页功能
 │   └── tracking/download-tracking.js # 下载追踪
 ├── data/
-│   └── data-store.js          # OPFS 数据存储层
+│   ├── data-store.js          # OPFS 数据存储层
+│   └── storage-registry.js    # 存储模块注册表（单源：文件/格式/备份/清除范围派生）
 ├── lib/
 │   └── ndjson.js              # ND-JSON 编解码库
-├── tests/                     # 自动化测试套件（vitest 23 套件单 runner）
+├── tests/                     # 自动化测试套件（vitest 26 套件单 runner）
 ├── styles/content.css
 ├── popup/                     # 工具栏弹窗
 ├── options/                   # 设置页（入口 + panels/ 四面板）
@@ -253,8 +256,8 @@ flowchart LR
 # 一键验证（lint + 单测）/ full check (lint + unit tests)
 npm run check
 
-# 单测（v6.2.0 起单 runner 全量统一）：vitest 覆盖全部 23 套件（748 test）
-npm test          # vitest run（23 套件，含 content-sim 与 handlers 集成）
+# 单测（v6.2.0 起单 runner 全量统一）：vitest 覆盖全部 26 套件（765 test）
+npm test          # vitest run（26 套件，含 content-sim 与 handlers 集成）
 npm run coverage  # vitest 覆盖率（v8 provider）
 
 # 安装 git 钩子（提交信息格式校验 + 暂存 JS 语法检查，v4.1.2）
@@ -279,6 +282,45 @@ node --check options/options.js
 修改 `STEAM_CACHE_VERSION` 常量可强制使旧缓存失效，用于发布数据结构变更后的强制刷新。
 
 ## 更新日志
+
+### v10.7.0（机制与架构重构：四单源化 + 开销治理 · 开发中，批次 1-4 已合并）
+
+源自 2026-09 迭代方案研究（见 `迭代方案研究-2026-09-机制与架构.md`）：功能已收敛，
+但"接线"仍靠手工同步——三张注册表数字漂移、17 份同构机制实现、~128 处写死值。
+本版五个批次（每批 ≤1000 行）以**单源化**为核心，均无用户可见行为变化。
+
+**单源化（消除手工多点同步）**
+
+- **机制工厂四件套**（批次1，`background/core/mechanisms.js` 新增 142 行）：`withLock` /
+  `debounce` / `TtlCache` / `withRetry` 收编散落的 17 份同构实现（互斥锁 ×5、防抖 ×4、
+  Map+TTL 缓存 ×4、散装重试 ×4+）——纯函数工厂 + 可注入时钟，配 96 行新增单测，等价替换
+- **存储模块注册表**（批次2，`data/storage-registry.js` 新增）：此前 DB_KEYS(26) /
+  DATA_MODULES(24) / MODULE_FILES(25) 三张表是同一事实的三份拷贝且已漂移；现由
+  `STORAGE_MODULES` 一张表派生 data-store 文件映射、DATA_MODULES、默认备份子集与清除
+  范围——新增存储模块成本由 6 文件降为「1 行 + 1 业务文件」。顺带修掉漂移产物的备份
+  幽灵键，并把 favorites 纳入默认备份
+- **内容模块清单**（批次4，`content/module-manifest.js` 新增）：tracker 装载表 /
+  test-content-sim 的 MODULE_FILES / integrity 校验三处手工同步 → `CORE_MODULES`(12 并行)
+  - `OPTIONAL_MODULES`(2，按 DEFAULT_SETTINGS 开关键条件加载，禁用 = 代码零加载) 一张表派生
+- **站点 features 进规则 schema**（批次4）：内嵌评价卡站点白名单、XDGAME 布局默认值、
+  版本号解析三处硬编码收编进 adapters 规则；`web_accessible_resources` 与 content_scripts
+  域名一致性进 integrity 护栏（防 WAR 漂移）
+
+**收敛与治理**
+
+- **评分口径下沉**（批次1，`content/core/steam-rating-logic.js` 新增 100 行）：消除
+  list → detail 跨层依赖；escapeHtml 4 套实现统一为 shared/escape 单一口径
+- **常量单源**（批次1）：STORAGE_CAPS / ENDPOINTS / SPY_SCALES 三组进 `constants.js`；
+  删除好评率分级色"整份字面量 fallback"（假单源，实为漂移源）
+- **开销治理**（批次3）：registry 仅变更时落盘（此前评分批次无变化也整体重写）；兜底
+  alarm 5min → 30min（SW 白唤醒 12 次/时 → 2 次/时）；分级预热（二级延迟 15s）；
+  lastUpdate 会话内去重；searchCache 防抖写穿；batchState 硬上限
+
+**修复**
+
+- **runtimeLog 真追加化**（批次2）：此前日志模块为覆盖写，长时运行只留最后一批
+- **dirty 标记补齐 ×3**（批次2，learned-noise / url-index / wrong-reports）：此前部分
+  变更不标脏，极端情况下不落盘
 
 ### v10.6.0（性能与体验批次 / 收藏·ITAD·主题定时·备份加密 / steam 缓存分文件）
 

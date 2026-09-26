@@ -143,6 +143,13 @@ Promise.allSettled([
   // v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
   // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
   import('./core/api-monitor.js').then((m) => m.warmupApiMonitor()),
+  import('./core/metrics.js').then((m) => m.warmupMetrics()), // v10.7.0：运行指标
+  import('../data/data-store.js')
+    .then(async (ds) => {
+      const metrics = await import('./core/metrics.js');
+      ds.setWriteMetricsHook(metrics.trackOpfsWrite);
+    })
+    .catch(() => {}),
   import('./steam/ratings-batch.js').then((m) => m.resumeRatingsBatch())
 ]);
 const WARM_TIER_DELAY_MS = 15000;

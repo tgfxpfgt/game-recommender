@@ -9,17 +9,11 @@
  */
 import { DEFAULT_SETTINGS } from './core/constants.js';
 import { getSettings, saveSettings } from './core/settings.js';
+import { metricsSnapshot, metricInc } from './core/metrics.js'; // v10.7.0：运行指标
 import { saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { syncSiteScripts } from './core/site-scripts.js';
 import { Logger, getRuntimeLogs, clearRuntimeLogs } from './storage/logger.js';
-import {
-  addBehaviorLog,
-  updateGameProfile,
-  maybeUpdatePreferences,
-  readProfiles,
-  readKeywordWeights
-} from './storage/behavior.js';
-import { recordDownloadHistory } from './storage/history.js';
+import { readProfiles, readKeywordWeights } from './storage/behavior.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { calculateRecommendation } from './recommend/engine.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
@@ -27,10 +21,8 @@ import { getSteamApiStatus } from './core/api-monitor.js';
 import { createSessionPersist } from './core/session-persist.js'; // v10.0.0：告警限频跨 SW 持久化
 import { recordSiteAlert, getSiteHealth } from './storage/site-health.js';
 import { getFlushHealth } from './storage/flush-health.js';
-import { recordAppDownload, getAppStats } from './storage/app-stats.js'; // v10.1.0：下载计数 a + 批量共享读
-import { inferSiteFromDomain } from './storage/history.js'; // v10.2.0：站点去重键
+import { getAppStats } from './storage/app-stats.js'; // v10.1.0：批量共享读
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
-import { fetchWithTimeout } from './core/utils.js'; // v10.4.4：二维码跨域取图（SSRF 校验内建）
 import { getSteam250Info } from './steam/steam250.js'; // v10.4.4：Steam250 排名
 import { toggleFavorite, getFavorites } from './storage/favorites.js'; // v10.6.0 F2 收藏
 import { validateMessage, CONTENT_ALLOWED_ACTIONS, isTrustedSender } from './core/message-contract.js';
@@ -70,58 +62,8 @@ import {
   handleTrackDownloadSiteVisit,
   handleRecordDownloadUrlsBatch
 } from './handlers/download-sites.js';
-
-// --- 行为追踪 / Behavior tracking ---
-async function handleTrackEvent(message) {
-  await addBehaviorLog(message.data);
-
-  if (message.data.type === 'click_download') {
-    // v10.1.0：下载计数 a（AppID 维度，跨站点聚合）——内容侧在详情页解析出
-    // appId 后经 DOM 数据桥接（documentElement.dataset.grAppId）随事件带上；
-    // 无 appId（列表页点击等场景）不计入（无法关联）
-    // v10.2.0：站点去重键（同站 24h 内重复下载不重复计数；未识别站点用
-    // domain 本身，各自独立去重）
-    if (message.data.appId) {
-      const inferred = inferSiteFromDomain(message.data.domain || '');
-      const siteKey = inferred.key !== 'unknown' ? inferred.key : String(message.data.domain || 'unknown').slice(0, 64);
-      await recordAppDownload(String(message.data.appId), siteKey);
-    }
-    await updateGameProfile({
-      name: message.data.gameName,
-      event: 'download',
-      keywords: message.data.keywords
-    });
-    await recordDownloadHistory(message.data);
-    Logger.info('Download', `下载"${message.data.gameName}"`, {
-      method: message.data.method,
-      domain: message.data.domain
-    });
-  }
-  if (message.data.type === 'view_detail') {
-    await updateGameProfile({
-      name: message.data.gameName,
-      event: 'view',
-      keywords: message.data.keywords
-    });
-  }
-  // Steam标签回写
-  // v6.3.2 C3：不感兴趣标记（推荐反馈循环负信号）
-  if (message.data.type === 'dislike_game') {
-    await updateGameProfile({ name: message.data.gameName, event: 'dislike', keywords: message.data.keywords });
-  }
-  if (message.data.type === 'steam_tags_update') {
-    await updateGameProfile({
-      name: message.data.gameName,
-      event: 'view',
-      keywords: message.data.keywords,
-      steamAppId: message.data.steamAppId,
-      steamRating: message.data.steamRating
-    });
-  }
-  // 节流更新偏好模型；下载事件强制刷新（更具信号价值）
-  await maybeUpdatePreferences(message.data.type === 'click_download');
-  return { success: true };
-}
+import { handleTrackEvent } from './handlers/track-event.js'; // v10.7.0：行为追踪迁出
+import { handleFetchImageDataUrl } from './handlers/image-fetch.js'; // v10.7.0：图片代取迁出
 
 async function handleGetRecommendations(message) {
   // v10.3.0：推荐功能独立开关——关闭后返回空结果（内容侧不渲染推荐徽章，
@@ -221,27 +163,6 @@ async function handleGetSteam250Rank(message) {
   if (!appId) return { info: null };
   const info = await getSteam250Info(appId);
   return { info };
-}
-
-async function handleFetchImageDataUrl(message) {
-  const url = String((message && message.url) || '');
-  if (!/^https:\/\//i.test(url)) return { success: false, error: '仅接受 https 图片 URL' };
-  try {
-    const resp = await fetchWithTimeout(url, {}, 15000);
-    if (!resp.ok) return { success: false, error: 'HTTP ' + resp.status };
-    const type = (resp.headers && resp.headers.get('content-type')) || 'image/png';
-    if (!type.startsWith('image/')) return { success: false, error: '非图片响应' };
-    const buf = await resp.arrayBuffer();
-    if (buf.byteLength > 3 * 1024 * 1024) return { success: false, error: '图片超过 3MB 上限' };
-    const bytes = new Uint8Array(buf);
-    let binary = '';
-    for (let i = 0; i < bytes.length; i += 0x8000) {
-      binary += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + 0x8000)));
-    }
-    return { success: true, dataUrl: 'data:' + type + ';base64,' + btoa(binary) };
-  } catch (e) {
-    return { success: false, error: String(e) };
-  }
 }
 
 // v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）
@@ -366,6 +287,7 @@ export const MESSAGE_HANDLERS = {
     return searchCachedGames(msg);
   },
   GET_SITE_HEALTH: handleGetSiteHealth,
+  GET_RUNTIME_METRICS: async () => ({ metrics: metricsSnapshot() }),
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
   CLEAR_OUTBOUND_AUDIT: async () => {
@@ -402,6 +324,10 @@ export async function handleMessage(message, sender) {
     return { error: 'forbidden-sender: ' + message.action };
   }
   const handler = MESSAGE_HANDLERS[message.action];
-  if (handler) return await handler(message, sender);
+  if (handler) {
+    // v10.7.0 批次5：消息量指标（按 action 计数——N1 会话计数的明细维度）
+    metricInc('msg.' + message.action);
+    return await handler(message, sender);
+  }
   return { error: 'Unknown action: ' + message.action };
 }

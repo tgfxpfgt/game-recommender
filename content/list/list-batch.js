@@ -15,13 +15,17 @@ import * as badges from './badges.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
-const RATINGS_BATCH_SIZE = 60; // 每批请求上限（与后台批处理规模对应）
+// 每批请求上限（v10.7.0 批次5：settings.ratingsBatchSize 可调，默认 60；
+// initBatchState 时由 settings 注入——content 侧无法静态 import 常量）
 
 // v10.7.0 批次3：processItems 硬上限（内存保护）——无限滚动的长列表此前
 // 无界追加，每项持 DOM 元素引用；正常页面远达不到该值（maxScanLinks 默认
 // 500 只约束首屏扫描，不约束 observer 增量发现）
 // Hard cap on tracked items (memory guard for infinite-scroll pages).
 const PROCESS_ITEMS_HARD_CAP = 2000;
+
+/** @type {number} 当前批次容量（initBatchState 由 settings.ratingsBatchSize 注入） */
+let batchCapacity = 60;
 
 function initBatchState(settings) {
   // v9.7.0：重建前先断开旧观察器/定时器——重复调用（SPA 重入/强制刷新）
@@ -33,6 +37,9 @@ function initBatchState(settings) {
     if (prev.sentinelObserver) prev.sentinelObserver.disconnect();
     if (prev.forceTimer) clearTimeout(prev.forceTimer);
   }
+  // v10.7.0 批次5：批次大小由设置驱动（非法/越界值回退默认 60）
+  const rawBatch = Number(settings && settings.ratingsBatchSize);
+  batchCapacity = rawBatch >= 10 && rawBatch <= 200 ? Math.floor(rawBatch) : 60;
   _state.batchState = {
     settings, // v10.4.2：存储 settings——推荐徽章门控（applyRecommendationResults/
     // prependRecBadge 读 badgeVisibility.rec）此前拿到恒为 {} 的空对象，
@@ -100,7 +107,7 @@ export function maybeFetchNextBatch() {
     return { n, top };
   });
   withPos.sort((a, b) => a.top - b.top);
-  const names = withPos.slice(0, RATINGS_BATCH_SIZE).map((x) => x.n);
+  const names = withPos.slice(0, batchCapacity).map((x) => x.n);
   names.forEach((n) => batchState.requested.add(n));
   batchState.queue = batchState.queue.filter((n) => !batchState.requested.has(n));
   batchState.inflight = true;

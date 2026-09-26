@@ -469,6 +469,15 @@
                 </div>
                 <div class="setting-row">
                   <div class="setting-label">
+                    <span class="label-text">夜间窗口</span>
+                    <span class="label-desc">Night window（起始-结束小时，支持跨零点，如 19-7）</span>
+                  </div>
+                  <input type="number" id="uiThemeNightStart" class="gr-input" style="width: 70px" min="0" max="23" />
+                  <span style="margin: 0 4px">–</span>
+                  <input type="number" id="uiThemeNightEnd" class="gr-input" style="width: 70px" min="0" max="23" />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
                     <span class="label-text">夜间主题</span>
                     <span class="label-desc">Night Theme</span>
                   </div>
@@ -578,6 +587,36 @@
                     min="50"
                     max="5000"
                     step="50"
+                    class="gr-input"
+                    style="width: 110px"
+                  />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">评分批次大小</span>
+                    <span class="label-desc">Ratings Batch Size（10-200；越大首屏越快、单批请求越多）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="ratingsBatchSize"
+                    min="10"
+                    max="200"
+                    step="10"
+                    class="gr-input"
+                    style="width: 110px"
+                  />
+                </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">二维码图片上限</span>
+                    <span class="label-desc">QR Image Max（KB，512-30720；低配设备可调小）</span>
+                  </div>
+                  <input
+                    type="number"
+                    id="qrImageMaxKb"
+                    min="512"
+                    max="30720"
+                    step="512"
                     class="gr-input"
                     style="width: 110px"
                   />

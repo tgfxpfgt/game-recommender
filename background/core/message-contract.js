@@ -207,10 +207,15 @@ const RULES = {
       ? { ok: true }
       : { error: 'SEARCH_CACHED_GAMES.query 必填（2-100 字符）' },
   FETCH_IMAGE_DATA_URL: (m) =>
-    m && typeof m.url === 'string' && /^https:\/\/[^\s/"']+$/.test(m.url)
+    m &&
+    typeof m.url === 'string' &&
+    /^https:\/\/[^\s/"']+$/.test(m.url) &&
+    // v10.7.0 批次5：maxKb 可选上限覆盖（1-30720 KB，防滥用）
+    (m.maxKb === undefined || (typeof m.maxKb === 'number' && m.maxKb > 0 && m.maxKb <= 30720))
       ? { ok: true }
-      : { error: 'FETCH_IMAGE_DATA_URL.url 必须为 https 源' },
+      : { error: 'FETCH_IMAGE_DATA_URL.url 必须为 https 源（maxKb 可选 1-30720）' },
   GET_STORAGE_HEALTH: () => ({ ok: true }),
+  GET_RUNTIME_METRICS: () => ({ ok: true }), // v10.7.0：运行指标快照
   // 缓存条目级操作：appId 必填
   DELETE_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'DELETE_GAME_CACHE_ENTRY.appId'),
   REFRESH_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'REFRESH_GAME_CACHE_ENTRY.appId'),

@@ -41,6 +41,9 @@
     document.getElementById('badgeRec').checked = bv.rec !== false;
     // 列表页链接扫描上限（v3.3.9）
     document.getElementById('maxScanLinks').value = settings.maxScanLinks || 500;
+    // v10.7.0 批次5：评分批次大小 / 二维码图片上限回显
+    document.getElementById('ratingsBatchSize').value = settings.ratingsBatchSize ?? 60;
+    document.getElementById('qrImageMaxKb').value = settings.qrImageMaxKb ?? 3072;
 
     // v6.4.19：关键词过滤（纯规则列表；旧简单关键词输入已移除——规则由
     // 编辑器维护；uiTheme 皮肤回显）
@@ -88,6 +91,9 @@
     document.getElementById('themeAutoSwitch').checked = settings.themeAutoSwitch === true;
     document.getElementById('uiThemeDay').value = settings.uiThemeDay || 'steam';
     document.getElementById('uiThemeNight').value = settings.uiThemeNight || 'oled';
+    // v10.7.0 批次5：夜间窗口小时数回显
+    document.getElementById('uiThemeNightStart').value = settings.uiThemeNightStart ?? 19;
+    document.getElementById('uiThemeNightEnd').value = settings.uiThemeNightEnd ?? 7;
     document.getElementById('badgeAppstat').checked = (settings.badgeVisibility || {}).appstat !== false;
     document.getElementById('appStatDedupHours').value = settings.appStatDedupHours ?? 24;
     document.getElementById('appStatDownloadCap').value = settings.appStatDownloadCap ?? 100;

@@ -29,9 +29,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const s = r && r.settings;
       if (s && globalThis.__GR_SETTINGS_UTILS__) {
         const u = globalThis.__GR_SETTINGS_UTILS__;
-        if (u.applyThemeAuto) u.applyThemeAuto(s);
-        else if (u.applyTheme) u.applyTheme(s.uiTheme); // v10.6.0 F4
-        if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
+        if (u.applyPageTheme) u.applyPageTheme(s);
+        // v10.7.0：旧入口兜底（工具文件过旧时）
+        else {
+          if (u.applyThemeAuto) u.applyThemeAuto(s);
+          else if (u.applyTheme) u.applyTheme(s.uiTheme);
+          if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
+        }
       }
     } catch {}
   })();
@@ -306,6 +310,7 @@ async function loadStats() {
     // v7.1.0：Steam API 限流状态（自助诊断）
     loadApiDiagnostics();
     loadBootTime();
+    loadRuntimeMetrics(); // v10.7.0 批次5：运行指标卡
     // v10.0.0：推荐反馈信号区块
     renderFeedback(response.feedback);
     // 标签偏好 / Tag preference cloud
@@ -1038,6 +1043,41 @@ async function loadApiDiagnostics() {
     }
   } catch {
     el.textContent = '—';
+  }
+}
+
+// v10.7.0 批次5：运行指标（评分批次 P95 / OPFS 写次数 / 消息总数）
+// Runtime metrics cards (quantified benefits of the write-amplification work).
+async function loadRuntimeMetrics() {
+  const batchEl = document.getElementById('diagBatchMs');
+  const opfsEl = document.getElementById('diagOpfsWrites');
+  const msgEl = document.getElementById('diagMsgTotal');
+  if (!batchEl || !opfsEl || !msgEl) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_METRICS' });
+    const m = resp && resp.metrics;
+    if (!m) {
+      batchEl.textContent = opfsEl.textContent = msgEl.textContent = '—';
+      return;
+    }
+    const batch = m.hist && m.hist['batch.ms'];
+    batchEl.textContent = batch ? String(batch.p95) : '—';
+    batchEl.title = batch ? `样本 ${batch.count} · 平均 ${batch.avg} ms` : '暂无批次样本';
+    const counters = m.counters || {};
+    const opfsWrites = Object.entries(counters)
+      .filter(([k]) => k.startsWith('opfs.writeCount.'))
+      .reduce((acc, [, v]) => acc + v, 0);
+    opfsEl.textContent = String(opfsWrites);
+    const opfsBytes = Object.entries(counters)
+      .filter(([k]) => k.startsWith('opfs.writeBytes.'))
+      .reduce((acc, [, v]) => acc + v, 0);
+    opfsEl.title = opfsBytes > 0 ? `累计 ${(opfsBytes / 1024 / 1024).toFixed(2)} MB` : '';
+    const msgTotal = Object.entries(counters)
+      .filter(([k]) => k.startsWith('msg.'))
+      .reduce((acc, [, v]) => acc + v, 0);
+    msgEl.textContent = String(msgTotal);
+  } catch {
+    batchEl.textContent = opfsEl.textContent = msgEl.textContent = '—';
   }
 }
 

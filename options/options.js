@@ -757,11 +757,24 @@
     OPTS.currentSettings.themeAutoSwitch = document.getElementById('themeAutoSwitch').checked;
     OPTS.currentSettings.uiThemeDay = document.getElementById('uiThemeDay').value.trim() || 'steam';
     OPTS.currentSettings.uiThemeNight = document.getElementById('uiThemeNight').value.trim() || 'oled';
+    // v10.7.0 批次5：夜间窗口（越界/空值回默认，防把窗口配成空集）
+    const nightStart = parseInt(document.getElementById('uiThemeNightStart').value);
+    const nightEnd = parseInt(document.getElementById('uiThemeNightEnd').value);
+    OPTS.currentSettings.uiThemeNightStart =
+      Number.isInteger(nightStart) && nightStart >= 0 && nightStart <= 23 ? nightStart : 19;
+    OPTS.currentSettings.uiThemeNightEnd = Number.isInteger(nightEnd) && nightEnd >= 0 && nightEnd <= 23 ? nightEnd : 7;
     OPTS.currentSettings.appStatDedupHours = parseInt(document.getElementById('appStatDedupHours').value) || 0;
     OPTS.currentSettings.appStatDownloadCap = parseInt(document.getElementById('appStatDownloadCap').value) || 100;
     OPTS.currentSettings.appStatDetailViewCap = parseInt(document.getElementById('appStatDetailViewCap').value) || 100;
     // 列表页链接扫描上限（v3.3.9）
     OPTS.currentSettings.maxScanLinks = parseInt(document.getElementById('maxScanLinks').value) || 500;
+    // v10.7.0 批次5：评分批次大小（10-200 越界回默认）/ 二维码图片上限 KB
+    const batchRaw = parseInt(document.getElementById('ratingsBatchSize').value);
+    OPTS.currentSettings.ratingsBatchSize =
+      Number.isInteger(batchRaw) && batchRaw >= 10 && batchRaw <= 200 ? batchRaw : 60;
+    const qrKbRaw = parseInt(document.getElementById('qrImageMaxKb').value);
+    OPTS.currentSettings.qrImageMaxKb =
+      Number.isInteger(qrKbRaw) && qrKbRaw >= 512 && qrKbRaw <= 30720 ? qrKbRaw : 3072;
 
     // v6.4.19：关键词过滤（纯规则列表——filterRules 由编辑器维护；
     // 兼容字段保留旧值不覆盖，避免清掉历史简单关键词配置）

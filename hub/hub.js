@@ -16,9 +16,10 @@ const frame = document.getElementById('hubFrame');
 // v8.1.0：应用皮肤主题（与各页面一致）
 (async () => {
   try {
-    const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+    // v10.7.0 批次5：消息封装统一走 shared/msg.js（自带超时）+ applyPageTheme 统一入口
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
     if (resp && resp.settings && window.__GR_SETTINGS_UTILS__) {
-      window.__GR_SETTINGS_UTILS__.applyThemeAuto(resp.settings); // v10.6.0 F4：定时切换
+      window.__GR_SETTINGS_UTILS__.applyPageTheme(resp.settings);
     }
   } catch {
     /* 后台不可达时保持默认主题 */

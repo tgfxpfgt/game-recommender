@@ -23,13 +23,13 @@ document.addEventListener('DOMContentLoaded', () => {
   // v6.4.19：应用皮肤主题
   (async () => {
     try {
-      const r = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      // v10.7.0 批次5：消息封装统一走 shared/msg.js（__GR_MSG__，自带超时）
+      const r = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
       const s = r && r.settings;
       if (s && globalThis.__GR_SETTINGS_UTILS__) {
         const u = globalThis.__GR_SETTINGS_UTILS__;
-        if (u.applyThemeAuto) u.applyThemeAuto(s);
-        else if (u.applyTheme) u.applyTheme(s.uiTheme); // v10.6.0 F4
-        if (u.applyCustomTheme) u.applyCustomTheme(s.customThemeCss);
+        if (u.applyPageTheme) u.applyPageTheme(s);
+        else if (u.applyThemeAuto) u.applyThemeAuto(s); // 旧入口兜底
       }
     } catch {}
   })();
@@ -75,7 +75,7 @@ async function loadFreeGames(force = false) {
   listEl.innerHTML = '<div class="loading">正在加载限免游戏...</div>';
 
   try {
-    const response = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force });
+    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_FREE_GAMES', force });
     if (response && response.data) {
       allGames = response.data.games || [];
       // 显示最后更新时间
@@ -127,7 +127,7 @@ function renderGames() {
       // 链接始终会在新标签打开（<a target=_blank> 默认行为）
       // 若尚未领取，标记已领取并更新角标
       if (game && !game.claimed) {
-        await chrome.runtime.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
+        await window.__GR_MSG__.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
         game.claimed = true;
         // 就地更新按钮外观（保持链接可点击，不整体重渲染以免中断跳转）
         btn.classList.add('claimed');

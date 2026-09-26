@@ -16,6 +16,7 @@ import { getAppIdByUrl } from '../storage/url-index.js'; // v7.0.2：详情页�
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
 import { getSteamApiStatus } from '../core/api-monitor.js';
+import { metricInc, metricObserve } from '../core/metrics.js'; // v10.7.0：运行指标
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：a-b 徽章数据并入 ratings
 
 // v10.1.0：把 AppID 行为统计（a 下载 / b 详情页打开）并入 rating 条目——
@@ -233,6 +234,8 @@ async function runRatingJob(job) {
     let retried = job.retried === true;
     let consecutiveAnomaly = 0;
     while (queue.length > 0) {
+      // v10.7.0 批次5：批次耗时/数量指标（渲染与网络收益可量化）
+      const batchT0 = Date.now();
       const batch = queue.slice(0, batchSize);
       queue = queue.slice(batchSize);
       const wave = {};
@@ -265,6 +268,8 @@ async function runRatingJob(job) {
       job.queue = queue;
       job.retried = retried;
       await persistJob(job);
+      metricObserve('batch.ms', Date.now() - batchT0);
+      metricInc('batch.items', batch.length);
       // 限流降速：Steam API 异常状态时拉大批次间隔；连续异常暂停 30s 等窗口恢复
       if (getSteamApiStatus().anomaly) {
         consecutiveAnomaly++;

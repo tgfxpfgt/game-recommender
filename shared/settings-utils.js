@@ -96,11 +96,16 @@
   // v10.6.0 F4：主题定时切换解析（纯函数，可单测）——themeAutoSwitch 开启时
   // 按 19:00-07:00 窗口选日/夜主题，否则用 uiTheme
   // Theme auto-switch resolution (pure): night window 19:00-07:00.
+  // v10.7.0 批次5：夜间窗口小时数可调（uiThemeNightStart/End，默认 19/7；
+  // 支持跨零点窗口 start > end，如 21 → 6）
+  // Night window hours now configurable (supports wrap-around windows).
   function resolveTheme(settings, hour) {
     if (!settings) return 'steam';
     const h = typeof hour === 'number' ? hour : new Date().getHours();
     if (settings.themeAutoSwitch === true) {
-      const night = h >= 19 || h < 7;
+      const start = Number.isFinite(settings.uiThemeNightStart) ? settings.uiThemeNightStart : 19;
+      const end = Number.isFinite(settings.uiThemeNightEnd) ? settings.uiThemeNightEnd : 7;
+      const night = start > end ? h >= start || h < end : h >= start && h < end;
       const t = night ? settings.uiThemeNight : settings.uiThemeDay;
       return t || settings.uiTheme || 'steam';
     }

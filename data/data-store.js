@@ -27,6 +27,17 @@ const MODULE_FILES = Object.fromEntries(
   Object.entries(STORAGE_MODULES).map(([key, m]) => [key, { file: m.file, format: m.format }])
 );
 
+// v10.7.0 批次5：写路径指标钩子——data 层不得 import background/*（分层矩阵），
+// 由 background/core/metrics.js 经 setWriteMetricsHook 注入回调（bytes/count）。
+// 声明置于类前（TDZ：类方法运行时引用顶层 let 必须已初始化——铁律 #4）
+// Write-metrics hook injection keeps the data layer import-clean.
+/** @type {((fileName: string, bytes: number) => void)|null} */
+let writeMetricsHook = null;
+/** @param {((fileName: string, bytes: number) => void)|null} fn */
+export function setWriteMetricsHook(fn) {
+  writeMetricsHook = typeof fn === 'function' ? fn : null;
+}
+
 class DataStore {
   constructor() {
     this.opfsAvailable = false;
@@ -120,6 +131,14 @@ class DataStore {
     const writable = await fileHandle.createWritable();
     await writable.write(text);
     await writable.close();
+    // v10.7.0 批次5：写放大可观测（每模块字节数/次数——优化收益量化）
+    if (writeMetricsHook) {
+      try {
+        writeMetricsHook(fileHandle.name, text.length);
+      } catch {
+        /* 指标失败不影响写入 */
+      }
+    }
   }
 
   // v3.4.1：读取损坏时把原文件备份为 <name>.corrupt-<ts> 并重置为空
