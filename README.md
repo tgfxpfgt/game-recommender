@@ -342,6 +342,12 @@ node --check options/options.js
 
 770 test · gate 全过（check + E2E MOCK 46/46 + visual 11/11 基线更新）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-26T17-04-08.082Z-3df1ff96781c`
+- seal: `sha256:fbe981821fefa7875c7684c30bdac4e16b87f729ebbfcfc2a0e8a262e1af87ea`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.6.0（性能与体验批次 / 收藏·ITAD·主题定时·备份加密 / steam 缓存分文件）
 
 **新功能**
