@@ -312,3 +312,38 @@ test('diagnoseAdapterRules：缺 displayName/过宽正则+fallbackLinks 告警',
   expect(!!wide).toEqual(true);
   expect(diag.find((d) => d.site === 'ok')).toEqual(undefined);
 });
+
+// ============ v10.8 B-1：features 子键必须为布尔 ============
+test('features 布尔开关合法', () => {
+  const r = rulesMod.validateAdapterRules({
+    version: 1,
+    sites: [
+      {
+        key: 'x',
+        name: 'X',
+        domains: ['x.com'],
+        features: { inlineSteamCard: true, gridLayoutDefault: false, detailMetaVersion: true }
+      }
+    ]
+  });
+  expect(r.ok).toEqual(true);
+});
+test('features 字符串值拒绝（truthy "false" 不得误启用）', () => {
+  const r = rulesMod.validateAdapterRules({
+    version: 1,
+    sites: [{ key: 'x', name: 'X', domains: ['x.com'], features: { inlineSteamCard: 'false' } }]
+  });
+  expect(r.ok).toEqual(false);
+  expect(String(r.error || '')).toContain('features');
+});
+test('features 非对象拒绝', () => {
+  const r = rulesMod.validateAdapterRules({
+    version: 1,
+    sites: [{ key: 'x', name: 'X', domains: ['x.com'], features: 'yes' }]
+  });
+  expect(r.ok).toEqual(false);
+});
+test('缺 features 仍合法（前向兼容）', () => {
+  const r = rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'] }] });
+  expect(r.ok).toEqual(true);
+});

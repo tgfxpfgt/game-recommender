@@ -87,7 +87,15 @@ export const ENDPOINTS = {
   steamSpy: 'https://steamspy.com/api.php',
   steamCdnHeader: (appId) => `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
   steam250Top250: 'https://steam250.com/top250',
-  itadPrices: 'https://api.isthereanydeal.com/v02/game/prices/'
+  itadPrices: 'https://api.isthereanydeal.com/v02/game/prices/',
+  // v10.8 B-3：限免源端点收编（原散落 manager.js）
+  epicPromotions:
+    'https://store-site-backend-official.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN',
+  epicStore: 'https://store.epicgames.com/zh-CN/p/',
+  gogFreeApi: 'https://www.gog.com/games/ajax/filtered?mediaType=game&price=free&limit=25',
+  gogStore: 'https://www.gog.com',
+  steamFeatured: 'https://store.steampowered.com/api/featuredcategories/',
+  gamerPower: 'https://www.gamerpower.com/api/giveaways'
 };
 
 // 默认设置 / Default settings

@@ -524,3 +524,26 @@ describe('备份 legacy 键（v10.7.1 回归）', () => {
     expect(storage._dump().manualMappings && storage._dump().manualMappings['游戏A']).toEqual('12345');
   });
 });
+
+// ============ v10.8 B-2：保存侧数值范围钳制 ============
+describe('clampNumericSettings（B-2 纵深防御）', () => {
+  test('越界值回默认、界内值保留、非数值跳过', async () => {
+    const setMod = await import(new URL('../../background/core/settings.js', import.meta.url).href);
+    const clamped = setMod.clampNumericSettings({
+      ratingsBatchSize: 999,
+      qrImageMaxKb: 1,
+      uiThemeNightStart: 25,
+      uiThemeNightEnd: 6,
+      maxScanLinks: 500,
+      redTitleRating: 'x',
+      unknownKey: 12345
+    });
+    expect(clamped.ratingsBatchSize).toEqual(60); // 超上界 → 默认
+    expect(clamped.qrImageMaxKb).toEqual(3072); // 低于下界 → 默认
+    expect(clamped.uiThemeNightStart).toEqual(19);
+    expect(clamped.uiThemeNightEnd).toEqual(6); // 界内保留
+    expect(clamped.maxScanLinks).toEqual(500); // 界内保留
+    expect(clamped.redTitleRating).toEqual('x'); // 非数值跳过（类型回退归 deepMerge）
+    expect(clamped.unknownKey).toEqual(12345); // 未知键透传
+  });
+});

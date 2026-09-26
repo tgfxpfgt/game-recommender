@@ -51,7 +51,14 @@
         : `📦 内置规则 <b>${builtinCount}</b> 个站点`;
   }
 
-  // 规则列表（纯展示，全部转义）/ Rule list (display only, escaped)
+  // 规则列表（展示 + v10.8 F1：features 勾选行——勾选即回写编辑器 JSON，
+  // 保存走 ruleSave 原链路）/ Rule list with per-site feature checkboxes that
+  // patch the editor JSON (save via the normal ruleSave flow).
+  const FEATURE_FLAGS = [
+    ['inlineSteamCard', '内嵌 Steam 卡'],
+    ['gridLayoutDefault', '布局定制默认开'],
+    ['detailMetaVersion', '版本号解析']
+  ];
   function renderRuleList(merged) {
     const el = document.getElementById('ruleList');
     const sites = (merged && merged.sites) || [];
@@ -60,8 +67,16 @@
       return;
     }
     el.innerHTML = sites
-      .map(
-        (s) => `
+      .map((s) => {
+        const f = s.features || {};
+        const checks = FEATURE_FLAGS.map(
+          ([flag, label]) => `
+          <label class="rule-feature-check" title="features.${escapeHtml(flag)}">
+            <input type="checkbox" data-site="${escapeHtml(s.key)}" data-flag="${escapeHtml(flag)}" ${f[flag] === true ? 'checked' : ''}/>
+            ${escapeHtml(label)}
+          </label>`
+        ).join('');
+        return `
       <div class="rule-item">
         <div class="rule-item-head">
           <span class="rule-item-key">${escapeHtml(s.key)}</span>
@@ -71,9 +86,33 @@
         <div class="rule-item-meta">域名: ${escapeHtml((s.domains || []).join(', '))}</div>
         ${s.detailUrlPatterns ? `<div class="rule-item-meta">详情: ${escapeHtml(s.detailUrlPatterns.join(' | '))}</div>` : ''}
         ${s.listItem && s.listItem.containers ? `<div class="rule-item-meta">容器: ${escapeHtml(s.listItem.containers.join(' | '))}</div>` : ''}
-      </div>`
-      )
+        <div class="rule-item-features">${checks}</div>
+      </div>`;
+      })
       .join('');
+    // 勾选 → 回写编辑器 JSON（非法 JSON 时还原勾选并提示）
+    el.querySelectorAll('.rule-feature-check input').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const siteKey = cb.dataset.site;
+        const flag = cb.dataset.flag;
+        const prev = !cb.checked;
+        const parsed = parseEditor();
+        if (!parsed) {
+          cb.checked = prev; // 编辑器 JSON 当前非法 → 还原勾选
+          return;
+        }
+        const site = (parsed.sites || []).find((x) => x && x.key === siteKey);
+        if (!site) {
+          cb.checked = prev;
+          setRuleStatus(`未在编辑器 JSON 中找到站点 "${siteKey}"（可能已被手动删除）`, 'error');
+          return;
+        }
+        site.features = site.features || {};
+        site.features[flag] = cb.checked;
+        document.getElementById('ruleEditor').value = JSON.stringify(parsed, null, 2);
+        setRuleStatus(`已更新 ${siteKey}.features.${flag}=${cb.checked}——请点击「保存规则」生效`, 'info');
+      });
+    });
   }
 
   // ============ 编辑器操作 / Editor actions ============

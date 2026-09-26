@@ -48,8 +48,7 @@ function sanitizeGameUrl(url) {
 async function fetchEpicFreeGames() {
   const games = [];
   try {
-    const url =
-      'https://store-site-backend-official.ak.epicgames.com/freeGamesPromotions?locale=zh-CN&country=CN&allowCountries=CN';
+    const url = ENDPOINTS.epicPromotions;
     const resp = await fetchWithTimeout(url);
     const data = await resp.json();
     const elements = data?.data?.Catalog?.searchStore?.elements || [];
@@ -72,7 +71,7 @@ async function fetchEpicFreeGames() {
         name: el.title,
         description: el.description || '',
         image: img,
-        url: `https://store.epicgames.com/zh-CN/p/${el.productSlug || el.urlSlug}`,
+        url: `${ENDPOINTS.epicStore}${el.productSlug || el.urlSlug}`,
         originalPrice: el.price?.totalPrice?.fmtPrice?.originalPrice || '',
         endTime: promo.endDate,
         claimed: false
@@ -87,7 +86,7 @@ async function fetchEpicFreeGames() {
 async function fetchGogFreeGames() {
   const games = [];
   try {
-    const resp = await fetchWithTimeout('https://www.gog.com/games/ajax/filtered?mediaType=game&price=free&limit=25', {
+    const resp = await fetchWithTimeout(ENDPOINTS.gogFreeApi, {
       headers: { Accept: 'application/json' }
     });
     if (!resp.ok) return games;
@@ -107,7 +106,7 @@ async function fetchGogFreeGames() {
         name: p.title,
         description: '',
         image: p.image ? `https:${p.image}.jpg` : '',
-        url: `https://www.gog.com${p.url}`,
+        url: `${ENDPOINTS.gogStore}${p.url}`,
         originalPrice: p.price?.finalPrice ? `¥${p.price.finalPrice}` : '免费',
         endTime: '',
         claimed: false
@@ -122,7 +121,7 @@ async function fetchGogFreeGames() {
 async function fetchSteamFreeGames() {
   const games = [];
   try {
-    const resp = await fetchWithTimeout('https://store.steampowered.com/api/featuredcategories/?l=schinese&cc=cn');
+    const resp = await fetchWithTimeout(`${ENDPOINTS.steamFeatured}?l=schinese&cc=cn`);
     if (!resp.ok) return games;
     const data = await resp.json();
     const specials = data?.specials?.items || [];
@@ -138,7 +137,7 @@ async function fetchSteamFreeGames() {
           name: item.name,
           description: '',
           image: item.large_capsule_image || item.small_capsule_image || '',
-          url: `https://store.steampowered.com/app/${item.id}/`,
+          url: `${ENDPOINTS.steamStoreApp}${item.id}/`,
           originalPrice: item.final_price === 0 ? '免费' : '',
           endTime: '',
           claimed: false
@@ -207,7 +206,7 @@ export function extractThirdPartySource(item) {
 async function fetchGamerPowerFreeGames() {
   const games = [];
   try {
-    const resp = await fetchWithTimeout('https://www.gamerpower.com/api/giveaways');
+    const resp = await fetchWithTimeout(ENDPOINTS.gamerPower);
     if (!resp.ok) return games;
     const data = await resp.json();
     if (!Array.isArray(data)) return games;
@@ -502,7 +501,7 @@ export async function determineSteamFreeType(appId) {
 // Store-page button check: Add to Cart (claimable) vs Play Now (weekend)
 async function verifyStorePageButtons(appId) {
   try {
-    const resp = await fetchWithTimeout(`https://store.steampowered.com/app/${appId}/?l=schinese`, {
+    const resp = await fetchWithTimeout(`${ENDPOINTS.steamStoreApp}${appId}/?l=schinese`, {
       headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' }
     });
     if (!resp.ok) return 'limited'; // 页面失败 → 保持 appdetails 判定（喜加一）

@@ -31,6 +31,8 @@ import '../adapters/index.js';
 // 数据存储层：OPFS 分文件存储（突破 5MB 配额），不可用时降级 storage.local
 // Data store layer (OPFS per-module files; falls back to storage.local)
 import { initStorage, getSettings } from './core/settings.js';
+import { setWriteMetricsHook } from '../data/data-store.js'; // v10.8：写指标钩子（静态——铁律 2）
+import { trackOpfsWrite } from './core/metrics.js';
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
 import { refreshFreeGames, getLastNotifyGames } from './freegames/manager.js';
@@ -144,14 +146,10 @@ Promise.allSettled([
   // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
   import('./core/api-monitor.js').then((m) => m.warmupApiMonitor()),
   import('./core/metrics.js').then((m) => m.warmupMetrics()), // v10.7.0：运行指标
-  import('../data/data-store.js')
-    .then(async (ds) => {
-      const metrics = await import('./core/metrics.js');
-      ds.setWriteMetricsHook(metrics.trackOpfsWrite);
-    })
-    .catch(() => {}),
   import('./steam/ratings-batch.js').then((m) => m.resumeRatingsBatch())
 ]);
+// v10.8：OPFS 写指标接线（静态导入 + 顶层调用——动态版静默失败难排查）
+setWriteMetricsHook(trackOpfsWrite);
 const WARM_TIER_DELAY_MS = 15000;
 setTimeout(() => {
   Promise.allSettled([

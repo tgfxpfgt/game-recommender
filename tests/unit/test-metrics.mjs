@@ -45,3 +45,35 @@ describe('metrics（批次5 运行指标）', () => {
     expect(Object.keys(metricsSnapshot().hist).length).toEqual(16);
   });
 });
+
+// ============ v10.8 缺口5：OPFS 写指标管线（data-store 钩子 → metrics） ============
+it('trackOpfsWrite 聚合：文件名去后缀按模块计数/字节', async () => {
+  resetMetrics();
+  const { trackOpfsWrite } = await import('../../background/core/metrics.js');
+  trackOpfsWrite('steam-cache-rating.json', 2048);
+  trackOpfsWrite('steam-cache-rating.json', 1024);
+  trackOpfsWrite('behavior-log.ndjson', 100);
+  trackOpfsWrite('x.json.corrupt-123', 50); // 损坏备份文件归并到模块名
+  const snap = metricsSnapshot();
+  expect(snap.counters['opfs.writeCount.steam-cache-rating']).toEqual(2);
+  expect(snap.counters['opfs.writeBytes.steam-cache-rating']).toEqual(3072);
+  expect(snap.counters['opfs.writeCount.behavior-log']).toEqual(1);
+  expect(snap.counters['opfs.writeCount.x']).toEqual(1);
+});
+
+it('data-store _writeHandle 实际触发钩子（管线接线验证）', async () => {
+  resetMetrics();
+  const dsMod = await import('../../data/data-store.js');
+  const { trackOpfsWrite } = await import('../../background/core/metrics.js');
+  dsMod.setWriteMetricsHook(trackOpfsWrite);
+  // 伪 fileHandle（createWritable 消费后由 _writeHandle 调用钩子）
+  const fakeHandle = {
+    name: 'favorites.json',
+    createWritable: async () => ({ write: async () => {}, close: async () => {} })
+  };
+  await dsMod.dataStore._writeHandle(fakeHandle, { a: 1 }, 'json');
+  const snap = metricsSnapshot();
+  expect(snap.counters['opfs.writeCount.favorites']).toEqual(1);
+  expect(snap.counters['opfs.writeBytes.favorites']).toBeGreaterThan(0);
+  dsMod.setWriteMetricsHook(null); // 清钩子防串扰其他用例
+});

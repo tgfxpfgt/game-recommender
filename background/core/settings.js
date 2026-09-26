@@ -69,10 +69,49 @@ export async function getSettings() {
   return /** @type {import('./types.js').AppSettings} */ (settingsCache);
 }
 
+// v10.8 B-2：数值设置键范围表（纵深防御——前端已回默认，后台保存时二次钳制，
+// 防特权调用方存入越界值；[min, max, 默认]）
+// Server-side range clamps for known numeric keys (defense in depth).
+const NUMERIC_RANGES = {
+  ratingsBatchSize: [10, 200, 60],
+  qrImageMaxKb: [512, 30720, 3072],
+  uiThemeNightStart: [0, 23, 19],
+  uiThemeNightEnd: [0, 23, 7],
+  redTitleRating: [0, 100, 95],
+  maxScanLinks: [50, 5000, 500],
+  maxRuntimeLog: [50, 5000, 300],
+  maxBehaviorLog: [50, 5000, 500],
+  logRetentionDays: [0, 365, 7],
+  maxBackups: [1, 50, 7],
+  backupIntervalHours: [1, 168, 24],
+  appStatDedupHours: [0, 168, 24],
+  appStatDownloadCap: [10, 10000, 100],
+  appStatDetailViewCap: [10, 10000, 100]
+};
+
+/**
+ * 保存侧数值钳制（纯函数，可单测）——仅对已知数值键、值为有限数字时生效；
+ * 非法类型/缺失键原样保留（deepMergeSettings 负责类型回退）。
+ * Pure clamp applied on save; unknown keys and non-numbers pass through.
+ * @param {any} settings
+ * @returns {any}
+ */
+export function clampNumericSettings(settings) {
+  if (!isPlainObject(settings)) return settings;
+  const out = { ...settings };
+  for (const [key, [min, max, dflt]] of Object.entries(NUMERIC_RANGES)) {
+    const v = out[key];
+    if (typeof v !== 'number' || !Number.isFinite(v)) continue;
+    out[key] = v < min ? dflt : v > max ? dflt : v;
+  }
+  return out;
+}
+
 // 保存设置（同步刷新 TTL 配置）/ Save settings (refresh TTL config)
 export async function saveSettings(settings) {
-  await dataStore.writeModule(DB_KEYS.SETTINGS, settings);
-  settingsCache = deepMergeSettings(DEFAULT_SETTINGS, settings || {});
+  const clamped = clampNumericSettings(settings); // v10.8 B-2
+  await dataStore.writeModule(DB_KEYS.SETTINGS, clamped);
+  settingsCache = deepMergeSettings(DEFAULT_SETTINGS, clamped || {});
   settingsCacheTime = Date.now();
   await refreshTtlConfig();
 }

@@ -78,6 +78,19 @@
 
 - 游戏名检索失败时自动尝试删词组合搜索（尾部/头部逐词删除 + 已学噪声词清洗）
 - 成功后自动学习被跳过的噪声词（计数确认 ≥3 次生效，防误学副标题）
+
+### 11. 收藏与数据洞察（v10.6.0+）
+
+- 详情浮窗 **☆ 收藏**（上限 500）；数据分析页收藏专区；收藏游戏进限免时通知带前缀提示
+- **Steam250 排名**与 **ITAD 历史最低价**行（后者需配置 ITAD API Key）
+- **运行指标卡**：评分批次 P95 耗时 / 会话磁盘写次数 / 会话消息总数（GET_RUNTIME_METRICS）
+- **AppID 行为统计**（a-b 徽章）：跨站点下载/详情打开计数，参与推荐评分（v10.1.0）
+
+### 12. 主题与体验（v10.6.0+）
+
+- **20 套皮肤** + 日/夜主题定时切换（夜间窗口起止小时可调，支持跨零点）
+- 列表浮窗合并面板：好评率过滤（滑块实时生效）+ 列表布局定制（对称扩展）；浮窗折叠状态记忆
+- **离线备份加密**（AES-GCM + PBKDF2，口令不落盘）；二维码跨域解码转链接
 - 检索规则随使用自动改进，新站点标题修饰词无需手动维护
 
 ## 安装方式
@@ -283,6 +296,43 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.8.0（自检演进：测试防线补齐 / 规则 features 勾选 UI / 纵深防御 / 文档更新）
+
+**新功能**
+
+- **规则编辑器 features 勾选**（F1）：站点规则列表每行新增三个功能勾选（内嵌 Steam 卡 /
+  布局定制默认开 / 版本号解析）——勾选即回写编辑器 JSON，保存走原链路；自定义站零代码
+  获得与内置站同款能力；字段说明表补 features 行
+
+**纵深防御**
+
+- **features 子键强制布尔**（B-1）：规则校验拒绝 truthy 字符串（如 "false"）误启用功能
+- **保存侧数值范围钳制**（B-2）：14 个数值设置键（批次大小/二维码上限/夜间窗口等）后台
+  保存时越界回默认（此前仅前端钳制）；纯函数可单测
+- **限免源端点收编**（B-3）：manager.js 剩余 8 处端点字面量并入 ENDPOINTS 单源（现 0 散落）
+
+**测试防线（自检缺口 2/4/5/7/8 全部落地）**
+
+- 新套件 ×4：logger 追加路径（探底/追加/截断/失败复位/开关丢弃 ×5）、image-fetch handler
+  （https/上限/content-type/异常 ×8）、search-cache 防抖写穿与 reset 取消（×2）、
+  metrics 钩子管线（trackOpfsWrite 聚合 + data-store _writeHandle 接线验证 ×2）
+- **E2E 补 v10.7.0 新面**：dashboard 运行指标卡渲染、**指标框架存活门禁**（消息计数 +
+  OPFS 写计数非零——E1）、新设置键保存往返、加密组件加载检查（E2E 46 → 50）
+- 修复：SW 写指标钩子接线由动态 import 改**静态导入 + 顶层调用**（铁律 2；动态版静默
+  失败导致 opfs 写计数缺失）
+
+**文档更新（自检欠账清偿）**
+
+- 使用指南.md：版本/权限表（白名单实况，移除 <all_urls> 误导）+ v10.5.4-v10.8.0 用户可见功能
+- PRIVACY.md：补 favorites/grMetrics（仅计数无浏览内容）/加密导出/ITAD 展示说明
+- STORE.md：描述草稿补 v10.6.0+ 卖点与 localhost host 说明
+- README 核心功能节补「收藏与数据洞察」「主题与体验」两节；CONTRIBUTING 补 E2E 浏览器
+  安装、content-sim 8b 抖动与判定法、options 页直连 fetch 有意例外说明
+
+**自检勘误**：2026-09-26 报告中 P2-4"coverage 盲区"经实测复核实为误报（陈旧 summary）。
+
+805 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
+
 ### v10.7.1（自检修复：跨域二维码解码契约失效 / 备份单源闭环 / 写放大回归防线）
 
 **修复**
@@ -331,7 +381,7 @@ options 主题定时标签写死时段文案、withRetry 标注预留 API、cons
   幽灵键，并把 favorites 纳入默认备份
 - **内容模块清单**（批次4，`content/module-manifest.js` 新增）：tracker 装载表 /
   test-content-sim 的 MODULE_FILES / integrity 校验三处手工同步 → `CORE_MODULES`(12 并行)
-  + `OPTIONAL_MODULES`(2，按 DEFAULT_SETTINGS 开关键条件加载，禁用 = 代码零加载) 一张表派生
+  - `OPTIONAL_MODULES`(2，按 DEFAULT_SETTINGS 开关键条件加载，禁用 = 代码零加载) 一张表派生
 - **站点 features 进规则 schema**（批次4）：内嵌评价卡站点白名单、XDGAME 布局默认值、
   版本号解析三处硬编码收编进 adapters 规则；`web_accessible_resources` 与 content_scripts
   域名一致性进 integrity 护栏（防 WAR 漂移）

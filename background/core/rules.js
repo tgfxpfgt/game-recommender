@@ -157,6 +157,14 @@ function validateSiteRule(site, depth) {
       return `站点 "${site.key}" domains 含非法主机名（需为形如 example.com 的裸域名，禁止通配符/协议/路径/端口）`;
     }
   }
+  // v10.8 B-1：features 子键必须是布尔——防规则包塞 truthy 字符串（如
+  // "false"）误启用站点功能；消费端语义为布尔开关
+  if (site.features !== undefined) {
+    if (!isPlainObject(site.features)) return `站点 "${site.key}" features 必须是对象`;
+    for (const [k, v] of Object.entries(site.features)) {
+      if (typeof v !== 'boolean') return `站点 "${site.key}" features.${k} 必须是布尔值（true/false）`;
+    }
+  }
   // v3.4.1：正则字段试编译——非法正则会在内容脚本 new RegExp 时抛错
   // 拖垮整页适配器，导入前必须拦截
   // Regex fields are compile-checked so a bad pattern cannot throw in the

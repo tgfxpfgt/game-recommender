@@ -329,6 +329,34 @@ async function runChecks() {
         Number(optState.maxRuntimeLog) > 0
     );
     check('options 标题', optState.title.includes('设置'));
+    // v10.8：v10.7.0 新设置键保存-回显往返（夜间窗口/批次大小/二维码上限）+ 加密组件加载
+    const newKeys = await optPage.evaluate(async () => {
+      document.getElementById('uiThemeNightStart').value = 21;
+      document.getElementById('uiThemeNightStart').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('uiThemeNightEnd').value = 6;
+      document.getElementById('uiThemeNightEnd').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('ratingsBatchSize').value = 80;
+      document.getElementById('ratingsBatchSize').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('qrImageMaxKb').value = 1024;
+      document.getElementById('qrImageMaxKb').dispatchEvent(new Event('change', { bubbles: true }));
+      document.getElementById('saveBtn').click();
+      await new Promise((r) => setTimeout(r, 1500));
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const s = resp.settings;
+      return {
+        ns: s.uiThemeNightStart,
+        ne: s.uiThemeNightEnd,
+        batch: s.ratingsBatchSize,
+        qrKb: s.qrImageMaxKb,
+        crypto: !!window.__GR_CRYPTO__
+      };
+    });
+    check(
+      'options 新设置键保存往返（夜间窗口/批次/二维码上限）',
+      newKeys.ns === 21 && newKeys.ne === 6 && newKeys.batch === 80 && newKeys.qrKb === 1024,
+      `(ns=${newKeys.ns} ne=${newKeys.ne} batch=${newKeys.batch} qrKb=${newKeys.qrKb})`
+    );
+    check('crypto-utils 加密组件加载（F5）', newKeys.crypto === true);
     // options 切 VM 过滤（先切到过滤面板）→ 自动保存（800ms 防抖）→ popup 重开验证一致
     await optPage.evaluate(() => {
       document.querySelector('.gr-nav-item[data-panel="filters"]').click();
@@ -751,6 +779,26 @@ async function runChecks() {
     }));
     check('dashboard 趋势图 SVG 渲染', trendInfo.svgCount > 0);
     check('趋势统计显示浏览数据', /浏览/.test(trendInfo.stats), `(${trendInfo.stats})`);
+    // v10.8 E1：dashboard 运行指标卡 + 指标框架存活（v10.7.0 新面）
+    const metricsInfo = await dash.evaluate(() => ({
+      batchCard: !!document.getElementById('diagBatchMs'),
+      opfsCard: !!document.getElementById('diagOpfsWrites'),
+      msgCard: !!document.getElementById('diagMsgTotal'),
+      mode: (document.getElementById('diagOpfsMode') || { textContent: '?' }).textContent
+    }));
+    check('dashboard 运行指标卡渲染（v10.7.0）', metricsInfo.batchCard && metricsInfo.opfsCard && metricsInfo.msgCard);
+    const metricsSnap = await dash.evaluate(async () => {
+      const r = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_METRICS' });
+      return r && r.metrics;
+    });
+    check(
+      '运行指标框架存活（消息计数 + OPFS 写计数非零）',
+      !!metricsSnap &&
+        Object.keys(metricsSnap.counters || {}).length > 0 &&
+        Object.entries(metricsSnap.counters || {}).some(([k, v]) => k.startsWith('msg.') && v > 0) &&
+        Object.entries(metricsSnap.counters || {}).some(([k, v]) => k.startsWith('opfs.writeCount.') && v > 0),
+      `(mode=${metricsInfo.mode}, counterKeys=${metricsSnap ? Object.keys(metricsSnap.counters || {}).length : 0})`
+    );
     await dash.close();
 
     // 6. 重启持久化（v6.4.14 回归：OPFS move() 对已存在目标不替换的 bug
