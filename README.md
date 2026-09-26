@@ -283,6 +283,30 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.7.1（自检修复：跨域二维码解码契约失效 / 备份单源闭环 / 写放大回归防线）
+
+**修复**
+
+- **跨域二维码解码失效（P1）**：FETCH_IMAGE_DATA_URL 契约正则字符类排除 `/`，一切带路径的
+  图片 URL（即全部真实二维码图）被契约层拒绝、handler 永不执行——自 v10.5.4 引入该规则起
+  跨域解码实际失效（同源可解码图不受影响）。放宽为路径允许型（排除空白/引号/尖括号），
+  与 handler 的 https 前缀校验对齐；补 7 个契约回归测试钉死
+- **备份单源闭环**：BACKUP_CORE_KEYS 的 'manualMappings' 此前为永不匹配死键（不在
+  DATA_MODULES）且与注册表 LEGACY_BACKUP_KEYS 导出断裂——现由注册表派生，备份/还原对
+  legacy 键（仅 storage.local）显式读写配对；删除 backups.js 冗余 settings 条件
+
+**回归防线（自检缺口 1/3/6）**
+
+- registry dirty 语义：未变更重复 confirm 零落盘、变更路径 lastConfirmed 更新（防写放大事故回归）
+- 备份幽灵键排除 + manualMappings 纳入/还原断言
+- list-batch 批次容量钳制抽为纯函数 resolveBatchCapacity 并单测（10-200 越界回 60）
+
+**清理**：handlers.js 孤儿注释（已迁出 handler 的过时 3MB 描述）、api-details 重复注释行、
+options 主题定时标签写死时段文案、withRetry 标注预留 API、constants 中部 import 置顶。
+另：自检 P2-4"coverage 盲区"经实测复核实为误报（陈旧 summary 文件），配置无问题。
+
+779 test · gate 全过（check + E2E MOCK 46/46 + visual 11/11）
+
 ### v10.7.0（机制与架构优化：四单源化 + 开销治理 + 量化框架）
 
 源自 2026-09 迭代方案研究（见 `迭代方案研究-2026-09-机制与架构.md`）：功能已收敛，

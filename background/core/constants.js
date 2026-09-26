@@ -8,6 +8,9 @@
  * top-level initialization order-safe (TDZ-proof).
  */
 
+import { STORAGE_MODULES, LEGACY_BACKUP_KEYS } from '../../data/storage-registry.js';
+// 注：import 置顶（ESM 提升后位置无关，置顶仅符合惯例）；依赖方向 core→data 合法
+
 // 存储键定义 / Storage keys
 export const DB_KEYS = {
   BEHAVIOR_LOG: 'behaviorLog',
@@ -352,7 +355,6 @@ export const PREF_UPDATE_INTERVAL = 60000;
 // data-store.js MODULE_FILES、backups.js BACKUP_CORE_KEYS 三表手工同步已漂移；
 // storageKey 字符串字面量语义保留：彻底免疫顶层初始化顺序依赖（TDZ 防御））
 // Data-module list, derived from the storage registry single source.
-import { STORAGE_MODULES } from '../../data/storage-registry.js';
 export { STORAGE_MODULES }; // v10.7.0：注册表单源透出（data-modules 等消费）
 
 export const DATA_MODULES = Object.entries(STORAGE_MODULES)
@@ -360,16 +362,16 @@ export const DATA_MODULES = Object.entries(STORAGE_MODULES)
   .map(([key, m]) => ({ key, name: m.name, desc: m.desc, storageKey: key }));
 
 // 默认备份子集（v9.3.0 语义：高价值不可重建数据；缓存/日志类可重建 → 排除）。
-// 由注册表 backup 标记派生；manualMappings 为无 OPFS 文件的遗留模块（仅
-// storage.local），保留显式列出。v10.7.0 修正：旧表中的 'behavior' 为幽灵键
-// （实际键为 behaviorLog/gameProfiles，永不匹配 → 默认备份一直缺 nothing），
+// 由注册表 backup 标记派生 + 遗留键（LEGACY_BACKUP_KEYS，仅 storage.local——
+// v10.7.1 修复单源断点：此前在此硬编码 'manualMappings' 而注册表导出
+// LEGACY_BACKUP_KEYS 零消费）。v10.7.0 修正：旧表幽灵键 'behavior' 已除，
 // favorites（用户精选、不可重建）纳入默认备份。
-// Default backup subset derived from registry `backup` flags.
+// Default backup subset derived from registry `backup` flags + legacy keys.
 export const BACKUP_CORE_KEYS = [
   ...Object.entries(STORAGE_MODULES)
     .filter(([, m]) => m.backup)
     .map(([key]) => key),
-  'manualMappings'
+  ...LEGACY_BACKUP_KEYS
 ];
 
 // 导出文件格式标识与版本 / Export file format id and version

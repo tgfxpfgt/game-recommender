@@ -458,3 +458,69 @@ test('无备份 → 跳过恢复', async () => {
   expect(r.restored).toEqual(false);
   expect(r.reason).toEqual('no-backups');
 });
+
+// ============ v10.7.1 回归：registry 变更才落盘（写放大防线） ============
+describe('registry dirty 语义（v10.7.1 回归）', () => {
+  test('未变更的重复 confirm 不再触发落盘', async () => {
+    storage._reset();
+    regMod.resetRegistry();
+    await regMod.recordGameInRegistry('275850', { cnName: '无人深空', enName: "No Man's Sky" });
+    await regMod.flushRegistry();
+    const ds = (await import(new URL('../../data/data-store.js', import.meta.url).href)).dataStore;
+    let writes = 0;
+    const orig = ds.writeModule;
+    ds.writeModule = async (...args) => {
+      writes++;
+      return orig.apply(ds, args);
+    };
+    try {
+      // 同 appId 同数据重复 confirm（纯缓存命中场景）→ 不得置 dirty
+      await regMod.recordGameInRegistry('275850', { cnName: '无人深空', enName: "No Man's Sky" });
+      await regMod.flushRegistry();
+      expect(writes).toEqual(0);
+    } finally {
+      ds.writeModule = orig;
+    }
+  });
+
+  test('字段实际变更 → 落盘且 lastConfirmed 更新', async () => {
+    storage._reset();
+    regMod.resetRegistry();
+    await regMod.recordGameInRegistry('275850', { cnName: '无人深空' });
+    await regMod.flushRegistry();
+    const firstTs = (await regMod.getGameRegistryEntry('275850')).lastConfirmed; // 快照数值（内存是活引用）
+    await new Promise((r) => setTimeout(r, 5));
+    await regMod.recordGameInRegistry('275850', { cnName: '无人深空', type: 'game' });
+    await regMod.flushRegistry();
+    const ds = (await import(new URL('../../data/data-store.js', import.meta.url).href)).dataStore;
+    const persisted = await ds.readModule('gameRegistry');
+    expect(persisted && persisted['275850'] && persisted['275850'].type).toEqual('game');
+    expect(persisted['275850'].lastConfirmed).toBeGreaterThan(firstTs);
+  });
+});
+
+// ============ v10.7.1 回归：备份单源闭环（幽灵键排除 + legacy 键纳入与还原） ============
+describe('备份 legacy 键（v10.7.1 回归）', () => {
+  test('默认备份不含幽灵键 behavior，含 legacy manualMappings 快照', async () => {
+    storage._reset({
+      settings: { enabled: true, maxBackups: 7 },
+      manualMappings: { 游戏A: '12345' }
+    });
+    const backup = await backups.createBackup(false);
+    expect(backup.modules.includes('behavior')).toEqual(false); // 幽灵键永不出现
+    expect(backup.data.manualMappings && backup.data.manualMappings['游戏A']).toEqual('12345');
+  });
+
+  test('还原备份时 legacy 键写回 storage.local', async () => {
+    storage._reset({
+      settings: { enabled: true, maxBackups: 7 },
+      manualMappings: { 游戏A: '12345' }
+    });
+    const backup = await backups.createBackup(false);
+    // 模拟数据丢失（manualMappings 被清）——保留备份记录本身（backups 键）
+    storage._reset({ settings: { enabled: true }, backups: storage._dump().backups });
+    const r = await backups.restoreBackup(backup.id);
+    expect(r.success).toEqual(true);
+    expect(storage._dump().manualMappings && storage._dump().manualMappings['游戏A']).toEqual('12345');
+  });
+});

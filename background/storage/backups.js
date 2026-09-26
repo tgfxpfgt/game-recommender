@@ -8,6 +8,7 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, DATA_MODULES, BACKUP_CORE_KEYS } from '../core/constants.js';
+import { LEGACY_BACKUP_KEYS } from '../../data/storage-registry.js'; // v10.7.1：遗留键显式备份
 import { getSettings } from '../core/settings.js';
 import { sanitizeImportedModule } from '../core/rules.js';
 import { resetInMemoryCaches } from './reset.js';
@@ -31,12 +32,23 @@ export async function createBackup(manual = false, /** @type {string[]|null} */ 
     const all = /** @type {Array<{key: string, storageKey: string}>} */ (DATA_MODULES);
     const modules = moduleKeys
       ? all.filter((m) => moduleKeys.includes(m.key))
-      : all.filter((m) => BACKUP_CORE_KEYS.includes(m.key) || m.key === 'settings');
+      : all.filter((m) => BACKUP_CORE_KEYS.includes(m.key));
     const storageKeys = modules.map((m) => m.storageKey);
     const snapshot = {};
     for (const key of storageKeys) {
       const value = await dataStore.readModule(key);
       if (value !== undefined) snapshot[key] = value;
+    }
+    // v10.7.1 P2 修复：遗留键（manualMappings，仅 storage.local、无 OPFS 文件）
+    // 此前因不在 DATA_MODULES 而永不匹配——默认路径在此显式读取（单源
+    // LEGACY_BACKUP_KEYS 派生，勾选自定义模块时也按所选含 legacy 键）
+    // Legacy keys live only in storage.local; read them explicitly here.
+    const wantLegacy = moduleKeys ? LEGACY_BACKUP_KEYS.filter((k) => moduleKeys.includes(k)) : LEGACY_BACKUP_KEYS;
+    if (wantLegacy.length > 0) {
+      const legacyData = await chrome.storage.local.get(wantLegacy);
+      for (const k of wantLegacy) {
+        if (legacyData[k] !== undefined) snapshot[k] = legacyData[k];
+      }
     }
     // v3.4.0：密钥安全——备份剔除 API 密钥（与导出一致，备份文件流转不泄露凭据）
     if (snapshot.settings) {
@@ -123,6 +135,14 @@ export async function restoreBackup(backupId, moduleKeys = null) {
     }
     for (const [key, value] of Object.entries(snapshot)) {
       await dataStore.writeModule(key, value);
+    }
+    // v10.7.1 P2 对称修复：遗留键（仅 storage.local）恢复写回——与 createBackup
+    // 的 legacy 读取配对，否则备份里的 manualMappings 永远无法还原
+    for (const k of LEGACY_BACKUP_KEYS) {
+      if (backup.data[k] === undefined) continue;
+      const value = sanitizeImportedModule(k, backup.data[k]);
+      if (value === null || value === undefined) continue;
+      await chrome.storage.local.set({ [k]: value });
     }
     // 备份数据可能包含旧的 settings 及各层缓存，必须使所有内存缓存失效
     resetInMemoryCaches();

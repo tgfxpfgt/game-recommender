@@ -351,3 +351,31 @@ test('SAVE_SETTINGS 字符串权重被拒', () => {
 test('SAVE_SETTINGS 非有限权重（Infinity）被拒', () => {
   expect(validateMessage('SAVE_SETTINGS', { settings: { weights: { heat: Infinity } } }).ok).toEqual(false);
 });
+
+// v10.7.1 P1 回归：FETCH_IMAGE_DATA_URL 契约——原正则排除 '/' 导致一切带路径
+// 的图片 URL（即全部真实二维码图）被拒、跨域解码失效；此处钉死修复
+test('FETCH_IMAGE_DATA_URL 带路径 https 图 URL 合法（P1 回归钉死）', () => {
+  expect(validateMessage('FETCH_IMAGE_DATA_URL', { url: 'https://cdn.example.com/path/qr.png' }).ok).toEqual(true);
+});
+test('FETCH_IMAGE_DATA_URL 查询串/锚点清除后的路径仍合法', () => {
+  expect(
+    validateMessage('FETCH_IMAGE_DATA_URL', {
+      url: 'https://img.gamers520.com/wp-content/uploads/2024/05/qr.jpg'
+    }).ok
+  ).toEqual(true);
+});
+test('FETCH_IMAGE_DATA_URL http 拒绝', () => {
+  expect(validateMessage('FETCH_IMAGE_DATA_URL', { url: 'http://cdn.example.com/a.png' }).ok).toEqual(false);
+});
+test('FETCH_IMAGE_DATA_URL 缺 url 拒绝', () => {
+  expect(validateMessage('FETCH_IMAGE_DATA_URL', {}).ok).toEqual(false);
+});
+test('FETCH_IMAGE_DATA_URL 带空白 URL 拒绝', () => {
+  expect(validateMessage('FETCH_IMAGE_DATA_URL', { url: 'https://cdn.example.com/a b.png' }).ok).toEqual(false);
+});
+test('FETCH_IMAGE_DATA_URL maxKb 预留参数界内合法', () => {
+  expect(validateMessage('FETCH_IMAGE_DATA_URL', { url: 'https://x.com/a.png', maxKb: 2048 }).ok).toEqual(true);
+});
+test('FETCH_IMAGE_DATA_URL maxKb 超界拒绝', () => {
+  expect(validateMessage('FETCH_IMAGE_DATA_URL', { url: 'https://x.com/a.png', maxKb: 40000 }).ok).toEqual(false);
+});

@@ -51,6 +51,7 @@ export default defineConfig({
       'tests/unit/test-crypto-utils.mjs',
       'tests/unit/test-mechanisms.mjs',
       'tests/unit/test-metrics.mjs',
+      'tests/unit/test-list-batch-capacity.mjs',
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',

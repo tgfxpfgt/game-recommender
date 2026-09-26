@@ -29,7 +29,8 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   装载、test-content-sim 文件表、test-integrity 存在性校验均由其派生。站点静态注入脚本
   另走 `background/core/site-scripts.js` 的 SITE_SCRIPT_FILES（manifest content_scripts）。
 - 站点专属功能（内嵌 Steam 卡/布局默认/详情解析）走 adapter 规则 `features` 字段声明，
-  **勿在业务里写 siteKey/host 判断**（v10.7.0 收编三处）。运行指标用 core/metrics.js。
+  **勿在业务里写 siteKey/host 判断**（v10.7.0 收编三处；xdgrid.js 的 host 兜底判断是
+  有意保留的规则加载失败保底，勿删）。运行指标用 core/metrics.js。
 - `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils 等 6 个）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
 - 存储模块新增 = `data/storage-registry.js` 的 STORAGE_MODULES 一行 + 业务文件：

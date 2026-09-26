@@ -27,6 +27,13 @@ const PROCESS_ITEMS_HARD_CAP = 2000;
 /** @type {number} 当前批次容量（initBatchState 由 settings.ratingsBatchSize 注入） */
 let batchCapacity = 60;
 
+// v10.7.1：批次容量解析抽为纯函数（可单测）——非法/越界值回退默认 60
+// Pure resolver for the batch capacity (unit-tested; out-of-range falls back).
+export function resolveBatchCapacity(raw) {
+  const n = Number(raw);
+  return n >= 10 && n <= 200 ? Math.floor(n) : 60;
+}
+
 function initBatchState(settings) {
   // v9.7.0：重建前先断开旧观察器/定时器——重复调用（SPA 重入/强制刷新）
   // 时旧 MutationObserver/IntersectionObserver 仍持有旧 batchState 闭包，
@@ -37,9 +44,8 @@ function initBatchState(settings) {
     if (prev.sentinelObserver) prev.sentinelObserver.disconnect();
     if (prev.forceTimer) clearTimeout(prev.forceTimer);
   }
-  // v10.7.0 批次5：批次大小由设置驱动（非法/越界值回退默认 60）
-  const rawBatch = Number(settings && settings.ratingsBatchSize);
-  batchCapacity = rawBatch >= 10 && rawBatch <= 200 ? Math.floor(rawBatch) : 60;
+  // v10.7.0 批次5：批次大小由设置驱动（解析与钳制见 resolveBatchCapacity）
+  batchCapacity = resolveBatchCapacity(settings && settings.ratingsBatchSize);
   _state.batchState = {
     settings, // v10.4.2：存储 settings——推荐徽章门控（applyRecommendationResults/
     // prependRecBadge 读 badgeVisibility.rec）此前拿到恒为 {} 的空对象，

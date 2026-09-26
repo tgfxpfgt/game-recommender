@@ -116,8 +116,12 @@ export function createTtlCache({ ttlMs, max = 0, now = () => Date.now() }) {
 
 /**
  * 重试工厂（固定/指数退避，可注入时钟便于单测）。
+ * v10.7.1 注记：当前为**预留 API**（存量重试点为"候选名降级序列"等业务语义
+ * 流程，非同构 retry，未强收编）——新代码需要重试一律用本工厂，不再手写。
  * task 抛错时重试 retries 次（不含首跑）；delayMs > 0 且 backoff > 1 时指数退避。
- * Retry with fixed/exponential backoff and injectable clock.
+ * Retry with fixed/exponential backoff and injectable clock. Reserved API:
+ * existing retry sites are business-level degradation sequences; new code
+ * must use this factory instead of hand-rolling.
  * @template T
  * @param {(attempt: number) => Promise<T>} task
  * @param {{ retries?: number, delayMs?: number, backoff?: number, onRetry?: (err: unknown, attempt: number) => void, sleep?: (ms: number) => Promise<void> }} [options]

@@ -154,10 +154,8 @@ async function handleGetApiStatus() {
   return getSteamApiStatus();
 }
 
-// v10.4.4：二维码跨域取图——内容脚本 canvas 对跨域图片会被污染无法解码，
-// 由后台代取图片（fetchWithTimeout 内建 SSRF 校验）并转为 dataURL 回传。
-// 仅接受 https 图片 URL，大小上限 3MB，content-type 必须 image/*
 // v10.4.4：Steam250 排名查询（appId → {rank, score, votes}；无记录 null）
+//（二维码跨域取图 handler 已迁至 handlers/image-fetch.js，v10.7.1 清理孤儿注释）
 async function handleGetSteam250Rank(message) {
   const appId = message && message.appId;
   if (!appId) return { info: null };

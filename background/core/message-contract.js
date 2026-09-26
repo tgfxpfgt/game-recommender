@@ -206,11 +206,14 @@ const RULES = {
     m && typeof m.query === 'string' && m.query.trim().length >= 2 && m.query.length <= 100
       ? { ok: true }
       : { error: 'SEARCH_CACHED_GAMES.query 必填（2-100 字符）' },
+  // v10.7.1 P1 修复：原正则字符类排除 '/'，一切带路径的图片 URL（即全部真实
+  // 二维码图）被契约层拒绝——跨域解码自 v10.5.4 起实际失效。放宽为"排除空白/
+  // 引号/尖括号"（路径允许型），与 handler 的 https 前缀校验对齐。maxKb 为
+  // 预留覆盖参数（当前唯一调用方 qr-unlock 仅传 url，契约级防滥用）。
   FETCH_IMAGE_DATA_URL: (m) =>
     m &&
     typeof m.url === 'string' &&
-    /^https:\/\/[^\s/"']+$/.test(m.url) &&
-    // v10.7.0 批次5：maxKb 可选上限覆盖（1-30720 KB，防滥用）
+    /^https:\/\/[^\s"'<>]+$/.test(m.url) &&
     (m.maxKb === undefined || (typeof m.maxKb === 'number' && m.maxKb > 0 && m.maxKb <= 30720))
       ? { ok: true }
       : { error: 'FETCH_IMAGE_DATA_URL.url 必须为 https 源（maxKb 可选 1-30720）' },

@@ -109,8 +109,6 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
 
 // --- 商店页面 HTML ---
 
-// --- 商店页面 HTML ---
-
 export async function fetchStorePageHtml(appId) {
   try {
     const storePageUrl = `https://store.steampowered.com/app/${appId}/?cc=cn&l=schinese`;
