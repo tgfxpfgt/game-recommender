@@ -283,7 +283,7 @@ node --check options/options.js
 
 ## 更新日志
 
-### v10.7.0（机制与架构重构：四单源化 + 开销治理 · 开发中，批次 1-4 已合并）
+### v10.7.0（机制与架构优化：四单源化 + 开销治理 + 量化框架）
 
 源自 2026-09 迭代方案研究（见 `迭代方案研究-2026-09-机制与架构.md`）：功能已收敛，
 但"接线"仍靠手工同步——三张注册表数字漂移、17 份同构机制实现、~128 处写死值。
@@ -291,9 +291,9 @@ node --check options/options.js
 
 **单源化（消除手工多点同步）**
 
-- **机制工厂四件套**（批次1，`background/core/mechanisms.js` 新增 142 行）：`withLock` /
+- **机制工厂四件套**（批次1，`background/core/mechanisms.js` 新增）：`withLock` /
   `debounce` / `TtlCache` / `withRetry` 收编散落的 17 份同构实现（互斥锁 ×5、防抖 ×4、
-  Map+TTL 缓存 ×4、散装重试 ×4+）——纯函数工厂 + 可注入时钟，配 96 行新增单测，等价替换
+  Map+TTL 缓存 ×4、散装重试 ×4+）——纯函数工厂 + 可注入时钟，等价替换
 - **存储模块注册表**（批次2，`data/storage-registry.js` 新增）：此前 DB_KEYS(26) /
   DATA_MODULES(24) / MODULE_FILES(25) 三张表是同一事实的三份拷贝且已漂移；现由
   `STORAGE_MODULES` 一张表派生 data-store 文件映射、DATA_MODULES、默认备份子集与清除
@@ -301,26 +301,46 @@ node --check options/options.js
   幽灵键，并把 favorites 纳入默认备份
 - **内容模块清单**（批次4，`content/module-manifest.js` 新增）：tracker 装载表 /
   test-content-sim 的 MODULE_FILES / integrity 校验三处手工同步 → `CORE_MODULES`(12 并行)
-  - `OPTIONAL_MODULES`(2，按 DEFAULT_SETTINGS 开关键条件加载，禁用 = 代码零加载) 一张表派生
+  + `OPTIONAL_MODULES`(2，按 DEFAULT_SETTINGS 开关键条件加载，禁用 = 代码零加载) 一张表派生
 - **站点 features 进规则 schema**（批次4）：内嵌评价卡站点白名单、XDGAME 布局默认值、
   版本号解析三处硬编码收编进 adapters 规则；`web_accessible_resources` 与 content_scripts
   域名一致性进 integrity 护栏（防 WAR 漂移）
 
 **收敛与治理**
 
-- **评分口径下沉**（批次1，`content/core/steam-rating-logic.js` 新增 100 行）：消除
+- **评分口径下沉**（批次1，`content/core/steam-rating-logic.js` 新增）：消除
   list → detail 跨层依赖；escapeHtml 4 套实现统一为 shared/escape 单一口径
-- **常量单源**（批次1）：STORAGE_CAPS / ENDPOINTS / SPY_SCALES 三组进 `constants.js`；
-  删除好评率分级色"整份字面量 fallback"（假单源，实为漂移源）
+- **常量单源**（批次1）：STORAGE_CAPS（14 处存储容量）/ ENDPOINTS（storesearch ×3 /
+  appdetails ×2 / ITAD ×2 / Steam 商店前缀 ×7 重复消除）/ SPY_SCALES（SteamSpy 信号
+  归一刻度）三组进 `constants.js`；删除好评率分级色"整份字面量 fallback"（假单源，实为漂移源）
 - **开销治理**（批次3）：registry 仅变更时落盘（此前评分批次无变化也整体重写）；兜底
-  alarm 5min → 30min（SW 白唤醒 12 次/时 → 2 次/时）；分级预热（二级延迟 15s）；
-  lastUpdate 会话内去重；searchCache 防抖写穿；batchState 硬上限
+  alarm 5min → 30min（SW 白唤醒 12 次/时 → 2 次/时）；分级预热（温层 8 模块延迟 15s，
+  短命 SW 跳过 ~2/3 冷启动 IO）；lastUpdate 会话内去重；searchCache 防抖写穿；
+  batchState 硬上限 2000
 
-**修复**
+**量化体系（批次5）**
 
-- **runtimeLog 真追加化**（批次2）：此前日志模块为覆盖写，长时运行只留最后一批
-- **dirty 标记补齐 ×3**（批次2，learned-noise / url-index / wrong-reports）：此前部分
-  变更不标脏，极端情况下不落盘
+- **运行指标框架**（`background/core/metrics.js` 新增 + GET_RUNTIME_METRICS）：有界
+  计数器（≤64 键）+ 环形直方图（p95/min/max/avg）；消息按 action 计数、OPFS 按模块
+  写字节数（data 层钩子注入保持分层纯净）、评分批次耗时/数量埋点
+- **dashboard 指标卡 ×3**：评分批次 P95 耗时 / 会话 OPFS 写次数（悬停显累计 MB）/
+  会话消息总数——后续每笔优化的收益从"估算"变"读数"
+
+**可调设置（批次5，原写死值提升为设置键）**
+
+- 夜间窗口起止小时（uiThemeNightStart/End，默认 19/7，支持跨零点）
+- 评分批次大小 ratingsBatchSize（10-200，默认 60）
+- 二维码图片上限 qrImageMaxKb（512-30720，默认 3MB）
+
+**工程**
+
+- 新测试：mechanisms 5 项 / metrics 5 项（环形淘汰与键上限）；integrity 新增
+  WAR 覆盖断言与 module-manifest 文件存在性断言；handlers 业务迁出（track-event /
+  image-fetch → handlers/ 子目录，407→335 行）
+- 页面层统一：applyPageTheme 统一入口（popup/dashboard/hub/freegames 主题探测
+  复制粘贴收敛）；freegames/hub 消息封装统一走 shared/msg.js（自带超时）
+
+770 test · gate 全过（check + E2E MOCK 46/46 + visual 11/11 基线更新）
 
 ### v10.6.0（性能与体验批次 / 收藏·ITAD·主题定时·备份加密 / steam 缓存分文件）
 
