@@ -62,3 +62,4 @@ coverage/
 tests/.timing.jsonl
 release/
 tests/visual/diff/
+.e2e-probe-profile/
