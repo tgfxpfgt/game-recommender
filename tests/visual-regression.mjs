@@ -56,7 +56,21 @@ const PAGES = [
         name: 'filters',
         prep: async (page) => {
           await page.evaluate(() => document.querySelector('.gr-nav-item[data-panel="filters"]').click());
-          await page.waitForTimeout(400);
+          // v10.9：等待设置异步填充完成（固定 400ms 在负载下会截到半填充态——
+          // minRatingVal 是 GET_SETTINGS 渲染的末段信号，锚定它消除时序抖动）
+          await page
+            .waitForFunction(
+              () => {
+                const el = document.getElementById('minRatingVal');
+                return el && /%$/.test(el.textContent || '');
+              },
+              { timeout: 8000 }
+            )
+            .catch(() => {});
+          // v10.9：display:none→block 会重启 panel-in/fadeUp 入场动画（0.18-0.72s
+          // 错峰）——等全部动画结束再截图，否则截到中间态（时序抖动根因）
+          await page.waitForTimeout(150);
+          await page.evaluate(() => Promise.allSettled(document.getAnimations().map((a) => a.finished)));
         }
       }
     ]
@@ -135,9 +149,26 @@ try {
           const mismatched = pixelmatch(baseImg.data, now.data, diff.data, baseImg.width, baseImg.height, {
             threshold: 0.15
           });
-          const ratio = mismatched / (baseImg.width * baseImg.height);
+          let ratio = mismatched / (baseImg.width * baseImg.height);
+          // v10.9：小差异重试——面板切换动画/字体渲染的时序抖动会产出 1-2% 的
+          // 漂移（三次运行失败项漂移、幅度变动实证）；单次重拍仍超阈值才判失败
           if (ratio > MAX_DIFF_RATIO) {
-            fs.writeFileSync(path.join(DIFF_DIR, base + '.png'), PNG.sync.write(diff));
+            await page.waitForTimeout(600);
+            const shot2 = await page.screenshot();
+            const now2 = PNG.sync.read(shot2);
+            const diff2 = new PNG({ width: baseImg.width, height: baseImg.height });
+            const mismatched2 = pixelmatch(baseImg.data, now2.data, diff2.data, baseImg.width, baseImg.height, {
+              threshold: 0.15
+            });
+            const ratio2 = mismatched2 / (baseImg.width * baseImg.height);
+            if (ratio2 <= MAX_DIFF_RATIO) {
+              report(`${base} 首拍超阈、重拍一致（首拍差异 ${(ratio * 100).toFixed(2)}%，时序抖动）`, true);
+              continue;
+            }
+            ratio = ratio2;
+            fs.writeFileSync(path.join(DIFF_DIR, base + '.png'), PNG.sync.write(diff2));
+          }
+          if (ratio > MAX_DIFF_RATIO) {
             report(`${base} 与基线差异 ${(ratio * 100).toFixed(2)}%`, false, `(diff: tests/visual/diff/${base}.png)`);
           } else {
             report(`${base} 与基线一致（差异 ${(ratio * 100).toFixed(3)}%）`, true);

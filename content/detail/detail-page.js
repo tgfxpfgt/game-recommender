@@ -141,7 +141,7 @@ export function injectDownloadSitePanel() {
         appId: appId,
         cacheOnly: true
       });
-      const cachedSites = (cacheResp && cacheResp.sites) || [];
+      const cachedSites = cacheResp && Array.isArray(cacheResp.sites) ? cacheResp.sites : []; // v10.9
       const cachedFound = cachedSites.filter((s) => s.found);
       if (cachedFound.length > 0) {
         renderDownloadSitePanel(panel, cachedSites, gameName);
@@ -159,7 +159,8 @@ export function injectDownloadSitePanel() {
         gameName: gameName,
         appId: appId
       });
-      if (resp && resp.sites) {
+      if (resp && Array.isArray(resp.sites)) {
+        // v10.9：异型守卫（同 v10.8.1 候选浮窗教训——响应形状假设必须显式）
         renderDownloadSitePanel(panel, resp.sites, gameName);
         // 工作状态浮窗：完成统计 / Completion stats
         const found = resp.sites.filter((s) => s.found).length;

@@ -39,6 +39,7 @@ function isPureNoise(text) {
 // and download sites only match either half, so colons must split).
 function splitTitleSegments(rawName) {
   if (!rawName) return [];
+  if (typeof rawName !== 'string') rawName = String(rawName); // v10.9：边界防御
   const name = rawName
     .trim()
     .replace(/[\(\[\【].*?[\)\]\】]/g, '')

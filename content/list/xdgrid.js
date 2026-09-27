@@ -368,15 +368,11 @@ function buildUI(all, host, cfg) {
       minSteamRatingFilter: min
     });
     dbg(`实时好评率过滤：显示 ${shown} / 隐藏 ${filtered}（阈值 ${enabled ? min : 'off'}）`);
-    // 2) GET→patch→SAVE 整包回存（saveSettings 全量覆盖语义）
+    // 2) 窄化持久化（v10.9）——内容侧直发全量 SAVE_SETTINGS 被 sender 门禁拒绝
+    //（特权写不对 web 源开放），改走只含两个键的 SAVE_RATING_FILTER_CFG
     (async () => {
       try {
-        const resp = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
-        const full = resp && resp.settings;
-        if (!full) return;
-        full.enableRatingFilter = enabled;
-        full.minSteamRatingFilter = min;
-        await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: full });
+        await chrome.runtime.sendMessage({ action: 'SAVE_RATING_FILTER_CFG', enabled, minRating: min });
       } catch {
         /* 后台不可达：本地实时过滤仍生效，仅不落盘 */
       }

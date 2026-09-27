@@ -303,7 +303,7 @@
   // Steam 条目类型徽章（game 蓝色 / dlc 橙 / 其他紫灰）
   function formatTypeBadge(type) {
     if (!type) return '—';
-    const t = type.toLowerCase();
+    const t = String(type).toLowerCase(); // v10.9：旧缓存条目 type 可能异型（miss 走默认色）
     const map = {
       game: ['#66c0f4', 'rgba(102,192,244,0.12)'],
       dlc: ['#ff7b00', 'rgba(255,123,0,0.12)'],
@@ -316,7 +316,7 @@
   // 推荐值徽章（分级着色，悬停显示各分值组成）
   function formatRecBadge(score) {
     if (score === null || score === undefined) return '—';
-    const pct = Math.round(score * 100);
+    const pct = Math.round((Number(score) || 0) * 100); // v10.9：垃圾值防 NaN
     const color = pct >= 80 ? '#e74c3c' : pct >= 60 ? '#ff7b00' : pct >= 40 ? '#a3cf06' : '#8f98a0';
     const bg =
       pct >= 80
@@ -463,7 +463,8 @@
 
   // 格式化下载站网址（主网址 + 展开链接）
   function formatDownloadUrls(downloadUrls, primaryUrl) {
-    if (!downloadUrls || downloadUrls.length === 0) {
+    if (!Array.isArray(downloadUrls)) downloadUrls = []; // v10.9：旧条目异型守卫
+    if (downloadUrls.length === 0) {
       return primaryUrl
         ? `<a href="${escapeAttr(primaryUrl)}" target="_blank" rel="noopener">${escapeHtml(truncateUrl(primaryUrl))}</a>`
         : '—';
@@ -483,7 +484,7 @@
 
   // 截断过长 URL
   function truncateUrl(url, maxLen = 40) {
-    if (!url) return '';
+    url = String(url ?? ''); // v10.9：条目 url 可能异型
     if (url.length <= maxLen) return url;
     return url.substring(0, maxLen) + '...';
   }

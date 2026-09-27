@@ -814,8 +814,8 @@
     // 下载站与追踪管理（合并后的统一配置入口）
     const rules = (OPTS.siteRules || {}).sites || [];
     const customSites = (OPTS.currentSettings.trackedSites || []).filter(
-      (d) => !rules.some((s) => s.domains.some((x) => d === x || d.includes(x)))
-    );
+      (d) => !rules.some((s) => Array.isArray(s.domains) && s.domains.some((x) => d === x || d.includes(x)))
+    ); // v10.9：domains 异型守卫
     const ruleTracked = [...document.querySelectorAll('.track-site-check:checked')].map((cb) => cb.dataset.domain);
     OPTS.currentSettings.trackedSites = [...new Set([...customSites, ...ruleTracked])];
     OPTS.currentSettings.steamSiteSearch = [...document.querySelectorAll('.steam-site-check:checked')].map(

@@ -201,6 +201,17 @@ const RULES = {
     return { ok: true };
   },
   GET_FAVORITES: () => ({ ok: true }),
+  // v10.9：xdgrid 过滤滑块窄化持久化（内容侧只发这两个键，替代被 sender 门
+  // 拒绝的全量 SAVE_SETTINGS——特权写不对 web 源开放）
+  SAVE_RATING_FILTER_CFG: (m) =>
+    m &&
+    typeof m === 'object' &&
+    typeof m.enabled === 'boolean' &&
+    Number.isFinite(m.minRating) &&
+    m.minRating >= 0 &&
+    m.minRating <= 100
+      ? { ok: true }
+      : { error: 'SAVE_RATING_FILTER_CFG 需 {enabled:boolean, minRating:0-100}' },
   GET_ITAD_LOWEST: (m) => (m && m.appId ? { ok: true } : { error: 'GET_ITAD_LOWEST.appId 必填' }),
   SEARCH_CACHED_GAMES: (m) =>
     m && typeof m.query === 'string' && m.query.trim().length >= 2 && m.query.length <= 100
@@ -244,10 +255,12 @@ const RULES = {
   SAVE_ADAPTER_RULES: (m) =>
     isPlainObject(m && m.rules) ? { ok: true } : { error: 'SAVE_ADAPTER_RULES.rules 必须是对象' },
   REPORT_WRONG_APPID: (m) => {
-    const appIdOk = m.appId === undefined || m.appId === null || APP_ID_RE.test(String(m.appId));
+    // v10.9：'' 视同缺省（detail-page 无 appId 场景发空串而非省略字段）
+    const appIdOk = m.appId === undefined || m.appId === null || m.appId === '' || APP_ID_RE.test(String(m.appId));
     if (!appIdOk) return { error: 'REPORT_WRONG_APPID.appId 可选 1-10 位数字' };
     if (!optStr(m && m.gameName, 200)) return { error: 'REPORT_WRONG_APPID.gameName 可选字符串（≤200）' };
-    if (m.appId == null && !m.gameName) return { error: 'REPORT_WRONG_APPID 至少提供 appId 或 gameName 之一' };
+    const appIdAbsent = m.appId == null || m.appId === '';
+    if (appIdAbsent && !m.gameName) return { error: 'REPORT_WRONG_APPID 至少提供 appId 或 gameName 之一' };
     return { ok: true };
   },
   // ---- v6.3.0 第四批：读类 action 全量收尾（契约化 100%）----
@@ -327,6 +340,9 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'TOGGLE_FAVORITE',
   'GET_FAVORITES',
   'GET_STEAM250_RANK',
+  'GET_ITAD_LOWEST', // v10.9：补白名单——缺项使 ITAD 最低价行自 v10.6.0 真机恒隐藏（forbidden-sender）
+  'FETCH_IMAGE_DATA_URL', // v10.9：补白名单——v10.7.1 只放宽了正则未补门禁，跨域二维码仍被拒
+  'SAVE_RATING_FILTER_CFG', // v10.9：xdgrid 过滤滑块的窄化持久化（替代内容侧直发 SAVE_SETTINGS）
   'TRACK_DOWNLOAD_SITE_VISIT',
   'TRACK_EVENT'
 ]);

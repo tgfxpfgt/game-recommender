@@ -286,6 +286,26 @@ test('网站范围三方一致（manifest matches = site-scripts 内置 = 规则
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(builtinDomains));
   expect(JSON.stringify(manifestDomains)).toEqual(JSON.stringify(siteRuleDomains));
 });
+// v10.9：内容侧 sender 门禁一致性——内容脚本发出的每个 action 字面量必须在
+// CONTENT_ALLOWED_ACTIONS 白名单。漏登记曾使两个功能真机静默失效
+//（GET_ITAD_LOWEST→ITAD 行恒隐藏；FETCH_IMAGE_DATA_URL→跨域二维码解码仍死，
+// v10.7.1 只修了契约正则没补门禁——同一盲区两次踩中，此测试根治该类回归）
+const contractMod = await import(
+  new URL('../../background/core/message-contract.js', import.meta.url).href + '?t=' + Date.now()
+);
+test('内容侧发送 action ⊆ CONTENT_ALLOWED_ACTIONS（sender 门禁一致性）', () => {
+  const sent = new Set();
+  for (const f of collectJs(path.join(ROOT, 'content'), [])) {
+    const src = fs.readFileSync(f, 'utf-8');
+    for (const m of src.matchAll(/action:\s*'([A-Z_]+)'/g)) sent.add(m[1]);
+  }
+  expect(sent.size, '内容侧应至少发出 20 个 action（结构哨兵）').toBeGreaterThan(20);
+  const missing = [...sent].filter((a) => !contractMod.CONTENT_ALLOWED_ACTIONS.has(a));
+  expect(missing, '内容侧发送但不在白名单（真机将被 forbidden-sender 静默拒绝）:\n  ' + missing.join('\n  ')).toEqual(
+    []
+  );
+});
+
 // v10.7.0 批次4：内容模块清单（module-manifest.js）中每个文件必须真实存在
 // ——tracker 装载/测试加载/integrity 校验三处消费同一清单，杜绝漂移
 test('内容模块清单文件齐全（module-manifest）', async () => {
@@ -346,9 +366,13 @@ test('P0-A：内容白名单不含特权 action', () => {
     contractSrc.indexOf('CONTENT_ALLOWED_ACTIONS'),
     contractSrc.indexOf('export function isTrustedSender')
   );
-  expect(block.includes('SAVE_SETTINGS')).toEqual(false);
-  expect(block.includes('CLEAR_DATA')).toEqual(false);
-  expect(block.includes('TRACK_EVENT')).toEqual(true);
+  // v10.9：改为提取 Set 条目字面量（源码子串检查会被注释文本误触发）
+  const entries = [...block.matchAll(/'([A-Z_]+)'/g)].map((m) => m[1]);
+  expect(entries).not.toContain('SAVE_SETTINGS');
+  expect(entries).not.toContain('CLEAR_DATA');
+  expect(entries).not.toContain('IMPORT_DATA');
+  expect(entries).not.toContain('SAVE_ADAPTER_RULES');
+  expect(entries).toContain('TRACK_EVENT');
 });
 test('P0-C：站点域名严格校验已接线（裸主机名，防全站注入）', () => {
   expect(rulesSrc.includes('export function isValidSiteDomain')).toEqual(true);

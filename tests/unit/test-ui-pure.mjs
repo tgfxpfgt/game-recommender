@@ -5,6 +5,7 @@
 import { test, expect } from 'vitest';
 
 await import('../../shared/freegames-filter.js'); // 全局注入（IIFE 挂 __GR_FG_FILTER__）
+await import('../../shared/patterns.js'); // v10.9：steamSidebar 依赖 __GR_PATTERNS__（运行时由 manifest 注入）
 const { filterFreeGames } = globalThis.__GR_FG_FILTER__ || {};
 const settingsUtils = await import('../../shared/settings-utils.js');
 const { parseLlmMatchResponse } = await import('../../background/steam/ai-fallback.js');
@@ -162,4 +163,50 @@ test('信息卡模板：无评测不渲染 / 综合评分=修正口碑÷10 / 数
   expect(html.includes('86.9%') && html.includes('width:86.9%')).toEqual(true);
   expect(html.includes('数据更新于')).toEqual(true);
   expect(html.includes('data-steam-appid="2239710"')).toEqual(true);
+});
+
+// ============ v10.9：steamSidebar 跨边界字段归一化（旧缓存异型不崩） ============
+test('steamSidebar 旧缓存异型字段不崩且无 NaN（v10.9 回归）', () => {
+  const html = detailTemplates.steamSidebar(
+    {
+      appId: '1213700',
+      name: '测试游戏',
+      positiveRate: '90', // 字符串数字（旧缓存形态）
+      totalReviews: 100,
+      reviews: 'not-array', // 异型
+      userTags: {},
+      genres: null,
+      developers: 42,
+      description: { obj: 1 }
+    },
+    Date.now(),
+    true,
+    false
+  );
+  expect(typeof html).toEqual('string');
+  expect(html.length).toBeGreaterThan(100);
+  expect(html.includes('NaN')).toEqual(false);
+  expect(html.includes('[object Object]')).toEqual(false);
+});
+test('steamSidebar 正常数据回归（归一化不改变行为）', () => {
+  const html = detailTemplates.steamSidebar(
+    {
+      appId: '1213700',
+      name: '测试游戏',
+      positiveRate: 90,
+      totalReviews: 100,
+      reviews: [{ text: '很好玩', timestamp: Date.now() }],
+      userTags: ['RPG'],
+      genres: ['角色扮演'],
+      developers: ['测试社'],
+      description: '一段介绍'
+    },
+    Date.now(),
+    false,
+    false
+  );
+  expect(html.includes('很好玩')).toEqual(true);
+  expect(html.includes('RPG')).toEqual(true);
+  expect(html.includes('测试社')).toEqual(true);
+  expect(html.includes('一段介绍')).toEqual(true);
 });

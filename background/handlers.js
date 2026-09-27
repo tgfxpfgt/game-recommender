@@ -8,7 +8,7 @@
  * the aggregated dispatch map and the unified message entry.
  */
 import { DEFAULT_SETTINGS } from './core/constants.js';
-import { getSettings, saveSettings } from './core/settings.js';
+import { getSettings, saveSettings, saveRatingFilterCfg } from './core/settings.js'; // v10.9：窄化过滤持久化
 import { metricsSnapshot, metricInc } from './core/metrics.js'; // v10.7.0：运行指标
 import { saveAdapterRules, deleteAdapterRules, getAllRules } from './core/rules.js';
 import { syncSiteScripts } from './core/site-scripts.js';
@@ -286,6 +286,7 @@ export const MESSAGE_HANDLERS = {
   },
   GET_SITE_HEALTH: handleGetSiteHealth,
   GET_RUNTIME_METRICS: async () => ({ metrics: metricsSnapshot() }),
+  SAVE_RATING_FILTER_CFG: (m) => saveRatingFilterCfg(m.enabled, m.minRating), // v10.9：xdgrid 过滤滑块
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_OUTBOUND_AUDIT: async (msg) => getOutboundAudit(msg && msg.limit),
   CLEAR_OUTBOUND_AUDIT: async () => {

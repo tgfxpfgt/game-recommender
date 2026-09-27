@@ -194,6 +194,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
   const searchTerms = [];
   const seenTerms = new Set();
   function addTerm(t) {
+    t = String(t ?? ''); // v10.9：边界防御（gameName 异型不崩整条搜索链）
     const key = t.toLowerCase().trim();
     if (key.length >= 2 && !seenTerms.has(key)) {
       seenTerms.add(key);

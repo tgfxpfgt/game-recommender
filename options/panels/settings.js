@@ -154,7 +154,11 @@
   function renderSiteManagement(settings) {
     const container = document.getElementById('siteManageList');
     if (!container) return;
-    const rules = (OPTS.siteRules || {}).sites || [];
+    // v10.9：规则 domains 异型守卫（坏规则包曾打崩设置页半初始化）
+    const rules = ((OPTS.siteRules || {}).sites || []).map((r) => ({
+      ...r,
+      domains: Array.isArray(r && r.domains) ? r.domains : []
+    }));
     const tracked = settings.trackedSites || [];
     const steamSearch = settings.steamSiteSearch || [];
 
@@ -191,7 +195,8 @@
   function renderCustomSiteList(tracked, rules) {
     const container = document.getElementById('siteList');
     if (!container) return;
-    const isRuleDomain = (d) => rules.some((s) => s.domains.some((x) => d === x || d.includes(x)));
+    const isRuleDomain = (d) =>
+      rules.some((s) => Array.isArray(s.domains) && s.domains.some((x) => d === x || d.includes(x)));
     const custom = tracked.filter((d) => !isRuleDomain(d));
     container.innerHTML = custom
       .map(
@@ -272,8 +277,8 @@
         response = await fetch(testUrl, { method: 'GET' });
         if (response.ok) {
           const data = await response.json();
-          const models = data.models || [];
-          const hasModel = models.some((m) => m.name.includes(model));
+          const models = Array.isArray(data.models) ? data.models : []; // v10.9：异型守卫
+          const hasModel = models.some((m) => String((m && m.name) || '').includes(model));
           if (hasModel) {
             resultEl.textContent = `✅ 连接成功，模型 ${model} 可用`;
           } else {

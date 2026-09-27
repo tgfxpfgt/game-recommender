@@ -77,7 +77,7 @@ async function loadFreeGames(force = false) {
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_FREE_GAMES', force });
     if (response && response.data) {
-      allGames = response.data.games || [];
+      allGames = Array.isArray(response.data.games) ? response.data.games : []; // v10.9：异型守卫
       // 显示最后更新时间
       if (response.data.lastUpdate) {
         document.getElementById('lastUpdate').textContent =
@@ -99,7 +99,8 @@ function renderGames() {
 
   // v9.3.0：过滤逻辑抽取为纯函数（shared/freegames-filter.js——可单测）
   const { filterFreeGames } = globalThis.__GR_FG_FILTER__ || {};
-  const filtered = filterFreeGames ? filterFreeGames(allGames, currentFilter, currentClaimFilter) : allGames;
+  const base = Array.isArray(allGames) ? allGames : []; // v10.9：异型守卫
+  const filtered = filterFreeGames ? filterFreeGames(base, currentFilter, currentClaimFilter) : base;
 
   if (filtered.length === 0) {
     listEl.innerHTML = '<div class="empty">当前没有符合条件的限免游戏</div>';
@@ -141,7 +142,8 @@ function renderGames() {
 
 // 渲染单个游戏卡片 / Render a single game card
 function renderGameCard(game) {
-  const platformClass = game.platform;
+  // v10.9：platform 直插 class 属性——外部限免 API 数据必须经属性转义（防属性突破）
+  const platformClass = escapeAttr(game.platform || '');
   // v9.7.0：formatDate 非法日期回退原文（外部 API 字段），必须转义
   const endTimeHtml = game.endTime
     ? `<span class="game-endtime">截止: ${escapeHtml(formatDate(game.endTime))}</span>`

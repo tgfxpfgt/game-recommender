@@ -51,7 +51,10 @@ export async function loadSiteRules(force) {
 // Is image-appId lookup enabled for the current site? (default on)
 export function isImageAppIdEnabled() {
   const domain = common.getCurrentDomain();
-  const rule = (SITE_RULES || []).find((r) => r.domains.some((d) => domain.includes(d)));
+  // v10.9：domains 异型守卫（坏规则包缺 domains 曾打崩整批评分流程）
+  const rule = (SITE_RULES || []).find(
+    (r) => r && Array.isArray(r.domains) && r.domains.some((d) => domain.includes(d))
+  );
   return rule ? rule.imageAppId !== false : true;
 }
 

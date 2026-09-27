@@ -95,6 +95,8 @@
  * @property {Array<string>} trackedSites - 追踪下载站域名
  * @property {Array<string>} steamSiteSearch - Steam 详情页检索的下载站
  * @property {boolean} [useLLM] - 是否启用 LLM 评分
+ * @property {boolean} [enableRatingFilter] - 总好评率过滤开关（浮窗滑块，v10.9）
+ * @property {number} [minSteamRatingFilter] - 总好评率过滤阈值 0-100（浮窗滑块，v10.9）
  * @property {boolean} [enableRecentFilter] - 30 天好评率过滤（v6.4.4）
  * @property {number} [minRecentSteamRatingFilter] - 30 天好评率阈值
  * @property {string} [ratingFilterMode] - and|or|not（总/30天组合关系）

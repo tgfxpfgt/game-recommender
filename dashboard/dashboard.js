@@ -340,10 +340,11 @@ function renderTagCloud(keywords) {
 
   container.innerHTML = keywords
     .map((kw) => {
-      const level = kw.weight >= 0.6 ? 'high' : kw.weight >= 0.3 ? 'medium' : 'low';
-      const size = Math.max(12, Math.min(20, 12 + kw.weight * 10));
-      return `<span class="tag-item ${level}" style="font-size:${size}px" title="匹配度: ${Math.round(kw.weight * 100)}%">
-      ${escapeHtml(kw.keyword)} <small>${Math.round(kw.weight * 100)}%</small>
+      const weight = Number(kw.weight) || 0; // v10.9：异型权重防 NaN 字号
+      const level = weight >= 0.6 ? 'high' : weight >= 0.3 ? 'medium' : 'low';
+      const size = Math.max(12, Math.min(20, 12 + weight * 10));
+      return `<span class="tag-item ${level}" style="font-size:${size}px" title="匹配度: ${Math.round(weight * 100)}%">
+      ${escapeHtml(kw.keyword)} <small>${Math.round(weight * 100)}%</small>
     </span>`;
     })
     .join('');
@@ -862,7 +863,9 @@ async function loadFavorites() {
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' });
     const favs = (resp && resp.favorites) || {};
-    const entries = Object.entries(favs).sort((a, b) => (b[1].addedAt || 0) - (a[1].addedAt || 0));
+    const entries = Object.entries(favs).sort(
+      (a, b) => ((b[1] && b[1].addedAt) || 0) - ((a[1] && a[1].addedAt) || 0) // v10.9：null 值守卫
+    );
     if (entries.length === 0) {
       el.textContent = '暂无收藏（在游戏详情浮窗点 ☆ 收藏）';
       return;
@@ -894,7 +897,7 @@ async function runGameSearch() {
   const input = document.getElementById('gameSearchInput');
   const out = document.getElementById('gameSearchResults');
   if (!input || !out) return;
-  const q = input.value.trim();
+  const q = input.value.trim().slice(0, 100); // v10.9：契约上限 100 字符（超长不再误导"无匹配"）
   if (q.length < 2) {
     out.textContent = '请输入至少 2 个字符';
     return;
@@ -1066,15 +1069,15 @@ async function loadRuntimeMetrics() {
     const counters = m.counters || {};
     const opfsWrites = Object.entries(counters)
       .filter(([k]) => k.startsWith('opfs.writeCount.'))
-      .reduce((acc, [, v]) => acc + v, 0);
+      .reduce((acc, [, v]) => acc + (Number(v) || 0), 0); // v10.9：session 恢复异型防拼接
     opfsEl.textContent = String(opfsWrites);
     const opfsBytes = Object.entries(counters)
       .filter(([k]) => k.startsWith('opfs.writeBytes.'))
-      .reduce((acc, [, v]) => acc + v, 0);
+      .reduce((acc, [, v]) => acc + (Number(v) || 0), 0); // v10.9：session 恢复异型防拼接
     opfsEl.title = opfsBytes > 0 ? `累计 ${(opfsBytes / 1024 / 1024).toFixed(2)} MB` : '';
     const msgTotal = Object.entries(counters)
       .filter(([k]) => k.startsWith('msg.'))
-      .reduce((acc, [, v]) => acc + v, 0);
+      .reduce((acc, [, v]) => acc + (Number(v) || 0), 0); // v10.9：session 恢复异型防拼接
     msgEl.textContent = String(msgTotal);
   } catch {
     batchEl.textContent = opfsEl.textContent = msgEl.textContent = '—';

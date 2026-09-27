@@ -18,9 +18,19 @@ const esc = (text) => common.escapeHtml(text);
 // Steam 信息栏完整模板（数据 + 缓存时间 + 按钮开关 → HTML）
 // Full Steam-info sidebar template (data + cachedAt + button flags → HTML)
 export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
+  // v10.9：跨边界字段归一化——旧缓存/异型数据（reviews/userTags/genres/
+  // developers/description 为字符串或对象）此前使浮窗整条渲染链抛错。
+  // Normalize cross-boundary fields: legacy cache entries may hold wrong types.
+  data = { ...data };
+  if (!Array.isArray(data.reviews)) data.reviews = [];
+  if (!Array.isArray(data.userTags)) data.userTags = [];
+  if (!Array.isArray(data.genres)) data.genres = [];
+  if (!Array.isArray(data.developers)) data.developers = [];
+  if (typeof data.description !== 'string') data.description = ''; // 垃圾对象置空（不渲染 [object Object]）
+  data.reviews = data.reviews.filter((r) => r && typeof r === 'object' && typeof r.text === 'string'); // 无有效文本的条目直接弃用
   // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__；v10.7.0 删字面量 fallback）
   const P = globalThis.__GR_PATTERNS__;
-  const rate = data.positiveRate || 0;
+  const rate = Number(data.positiveRate) || 0; // v10.9：非数值防 NaN 进进度条
   // v9.6.0：评分区改 Steam 风格——颜色在 row 内经 colorOf 单源计算（此处不再需要）
   const ratingBg = P.ratingBgFor(rate);
 

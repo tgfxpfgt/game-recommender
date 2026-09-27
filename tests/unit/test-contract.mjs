@@ -379,3 +379,22 @@ test('FETCH_IMAGE_DATA_URL maxKb 预留参数界内合法', () => {
 test('FETCH_IMAGE_DATA_URL maxKb 超界拒绝', () => {
   expect(validateMessage('FETCH_IMAGE_DATA_URL', { url: 'https://x.com/a.png', maxKb: 40000 }).ok).toEqual(false);
 });
+
+// ============ v10.9：新窄化 action 与空串豁免 ============
+test('SAVE_RATING_FILTER_CFG 合法载荷', () => {
+  expect(validateMessage('SAVE_RATING_FILTER_CFG', { enabled: true, minRating: 60 }).ok).toEqual(true);
+  expect(validateMessage('SAVE_RATING_FILTER_CFG', { enabled: false, minRating: 0 }).ok).toEqual(true);
+});
+test('SAVE_RATING_FILTER_CFG 越界/异型拒绝', () => {
+  expect(validateMessage('SAVE_RATING_FILTER_CFG', { enabled: true, minRating: 120 }).ok).toEqual(false);
+  expect(validateMessage('SAVE_RATING_FILTER_CFG', { enabled: 'yes', minRating: 60 }).ok).toEqual(false);
+  expect(validateMessage('SAVE_RATING_FILTER_CFG', {}).ok).toEqual(false);
+});
+test('REPORT_WRONG_APPID 空串 appId 视同缺省（v10.9 豁免）', () => {
+  expect(validateMessage('REPORT_WRONG_APPID', { appId: '', gameName: '游戏' }).ok).toEqual(true);
+  expect(validateMessage('REPORT_WRONG_APPID', { appId: '' }).ok).toEqual(false); // 全空仍拒
+});
+test('GET_ITAD_LOWEST 合法（v10.9 白名单修复的契约侧回归锚）', () => {
+  expect(validateMessage('GET_ITAD_LOWEST', { appId: '1213700' }).ok).toEqual(true);
+  expect(validateMessage('GET_ITAD_LOWEST', {}).ok).toEqual(false);
+});

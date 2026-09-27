@@ -83,9 +83,9 @@
           <span class="rule-item-name">${escapeHtml(s.name)}</span>
           ${s.searchUrl ? '<span class="rule-item-tag">🔍 可检索</span>' : ''}
         </div>
-        <div class="rule-item-meta">域名: ${escapeHtml((s.domains || []).join(', '))}</div>
-        ${s.detailUrlPatterns ? `<div class="rule-item-meta">详情: ${escapeHtml(s.detailUrlPatterns.join(' | '))}</div>` : ''}
-        ${s.listItem && s.listItem.containers ? `<div class="rule-item-meta">容器: ${escapeHtml(s.listItem.containers.join(' | '))}</div>` : ''}
+        <div class="rule-item-meta">域名: ${escapeHtml(Array.isArray(s.domains) ? s.domains.join(', ') : String(s.domains ?? ''))}</div>
+        ${Array.isArray(s.detailUrlPatterns) ? `<div class="rule-item-meta">详情: ${escapeHtml(s.detailUrlPatterns.join(' | '))}</div>` : ''}
+        ${s.listItem && Array.isArray(s.listItem.containers) ? `<div class="rule-item-meta">容器: ${escapeHtml(s.listItem.containers.join(' | '))}</div>` : ''}
         <div class="rule-item-features">${checks}</div>
       </div>`;
       })

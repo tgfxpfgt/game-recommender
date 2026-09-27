@@ -56,6 +56,7 @@ export default defineConfig({
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',
       'tests/unit/test-escape-robust.mjs',
+      'tests/unit/test-settings-lite.mjs',
       'tests/integration/test-content-sim.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',

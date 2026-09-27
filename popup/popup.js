@@ -327,17 +327,18 @@ async function loadApiStatus() {
       info.innerHTML = '<span class="no-data">无法获取状态</span>';
       return;
     }
+    const num = (v) => Number(v) || 0; // v10.9：异型响应防 NaN 文案
     if (resp.anomaly) {
       dot.className = 'status-dot error';
-      info.innerHTML = `<span style="color:#e74c3c;font-size:12px;">⚠️ Steam API 异常：近 ${resp.windowSec / 60} 分钟失败率 <b>${resp.failRate}%</b>（${resp.failed}/${resp.total} 次失败），疑似限流</span>
+      info.innerHTML = `<span style="color:#e74c3c;font-size:12px;">⚠️ Steam API 异常：近 ${num(resp.windowSec) / 60} 分钟失败率 <b>${num(resp.failRate)}%</b>（${num(resp.failed)}/${num(resp.total)} 次失败），疑似限流</span>
         <div style="font-size:11px;color:#8f98a0;margin-top:4px;">扩展已自动降低批量检索速度；建议稍后重试或减少连续刷新</div>`;
-    } else if (resp.total < 8) {
+    } else if (num(resp.total) < 8) {
       dot.className = 'status-dot';
-      info.innerHTML = `<span style="font-size:12px;color:#8f98a0;">采样中：近 5 分钟 ${resp.total} 次调用（${resp.failed} 次失败）</span>`;
+      info.innerHTML = `<span style="font-size:12px;color:#8f98a0;">采样中：近 5 分钟 ${num(resp.total)} 次调用（${num(resp.failed)} 次失败）</span>`;
     } else {
       dot.className = 'status-dot ok';
       info.innerHTML =
-        `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${resp.windowSec / 60} 分钟 ${resp.total} 次调用，失败 ${resp.failed} 次（${resp.failRate}%）${resp.limited > 0 ? `，限流 ${resp.limited} 次` : ''}</span>` +
+        `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${num(resp.windowSec) / 60} 分钟 ${num(resp.total)} 次调用，失败 ${num(resp.failed)} 次（${num(resp.failRate)}%）${num(resp.limited) > 0 ? `，限流 ${num(resp.limited)} 次` : ''}</span>` +
         // v10.6.0 N1：会话累计出网请求量（缓存命中越多，该值越低）
         (resp.sessionTotal > 0
           ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">本次浏览器会话已出网 ${resp.sessionTotal} 次 Steam 请求${resp.sessionFailed > 0 ? `（失败 ${resp.sessionFailed}）` : ''}</div>`
@@ -352,7 +353,8 @@ async function loadApiStatus() {
 async function loadFreeGamesCount() {
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_FREE_GAMES', force: false });
-    if (response && response.data && response.data.games) {
+    if (response && response.data && Array.isArray(response.data.games)) {
+      // v10.9：games 异型守卫
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
@@ -382,7 +384,8 @@ async function loadStats() {
     document.getElementById('statKeywords').textContent = topKeywords.length;
 
     const container = document.getElementById('topKeywords');
-    if (topKeywords.length > 0) {
+    if (Array.isArray(topKeywords) && topKeywords.length > 0) {
+      // v10.9：异型守卫
       container.innerHTML = topKeywords
         .slice(0, 5)
         .map((kw) => `<span class="keyword-tag">${escapeHtml(kw.keyword)}</span>`)

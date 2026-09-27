@@ -296,6 +296,51 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.9.0（举一反三全面清查：同构盲区消除）
+
+> 由 v10.8.1 候选浮窗 bug 举一反三——三路并行审计（契约 vs 发送方对齐 / 类型边界
+> 渲染鲁棒性 / 消息链路测试矩阵）发现并消除三类同构盲区。
+
+**P1 修复（与已报 bug 同构的静默功能失效）**
+
+- **ITAD 最低价行自 v10.6.0 真机恒隐藏**：GET_ITAD_LOWEST 漏登记内容侧白名单，
+  真机被 forbidden-sender 静默拒绝（与 QR 契约 bug 同构）——补白名单
+- **跨域二维码解码修复不完整**：v10.7.1 只放宽了契约正则、未补 sender 白名单，
+  真机仍被拒——补 FETCH_IMAGE_DATA_URL 白名单
+- **XD 站过滤滑块设置永不落盘**：内容侧直发全量 SAVE_SETTINGS 被 sender 门禁拒绝
+  （特权写不对 web 源开放，属有意设计）——新增窄化 action SAVE_RATING_FILTER_CFG
+  （只含 enabled/minRating 两键，后台钳制后落盘），xdgrid 改道接入
+
+**类型边界加固（~30 处，跨边界数据不再做无守卫类型假设）**
+
+- **detail-templates steamSidebar**：reviews/userTags/genres/developers/description
+  五字段入口归一化（旧缓存异型数据此前使 Steam 浮窗整条渲染链抛错）
+- **domains 簇**：builder.js isImageAppIdEnabled / 设置页站点管理 / 保存映射 /
+  自定义站点列表——坏规则包缺 domains 曾同时打崩评分批次与设置页
+- **缓存管理页**：formatTypeBadge/formatDownloadUrls/truncateUrl/formatRecBadge
+  异型守卫（旧缓存条目渲染高发区）
+- **dashboard**：keywords 数组守卫（表格+CSV 导出）、日志 level 兜底、basedOnTags、
+  收藏 addedAt null 守卫、标签云权重防 NaN、指标 reduce 防字符串拼接
+- **popup/限免页**：freegames games 数组守卫、API 状态文案防 NaN、
+  **限免卡片 platform 属性转义**（外部 API 数据，防属性突破）
+- **边界防御**：search.js addTerm / title-parser splitTitleSegments 字符串强转；
+  dashboard 缓存搜索 query 按 100 字符契约截断（超长不再误导"无匹配"）
+
+**系统性防线（防第三次踩中同一盲区）**
+
+- **integrity 新守卫**：内容侧发送 action ⊆ CONTENT_ALLOWED_ACTIONS 静态扫描——
+  白名单漏登记该类回归从此 check 必拦；P0-A 特权断言升级为提取 Set 条目（防注释误触）
+- **测试补盲**：test-settings-lite（favorites 往返/数字 appId 规范化/窄化持久化钳制 ×3）、
+  detail-templates 异型数据回归 ×2、契约用例 ×5（新 action/空串豁免/ITAD 锚）
+- **视觉回归时序根治**：filters 截图锚定"数据已填充+入场动画全部结束"（display:none
+  →block 会重启 panel-in/fadeUp 动画，旧固定延时在负载下截到中间态）+ 小差异重试；
+  基线以新确定性时序重新生成（连续两轮 11/11）
+
+**边界语义微调**：REPORT_WRONG_APPID 空串 appId 视同缺省（detail-page 无 appId 场景发
+'' 表缺省，此前被契约拒绝且静默吞错）
+
+820 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
+
 ### v10.8.1（用户反馈修复：详情页候选浮窗"搜索失败" TypeError）
 
 **修复**

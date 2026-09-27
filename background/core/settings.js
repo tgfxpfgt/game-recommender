@@ -116,6 +116,17 @@ export async function saveSettings(settings) {
   await refreshTtlConfig();
 }
 
+// v10.9：xdgrid 过滤滑块窄化持久化——内容侧 sender 门禁不允许全量 SAVE_SETTINGS，
+// 此 action 只落这两个键（钳制后经 saveSettings 全流程含数值范围表）
+// Narrow persistence for the float filter controls (content-safe action).
+export async function saveRatingFilterCfg(enabled, minRating) {
+  const s = await getSettings();
+  s.enableRatingFilter = enabled === true;
+  s.minSteamRatingFilter = Math.min(100, Math.max(0, Math.round(Number(minRating) || 0)));
+  await saveSettings(s);
+  return { success: true, enableRatingFilter: s.enableRatingFilter, minSteamRatingFilter: s.minSteamRatingFilter };
+}
+
 // 从当前设置刷新缓存 TTL 配置 / Refresh cache-TTL config from settings
 export async function refreshTtlConfig() {
   try {
