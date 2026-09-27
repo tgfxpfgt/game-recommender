@@ -341,6 +341,12 @@ node --check options/options.js
 
 820 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-27T08-59-14.807Z-9a87cf9a9316`
+- seal: `sha256:c954bc57b795654f461ef9fca47afa74a095893551e717a64bd38ba52e67c0c0`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.8.1（用户反馈修复：详情页候选浮窗"搜索失败" TypeError）
 
 **修复**
