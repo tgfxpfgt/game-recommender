@@ -246,7 +246,8 @@
                         : l.level === 'debug'
                           ? '#8f98a0'
                           : '#66c0f4';
-                  const time = new Date(l.timestamp || l.t).toLocaleTimeString('zh-CN');
+                  const dt = new Date(l.timestamp || l.t); // v10.9.1：Invalid Date 兜底
+                  const time = isNaN(dt.getTime()) ? '-' : dt.toLocaleTimeString('zh-CN');
                   return `<div style="padding:2px 4px;border-bottom:1px solid #2f4055;display:flex;gap:6px;">
               <span style="color:#8f98a0;white-space:nowrap;">${time}</span>
               <span style="color:${color};font-weight:600;white-space:nowrap;">[${escapeHtml(l.level || 'info')}]</span>

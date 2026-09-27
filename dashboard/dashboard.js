@@ -330,6 +330,14 @@ async function loadStats() {
   }
 }
 
+// v10.9.1：日期安全格式化（Invalid Date → '-'，跨边界时间戳异型兜底）
+// Date-safe formatting helper (P3 cleanup: no more "Invalid Date" literals).
+function safeDateText(ts, fmt) {
+  const d = new Date(ts);
+  if (isNaN(d.getTime())) return '-';
+  return fmt ? d.toLocaleString('zh-CN', fmt) : d.toLocaleDateString('zh-CN');
+}
+
 // 标签偏好云：按权重分级着色与字号 / Tag cloud: color/size graded by weight
 function renderTagCloud(keywords) {
   const container = document.getElementById('tagCloud');
@@ -398,12 +406,12 @@ function renderGameTable(games) {
         .map((t) => `<span class="tag-small">${escapeHtml(t)}</span>`)
         .join('');
       const rating = game.steamRating ? `${game.steamRating}/10` : '-';
-      const time = game.lastSeen ? new Date(game.lastSeen).toLocaleDateString('zh-CN') : '-';
+      const time = safeDateText(game.lastSeen); // v10.9.1
       const dlClass = game.downloads > 0 ? 'downloaded' : '';
 
       return `<tr>
       <td>${escapeHtml(game.name)}</td>
-      <td>${game.views}</td>
+      <td>${game.views ?? '-'}</td> <!-- v10.9.1 -->
       <td class="${dlClass}">${game.downloads > 0 ? '⬇ ' + game.downloads : '0'}</td>
       <td>${tags || '-'}</td>
       <td>${rating}</td>
@@ -565,7 +573,8 @@ function renderRuntimeLogs() {
   container.innerHTML = [...logs]
     .reverse()
     .map((log) => {
-      const time = new Date(log.timestamp).toLocaleString('zh-CN', {
+      const time = safeDateText(log.timestamp, {
+        // v10.9.1
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -640,7 +649,8 @@ function renderOutboundAudit() {
   renderPager('audit', 'auditPager', auditTotal);
   container.innerHTML = auditSlice
     .map((e) => {
-      const time = new Date(e.t).toLocaleString('zh-CN', {
+      const time = safeDateText(e.t, {
+        // v10.9.1
         month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
@@ -696,7 +706,7 @@ async function loadBackups() {
 
     container.innerHTML = backups
       .map((b) => {
-        const time = new Date(b.timestamp).toLocaleString('zh-CN');
+        const time = safeDateText(b.timestamp); // v10.9.1
         const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
         const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
         return `<div class="backup-item">
@@ -805,7 +815,8 @@ async function loadHealthCards() {
     const totalAlerts = sites.reduce((sum, s) => sum + (s.alertCount || 0), 0);
     if (alertEl) {
       alertEl.textContent = String(totalAlerts);
-      alertEl.title = sites.length > 0 ? sites.map((s) => `${s.siteKey}: ${s.alertCount} 次`).join('\n') : '无告警记录';
+      alertEl.title =
+        sites.length > 0 ? sites.map((s) => `${s.siteKey}: ${s.alertCount ?? 0} 次`).join('\n') : '无告警记录';
     }
     // 明细列表（仅存在告警时显示）/ per-site detail when alerts exist
     const listEl = document.getElementById('siteHealthList');
@@ -913,7 +924,7 @@ async function runGameSearch() {
     const esc2 = (t) => escapeHtml(String(t || ''));
     out.innerHTML = results
       .map((g) => {
-        const s250 = g.steam250 ? ` · Steam250 #${g.steam250.rank}（${g.steam250.score} 分）` : '';
+        const s250 = g.steam250 ? ` · Steam250 #${g.steam250.rank ?? '-'}（${g.steam250.score ?? '-'} 分）` : ''; // v10.9.1
         const rate = g.positiveRate != null ? ` · 好评率 ${g.positiveRate}%` : '';
         const fav = g.favorited ? ' ⭐' : '';
         return `<div style="margin-top:3px;"><a href="https://store.steampowered.com/app/${escapeAttr(String(g.appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">${esc2(g.name)}</a>${fav}${rate}${s250}</div>`;
@@ -951,7 +962,7 @@ async function loadBootTime() {
     const latest = perf[perf.length - 1];
     const m = String(latest.message || '').match(/(\d+)ms/);
     el.textContent = m ? m[1] + 'ms' : '—';
-    el.title = `${latest.message} · ${new Date(latest.ts || latest.timestamp || Date.now()).toLocaleString()}`;
+    el.title = `${latest.message} · ${safeDateText(latest.ts || latest.timestamp, { dateStyle: 'short', timeStyle: 'medium' })}`; // v10.9.1
   } catch {
     el.textContent = '—';
   }

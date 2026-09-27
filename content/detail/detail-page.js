@@ -340,8 +340,10 @@ async function fillItadAndFavorites(appId, name) {
       itadEl.style.display = 'none';
       return;
     }
-    const shop = info.shop ? ` @ ${info.shop}` : '';
-    itadEl.innerHTML = `💰 ITAD 历史最低: <b style="color:#67c1f5;">${Number(info.price).toFixed(2)}</b>${esc(shop)} <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
+    const shop = info.shop ? ` @ ${esc(info.shop)}` : ''; // v10.9.1：shop 一并转义
+    const price = Number(info.price); // v10.9.1：异型防 "NaN"
+    if (!isFinite(price)) throw new Error('bad-price');
+    itadEl.innerHTML = `💰 ITAD 历史最低: <b style="color:#67c1f5;">${price.toFixed(2)}</b>${shop} <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
     itadEl.style.display = '';
   } catch {
     itadEl.style.display = 'none';
@@ -355,7 +357,7 @@ async function fillSteam250Info(appId) {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, { timeout: 25000 });
     const info = resp && resp.info;
     const html = info
-      ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${info.rank}</b> · ${info.score} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` +
+      ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${info.rank ?? '-'}</b> · ${info.score ?? '-'} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` + // v10.9.1
         `<a href="https://steam250.com/top250" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">Steam250 ↗</a>`
       : '';
     for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {

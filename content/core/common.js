@@ -41,6 +41,7 @@ const escapeAttr = typeof globalThis.escapeAttr === 'function' ? globalThis.esca
 function formatRelativeTime(timestamp) {
   if (!timestamp) return '未知';
   const diff = Date.now() - timestamp;
+  if (isNaN(diff)) return '未知'; // v10.9.1：异型时间戳兜底（"Invalid Date"/NaN 防线）
   if (diff < 60000) return '刚刚';
   if (diff < 3600000) return Math.floor(diff / 60000) + ' 分钟前';
   if (diff < 86400000) return Math.floor(diff / 3600000) + ' 小时前';

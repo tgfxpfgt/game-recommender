@@ -398,3 +398,14 @@ test('GET_ITAD_LOWEST 合法（v10.9 白名单修复的契约侧回归锚）', (
   expect(validateMessage('GET_ITAD_LOWEST', { appId: '1213700' }).ok).toEqual(true);
   expect(validateMessage('GET_ITAD_LOWEST', {}).ok).toEqual(false);
 });
+
+// ============ v10.9.1：IMPORT_DATA 大载荷契约收紧（关 fail-open 面）============
+test('IMPORT_DATA 缺 data 拒绝（此前放行到 handler）', () => {
+  expect(validateMessage('IMPORT_DATA', {}).ok).toEqual(false);
+  expect(validateMessage('IMPORT_DATA', { moduleKeys: ['settings'] }).ok).toEqual(false);
+});
+test('IMPORT_DATA 合法形态（data 对象 + 可选 moduleKeys）', () => {
+  expect(validateMessage('IMPORT_DATA', { data: { format: 'x' } }).ok).toEqual(true);
+  expect(validateMessage('IMPORT_DATA', { data: { format: 'x' }, moduleKeys: ['settings'] }).ok).toEqual(true);
+  expect(validateMessage('IMPORT_DATA', { data: { format: 'x' }, moduleKeys: 'settings' }).ok).toEqual(false);
+});

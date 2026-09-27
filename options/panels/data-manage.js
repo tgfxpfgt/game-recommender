@@ -185,7 +185,8 @@
         '<option value="">选择备份...</option>' +
         backups
           .map((b) => {
-            const time = new Date(b.timestamp).toLocaleString('zh-CN');
+            const bt = new Date(b.timestamp); // v10.9.1：Invalid Date 兜底
+            const time = isNaN(bt.getTime()) ? '-' : bt.toLocaleString('zh-CN');
             const modCount = b.modules ? b.modules.length : '全部';
             return `<option value="${escapeAttr(b.id)}">${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)</option>`;
           })

@@ -74,7 +74,8 @@
       const resp = await window.__GR_MSG__.sendMessage({ action: 'HEAL_REGISTRY_NAMES' });
       const statsEl = document.getElementById('cacheStats');
       if (resp) {
-        statsEl.innerHTML = `✅ 名称自愈：扫描 <b>${resp.scanned}</b> 条异常 · 修复 <b>${resp.healed}</b> 条${resp.remaining > 0 ? ` · 剩余 <b>${resp.remaining}</b> 条（可再次点击）` : ''}`;
+        // v10.9.1：?? 0 兜底（"undefined" 字面量）
+        statsEl.innerHTML = `✅ 名称自愈：扫描 <b>${resp.scanned ?? 0}</b> 条异常 · 修复 <b>${resp.healed ?? 0}</b> 条${(resp.remaining ?? 0) > 0 ? ` · 剩余 <b>${resp.remaining}</b> 条（可再次点击）` : ''}`;
         await loadGameCache(); // 刷新列表
       } else {
         statsEl.textContent = '自愈失败，请查看运行日志';
@@ -194,10 +195,10 @@
       const ms = resp.moduleStats || {};
       const msText = Object.keys(modNames)
         .filter((k) => ms[k])
-        .map((k) => `${modNames[k]} ${ms[k].count}${ms[k].stale > 0 ? `(+${ms[k].stale}过期)` : ''}`)
+        .map((k) => `${modNames[k]} ${ms[k].count ?? 0}${(ms[k].stale ?? 0) > 0 ? `(+${ms[k].stale}过期)` : ''}`) // v10.9.1
         .join(' · ');
       statsEl.innerHTML =
-        `<div>共 ${resp.total} 条记录 · 第 ${resp.page}/${resp.totalPages} 页</div>` +
+        `<div>共 ${resp.total ?? 0} 条记录 · 第 ${resp.page ?? 1}/${resp.totalPages ?? 1} 页</div>` + // v10.9.1
         (msText
           ? `<div style="font-size:11px;color:#8f98a0;margin-top:2px;">缓存模块：${msText}（各模块 TTL 建议见「缓存有效期」设置）</div>`
           : '');
@@ -270,7 +271,8 @@
     const ttlText = (key) => {
       const t = ttls[key];
       if (!t) return '';
-      return ` · TTL ${t.value || 0}${t.unit || ''}${t.value === 0 ? '（长期）' : ''}`;
+      const v = Number(t.value) || 0; // v10.9.1：异型防 [object Object]
+      return ` · TTL ${v}${t.unit || ''}${v === 0 ? '（长期）' : ''}`;
     };
     const items = [
       ['基', f.meta, 'metaSteam'],
@@ -453,6 +455,7 @@
   function formatTime(ts) {
     if (!ts) return '—';
     const d = new Date(ts);
+    if (isNaN(d.getTime())) return '—'; // v10.9.1：异型时间戳兜底
     const now = Date.now();
     const diff = now - ts;
     if (diff < 3600000) return `${Math.floor(diff / 60000)}分钟前`;

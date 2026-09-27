@@ -794,3 +794,75 @@ describe('数据模块导出/导入与备份/恢复往返', () => {
     expect(list2.backups.some((b) => b.id === id)).toEqual(false);
   });
 });
+
+// ============ v10.9.1：三层全无 action 补盲（LOG_PERF/SITE_ADAPTER_ALERT/
+// GET_STEAM250_RANK/GET_ITAD_LOWEST/SEARCH_CACHED_GAMES/GET_STORAGE_HEALTH）============
+describe('v10.9.1 补盲：冷门 handler 链路', () => {
+  let denyFetch, restoreDeny;
+  beforeAll(() => {
+    // 拒绝一切出站（STEAM250 ensureLoaded 无网络也能走通"返回 null"路径）
+    denyFetch = createFetchMock({});
+    restoreDeny = installFetchMock(denyFetch);
+  });
+  afterAll(() => restoreDeny());
+
+  test('LOG_PERF：缺字段/超长字符串不抛错', async () => {
+    const r1 = await handleMessage({ action: 'LOG_PERF' });
+    expect(r1 && r1.success).toEqual(true);
+    // 超长 source 被契约拒绝（≤64）——防线行为断言
+    const r2 = await handleMessage({
+      action: 'LOG_PERF',
+      source: 'x'.repeat(500),
+      metric: 'boot',
+      durationMs: 123
+    });
+    expect(r2.error).toContain('LOG_PERF');
+    const r3 = await handleMessage({ action: 'LOG_PERF', source: 'probe', metric: 'boot', durationMs: 123 });
+    expect(r3.success).toEqual(true);
+  });
+
+  test('SITE_ADAPTER_ALERT：正常告警 + 24h 限频 + 契约拒绝缺字段', async () => {
+    const r1 = await handleMessage({ action: 'SITE_ADAPTER_ALERT', siteKey: 'testsite', host: 'test.example' });
+    expect(r1.success).toEqual(true);
+    expect(r1.throttled).toBeFalsy(); // 首次不节流
+    const r2 = await handleMessage({ action: 'SITE_ADAPTER_ALERT', siteKey: 'testsite', host: 'test.example' });
+    expect(r2.success).toEqual(true);
+    expect(r2.throttled).toEqual(true); // 同站 24h 内节流
+    // 缺 siteKey/host 被契约拒绝（站点告警必须可归因到站点）
+    const r3 = await handleMessage({ action: 'SITE_ADAPTER_ALERT' });
+    expect(r3.error).toContain('SITE_ADAPTER_ALERT');
+  });
+
+  test('GET_STEAM250_RANK：无榜单快照/网络拒绝时返回 {info:null} 不抛错', async () => {
+    storage._reset();
+    const r = await handleMessage({ action: 'GET_STEAM250_RANK', appId: '1213700' });
+    expect(r).toEqual({ info: null });
+  });
+
+  test('GET_ITAD_LOWEST：未配置 Key 时静默返回 {info:null}', async () => {
+    const r = await handleMessage({ action: 'GET_ITAD_LOWEST', appId: '1213700' });
+    expect(r).toEqual({ info: null });
+  });
+
+  test('SEARCH_CACHED_GAMES：空缓存返回空结果；畸形 query 被契约拒绝', async () => {
+    storage._reset();
+    const r = await handleMessage({ action: 'SEARCH_CACHED_GAMES', query: '塞尔达' });
+    expect(Array.isArray(r.results)).toEqual(true);
+    expect(r.results.length).toEqual(0);
+    const bad = await handleMessage({ action: 'SEARCH_CACHED_GAMES', query: 'x' });
+    expect(bad.error).toContain('invalid-message');
+  });
+
+  test('GET_STORAGE_HEALTH：返回健康形状（Node 降级路径）', async () => {
+    const r = await handleMessage({ action: 'GET_STORAGE_HEALTH' });
+    expect(r && typeof r === 'object').toEqual(true);
+  });
+
+  test('TOGGLE_FAVORITE/GET_FAVORITES：handleMessage 链路往返', async () => {
+    storage._reset();
+    const on = await handleMessage({ action: 'TOGGLE_FAVORITE', appId: '1213700', name: '测试游戏' });
+    expect(on.favorited).toEqual(true);
+    const list = await handleMessage({ action: 'GET_FAVORITES' });
+    expect(list.favorites['1213700'] && list.favorites['1213700'].name).toEqual('测试游戏');
+  });
+});

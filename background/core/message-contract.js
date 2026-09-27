@@ -177,7 +177,12 @@ const RULES = {
     return f === undefined || typeof f === 'boolean' ? { ok: true } : { error: 'GET_FREE_GAMES.force 可选布尔' };
   },
   EXPORT_DATA: moduleKeysRule('EXPORT_DATA'),
-  IMPORT_DATA: moduleKeysRule('IMPORT_DATA'),
+  IMPORT_DATA: (m) => {
+    // v10.9.1：补 data 对象校验（此前大载荷 fail-open——handler 虽兜底，契约应前置）
+    const base = moduleKeysRule('IMPORT_DATA')(m);
+    if (!base.ok) return base;
+    return m && isPlainObject(m.data) ? { ok: true } : { error: 'IMPORT_DATA.data 必须是对象' };
+  },
   CREATE_BACKUP: moduleKeysRule('CREATE_BACKUP'),
   // ---- v6.2.0 第三批：写/破坏性 action 全量入参校验 ----
   // 无参清理类：显式声明已契约（校验恒过，防止未来误判为未覆盖）

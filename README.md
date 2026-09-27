@@ -296,6 +296,35 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.9.1（盲区清零收尾：P3 观感修复 / LLM 解析复核 / 冷门 handler 补测）
+
+**P3 观感修复（Invalid Date / "undefined" / NaN 字面量全清）**
+
+- **日期安全格式化**：dashboard 五处时间渲染（游戏表 lastSeen / 行为日志 / 出站审计 /
+  备份列表 / SW 启动耗时悬停）统一 safeDateText 兜底；options 调试日志、备份下拉、
+  缓存页 formatTime、common.formatRelativeTime 同步守卫——异型/缺失时间戳显示 "-"，
+  不再渲染 "Invalid Date"
+- **"undefined" 字面量清零**：缓存页自愈统计/模块统计/分页、dashboard 游戏表 views/
+  Steam250 徽标/站点告警计数、Steam250 排名行、设置页站点域名——全部 `?? 默认值`
+- **数字防线**：ITAD 价格 isFinite 守卫（异型不再显示 "NaN"，降级隐藏行）、缓存 TTL
+  文本 Number 化、推荐徽章防 NaN、popup API 状态文案防 NaN
+- **badges lastUpdate** 非字符串守卫（textContent 路径防 "[object Object]"）；
+  **ITAD shop 补转义**；dashboard 缓存搜索 query 按契约截断（上一版遗漏项收尾）
+
+**LLM 输出解析复核**：engine.js parseLLMResponse / ai-fallback.js parseLlmMatchResponse
+均已有 try/catch + 有限数值/类型校验——**无需修改**，审计确认记录在案
+
+**测试补盲（冷门 handler 链路，"三层全无"清单清零）**
+
+- test-handlers 新增 ×7：LOG_PERF（缺字段不抛错 + 超长契约拒绝）、SITE_ADAPTER_ALERT
+  （首次告警/24h 限频/缺字段契约拒绝）、GET_STEAM250_RANK（无快照+拒网返回 null 不抛错）、
+  GET_ITAD_LOWEST（无 Key 静默 null）、SEARCH_CACHED_GAMES（空缓存/畸形 query）、
+  GET_STORAGE_HEALTH 形状、TOGGLE_FAVORITE/GET_FAVORITES 链路往返
+- 契约收紧：IMPORT_DATA 补 data 对象校验（此前大载荷 fail-open——handler 虽兜底，
+  契约应前置拒绝）+ 契约用例 ×3
+
+829 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
+
 ### v10.9.0（举一反三全面清查：同构盲区消除）
 
 > 由 v10.8.1 候选浮窗 bug 举一反三——三路并行审计（契约 vs 发送方对齐 / 类型边界

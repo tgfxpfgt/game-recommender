@@ -168,7 +168,7 @@
         const canSearch = !!s.searchUrl;
         return `
         <div class="site-manage-row">
-          <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0])}</small></span>
+          <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0] ?? '')}</small></span>
           <label class="gr-check" title="追踪该站点的浏览行为">
             <input type="checkbox" class="track-site-check" data-domain="${escapeAttr(s.domains[0])}" ${isTracked ? 'checked' : ''}>
             <span>追踪行为</span>

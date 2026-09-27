@@ -215,7 +215,7 @@ export function prependBadge(item, rating, settings) {
     }
     // 段3：最近更新日期（悬停显示发行日期；无数据 → 灰 —，列表页独立获取）
     if (showUpdate) {
-      const update = rating.lastUpdate || '';
+      const update = typeof rating.lastUpdate === 'string' ? rating.lastUpdate : ''; // v10.9.1：异型防 [object Object]
       if (update) {
         badges.push(
           createBadge(link, {
