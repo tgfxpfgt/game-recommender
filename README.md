@@ -314,6 +314,12 @@ node --check options/options.js
 
 810 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-27T06-57-58.574Z-67fa97dc26fd`
+- seal: `sha256:a71739498a8d37fc89e4e65545a8e29ebbf1d7f6371fe9872190cd5a0cf3a464`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.8.0（自检演进：测试防线补齐 / 规则 features 勾选 UI / 纵深防御 / 文档更新）
 
 **新功能**
