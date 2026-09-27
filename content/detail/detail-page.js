@@ -456,12 +456,31 @@ export function injectSteamButton(gameName, settings) {
         dbg(
           sameAppId ? `⚠️ 报错重检索仍是同一 appId ${wrongAppId}，进入手动选择` : '⚠️ 报错重检索未找到，进入手动选择'
         );
-        renderManualSelectPanel(panel, name, hidePanel, (selData, selAppId) => {
-          renderAndShow(selData, Date.now(), name);
-          chrome.runtime
-            .sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId })
-            .catch(() => {});
-        });
+        // v10.9.3：重检路径同样带原因与重试
+        renderManualSelectPanel(
+          panel,
+          name,
+          hidePanel,
+          (selData, selAppId) => {
+            renderAndShow(selData, Date.now(), name);
+            chrome.runtime
+              .sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId })
+              .catch(() => {});
+          },
+          '报错重检索仍未命中',
+          async () => {
+            const rr = await window.__GR_MSG__
+              .sendMessage({ action: 'SEARCH_STEAM', gameName: name, ignoreNegativeCache: true }, null, {
+                timeout: 25000
+              })
+              .catch(() => null);
+            if (rr && rr.data) {
+              renderAndShow(rr.data, rr.cachedAt || Date.now(), name);
+              return true;
+            }
+            return false;
+          }
+        );
       }
     };
   }
@@ -578,18 +597,36 @@ export function injectSteamButton(gameName, settings) {
       } else {
         debug.DEBUG.steamStatus = '❌ 未找到';
         dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
-        renderManualSelectPanel(panel, gameName, hidePanel, (selectedData, selectedAppId) => {
-          renderAndShow(selectedData, Date.now(), gameName);
-          chrome.runtime
-            .sendMessage({
-              action: 'SAVE_MANUAL_MAPPING',
-              // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
-              // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
-              gameName,
-              appId: selectedAppId
-            })
-            .catch(() => {});
-        });
+        // v10.9.3：未命中原因透传 + 重试（穿透负缓存重新自动匹配）
+        const missReason = (response && response.reason) || '';
+        renderManualSelectPanel(
+          panel,
+          gameName,
+          hidePanel,
+          (selectedData, selectedAppId) => {
+            renderAndShow(selectedData, Date.now(), gameName);
+            chrome.runtime
+              .sendMessage({
+                action: 'SAVE_MANUAL_MAPPING',
+                // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
+                // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
+                gameName,
+                appId: selectedAppId
+              })
+              .catch(() => {});
+          },
+          missReason,
+          async () => {
+            const retryResp = await window.__GR_MSG__
+              .sendMessage({ action: 'SEARCH_STEAM', gameName, ignoreNegativeCache: true }, null, { timeout: 25000 })
+              .catch(() => null);
+            if (retryResp && retryResp.data) {
+              renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), gameName);
+              return true;
+            }
+            return false;
+          }
+        );
         showPanel();
       }
     } catch (e) {
@@ -794,13 +831,27 @@ function renderInlineSteamSection(data, cachedAt) {
 }
 
 // 手动选择浮窗：自动搜索失败时显示候选游戏列表供用户选择
-function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
+// v10.9.3：reason（后台诊断：not-found / steam-api-unreachable / error:…）展示 +
+// 重试按钮（穿透负缓存重新自动匹配）——此前静默弹候选，用户无从判断失败原因
+function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onRetry) {
+  const reasonText = String(reason || '').trim();
+  const retryBtn = onRetry
+    ? `<div style="margin-bottom:10px;display:flex;gap:8px;">
+        <button id="gr-manual-retry" class="gr-btn" style="flex:none;padding:6px 12px;">🔄 重试自动匹配</button>
+        <span id="gr-manual-retry-status" style="font-size:11px;color:#8f98a0;align-self:center;"></span>
+      </div>`
+    : '';
+  const reasonLine = reasonText
+    ? `<div style="font-size:11px;color:#e67e22;margin-bottom:10px;padding:6px 8px;background:rgba(230,126,34,0.08);border:1px solid rgba(230,126,34,0.3);border-radius:3px;word-break:break-all;">⚠️ 未命中原因：${common.escapeHtml(reasonText)}${onRetry ? '<br>Steam 商店接口不可达时请检查网络/加速器；确认游戏在 Steam 后点上方重试。' : ''}</div>`
+    : '';
   panel.innerHTML = `
       <div style="padding:16px;">
         <div style="font-size:15px;font-weight:bold;color:#fff;margin-bottom:8px;">🎮 手动选择游戏</div>
         <div style="font-size:12px;color:#8f98a0;margin-bottom:12px;">
           未能自动匹配 Steam 游戏。请从下方候选列表中选择正确游戏，<br>或输入关键词手动搜索。
         </div>
+        ${reasonLine}
+        ${retryBtn}
         <div style="margin-bottom:10px;">
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
@@ -886,6 +937,21 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect) {
     } catch (e) {
       listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">搜索失败: ${esc(String(e))}</div>`;
     }
+  }
+
+  // v10.9.3：重试自动匹配（穿透负缓存；成功 → 整个浮窗切回 Steam 信息视图）
+  const retryBtnEl = panel.querySelector('#gr-manual-retry');
+  if (retryBtnEl && onRetry) {
+    retryBtnEl.addEventListener('click', async () => {
+      const statusEl = panel.querySelector('#gr-manual-retry-status');
+      retryBtnEl.disabled = true;
+      if (statusEl) statusEl.textContent = '⏳ 重试中...';
+      const ok = await onRetry().catch(() => false);
+      if (!ok) {
+        retryBtnEl.disabled = false;
+        if (statusEl) statusEl.textContent = '❌ 仍未命中';
+      }
+    });
   }
 
   // 初始搜索

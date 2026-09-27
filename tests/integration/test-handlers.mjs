@@ -1,4 +1,4 @@
-import { test, expect, describe, beforeAll, afterAll } from 'vitest';
+import { test, expect, describe, beforeAll, afterAll, beforeEach } from 'vitest';
 /**
  * 游戏雷达 Game Radar - 测试：消息处理链路集成 / Message Handler Integration Tests
  *
@@ -921,5 +921,98 @@ describe('v10.9.2：负缓存穿透（ignoreNegativeCache 全链）', () => {
     await nameIdx3.recordNameIndex(FULL_TITLE, null); // 再种负缓存
     const r = await handleMessage({ action: 'REFRESH_STEAM_CACHE', gameName: FULL_TITLE });
     expect(String(r.data && r.data.appId)).toEqual('631510');
+  });
+});
+
+// ============ v10.9.3：SEARCH_STEAM 未命中原因诊断 ============
+describe('v10.9.3：未命中原因（reason 字段）', () => {
+  let resetApiMonitor;
+  beforeAll(async () => {
+    ({ resetApiMonitor } = await import('../../background/core/api-monitor.js'));
+  });
+  beforeEach(() => {
+    resetApiMonitor(); // 滑动窗口跨用例残留会让 reason 判定漂移
+  });
+  test('网络异常 → reason = steam-api-unreachable', async () => {
+    storage._reset();
+    const origFetch = globalThis.fetch;
+    globalThis.fetch = () => Promise.reject(new Error('ECONNRESET')); // 模拟断网（非 404 空结果）
+    try {
+      const r = await handleMessage({ action: 'SEARCH_STEAM', gameName: '鬼泣HD合集|官方中文|支持手柄' });
+      expect(r.data).toEqual(null);
+      expect(String(r.reason || '')).toContain('steam-api-unreachable');
+    } finally {
+      globalThis.fetch = origFetch;
+    }
+  });
+
+  test('接口正常但无匹配 → reason = not-found', async () => {
+    storage._reset();
+    const fm2 = createFetchMock({
+      '/api/storesearch': { items: [{ id: 999999, name: '完全无关的游戏 Totally Unrelated', type: 'app' }] },
+      '/api/appdetails': {
+        999999: {
+          success: true,
+          data: {
+            steam_appid: 999999,
+            name: '完全无关的游戏 Totally Unrelated',
+            type: 'game',
+            genres: [],
+            supported_languages: ''
+          }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 1, total_positive: 1, total_negative: 0, review_score: 9 },
+        reviews: []
+      }
+    });
+    const restore2 = installFetchMock(fm2);
+    try {
+      const r = await handleMessage({
+        action: 'SEARCH_STEAM',
+        gameName: '鬼泣HD合集|官方中文|支持手柄|Devil May Cry HD Collection'
+      });
+      expect(r.data).toEqual(null);
+      expect(String(r.reason || '')).toContain('not-found');
+    } finally {
+      restore2();
+    }
+  });
+
+  test('命中时 reason 为空', async () => {
+    storage._reset();
+    const fm3 = createFetchMock({
+      '/api/storesearch': { items: [{ id: 631510, name: 'Devil May Cry HD Collection', type: 'app' }] },
+      '/api/appdetails': {
+        631510: {
+          success: true,
+          data: {
+            steam_appid: 631510,
+            name: 'Devil May Cry HD Collection',
+            type: 'game',
+            genres: [],
+            supported_languages: '<strong>简体中文</strong>'
+          }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 500, total_positive: 460, total_negative: 40, review_score: 9 },
+        reviews: []
+      }
+    });
+    const restore3 = installFetchMock(fm3);
+    try {
+      const r = await handleMessage({
+        action: 'SEARCH_STEAM',
+        gameName: '鬼泣HD合集|官方中文|支持手柄|Devil May Cry HD Collection|鬼泣1|鬼泣2|鬼泣3'
+      });
+      expect(r.data && String(r.data.appId)).toEqual('631510');
+      expect(r.reason === null || r.reason === undefined).toEqual(true);
+    } finally {
+      restore3();
+    }
   });
 });

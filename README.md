@@ -296,6 +296,25 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.9.3（用户反馈跟进：未命中原因诊断上浮 + 候选浮窗重试按钮）
+
+> v10.9.2 修复后用户机仍失败——管线经真实标题验证全命中，剩余失败原因在用户侧
+> 环境（Steam 接口不可达/加速器未开等）不可远程推断。本版把失败原因**显性化**：
+> 候选浮窗直接显示后台诊断（not-found / steam-api-unreachable / error 详情），
+> 并提供穿透负缓存的重试按钮——用户可据此自查网络/加速器，或确认游戏确实不在 Steam。
+
+**改进**
+
+- **SEARCH_STEAM 响应新增 reason 字段**：区分「确认未找到」/「Steam 接口不可达
+  （窗口内 N 次失败）」/「异常详情」——handleSearchSteam try/catch 包裹 + api-monitor
+  窗口状态判定
+- **候选浮窗原因展示 + 重试按钮**：未命中原因以警示条展示；「🔄 重试自动匹配」穿透
+  负缓存重新搜索，成功则整个浮窗切回 Steam 信息视图；报错重检路径同样接入
+- 回归测试 ×3（unreachable / not-found / 命中时 reason 为空）——滑动窗口跨用例
+  残留以 resetApiMonitor 前置清理
+
+838 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
+
 ### v10.9.2（用户反馈修复：新游戏自动匹配失败——GetNewsForApp 拖爆搜索预算 + 负缓存自愈）
 
 **根因（用户报告：多站详情页自动匹配失败、总是要求手动选择）**

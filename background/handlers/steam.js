@@ -11,6 +11,7 @@ import {
   findVersionVariant
 } from '../steam/api.js';
 import { searchSteamGame } from '../steam/orchestrator.js';
+import { getSteamApiStatus } from '../core/api-monitor.js'; // v10.9.3：失败原因诊断
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntry } from '../storage/name-index.js';
@@ -65,9 +66,27 @@ export async function handleSearchSteam(message, sender) {
     }
   }
   // v10.9.2：ignoreNegativeCache 穿透（详情页对未命中自动重试一次）
-  const steamResult = await searchSteamGame(message.gameName, {
-    ignoreNegativeCache: message.ignoreNegativeCache === true
-  });
+  // v10.9.3：reason 诊断——未命中时区分"确认不在 Steam"与"Steam 接口不可达/
+  // 网络异常"，透传给详情页候选浮窗展示（此前静默弹候选，用户无从判断）
+  /** @type {import('../core/types.js').GameResult|null} */
+  let steamResult = null;
+  /** @type {string|null} */
+  let reason = null;
+  try {
+    steamResult = await searchSteamGame(message.gameName, {
+      ignoreNegativeCache: message.ignoreNegativeCache === true
+    });
+  } catch (e) {
+    reason = 'error: ' + String((e && /** @type {Error} */ (e).message) || e).slice(0, 120);
+  }
+  if (!steamResult && !reason) {
+    const api = getSteamApiStatus();
+    reason =
+      api.failed > 0
+        ? `steam-api-unreachable（窗口内 ${api.failed} 次 Steam 接口失败——请检查网络/加速器后点重试）`
+        : 'not-found（Steam 商店检索无匹配）';
+    Logger.warn('Steam', `未命中原因: ${reason} — "${message.gameName}"`);
+  }
   if (steamResult) {
     Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, {
       appId: steamResult.appId,
@@ -81,7 +100,7 @@ export async function handleSearchSteam(message, sender) {
   await flushAllCaches();
   // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"（模块化：取最近模块时间）
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
-  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
+  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null, reason };
 }
 
 export async function handleRefreshSteamCache(message) {
