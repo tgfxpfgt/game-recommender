@@ -49,11 +49,13 @@ export function detectGameName() {
   if (/顶置|置顶|汇总贴|汇总|索引/.test(pageTitle)) return '';
 
   if (h1) {
-    // 移除徽章/角标元素（如咸鱼单机的"新游发布" span）
-    h1.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach((b) => b.remove());
+    // v10.9.2：在克隆上操作——此前直接 remove() 宿主 h1 内的徽章元素
+    //（如咸鱼单机"版本更新"角标会从用户页面永久消失，属宿主页破坏）
+    const h1Clone = h1.cloneNode(true);
+    h1Clone.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach((b) => b.remove());
 
     // 策略1：优先从 h1 子元素中提取纯英文标题
-    const enChild = h1.querySelector('span, div, p, em, strong, small');
+    const enChild = h1Clone.querySelector('span, div, p, em, strong, small');
     if (enChild) {
       const enText = (enChild.textContent || '').trim();
       if (enText.length > 3 && enText.length < 200 && /^[A-Za-z0-9][A-Za-z0-9\s'':&.!\-×x]*$/i.test(enText)) {
@@ -66,7 +68,7 @@ export function detectGameName() {
     // 移除内联降级副本——权威源由 manifest 保证在内容脚本加载时已注入，
     // 与 content-sim 的注入顺序一致）
     const noisePattern = new RegExp(globalThis.__GR_PATTERNS__.noisePatternSource, 'gi');
-    let text = h1.textContent.trim();
+    let text = h1Clone.textContent.trim();
     const parts = text
       .split(/[|]+|\s+[-–—]\s+|[×•·]/)
       .map((s) => s.trim())
@@ -88,7 +90,7 @@ export function detectGameName() {
     }
 
     // 策略3：清理后为空，回退到 textContent 中提取英文子串
-    const enMatch = h1.textContent.match(/[A-Za-z][A-Za-z0-9\s'':&.!\-×x]{5,}/);
+    const enMatch = h1Clone.textContent.match(/[A-Za-z][A-Za-z0-9\s'':&.!\-×x]{5,}/);
     if (enMatch && enMatch[0].length > 3 && enMatch[0].length < 200) return enMatch[0].trim();
   }
   // 从 title 获取
@@ -550,7 +552,16 @@ export function injectSteamButton(gameName, settings) {
       }
 
       if (!response || !response.data) {
-        response = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName });
+        // v10.9.2：显式 25s 超时（GetNewsForApp 等 Steam 慢接口 + 搜索全链预算；
+        // 默认 10s 会被大陆网络下 api.steampowered.com 的挂起拖爆）
+        response = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName }, null, { timeout: 25000 });
+        // 未命中自动重试一次（穿透负缓存）——历史失败遗留的负缓存不再把
+        // 可匹配的游戏永久推入手动选择；仅在"干净未命中"时重试（超时不重试）
+        if (response && !response.data && !response.error) {
+          response = await window.__GR_MSG__
+            .sendMessage({ action: 'SEARCH_STEAM', gameName, ignoreNegativeCache: true }, null, { timeout: 25000 })
+            .catch(() => null);
+        }
       }
 
       if (response && response.data) {

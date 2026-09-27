@@ -62,7 +62,7 @@ function isDemoCacheWithoutRating(cachedData) {
  * 流程：名称索引 → 动态缓存（含 Demo 自愈）→ 搜索 → 完整详情 → 三层缓存。
  * Search a game and fetch full Steam details (detail pages/panels).
  */
-export async function searchSteamGame(gameName) {
+export async function searchSteamGame(gameName, options = {}) {
   // 1. 通过名称索引查找 appId / Lookup appId via name index
   /** @type {string|number|null} */
   let appId = await lookupAppIdByName(gameName);
@@ -117,8 +117,9 @@ export async function searchSteamGame(gameName) {
       // 缓存缺失/过期且该 appId 是 Demo 版 → 重新搜索完整版
       appId = null;
     }
-  } else if (await isRecentlySearchedNotFound(gameName)) {
-    // 3. 无 appId 时，检查负缓存 / No appId: check the negative cache
+  } else if (!options.ignoreNegativeCache && (await isRecentlySearchedNotFound(gameName))) {
+    // 3. 无 appId 时，检查负缓存（v10.9.2：ignoreNegativeCache 可穿透——详情页
+    // 对未命中自动重试一次，历史失败遗留的负缓存不再永久阻断自动匹配）
     return null;
   }
 

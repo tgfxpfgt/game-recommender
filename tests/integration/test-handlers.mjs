@@ -866,3 +866,60 @@ describe('v10.9.1 补盲：冷门 handler 链路', () => {
     expect(list.favorites['1213700'] && list.favorites['1213700'].name).toEqual('测试游戏');
   });
 });
+
+// ============ v10.9.2：负缓存穿透（自动匹配自愈链路） ============
+describe('v10.9.2：负缓存穿透（ignoreNegativeCache 全链）', () => {
+  // 完整真实标题（咸鱼单机实页）——相关性校验依赖 | 分段出的英文段
+  const FULL_TITLE = '鬼泣HD合集|官方中文|支持手柄|Devil May Cry HD Collection|鬼泣1|鬼泣2|鬼泣3';
+
+  let fetchMock2, restore2;
+  beforeAll(() => {
+    fetchMock2 = createFetchMock({
+      '/api/storesearch': { items: [{ id: 631510, name: 'Devil May Cry HD Collection', type: 'app' }] },
+      '/api/appdetails': {
+        631510: {
+          success: true,
+          data: {
+            steam_appid: 631510,
+            name: 'Devil May Cry HD Collection',
+            type: 'game',
+            genres: [{ id: 1, description: '动作' }],
+            supported_languages: '<strong>简体中文</strong>'
+          }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 500, total_positive: 460, total_negative: 40, review_score: 9 },
+        reviews: []
+      }
+    });
+    restore2 = installFetchMock(fetchMock2);
+  });
+  afterAll(() => restore2());
+
+  test('历史负缓存 → SEARCH_STEAM 干净返回 null（旧行为复现）', async () => {
+    storage._reset();
+    const nameIdx2 = await import('../../background/storage/name-index.js');
+    await nameIdx2.recordNameIndex(FULL_TITLE, null); // 种下负缓存
+    const r = await handleMessage({ action: 'SEARCH_STEAM', gameName: FULL_TITLE });
+    expect(r.data).toEqual(null);
+  });
+
+  test('ignoreNegativeCache 穿透 → 自动匹配成功（v10.9.2 核心回归）', async () => {
+    const r = await handleMessage({
+      action: 'SEARCH_STEAM',
+      gameName: FULL_TITLE,
+      ignoreNegativeCache: true
+    });
+    // 后台 appId 为 storesearch 数字——跨边界由内容侧 escapeAttr/String 规范
+    expect(String(r.data && r.data.appId)).toEqual('631510');
+  });
+
+  test('handleRefreshSteamCache 强制穿透负缓存（手动刷新语义）', async () => {
+    const nameIdx3 = await import('../../background/storage/name-index.js');
+    await nameIdx3.recordNameIndex(FULL_TITLE, null); // 再种负缓存
+    const r = await handleMessage({ action: 'REFRESH_STEAM_CACHE', gameName: FULL_TITLE });
+    expect(String(r.data && r.data.appId)).toEqual('631510');
+  });
+});

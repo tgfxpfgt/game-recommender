@@ -296,6 +296,33 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.9.2（用户反馈修复：新游戏自动匹配失败——GetNewsForApp 拖爆搜索预算 + 负缓存自愈）
+
+**根因（用户报告：多站详情页自动匹配失败、总是要求手动选择）**
+
+- **GetNewsForApp 挂起拖爆搜索预算**：「最近更新」徽章数据走 api.steampowered.com
+  （大陆网络不可达），默认 15s 超时且被内联 await 在搜索主路径——内容侧 SEARCH_STEAM
+  消息默认超时仅 10s，新游戏（无缓存）自动匹配在大陆网络下**必然**超时失败；
+  干净环境下不可复现（api 域可达）
+- **历史负缓存固化未命中**：既往失败留下的负缓存（24h）瞬时返回 null → 直接弹
+  候选浮窗——即使检索管线本身能命中
+
+**修复**
+
+- fetchLastUpdate **4s 硬帽**（"最近更新"仅为角标数据不应主导搜索预算）+ 失败
+  24h 负缓存（同游戏会话内不再重复出网）
+- **ignoreNegativeCache 全链穿透**：SEARCH_STEAM 消息 → handleSearchSteam →
+  searchSteamGame——详情页对未命中**自动重试一次**（穿透负缓存自愈）；手动刷新
+  缓存（REFRESH_STEAM_CACHE）强制穿透（刷新语义 = 不接受历史未命中结论）
+- 详情页 SEARCH_STEAM 显式 **25s 超时**（对齐 Steam250 查询先例）
+- **detectGameName 在克隆上操作**——此前直接 remove() 宿主 h1 内的"版本更新"
+  角标元素（咸鱼单机），属宿主页面破坏
+
+**回归测试 ×6**：fetchLastUpdate 4s 帽/负缓存/成功格式 ×3；负缓存穿透全链 ×3
+（旧行为复现 → 穿透命中 → 手动刷新穿透）
+
+835 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
+
 ### v10.9.1（盲区清零收尾：P3 观感修复 / LLM 解析复核 / 冷门 handler 补测）
 
 **P3 观感修复（Invalid Date / "undefined" / NaN 字面量全清）**

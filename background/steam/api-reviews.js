@@ -211,7 +211,14 @@ export async function fetchLastUpdate(appId) {
   const cached = lastUpdateCache.peek(key);
   if (cached !== undefined) return cached;
   try {
-    const resp = await fetchWithTimeout(`${ENDPOINTS.steamAppNews}?appid=${appId}&count=1&maxlength=0&format=json`);
+    // v10.9.2：4s 硬帽——api.steampowered.com（GetNewsForApp）在大陆网络不可达，
+    // 默认 15s 挂起会把整条 SEARCH_STEAM 拖过消息超时（"最近更新"仅为徽章角
+    // 数据，不应主导搜索预算）；失败经 lastUpdateCache 负缓存 24h
+    const resp = await fetchWithTimeout(
+      `${ENDPOINTS.steamAppNews}?appid=${appId}&count=1&maxlength=0&format=json`,
+      {},
+      4000
+    );
     if (!resp.ok) {
       lastUpdateCache.set(key, null);
       return null;

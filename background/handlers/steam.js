@@ -64,7 +64,10 @@ export async function handleSearchSteam(message, sender) {
       // 详情获取失败（如缓存损坏）→ 继续标题搜索路径
     }
   }
-  const steamResult = await searchSteamGame(message.gameName);
+  // v10.9.2：ignoreNegativeCache 穿透（详情页对未命中自动重试一次）
+  const steamResult = await searchSteamGame(message.gameName, {
+    ignoreNegativeCache: message.ignoreNegativeCache === true
+  });
   if (steamResult) {
     Logger.info('Steam', `匹配"${message.gameName}" → ${steamResult.name}`, {
       appId: steamResult.appId,
@@ -87,7 +90,8 @@ export async function handleRefreshSteamCache(message) {
   if (appId) {
     await deleteSteamCacheEntry(appId);
   }
-  const steamResult = await searchSteamGame(message.gameName);
+  // v10.9.2：手动刷新强制穿透负缓存（刷新语义 = 不接受历史未命中结论）
+  const steamResult = await searchSteamGame(message.gameName, { ignoreNegativeCache: true });
   await flushAllCaches();
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   if (steamResult) {
