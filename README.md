@@ -325,6 +325,12 @@ node --check options/options.js
 
 829 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-27T13-39-37.099Z-543a624d67ef`
+- seal: `sha256:9b7ecbabf50d5e676c2014ede6cc363ca0c0a2fa6019ae0c9561f7173a72b2ca`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.9.0（举一反三全面清查：同构盲区消除）
 
 > 由 v10.8.1 候选浮窗 bug 举一反三——三路并行审计（契约 vs 发送方对齐 / 类型边界
