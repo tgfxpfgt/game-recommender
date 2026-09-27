@@ -323,6 +323,12 @@ node --check options/options.js
 
 835 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-27T14-33-26.388Z-f9978d25ef08`
+- seal: `sha256:f34f8d39b9d27d88a1464f500d232b46eef7e8584e227e272d41bec60c4e8381`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.9.1（盲区清零收尾：P3 观感修复 / LLM 解析复核 / 冷门 handler 补测）
 
 **P3 观感修复（Invalid Date / "undefined" / NaN 字面量全清）**
