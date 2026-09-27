@@ -315,6 +315,12 @@ node --check options/options.js
 
 838 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-27T15-40-26.639Z-893872dccb22`
+- seal: `sha256:f0acea50623efa93089a7139560a5301ca9732895524fcff2b30db98222e47f6`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.9.2（用户反馈修复：新游戏自动匹配失败——GetNewsForApp 拖爆搜索预算 + 负缓存自愈）
 
 **根因（用户报告：多站详情页自动匹配失败、总是要求手动选择）**
