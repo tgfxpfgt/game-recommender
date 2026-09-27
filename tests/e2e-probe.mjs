@@ -147,11 +147,15 @@ const probe = await page.evaluate(() => {
   const grStatusBar = document.getElementById('gr-status-bar');
   const grFloat = document.querySelector('[id^="gr-float"], [class*="gr-float"]');
   const badges = document.querySelectorAll('.gr-badge').length;
+  // v10.8.1：搜索失败诊断信号——候选浮窗/资源面板的报错文案（body.innerText 兜底抓取）
+  const bodyText = (document.body && document.body.innerText) || '';
   return {
     hasStatusBar: !!grStatusBar,
     hasFloat: !!grFloat,
     badgeCount: badges,
-    title: document.title
+    title: document.title,
+    hasSearchError: /搜索失败|查询失败/.test(bodyText),
+    searchErrorSnippet: (bodyText.match(/(搜索|查询)失败[^\n]{0,120}/) || [''])[0]
   };
 });
 console.log('page signals:', JSON.stringify(probe));

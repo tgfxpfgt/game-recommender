@@ -218,7 +218,9 @@ export async function handleSearchSteamCandidates(message) {
     try {
       const result = await searchSteamAppId([term], term);
       if (result) {
-        const item = { appId: result.appId, name: result.name };
+        // v10.8.1：appId 规范化为字符串（storesearch 的 item.id 是数字——
+        // 内容侧 escapeAttr 曾因数字入参抛 TypeError，见 shared/escape.js 同修）
+        const item = { appId: String(result.appId), name: result.name };
         if (!seen.has(item.appId)) {
           seen.add(item.appId);
           candidates.push({ appId: item.appId, name: item.name, price: null, image: '' });

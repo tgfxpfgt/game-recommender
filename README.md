@@ -296,6 +296,24 @@ node --check options/options.js
 
 ## 更新日志
 
+### v10.8.1（用户反馈修复：详情页候选浮窗"搜索失败" TypeError）
+
+**修复**
+
+- **候选游戏浮窗渲染崩溃（用户报告，多站详情页"搜索失败: TypeError: (text || \"\").replace is not a function"）**：
+  v10.5.0 安全转义清扫把候选列表渲染改为 `escapeAttr(c.appId)`，而 Steam storesearch 返回的
+  `item.id` 是**数字**——数字无 `.replace`，凡 Steam 自动搜索未命中弹出候选浮窗时渲染即崩。
+  双层修复：① `escapeAttr` 入参 String 强转（shared/escape.js + content/core/common.js——
+  转义是安全防线，不得因数据类型崩溃，顺带兜住全仓其他数字/对象入参场景）；
+  ② `handleSearchSteamCandidates` 的 appId 在数据边界规范化为字符串
+- 附带语义微调：`escapeAttr(0)` 现输出 "0"（旧 `||` 语义输出空串）——更保真
+- e2e 探针新增 hasSearchError/错误文案诊断信号（真机验证"搜索失败"类反馈用）
+
+**回归防线**：test-escape-robust.mjs ×5（数字/对象/null 入参不抛错、转义语义不变、
+候选 handler 返回字符串 appId）
+
+810 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
+
 ### v10.8.0（自检演进：测试防线补齐 / 规则 features 勾选 UI / 纵深防御 / 文档更新）
 
 **新功能**

@@ -26,7 +26,12 @@ function escapeHtmlLocal(text) {
   return escapeDiv.innerHTML;
 }
 function escapeAttrLocal(text) {
-  return (text || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  // v10.8.1：String 强转（同 shared/escape.js——数字入参不得使防线抛错）
+  return String(text ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 const escapeHtml = typeof globalThis.escapeHtml === 'function' ? globalThis.escapeHtml : escapeHtmlLocal;
 const escapeAttr = typeof globalThis.escapeAttr === 'function' ? globalThis.escapeAttr : escapeAttrLocal;
