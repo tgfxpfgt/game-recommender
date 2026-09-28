@@ -73,6 +73,8 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('trendGranularity').addEventListener('change', loadTrends);
   document.getElementById('exportTrendsCsvBtn').addEventListener('click', exportTrendsCsv);
   document.getElementById('exportGamesCsvBtn').addEventListener('click', exportGamesCsv);
+  const jsonBtn = document.getElementById('exportInsightsJsonBtn');
+  if (jsonBtn) jsonBtn.addEventListener('click', exportInsightsJson); // v11.0 B7
   document.getElementById('exportLogsCsvBtn').addEventListener('click', exportLogsCsv);
 
   // 出站审计筛选/导出 (v4.1.0)
@@ -215,6 +217,35 @@ function exportTrendsCsv() {
   );
 }
 
+// v11.0 B7：JSON 全量导出（画像 + 收藏 + 趋势）——结构化备份/跨设备迁移
+async function exportInsightsJson() {
+  try {
+    const [stats, favs, trends] = await Promise.all([
+      window.__GR_MSG__.sendMessage({ action: 'GET_STATS' }),
+      window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' }),
+      window.__GR_MSG__.sendMessage({ action: 'GET_TRENDS', granularity: 'week' })
+    ]);
+    const payload = {
+      format: 'game-recommender-insights',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      gameList: (stats && stats.gameList) || [],
+      topKeywords: (stats && stats.topKeywords) || [],
+      favorites: (favs && favs.favorites) || {},
+      trends: (trends && trends.daily) || []
+    };
+    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `game-recommender-insights-${new Date().toISOString().slice(0, 10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) {
+    alert('导出失败: ' + String(e));
+  }
+}
+
 // 导出游戏明细 CSV（当前 GET_STATS 返回的前 50 画像）/ Export game profiles as CSV
 function exportGamesCsv() {
   if (cachedGameList.length === 0) {
@@ -339,6 +370,8 @@ function safeDateText(ts, fmt) {
 }
 
 // 标签偏好云：按权重分级着色与字号 / Tag cloud: color/size graded by weight
+let activeTagFilter = null; // v11.0 B7：tag 聚合过滤（点击标签云 → 过滤游戏表）
+
 function renderTagCloud(keywords) {
   const container = document.getElementById('tagCloud');
   if (!keywords || keywords.length === 0) {
@@ -351,11 +384,21 @@ function renderTagCloud(keywords) {
       const weight = Number(kw.weight) || 0; // v10.9：异型权重防 NaN 字号
       const level = weight >= 0.6 ? 'high' : weight >= 0.3 ? 'medium' : 'low';
       const size = Math.max(12, Math.min(20, 12 + weight * 10));
-      return `<span class="tag-item ${level}" style="font-size:${size}px" title="匹配度: ${Math.round(weight * 100)}%">
+      // v11.0 B7：标签可点击 → 聚合过滤游戏表（与游戏表标签闭环）
+      return `<span class="tag-item ${level}" data-tag="${escapeHtml(kw.keyword)}" style="font-size:${size}px;cursor:pointer;${activeTagFilter === kw.keyword ? 'outline:2px solid #67c1f5;' : ''}" title="匹配度: ${Math.round(weight * 100)}% — 点击筛选该类游戏">
       ${escapeHtml(kw.keyword)} <small>${Math.round(weight * 100)}%</small>
     </span>`;
     })
     .join('');
+
+  container.querySelectorAll('.tag-item').forEach((el) => {
+    el.addEventListener('click', () => {
+      const tag = el.dataset.tag;
+      activeTagFilter = activeTagFilter === tag ? null : tag; // 再点取消
+      renderGameTable(cachedGameList);
+      renderTagCloud(keywords);
+    });
+  });
 }
 
 // 下载方式分布 / Download-method breakdown
@@ -391,6 +434,13 @@ function renderDownloadMethods(methods) {
 // 游戏明细表（按下载数/查看数降序） / Per-game table (sorted by downloads/views)
 function renderGameTable(games) {
   cachedGames = games || [];
+  // v11.0 B7：tag 聚合过滤——keywords 含激活标签的游戏才入表
+  if (activeTagFilter) {
+    cachedGames = cachedGames.filter(
+      (g) =>
+        Array.isArray(g.keywords) && g.keywords.some((k) => String(k).toLowerCase() === activeTagFilter.toLowerCase())
+    );
+  }
   const tbody = document.getElementById('gameTableBody');
   if (!games || games.length === 0) {
     tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无游戏记录</td></tr>';

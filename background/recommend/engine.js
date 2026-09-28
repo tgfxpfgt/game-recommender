@@ -176,7 +176,7 @@ export function appStatScores(a, b, caps = null) {
  * @param {number|null} [params.appDownloads] - AppID 下载次数 a（null=无统计）
  * @param {number|null} [params.appDetailViews] - AppID 详情页打开次数 b（null=无统计）
  * @param {{downloadCap?: number, viewCap?: number}|null} [params.appStatCaps] - a/b 对数饱和封顶（设置可调）
- * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number, salesScore: number, reviewScore: number, appDownloadScore: number, appViewPenalty: number}, method: string}}
+ * @returns {{score: number, breakdown: {clickScore: number, downloadScore: number, keywordScore: number, steamScore: number, playTimeScore: number, heatScore: number, salesScore: number, reviewScore: number, appDownloadScore: number, appViewPenalty: number}, reason?: string, method: string}}
  */
 // v4.0.0：computeGameScore 新增 playTimeScore/heatScore 分量（缺省中性 0.3）；
 // v10.5.3 任务3：新增 salesScore/reviewScore 分量（同缺省中性 0.3），权重键
@@ -407,6 +407,9 @@ async function calculateWithLLM(gameInfo, settings) {
           model: llmConfig.model,
           prompt,
           stream: false,
+          // v11.0 B8：Ollama 结构化输出——JSON 模式约束输出为合法 JSON，
+          // parseLLMResponse 的正则抽取从"尽力"变"可靠"
+          format: 'json',
           // v10.5.2：num_predict 上限——评分输出只是一小段 JSON，无上限时模型
           // 可能长篇发挥，白白消耗 token/时间
           // Cap generated tokens: the score is a tiny JSON blob.

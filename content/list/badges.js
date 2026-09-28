@@ -333,6 +333,8 @@ export function prependRecBadge(item, recommendation, settings) {
 
   const b = recommendation.breakdown || {};
   const fmt = (v) => Math.round((v || 0) * 100) + '%';
+  // v11.0 B8：LLM 推荐理由上浮（method=llm 时 recommendation.reason 可用）
+  const reasonLine = recommendation.method === 'llm' && recommendation.reason ? '\n🤖 ' + recommendation.reason : '';
   // v10.6.0 U1：走 createBadge 基类（.gr-badge 统一规格），样式差异收敛到 CSS；
   // base:'gr-badge'——推荐徽章在好评率组之外，不得带 gr-rating-badge 组标记
   //（否则先于评分渲染时污染防重复守卫/测试契约）
@@ -348,7 +350,7 @@ export function prependRecBadge(item, recommendation, settings) {
       `\n🏷 关键词: ${fmt(b.keywordScore)} · ⭐ Steam: ${fmt(b.steamScore)}` +
       `\n⏱ 游玩时长: ${fmt(b.playTimeScore)} · 🔥 热度: ${fmt(b.heatScore)}` +
       `\n📊 销量: ${fmt(b.salesScore)} · 📝 评论数: ${fmt(b.reviewScore)}` +
-      `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）`
+      `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）${reasonLine}`
   });
   badge.style.cursor = 'default';
 
