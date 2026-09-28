@@ -356,6 +356,12 @@ node --check options/options.js
 
 840 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-28T17-03-39.475Z-07b2fe46a0f0`
+- seal: `sha256:206e8860a7ebf5945a0cfc0826344c6786b3538663b0a6a2bb1357c3194a7f03`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.9.4（用户反馈修复：浮窗标签点击跳到 Steam 首页）
 
 **根因（实测 A/B 确认）**：Steam 标签页路由对语言段**大小写敏感**——
