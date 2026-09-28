@@ -310,6 +310,12 @@ node --check options/options.js
 
 839 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描，随版本补录）
+
+- scanId: `scan-2026-09-28T07-12-51.956Z-5147c99b4c33`
+- seal: `sha256:5069fdeb4c10f2e03f4c9992fccfc2733161fcc010f1180bc8db27814f192ea5`
+- findings: **0** · 依赖扫描 200 包 0 漏洞匹配
+
 ### v10.9.3（用户反馈跟进：未命中原因诊断上浮 + 候选浮窗重试按钮）
 
 > v10.9.2 修复后用户机仍失败——管线经真实标题验证全命中，剩余失败原因在用户侧
