@@ -79,7 +79,6 @@ export const SPY_SCALES = {
 // v10.7.0: backend endpoint single source (highest-duplication literals).
 export const ENDPOINTS = {
   steamStoreApp: 'https://store.steampowered.com/app/',
-  steamStoreApi: 'https://store.steampowered.com/api/',
   steamSearch: 'https://store.steampowered.com/api/storesearch/',
   steamAppDetails: 'https://store.steampowered.com/api/appdetails',
   steamAppReviews: 'https://store.steampowered.com/appreviews/',
