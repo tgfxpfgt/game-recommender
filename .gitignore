@@ -65,3 +65,5 @@ tests/visual/diff/
 .e2e-probe-profile/
 .diag-*.html
 .diag-*.html
+.diag-*.txt
+.diag-store*.html

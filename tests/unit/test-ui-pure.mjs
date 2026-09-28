@@ -210,3 +210,23 @@ test('steamSidebar 正常数据回归（归一化不改变行为）', () => {
   expect(html.includes('测试社')).toEqual(true);
   expect(html.includes('一段介绍')).toEqual(true);
 });
+
+// ============ v10.9.4：标签链接 slug 语言段小写 zh-cn（大写 zh-CN 被 Steam 路由弹回首页） ============
+test('steamSidebar 标签链接使用 zh-cn 小写语言段（v10.9.4 回归）', () => {
+  const html = detailTemplates.steamSidebar(
+    {
+      appId: '570',
+      name: 'Dota 2',
+      positiveRate: 82,
+      totalReviews: 1000,
+      userTags: ['多人', '策略']
+    },
+    Date.now(),
+    false,
+    false
+  );
+  expect(html.includes('/tags/zh-CN/')).toEqual(false); // 大写 CN 不再出现
+  expect(html.includes('/tags/zh-cn/')).toEqual(true);
+  expect(html.includes(encodeURIComponent('多人'))).toEqual(true); // 中文 slug 全量编码
+  expect((html.match(/tags\/zh-cn\//g) || []).length).toEqual(2); // 每个标签一个链接
+});

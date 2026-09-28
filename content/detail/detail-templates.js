@@ -234,7 +234,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
                 .map(
                   (t) =>
                     // v10.4.4：标签可点击跳转 Steam 标签页（新窗口；href 全量编码）
-                    `<a href="${common.escapeAttr('https://store.steampowered.com/tags/zh-CN/' + encodeURIComponent(t))}" target="_blank" rel="noopener" title="在 Steam 查看标签「${esc(t)}」" style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:pointer;text-decoration:none;display:inline-block;">${esc(t)}</a>`
+                    `<a href="${common.escapeAttr('https://store.steampowered.com/tags/zh-cn/' + encodeURIComponent(t))}" target="_blank" rel="noopener" title="在 Steam 查看标签「${esc(t)}」" style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:pointer;text-decoration:none;display:inline-block;">${esc(t)}</a>`
                 )
                 .join('')}
             </div>
