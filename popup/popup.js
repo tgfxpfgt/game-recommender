@@ -328,9 +328,17 @@ async function loadApiStatus() {
       return;
     }
     const num = (v) => Number(v) || 0; // v10.9：异型响应防 NaN 文案
+    // v11.0 B2：分域名可达性点灯（store/api/circuit）
+    const dm = resp.domains || {};
+    const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+    const domainLine =
+      dm.store || dm.api
+        ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">可达性：商店 ${lamp(dm.store)} / API ${lamp(dm.api)}${dm.circuit === 'open' ? ' · ⚡熔断中（60s 后自动重试）' : ''}</div>`
+        : '';
     if (resp.anomaly) {
       dot.className = 'status-dot error';
       info.innerHTML = `<span style="color:#e74c3c;font-size:12px;">⚠️ Steam API 异常：近 ${num(resp.windowSec) / 60} 分钟失败率 <b>${num(resp.failRate)}%</b>（${num(resp.failed)}/${num(resp.total)} 次失败），疑似限流</span>
+        ${domainLine}
         <div style="font-size:11px;color:#8f98a0;margin-top:4px;">扩展已自动降低批量检索速度；建议稍后重试或减少连续刷新</div>`;
     } else if (num(resp.total) < 8) {
       dot.className = 'status-dot';
@@ -339,6 +347,7 @@ async function loadApiStatus() {
       dot.className = 'status-dot ok';
       info.innerHTML =
         `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${num(resp.windowSec) / 60} 分钟 ${num(resp.total)} 次调用，失败 ${num(resp.failed)} 次（${num(resp.failRate)}%）${num(resp.limited) > 0 ? `，限流 ${num(resp.limited)} 次` : ''}</span>` +
+        domainLine +
         // v10.6.0 N1：会话累计出网请求量（缓存命中越多，该值越低）
         (resp.sessionTotal > 0
           ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">本次浏览器会话已出网 ${resp.sessionTotal} 次 Steam 请求${resp.sessionFailed > 0 ? `（失败 ${resp.sessionFailed}）` : ''}</div>`

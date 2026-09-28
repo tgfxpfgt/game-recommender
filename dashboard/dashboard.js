@@ -1042,6 +1042,13 @@ async function loadApiDiagnostics() {
       el.textContent = '—';
       return;
     }
+    const dm = resp.domains || {};
+    const el2 = document.getElementById('diagDomainStatus');
+    if (el2) {
+      const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+      el2.textContent = `商店 ${lamp(dm.store)} / API ${lamp(dm.api)}`;
+      el2.title = dm.circuit === 'open' ? '熔断中：连续网络失败，60s 后自动重试' : '分域名可达性（最近请求滚动窗口）';
+    }
     if (resp.anomaly) {
       el.textContent = `⚠️ 异常（${resp.failRate}%）`;
       el.style.color = '#e5534b';

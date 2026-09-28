@@ -55,6 +55,13 @@
           <div class="panel-header">
             <h2>常规设置</h2>
             <p>General Settings</p>
+            <input
+              type="text"
+              id="settingsSearch"
+              class="gr-input"
+              placeholder="🔍 搜索设置项（名称/描述）…"
+              style="margin-left: auto; width: 220px"
+            />
           </div>
           <div class="panel-body">
             <div class="settings-section">
@@ -444,6 +451,33 @@
                   <div class="setting-label">
                     <span class="label-text">限免监控</span>
                     <span class="label-desc">Free-games Tracking（关闭后不抓取各源，页面显示旧数据）</span>
+                  </div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="label-text">收藏折扣监控</span>
+                      <span class="label-desc"
+                        >Favorite Price Watch（需 ITAD Key；现价 ≤ 历史最低×阈值时通知，48h 轮询）</span
+                      >
+                    </div>
+                    <label class="gr-switch">
+                      <input type="checkbox" id="favoritePriceWatch" />
+                      <span class="gr-slider-ui"></span>
+                    </label>
+                  </div>
+                  <div class="setting-row">
+                    <div class="setting-label">
+                      <span class="label-text">折扣阈值</span>
+                      <span class="label-desc">Discount Threshold（50-100%，现价占历史最低的百分比）</span>
+                    </div>
+                    <input
+                      type="number"
+                      id="favoriteDiscountThreshold"
+                      min="50"
+                      max="100"
+                      step="5"
+                      class="gr-input"
+                      style="width: 110px"
+                    />
                   </div>
                   <label class="gr-switch">
                     <input type="checkbox" id="freeGamesEnabled" />

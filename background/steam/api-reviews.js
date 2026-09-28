@@ -1,4 +1,4 @@
-import { recordSteamCall } from '../core/api-monitor.js';
+import { recordSteamCall, recordDomainCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
 import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
@@ -163,6 +163,7 @@ export async function fetchReviewSummary(appId) {
       const data = await response.json();
       // v9.7.0：同 api-details——传入 status，非 2xx 不计成功（限流可感知）
       recordSteamCall(response.ok || response.status === 404, response.status); // v10.3.0：404=空结果非失败
+      recordDomainCall('store', response.ok || response.status === 404); // v11.0 B2
       if (!response.ok) continue;
       if (data.success === 1 && data.query_summary) {
         const qs = data.query_summary;

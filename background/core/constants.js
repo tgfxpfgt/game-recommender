@@ -198,6 +198,8 @@ export const DEFAULT_SETTINGS = {
   qrImageMaxKb: 3072, // v10.7.0 批次5：二维码代取图片大小上限 KB（原 3MB 写死）
   xdgridEnabled: true, // XDGAME 列表布局定制（xdgame.com 专属）
   notifyFreeGames: true, // 限免通知推送（新增限免时系统通知）
+  favoritePriceWatch: true, // v11.0 B3：收藏折扣监控开关（需 ITAD Key，无 Key 零请求）
+  favoriteDiscountThreshold: 80, // v11.0 B3：折扣阈值百分比（现价 ≤ 最低×80% 通知）
   freeGamesEnabled: true, // v10.6.0：限免监控总开关（关闭后不抓取各源，页面显示旧数据）
   // v10.6.0：主题定时切换（日/夜双主题 + 按小时自动切换）
   themeAutoSwitch: false,

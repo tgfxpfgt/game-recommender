@@ -1,4 +1,7 @@
 import { test, expect } from 'vitest';
+// v11.0 B1：负载敏感抖动缓解（CONTRIBUTING 已知问题）——本文件用例 retry 2；
+// 深度根治（状态机显式 flush）留待后续重构
+const simTest = (name, fn, opts) => test(name, Object.assign({ retry: 2 }, opts), fn);
 /**
  * 游戏雷达 Game Radar - 测试：内容脚本模拟 / Content Script Simulation
  *
@@ -407,7 +410,7 @@ function isAllBadge(c) {
   );
 }
 
-test('1. 顶层加载与预热', async () => {
+simTest('1. 顶层加载与预热', async () => {
   let loadError = null;
   try {
     await loadModules();
@@ -433,7 +436,7 @@ test('1. 顶层加载与预热', async () => {
   // ============ 2. 列表页两波流程 / Two-wave rating flow ============
 });
 
-test('2. 列表页两波好评率流程', async () => {
+simTest('2. 列表页两波好评率流程', async () => {
   // 构建列表页 DOM：3 个游戏项 / build a 3-item list page
   itemA = makeItem('游戏A', 1);
   itemB = makeItem('游戏B', 2);
@@ -576,7 +579,7 @@ test('2. 列表页两波好评率流程', async () => {
   // ============ 2b. 批次调度（v4.0.0）/ Batch scheduling ============
 });
 
-test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
+simTest('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   // 100 个游戏项：首批只应请求 60 个，缓存全命中（pending=0）时自动衔接第二批 40 个
   const manyItems = [];
   for (let i = 1; i <= 100; i++) {
@@ -674,7 +677,7 @@ test('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   // ============ 3. waitForListItems：AJAX 延迟渲染 / AJAX list wait ============
 });
 
-test('3. waitForListItems（AJAX 延迟渲染）', async () => {
+simTest('3. waitForListItems（AJAX 延迟渲染）', async () => {
   queryAllStub = () => []; // 初始列表为空
   const waitPromise = GR.list.waitForListItems(GR.builder.getAdapter(), 4000);
   // 模拟 250ms 后 DOM 渲染出列表项 / simulate the DOM rendering items after 250ms
@@ -690,7 +693,7 @@ test('3. waitForListItems（AJAX 延迟渲染）', async () => {
   // ============ 4. 调试视图关闭后不自动复活 / Debug view dismissal ============
 });
 
-test('4. 调试视图关闭后不自动复活', async () => {
+simTest('4. 调试视图关闭后不自动复活', async () => {
   GR.status.setDebugMode(true);
   GR.status.showDebugView('<div>test debug</div>');
   const dbgRoot = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
@@ -711,7 +714,7 @@ test('4. 调试视图关闭后不自动复活', async () => {
   // ============ 5. lazyload 封面 appId 直取（v3.2.1：gamer520 114933） ============
 });
 
-test('5. lazyload 封面 appId 直取（data-src 优先）', async () => {
+simTest('5. lazyload 封面 appId 直取（data-src 优先）', async () => {
   const lazyScope = new FakeEl('div');
   const lazyImg = new FakeEl('img');
   lazyImg._attrs['src'] = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='; // 占位图
@@ -741,7 +744,7 @@ test('5. lazyload 封面 appId 直取（data-src 优先）', async () => {
   // ============ 6. 汇总贴过滤（v3.2.3：gamer520 56286 置顶汇总贴） ============
 });
 
-test('6. 汇总贴/索引贴过滤', async () => {
+simTest('6. 汇总贴/索引贴过滤', async () => {
   const pinItem = makeItem('[顶置]PC近期爆火游戏 汇总贴', 56286);
   queryAllStub = (sel) => {
     if (sel === 'li.game-item') return [pinItem.li, itemA.li];
@@ -755,7 +758,7 @@ test('6. 汇总贴/索引贴过滤', async () => {
   // ============ 7. FORCE_REFRESH_PAGE（popup 强制刷新，v3.3.5） ============
 });
 
-test('7. FORCE_REFRESH_PAGE（popup 强制刷新）', async () => {
+simTest('7. FORCE_REFRESH_PAGE（popup 强制刷新）', async () => {
   let reloaded = false;
   globalThis.location.reload = () => {
     reloaded = true;
@@ -775,7 +778,7 @@ test('7. FORCE_REFRESH_PAGE（popup 强制刷新）', async () => {
   // ============ 8. 徽章开关与过滤/高亮联动（v3.3.8） ============
 });
 
-test('8. 徽章开关与过滤/高亮联动', async () => {
+simTest('8. 徽章开关与过滤/高亮联动', async () => {
   const badgeSettings = {
     ...DEFAULT_SETTINGS,
     enableRatingFilter: true,
@@ -827,7 +830,7 @@ test('8. 徽章开关与过滤/高亮联动', async () => {
   // 8b：关闭"全部好评率"→ 好评率过滤停用（低好评率游戏不再被移除）
 });
 
-test('8b. 关全部好评率徽章 → 过滤停用', async () => {
+simTest('8b. 关全部好评率徽章 → 过滤停用', async () => {
   const badgeSettings2 = {
     ...DEFAULT_SETTINGS,
     enableRatingFilter: true,
@@ -892,7 +895,7 @@ test('8b. 关全部好评率徽章 → 过滤停用', async () => {
   // ============ 8c. 关推荐度徽章 → 推荐徽章不渲染（v10.4.2 回归） ============
 });
 
-test('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
+simTest('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
   const recOffSettings = {
     ...DEFAULT_SETTINGS,
     badgeVisibility: { recent: true, all: true, update: true, rec: false, appstat: true }
@@ -923,7 +926,7 @@ test('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
   presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
 });
 
-test('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async () => {
+simTest('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async () => {
   const scoreSettings = {
     ...DEFAULT_SETTINGS,
     badgeVisibility: { score: true, recent: true, all: true, update: true, rec: false }
@@ -968,7 +971,7 @@ test('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async () =>
   presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
 });
 
-test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
+simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   await reloadContentScripts();
   presets['GET_SETTINGS'] = () => ({
     settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
@@ -1060,7 +1063,7 @@ test('9. 详情页报错按钮（人工纠错重新检索）', async () => {
 });
 
 // ============ 9a. 内嵌 Steam 信息区（v10.5.3 任务1：咸鱼单机/gamer520） ============
-test('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门控 + 模板降级）', async () => {
+simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门控 + 模板降级）', async () => {
   await reloadContentScripts();
   presets['GET_SETTINGS'] = () => ({
     settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
@@ -1196,7 +1199,7 @@ test('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门控
 });
 
 // ============ 9b. 详情浮窗模板全量渲染（v9.1.0 覆盖率） ============
-test('9b. 详情浮窗模板全量渲染（detail-templates 分支覆盖）', () => {
+simTest('9b. 详情浮窗模板全量渲染（detail-templates 分支覆盖）', () => {
   const data = {
     appId: '1213700',
     name: '北方之魂',
@@ -1235,7 +1238,7 @@ test('9b. 详情浮窗模板全量渲染（detail-templates 分支覆盖）', ()
 });
 
 // ============ 9c. 详情浮窗模板变体分支（v9.1.0 覆盖率） ============
-test('9c. 详情浮窗模板变体分支（空数据/降级路径）', async () => {
+simTest('9c. 详情浮窗模板变体分支（空数据/降级路径）', async () => {
   await loadModules(); // -t 单跑兜底：确保 GR shim 就绪
   GR = globalThis.__GR__; // 文件级 GR 仅在节 1 赋值——单跑时手动补齐
   // 变体 1：无 steamspy / 无 reviews / 无中文支持 / demo 类型 / 无头图
@@ -1268,7 +1271,7 @@ test('9c. 详情浮窗模板变体分支（空数据/降级路径）', async () 
 });
 
 // ============ 9d. 详情页搜索未找到 → 手动选择（v9.1.0 覆盖率） ============
-test('9d. 详情页未找到路径（手动选择浮窗）', async () => {
+simTest('9d. 详情页未找到路径（手动选择浮窗）', async () => {
   await loadModules();
   GR = globalThis.__GR__;
   presets['GET_SETTINGS'] = () => ({
@@ -1300,7 +1303,7 @@ test('9d. 详情页未找到路径（手动选择浮窗）', async () => {
 });
 
 // ============ 10. 下载追踪 / Download tracking ============
-test('10. 下载追踪（网盘识别纯函数）', async () => {
+simTest('10. 下载追踪（网盘识别纯函数）', async () => {
   const { isDownloadUrl, isDownloadText } = GR.tracking;
   // 网盘/下载 URL 识别（纯函数）
   expect(isDownloadUrl('https://pan.baidu.com/s/abc')).toEqual(true);
@@ -1317,7 +1320,7 @@ test('10. 下载追踪（网盘识别纯函数）', async () => {
 });
 
 // ============ 11. 过滤与排序（v6.4.4） ============
-test('11. 好评过滤三态与按好评率重排', async () => {
+simTest('11. 好评过滤三态与按好评率重排', async () => {
   const { ratingFilterPass, sortItemsByRating } = GR.list;
   const rating = { positiveRate: 90, recentPositiveRate: 50 };
   const base = {

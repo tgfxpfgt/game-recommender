@@ -1,4 +1,4 @@
-import { recordSteamCall } from '../core/api-monitor.js';
+import { recordSteamCall, recordDomainCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
 import { Logger } from '../storage/logger.js';
@@ -98,6 +98,7 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
     // v9.7.0：传入 HTTP status（429/503 计入限流统计）——且非 2xx 响应
     // （如带 JSON 体的 429）不再被记为成功，failRate/anomaly 不再失真
     recordSteamCall(response.ok || response.status === 404, response.status); // v10.3.0：404=空结果非失败
+    recordDomainCall('store', response.ok || response.status === 404); // v11.0 B2
     if (!response.ok) return null;
     if (!detailData[appId] || !detailData[appId].success) return null;
     return detailData[appId].data;

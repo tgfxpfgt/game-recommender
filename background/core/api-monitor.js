@@ -55,6 +55,16 @@ export function recordSteamCall(ok, status = 0) {
   if (!ok) c.failed += 1;
   if (status === 429 || status === 503) c.limited += 1;
   counters.scheduleSave();
+  // v11.0 B1：熔断计数——仅网络级失败（status=0）推进，成功即复位
+  if (!ok && status === 0) {
+    consecutiveNetFails += 1;
+    if (consecutiveNetFails >= CIRCUIT_THRESHOLD) {
+      circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
+      consecutiveNetFails = CIRCUIT_THRESHOLD;
+    }
+  } else if (ok) {
+    consecutiveNetFails = 0;
+  }
 }
 
 // 获取当前 API 状态（纯函数，可单测）
@@ -96,8 +106,68 @@ export function getSteamApiStatus() {
   };
 }
 
+// v11.0 B1：Steam 接口熔断器——窗口内连续网络级失败（status=0）达阈值 →
+// 熔断 60s：期间 searchSteamAppId 直接短路返回（不发无谓请求逐个超时拖慢页面），
+// 恢复后自动闭合。HTTP 4xx/5xx 不计入（是"确认失败"而非"不可达"）。
+// Steam API circuit breaker: consecutive network-level failures trip a 60s open
+// state during which searches short-circuit instead of timing out one by one.
+let consecutiveNetFails = 0;
+let circuitOpenUntil = 0;
+const CIRCUIT_THRESHOLD = 5;
+const CIRCUIT_OPEN_MS = 60000;
+
+export function isCircuitOpen(now = Date.now()) {
+  if (circuitOpenUntil && now >= circuitOpenUntil) {
+    circuitOpenUntil = 0;
+    consecutiveNetFails = 0;
+  }
+  return circuitOpenUntil > now;
+}
+
+export function circuitState() {
+  return isCircuitOpen() ? 'open' : 'closed';
+}
+
+// v11.0 B2：分域名可达性——store / api 两域最近 N 次请求的成功率（会话级）。
+// recordSteamCall 调用方按域名传入；失败判定沿用 HTTP 语义（404=空结果非失败）。
+// Per-domain reachability: rolling success over recent calls per domain.
+const domainStats = {
+  store: { ok: 0, total: 0 },
+  api: { ok: 0, total: 0 }
+};
+const DOMAIN_WINDOW = 8;
+
+export function recordDomainCall(domain, ok) {
+  const st = domainStats[domain];
+  if (!st) return;
+  st.total += 1;
+  if (ok) st.ok += 1;
+  if (st.total > DOMAIN_WINDOW) {
+    st.total = DOMAIN_WINDOW;
+    if (st.ok > DOMAIN_WINDOW) st.ok = DOMAIN_WINDOW;
+  }
+}
+
+export function getDomainStatus() {
+  const out = {};
+  for (const [d, st] of Object.entries(domainStats)) {
+    out[d] = st.total === 0 ? 'unknown' : st.ok > 0 ? 'ok' : 'down';
+  }
+  out.circuit = circuitState();
+  return out;
+}
+
+export function resetDomainStatus() {
+  for (const st of Object.values(domainStats)) {
+    st.ok = 0;
+    st.total = 0;
+  }
+}
+
 // 重置（测试/清理用）/ Reset
 export function resetApiMonitor() {
   persist.reset();
   counters.reset();
+  consecutiveNetFails = 0;
+  circuitOpenUntil = 0;
 }

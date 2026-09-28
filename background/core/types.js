@@ -80,6 +80,8 @@
  * @property {boolean} [xdgridEnabled] - XDGAME 布局定制开关（v10.3.0）
  * @property {boolean} [notifyFreeGames] - 限免通知开关（v10.3.0）
  * @property {boolean} [freeGamesEnabled] - 限免监控开关（v10.6.0）
+ * @property {boolean} [favoritePriceWatch] - 收藏折扣监控开关（v11.0 B3）
+ * @property {number} [favoriteDiscountThreshold] - 收藏折扣阈值 50-100（v11.0 B3）
  * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
  * @property {string} [uiThemeDay] - 日间主题名（v10.6.0）
  * @property {string} [uiThemeNight] - 夜间主题名（v10.6.0）

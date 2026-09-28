@@ -434,7 +434,67 @@ export async function getItadLowest(appId) {
   return info;
 }
 
-// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）
+// v11.0 B3：收藏折扣监控——ITAD 轮询收藏游戏现价，折扣 ≥ 阈值 → 通知。
+// Favorite price watch: poll ITAD for favorited games, notify on discount.
+const favPriceCache = createTtlCache({ ttlMs: 24 * 3600e3 }); // 现价（number|null = 负缓存）
+
+async function fetchFavoriteCurrentPrice(appId, apiKey) {
+  const cached = favPriceCache.peek(String(appId));
+  if (cached !== undefined) return cached;
+  /** @type {number|null} */
+  let price = null;
+  try {
+    const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${apiKey}&appids=steam/${appId}&region=cn`);
+    if (resp.ok) {
+      const data = await resp.json();
+      const entry = data && data['steam/' + appId];
+      const prices = entry && entry.prices;
+      if (Array.isArray(prices) && prices.length > 0) {
+        // 取最低现价（prices[].price 为美元原值字段，按 ITAD v02 形态取最小）
+        const nums = prices.map((p2) => Number(p2.price)).filter((v) => Number.isFinite(v) && v >= 0);
+        if (nums.length > 0) price = Math.min.apply(null, nums);
+      }
+    }
+  } catch (e) {
+    Logger.debug('FreeGames', '收藏现价查询失败:', String(e));
+  }
+  favPriceCache.set(String(appId), price);
+  return price;
+}
+
+export async function watchFavoritePrices() {
+  const settings = await getSettings();
+  if (settings.favoritePriceWatch === false) return { skipped: true, notified: 0 };
+  const apiKey = activeItadKey(settings);
+  if (!apiKey) return { skipped: true, notified: 0 }; // 无 Key 零请求
+  const { getFavorites } = await import('../storage/favorites.js');
+  const favorites = await getFavorites();
+  const keys = Object.keys(favorites).slice(0, 50); // 上限 50（防无界轮询）
+  const threshold = Number(settings.favoriteDiscountThreshold) || 0.8; // 现价 ≤ 最低 × 阈值
+  let notified = 0;
+  for (const appId of keys) {
+    const lowest = await getItadLowest(appId); // 复用 12h 缓存
+    if (!lowest || !Number.isFinite(lowest.price) || lowest.price <= 0) continue;
+    const current = await fetchFavoriteCurrentPrice(appId, apiKey);
+    if (!Number.isFinite(current) || current <= 0) continue;
+    if (current <= lowest.price * threshold) {
+      const name = (favorites[appId] && favorites[appId].name) || 'AppID ' + appId;
+      chrome.notifications
+        .create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: '💥 收藏折扣提醒',
+          message: `${name} 现价 ${current.toFixed(2)}（历史最低 ${lowest.price.toFixed(2)} @ ${lowest.shop || 'ITAD'}）`
+        })
+        .catch(() => {});
+      notified += 1;
+    }
+  }
+  Logger.info('FreeGames', `收藏折扣监控完成：${keys.length} 个收藏，通知 ${notified} 条`);
+  return { skipped: false, notified };
+}
+
+// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）
 // Resolve the active ITAD key (profiles first; legacy itadApiKey as fallback)
 export function activeItadKey(settings) {
   const profiles = Array.isArray(settings.itadProfiles) ? settings.itadProfiles : [];

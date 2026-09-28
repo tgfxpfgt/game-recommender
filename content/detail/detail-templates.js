@@ -125,7 +125,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
             ${data.chineseSupported && data.chineseHasSubtitles ? ' · 字幕' : ''}
           </span>
           ${data.releaseDate ? `<span class="gr-detail-chip">📅 ${esc(data.releaseDate)}</span>` : ''}
-          ${data.lastUpdate ? `<span class="gr-detail-chip">🛠 更新 ${esc(data.lastUpdate)}</span>` : ''}
+          ${data.lastUpdate ? `<a class="gr-detail-chip" href="${common.escapeAttr('https://store.steampowered.com/news/app/' + (data.appId || ''))}" target="_blank" rel="noopener" title="查看 Steam 公告（v11.0 B5）" style="text-decoration:none;">🛠 更新 ${esc(data.lastUpdate)}</a>` : ''}
         </div>
 
         <!-- 跳转Steam按钮 -->

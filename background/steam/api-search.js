@@ -1,4 +1,4 @@
-import { recordSteamCall } from '../core/api-monitor.js';
+import { recordSteamCall, isCircuitOpen, recordDomainCall } from '../core/api-monitor.js';
 import { generateSearchVariants, extractNoiseCandidates } from '../core/title-parser.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
@@ -286,6 +286,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
         );
         // v9.7.0：传入 status 且非 2xx 不计成功（与 api-details/reviews 一致）
         recordSteamCall(resp.ok || resp.status === 404, resp.status); // v10.3.0：404=空结果非失败
+        recordDomainCall('store', resp.ok || resp.status === 404); // v11.0 B2
         if (!resp.ok) continue;
         cnData = await resp.json();
       } catch {
@@ -350,6 +351,9 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
  * @returns {Promise<import('../core/types.js').SteamSearchResult|null>}
  */
 export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
+  // v11.0 B1：熔断打开 → 短路返回 null（不发请求逐个超时；orchestrator 的
+  // failed>0 门会跳过负缓存固化，恢复后自动重搜）
+  if (isCircuitOpen()) return null;
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId);

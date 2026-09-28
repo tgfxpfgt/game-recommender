@@ -856,6 +856,9 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
         </div>
+        <div style="margin-bottom:10px;">
+          <a href="${common.escapeAttr('https://store.steampowered.com/search/?term=' + encodeURIComponent(gameName))}" target="_blank" rel="noopener" style="font-size:11px;color:#67c1f5;text-decoration:none;">🔎 在 Steam 网页搜索「${common.escapeHtml(gameName.slice(0, 40))}」↗</a>
+        </div>
         <div id="gr-candidates-list" style="max-height:300px;overflow-y:auto;">
           <div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">
             <div style="font-size:20px;margin-bottom:6px;">⏳</div>

@@ -17,7 +17,7 @@ import { readProfiles, readKeywordWeights } from './storage/behavior.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { calculateRecommendation } from './recommend/engine.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
-import { getSteamApiStatus } from './core/api-monitor.js';
+import { getSteamApiStatus, getDomainStatus } from './core/api-monitor.js'; // v11.0 B2
 import { createSessionPersist } from './core/session-persist.js'; // v10.0.0：告警限频跨 SW 持久化
 import { recordSiteAlert, getSiteHealth } from './storage/site-health.js';
 import { getFlushHealth } from './storage/flush-health.js';
@@ -151,7 +151,10 @@ async function handleDeleteAdapterRules() {
 async function handleGetApiStatus() {
   // v6.4.10：扁平返回（popup 读顶层 anomaly/total/failed——此前嵌套 {status} 导致
   // 状态永远显示采样中）
-  return getSteamApiStatus();
+  // v11.0 B2：附分域名可达性（store/api/circuit）
+  const status = getSteamApiStatus();
+  status.domains = getDomainStatus();
+  return status;
 }
 
 // v10.4.4：Steam250 排名查询（appId → {rank, score, votes}；无记录 null）

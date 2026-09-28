@@ -35,7 +35,7 @@ import { setWriteMetricsHook } from '../data/data-store.js'; // v10.8：写指�
 import { trackOpfsWrite } from './core/metrics.js';
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
-import { refreshFreeGames, getLastNotifyGames } from './freegames/manager.js';
+import { refreshFreeGames, getLastNotifyGames, watchFavoritePrices } from './freegames/manager.js';
 import { createBackup, restoreLatestIfFresh } from './storage/backups.js';
 import { syncSiteScripts } from './core/site-scripts.js';
 import { flushAllCaches } from './storage/flush.js';
@@ -182,6 +182,8 @@ async function ensureAlarm(name, periodInMinutes) {
 
 // 每日刷新限免游戏 / Refresh free games daily
 ensureAlarm('refreshFreeGames', 24 * 60);
+// v11.0 B3：收藏折扣监控（48h 轮询；无 Key/关闭时零请求）
+ensureAlarm('favoritePriceWatch', 48 * 60);
 
 // 自动备份定时器 / Auto-backup alarm setup
 async function setupBackupAlarm() {
@@ -202,6 +204,9 @@ ensureAlarm('grPeriodicFlush', 30);
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {
     refreshFreeGames(true).catch((e) => console.error('限免刷新失败:', String(e)));
+  }
+  if (alarm.name === 'favoritePriceWatch') {
+    watchFavoritePrices().catch((e) => console.error('收藏折扣监控失败:', String(e)));
   }
   if (alarm.name === 'autoBackup') {
     getSettings().then((settings) => {

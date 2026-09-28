@@ -94,3 +94,21 @@ describe('mechanisms（批次1 机制工厂）', () => {
     expect(err.message).toEqual('always');
   });
 });
+
+// ============ v11.0 B1：Steam 接口熔断器 ============
+import { recordSteamCall, isCircuitOpen, resetApiMonitor } from '../../background/core/api-monitor.js';
+describe('api-monitor 熔断器（B1）', () => {
+  it('连续 5 次网络级失败 → 熔断打开；HTTP 失败不计入', () => {
+    resetApiMonitor();
+    expect(isCircuitOpen()).toEqual(false);
+    for (let i = 0; i < 4; i++) recordSteamCall(false, 0);
+    expect(isCircuitOpen()).toEqual(false); // 未达阈值
+    recordSteamCall(true, 200); // 成功复位连败计数
+    for (let i = 0; i < 5; i++) recordSteamCall(false, 0);
+    expect(isCircuitOpen()).toEqual(true); // 熔断
+    recordSteamCall(false, 404); // HTTP 失败不算网络级
+    expect(isCircuitOpen()).toEqual(true);
+    resetApiMonitor();
+    expect(isCircuitOpen()).toEqual(false);
+  });
+});

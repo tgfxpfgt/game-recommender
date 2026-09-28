@@ -455,7 +455,24 @@
   }
 
   // ============ Event Binding / 事件绑定 ============
+  // v11.0 B6：设置搜索——按行文本过滤（含跨面板定位；纯前端，不改保存逻辑）
+  function bindSettingsSearch() {
+    const input = document.getElementById('settingsSearch');
+    if (!input) return;
+    input.addEventListener('input', () => {
+      const q = input.value.trim().toLowerCase();
+      document.querySelectorAll('.settings-panel .setting-row').forEach((row) => {
+        row.style.display = !q || (row.textContent || '').toLowerCase().includes(q) ? '' : 'none';
+      });
+      document.querySelectorAll('.settings-panel .settings-section').forEach((sec) => {
+        const visible = [...sec.querySelectorAll('.setting-row')].some((r) => r.style.display !== 'none');
+        sec.style.display = visible || !q ? '' : 'none';
+      });
+    });
+  }
+
   function bindEvents() {
+    bindSettingsSearch(); // v11.0 B6
     // v6.4.19：界面皮肤切换（立即生效）
     document.getElementById('uiTheme').addEventListener('change', (e) => {
       scheduleAutoSave();
@@ -754,6 +771,11 @@
     OPTS.currentSettings.qrUnlockEnabled = document.getElementById('qrUnlockEnabled').checked;
     OPTS.currentSettings.xdgridEnabled = document.getElementById('xdgridEnabled').checked;
     OPTS.currentSettings.notifyFreeGames = document.getElementById('notifyFreeGames').checked;
+    // v11.0 B3：收藏折扣监控保存映射
+    OPTS.currentSettings.favoritePriceWatch = document.getElementById('favoritePriceWatch').checked;
+    const favTh = parseInt(document.getElementById('favoriteDiscountThreshold').value);
+    OPTS.currentSettings.favoriteDiscountThreshold =
+      Number.isInteger(favTh) && favTh >= 50 && favTh <= 100 ? favTh : 80;
     OPTS.currentSettings.freeGamesEnabled = document.getElementById('freeGamesEnabled').checked;
     OPTS.currentSettings.themeAutoSwitch = document.getElementById('themeAutoSwitch').checked;
     OPTS.currentSettings.uiThemeDay = document.getElementById('uiThemeDay').value.trim() || 'steam';

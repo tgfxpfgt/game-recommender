@@ -112,6 +112,7 @@ export function create(zone, id, opts = {}) {
     // 折叠：隐藏内容区（高度变化由 ResizeObserver 感知，自动重排同区浮窗）
     // v10.6.0：折叠状态按浮窗 id 记忆（chrome.storage.local），刷新后恢复
     const foldKey = 'grFloatFolded:' + id;
+    const posKey = 'grFloatPos:' + id; // v11.0 B5：位置记忆键
     const setFolded = (folded) => {
       body.style.display = folded ? 'none' : '';
       foldBtn.textContent = folded ? '▸' : '▾';
@@ -127,14 +128,54 @@ export function create(zone, id, opts = {}) {
     // 恢复上次折叠状态（覆盖 opts.folded 默认——用户手动展开过则保持展开）
     try {
       chrome.storage.local
-        .get(foldKey)
+        .get([foldKey, posKey])
         .then((d) => {
           if (d && d[foldKey] === true) setFolded(true);
+          // v11.0 B5：恢复拖拽位置（按浮窗 id 记忆）
+          const pos = /** @type {{left?: number, top?: number}|undefined} */ (d ? d[posKey] : undefined);
+          if (pos && typeof pos.left === 'number' && typeof pos.top === 'number') {
+            root.style.left = pos.left + 'px';
+            root.style.top = pos.top + 'px';
+            root.style.right = 'auto';
+            root.style.bottom = 'auto';
+          }
         })
         .catch(() => {});
     } catch {
       /* ignore */
     }
+    // v11.0 B5：标题栏拖拽 + 位置记忆——位置自由（按浮窗 id 持久化）
+    // Header drag with per-float-id position persistence.
+    header.style.cursor = 'move';
+    header.addEventListener('mousedown', (ev) => {
+      if (ev.target === foldBtn || ev.target === closeBtn) return; // 按钮不触发拖拽
+      ev.preventDefault();
+      const rect = root.getBoundingClientRect();
+      const offX = ev.clientX - rect.left;
+      const offY = ev.clientY - rect.top;
+      const onMove = (mv) => {
+        const left = Math.max(0, Math.min(window.innerWidth - 60, mv.clientX - offX));
+        const top = Math.max(0, Math.min(window.innerHeight - 30, mv.clientY - offY));
+        root.style.left = left + 'px';
+        root.style.top = top + 'px';
+        root.style.right = 'auto';
+        root.style.bottom = 'auto';
+      };
+      const onUp = () => {
+        document.removeEventListener('mousemove', onMove);
+        document.removeEventListener('mouseup', onUp);
+        const rect2 = root.getBoundingClientRect();
+        try {
+          chrome.storage.local
+            .set({ [posKey]: { left: Math.round(rect2.left), top: Math.round(rect2.top) } })
+            .catch(() => {});
+        } catch {
+          /* ignore */
+        }
+      };
+      document.addEventListener('mousemove', onMove);
+      document.addEventListener('mouseup', onUp);
+    });
     void foldBtn;
     closeBtn.addEventListener('click', () => {
       remove(id);
