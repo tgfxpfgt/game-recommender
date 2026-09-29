@@ -50,13 +50,39 @@ function formatRelativeTime(timestamp) {
 }
 
 // 发送行为追踪消息 / Send a behavior-tracking message
+// v12 B3：TRACK_EVENT 攒批——500ms 窗口或满 10 条一次性发送（大列表滚动时
+// 消息风暴治理；click_download 等关键事件仍即时发送不攒批）
+/** @type {Array<object>} */
+const trackBatch = [];
+let trackTimer = null;
+
+function flushTrackBatch() {
+  if (trackBatch.length === 0) return;
+  const batch = trackBatch.splice(0);
+  chrome.runtime.sendMessage({ action: 'TRACK_EVENT_BATCH', events: batch }).catch(() => {});
+}
+
 function trackEvent(type, data) {
-  chrome.runtime
-    .sendMessage({
-      action: 'TRACK_EVENT',
-      data: { type, url: window.location.href, domain: getCurrentDomain(), ...data }
-    })
-    .catch(() => {});
+  const event = { type, url: window.location.href, domain: getCurrentDomain(), ...data };
+  if (type === 'click_download') {
+    // 关键事件即时发送（攒批会延迟下载统计）
+    flushTrackBatch();
+    chrome.runtime.sendMessage({ action: 'TRACK_EVENT', data: event }).catch(() => {});
+    return;
+  }
+  trackBatch.push(event);
+  if (trackBatch.length >= 10) {
+    flushTrackBatch();
+    return;
+  }
+  if (!trackTimer) {
+    trackTimer = /** @type {any} */ (
+      setTimeout(() => {
+        trackTimer = null;
+        flushTrackBatch();
+      }, 500)
+    );
+  }
 }
 
 // 记录下载站详情页访问（写入下载站网址缓存并更新"上次调用"时间）

@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest';
 // v11.0 B1：负载敏感抖动缓解（CONTRIBUTING 已知问题）——本文件用例 retry 2；
 // 深度根治（状态机显式 flush）留待后续重构
-const simTest = (name, fn, opts) => test(name, Object.assign({ retry: 2 }, opts), fn);
+const simTest = (name, fn, opts) => test(name, Object.assign({}, opts), fn); // v12 B2：空闲信号就位，移除 retry 绷带
 /**
  * 游戏雷达 Game Radar - 测试：内容脚本模拟 / Content Script Simulation
  *
@@ -469,6 +469,8 @@ simTest('2. 列表页两波好评率流程', async () => {
   // 触发 DOMContentLoaded → init（warmup 已 resolve）
   docReadyCallbacks.forEach((cb) => cb());
   await waitFor(() => itemA.a.children.length > 0);
+  // v12 B2：批次空闲显式信号（负载下不再与推送时序竞争）
+  if (GR.listBatch && GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
 
   expect(itemA.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
   expect(

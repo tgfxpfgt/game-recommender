@@ -38,7 +38,20 @@ import { getAppIdByUrl, setUrlAppId, deleteUrlAppId } from '../storage/url-index
 // --- Steam 查询 / Steam lookups ---
 // v7.0.2：详情页网址作为检索第一候选——同一 URL 始终指向同一 appId，
 // 消除列表页/详情页两条匹配路径的分歧；匹配成功后记录 URL → appId
+// v12 B3：in-flight 去重——同游戏并发请求共享同一 Promise（多标签页同游戏
+// 不再各自全链搜索 3 倍 Steam 请求）
+const inFlightSearches = new Map();
+
 export async function handleSearchSteam(message, sender) {
+  const dedupeKey = String(message.gameName || '');
+  const inflight = inFlightSearches.get(dedupeKey);
+  if (inflight) return inflight;
+  const job = doHandleSearchSteam(message, sender).finally(() => inFlightSearches.delete(dedupeKey));
+  inFlightSearches.set(dedupeKey, job);
+  return job;
+}
+
+async function doHandleSearchSteam(message, sender) {
   const pageUrl = sender && sender.tab ? sender.tab.url : '';
   // 第一候选：URL 索引命中 → 直接用该 appId 获取详情（不再标题搜索）
   if (pageUrl) {

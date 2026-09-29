@@ -7,7 +7,8 @@
  * Batch scheduling split from list-page.js (v5.1.0); scheduler state lives in
  * _state, rating-application functions via _internal.
  */
-import { _state, _internal } from './list-state.js';
+import { _state, _internal, waitForBatchIdle } from './list-state.js';
+export { waitForBatchIdle }; // v12 B2：测试显式信号透出
 import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';

@@ -4,7 +4,7 @@
  * v10.7.0 批次1：机制工厂四件套（withLock/debounce/createTtlCache/withRetry）
  * ——收编 17 份同构实现后的行为契约测试。
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { withLock, debounce, createTtlCache, withRetry } from '../../background/core/mechanisms.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -95,20 +95,35 @@ describe('mechanisms（批次1 机制工厂）', () => {
   });
 });
 
-// ============ v11.0 B1：Steam 接口熔断器 ============
-import { recordSteamCall, isCircuitOpen, resetApiMonitor } from '../../background/core/api-monitor.js';
-describe('api-monitor 熔断器（B1）', () => {
-  it('连续 5 次网络级失败 → 熔断打开；HTTP 失败不计入', () => {
-    resetApiMonitor();
-    expect(isCircuitOpen()).toEqual(false);
-    for (let i = 0; i < 4; i++) recordSteamCall(false, 0);
-    expect(isCircuitOpen()).toEqual(false); // 未达阈值
-    recordSteamCall(true, 200); // 成功复位连败计数
-    for (let i = 0; i < 5; i++) recordSteamCall(false, 0);
-    expect(isCircuitOpen()).toEqual(true); // 熔断
-    recordSteamCall(false, 404); // HTTP 失败不算网络级
-    expect(isCircuitOpen()).toEqual(true);
-    resetApiMonitor();
-    expect(isCircuitOpen()).toEqual(false);
+// ============ v12 B1：Steam 接口熔断器（per-domain + 半开探测） ============
+import { recordDomainCall, isCircuitOpen, circuitState, resetDomainStatus } from '../../background/core/api-monitor.js';
+describe('api-monitor 熔断器（v12 B1 per-domain）', () => {
+  it('连续 5 次网络级失败 → 该域熔断；另一域不受连坐', () => {
+    resetDomainStatus();
+    expect(isCircuitOpen('store')).toEqual(false);
+    for (let i = 0; i < 4; i++) recordDomainCall('store', false);
+    expect(isCircuitOpen('store')).toEqual(false); // 未达阈值
+    recordDomainCall('store', true); // 成功复位连败
+    for (let i = 0; i < 5; i++) recordDomainCall('store', false);
+    expect(isCircuitOpen('store')).toEqual(true); // 熔断
+    expect(isCircuitOpen('api')).toEqual(false); // api 域不连坐
+  });
+
+  it('半开探测：到期放行 1 个请求，失败重开/成功闭合', () => {
+    resetDomainStatus();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00'));
+    for (let i = 0; i < 5; i++) recordDomainCall('api', false);
+    expect(isCircuitOpen('api')).toEqual(true);
+    vi.setSystemTime(new Date('2026-01-01T00:01:01')); // 61s 后到期
+    expect(isCircuitOpen('api')).toEqual(false); // 半开放行探测
+    recordDomainCall('api', false); // 探测失败 → 立即重开
+    expect(circuitState('api')).toEqual('open');
+    vi.setSystemTime(new Date('2026-01-01T00:02:02'));
+    expect(isCircuitOpen('api')).toEqual(false); // 再次半开
+    recordDomainCall('api', true); // 探测成功 → 闭合
+    expect(circuitState('api')).toEqual('closed');
+    vi.useRealTimers();
+    resetDomainStatus();
   });
 });

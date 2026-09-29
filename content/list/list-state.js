@@ -307,6 +307,28 @@ export function applyLiveRatingFilter(settingsPatch) {
 
 // 评分状态机句柄（list-batch 经此调用；不含 applySteamRatingsUpdate——
 // 该函数依赖 list-batch 的 maybeFetchNextBatch，保留在 list-page 层）
+// v12 B2：批次空闲显式信号——队列排空 + 无在途批次 + 任务收尾完成。
+// 显式状态机信号（替代测试的时间轮询，负载抖动根治；content-sim 消费）
+// Explicit idle signal: queue drained, no in-flight batch, job finished.
+export function waitForBatchIdle(timeoutMs = 30000) {
+  return new Promise((resolve) => {
+    const t0 = Date.now();
+    const check = () => {
+      const job = _state.ratingsJob;
+      const bs = _state.batchState;
+      const idle =
+        !job ||
+        job.finished ||
+        (!bs && (!job || job.finished)) ||
+        (bs && bs.queue.length === 0 && !bs.inflight && (!job || job.finished));
+      if (idle) return resolve(true);
+      if (Date.now() - t0 > timeoutMs) return resolve(false);
+      setTimeout(check, 30);
+    };
+    check();
+  });
+}
+
 export const _internal = {
   createRatingsJob,
   applyRatingsResponse,

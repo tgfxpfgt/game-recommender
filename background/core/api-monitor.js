@@ -55,16 +55,6 @@ export function recordSteamCall(ok, status = 0) {
   if (!ok) c.failed += 1;
   if (status === 429 || status === 503) c.limited += 1;
   counters.scheduleSave();
-  // v11.0 B1：熔断计数——仅网络级失败（status=0）推进，成功即复位
-  if (!ok && status === 0) {
-    consecutiveNetFails += 1;
-    if (consecutiveNetFails >= CIRCUIT_THRESHOLD) {
-      circuitOpenUntil = Date.now() + CIRCUIT_OPEN_MS;
-      consecutiveNetFails = CIRCUIT_THRESHOLD;
-    }
-  } else if (ok) {
-    consecutiveNetFails = 0;
-  }
 }
 
 // 获取当前 API 状态（纯函数，可单测）
@@ -107,25 +97,32 @@ export function getSteamApiStatus() {
 }
 
 // v11.0 B1：Steam 接口熔断器——窗口内连续网络级失败（status=0）达阈值 →
-// 熔断 60s：期间 searchSteamAppId 直接短路返回（不发无谓请求逐个超时拖慢页面），
-// 恢复后自动闭合。HTTP 4xx/5xx 不计入（是"确认失败"而非"不可达"）。
-// Steam API circuit breaker: consecutive network-level failures trip a 60s open
-// state during which searches short-circuit instead of timing out one by one.
-let consecutiveNetFails = 0;
-let circuitOpenUntil = 0;
+// 熔断 60s：期间该域搜索直接短路返回（不发无谓请求逐个超时拖慢页面）。
+// v12 批次1：改 **per-domain**（store/api 独立——api 域大陆常不可达，不应连坐
+// store 域搜索）+ **半开探测**（熔断到期后放行 1 个探测请求，失败立即重开，
+// 成功才闭合——防雪崩）。HTTP 4xx/5xx 不计入（是"确认失败"而非"不可达"）。
+// Per-domain circuit breaker with half-open probe.
 const CIRCUIT_THRESHOLD = 5;
 const CIRCUIT_OPEN_MS = 60000;
+const domainBreakers = {};
 
-export function isCircuitOpen(now = Date.now()) {
-  if (circuitOpenUntil && now >= circuitOpenUntil) {
-    circuitOpenUntil = 0;
-    consecutiveNetFails = 0;
+export function isCircuitOpen(domain, now = Date.now()) {
+  const b = domainBreakers[domain];
+  if (!b) return false;
+  if (b.openUntil && now >= b.openUntil) {
+    // 半开：放行探测请求；探测失败由 recordDomainCall 立即重开
+    b.openUntil = 0;
+    b.fails = CIRCUIT_THRESHOLD - 1;
   }
-  return circuitOpenUntil > now;
+  return !!b.openUntil && b.openUntil > now;
 }
 
-export function circuitState() {
-  return isCircuitOpen() ? 'open' : 'closed';
+export function circuitState(domain) {
+  const b = domainBreakers[domain];
+  if (!b) return 'closed';
+  if (b.openUntil > Date.now()) return 'open';
+  if (b.fails >= CIRCUIT_THRESHOLD - 1 && !b.openUntil) return 'half-open';
+  return 'closed';
 }
 
 // v11.0 B2：分域名可达性——store / api 两域最近 N 次请求的成功率（会话级）。
@@ -146,14 +143,24 @@ export function recordDomainCall(domain, ok) {
     st.total = DOMAIN_WINDOW;
     if (st.ok > DOMAIN_WINDOW) st.ok = DOMAIN_WINDOW;
   }
+  // v12 B1：per-domain 熔断驱动（仅 recordDomainCall 的调用方知道自己在哪个域）
+  const b = domainBreakers[domain] || (domainBreakers[domain] = { fails: 0, openUntil: 0 });
+  if (ok) {
+    b.fails = 0;
+    b.openUntil = 0;
+    return;
+  }
+  b.fails += 1;
+  if (b.fails >= CIRCUIT_THRESHOLD) b.openUntil = Date.now() + CIRCUIT_OPEN_MS;
 }
 
 export function getDomainStatus() {
   const out = {};
   for (const [d, st] of Object.entries(domainStats)) {
     out[d] = st.total === 0 ? 'unknown' : st.ok > 0 ? 'ok' : 'down';
+    out[d + 'Circuit'] = circuitState(d); // v12 B1：per-domain 熔断态
   }
-  out.circuit = circuitState();
+  out.circuit = circuitState('store') === 'open' || circuitState('api') === 'open' ? 'open' : 'closed';
   return out;
 }
 
@@ -162,12 +169,12 @@ export function resetDomainStatus() {
     st.ok = 0;
     st.total = 0;
   }
+  for (const k of Object.keys(domainBreakers)) delete domainBreakers[k];
 }
 
 // 重置（测试/清理用）/ Reset
 export function resetApiMonitor() {
   persist.reset();
   counters.reset();
-  consecutiveNetFails = 0;
-  circuitOpenUntil = 0;
+  for (const k of Object.keys(domainBreakers)) delete domainBreakers[k];
 }

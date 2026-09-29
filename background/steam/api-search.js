@@ -353,7 +353,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
 export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
   // v11.0 B1：熔断打开 → 短路返回 null（不发请求逐个超时；orchestrator 的
   // failed>0 门会跳过负缓存固化，恢复后自动重搜）
-  if (isCircuitOpen()) return null;
+  if (isCircuitOpen('store')) return null; // v12 B1：per-domain 熔断
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId);

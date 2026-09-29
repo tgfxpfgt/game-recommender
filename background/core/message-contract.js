@@ -349,7 +349,8 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'FETCH_IMAGE_DATA_URL', // v10.9：补白名单——v10.7.1 只放宽了正则未补门禁，跨域二维码仍被拒
   'SAVE_RATING_FILTER_CFG', // v10.9：xdgrid 过滤滑块的窄化持久化（替代内容侧直发 SAVE_SETTINGS）
   'TRACK_DOWNLOAD_SITE_VISIT',
-  'TRACK_EVENT'
+  'TRACK_EVENT',
+  'TRACK_EVENT_BATCH'
 ]);
 
 /**
