@@ -105,6 +105,13 @@
     // v10.4.0：详情页浮窗形态 + 红标题阈值回显
     document.getElementById('detailFloatExpanded').checked = settings.detailFloatExpanded !== false;
     document.getElementById('detailFloatSide').value = settings.detailFloatSide || 'left';
+    // v12 B4：浮窗模块显隐回显
+    const fm = settings.floatModules || {};
+    document.getElementById('fmChips').checked = fm.chips !== false;
+    document.getElementById('fmTags').checked = fm.tags !== false;
+    document.getElementById('fmDevelopers').checked = fm.developers !== false;
+    document.getElementById('fmDescription').checked = fm.description !== false;
+    document.getElementById('fmSpy').checked = fm.spy !== false;
     document.getElementById('redTitleRating').value = settings.redTitleRating ?? 95;
 
     // LLM 设置 / LLM settings

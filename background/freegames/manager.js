@@ -490,8 +490,48 @@ export async function watchFavoritePrices() {
       notified += 1;
     }
   }
-  Logger.info('FreeGames', `收藏折扣监控完成：${keys.length} 个收藏，通知 ${notified} 条`);
-  return { skipped: false, notified };
+  // v12 B6：发售日提醒——收藏中未发售且 48h 内发售的游戏，通知一次（标记防重）
+  let releaseNotified = 0;
+  for (const appId of keys) {
+    const info = favorites[appId];
+    const rd = Date.parse((info && info.releaseDate) || '');
+    if (isNaN(rd)) continue;
+    const daysTo = Math.ceil((rd - Date.now()) / 86400000);
+    if (daysTo < 0 || daysTo > 2) continue;
+    const markKey = 'grReleaseNotified:' + appId;
+    const marked = await new Promise((res) => {
+      try {
+        chrome.storage.local
+          .get(markKey)
+          .then((d) => res(!!(d && d[markKey])))
+          .catch(() => res(false));
+      } catch {
+        res(true);
+      }
+    });
+    if (marked) continue;
+    try {
+      chrome.storage.local.set({ [markKey]: true }).catch(() => {});
+    } catch {
+      /* ignore */
+    }
+    const name = (info && info.name) || 'AppID ' + appId;
+    chrome.notifications
+      .create({
+        type: 'basic',
+        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+        title: '🚀 收藏游戏发售提醒',
+        message: `${name} ${daysTo <= 0 ? '今天' : daysTo + ' 天后'}发售（${info.releaseDate || ''}）`
+      })
+      .catch(() => {});
+    releaseNotified += 1;
+  }
+
+  Logger.info(
+    'FreeGames',
+    `收藏折扣监控完成：${keys.length} 个收藏，折扣通知 ${notified} 条，发售提醒 ${releaseNotified} 条`
+  );
+  return { skipped: false, notified, releaseNotified };
 }
 
 // v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）

@@ -307,6 +307,28 @@ export function applyLiveRatingFilter(settingsPatch) {
 
 // 评分状态机句柄（list-batch 经此调用；不含 applySteamRatingsUpdate——
 // 该函数依赖 list-batch 的 maybeFetchNextBatch，保留在 list-page 层）
+// v12 B8：本地排序——按好评率/更新日期对已渲染项 DOM 重排（不重新取数）。
+// Local sort: reorder rendered items by rating or last-update (no re-fetch).
+export function applyLocalSort(mode) {
+  const job = _state.ratingsJob;
+  const bs = _state.batchState;
+  if (!job || !bs) return 0;
+  const items = job.processItems.filter((it) => it.element && it.element.parentNode);
+  if (items.length < 2) return 0;
+  const container = items[0].element.parentNode;
+  const keyOf = (it) => {
+    const rating = job.ratingMap ? job.ratingMap[it.name] : null;
+    if (mode === 'rating') return typeof rating === 'number' ? rating : -1;
+    const full = job.ratingsByName && job.ratingsByName[it.name];
+    const lu = (full && full.lastUpdate) || '';
+    const t = Date.parse(lu);
+    return isNaN(t) ? 0 : t;
+  };
+  const sorted = items.slice().sort((a, b) => keyOf(b) - keyOf(a));
+  for (const it of sorted) container.appendChild(it.element); // 按序移到末尾 = 重排
+  return sorted.length;
+}
+
 // v12 B2：批次空闲显式信号——队列排空 + 无在途批次 + 任务收尾完成。
 // 显式状态机信号（替代测试的时间轮询，负载抖动根治；content-sim 消费）
 // Explicit idle signal: queue drained, no in-flight batch, job finished.

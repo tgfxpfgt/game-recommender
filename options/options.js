@@ -773,6 +773,14 @@
     OPTS.currentSettings.notifyFreeGames = document.getElementById('notifyFreeGames').checked;
     // v11.0 B3：收藏折扣监控保存映射
     OPTS.currentSettings.favoritePriceWatch = document.getElementById('favoritePriceWatch').checked;
+    // v12 B4：浮窗模块显隐保存映射
+    OPTS.currentSettings.floatModules = {
+      chips: document.getElementById('fmChips').checked,
+      tags: document.getElementById('fmTags').checked,
+      developers: document.getElementById('fmDevelopers').checked,
+      description: document.getElementById('fmDescription').checked,
+      spy: document.getElementById('fmSpy').checked
+    };
     const favTh = parseInt(document.getElementById('favoriteDiscountThreshold').value);
     OPTS.currentSettings.favoriteDiscountThreshold =
       Number.isInteger(favTh) && favTh >= 50 && favTh <= 100 ? favTh : 80;

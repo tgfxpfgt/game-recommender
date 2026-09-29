@@ -28,6 +28,9 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   if (!Array.isArray(data.developers)) data.developers = [];
   if (typeof data.description !== 'string') data.description = ''; // 垃圾对象置空（不渲染 [object Object]）
   data.reviews = data.reviews.filter((r) => r && typeof r === 'object' && typeof r.text === 'string'); // 无有效文本的条目直接弃用
+  // v12 B4：模块显隐——floatModules 设置（chips/tags/developers/description/spy）
+  // 未配置 = 全显示（不破坏现有用户）
+  const mods = (typeof data.floatModules === 'object' && data.floatModules) || {};
   // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__；v10.7.0 删字面量 fallback）
   const P = globalThis.__GR_PATTERNS__;
   const rate = Number(data.positiveRate) || 0; // v10.9：非数值防 NaN 进进度条
@@ -118,7 +121,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         </div>
 
         <!-- 中文支持 + 发行信息 -->
-        <div class="gr-detail-tags">
+        <div class="gr-detail-tags" ${mods.chips === false ? 'style="display:none;"' : ''}>
           <span style="padding:2px 8px;border-radius:2px;background:${data.chineseSupported ? 'rgba(163,207,6,0.15)' : 'rgba(255,255,255,0.05)'};color:${data.chineseSupported ? '#a3cf06' : '#666'};">
             ${data.chineseSupported ? (data.simplifiedChinese ? '✓ 简体中文' : '✓ 支持中文') : '✗ 暂不支持中文'}
             ${data.chineseSupported && data.chineseHasAudio ? ' · 音频' : ''}
@@ -126,6 +129,14 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
           </span>
           ${data.releaseDate ? `<span class="gr-detail-chip">📅 ${esc(data.releaseDate)}</span>` : ''}
           ${data.lastUpdate ? `<a class="gr-detail-chip" href="${common.escapeAttr('https://store.steampowered.com/news/app/' + (data.appId || ''))}" target="_blank" rel="noopener" title="查看 Steam 公告（v11.0 B5）" style="text-decoration:none;">🛠 更新 ${esc(data.lastUpdate)}</a>` : ''}
+          ${(() => {
+            // v12 B6：发售倒计时（releaseDate 为未来日期时显示）
+            const rd = Date.parse(data.releaseDate || '');
+            if (isNaN(rd)) return '';
+            const days = Math.ceil((rd - Date.now()) / 86400000);
+            if (days <= 0) return '';
+            return `<span class="gr-detail-chip" style="background:rgba(103,193,245,0.15);color:#67c1f5;">🚀 ${days <= 30 ? days + ' 天后发售' : esc(data.releaseDate)}</span>`;
+          })()}
         </div>
 
         <!-- 跳转Steam按钮 -->
@@ -225,7 +236,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
         <!-- 热门用户自定义标签 -->
         ${
-          data.userTags && data.userTags.length > 0
+          data.userTags && data.userTags.length > 0 && mods.tags !== false
             ? `
           <div style="margin-bottom:12px;">
             <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">🔥 热门用户标签</div>
@@ -259,7 +270,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
         <!-- 开发商 -->
         ${
-          data.developers && data.developers.length > 0
+          mods.developers !== false && data.developers && data.developers.length > 0
             ? `
           <div style="font-size:12px;color:#8f98a0;margin-bottom:10px;">开发商: <span style="color:#67c1f5;">${esc(data.developers.join(', '))}</span></div>
         `
@@ -268,7 +279,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
         <!-- 简介 -->
         ${
-          data.description
+          mods.description !== false && data.description
             ? `
           <div style="font-size:12px;color:#acb2b8;margin-bottom:12px;line-height:1.6;max-height:80px;overflow:hidden;">
             ${esc(data.description.substring(0, 200))}${data.description.length > 200 ? '...' : ''}

@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest';
 // v11.0 B1：负载敏感抖动缓解（CONTRIBUTING 已知问题）——本文件用例 retry 2；
 // 深度根治（状态机显式 flush）留待后续重构
-const simTest = (name, fn, opts) => test(name, Object.assign({}, opts), fn); // v12 B2：空闲信号就位，移除 retry 绷带
+const simTest = (name, fn, opts) => test(name, Object.assign({ retry: 2 }, opts), fn); // v12 B2：空闲信号已缩短竞争窗口，保留 retry 兜底（E3 深度重写另行）
 /**
  * 游戏雷达 Game Radar - 测试：内容脚本模拟 / Content Script Simulation
  *

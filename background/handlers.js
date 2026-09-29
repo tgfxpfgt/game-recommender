@@ -276,7 +276,7 @@ export const MESSAGE_HANDLERS = {
   SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
   FETCH_IMAGE_DATA_URL: handleFetchImageDataUrl,
   GET_STEAM250_RANK: handleGetSteam250Rank,
-  TOGGLE_FAVORITE: async (msg) => toggleFavorite(msg && msg.appId, msg && msg.name),
+  TOGGLE_FAVORITE: async (msg) => toggleFavorite(msg && msg.appId, msg && msg.name, msg && msg.releaseDate),
   GET_FAVORITES: async () => ({ favorites: await getFavorites() }),
   GET_ITAD_LOWEST: async (msg) => {
     const { getItadLowest } = await import('./freegames/manager.js');

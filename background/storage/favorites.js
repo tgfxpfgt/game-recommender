@@ -28,7 +28,7 @@ export async function getFavorites() {
  * @param {string} name 游戏名（徽章/浮窗展示用）
  * @returns {Promise<{favorited: boolean, full?: boolean}>}
  */
-export async function toggleFavorite(appId, name) {
+export async function toggleFavorite(appId, name, releaseDate) {
   const key = String(appId || '').trim();
   if (!key) return { favorited: false };
   const favorites = await getFavorites();
@@ -38,7 +38,11 @@ export async function toggleFavorite(appId, name) {
     return { favorited: false };
   }
   if (Object.keys(favorites).length >= MAX_FAVORITES) return { favorited: false, full: true };
-  favorites[key] = { name: String(name || '').slice(0, 200), addedAt: Date.now() };
+  favorites[key] = {
+    name: String(name || '').slice(0, 200),
+    releaseDate: String(releaseDate || '').slice(0, 40), // v12 B6：发售追踪
+    addedAt: Date.now()
+  };
   await dataStore.writeModule(DB_KEYS.FAVORITES, favorites);
   return { favorited: true };
 }

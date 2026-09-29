@@ -230,6 +230,27 @@ function renderDownloadSitePanel(panel, sites, gameName) {
     }
   }
 
+  // v12 B7：跨站收录对比（≥2 站命中时显示版本/大小/更新时间对比 + 最优来源标记）
+  const foundSites = sites.filter((st) => st.found && st.detailUrl);
+  if (foundSites.length >= 2) {
+    const tsOf = (st) => {
+      const t = Date.parse((st.updateDate || '').replace(/[年月]/g, '-').replace(/日$/, ''));
+      return isNaN(t) ? 0 : t;
+    };
+    const best = foundSites.reduce((a, b) => (tsOf(b) > tsOf(a) ? b : a), foundSites[0]);
+    let cmp = `<div style="margin:0 14px 10px 14px;padding:8px 10px;background:rgba(103,193,245,0.06);border:1px dashed #2a475e;border-radius:3px;">
+        <div style="font-size:11px;color:#8f98a0;margin-bottom:4px;">📋 跨站对比（按更新时间，⭐ = 最优来源）</div>`;
+    for (const st of foundSites.slice(0, 5)) {
+      const isBest = st === best && tsOf(st) > 0;
+      cmp += `<div style="font-size:11px;color:#acb2b8;display:flex;justify-content:space-between;gap:8px;">
+          <span>${isBest ? '⭐ ' : ''}${escapeHtml(st.name)}</span>
+          <span style="color:#666;">${st.version ? 'v' + escapeHtml(st.version) : ''} ${st.size ? '· ' + escapeHtml(st.size) : ''} ${st.updateDate ? '· ' + escapeHtml(st.updateDate) : ''}</span>
+        </div>`;
+    }
+    cmp += '</div>';
+    html += cmp;
+  }
+
   panel.innerHTML = html;
 }
 
@@ -296,9 +317,11 @@ export function injectDownloadHistoryPanel(gameName) {
 
 // v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2）
 // ITAD：Key 未配置或查询失败 → 行隐藏；收藏：按钮切换 + 状态持久化
-async function fillItadAndFavorites(appId, name) {
+async function fillItadAndFavorites(appId, name, releaseDate) {
+  // v12 B6
   const itadEl = document.getElementById('gr-itad-row');
   // —— 收藏按钮（状态经 GET_FAVORITES 查询；点击 TOGGLE_FAVORITE）——
+  // v12 B6：releaseDate 由调用方（renderAndShow → fillItadAndFavorites）传入
   if (itadEl) {
     const favRow = document.createElement('div');
     favRow.id = 'gr-fav-row-inner';
@@ -314,7 +337,12 @@ async function fillItadAndFavorites(appId, name) {
         ev.stopPropagation();
         try {
           const resp = await window.__GR_MSG__.sendMessage(
-            { action: 'TOGGLE_FAVORITE', appId, name: name || '' },
+            {
+              action: 'TOGGLE_FAVORITE',
+              appId,
+              name: name || '',
+              releaseDate: releaseDate || '' // v12 B6：发售追踪
+            },
             null,
             { timeout: 5000 }
           );
@@ -381,8 +409,11 @@ async function fillSteam250Info(appId) {
 // 容器经 GR.float 统一管理（左上区域，chrome 标题栏含折叠/关闭）
 // v10.4.0：接收 settings——浮窗位置（detailFloatSide 左/右）与默认展开
 // （detailFloatExpanded）可配置
+let floatModules = null; // v12 B4：浮窗模块显隐设置（injectSteamButton 注入）
+
 export function injectSteamButton(gameName, settings) {
   dbg('注入Steam浮窗...');
+  floatModules = (settings && settings.floatModules) || null;
 
   const panel = float.create(
     settings && settings.detailFloatSide === 'right' ? float.ZONE.TOP_RIGHT : float.ZONE.TOP_LEFT,
@@ -529,7 +560,7 @@ export function injectSteamButton(gameName, settings) {
     // v10.4.4：Steam250 排名行（浮窗 + 内嵌卡双挂点；异步填充，无数据隐藏）
     fillSteam250Info(String(data.appId));
     // v10.6.0：ITAD 最低价行 + 收藏按钮（Key 未配置/无数据时自动隐藏）
-    fillItadAndFavorites(String(data.appId), name);
+    fillItadAndFavorites(String(data.appId), name, (steamData && steamData.releaseDate) || '');
 
     // 回写Steam标签
     if (data.genres && data.genres.length > 0) {
@@ -903,6 +934,38 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
         )
         .join('');
 
+      // v12 B5：键盘导航——↑/↓ 移动高亮，Enter 选择，Esc 关闭
+      let kbIndex = -1;
+      const items = [...listEl.querySelectorAll('.gr-candidate-item')];
+      const setKbActive = (i) => {
+        kbIndex = (i + items.length) % items.length;
+        items.forEach((it, idx) => {
+          const active = idx === kbIndex;
+          it.style.background = active ? 'rgba(102,192,244,0.25)' : '';
+          it.style.borderColor = active ? '#66c0f4' : '#2a475e';
+        });
+      };
+      const kbHandler = (ev) => {
+        if (!document.body.contains(listEl)) {
+          document.removeEventListener('keydown', kbHandler);
+          return;
+        }
+        if (ev.key === 'ArrowDown') {
+          ev.preventDefault();
+          setKbActive(kbIndex + 1);
+        } else if (ev.key === 'ArrowUp') {
+          ev.preventDefault();
+          setKbActive(kbIndex - 1);
+        } else if (ev.key === 'Enter' && kbIndex >= 0) {
+          ev.preventDefault();
+          items[kbIndex].click();
+        } else if (ev.key === 'Escape') {
+          document.removeEventListener('keydown', kbHandler);
+        }
+      };
+      document.addEventListener('keydown', kbHandler);
+      listEl.dataset.kbNav = '1';
+
       // 绑定事件（hover 高亮与点击用 addEventListener，规避页面 CSP）
       listEl.querySelectorAll('.gr-candidate-item').forEach((item) => {
         item.addEventListener('mouseenter', () => {
@@ -979,7 +1042,12 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
 // Steam-style info sidebar (template in GR.detailTemplates since v5.1.0;
 // this function keeps the DOM bindings).
 function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport) {
-  panel.innerHTML = detailTemplates.steamSidebar(data, cachedAt, !!onRefresh, !!onReport);
+  panel.innerHTML = detailTemplates.steamSidebar(
+    floatModules ? { ...data, floatModules } : data,
+    cachedAt,
+    !!onRefresh,
+    !!onReport
+  );
 
   // 绑定手动更新按钮事件
   if (onRefresh) {

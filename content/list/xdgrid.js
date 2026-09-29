@@ -286,6 +286,15 @@ function buildUI(all, host, cfg) {
           style="width:100%;margin-bottom:8px">
         <div data-rf="hint" style="color:#4a9eff;margin-bottom:4px">过滤关闭</div>
         <div style="color:#999">实时作用于当前列表（不重新取数）；设置全站生效</div>
+        <div style="border-top:1px solid #e5e7eb;margin:10px 0;padding-top:8px">
+          <div style="margin-bottom:6px">本地排序（不重新取数）</div>
+          <div style="display:flex;gap:6px">
+            <button data-rf="sortRating" style="flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666">好评率↓</button>
+            <button data-rf="sortUpdate" style="flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666">更新日期↓</button>
+            <button data-rf="sortReset" style="flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666">取消</button>
+          </div>
+          <div data-rf="sortHint" style="color:#999;margin-top:4px"></div>
+        </div>
       </div>
     `;
   document.body.appendChild(panel);
@@ -394,6 +403,26 @@ function buildUI(all, host, cfg) {
     }
   };
   rf.enabled.addEventListener('change', applyFilterChange);
+  // v12 B8：本地排序按钮（复用 list-state 信号与数据，纯 DOM 重排）
+  const applySort = async (mode) => {
+    const sortHint = panel.querySelector('[data-rf="sortHint"]');
+    const sortState = await listState.applyLocalSort(mode);
+    if (sortHint) {
+      sortHint.textContent =
+        mode === 'none'
+          ? '已恢复原顺序'
+          : sortState > 0
+            ? `已按${mode === 'rating' ? '好评率' : '更新日期'}排序 ${sortState} 项`
+            : '无可排序数据';
+    }
+  };
+  const sortRatingBtn = panel.querySelector('[data-rf="sortRating"]');
+  const sortUpdateBtn = panel.querySelector('[data-rf="sortUpdate"]');
+  const sortResetBtn = panel.querySelector('[data-rf="sortReset"]');
+  if (sortRatingBtn) sortRatingBtn.addEventListener('click', () => applySort('rating'));
+  if (sortUpdateBtn) sortUpdateBtn.addEventListener('click', () => applySort('update'));
+  if (sortResetBtn) sortResetBtn.addEventListener('click', () => applySort('none'));
+
   rf.slider.addEventListener('input', () => {
     rf.rateVal.textContent = String(Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0)));
   });
