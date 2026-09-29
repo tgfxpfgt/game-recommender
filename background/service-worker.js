@@ -184,6 +184,8 @@ async function ensureAlarm(name, periodInMinutes) {
 ensureAlarm('refreshFreeGames', 24 * 60);
 // v11.0 B3：收藏折扣监控（48h 轮询；无 Key/关闭时零请求）
 ensureAlarm('favoritePriceWatch', 48 * 60);
+// v12 B10：周报 digest（每周一 10:07）
+ensureAlarm('weeklyDigest', 60 * 24 * 7);
 
 // 自动备份定时器 / Auto-backup alarm setup
 async function setupBackupAlarm() {
@@ -207,6 +209,24 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'favoritePriceWatch') {
     watchFavoritePrices().catch((e) => console.error('收藏折扣监控失败:', String(e)));
+  }
+  if (alarm.name === 'weeklyDigest') {
+    import('./handlers/stats.js')
+      .then(async (m) => {
+        const stats = await m.handleGetStats();
+        const games = (stats && stats.gameList) || [];
+        const views = games.reduce((a, g) => a + (Number(g.views) || 0), 0);
+        const downloads = games.reduce((a, g) => a + (Number(g.downloads) || 0), 0);
+        chrome.notifications
+          .create({
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+            title: '📊 游戏雷达周报',
+            message: `本周浏览 ${views} 次 · 下载 ${downloads} 次 · 收录游戏 ${games.length} 款——打开 dashboard 查看详情`
+          })
+          .catch(() => {});
+      })
+      .catch(() => {});
   }
   if (alarm.name === 'autoBackup') {
     getSettings().then((settings) => {

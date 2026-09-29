@@ -887,8 +887,23 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
         </div>
-        <div style="margin-bottom:10px;">
-          <a href="${common.escapeAttr('https://store.steampowered.com/search/?term=' + encodeURIComponent(gameName))}" target="_blank" rel="noopener" style="font-size:11px;color:#67c1f5;text-decoration:none;">🔎 在 Steam 网页搜索「${common.escapeHtml(gameName.slice(0, 40))}」↗</a>
+        <div style="margin-bottom:10px;display:flex;gap:12px;">
+          <a href="${common.escapeAttr('https://store.steampowered.com/search/?term=' + encodeURIComponent(gameName))}" target="_blank" rel="noopener" style="font-size:11px;color:#67c1f5;text-decoration:none;">🔎 在 Steam 网页搜索 ↗</a>
+          ${(() => {
+            const issueBody = [
+              '游戏名: ' + gameName,
+              '页面: ' + location.href,
+              '版本: ' + (chrome.runtime.getManifest ? chrome.runtime.getManifest().version : ''),
+              '',
+              '问题描述：'
+            ].join('\n');
+            const issueUrl =
+              'https://github.com/tgfxpfgt/game-recommender/issues/new?title=' +
+              encodeURIComponent('自动匹配问题反馈') +
+              '&body=' +
+              encodeURIComponent(issueBody);
+            return `<a href="${common.escapeAttr(issueUrl)}" target="_blank" rel="noopener" style="font-size:11px;color:#8f98a0;text-decoration:none;">💬 反馈问题 ↗</a>`;
+          })()}
         </div>
         <div id="gr-candidates-list" style="max-height:300px;overflow-y:auto;">
           <div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">
