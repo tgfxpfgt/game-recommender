@@ -347,6 +347,11 @@ node --check options/options.js
 
 841 test · gate 全过（check + E2E MOCK 50/50 + visual 11/11）
 
+### 安全扫描（Mimosa 深度扫描）
+
+- 状态：**待补录**——发布时 Mimosa MCP 断连（gate 全过：lint/typecheck/841 test/E2E/visual；
+  上一版 v11.0.0 seal `sha256:206e8860...194a7f03` 0 findings），重连后补跑并回填本节
+
 ### v11.0.0（10 批次路线图落地：韧性/可达性/收藏监控/交互/洞察/LLM/工程/发布）
 
 > 依据《迭代路线图-10批次-2026-09.md》全量实施（批次4 经评估降级为"暂不做"，
