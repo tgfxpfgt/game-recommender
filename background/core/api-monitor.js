@@ -146,8 +146,13 @@ export function recordDomainCall(domain, ok) {
   // v12 B1：per-domain 熔断驱动（仅 recordDomainCall 的调用方知道自己在哪个域）
   const b = domainBreakers[domain] || (domainBreakers[domain] = { fails: 0, openUntil: 0 });
   if (ok) {
+    const wasOpen = b.openUntil > 0;
     b.fails = 0;
     b.openUntil = 0;
+    if (wasOpen) {
+      // v13 B1：熔断恢复事件（探测成功闭合）——诊断可见
+      console.warn('[熔断] ' + domain + ' 域探测成功，自动闭合');
+    }
     return;
   }
   b.fails += 1;

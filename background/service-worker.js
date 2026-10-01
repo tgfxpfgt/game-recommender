@@ -213,6 +213,8 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'weeklyDigest') {
     import('./handlers/stats.js')
       .then(async (m) => {
+        const settings = await getSettings();
+        if (settings.weeklyDigestEnabled === false) return; // v13 B9：用户可关
         const stats = await m.handleGetStats();
         const games = (stats && stats.gameList) || [];
         const views = games.reduce((a, g) => a + (Number(g.views) || 0), 0);

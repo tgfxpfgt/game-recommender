@@ -346,6 +346,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'GET_FAVORITES',
   'GET_STEAM250_RANK',
   'GET_ITAD_LOWEST', // v10.9：补白名单——缺项使 ITAD 最低价行自 v10.6.0 真机恒隐藏（forbidden-sender）
+  'GET_API_STATUS', // v13 B8：xdgrid 过滤面板可达性点灯（integrity 守卫抓出的漏登记）
   'FETCH_IMAGE_DATA_URL', // v10.9：补白名单——v10.7.1 只放宽了正则未补门禁，跨域二维码仍被拒
   'SAVE_RATING_FILTER_CFG', // v10.9：xdgrid 过滤滑块的窄化持久化（替代内容侧直发 SAVE_SETTINGS）
   'TRACK_DOWNLOAD_SITE_VISIT',

@@ -613,6 +613,8 @@ simTest('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
     return { ratings, pending: 0 }; // 全部缓存命中 → 无推送，自动衔接下一批
   };
   GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
+  // v13 B2：批次空闲信号（队列排空+推送应用完后再断言计数）
+  if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
   // v10.3.0 诊断：超时转储批次状态（定位间歇性不衔接）
   const chained = await waitFor(() => batchRequests.length >= 2);
   if (!chained) {

@@ -83,7 +83,8 @@
  * @property {boolean} [favoritePriceWatch] - 收藏折扣监控开关（v11.0 B3）
  * @property {number} [favoriteDiscountThreshold] - 收藏折扣阈值 50-100（v11.0 B3）
 
- * @property {Object} [floatModules] - 浮窗信息模块显隐（chips/tags/developers/description/spy，v12 B4） * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
+ * @property {Object} [floatModules] - 浮窗信息模块显隐（chips/tags/developers/description/spy，v12 B4）
+ * @property {boolean} [weeklyDigestEnabled] - 周报 digest 通知开关（v13 B9） * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
  * @property {string} [uiThemeDay] - 日间主题名（v10.6.0）
  * @property {string} [uiThemeNight] - 夜间主题名（v10.6.0）
  * @property {number} [uiThemeNightStart] - 夜间窗口起始小时（含，默认 19，v10.7.0）

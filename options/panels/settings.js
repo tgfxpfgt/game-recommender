@@ -90,6 +90,7 @@
     // v11.0 B3：收藏折扣监控回显
     document.getElementById('favoritePriceWatch').checked = settings.favoritePriceWatch !== false;
     document.getElementById('favoriteDiscountThreshold').value = settings.favoriteDiscountThreshold ?? 80;
+    document.getElementById('weeklyDigestEnabled').checked = settings.weeklyDigestEnabled !== false; // v13 B9
     document.getElementById('freeGamesEnabled').checked = settings.freeGamesEnabled !== false;
     document.getElementById('themeAutoSwitch').checked = settings.themeAutoSwitch === true;
     document.getElementById('uiThemeDay').value = settings.uiThemeDay || 'steam';

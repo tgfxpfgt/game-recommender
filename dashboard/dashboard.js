@@ -931,14 +931,36 @@ async function loadFavorites() {
       el.textContent = '暂无收藏（在游戏详情浮窗点 ☆ 收藏）';
       return;
     }
+    // v13 B5：发售状态三分组——排序按组优先级（即将发售 > 已公布 > 已发售 > 未公布），
+    // 渲染时组切换处插组头
+    const groupPrio = (info) => {
+      const rd = Date.parse((info && info.releaseDate) || '');
+      if (isNaN(rd)) return 3;
+      if (rd <= Date.now()) return 2;
+      return rd - Date.now() <= 30 * 86400000 ? 0 : 1;
+    };
+    const groupLabel = ['🚀 即将发售（30 天内）', '📅 已公布发售日', '✅ 已发售', '❓ 未公布/未识别'];
+    entries.sort(
+      (a, b) => groupPrio(a[1]) - groupPrio(b[1]) || ((b[1] && b[1].addedAt) || 0) - ((a[1] && a[1].addedAt) || 0)
+    );
+    let lastGroupPrio = -1;
     el.innerHTML = entries
       .map(([appId, f]) => {
         const esc2 = (t) => escapeHtml(String(t || ''));
-        return `<div class="fav-row" data-appid="${escapeAttr(String(appId))}" style="display:flex;align-items:center;gap:8px;margin-top:3px;">
+        const prio = groupPrio(f);
+        const groupHead =
+          prio !== lastGroupPrio
+            ? `<div style="font-size:11px;color:#8f98a0;margin-top:6px;">${groupLabel[prio]}</div>`
+            : '';
+        lastGroupPrio = prio;
+        return (
+          groupHead +
+          `<div class="fav-row" data-appid="${escapeAttr(String(appId))}" style="display:flex;align-items:center;gap:8px;margin-top:3px;">
           <span style="flex:1;">⭐ ${esc2(f.name)} <small style="color:#8f98a0;">(${esc2(String(appId))})</small></span>
           <a href="https://store.steampowered.com/app/${escapeAttr(String(appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;font-size:11px;">Steam ↗</a>
           <button class="gr-btn gr-btn-sm fav-remove" style="padding:1px 8px;">移除</button>
-        </div>`;
+        </div>`
+        );
       })
       .join('');
     el.querySelectorAll('.fav-remove').forEach((btn) => {

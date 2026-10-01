@@ -331,9 +331,12 @@ async function loadApiStatus() {
     // v11.0 B2：分域名可达性点灯（store/api/circuit）
     const dm = resp.domains || {};
     const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+    // v13 B1：per-domain 熔断态细节（storeCircuit/apiCircuit：open/half-open/closed）
+    const circuitHint = (d) =>
+      dm[d + 'Circuit'] === 'open' ? ' ⚡熔断中' : dm[d + 'Circuit'] === 'half-open' ? ' ⚡半开探测' : '';
     const domainLine =
       dm.store || dm.api
-        ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">可达性：商店 ${lamp(dm.store)} / API ${lamp(dm.api)}${dm.circuit === 'open' ? ' · ⚡熔断中（60s 后自动重试）' : ''}</div>`
+        ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">可达性：商店 ${lamp(dm.store)}${circuitHint('store')} / API ${lamp(dm.api)}${circuitHint('api')}</div>`
         : '';
     if (resp.anomaly) {
       dot.className = 'status-dot error';

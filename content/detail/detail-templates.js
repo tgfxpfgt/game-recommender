@@ -30,7 +30,12 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   data.reviews = data.reviews.filter((r) => r && typeof r === 'object' && typeof r.text === 'string'); // 无有效文本的条目直接弃用
   // v12 B4：模块显隐——floatModules 设置（chips/tags/developers/description/spy）
   // 未配置 = 全显示（不破坏现有用户）
+  // v13 B3：order 排序持久化——块按 order 数组顺序渲染（未配置 = 默认序）
   const mods = (typeof data.floatModules === 'object' && data.floatModules) || {};
+  const DEFAULT_ORDER = ['chips', 'tags', 'developers', 'description', 'spy'];
+  const order =
+    Array.isArray(mods.order) && mods.order.length > 0 ? mods.order.filter((k) => DEFAULT_ORDER.includes(k)) : [];
+  for (const k of DEFAULT_ORDER) if (!order.includes(k)) order.push(k); // 补缺失项（保底）
   // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__；v10.7.0 删字面量 fallback）
   const P = globalThis.__GR_PATTERNS__;
   const rate = Number(data.positiveRate) || 0; // v10.9：非数值防 NaN 进进度条

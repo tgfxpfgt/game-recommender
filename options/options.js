@@ -784,6 +784,7 @@
     const favTh = parseInt(document.getElementById('favoriteDiscountThreshold').value);
     OPTS.currentSettings.favoriteDiscountThreshold =
       Number.isInteger(favTh) && favTh >= 50 && favTh <= 100 ? favTh : 80;
+    OPTS.currentSettings.weeklyDigestEnabled = document.getElementById('weeklyDigestEnabled').checked; // v13 B9
     OPTS.currentSettings.freeGamesEnabled = document.getElementById('freeGamesEnabled').checked;
     OPTS.currentSettings.themeAutoSwitch = document.getElementById('themeAutoSwitch').checked;
     OPTS.currentSettings.uiThemeDay = document.getElementById('uiThemeDay').value.trim() || 'steam';

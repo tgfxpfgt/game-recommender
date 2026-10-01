@@ -285,6 +285,7 @@ function buildUI(all, host, cfg) {
         <input data-rf="slider" type="range" min="0" max="100" step="5" value="0"
           style="width:100%;margin-bottom:8px">
         <div data-rf="hint" style="color:#4a9eff;margin-bottom:4px">过滤关闭</div>
+        <div data-rf="reach" style="color:#999;margin-bottom:6px"></div>
         <div style="color:#999">实时作用于当前列表（不重新取数）；设置全站生效</div>
         <div style="border-top:1px solid #e5e7eb;margin:10px 0;padding-top:8px">
           <div style="margin-bottom:6px">本地排序（不重新取数）</div>
@@ -404,7 +405,9 @@ function buildUI(all, host, cfg) {
   };
   rf.enabled.addEventListener('change', applyFilterChange);
   // v12 B8：本地排序按钮（复用 list-state 信号与数据，纯 DOM 重排）
-  const applySort = async (mode) => {
+  // v13 B7：排序模式持久化（grListSort:<host>，刷新后保持）
+  const sortKey = 'grListSort:' + location.hostname;
+  const applySort = async (mode, persist = true) => {
     const sortHint = panel.querySelector('[data-rf="sortHint"]');
     const sortState = await listState.applyLocalSort(mode);
     if (sortHint) {
@@ -415,6 +418,13 @@ function buildUI(all, host, cfg) {
             ? `已按${mode === 'rating' ? '好评率' : '更新日期'}排序 ${sortState} 项`
             : '无可排序数据';
     }
+    if (persist) {
+      try {
+        chrome.storage.local.set({ [sortKey]: mode }).catch(() => {});
+      } catch {
+        /* ignore */
+      }
+    }
   };
   const sortRatingBtn = panel.querySelector('[data-rf="sortRating"]');
   const sortUpdateBtn = panel.querySelector('[data-rf="sortUpdate"]');
@@ -422,6 +432,37 @@ function buildUI(all, host, cfg) {
   if (sortRatingBtn) sortRatingBtn.addEventListener('click', () => applySort('rating'));
   if (sortUpdateBtn) sortUpdateBtn.addEventListener('click', () => applySort('update'));
   if (sortResetBtn) sortResetBtn.addEventListener('click', () => applySort('none'));
+  // v13 B8：面板打开时显示 Steam 接口可达性（不可达时提示数据可能不完整）
+  try {
+    chrome.runtime
+      .sendMessage({ action: 'GET_API_STATUS' })
+      .then((resp) => {
+        const reach = panel.querySelector('[data-rf="reach"]');
+        if (!reach || !resp || !resp.domains) return;
+        const dm = resp.domains;
+        const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+        reach.textContent = 'Steam 可达性：商店 ' + lamp(dm.store) + ' / API ' + lamp(dm.api);
+        if (dm.store === 'down' || dm.storeCircuit === 'open') {
+          reach.style.color = '#e67e22';
+          reach.textContent += '——数据可能不完整';
+        }
+      })
+      .catch(() => {});
+  } catch {
+    /* ignore */
+  }
+  // 回显持久化模式（面板打开时重放；none/未设置不重放）
+  try {
+    chrome.storage.local
+      .get(sortKey)
+      .then((d) => {
+        const saved = d && d[sortKey];
+        if (saved && saved !== 'none') applySort(saved, false);
+      })
+      .catch(() => {});
+  } catch {
+    /* ignore */
+  }
 
   rf.slider.addEventListener('input', () => {
     rf.rateVal.textContent = String(Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0)));

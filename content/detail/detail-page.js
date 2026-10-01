@@ -242,9 +242,10 @@ function renderDownloadSitePanel(panel, sites, gameName) {
         <div style="font-size:11px;color:#8f98a0;margin-bottom:4px;">📋 跨站对比（按更新时间，⭐ = 最优来源）</div>`;
     for (const st of foundSites.slice(0, 5)) {
       const isBest = st === best && tsOf(st) > 0;
+      // v13 B6：每行附详情页直达链接（detailUrl 已过同域白名单校验）
       cmp += `<div style="font-size:11px;color:#acb2b8;display:flex;justify-content:space-between;gap:8px;">
-          <span>${isBest ? '⭐ ' : ''}${escapeHtml(st.name)}</span>
-          <span style="color:#666;">${st.version ? 'v' + escapeHtml(st.version) : ''} ${st.size ? '· ' + escapeHtml(st.size) : ''} ${st.updateDate ? '· ' + escapeHtml(st.updateDate) : ''}</span>
+          <span>${isBest ? '⭐ ' : ''}${escapeHtml(st.name)} <a href="${common.escapeAttr(st.detailUrl)}" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">打开 ↗</a></span>
+          <span style="color:#666;">${st.version ? 'v' + escapeHtml(st.version) : '—'} ${st.size ? '· ' + escapeHtml(st.size) : ''} ${st.updateDate ? '· ' + escapeHtml(st.updateDate) : '· 更新—'}</span>
         </div>`;
     }
     cmp += '</div>';
@@ -876,7 +877,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
     ? `<div style="font-size:11px;color:#e67e22;margin-bottom:10px;padding:6px 8px;background:rgba(230,126,34,0.08);border:1px solid rgba(230,126,34,0.3);border-radius:3px;word-break:break-all;">⚠️ 未命中原因：${common.escapeHtml(reasonText)}${onRetry ? '<br>Steam 商店接口不可达时请检查网络/加速器；确认游戏在 Steam 后点上方重试。' : ''}</div>`
     : '';
   panel.innerHTML = `
-      <div style="padding:16px;">
+      <div style="padding:16px;" role="dialog" aria-label="手动选择游戏">
         <div style="font-size:15px;font-weight:bold;color:#fff;margin-bottom:8px;">🎮 手动选择游戏</div>
         <div style="font-size:12px;color:#8f98a0;margin-bottom:12px;">
           未能自动匹配 Steam 游戏。请从下方候选列表中选择正确游戏，<br>或输入关键词手动搜索。
@@ -890,13 +891,15 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
         <div style="margin-bottom:10px;display:flex;gap:12px;">
           <a href="${common.escapeAttr('https://store.steampowered.com/search/?term=' + encodeURIComponent(gameName))}" target="_blank" rel="noopener" style="font-size:11px;color:#67c1f5;text-decoration:none;">🔎 在 Steam 网页搜索 ↗</a>
           ${(() => {
-            const issueBody = [
+            // v13 B10：预填未命中原因（诊断信息直接进 issue）
+            const bodyLines = [
               '游戏名: ' + gameName,
               '页面: ' + location.href,
-              '版本: ' + (chrome.runtime.getManifest ? chrome.runtime.getManifest().version : ''),
-              '',
-              '问题描述：'
-            ].join('\n');
+              '版本: ' + (chrome.runtime.getManifest ? chrome.runtime.getManifest().version : '')
+            ];
+            if (reasonText) bodyLines.push('未命中原因: ' + reasonText);
+            bodyLines.push('', '问题描述：');
+            const issueBody = bodyLines.join('\n');
             const issueUrl =
               'https://github.com/tgfxpfgt/game-recommender/issues/new?title=' +
               encodeURIComponent('自动匹配问题反馈') +
@@ -905,7 +908,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
             return `<a href="${common.escapeAttr(issueUrl)}" target="_blank" rel="noopener" style="font-size:11px;color:#8f98a0;text-decoration:none;">💬 反馈问题 ↗</a>`;
           })()}
         </div>
-        <div id="gr-candidates-list" style="max-height:300px;overflow-y:auto;">
+        <div id="gr-candidates-list" role="listbox" aria-label="候选游戏列表" style="max-height:300px;overflow-y:auto;">
           <div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">
             <div style="font-size:20px;margin-bottom:6px;">⏳</div>
             正在搜索候选游戏...
@@ -934,7 +937,7 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
       listEl.innerHTML = candidates
         .map(
           (c) => `
-          <div class="gr-candidate-item" data-appid="${common.escapeAttr(c.appId)}" style="
+          <div class="gr-candidate-item" role="option" aria-selected="false" data-appid="${common.escapeAttr(c.appId)}" style="
             display:flex;align-items:center;gap:10px;padding:8px;margin:4px 0;
             background:rgba(0,0,0,0.2);border:1px solid #2a475e;border-radius:3px;
             cursor:pointer;transition:background 0.2s,border-color 0.2s;

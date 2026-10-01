@@ -202,6 +202,7 @@ export const DEFAULT_SETTINGS = {
   // v12 B4：浮窗信息模块显隐（未列出/未配置 = 全显示）
   floatModules: { chips: true, tags: true, developers: true, description: true, spy: true },
   favoriteDiscountThreshold: 80, // v11.0 B3：折扣阈值百分比（现价 ≤ 最低×80% 通知）
+  weeklyDigestEnabled: true, // v13 B9：周报 digest 通知开关
   freeGamesEnabled: true, // v10.6.0：限免监控总开关（关闭后不抓取各源，页面显示旧数据）
   // v10.6.0：主题定时切换（日/夜双主题 + 按小时自动切换）
   themeAutoSwitch: false,
