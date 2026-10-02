@@ -94,7 +94,7 @@ async function loadTrends() {
     cachedTrends = (response && response.daily) || [];
     renderTrendChart(cachedTrends);
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载趋势失败: ${escapeHtml(String(e))}</div>`;
+    container.innerHTML = `<div class="no-data">加载趋势失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
   }
 }
 
@@ -242,7 +242,7 @@ async function exportInsightsJson() {
     a.click();
     URL.revokeObjectURL(url);
   } catch (e) {
-    alert('导出失败: ' + String(e));
+    alert('导出失败: ' + window.__GR_MSG__.toUserMessage(e));
   }
 }
 
@@ -293,7 +293,7 @@ async function exportLogsCsv() {
       )
     );
   } catch (e) {
-    alert('导出失败: ' + String(e));
+    alert('导出失败: ' + window.__GR_MSG__.toUserMessage(e));
   }
 }
 
@@ -577,7 +577,7 @@ async function loadSteamRecommendations() {
     // 滚动到推荐区域
     section.scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(String(e))}</span>`;
+    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</span>`;
   }
 }
 // （escapeHtml/escapeAttr 由 shared/escape.js 提供全局实现）
@@ -595,7 +595,7 @@ async function loadRuntimeLogs() {
     cachedLogs = (response && response.logs) || [];
     renderRuntimeLogs();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载日志失败: ${escapeHtml(String(e))}</div>`;
+    container.innerHTML = `<div class="no-data">加载日志失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
   }
 }
 
@@ -655,7 +655,7 @@ async function exportLogs() {
     a.click();
     URL.revokeObjectURL(url);
   } catch (e) {
-    alert('导出失败: ' + String(e));
+    alert('导出失败: ' + window.__GR_MSG__.toUserMessage(e));
   }
 }
 
@@ -677,7 +677,7 @@ async function loadOutboundAudit() {
     cachedAudit = (response && response.audit) || { entries: [], stats: null };
     renderOutboundAudit();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载审计失败: ${escapeHtml(String(e))}</div>`;
+    container.innerHTML = `<div class="no-data">加载审计失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
   }
 }
 
@@ -782,7 +782,7 @@ async function loadBackups() {
       btn.addEventListener('click', () => deleteBackup(btn.dataset.id));
     });
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载备份失败: ${escapeHtml(String(e))}</div>`;
+    container.innerHTML = `<div class="no-data">加载备份失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
   }
 }
 
@@ -799,7 +799,7 @@ async function createBackup() {
       statusEl.textContent = '❌ 备份失败';
     }
   } catch (e) {
-    statusEl.textContent = '❌ ' + String(e);
+    statusEl.textContent = '❌ ' + window.__GR_MSG__.toUserMessage(e);
   }
   setTimeout(() => {
     statusEl.textContent = '';
@@ -819,7 +819,7 @@ async function restoreBackup(id) {
       alert('❌ 恢复失败: ' + (response ? response.error : '未知错误'));
     }
   } catch (e) {
-    alert('❌ 恢复失败: ' + String(e));
+    alert('❌ 恢复失败: ' + window.__GR_MSG__.toUserMessage(e));
   }
 }
 
@@ -1003,7 +1003,7 @@ async function runGameSearch() {
       })
       .join('');
   } catch (e) {
-    out.textContent = '搜索失败: ' + escapeHtml(String(e));
+    out.textContent = '搜索失败: ' + escapeHtml(window.__GR_MSG__.toUserMessage(e));
   }
 }
 

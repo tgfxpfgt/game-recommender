@@ -35,5 +35,19 @@
     ]);
   }
 
-  global.__GR_MSG__ = { sendMessage };
+  // v14 B8：错误格式化——Error 对象取 message 并去掉 "Error: " 前缀；
+  // 超时消息翻译为用户可读文案；其余类型 String 化。
+  // Format an error for user display: strip "Error: " prefix, translate
+  // common patterns, always return a non-empty string.
+  function toUserMessage(e) {
+    if (!e) return '未知错误';
+    let msg = typeof e === 'string' ? e : e.message || String(e);
+    msg = msg.replace(/^Error:\s*/i, '');
+    msg = msg.replace(/^消息失败\s*/, '');
+    msg = msg.replace(/^消息超时:\s*/, '操作超时（');
+    msg = msg.replace(/\(>\d+ms\)\s*$/, 'ms），请检查网络后重试');
+    return msg || '未知错误';
+  }
+
+  global.__GR_MSG__ = { sendMessage, toUserMessage };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

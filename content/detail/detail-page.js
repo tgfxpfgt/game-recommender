@@ -664,7 +664,7 @@ export function injectSteamButton(gameName, settings) {
     } catch (e) {
       debug.DEBUG.steamStatus = '❌ ' + String(e);
       dbg('Steam查询错误: ' + String(e));
-      panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(String(e))}</div>`;
+      panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(globalThis.__GR_MSG__.toUserMessage(e))}</div>`;
       showPanel();
       status.showStats({ title: 'Steam 信息查询失败', summary: String(e) });
     }
@@ -1014,12 +1014,12 @@ function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onR
               listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取详情失败，请重试</div>`;
             }
           } catch (e) {
-            listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取失败: ${esc(String(e))}</div>`;
+            listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取失败: ${esc(globalThis.__GR_MSG__.toUserMessage(e))}</div>`;
           }
         });
       });
     } catch (e) {
-      listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">搜索失败: ${esc(String(e))}</div>`;
+      listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">搜索失败: ${esc(globalThis.__GR_MSG__.toUserMessage(e))}</div>`;
     }
   }
 

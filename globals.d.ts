@@ -17,7 +17,7 @@ declare global {
   var __OPTS__: any; // 设置页命名空间（options 经典脚本共享）
   var __gameRecommenderTracker: boolean; // tracker 防重入守卫
   var __grBootPromise: Promise<any>; // v8.2.0：tracker boot 就绪信号（测试等待用）
-  var __GR_MSG__: { sendMessage: (action: any, payload?: any, opts?: { timeout?: number }) => Promise<any> }; // v8.2.0：统一消息层
+  var __GR_MSG__: { sendMessage: (action: any, payload?: any, opts?: { timeout?: number }) => Promise<any>; toUserMessage: (e: unknown) => string }; // v14 B8：+ toUserMessage
   interface Element {
     href?: any;
   } // 下载站链接元素（锚点属性宽松）
