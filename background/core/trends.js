@@ -11,13 +11,14 @@
 
 // 按天聚合行为日志：返回按日期升序的 [{date, views, downloads, rate}]
 // Aggregate the behavior log by calendar day (ascending [{date,views,downloads,rate}]).
+// v4.1.0：按粒度聚合（day=日历日 / week=自然周，周桶键为该周周一日期）
+// Aggregate by granularity ('day' = calendar day, 'week' = ISO-ish week keyed
+// by its Monday). Pure, zero-dependency, unit-testable.
+// 便捷别名：按天聚合（test-trends 直接消费）
 export function aggregateDailyTrends(log) {
   return aggregateTrends(log, 'day');
 }
 
-// v4.1.0：按粒度聚合（day=日历日 / week=自然周，周桶键为该周周一日期）
-// Aggregate by granularity ('day' = calendar day, 'week' = ISO-ish week keyed
-// by its Monday). Pure, zero-dependency, unit-testable.
 export function aggregateTrends(log, granularity = 'day') {
   const byBucket = new Map();
   for (const e of log || []) {
