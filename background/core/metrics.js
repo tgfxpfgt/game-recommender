@@ -82,7 +82,8 @@ export function trackOpfsWrite(fileName, bytes) {
   metricInc('opfs.writeBytes.' + mod, Number(bytes) || 0);
 }
 
-// 重置（测试/清理用）/ Reset
+// 重置（v13 标注：**仅测试使用**——生产代码无调用方；保留导出供测试 hook）
+// Reset (test-only; no production consumer — kept for test hooks)
 export function resetMetrics() {
   persist.reset();
 }
