@@ -17,13 +17,9 @@ import { readProfiles, readKeywordWeights } from './storage/behavior.js';
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from './steam/ratings-batch.js';
 import { calculateRecommendation } from './recommend/engine.js';
 import { getFreeGamesData, claimFreeGame } from './freegames/manager.js';
-import { getSteamApiStatus, getDomainStatus } from './core/api-monitor.js'; // v11.0 B2
-import { createSessionPersist } from './core/session-persist.js'; // v10.0.0：告警限频跨 SW 持久化
-import { recordSiteAlert, getSiteHealth } from './storage/site-health.js';
-import { getFlushHealth } from './storage/flush-health.js';
+import { handleGetApiStatus, handleGetSteam250Rank, handleSiteAdapterAlert, handleGetSiteHealth, handleGetStorageHealth, handleLogPerf, handleOpenHub } from './handlers/diag-status.js'; // v14 B10：诊断迁出
 import { getAppStats } from './storage/app-stats.js'; // v10.1.0：批量共享读
 import { getOutboundAudit, resetOutboundAudit } from './core/outbound-audit.js';
-import { getSteam250Info } from './steam/steam250.js'; // v10.4.4：Steam250 排名
 import { toggleFavorite, getFavorites } from './storage/favorites.js'; // v10.6.0 F2 收藏
 import { validateMessage, CONTENT_ALLOWED_ACTIONS, isTrustedSender } from './core/message-contract.js';
 // v5.0.0：领域子模块 / domain-split handler modules
@@ -147,79 +143,10 @@ async function handleDeleteAdapterRules() {
   return { ok: true, success: true };
 }
 
-// --- Steam API 状态监测（v3.3.0）---
-async function handleGetApiStatus() {
-  // v6.4.10：扁平返回（popup 读顶层 anomaly/total/failed——此前嵌套 {status} 导致
-  // 状态永远显示采样中）
-  // v11.0 B2：附分域名可达性（store/api/circuit）
-  const status = getSteamApiStatus();
-  status.domains = getDomainStatus();
-  return status;
-}
-
-// v10.4.4：Steam250 排名查询（appId → {rank, score, votes}；无记录 null）
-//（二维码跨域取图 handler 已迁至 handlers/image-fetch.js，v10.7.1 清理孤儿注释）
-async function handleGetSteam250Rank(message) {
-  const appId = message && message.appId;
-  if (!appId) return { info: null };
-  const info = await getSteam250Info(appId);
-  return { info };
-}
-
-// v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）
-// v10.0.0：限频表持久化 storage.session（防抖）——SW 冷启动后 24h 限频连续
-const siteAlertPersist = createSessionPersist('grSiteAlertLast', { initial: {} });
-export async function warmupSiteAlertPersist() {
-  await siteAlertPersist.load();
-}
-async function handleSiteAdapterAlert(message) {
-  const siteKey = String(message.siteKey || 'unknown');
-  const now = Date.now();
-  const lastMap = siteAlertPersist.peek();
-  const last = lastMap[siteKey] || 0;
-  if (now - last < 24 * 60 * 60 * 1000) return { success: true, throttled: true };
-  lastMap[siteKey] = now;
-  siteAlertPersist.scheduleSave();
-  // v10.0.0：告警落盘站点健康模块（dashboard 健康看板/规则面板自检用）
-  await recordSiteAlert(siteKey, message.host || '');
-  Logger.warn(
-    'SiteAdapter',
-    `站点规则疑似失效: ${siteKey}（${message.host || '?'}）——列表项提取为 0，站点可能改版，请更新适配规则`
-  );
-  return { success: true };
-}
-
-// v10.0.0：站点适配器健康（dashboard 看板/规则面板自检）
-async function handleGetSiteHealth() {
-  return getSiteHealth();
-}
-
-// v10.0.0：存储健康（写失败计数 + OPFS 模式态）
-async function handleGetStorageHealth() {
-  return getFlushHealth();
-}
-
-// v9.1.0：性能上报（内容脚本 boot 耗时等 → Perf 日志落盘）
-async function handleLogPerf(message) {
-  const source = message.source || 'content';
-  Logger.info(
-    'Perf',
-    `${source} ${message.metric || ''} 耗时: ${message.durationMs}ms${message.detail ? ' (' + message.detail + ')' : ''}`
-  );
-  return { success: true };
-}
-
-// v7.4.0：打开设置中心（欢迎页/弹窗跳转用）
-async function handleOpenHub() {
-  const url = chrome.runtime.getURL('hub/hub.html');
-  const [tab] = await chrome.tabs.query({ url });
-  if (tab) {
-    await chrome.tabs.update(tab.id, { active: true });
-  } else {
-    await chrome.tabs.create({ url });
-  }
-  return { success: true };
-}
+// --- 诊断 handler 已迁至 handlers/diag-status.js（v14 B10）---
+// handleGetApiStatus / handleGetSteam250Rank / handleSiteAdapterAlert /
+// handleGetSiteHealth / handleGetStorageHealth / handleLogPerf / handleOpenHub
+// 以及 warmupSiteAlertPersist 均从 diag-status.js 导入
 
 // --- 消息分发映射表 / Message dispatch map ---
 export const MESSAGE_HANDLERS = {

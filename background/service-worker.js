@@ -160,7 +160,7 @@ setTimeout(() => {
     import('./storage/behavior.js').then((m) => m.warmupBehavior()),
     import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls()),
     import('./core/outbound-audit.js').then((m) => m.warmupOutboundAudit()),
-    import('./handlers.js').then((m) => m.warmupSiteAlertPersist())
+    import('./handlers/diag-status.js').then((m) => m.warmupSiteAlertPersist())
   ]);
 }, WARM_TIER_DELAY_MS);
 
