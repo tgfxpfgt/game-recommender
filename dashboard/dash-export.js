@@ -3,7 +3,7 @@
  *
  * v14 B1：由 dashboard.js 拆分——CSV/JSON 导出函数（自足，依赖全局缓存变量）。
  * Split from dashboard.js (B1): CSV/JSON export functions.
- * 依赖全局：cachedTrends, cachedGameList（dashboard.js 定义，调用时已初始化）
+ * 依赖全局：cachedTrends, cachedGameList（dash-stats.js 定义，调用时已初始化）
  */
 /* global cachedTrends, cachedGameList */
 /* eslint-disable no-unused-vars */
@@ -124,4 +124,3 @@ async function exportLogsCsv() {
     alert('导出失败: ' + window.__GR_MSG__.toUserMessage(e));
   }
 }
-
