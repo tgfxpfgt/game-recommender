@@ -1043,7 +1043,15 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   expect(steamHtml.includes('2001760') || steamHtml.includes('轮回之兽')).toEqual(true);
   // v3.4.1：原断言恒真（"由 E2E 验证"），改为源码级守护——报错按钮绑定 +
   // REPORT_WRONG_APPID 消息流 + 手动选择面板兜底路径必须存在
-  const detailSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
+  // v14 B3：detail 拆分为 page/sidebar/candidates/tracking 四文件，聚合读取
+  const detailSrc = [
+    'content/detail/detail-page.js',
+    'content/detail/sidebar.js',
+    'content/detail/candidates.js',
+    'content/detail/tracking.js'
+  ]
+    .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf-8'))
+    .join('\n');
   expect(detailSrc.includes('#gr-report-issue-btn') && detailSrc.includes("action: 'REPORT_WRONG_APPID'")).toEqual(
     true
   );
@@ -1182,8 +1190,16 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
   expect(mixedHtml.includes('口碑尚可，建议结合玩法判断')).toEqual(true);
 
   // 源码级守护：站点门控走规则 features 声明（v10.7.0 批次4——原硬编码名单
-  // INLINE_SECTION_SITES 已删除，XDGame 等原生卡站点默认不声明即不注入）
-  const detailSrc2 = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
+  // INLINE_SECTION_SITES 已删除，XDGame 等原生卡站点默认不声明即不注入；
+  // v14 B3 门控代码迁至 sidebar.js，聚合读取 detail 模块族）
+  const detailSrc2 = [
+    'content/detail/detail-page.js',
+    'content/detail/sidebar.js',
+    'content/detail/candidates.js',
+    'content/detail/tracking.js'
+  ]
+    .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf-8'))
+    .join('\n');
   expect(detailSrc2.includes('features || {}).inlineSteamCard')).toEqual(true);
   const xdgameAdapterSrc = fs.readFileSync(path.join(ROOT, 'adapters/sites/xdgame.js'), 'utf-8');
   expect(xdgameAdapterSrc.includes('inlineSteamCard')).toEqual(false); // XDGame 不声明内嵌卡

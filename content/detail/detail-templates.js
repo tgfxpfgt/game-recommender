@@ -348,7 +348,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 //   · 评级文本 = Steam 官方描述（英文 language=all 返回值映射中文）
 //   · 结论文案 = 按四舍五入后的修正口碑分档（≥90/≥85/≥75/≥65/≥50/≥40）
 // 无评测（total=0）不渲染——与 XDGame 卡片无数据时隐藏一致。注入与站点门控
-// 见 detail-page.js 的 renderInlineSteamSection。
+// 见 detail/sidebar.js 的 renderInlineSteamSection（v14 B3 迁移）。
 // Inline Steam info card (v10.5.3): pixel-faithful replica of XDGame's native
 // "Steam 玩家评价" card — same markup, same stylesheet, same data semantics
 // (score = adjusted/10; adjusted = Bayesian-shrunk positive rate calibrated
