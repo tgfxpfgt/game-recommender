@@ -2,6 +2,7 @@
  * 游戏雷达 Game Radar - 设置面板模块 / Settings Panel
  *
  * 设置渲染、下载站与追踪管理、UI 切换、权重指示、LLM 测试。
+ * v14 B2：吸收 options.js 的主题/LLM/权重事件绑定与滑块双向绑定。
  * 共享状态与保存方法经 window.__OPTS__ 访问（普通页面脚本顺序加载）。
  * Settings rendering, site/tracking management, UI toggles, weight indicator
  * and LLM testing. Shared state/save go through window.__OPTS__.
@@ -327,10 +328,142 @@
     }
   }
 
+  // ============ Theme / LLM / Weight Bindings（v14 B2 自 options.js 迁入） ============
+  // 事件绑定与渲染同域集中；收集与保存仍在 options.js saveSettings。
+
+  // v6.4.19：界面皮肤切换（立即生效）+ v7.0.5：自定义主题 CSS 导入/清除（本地文件，无网络）
+  function bindThemeEvents() {
+    document.getElementById('uiTheme').addEventListener('change', (e) => {
+      OPTS.scheduleAutoSave();
+      if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) {
+        globalThis.__GR_SETTINGS_UTILS__.applyTheme(e.target.value);
+      }
+    });
+
+    document.getElementById('themeCssImport').addEventListener('click', () => {
+      document.getElementById('themeCssFile').click();
+    });
+    document.getElementById('themeCssFile').addEventListener('change', (e) => {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const css = String(reader.result || '');
+        OPTS.currentSettings.customThemeCss = css;
+        const status = document.getElementById('themeCssStatus');
+        status.textContent = `✅ 已导入（${(css.length / 1024).toFixed(1)} KB）`;
+        if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme) {
+          globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme(css);
+        }
+        OPTS.scheduleAutoSave();
+      };
+      reader.readAsText(file);
+      e.target.value = '';
+    });
+    document.getElementById('themeCssClear').addEventListener('click', () => {
+      OPTS.currentSettings.customThemeCss = '';
+      document.getElementById('themeCssStatus').textContent = '✅ 已清除';
+      if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme) {
+        globalThis.__GR_SETTINGS_UTILS__.applyCustomTheme('');
+      }
+      OPTS.scheduleAutoSave();
+    });
+  }
+
+  // LLM 开关/提供商切换/文本输入（防抖自动保存）/Temperature/测试连接
+  function bindLLMEvents() {
+    document.getElementById('useLLM').addEventListener('change', () => {
+      OPTS.toggleLLMSettings();
+      OPTS.scheduleAutoSave();
+    });
+
+    document.getElementById('llmProvider').addEventListener('change', (e) => {
+      OPTS.toggleApiKeyRow();
+      const presets = {
+        local: 'http://localhost:11434/api/generate',
+        openai: 'https://api.openai.com/v1/chat/completions',
+        custom: ''
+      };
+      if (presets[e.target.value]) {
+        document.getElementById('llmEndpoint').value = presets[e.target.value];
+      }
+      OPTS.scheduleAutoSave();
+    });
+
+    // LLM 文本输入（防抖自动保存）
+    ['llmEndpoint', 'llmApiKey', 'llmModel'].forEach((id) => {
+      document.getElementById(id).addEventListener('input', () => OPTS.scheduleAutoSave());
+    });
+
+    // Temperature
+    document.getElementById('llmTemp').addEventListener('input', (e) => {
+      document.getElementById('llmTempVal').textContent = (e.target.value / 100).toFixed(1);
+      OPTS.scheduleAutoSave();
+    });
+
+    // 测试 LLM 连接
+    document.getElementById('testLLM').addEventListener('click', OPTS.testLLMConnection);
+  }
+
+  // 权重滑块（v4.0.0：新增 playTime/heat；v10.1.0：新增 appStat 两项）
+  function bindWeightEvents() {
+    const weightIds = [
+      'weightClick',
+      'weightDownload',
+      'weightKeyword',
+      'weightSteam',
+      'weightPlayTime',
+      'weightHeat',
+      'weightSales',
+      'weightReviews',
+      'weightAppStatDownload',
+      'weightAppStatDetailView'
+    ];
+    weightIds.forEach((id) => {
+      document.getElementById(id).addEventListener('input', (e) => {
+        document.getElementById(`${id}Val`).textContent = (e.target.value / 100).toFixed(2);
+        OPTS.updateWeightSum();
+        OPTS.scheduleAutoSave();
+      });
+    });
+  }
+
+  // ============ 数值滑块 + 手动输入双向绑定（v9.6.0） ============
+  // Slider ↔ number-input two-way sync for all range controls.
+  function bindRangeNumberInputs() {
+    document.querySelectorAll('input[type="range"]').forEach((range) => {
+      const input = document.getElementById(range.id + 'Input');
+      if (!input) return;
+      // 滑块 → 输入框
+      range.addEventListener('input', () => {
+        input.value = range.value;
+      });
+      // 输入框 → 滑块（clamp 到 min/max；回车或失焦生效）
+      const apply = () => {
+        let v = Number(input.value);
+        if (Number.isNaN(v)) return;
+        v = Math.min(range.max, Math.max(range.min, v));
+        input.value = v;
+        if (String(range.value) !== String(v)) {
+          range.value = v;
+          range.dispatchEvent(new Event('input', { bubbles: true }));
+        }
+      };
+      input.addEventListener('change', apply);
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') apply();
+      });
+    });
+  }
+
   OPTS.renderSettings = renderSettings;
   OPTS.renderSiteManagement = renderSiteManagement;
   OPTS.toggleLLMSettings = toggleLLMSettings;
   OPTS.toggleApiKeyRow = toggleApiKeyRow;
   OPTS.updateWeightSum = updateWeightSum;
   OPTS.testLLMConnection = testLLMConnection;
+  OPTS.bindThemeEvents = bindThemeEvents;
+  OPTS.bindLLMEvents = bindLLMEvents;
+  OPTS.bindWeightEvents = bindWeightEvents;
+  OPTS.bindRangeNumberInputs = bindRangeNumberInputs;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

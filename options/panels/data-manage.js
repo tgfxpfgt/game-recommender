@@ -274,4 +274,30 @@
   OPTS.getSelectedModuleKeys = getSelectedModuleKeys;
   OPTS.moduleCheckAll = moduleCheckAll;
   OPTS.moduleCheckNone = moduleCheckNone;
+  OPTS.bindDataManageEvents = bindDataManageEvents;
+  OPTS.bindAutoBackupEvents = bindAutoBackupEvents;
+
+  // ============ 数据管理/自动备份按钮绑定（v14 B2 自 options.js 迁入） ============
+  // 按钮与各自实现在同域集中；收集与保存仍在 options.js saveSettings。
+  function bindDataManageEvents() {
+    document.getElementById('exportData').addEventListener('click', OPTS.exportData);
+    document.getElementById('importData').addEventListener('click', () => {
+      document.getElementById('importFile').click();
+    });
+    document.getElementById('importFile').addEventListener('change', OPTS.importData);
+    document.getElementById('clearData').addEventListener('click', OPTS.clearData);
+    document.getElementById('resetDefaults').addEventListener('click', OPTS.resetDefaults);
+    // 数据模块备份/恢复/全选
+    document.getElementById('createBackupBtn').addEventListener('click', OPTS.createDataBackup);
+    document.getElementById('restoreBackupBtn').addEventListener('click', OPTS.restoreDataBackup);
+    document.getElementById('moduleCheckAll').addEventListener('click', OPTS.moduleCheckAll);
+    document.getElementById('moduleCheckNone').addEventListener('click', OPTS.moduleCheckNone);
+  }
+
+  // v6.4.11：自动备份配置（变更即自动保存）
+  function bindAutoBackupEvents() {
+    document.getElementById('autoBackup').addEventListener('change', () => OPTS.scheduleAutoSave());
+    document.getElementById('backupIntervalHours').addEventListener('change', () => OPTS.scheduleAutoSave());
+    document.getElementById('maxBackups').addEventListener('change', () => OPTS.scheduleAutoSave());
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : this);

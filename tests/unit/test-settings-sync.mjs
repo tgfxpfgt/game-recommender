@@ -28,6 +28,10 @@ const optionsLayer = [
   'options/panels/cache.js',
   'options/panels/data-manage.js',
   'options/panels/rules.js',
+  // v14 B2：options.js 拆分新增面板（dataSources/steamApiModules/收藏折扣等迁入）
+  'options/panels/search.js',
+  'options/panels/favorites.js',
+  'options/panels/sites.js',
   'options/options.html'
 ]
   .map(read)

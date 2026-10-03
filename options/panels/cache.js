@@ -495,4 +495,16 @@
   OPTS.bindCacheEvents = bindCacheEvents;
   OPTS.populateCacheSiteFilter = populateCacheSiteFilter;
   OPTS.loadGameCache = loadGameCache;
+  OPTS.bindTtlEvents = bindTtlEvents;
+
+  // ============ 缓存有效期输入绑定（v14 B2 自 options.js 迁入） ============
+  // 变更即自动保存；收集在 options.js saveSettings（TTL_FIELDS 单源在壳）。
+  function bindTtlEvents() {
+    OPTS.TTL_FIELDS.forEach((f) => {
+      const el = document.getElementById(f.id);
+      if (!el) return;
+      el.addEventListener('change', () => OPTS.scheduleAutoSave());
+      el.addEventListener('input', () => OPTS.scheduleAutoSave());
+    });
+  }
 })(typeof globalThis !== 'undefined' ? globalThis : this);
