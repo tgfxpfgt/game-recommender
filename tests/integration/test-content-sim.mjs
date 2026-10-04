@@ -473,8 +473,9 @@ simTest('2. 列表页两波好评率流程', async () => {
   // 触发 DOMContentLoaded → init（warmup 已 resolve）
   docReadyCallbacks.forEach((cb) => cb());
   await waitForSignal(() => itemA.a.children.length > 0, '节2: 游戏A 好评率徽章（缓存命中首波）');
-  // v12 B2：批次空闲显式信号（负载下不再与推送时序竞争）
-  if (GR.listBatch && GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
+  // v14 B6：此处**不可**等批次空闲——本节设计就是 pending:2 等推送（job 保持
+  // 开放），waitForBatchIdle 只会空烧 30s 超时并在负载下与 45s 强制收尾竞态
+  //（推送被 finishRatings 后的守卫丢弃 = 节 2/2b 偶发失败的根源）
 
   expect(itemA.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
   expect(
