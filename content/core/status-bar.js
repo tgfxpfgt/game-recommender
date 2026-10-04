@@ -14,14 +14,6 @@
 import * as float from './floats.js';
 import * as common from './common.js';
 
-// v9.3.0：调试视图刷新经回调注入（此前 import debug.js 形成
-// debug↔status-bar 循环依赖——改为单向：debug.js 注册刷新回调）
-/** @type {(() => void)|null} */
-let debugRefreshHandler = null;
-export function setDebugRefreshHandler(fn) {
-  debugRefreshHandler = typeof fn === 'function' ? fn : null;
-}
-
 /** @type {HTMLDivElement|null} */
 let statusEl = null;
 /** @type {ReturnType<typeof setTimeout>|null} */
@@ -108,13 +100,10 @@ export function showStats(stats) {
     });
   });
   clearTimeout(/** @type {any} */ (hideTimer));
-  // 3 秒后：调试模式 → 切换诊断视图；否则消失
+  // 3 秒后消失（v14 B4：调试视图刷新回调接线整体已死——debugRefreshHandler
+  // 从未被注册，setDebugRefreshHandler 已删）
   hideTimer = setTimeout(() => {
-    if (debugMode && debugRefreshHandler) {
-      debugRefreshHandler();
-    } else {
-      hide();
-    }
+    hide();
   }, 3000);
 }
 
@@ -152,7 +141,6 @@ export function setEnabled(v) {
 export function setDebugMode(v) {
   debugMode = !!v;
   if (debugMode) debugDismissed = false;
-  if (debugMode && debugRefreshHandler) debugRefreshHandler();
 }
 
 // 隐藏浮窗（经 GR.float 移除）/ Hide the bar (removed via GR.float)

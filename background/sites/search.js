@@ -358,7 +358,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
 }
 
 // 百度网盘链接拼接提取码，支持自动填充 / Build Baidu Pan URL with extraction code
-export function buildBaiduPanUrlWithPwd(url, pwd) {
+function buildBaiduPanUrlWithPwd(url, pwd) {
   if (!url || !pwd) return url;
   try {
     const u = new URL(url);

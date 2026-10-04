@@ -12,7 +12,7 @@
  * list and detail pages, unifying the two independent match paths.
  */
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS } from '../core/constants.js';
+import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
@@ -24,7 +24,7 @@ let loaded = false;
 let urlIndexDirty = false;
 // v8.2.0：网址索引上限（对象键序 = 插入序，超限淘汰最旧——URL→appId
 // 映射为缓存性质数据，无界增长无意义）
-const URL_INDEX_MAX_ENTRIES = 5000;
+const URL_INDEX_MAX_ENTRIES = STORAGE_CAPS.urlIndex; // v14 B4：单源 STORAGE_CAPS（原硬编码 5000）
 function enforceUrlIndexLimit() {
   const keys = Object.keys(urlIndexMemory);
   if (keys.length <= URL_INDEX_MAX_ENTRIES) return;

@@ -206,11 +206,7 @@
   border-color: rgba(180, 140, 224, 0.5);
   background: rgba(180, 140, 224, 0.12);
 }
-.gr-badge-empty {
-  color: #8f98a0;
-  border-color: rgba(143, 152, 160, 0.4);
-  background: rgba(143, 152, 160, 0.1);
-}
+
 .gr-badge-recent {
   color: #66c0f4;
   border-color: rgba(102, 192, 244, 0.4);
@@ -276,12 +272,7 @@
   margin-bottom: 10px;
   font-size: 11px;
 }
-.gr-detail-tag-chip {
-  padding: 2px 8px;
-  border-radius: 2px;
-  background: rgba(255, 255, 255, 0.05);
-  color: var(--gr-float-text-dim, #8f98a0);
-}
+
 .gr-detail-rating-box {
   border-radius: 3px;
   padding: 10px;
@@ -293,14 +284,7 @@
   color: var(--gr-float-text-bright, #fff);
   margin: 6px 0 4px;
 }
-.gr-detail-meta-row {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 11px;
-  color: var(--gr-float-text-dim, #8f98a0);
-  margin: 2px 0;
-}
+
 .gr-detail-btn {
   display: block;
   text-align: center;
@@ -313,14 +297,7 @@
   background: linear-gradient(to right, #75b022 0%, #588a1b 100%);
   color: #fff;
 }
-.gr-detail-btn-blue {
-  background: linear-gradient(to right, #588fe3 0%, #2f6db3 100%);
-  color: #fff;
-}
-.gr-detail-btn-red {
-  background: linear-gradient(to right, #c75050 0%, #a33b3b 100%);
-  color: #ffe5e5;
-}
+
 .gr-detail-section {
   margin: 8px 0;
   padding-top: 6px;
@@ -403,9 +380,7 @@
 .gr-detail-dim {
   color: #acb2b8;
 }
-.gr-detail-right {
-  text-align: right;
-}
+
 .gr-detail-flex-between {
   display: flex;
   justify-content: space-between;
@@ -416,11 +391,7 @@
   flex-wrap: wrap;
   gap: 4px;
 }
-.gr-detail-sep {
-  padding-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-  margin-bottom: 8px;
-}
+
 .gr-detail-chip {
   padding: 2px 8px;
   border-radius: 2px;

@@ -306,12 +306,6 @@ input:checked + .gr-slider-ui::before {
   color: var(--gr-text-dim);
   margin: 8px 0 0;
 }
-.filter-control {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
-}
 
 /* ============ 按钮 ============ */
 button {
@@ -336,14 +330,7 @@ button:hover {
 button:active {
   filter: brightness(0.9);
 }
-.gr-btn-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 8px;
-}
-.gr-btn-row button {
-  flex: 1;
-}
+
 button.ghost {
   background: transparent;
   border: 1px solid var(--gr-border);
@@ -362,19 +349,11 @@ button.ghost:hover {
   font-size: 11.5px;
   color: var(--gr-text);
 }
-.api-status .gr-tag,
-.free-count .gr-tag {
-  font-size: 10px;
-}
+
 .status-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-}
-.action-row {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
 }
 
 /* 折叠动画 / fold animation */

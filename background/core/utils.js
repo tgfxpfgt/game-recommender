@@ -125,7 +125,7 @@ export function isSafeFetchUrl(url) {
 // local LLM endpoints such as Ollama). Since v3.4.1 redirects are followed
 // manually with per-hop re-validation (default follow mode let a 302 to an
 // internal address bypass every SSRF check).
-export const FETCH_DEFAULT_TIMEOUT = 15000; // 15s
+const FETCH_DEFAULT_TIMEOUT = 15000; // 15s
 const MAX_REDIRECTS = 5;
 // v3.4.1：每次出站请求均写入审计（含被拦截/限速/网络错误路径），
 // 并按主机滑动窗口限速（兜底防失控；Steam 批处理另有自身异常降速）。

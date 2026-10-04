@@ -153,7 +153,7 @@ export async function llmMatchGame(rawName, excludeAppId) {
  * @param {{provider: string, endpoint: string, apiKey?: string, model?: string, temperature?: number}} cfg
  * @returns {Promise<{name: string|null, appId: number|null}|null>}
  */
-export async function askLlmForOfficialName(rawName, cfg) {
+async function askLlmForOfficialName(rawName, cfg) {
   const prompt = `你是 Steam 游戏数据库查询助手。根据下载站游戏标题找出对应的 Steam 官方游戏条目。
 规则：
 - 只返回 Steam 商店上真实存在的官方名称，优先英文原名（如 "Resident Evil Requiem"）

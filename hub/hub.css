@@ -99,19 +99,6 @@ body {
   margin-bottom: 8px;
   text-align: center;
 }
-.hub-btn {
-  width: 100%;
-  padding: 7px 10px;
-  border: 1px solid var(--gr-border);
-  border-radius: var(--gr-radius-sm);
-  background: transparent;
-  color: var(--gr-accent);
-  font-size: 12px;
-  cursor: pointer;
-}
-.hub-btn:hover {
-  background: rgba(102, 192, 244, 0.1);
-}
 
 /* ============ 内容区 ============ */
 .hub-content {

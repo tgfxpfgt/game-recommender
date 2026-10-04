@@ -41,7 +41,7 @@ export function dbg(msg) {
 }
 
 // 构建诊断视图 HTML / Build the debug-view HTML
-export function buildDebugHtml() {
+function buildDebugHtml() {
   const stateCls = (s) =>
     s.startsWith('✅')
       ? 'gr-debug-state-ok'
@@ -70,6 +70,6 @@ export function buildDebugHtml() {
 }
 
 // 在统一浮窗中刷新诊断视图（浮窗存在时）/ Refresh the debug view in the status bar
-export function refreshInBar() {
+function refreshInBar() {
   if (status) status.showDebugView(buildDebugHtml());
 }

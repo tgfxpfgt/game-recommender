@@ -18,10 +18,10 @@ import * as listState from './list-state.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
-export const STORE_KEY = 'xdgridSettings';
+const STORE_KEY = 'xdgridSettings';
 // 默认配置（iconW>0 固定图标宽、容器随列数加宽；iconW=0 自适应压缩；
 // iconH=0 保持站点原始封面比例）
-export const DEFAULTS = { enabled: false, cols: 5, iconW: 258, iconH: 0, gap: 18 };
+const DEFAULTS = { enabled: false, cols: 5, iconW: 258, iconH: 0, gap: 18 };
 // 站点容器左右内边距合计（xdgame .soft padding 18px × 2——框架宽度计算的
 // 历史基线，其他站点按需微调）
 const CONTAINER_PAD = 36;
@@ -30,14 +30,14 @@ const BTN_ID = 'gr-xdgrid-fab';
 // 列表项少于该值不做布局定制（详情页/内容过少页面无意义）
 const MIN_ITEMS = 3;
 
-export function clampInt(v, min, max, fallback) {
+function clampInt(v, min, max, fallback) {
   const n = parseInt(v, 10);
   if (isNaN(n)) return fallback;
   return Math.min(max, Math.max(min, n));
 }
 
 // 整体容器宽度（固定图标宽模式）/ container width for fixed-icon-width mode
-export function computeFrameWidth(cfg) {
+function computeFrameWidth(cfg) {
   const cols = clampInt(cfg.cols, 1, 20, DEFAULTS.cols);
   const iconW = clampInt(cfg.iconW, 0, 600, DEFAULTS.iconW);
   const gap = clampInt(cfg.gap, 0, 80, DEFAULTS.gap);
@@ -78,7 +78,7 @@ export function migrateLegacy(stored, host) {
 }
 
 // 设置读写（按站点）/ per-site settings I/O
-export async function loadAllSettings() {
+async function loadAllSettings() {
   try {
     const data = await chrome.storage.local.get(STORE_KEY);
     return migrateLegacy(data && data[STORE_KEY], common.getCurrentDomain());
@@ -87,7 +87,7 @@ export async function loadAllSettings() {
   }
 }
 
-export function saveAllSettings(all) {
+function saveAllSettings(all) {
   try {
     chrome.storage.local.set({ [STORE_KEY]: all }).catch(() => {});
   } catch {
@@ -132,7 +132,7 @@ export function commonAncestor(els) {
 
 // 应用布局：检测容器 + 施加 grid + 项内图片封面高度（返回应用到的容器）
 // Apply layout: detect container, apply grid + per-item cover height caps.
-export function applyLayout(cfg, items) {
+function applyLayout(cfg, items) {
   if (!cfg.enabled) return null;
   const list = (items || []).filter((it) => it && it.element);
   if (list.length < MIN_ITEMS) return null;

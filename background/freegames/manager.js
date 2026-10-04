@@ -536,7 +536,7 @@ export async function watchFavoritePrices() {
 
 // v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）
 // Resolve the active ITAD key (profiles first; legacy itadApiKey as fallback)
-export function activeItadKey(settings) {
+function activeItadKey(settings) {
   const profiles = Array.isArray(settings.itadProfiles) ? settings.itadProfiles : [];
   const active = profiles.find((p) => p && String(p.id) === String(settings.itadActiveProfileId));
   if (active && active.key) return active.key;

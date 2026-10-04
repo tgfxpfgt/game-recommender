@@ -22,11 +22,6 @@ const persist = createSessionPersist('grFlushHealth', {
   }
 });
 
-// 预热（SW 启动时调用）/ warm-up on SW start
-export async function warmupFlushHealth() {
-  await persist.load();
-}
-
 // 记录一次 flush 写失败 / Record one flush write failure
 export function recordFlushFailure(moduleName) {
   const counters = persist.peek();

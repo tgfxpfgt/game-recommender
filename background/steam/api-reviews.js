@@ -33,12 +33,12 @@ export function isFailedRatingEntry(cachedData) {
 // list refresh, which would amplify API rate limiting). 10→5 minutes since
 // v3.3.2: review growth happens over hours, so 5 minutes still stops refresh
 // storms while reflecting newly published reviews sooner.
-export const RATING_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
+const RATING_RETRY_COOLDOWN_MS = 5 * 60 * 1000;
 // v6.4.15：失败固化（3 次以上）的长冷却——Steam 限流/中国网络超时是暂时
 // 性的，永久不重试会让游戏永远显示 #appid；长冷却后允许重新尝试。
 // Long cooldown after the retry cap: transient rate-limits/timeouts must not
 // permanently freeze a game at "no rating".
-export const RATING_RETRY_LONG_COOLDOWN_MS = 60 * 60 * 1000;
+const RATING_RETRY_LONG_COOLDOWN_MS = 60 * 60 * 1000;
 
 // 详情页缓存数据完整性判定（v3.3.3）：详情页渲染需要的关键字段齐全才可
 // 直接命中缓存——列表页写入的轻量缓存（appId/name/好评率等 7 字段）不含
@@ -244,7 +244,7 @@ export async function fetchLastUpdate(appId) {
   }
 }
 
-export async function fetchChineseReviews(appId) {
+async function fetchChineseReviews(appId) {
   /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
   let cnReviewSummary = null;
   let chineseReviews = [];

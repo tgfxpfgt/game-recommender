@@ -128,7 +128,7 @@ export async function saveRatingFilterCfg(enabled, minRating) {
 }
 
 // 从当前设置刷新缓存 TTL 配置 / Refresh cache-TTL config from settings
-export async function refreshTtlConfig() {
+async function refreshTtlConfig() {
   try {
     const s = (await getSettings()) || { cacheTtls: {} };
     setTtlConfig(s.cacheTtls);

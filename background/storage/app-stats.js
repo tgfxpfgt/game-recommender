@@ -25,7 +25,7 @@ import { withLock } from '../core/mechanisms.js'; // v10.7.0：锁工厂
 // 上限（防无界膨胀；按 updatedAt 最旧淘汰——正常使用远达不到）
 const APP_STATS_MAX_ENTRIES = STORAGE_CAPS.appStats; // v10.7.0：单源 STORAGE_CAPS
 // v10.2.0：同站点去重窗口默认值（24h；v10.3.0 起可由 settings.appStatDedupHours 覆盖）
-export const DEDUP_WINDOW_MS = 24 * 3600 * 1000;
+const DEDUP_WINDOW_MS = 24 * 3600 * 1000;
 
 // v10.3.0：总开关（settings.appStatsEnabled，默认开）——关闭后不计数、
 // 徽章无数据不渲染、推荐信号回中性，互不影响其他功能
@@ -162,11 +162,6 @@ export function recordAppDownload(appId, siteKey) {
 // 记录一次详情页打开（跨站点分别计数）/ Record one detail-page open
 export function recordAppDetailView(appId, siteKey) {
   return incrementDeduped(appId, 'detailViews', siteKey);
-}
-
-// v10.0.0 预热（SW 启动时调用）/ warm-up on SW start
-export async function warmupAppStats() {
-  await load();
 }
 
 /**

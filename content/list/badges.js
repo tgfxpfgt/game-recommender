@@ -29,7 +29,7 @@ export function removeItemFromDom(item) {
  * @param {any} link
  * @param {{text: string, color: string, bg: string, cls: string, title: string, clickable?: boolean, appId?: any, dashed?: boolean, base?: string}} opts
  */
-export function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed, base }) {
+function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed, base }) {
   // v8.1.0：公共样式走 .gr-badge 基类（content.css）；动态颜色与变体类仍由调用方提供
   const badge = document.createElement('span');
   badge.className = (base || 'gr-badge gr-rating-badge') + ' ' + (cls || '');
@@ -51,7 +51,7 @@ export function createBadge(link, { text, color, bg, cls, title, clickable, appI
 
 // 批量插入徽章组（从后往前插保证从左到右顺序；标题元素优先，回退链接文本节点）
 // Insert a badge group (reverse-order insert keeps left-to-right order)
-export function insertBadges(item, link, badges) {
+function insertBadges(item, link, badges) {
   let targetEl = item.titleEl || null;
   if (!targetEl && item.element) {
     targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');

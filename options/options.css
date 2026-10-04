@@ -66,31 +66,6 @@ body {
   padding: 32px 0 24px;
 }
 
-.header-inner {
-  position: relative;
-  display: flex;
-  align-items: center;
-  gap: 18px;
-  padding: 24px 28px;
-  background: linear-gradient(135deg, #2a475e 0%, #1b2838 100%);
-  border-radius: var(--card-radius);
-  border: 1px solid rgba(102, 192, 244, 0.15);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  overflow: hidden;
-}
-
-.header-inner::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 2px;
-  background: linear-gradient(90deg, transparent, var(--steam-blue), transparent);
-}
-
 .header-logo {
   font-size: 38px;
   filter: drop-shadow(0 2px 8px rgba(102, 192, 244, 0.4));
@@ -109,31 +84,6 @@ body {
   margin-top: 2px;
   letter-spacing: 1px;
   text-transform: uppercase;
-}
-
-/* 头部提示文字 / Header hint text */
-.header-hint {
-  font-size: 11px;
-  color: var(--steam-text-muted);
-  margin-top: 4px;
-  opacity: 0.7;
-}
-
-/* 头部光晕装饰 / Header glow decoration */
-.header-glow {
-  position: absolute;
-  right: -40px;
-  top: -40px;
-  width: 160px;
-  height: 160px;
-  background: radial-gradient(circle, rgba(102, 192, 244, 0.18), transparent 70%);
-  pointer-events: none;
-}
-
-/* ==================== 主容器 / Main Container ==================== */
-.options-container {
-  max-width: 800px;
-  margin: 0 auto;
 }
 
 /* ==================== 卡片分区 / Settings Section ==================== */
@@ -728,38 +678,9 @@ input[type='number']::-webkit-outer-spin-button {
   padding-top: 8px;
 }
 
-.data-btn {
-  flex: 1;
-  min-width: 130px;
-}
-
 /* 隐藏的文件输入 / Hidden file input */
 .hidden-file {
   display: none;
-}
-
-/* ==================== 固定保存栏 / Fixed Save Bar ==================== */
-.save-bar-fixed {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  z-index: 100;
-  background: linear-gradient(180deg, rgba(23, 26, 33, 0.85), rgba(23, 26, 33, 0.98));
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border-top: 1px solid rgba(102, 192, 244, 0.2);
-  box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
-}
-
-.save-bar-inner {
-  max-width: 800px;
-  margin: 0 auto;
-  padding: 14px 20px;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
 }
 
 /* 保存状态提示 / Save status text */
@@ -784,62 +705,6 @@ input[type='number']::-webkit-outer-spin-button {
 
 .save-status:empty {
   margin-right: 0;
-}
-
-/* ==================== 标签页导航 / Tab Navigation ==================== */
-.tab-nav {
-  max-width: 800px;
-  margin: 0 auto 20px;
-  display: flex;
-  gap: 8px;
-  padding: 0 4px;
-}
-
-.tab-btn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  padding: 12px 16px;
-  background: var(--steam-dark);
-  border: 1px solid rgba(102, 192, 244, 0.1);
-  border-radius: var(--card-radius) var(--card-radius) 0 0;
-  color: var(--steam-text-muted);
-  cursor: pointer;
-  transition: var(--transition);
-  font-family: inherit;
-}
-
-.tab-btn:hover {
-  background: var(--steam-medium);
-  color: var(--steam-text);
-  border-color: rgba(102, 192, 244, 0.3);
-}
-
-.tab-btn.active {
-  background: linear-gradient(135deg, var(--steam-medium) 0%, var(--steam-dark) 100%);
-  color: var(--steam-blue);
-  border-color: var(--steam-blue);
-  border-bottom-color: transparent;
-}
-
-.tab-icon {
-  font-size: 20px;
-}
-
-.tab-en {
-  font-size: 10px;
-  opacity: 0.6;
-}
-
-/* 标签页面板 / Tab panels */
-.tab-panel {
-  display: none;
-}
-
-.tab-panel.active {
-  display: block;
 }
 
 /* ==================== 游戏缓存管理 / Game Cache Management ==================== */
@@ -1154,22 +1019,6 @@ input[type='number']::-webkit-outer-spin-button {
 }
 .data-op-status.error {
   color: var(--steam-red);
-}
-
-/* Steam 详情页检索站点勾选 / Steam-page site search checkboxes */
-.site-check-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px 18px;
-}
-
-.site-check-item {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 13px;
-  cursor: pointer;
-  color: var(--steam-text);
 }
 
 /* 分页 / Pagination */
@@ -1850,9 +1699,6 @@ tr:hover td {
   width: 100%;
   padding: 5px 8px;
   font-size: 12px;
-}
-.settings-panel.search-hit {
-  box-shadow: inset 0 0 0 1px rgba(102, 192, 244, 0.35);
 }
 
 /* ============ 带鱼屏适配（v9.2.0：超宽屏布局扩展） ============ */

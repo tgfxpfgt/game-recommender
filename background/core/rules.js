@@ -90,7 +90,7 @@ const RULE_LIMITS = {
 // 拒绝通配符/协议/路径/端口/空）。
 // Bare-hostname validator: imported domains become chrome.scripting match
 // patterns, so wildcards / scheme / path must be rejected (fleet-level guard).
-export const SITE_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+const SITE_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i;
 export function isValidSiteDomain(d) {
   return typeof d === 'string' && d.length > 0 && d.length <= RULE_LIMITS.maxFieldLen && SITE_DOMAIN_RE.test(d);
 }

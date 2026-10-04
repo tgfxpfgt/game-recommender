@@ -46,8 +46,3 @@ export async function toggleFavorite(appId, name, releaseDate) {
   await dataStore.writeModule(DB_KEYS.FAVORITES, favorites);
   return { favorited: true };
 }
-
-// 重置（清除数据用）/ reset
-export async function resetFavorites() {
-  await dataStore.removeModule(DB_KEYS.FAVORITES).catch(() => {});
-}

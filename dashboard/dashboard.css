@@ -99,18 +99,6 @@ body {
   display: inline-block;
 }
 
-/* ============ 图表 ============ */
-.svgbox {
-  background: var(--gr-panel-2);
-  border-radius: var(--gr-radius-sm);
-  padding: 12px;
-  margin-top: 8px;
-}
-.svgbox svg {
-  max-width: 100%;
-  height: auto;
-}
-
 /* ============ 表格（Steam 列表风格） ============ */
 table {
   width: 100%;

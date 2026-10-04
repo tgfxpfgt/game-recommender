@@ -314,15 +314,11 @@ export function resolveTtlMs(key, value) {
 }
 
 // 各缓存类型的有效期（毫秒；0 配置 = Infinity 长期有效）
+// v14 B4：仅保留有直接消费方的 TTL——steamCacheTtlMs 为 moduleTtlMs 的未知
+// 模块兜底，与 MODULE_TTL_KEYS 一并保留（steam-cache.js 间接消费）
 export const steamCacheTtlMs = () => resolveTtlMs('steamDynamic', TTL_CONFIG.steamDynamic);
-// 详情页完整缓存有效期（v3.3.3 独立设置：详情信息变化慢，TTL 可比列表页长；
-// 列表页好评率缓存保持 steamDynamic 的新鲜度）
+// 详情页完整缓存有效期（v3.3.3 独立设置：详情信息变化慢，TTL 可比列表页长）
 export const detailSteamCacheTtlMs = () => resolveTtlMs('detailSteam', TTL_CONFIG.detailSteam);
-// SteamSpy/SteamDB 补充数据有效期（v3.3.7：spy 模块独立刷新）
-export const spySteamCacheTtlMs = () => resolveTtlMs('spySteam', TTL_CONFIG.spySteam);
-// Steam 基础信息有效期（v3.3.7：meta 模块，名称/类型/封面几乎不变）
-export const metaSteamCacheTtlMs = () => resolveTtlMs('metaSteam', TTL_CONFIG.metaSteam);
-export const registryConfirmTtlMs = () => resolveTtlMs('registryConfirm', TTL_CONFIG.registryConfirm);
 export const nameNegativeCacheTtlMs = () => resolveTtlMs('negativeCache', TTL_CONFIG.negativeCache);
 
 // 缓存模块 → TTL 配置 key 映射（v3.3.7 模块化缓存）
@@ -345,10 +341,6 @@ export function moduleTtlMs(moduleKey) {
 export const STEAM_CACHE_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounced write
 // 最大条目数（控制配额占用）
 export const STEAM_CACHE_MAX_ENTRIES = 1200;
-
-// Steam 缓存结构版本（匹配逻辑变更时递增，使旧缓存自动失效）
-// v3.3.6：新增 recentPositiveRate/recentTotalReviews/lastUpdate 字段
-export const STEAM_CACHE_VERSION = 6;
 
 // 名称索引/注册表写参数 / Name-index & registry write params
 export const NAME_INDEX_WRITE_DEBOUNCE = 2000;
