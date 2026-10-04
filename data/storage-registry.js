@@ -17,7 +17,7 @@
  * here + its business file. Lives in data/ (bottom layer, no bg imports).
  */
 
-/** @type {Object<string, {file: string, format: 'json'|'ndjson', name?: string, desc?: string, backup?: boolean, clearOnDataReset?: boolean, legacy?: boolean}>} */
+/** @type {Object<string, {file: string, format: 'json'|'ndjson'|'ndjson-map', name?: string, desc?: string, backup?: boolean, clearOnDataReset?: boolean, legacy?: boolean}>} */
 export const STORAGE_MODULES = {
   settings: { file: 'settings.json', format: 'json', name: '扩展配置', desc: 'Settings', backup: true },
   behaviorLog: {
@@ -53,7 +53,10 @@ export const STORAGE_MODULES = {
   }, // v10.6.0 C1 分模块
   steamCacheRating: {
     file: 'steam-cache-rating.json',
-    format: 'json',
+    // v14 B7：追加式行格式（每行 {key, value}，读端逐行合并 = 最新胜出）——
+    // flush 只追加脏条目行，行数超 2×活跃条目数时 compaction 全量重写；
+    // 旧 JSON 全量对象首读自动迁移（文件名不变，内容原位转换）
+    format: 'ndjson-map',
     name: 'Steam 好评率缓存',
     desc: 'Steam Rating Cache',
     clearOnDataReset: true

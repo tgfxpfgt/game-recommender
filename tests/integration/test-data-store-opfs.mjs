@@ -141,3 +141,71 @@ test('未知模块键 writeModule/readModule 安全', async () => {
   await dataStore.writeModule('__nope__', 1);
   expect(await dataStore.readModule('__nope__')).toEqual(undefined);
 });
+
+// ============ v14 B7：ndjson-map（steam-cache rating 追加式落盘） ============
+test('ndjson-map：旧 JSON 全量对象首读自动迁移为行格式', async () => {
+  fake.files.set('steam-cache-rating.json', JSON.stringify({ 100: { data: { positiveRate: 90 }, ts: 123 } }));
+  const map = await dataStore.readModule('steamCacheRating');
+  expect(map['100'].data.positiveRate).toEqual(90);
+  // 原位迁移：文件已重写为 {key, value} 行格式
+  expect(fake.files.get('steam-cache-rating.json')).toContain('"key":"100"');
+  // 二次读取（行格式路径）结果一致
+  const map2 = await dataStore.readModule('steamCacheRating');
+  expect(map2['100'].data.positiveRate).toEqual(90);
+});
+
+test('ndjson-map：appendModuleEntries 追加累积 + 同键后行覆盖先行', async () => {
+  await dataStore.removeModule('steamCacheRating');
+  await dataStore.appendModuleEntries('steamCacheRating', [
+    { key: '200', value: { data: { positiveRate: 80 }, ts: 1 } },
+    { key: '300', value: { data: { positiveRate: 70 }, ts: 1 } }
+  ]);
+  await dataStore.appendModuleEntries('steamCacheRating', [
+    { key: '200', value: { data: { positiveRate: 85 }, ts: 2 } }
+  ]);
+  const map = await dataStore.readModule('steamCacheRating');
+  expect(map['200'].data.positiveRate).toEqual(85); // 后行覆盖先行 = 最新胜出
+  expect(map['300'].data.positiveRate).toEqual(70);
+  const lines = fake.files.get('steam-cache-rating.json').split('\n').filter(Boolean);
+  expect(lines.length).toEqual(3); // 追加不重写：3 行（原 2 + 追加 1）
+});
+
+test('ndjson-map：损坏行跳过，其余数据存活', async () => {
+  await dataStore.removeModule('steamCacheRating');
+  fake.files.set(
+    'steam-cache-rating.json',
+    '{"key":"400","value":{"data":{"positiveRate":10},"ts":1}}\n{broken json\n'
+  );
+  const map = await dataStore.readModule('steamCacheRating');
+  expect(map['400'].data.positiveRate).toEqual(10);
+  expect(map['broken json']).toEqual(undefined);
+});
+
+test('v14 B7：steam-cache rating 追加落盘 + compaction + 删除重写', async () => {
+  const sc = await import(new URL('../../background/storage/steam-cache.js', import.meta.url).href);
+  sc.resetSteamCache();
+  await dataStore.removeModule('steamCacheRating');
+  await sc.loadSteamCacheToMemory();
+  // 3 条目基线：首次 flush 追加建文件 = 3 行
+  for (const id of ['1', '2', '3']) await sc.setSteamCacheEntry(id, { positiveRate: 50 });
+  await sc.flushSteamCache();
+  const lineCount = () => fake.files.get('steam-cache-rating.json').split('\n').filter(Boolean).length;
+  expect(lineCount()).toEqual(3);
+  // 同条目反复更新：行数超 2×活跃条目数（>6）→ compaction 重写回活跃数
+  for (let i = 0; i < 8; i++) {
+    await sc.setSteamCacheEntry('1', { positiveRate: 50 + i });
+    await sc.flushSteamCache();
+  }
+  // 阈值穿越的瞬态最多超 1 行（append 判定在写前）：行数有界
+  expect(lineCount()).toBeLessThanOrEqual(2 * 3 + 1);
+  const map = await dataStore.readModule('steamCacheRating');
+  expect(map['1'].data.positiveRate).toEqual(57); // 数据正确（最新胜出）
+  expect(map['2']).toBeTruthy();
+  // 删除 → append 无法表达删除 → 整体重写，条目消失
+  await sc.deleteSteamCacheEntry('2');
+  await sc.flushSteamCache();
+  const map2 = await dataStore.readModule('steamCacheRating');
+  expect(map2['2']).toEqual(undefined);
+  expect(map2['1']).toBeTruthy();
+  expect(map2['3']).toBeTruthy();
+});

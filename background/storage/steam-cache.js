@@ -94,6 +94,12 @@ const CACHE_PART_KEYS = {
 const CACHE_PART_NAMES = Object.keys(CACHE_PART_KEYS);
 const dirtyModules = new Set();
 let legacyMigrated = false; // 旧单文件已拆分（拆分完成后删除旧文件）
+// v14 B7：rating 模块追加式落盘——flush 只追加脏条目行（每行 {key, value}），
+// 行数超 2×活跃条目数或发生删除/清理/迁移时整体重写（compaction）
+let ratingLineCount = 0; // 文件中的 rating 行数（追加累计，重写后重置为活跃数）
+let ratingFullRewrite = false; // 需要整体重写（删除/清理/迁移/compaction）
+/** @type {Map<string, {data: Object, ts: number}>} */
+const dirtyRatingEntries = new Map(); // 本轮脏 rating 条目（追加成功后清空）
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
 // Is one module valid? (exists and not past its own TTL)
@@ -160,6 +166,7 @@ export async function loadSteamCacheToMemory() {
   CACHE_PART_NAMES.forEach((m, i) => {
     const part = parts[i];
     if (!part || typeof part !== 'object') return;
+    if (m === 'rating') ratingLineCount = Object.keys(part).length; // v14 B7
     for (const [key, mod] of Object.entries(part)) {
       if (!mod || !mod.data) continue;
       const entry = steamCacheMemory.get(String(key)) || { modules: {} };
@@ -185,6 +192,7 @@ export async function loadSteamCacheToMemory() {
       }
       legacyMigrated = true;
       steamCacheDirty = true;
+      ratingFullRewrite = true; // v14 B7：迁移条目需整体重写进新格式
       CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m));
       writer.scheduleWrite(); // 拆分结果尽快落盘（flush 成功后删除旧文件）
     }
@@ -285,6 +293,10 @@ export async function setSteamCacheEntry(cacheKey, data) {
   steamCacheMemory.set(cacheKey, { modules: nextModules });
   // v10.6.0 C1：记录脏模块（flush 只写脏模块文件）
   for (const key of Object.keys(nextModules)) dirtyModules.add(key);
+  // v14 B7：rating 脏条目单独记录（追加式落盘——只写本轮触碰的条目行）
+  if (nextModules.rating && nextModules.rating.ts === now) {
+    dirtyRatingEntries.set(cacheKey, nextModules.rating);
+  }
   scheduleSteamCacheWrite();
 }
 
@@ -316,7 +328,24 @@ export async function flushSteamCache() {
         const mod = entry.modules && entry.modules[m];
         if (mod && mod.data) subset[id] = mod; // {data, ts}
       }
-      await dataStore.writeModule(CACHE_PART_KEYS[m], subset);
+      // v14 B7：rating 追加式落盘——无重写需求且未超 compaction 阈值（行数
+      // ≤ 2×活跃条目数）时只追加本轮脏条目行；否则整体重写并重置行数
+      if (m === 'rating' && !ratingFullRewrite && ratingLineCount <= 2 * Object.keys(subset).length) {
+        const entries = [];
+        for (const [id, mod] of dirtyRatingEntries) {
+          if (subset[id]) entries.push({ key: id, value: mod }); // 已被清理的条目跳过
+        }
+        if (entries.length > 0) {
+          await dataStore.appendModuleEntries(CACHE_PART_KEYS.rating, entries);
+          ratingLineCount += entries.length;
+        }
+      } else {
+        await dataStore.writeModule(CACHE_PART_KEYS[m], subset);
+        if (m === 'rating') {
+          ratingLineCount = Object.keys(subset).length; // compaction：行数 = 活跃条目数
+          ratingFullRewrite = false;
+        }
+      }
     }
     // 拆分迁移完成：删除旧单文件（一次性）
     if (legacyMigrated) {
@@ -324,6 +353,7 @@ export async function flushSteamCache() {
       legacyMigrated = false;
     }
     dirtyModules.clear();
+    dirtyRatingEntries.clear();
   } catch (e) {
     // v9.7.0：写失败回滚 dirty 并重新调度——此前 dirty 已清零，本批修改
     // 会随 SW 死亡静默丢失且永不重试（参照 logger.js flushLogBuffer 的回滚）
@@ -341,8 +371,17 @@ export async function flushSteamCache() {
 function cleanupSteamCacheMemory() {
   if (!steamCacheMemory) return;
   const now = Date.now();
+  const purge = (key, entry) => {
+    // v14 B7：被清理条目的模块文件需同步移除——标记相关模块重写（追加式
+    // rating 尤其如此：append 无法表达删除，不标记会复活僵尸条目）
+    for (const m of Object.keys(entry.modules || {})) {
+      dirtyModules.add(m);
+      if (m === 'rating') ratingFullRewrite = true;
+    }
+    steamCacheMemory.delete(key);
+  };
   for (const [key, entry] of steamCacheMemory) {
-    if (allModulesExpired(entry, now)) steamCacheMemory.delete(key);
+    if (allModulesExpired(entry, now)) purge(key, entry);
   }
   if (steamCacheMemory.size > STEAM_CACHE_MAX_ENTRIES) {
     const entries = [...steamCacheMemory.entries()].sort((a, b) => {
@@ -352,7 +391,7 @@ function cleanupSteamCacheMemory() {
     });
     const toRemove = steamCacheMemory.size - STEAM_CACHE_MAX_ENTRIES;
     for (let i = 0; i < toRemove; i++) {
-      steamCacheMemory.delete(entries[i][0]);
+      purge(entries[i][0], entries[i][1]);
     }
   }
 }
@@ -379,6 +418,8 @@ export async function deleteSteamCacheEntry(appId) {
   if (steamCacheMemory && steamCacheMemory.delete(String(appId))) {
     steamCacheDirty = true; // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
     CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m)); // v10.6.0：条目从所有模块文件移除
+    ratingFullRewrite = true; // v14 B7：append 无法表达删除 → 整体重写
+    dirtyRatingEntries.delete(String(appId));
   }
 }
 
@@ -389,4 +430,7 @@ export function resetSteamCache() {
   steamCacheDirty = false;
   dirtyModules.clear();
   legacyMigrated = false;
+  ratingLineCount = 0;
+  ratingFullRewrite = false;
+  dirtyRatingEntries.clear();
 }

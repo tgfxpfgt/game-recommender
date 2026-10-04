@@ -127,7 +127,12 @@ class DataStore {
   // silent no-op on existing targets in Chromium; corruption is handled by the
   // read-side backup-and-reset recovery.
   async _writeHandle(fileHandle, value, format) {
-    const text = format === 'ndjson' ? NDJSON.encode(value) : JSON.stringify(value);
+    let text;
+    if (format === 'ndjson') text = NDJSON.encode(value);
+    else if (format === 'ndjson-map') {
+      // v14 B7：键值映射 → 逐行 {key, value}（追加式落盘格式）
+      text = NDJSON.encode(Object.entries(value || {}).map(([key, v]) => ({ key, value: v })));
+    } else text = JSON.stringify(value);
     const writable = await fileHandle.createWritable();
     await writable.write(text);
     await writable.close();
@@ -164,12 +169,27 @@ class DataStore {
     await writable.close();
   }
 
-  async _readHandle(fileHandle, format) {
+  async _readHandle(fileHandle, format, moduleKey) {
     const file = await fileHandle.getFile();
-    if (file.size === 0) return format === 'ndjson' ? [] : null;
+    if (file.size === 0) return format === 'ndjson' ? [] : format === 'ndjson-map' ? {} : null;
     const text = await file.text();
     try {
-      return format === 'ndjson' ? NDJSON.decode(text) : JSON.parse(text);
+      if (format === 'ndjson') return NDJSON.decode(text);
+      if (format === 'ndjson-map') {
+        const { map, legacy } = this._parseMapText(text);
+        // v14 B7：旧 JSON 全量对象 → 原位重写为 ndjson 行（失败下次首读再试）
+        if (legacy && moduleKey) {
+          await this._serialize(moduleKey, async () => {
+            try {
+              await this._writeHandle(fileHandle, map, 'ndjson-map');
+            } catch {
+              /* 迁移重写失败不影响本次读取 */
+            }
+          });
+        }
+        return map;
+      }
+      return JSON.parse(text);
     } catch (e) {
       // v3.4.1：损坏数据备份后重置为默认值（JSON 解析失败才走恢复路径；
       // NDJSON 内部已跳过损坏行）
@@ -180,8 +200,36 @@ class DataStore {
       } catch {
         /* 重置失败下次再试 */
       }
-      return format === 'ndjson' ? [] : null;
+      return format === 'ndjson' ? [] : format === 'ndjson-map' ? {} : null;
     }
+  }
+
+  // v14 B7：ndjson-map 文本解析（旧 JSON 全量对象与行格式自适应）
+  // 单行 JSON：旧行为 JSON.stringify 无尾换行——无 {key,value} 包装 = 旧全量对象
+  // 多行：ndjson 行格式（逐行 {key, value}，损坏行跳过，后行覆盖先行 = 最新胜出）
+  _parseMapText(text) {
+    const t = String(text || '').trim();
+    if (t.startsWith('{')) {
+      try {
+        // 单行 JSON 自适应：旧行为 JSON.stringify 无尾换行——{key,value} 包装 =
+        // 单行 ndjson；否则为旧全量对象（多行合法 JSON 不存在：写入恒为紧凑单行）
+        const parsed = JSON.parse(t);
+        const wrapper = parsed !== null && typeof parsed === 'object' && 'key' in parsed && 'value' in parsed;
+        if (wrapper) {
+          const w = /** @type {{key: string, value: Object}} */ (parsed);
+          return { map: { [w.key]: w.value }, legacy: false };
+        }
+        if (!t.includes('\n')) return { map: parsed, legacy: true };
+      } catch {
+        /* 多行 ndjson 或坏行 → 走行解码 */
+      }
+    }
+    const map = {};
+    for (const line of NDJSON.decode(text)) {
+      const entry = /** @type {{key?: string, value?: Object}} */ (line);
+      if (entry && entry.key !== undefined) map[String(entry.key)] = entry.value;
+    }
+    return { map, legacy: false };
   }
 
   // 读取模块：OPFS 优先，文件不存在时回退 storage.local（旧数据）
@@ -193,7 +241,7 @@ class DataStore {
     if (this.opfsAvailable) {
       try {
         const handle = await this.dir.getFileHandle(cfg.file, { create: false });
-        return await this._readHandle(handle, cfg.format);
+        return await this._readHandle(handle, cfg.format, moduleKey);
       } catch (e) {
         const err = /** @type {{name?: string}} */ (e);
         if (err && err.name === 'NotFoundError') {
@@ -221,7 +269,12 @@ class DataStore {
       const tmpFile = await tmpHandle.getFile();
       if (tmpFile.size === 0) return undefined;
       const text = await tmpFile.text();
-      const value = cfg.format === 'ndjson' ? NDJSON.decode(text) : JSON.parse(text);
+      const value =
+        cfg.format === 'ndjson'
+          ? NDJSON.decode(text)
+          : cfg.format === 'ndjson-map'
+            ? this._parseMapText(text).map
+            : JSON.parse(text);
       if (value !== null && value !== undefined) {
         // 救援成功后把数据写回正确位置（此后读取走正常路径）
         const target = await this.dir.getFileHandle(cfg.file, { create: true });
@@ -297,6 +350,49 @@ class DataStore {
       const list = stored[moduleKey] || [];
       list.push(entry);
       await chrome.storage.local.set({ [moduleKey]: list });
+    });
+  }
+
+  // v14 B7：批量追加键值行（仅 ndjson-map 模块）——追加式落盘只写脏键，
+  // 读端逐行合并（后行覆盖先行 = 最新胜出）；降级路径读-改-写同语义
+  // Append {key, value} lines (ndjson-map modules only): appends only dirty
+  // keys; fallback does a read-modify-write with identical merge semantics.
+  async appendModuleEntries(moduleKey, entries) {
+    await this.init();
+    const cfg = MODULE_FILES[moduleKey];
+    if (!cfg || cfg.format !== 'ndjson-map' || !entries || entries.length === 0) return;
+    const text = entries.map((e) => JSON.stringify({ key: e.key, value: e.value })).join('\n');
+    return this._serialize(moduleKey, async () => {
+      if (this.opfsAvailable) {
+        try {
+          const handle = await this.dir.getFileHandle(cfg.file, { create: true });
+          const file = await handle.getFile();
+          const prefix = file.size > 0 ? '\n' : '';
+          const writable = await handle.createWritable({ keepExistingData: true });
+          await writable.write({ type: 'write', position: file.size, data: prefix + text });
+          await writable.close();
+          if (writeMetricsHook) {
+            try {
+              writeMetricsHook(handle.name, prefix.length + text.length);
+            } catch {
+              /* 指标失败不影响写入 */
+            }
+          }
+          return;
+        } catch (e) {
+          console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, String(e));
+          // v9.7.0：同 writeModule——降级前移除 OPFS 旧文件防两后端脑裂
+          try {
+            await this.dir.removeEntry(cfg.file);
+          } catch {
+            /* ignore */
+          }
+        }
+      }
+      const stored = await chrome.storage.local.get(moduleKey);
+      const map = stored[moduleKey] || {};
+      for (const e of entries) map[String(e.key)] = e.value;
+      await chrome.storage.local.set({ [moduleKey]: map });
     });
   }
 
