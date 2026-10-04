@@ -104,6 +104,7 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
     return detailData[appId].data;
   } catch {
     recordSteamCall(false, 0);
+    recordDomainCall('store', false); // v14.1.0：网络失败计入 store 域熔断
     return null;
   }
 }
@@ -116,6 +117,8 @@ export async function fetchStorePageHtml(appId) {
     const resp = await fetchWithTimeout(storePageUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
     return await resp.text();
   } catch (e) {
+    recordSteamCall(false, 0); // v14.1.0：网络失败计入限流统计（此前完全不可见）
+    recordDomainCall('store', false); // v14.1.0：计入 store 域熔断
     Logger.debug('Steam', '获取商店页面失败:', String(e));
     return '';
   }

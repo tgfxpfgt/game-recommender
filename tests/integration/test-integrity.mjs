@@ -28,6 +28,7 @@ function layerOf(relPath) {
   if (p.startsWith('../data/')) return 'data';
   if (p.startsWith('../lib/')) return 'lib';
   if (p.startsWith('../adapters/')) return 'adapters';
+  if (p.startsWith('../shared/')) return 'shared'; // v14.1.0：SW 消费共享纯工具（msg.js 错误归一）
   if (p === 'service-worker.js') return 'entry';
   if (p === 'handlers.js' || p.startsWith('handlers/')) return 'handlers'; // v5.0.0：handlers/ 子目录
   const first = p.split('/')[0];
@@ -42,10 +43,12 @@ const ALLOWED = {
   core: new Set(['core', 'data', 'lib']),
   storage: new Set(['storage', 'core', 'data', 'lib']),
   biz: new Set(['biz', 'storage', 'core', 'data', 'lib']),
-  handlers: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry']),
-  entry: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry']),
+  // v14.1.0：handlers/entry 允许 → shared（msg.js 统一错误归一，SW 侧经 global 消费）
+  handlers: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry', 'shared']),
+  entry: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry', 'shared']),
   data: new Set(['data', 'lib']),
   lib: new Set(['lib']),
+  shared: new Set(['lib']),
   adapters: new Set(['entry'])
 };
 
@@ -97,6 +100,7 @@ const LAYER_LABELS = {
   entry: 'service-worker(入口)',
   data: 'data(OPFS)',
   lib: 'lib(工具)',
+  shared: 'shared(跨侧共享)',
   adapters: 'adapters(站点规则)'
 };
 if (process.argv.includes('--print')) {

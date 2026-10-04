@@ -299,7 +299,6 @@ function buildUI(all, host, cfg) {
       </div>
     `;
   document.body.appendChild(panel);
-  document.body.appendChild(panel);
 
   const $ = (name) => panel.querySelector(`[data-xg="${name}"]`);
 
@@ -452,12 +451,17 @@ function buildUI(all, host, cfg) {
     /* ignore */
   }
   // 回显持久化模式（面板打开时重放；none/未设置不重放）
+  // v14.1.0：等待批次空闲后再重放——此前 buildUI 即刻重放，评分任务尚在加载
+  // （可排序项 < 2）时重放落空，持久化的排序在刷新后静默丢失。
   try {
     chrome.storage.local
       .get(sortKey)
-      .then((d) => {
+      .then(async (d) => {
         const saved = d && d[sortKey];
-        if (saved && saved !== 'none') applySort(saved, false);
+        if (!saved || saved === 'none') return;
+        const idle = await listState.waitForBatchIdle(60000);
+        if (!idle) return; // 超时放弃（数据未就绪时强排无意义）
+        applySort(saved, false);
       })
       .catch(() => {});
   } catch {

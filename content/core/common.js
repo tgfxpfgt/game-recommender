@@ -84,6 +84,18 @@ function trackEvent(type, data) {
   }
 }
 
+// v14.1.0：页面卸载兜底——500ms 窗口内未发出的行为事件在页面离开前补发
+//（pagehide 覆盖关闭/跳转；visibilitychange=hidden 覆盖切后台/最小化）。
+// Unload safety net: flush events still inside the 500ms batch window.
+try {
+  window.addEventListener('pagehide', flushTrackBatch);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') flushTrackBatch();
+  });
+} catch {
+  /* 非 DOM 环境（单测）忽略 / non-DOM env (unit tests) */
+}
+
 // 记录下载站详情页访问（写入下载站网址缓存并更新"上次调用"时间）
 // Record a detail-page visit (writes the URL cache + lastAccessed)
 function trackDownloadSiteVisit(appId, gameName) {

@@ -9,6 +9,10 @@ import { getSteam250Info } from '../steam/steam250.js';
 import { getFavorites } from '../storage/favorites.js';
 import { fetchSteamTagRecommendations } from '../steam/api-search.js';
 import { Logger } from '../storage/logger.js';
+import '../../shared/msg.js'; // v14.1.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
+
+// v14.1.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
+const { toUserMessage } = /** @type {any} */ (globalThis).__GR_MSG__;
 
 /**
  * 游戏雷达 Game Radar - 消息处理：统计与趋势 / Stats Handlers
@@ -109,7 +113,7 @@ export async function handleGetSteamRecommendations() {
     return { games: recGames, basedOnTags: topTags };
   } catch (e) {
     Logger.error('Steam', '标签推荐失败', String(e));
-    return { games: [], error: '获取Steam推荐失败: ' + String(e) };
+    return { games: [], error: '获取Steam推荐失败: ' + toUserMessage(e) };
   }
 }
 

@@ -10,6 +10,10 @@
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { getSettings } from '../core/settings.js';
+import '../../shared/msg.js'; // v14.1.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
+
+// v14.1.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
+const { toUserMessage } = /** @type {any} */ (globalThis).__GR_MSG__;
 
 export async function handleFetchImageDataUrl(message) {
   const url = String((message && message.url) || '');
@@ -33,7 +37,7 @@ export async function handleFetchImageDataUrl(message) {
     }
     return { success: true, dataUrl: 'data:' + type + ';base64,' + btoa(binary) };
   } catch (e) {
-    return { success: false, error: String(e) };
+    return { success: false, error: toUserMessage(e) };
   }
 }
 

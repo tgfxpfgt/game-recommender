@@ -89,7 +89,10 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   } else {
     spyBody = `<div class="gr-detail-muted">SteamSpy 数据暂不可用（站点可能启用了人机验证）</div>`;
   }
-  spyHtml = `
+  spyHtml =
+    mods.spy === false
+      ? ''
+      : `
       <div class="gr-detail-spy">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <span style="font-size:12px;font-weight:bold;color:#fff;">📊 SteamSpy</span>

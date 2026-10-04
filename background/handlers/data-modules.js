@@ -5,6 +5,10 @@ import { createBackup, getBackupList, restoreBackup, deleteBackup } from '../sto
 import { Logger } from '../storage/logger.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
 import { resetSteam250 } from '../steam/steam250.js'; // v10.4.4：榜单快照重置（storage 层不能反向 import steam，故在业务层调用）
+import '../../shared/msg.js'; // v14.1.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
+
+// v14.1.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
+const { toUserMessage } = /** @type {any} */ (globalThis).__GR_MSG__;
 
 /**
  * 游戏雷达 Game Radar - 消息处理：数据模块与备份 / Data-Module Handlers
@@ -116,7 +120,7 @@ export async function handleImportData(message) {
     return { success: true, imported };
   } catch (e) {
     Logger.error('Import', '导入失败', String(e));
-    return { success: false, error: String(e) };
+    return { success: false, error: toUserMessage(e) };
   }
 }
 

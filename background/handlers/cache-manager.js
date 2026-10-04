@@ -4,6 +4,10 @@ import { flushAllCaches } from '../storage/flush.js';
 import { DB_KEYS, resolveTtlMs } from '../core/constants.js';
 import { getDownloadSites } from '../core/rules.js';
 import { getSettings } from '../core/settings.js';
+import '../../shared/msg.js'; // v14.1.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
+
+// v14.1.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
+const { toUserMessage } = /** @type {any} */ (globalThis).__GR_MSG__;
 import { computeGameScore, findProfile, steamspyScores } from '../recommend/engine.js';
 import { searchDownloadSites } from '../sites/search.js';
 import { fetchSteamFullDetailsByAppId } from '../steam/api.js';
@@ -335,7 +339,7 @@ export async function handleRefreshGameCacheEntry(message) {
     };
   } catch (e) {
     Logger.error('Cache', `手动刷新缓存条目失败: ${String(e)}`);
-    return { success: false, error: String(e) };
+    return { success: false, error: toUserMessage(e) };
   }
 }
 

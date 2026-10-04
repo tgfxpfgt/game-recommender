@@ -291,6 +291,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
         cnData = await resp.json();
       } catch {
         recordSteamCall(false, 0); /* 中文搜索失败不阻断流程 */
+        recordDomainCall('store', false); // v14.1.0：网络失败计入 store 域熔断
       }
     }
 
@@ -474,6 +475,8 @@ async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = 
     if (!best || best.score < 1) return null;
     return { appId: best.item.id, name: best.item.name, englishName: best.item.name };
   } catch {
+    recordSteamCall(false, 0); // v14.1.0：网络失败计入限流统计（此前完全不可见）
+    recordDomainCall('store', false); // v14.1.0：计入 store 域熔断
     return null;
   }
 }

@@ -179,6 +179,7 @@ export async function fetchReviewSummary(appId) {
       }
     } catch {
       recordSteamCall(false, 0); // 重试一次 / retry once
+      recordDomainCall('store', false); // v14.1.0：网络失败计入 store 域熔断
     }
   }
   return null;
@@ -220,6 +221,9 @@ export async function fetchLastUpdate(appId) {
       {},
       4000
     );
+    // v14.1.0：api 域可达性上报（此前 api 域恒为 unknown）——只记 domain 不记
+    // recordSteamCall：全局失败率会因大陆常态不可达而恒报警，误触发批量降速
+    recordDomainCall('api', resp.ok);
     if (!resp.ok) {
       lastUpdateCache.set(key, null);
       return null;
@@ -239,6 +243,7 @@ export async function fetchLastUpdate(appId) {
     lastUpdateCache.set(key, out);
     return out;
   } catch {
+    recordDomainCall('api', false); // v14.1.0：网络失败计入 api 域熔断
     lastUpdateCache.set(key, null);
     return null;
   }
@@ -274,6 +279,8 @@ async function fetchChineseReviews(appId) {
       }
     }
   } catch (e) {
+    recordSteamCall(false, 0); // v14.1.0：网络失败计入限流统计（与 fetchReviewSummary 对齐）
+    recordDomainCall('store', false); // v14.1.0：计入 store 域熔断
     Logger.debug('Steam', '获取中文评价失败:', String(e));
   }
   return { cnReviewSummary, chineseReviews };

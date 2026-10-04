@@ -296,6 +296,51 @@ node --check options/options.js
 
 ## 更新日志
 
+### v14.0.0（第四轮 10 批次：架构终态治理 + 全面审计修复）
+
+**B1-B3【构】三大页面拆分终态**
+
+- dashboard.js 1187→88 行壳（stats/insights/logs/diagnostics/backups/export 六模块）
+- options.js 919→390 行壳（search/favorites/sites 三面板独立）
+- detail-page.js 1133→106 行壳（candidates/sidebar/tracking 三模块，键盘导航/倒计时芯片齐备）
+
+**B4/B5【构】死代码全清 + 类型完整化**
+
+- export 消费方核对后净删 263 行（未用 CSS/死导出/STORAGE_CAPS 单源化）
+- 消除全部 `@type {any}` 断言，AppSettings 对照 DEFAULT_SETTINGS 补全
+
+**B6/B7【稳】content-sim 信号化 + NDJSON 分片写**
+
+- content-sim 移除时间轮询绷带，waitForSignal 显式信号（负载抖动根治）
+- steam-cache rating 模块 NDJSON 追加写 + 阈值 compaction（写放大根治，
+  旧 JSON 单文件自动迁移兼容）
+
+**B8/B9/B10【稳】错误统一 + lint 棘轮 + handlers 终态**
+
+- toUserMessage 错误归一（去 "Error: " 前缀/翻译超时文案）
+- lint 零警告基线锁定 scripts/lint-baseline.json 棘轮
+- handlers.js 335→81 行纯分发表；诊断 handler 归位 diag-status.js；
+  TRACK_EVENT_BATCH 批量 handler 落地（逐条管线，单条失败不丢整批）
+
+**审计修复（全面审查 2026-10-05 产出的 P2/P3 缺陷全数落地）**
+
+- P2-1：详情浮窗 SteamSpy 区块补 `floatModules.spy` 设置守卫（此前设置静默失效）
+- P2-2/P2-3：熔断上报补缺 7 处——api 域（GetNewsForApp）此前恒 unknown；
+  api 三文件全部 catch 路径计入 store/api 域熔断（api 域只记 domain 不记全局
+  失败率，防大陆常态不可达误触发批量降速）
+- P2-4：列表本地排序"取消排序"修复——此前掉入更新日期排序分支；现按
+  domOrder 基线恢复原始顺序（自动排序前捕获，5 组回归单测）
+- P3：行为事件 pagehide/visibilitychange 卸载兜底 flush；xdgrid 排序回放改
+  等批次空闲后执行（刷新后持久化排序不再静默丢失）；面板重复 appendChild 清理
+- handlers 用户可见 error 字段统一 toUserMessage（cache/image/stats/data 四处，
+  分层矩阵开放 handlers/entry → shared 边）
+- 新增单测：本地排序恢复原序 5 项 + TRACK_EVENT_BATCH 管线 5 项（总计 855）
+
+**工程**
+
+- prettier 全仓格式化基线；完整审查报告见
+  docs/reports/GameRecommender-全面审查报告-2026-10-05.md
+
 ### v13.0.0（第三轮 10 批次落地：熔断联动/sim 信号/无障碍/发售分组/对比增强/排序持久化/周报开关/反馈增强）
 
 **B1【稳】分域熔断可视化联动**
