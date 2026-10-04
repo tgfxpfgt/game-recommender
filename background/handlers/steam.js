@@ -381,4 +381,22 @@ export async function handleHealRegistryNames(message) {
   return result;
 }
 
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+// GET_STEAM_RATINGS/PREFETCH 归口自此（实现在 steam/ratings-batch.js）
+import { handleGetSteamRatings, handlePrefetchSteamRatings } from '../steam/ratings-batch.js';
+
+export const steamHandlers = {
+  SEARCH_STEAM: handleSearchSteam,
+  REFRESH_STEAM_CACHE: handleRefreshSteamCache,
+  GET_STEAM_BY_APPID: handleGetSteamByAppId,
+  SAVE_MANUAL_MAPPING: handleSaveManualMapping,
+  SEARCH_STEAM_CANDIDATES: handleSearchSteamCandidates,
+  GET_STEAM_RATINGS: handleGetSteamRatings,
+  PREFETCH_STEAM_RATINGS: handlePrefetchSteamRatings,
+  CLEAR_CACHE_FOR_PAGE: handleClearCacheForPage,
+  CACHE_STEAM_PAGE: handleCacheSteamPage,
+  REPORT_WRONG_APPID: handleReportWrongAppId,
+  HEAL_REGISTRY_NAMES: handleHealRegistryNames
+};
+
 // --- Steam API 状态监测（v3.3.0）---

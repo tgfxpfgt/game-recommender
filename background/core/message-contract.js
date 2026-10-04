@@ -78,18 +78,34 @@ function namesRule(label) {
   return (m) => (isStrArray(m && m.names, 200) ? { ok: true } : { error: `${label}.names 必须是字符串数组（可空）` });
 }
 
+// TRACK_EVENT 单条校验（单发与批量共用）/ one-event validator (shared)
+const trackEventRule = (m) => {
+  const data = m && m.data;
+  if (!isPlainObject(data)) return { error: 'TRACK_EVENT.data 必须是对象' };
+  if (!TRACK_TYPES.has(data.type)) return { error: 'TRACK_EVENT.data.type 不在白名单' };
+  if (NAME_REQUIRED_TYPES.has(data.type) && !isName(data.gameName)) {
+    return { error: `TRACK_EVENT.data.gameName 必填（type=${data.type}）且不超过 200 字符` };
+  }
+  if (data.keywords !== undefined && !Array.isArray(data.keywords)) {
+    return { error: 'TRACK_EVENT.data.keywords 必须是数组' };
+  }
+  return { ok: true };
+};
+
 // action → 校验规则（返回 {ok:true} 或 {error}）/ rule table
 const RULES = {
   // 最高频：内容脚本每页加载即发，此前零校验直接入库
-  TRACK_EVENT: (m) => {
-    const data = m && m.data;
-    if (!isPlainObject(data)) return { error: 'TRACK_EVENT.data 必须是对象' };
-    if (!TRACK_TYPES.has(data.type)) return { error: 'TRACK_EVENT.data.type 不在白名单' };
-    if (NAME_REQUIRED_TYPES.has(data.type) && !isName(data.gameName)) {
-      return { error: `TRACK_EVENT.data.gameName 必填（type=${data.type}）且不超过 200 字符` };
+  TRACK_EVENT: trackEventRule,
+  // v14 B10：批量追踪（内容侧 v12 B3 攒批）——事件数上限 100（内容侧满 10
+  // 即发），逐条复用 TRACK_EVENT 校验；此前无规则被默认拒绝（批量事件丢失）
+  TRACK_EVENT_BATCH: (m) => {
+    const events = m && m.events;
+    if (!Array.isArray(events) || events.length === 0 || events.length > 100) {
+      return { error: 'TRACK_EVENT_BATCH.events 必须是 1-100 条的数组' };
     }
-    if (data.keywords !== undefined && !Array.isArray(data.keywords)) {
-      return { error: 'TRACK_EVENT.data.keywords 必须是数组' };
+    for (const e of events) {
+      const r = trackEventRule({ data: e });
+      if (!r.ok) return r;
     }
     return { ok: true };
   },

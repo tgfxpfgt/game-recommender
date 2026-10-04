@@ -36,3 +36,8 @@ export async function handleFetchImageDataUrl(message) {
     return { success: false, error: String(e) };
   }
 }
+
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const imageFetchHandlers = {
+  FETCH_IMAGE_DATA_URL: handleFetchImageDataUrl
+};

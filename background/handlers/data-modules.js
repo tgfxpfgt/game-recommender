@@ -137,3 +137,15 @@ export async function handleRestoreBackup(msg) {
 export async function handleDeleteBackup(msg) {
   return deleteBackup(msg.backupId);
 }
+
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const dataModulesHandlers = {
+  CLEAR_DATA: handleClearData,
+  GET_DATA_MODULES: handleGetDataModules,
+  EXPORT_DATA: handleExportData,
+  IMPORT_DATA: handleImportData,
+  CREATE_BACKUP: handleCreateBackup,
+  GET_BACKUPS: handleGetBackups,
+  RESTORE_BACKUP: handleRestoreBackup,
+  DELETE_BACKUP: handleDeleteBackup
+};

@@ -339,4 +339,13 @@ export async function handleRefreshGameCacheEntry(message) {
   }
 }
 
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const cacheManagerHandlers = {
+  CLEAN_EXPIRED_CACHE: handleCleanExpiredCache,
+  GET_GAME_CACHE_LIST: handleGetGameCacheList,
+  DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,
+  CLEAR_GAME_CACHE: handleClearGameCache,
+  REFRESH_GAME_CACHE_ENTRY: handleRefreshGameCacheEntry
+};
+
 // --- 数据模块：清单/导出/导入 ---

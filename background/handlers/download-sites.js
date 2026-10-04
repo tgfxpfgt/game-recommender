@@ -163,4 +163,12 @@ export async function handleRecordDownloadUrlsBatch(message) {
   return { success: true };
 }
 
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const downloadSitesHandlers = {
+  SEARCH_DOWNLOAD_SITES: handleSearchDownloadSites,
+  GET_DOWNLOAD_HISTORY: handleGetDownloadHistory,
+  TRACK_DOWNLOAD_SITE_VISIT: handleTrackDownloadSiteVisit,
+  RECORD_DOWNLOAD_URLS_BATCH: handleRecordDownloadUrlsBatch
+};
+
 // --- 游戏缓存管理 / Game cache management ---

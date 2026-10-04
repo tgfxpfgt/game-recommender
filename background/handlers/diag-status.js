@@ -7,6 +7,8 @@
  * health probes, perf logging and hub navigation.
  */
 import { createSessionPersist } from '../core/session-persist.js';
+import { metricsSnapshot } from '../core/metrics.js'; // v14 B10：运行指标归口
+import { getOutboundAudit, resetOutboundAudit } from '../core/outbound-audit.js'; // v14 B10
 import { getSteamApiStatus, getDomainStatus } from '../core/api-monitor.js';
 import { getSteam250Info } from '../steam/steam250.js';
 import { getSiteHealth, recordSiteAlert } from '../storage/site-health.js';
@@ -78,3 +80,31 @@ export async function handleOpenHub() {
   }
   return { success: true };
 }
+
+// v14 B10：运行指标与出站审计 handler 归位（原 handlers.js 内联）
+export async function handleGetRuntimeMetrics() {
+  return { metrics: metricsSnapshot() };
+}
+
+export async function handleGetOutboundAudit(message) {
+  return getOutboundAudit(message && message.limit);
+}
+
+export async function handleClearOutboundAudit() {
+  resetOutboundAudit();
+  return { success: true };
+}
+
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const diagStatusHandlers = {
+  GET_API_STATUS: handleGetApiStatus,
+  OPEN_HUB: handleOpenHub,
+  LOG_PERF: handleLogPerf,
+  SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
+  GET_STEAM250_RANK: handleGetSteam250Rank,
+  GET_SITE_HEALTH: handleGetSiteHealth,
+  GET_STORAGE_HEALTH: handleGetStorageHealth,
+  GET_RUNTIME_METRICS: handleGetRuntimeMetrics,
+  GET_OUTBOUND_AUDIT: handleGetOutboundAudit,
+  CLEAR_OUTBOUND_AUDIT: handleClearOutboundAudit
+};

@@ -150,3 +150,11 @@ export async function searchCachedGames(message) {
   }
   return { results };
 }
+
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const statsHandlers = {
+  GET_STATS: handleGetStats,
+  GET_TRENDS: handleGetTrends,
+  GET_STEAM_RECOMMENDATIONS: handleGetSteamRecommendations,
+  SEARCH_CACHED_GAMES: searchCachedGames
+};

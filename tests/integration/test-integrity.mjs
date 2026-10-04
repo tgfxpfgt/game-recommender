@@ -13,6 +13,11 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
+
+// v14 B10：P2-D 改运行时装配校验——handlers.js 导入链需要 chrome 存根
+//（与 test-handlers 同模式；导入在测试体内，存根须先于其装载）
+installChromeStorageMock(createStorageMock());
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
 const BG = path.join(ROOT, 'background');
@@ -386,15 +391,19 @@ test('P1-B：周期性兜底落盘 alarm 已接线', () => {
 test('P1-B：日志写失败回滚后重排一次', () => {
   expect(loggerSrc8.includes('writer.scheduleWrite()')).toEqual(true);
 });
-test('P2-D：每个 MESSAGE_HANDLERS action 都有契约规则（默认拒绝前提）', () => {
-  const hs = handlersSrc.slice(handlersSrc.indexOf('export const MESSAGE_HANDLERS'));
-  const handlerKeys = [...hs.matchAll(/^\s{2}([A-Z][A-Z0-9_]+):\s/gm)].map((m) => m[1]);
+test('P2-D：每个 MESSAGE_HANDLERS action 都有契约规则（默认拒绝前提）', async () => {
+  // v14 B10：MESSAGE_HANDLERS 改领域段聚合展开——源码正则无法提取键，改运行时
+  // 装配取 Object.keys（不变量更强：绑定与契约规则直接比对）。handlers.js 导入
+  // 链需要 chrome 存根（文件顶部已装，与 test-handlers 同模式）
+  const handlersMod = await import(new URL('../../background/handlers.js', import.meta.url).href);
+  const handlerKeys = Object.keys(handlersMod.MESSAGE_HANDLERS);
   const ruleKeys = new Set([...contractSrc.matchAll(/^\s{2}([A-Z][A-Z0-9_]+):\s/gm)].map((m) => m[1]));
   const missing = [...new Set(handlerKeys)].filter((k) => !ruleKeys.has(k));
   expect(
     missing,
     '以下 action 缺契约规则（validateMessage 现默认拒绝，会导致其被挡）:\n  ' + missing.join('\n  ')
   ).toEqual([]);
+  expect(handlerKeys.length).toBeGreaterThan(40); // 聚合完整性兜底（防段展开遗漏归零）
   expect(contractSrc.includes('未契约化')).toEqual(true);
 });
 

@@ -12,52 +12,80 @@ import { inferSiteFromDomain, recordDownloadHistory } from '../storage/history.j
 import { Logger } from '../storage/logger.js';
 
 export async function handleTrackEvent(message) {
-  await addBehaviorLog(message.data);
+  return applyTrackEvent(message.data);
+}
 
-  if (message.data.type === 'click_download') {
+// v14 B10：批量追踪（TRACK_EVENT_BATCH）——内容侧 v12 B3 攒批（500ms 窗口或
+// 满 10 条一次性送达），此前无 handler 且契约默认拒绝，批量事件被整批丢弃；
+// 逐条走与单发完全相同的管线，单条失败不丢整批
+export async function handleTrackEventBatch(message) {
+  const events = Array.isArray(message && message.events) ? message.events : [];
+  let applied = 0;
+  for (const data of events) {
+    try {
+      await applyTrackEvent(data);
+      applied++;
+    } catch (e) {
+      Logger.warn('Track', `批量事件单条失败（跳过）: ${String(e)}`);
+    }
+  }
+  return { success: true, applied };
+}
+
+// 单事件管线（单发与批量共用）/ one-event pipeline (shared by single & batch)
+async function applyTrackEvent(data) {
+  await addBehaviorLog(data);
+
+  if (data.type === 'click_download') {
     // v10.1.0：下载计数 a（AppID 维度，跨站点聚合）——内容侧在详情页解析出
     // appId 后经 DOM 数据桥接（documentElement.dataset.grAppId）随事件带上；
     // 无 appId（列表页点击等场景）不计入（无法关联）
     // v10.2.0：站点去重键（同站 24h 内重复下载不重复计数；未识别站点用
     // domain 本身，各自独立去重）
-    if (message.data.appId) {
-      const inferred = inferSiteFromDomain(message.data.domain || '');
-      const siteKey = inferred.key !== 'unknown' ? inferred.key : String(message.data.domain || 'unknown').slice(0, 64);
-      await recordAppDownload(String(message.data.appId), siteKey);
+    if (data.appId) {
+      const inferred = inferSiteFromDomain(data.domain || '');
+      const siteKey = inferred.key !== 'unknown' ? inferred.key : String(data.domain || 'unknown').slice(0, 64);
+      await recordAppDownload(String(data.appId), siteKey);
     }
     await updateGameProfile({
-      name: message.data.gameName,
+      name: data.gameName,
       event: 'download',
-      keywords: message.data.keywords
+      keywords: data.keywords
     });
-    await recordDownloadHistory(message.data);
-    Logger.info('Download', `下载"${message.data.gameName}"`, {
-      method: message.data.method,
-      domain: message.data.domain
+    await recordDownloadHistory(data);
+    Logger.info('Download', `下载"${data.gameName}"`, {
+      method: data.method,
+      domain: data.domain
     });
   }
-  if (message.data.type === 'view_detail') {
+  if (data.type === 'view_detail') {
     await updateGameProfile({
-      name: message.data.gameName,
+      name: data.gameName,
       event: 'view',
-      keywords: message.data.keywords
+      keywords: data.keywords
     });
   }
   // Steam标签回写
   // v6.3.2 C3：不感兴趣标记（推荐反馈循环负信号）
-  if (message.data.type === 'dislike_game') {
-    await updateGameProfile({ name: message.data.gameName, event: 'dislike', keywords: message.data.keywords });
+  if (data.type === 'dislike_game') {
+    await updateGameProfile({ name: data.gameName, event: 'dislike', keywords: data.keywords });
   }
-  if (message.data.type === 'steam_tags_update') {
+  if (data.type === 'steam_tags_update') {
     await updateGameProfile({
-      name: message.data.gameName,
+      name: data.gameName,
       event: 'view',
-      keywords: message.data.keywords,
-      steamAppId: message.data.steamAppId,
-      steamRating: message.data.steamRating
+      keywords: data.keywords,
+      steamAppId: data.steamAppId,
+      steamRating: data.steamRating
     });
   }
   // 节流更新偏好模型；下载事件强制刷新（更具信号价值）
-  await maybeUpdatePreferences(message.data.type === 'click_download');
+  await maybeUpdatePreferences(data.type === 'click_download');
   return { success: true };
 }
+
+// v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
+export const trackEventHandlers = {
+  TRACK_EVENT: handleTrackEvent,
+  TRACK_EVENT_BATCH: handleTrackEventBatch
+};
