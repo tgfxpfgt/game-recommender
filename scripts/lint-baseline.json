@@ -1,0 +1,22 @@
+{
+  "updatedAt": "2026-10-04",
+  "batch": "v14 B9 lint 规则收紧——错误/警告数基线锁定（新增即红，防劣化）",
+  "eslint": {
+    "errors": 0,
+    "warnings": 0,
+    "enforcedBy": "lint 脚本 --max-warnings 0（check/gate 内生效）"
+  },
+  "tsNoImplicitAnyErrors": {
+    "main": 891,
+    "ui": 302,
+    "content": 377
+  },
+  "notes": [
+    "noImplicitAny 现为关闭（非 roadmap 预期的 warn）——全开约 1570 处需整库类型工程，",
+    "  数字记录为棘轮参照：后续批次补类型后下调，禁止上调；",
+    "no-floating-promises 需要 @typescript-eslint 类型感知 lint（离线环境无法安装），",
+    "  暂缓——关键异步路径已有 await/回滚语义与测试覆盖；",
+    "prefer-const 已是 error 级（baseRules）。",
+    "数字测量于 commit f11707a（B10 后）"
+  ]
+}

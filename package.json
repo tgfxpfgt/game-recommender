@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "e2e": "node tests/e2e-smoke.mjs",
-    "lint": "eslint background content options popup shared tests adapters dashboard data freegames lib hub --no-warn-ignored",
+    "lint": "eslint background content options popup shared tests adapters dashboard data freegames lib hub --no-warn-ignored --max-warnings 0",
     "check": "npm run lint && npm run typecheck && npm test",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.content.json",
     "coverage": "vitest run --coverage",
