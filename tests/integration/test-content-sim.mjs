@@ -1,7 +1,7 @@
 import { test, expect } from 'vitest';
-// v11.0 B1：负载敏感抖动缓解（CONTRIBUTING 已知问题）——本文件用例 retry 2；
-// 深度根治（状态机显式 flush）留待后续重构
-const simTest = (name, fn, opts) => test(name, Object.assign({ retry: 2 }, opts), fn); // v12 B2：空闲信号已缩短竞争窗口，保留 retry 兜底（E3 深度重写另行）
+// v14 B6：retry 2 绷带移除——waitForSignal 信号化 + 批次空闲信号根治时序竞争；
+// 偶发失败 = 真回归（超时错误携带信号描述直接定位）
+const simTest = (name, fn, opts) => test(name, opts, fn);
 /**
  * 游戏雷达 Game Radar - 测试：内容脚本模拟 / Content Script Simulation
  *
@@ -372,15 +372,16 @@ function evalWithGrImport(code) {
 let GR = null; // 节 1 赋值，后续节共享（文件级 let + test 顺序执行）
 
 // v6.3.2：固定延时在全量并发下偶发不足（推送/批次异步链竞争）——
-// 轮询等待条件（最多 2s）替代固定延时，根治偶发
-async function waitFor(fn, timeoutMs = 20000) {
-  // v6.4.7：全量并行 CPU 竞争，5s 偶发不足 → 10s // v6.4.4：全量并行加载慢，超时 2s 偶发不足 → 5s
+// 轮询等待条件替代固定延时，根治偶发
+// v14 B6：waitFor → waitForSignal——必须携带 desc，超时抛错并打印描述定位
+//（原返回 false 由调用方兜底转储的模式废弃：失败信息统一进超时错误）
+async function waitForSignal(fn, desc, timeoutMs = 20000) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
     if (fn()) return true;
     await new Promise((r) => setTimeout(r, 20));
   }
-  return fn();
+  throw new Error(`waitForSignal 超时(${timeoutMs}ms): ${desc || '(未命名信号)'}`);
 }
 
 // 构建列表页 DOM 项（Fake DOM）/ build a list item
@@ -430,8 +431,11 @@ simTest('1. 顶层加载与预热', async () => {
   // 模块就绪存在竞争，固定短延时偶发不足导致推送丢失
   // v6.4.7：固定延时改为轮询等待消息监听已注册（msgListener 就绪 = init 完成，
   // 节 2 的 msgListener 推送才能被接收；根治偶发推送丢失）
-  await new Promise((r) => setTimeout(r, 400));
-  await waitFor(() => typeof msgListener === 'function' && msgListener !== null);
+  // v14 B6：前置 400ms 固定延时删除（waitForSignal 已覆盖）
+  await waitForSignal(
+    () => typeof msgListener === 'function' && msgListener !== null,
+    '节1: 消息监听器注册（init 完成）'
+  );
 
   // ============ 2. 列表页两波流程 / Two-wave rating flow ============
 });
@@ -468,7 +472,7 @@ simTest('2. 列表页两波好评率流程', async () => {
 
   // 触发 DOMContentLoaded → init（warmup 已 resolve）
   docReadyCallbacks.forEach((cb) => cb());
-  await waitFor(() => itemA.a.children.length > 0);
+  await waitForSignal(() => itemA.a.children.length > 0, '节2: 游戏A 好评率徽章（缓存命中首波）');
   // v12 B2：批次空闲显式信号（负载下不再与推送时序竞争）
   if (GR.listBatch && GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
 
@@ -479,7 +483,7 @@ simTest('2. 列表页两波好评率流程', async () => {
   ).toEqual(false);
 
   // 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）——轮询等待
-  await waitFor(() => itemA.a.children.length >= 4);
+  await waitForSignal(() => itemA.a.children.length >= 4, '节2: 游戏A 徽章组齐（推送更新后）');
   // v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
   // v10.4.3：a-b 徽章（0-0 灰）对所有已解析 appId 的游戏渲染 → 4+1
   expect(itemA.a.children.length).toEqual(5);
@@ -525,14 +529,10 @@ simTest('2. 列表页两波好评率流程', async () => {
   );
   // v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底）
   // v6.3.2：固定延时偶发不足 → 轮询等待徽章出现
-  if (!(await waitFor(() => itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))))) {
-    console.log(
-      '[DIA] itemB 徽章超时——sentMessages:',
-      JSON.stringify(
-        sentMessages.map((m) => m.action + ':' + (m.ratings ? Object.keys(m.ratings).join(',') : m.done ? 'done' : ''))
-      )
-    );
-  }
+  await waitForSignal(
+    () => itemB.a.children.some((c) => c.className.includes('gr-rating-badge')),
+    '节2: 游戏B 好评率徽章（STEAM_RATINGS_UPDATE 推送后）'
+  );
 
   expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
   expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);
@@ -616,21 +616,7 @@ simTest('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   // v13 B2：批次空闲信号（队列排空+推送应用完后再断言计数）
   if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
   // v10.3.0 诊断：超时转储批次状态（定位间歇性不衔接）
-  const chained = await waitFor(() => batchRequests.length >= 2);
-  if (!chained) {
-    const st = GR.list._state.batchState || {};
-    console.log(
-      '2b TIMEOUT:',
-      JSON.stringify({
-        batchRequests: batchRequests.length,
-        inflight: st.inflight,
-        queue: st.queue ? st.queue.length : null,
-        pendingDone: st.pendingDone,
-        requested: st.requested ? st.requested.size : null,
-        jobFinished: !!(GR.list._state.ratingsJob && GR.list._state.ratingsJob.finished)
-      })
-    );
-  }
+  await waitForSignal(() => batchRequests.length >= 2, '节2b: 第二批自动衔接（60→40）');
   // 首批 60 + 全命中自动衔接第二批 40
   expect(batchRequests[0] ? batchRequests[0].length : 0).toEqual(60);
   expect(batchRequests[1] ? batchRequests[1].length : 0).toEqual(40);
@@ -668,13 +654,13 @@ simTest('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
     return { ratings, pending: msg.names.length - 10 };
   };
   GR.listBatch.requestSteamRatings(manyItems, DEFAULT_SETTINGS);
-  await waitFor(() => batchRequests2.length >= 1);
+  await waitForSignal(() => batchRequests2.length >= 1, '节2b: 首批请求（缓存全命中）');
   expect(batchRequests2.length).toEqual(1);
   // 后台完成 → 推送 done → 应自动发起第二批
   // 让第一批 fireBatch 的 await sendMessage 微任务完成（否则 done 与在途批交错）
   await new Promise((r) => setTimeout(r, 0));
   await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
-  await waitFor(() => batchRequests2.length >= 2);
+  await waitForSignal(() => batchRequests2.length >= 2, '节2b: done 推送后第二批');
   expect(batchRequests2[1] ? batchRequests2[1].length : 0).toEqual(40);
   presets['GET_STEAM_RATINGS'] = batchPreset;
 
@@ -771,7 +757,7 @@ simTest('7. FORCE_REFRESH_PAGE（popup 强制刷新）', async () => {
   await msgListener({ action: 'FORCE_REFRESH_PAGE' }, {}, (r) => {
     forceResp = r;
   });
-  await new Promise((r) => setTimeout(r, 300));
+  await waitForSignal(() => forceResp !== null, '节7: FORCE_REFRESH 完整响应（含 CLEAR_CACHE_FOR_PAGE）');
   const clearMsg = sentMessages.find((m) => m.action === 'CLEAR_CACHE_FOR_PAGE');
   expect(clearMsg ? clearMsg.names.length : 0).toEqual(3);
   expect(clearMsg && clearMsg.names.includes('游戏A') && clearMsg.names.includes('游戏C')).toEqual(true);
@@ -821,8 +807,8 @@ simTest('8. 徽章开关与过滤/高亮联动', async () => {
   const adapterE = GR.builder.getAdapter();
   const itemsE = GR.list.getListItemsSmart(adapterE);
   GR.list.trackListView(adapterE, itemsE, badgeSettings);
-  await waitFor(() => itemE.a.children.length > 0);
-  await new Promise((r) => setTimeout(r, 300));
+  await waitForSignal(() => itemE.a.children.length > 0, '节8: 游戏E 评分徽章');
+  if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle(); // v14 B6：信号替代固定 300ms
   expect(itemE.a.children.some((c) => c.className.includes('gr-badge-recent'))).toEqual(false);
   // isAllBadge 定义见文件级（v6.2.0 提升）
   expect(itemE.a.children.some(isAllBadge)).toEqual(true);
@@ -875,8 +861,9 @@ simTest('8b. 关全部好评率徽章 → 过滤停用', async () => {
   const adapterF = GR.builder.getAdapter();
   const itemsF = GR.list.getListItemsSmart(adapterF);
   GR.list.trackListView(adapterF, itemsF, badgeSettings2);
-  await waitFor(() => itemF.a.children.length > 0);
-  await new Promise((r) => setTimeout(r, 300));
+  await waitForSignal(() => itemF.a.children.length > 0, '节8b: 游戏F 评分徽章');
+  if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle(); // v14 B6：信号替代固定 300ms
+  await waitForSignal(() => itemF.a.children.some((c) => c.className.includes('gr-rec-badge')), '节8b: 推荐徽章渲染');
 
   expect(itemF.a.children.some(isAllBadge)).toEqual(false);
   expect(itemF.a.children.some((c) => c.className.includes('gr-badge-recent'))).toEqual(true);
@@ -922,10 +909,18 @@ simTest('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
       recommendation: { score: 0.85, breakdown: { clickScore: 0.9 } }
     }))
   });
-  GR.listBatch.requestSteamRatings(recItems, recOffSettings);
+  // v14 B6：改走 trackListView 真实链路——原直调 requestSteamRatings 传入的
+  // makeItem 裸对象（{li, a}）缺 name/url，批次恒空转、徽章永不渲染，断言在
+  // 20s 超时后对空 DOM 恒真（retry 时代的假阳性测试，B6 根治）
+  const adapterR = GR.builder.getAdapter();
+  const itemsR = GR.list.getListItemsSmart(adapterR);
+  GR.list.trackListView(adapterR, itemsR, recOffSettings);
   // 评分徽章正常渲染；推荐徽章被 badgeVisibility.rec 门控拦截不渲染
   //（v10.4.2 回归：batchState 未存 settings，门控拿空对象恒放行）
-  await waitFor(() => recItems[0].a.children.some((c) => (c.className || '').includes('gr-rating-badge')));
+  await waitForSignal(
+    () => recItems[0].a.children.some((c) => (c.className || '').includes('gr-rating-badge')),
+    '节8c: 推荐列表评分徽章'
+  );
   expect(recItems[0].a.children.some((c) => (c.className || '').includes('gr-rec-badge'))).toEqual(false);
   presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
 });
@@ -958,7 +953,10 @@ simTest('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async ()
   const adapter = GR.builder.getAdapter();
   const items = GR.list.getListItemsSmart(adapter);
   GR.list.trackListView(adapter, items, scoreSettings);
-  await waitFor(() => scoreItem.a.children.some((c) => c.className.includes('gr-score-badge')));
+  await waitForSignal(
+    () => scoreItem.a.children.some((c) => c.className.includes('gr-score-badge')),
+    '节8d: 综合评分徽章'
+  );
   // 段0 渲染在最前：⭐ 8.3 = 修正口碑 83.3 ÷ 10（好评 880 / 总评 1000，
   // 走缓存显式 positiveReviews/negativeReviews 字段路径）
   const scoreBadge = scoreItem.a.children.find((c) => c.className.includes('gr-score-badge'));
@@ -1027,11 +1025,16 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   presets['GET_STEAM_BY_APPID'] = () => ({ data: null });
   // v7.2.0：手动驱动（tracker 模块实例无法重执行——直接调用详情页注入）
   GR.detail.injectSteamButton('北方之魂增强版/Spirit of the North');
-  await waitFor(() => {
+  await waitForSignal(() => {
     const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
     return root && root.children.length >= 2;
-  });
-  await new Promise((r) => setTimeout(r, 300));
+  }, '节9: Steam 浮窗打开');
+  // v14 B6：固定 300ms → 侧栏渲染完成信号（报错按钮出现 = renderAndShow 完成）
+  await waitForSignal(() => {
+    const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
+    const body = root ? root.children[1] : null;
+    return body ? (body._html || '').includes('gr-report-issue-btn') : false;
+  }, '节9: Steam 侧栏渲染完成（gr-report-issue-btn）');
 
   // floats 结构：root(id) → [header, body(内容区)]；渲染 HTML 在 body.innerHTML
   const steamRoot = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
@@ -1122,10 +1125,10 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
   };
   window.location = globalThis.location;
   GR.detail.injectSteamButton('北方之魂/Spirit of the North');
-  await waitFor(() => {
+  await waitForSignal(() => {
     const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
     return root && root.children.length >= 2 && (root.children[1]._html || '').includes('北方之魂');
-  });
+  }, '节9a: 内嵌卡流程浮窗渲染（北方之魂）');
   expect(inlineSection()).toEqual(null); // 非目标站（XDGame 原生已有）不注入
 
   // 目标站（xianyudanji）→ 标题之后注入内嵌信息区
@@ -1136,7 +1139,7 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
   };
   window.location = globalThis.location;
   GR.detail.injectSteamButton('北方之魂/Spirit of the North');
-  await waitFor(() => inlineSection() !== null);
+  await waitForSignal(() => inlineSection() !== null, '节9a: 内嵌信息区出现');
   const section = inlineSection();
   const html = section ? section._html : '';
   // 信息卡与 XDGame 原生区完全一致：结构 + 数据口径（综合评分/好评率/评测数/
@@ -1311,11 +1314,11 @@ simTest('9d. 详情页未找到路径（手动选择浮窗）', async () => {
   presets['SEARCH_STEAM'] = () => ({ data: null });
   presets['GET_STEAM_BY_APPID'] = () => ({ data: null });
   GR.detail.injectSteamButton('找不到的游戏XYZ');
-  await waitFor(() => {
+  await waitForSignal(() => {
     const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
     const body = root && root.children[1];
     return body && (body._html || '').includes('手动选择游戏');
-  });
+  }, '节9d: 手动选择浮窗（未命中兜底）');
   const manualRoot = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
   const manualBody = manualRoot && manualRoot.children[1];
   expect(((manualBody && manualBody._html) || '').includes('手动选择游戏')).toEqual(true);
