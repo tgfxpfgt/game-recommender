@@ -1,0 +1,13 @@
+{
+  "schemaVersion": "mimosa-security-scan-findings/v1",
+  "scanId": "scan-2026-10-04T19-43-22.337Z-6310ab86514e",
+  "verdictEffect": "none",
+  "findings": [],
+  "totals": {
+    "high": 0,
+    "medium": 0,
+    "low": 0,
+    "info": 0,
+    "businessLogic": 0
+  }
+}

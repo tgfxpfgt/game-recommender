@@ -1,0 +1,40 @@
+{
+  "schemaVersion": "mimosa-mcp-security-scan-job/v1",
+  "action": "status",
+  "job": {
+    "jobId": "scan-job-muu8ao7g-2f55d473346921aa",
+    "status": "completed",
+    "phase": "completed",
+    "attempt": 1,
+    "resumePolicy": "restart-unsealed-attempt",
+    "project": "F:\\data\\browser extension\\game-recommender",
+    "depth": "deep",
+    "createdAt": "2026-10-04T19:43:20.331Z",
+    "updatedAt": "2026-10-04T19:43:22.345Z",
+    "startedAt": "2026-10-04T19:43:20.331Z",
+    "completedAt": "2026-10-04T19:43:22.345Z",
+    "cancelRequestedAt": null,
+    "resumedAt": null,
+    "result": {
+      "scanId": "scan-2026-10-04T19-43-22.337Z-6310ab86514e",
+      "scanDir": "C:\\Users\\TGFXP\\.mimosa\\security-scans\\project-11071635301de7fe441d0b2f\\scan-2026-10-04T19-43-22.337Z-6310ab86514e",
+      "seal": "sha256:5d6006355635b3366815eae41e2fdff91442de0cf310c60c3b1d2615d26e31c2",
+      "findingCount": 0,
+      "hypotheses": [],
+      "dependencySummary": {
+        "completion": "completed",
+        "packagesScanned": 200,
+        "packages": [],
+        "offlineAdvisory": {
+          "status": "available",
+          "matchedPackages": 0,
+          "matchedAdvisories": 0,
+          "unknown": 0
+        }
+      }
+    },
+    "error": null,
+    "evidenceBoundary": "static_only_no_runtime_execution",
+    "verdictEffect": "none"
+  }
+}

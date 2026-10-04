@@ -428,8 +428,12 @@ node --check options/options.js
 
 ### 安全扫描（Mimosa 深度扫描）
 
-- 状态：**待补录**——发布时 Mimosa MCP 断连（同 v12.0.0；gate 全过：lint/typecheck/
-  841 test/E2E/visual）。重连后补跑 v12.0.0+v13.0.0 并回填两节
+- 状态：**已补录（2026-10-05）**——MCP 断连根因修复（node 不在 ZCode 进程
+  PATH → 用户 PATH 修复 + 用户级绝对路径注册）后补跑 deep 扫描（以 v14.1.0
+  工作区状态，涵盖本版全部代码）：scanId `scan-2026-10-04T19-43-22.337Z-6310ab86514e`，
+  **0 findings**（high/medium/low/info 均为 0），依赖扫描 200 包 0 命中，
+  seal `sha256:5d6006355635b3366815eae41e2fdff91442de0cf310c60c3b1d2615d26e31c2`。
+  runStatus=inconclusive（动态派发调用图缺口）与项目全部历史 seal 扫描一致
 
 ### v12.0.0（第二轮 10 批次落地：分域熔断/状态机/请求背压/模块自定义/键盘导航/发售追踪/跨站对比/排序/SidePanel/周报）
 
@@ -484,8 +488,10 @@ node --check options/options.js
 
 ### 安全扫描（Mimosa 深度扫描）
 
-- 状态：**待补录**——发布时 Mimosa MCP 断连（gate 全过：lint/typecheck/841 test/E2E/visual；
-  上一版 v11.0.0 seal `sha256:206e8860...194a7f03` 0 findings），重连后补跑并回填本节
+- 状态：**已补录（2026-10-05）**——同 v13.0.0 节：MCP 断连根因修复后补跑 deep
+  扫描（以 v14.1.0 工作区状态，涵盖本版全部代码），scanId
+  `scan-2026-10-04T19-43-22.337Z-6310ab86514e`，0 findings，依赖 200 包 0 命中，
+  seal `sha256:5d6006355635b3366815eae41e2fdff91442de0cf310c60c3b1d2615d26e31c2`
 
 ### v11.0.0（10 批次路线图落地：韧性/可达性/收藏监控/交互/洞察/LLM/工程/发布）
 
