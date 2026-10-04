@@ -22,6 +22,26 @@ import * as tracking from './tracking.js';
 const dbg = (...a) => debug.dbg(...a);
 const esc = (text) => common.escapeHtml(text);
 
+/**
+ * Steam 详情数据载荷（GET_STEAM_BY_APPID / SEARCH_STEAM 响应 data，v14 B5 类型化）
+ * @typedef {Object} SteamLookupData
+ * @property {string|number} appId
+ * @property {string} name
+ * @property {string} [ratingDesc]
+ * @property {number} [positiveRate]
+ * @property {boolean} [chineseSupported]
+ * @property {Array<string>} [genres]
+ * @property {string} [releaseDate]
+ */
+/**
+ * Steam 检索响应（data + 缓存时间/失败原因）
+ * @typedef {Object} SteamLookupResp
+ * @property {SteamLookupData} data
+ * @property {number} [cachedAt]
+ * @property {string} [error]
+ * @property {string} [reason]
+ */
+
 // v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2）
 // ITAD：Key 未配置或查询失败 → 行隐藏；收藏：按钮切换 + 状态持久化
 async function fillItadAndFavorites(appId, name, releaseDate) {
@@ -143,7 +163,7 @@ export function createSteamFloat(gameName, settings) {
       </div>
     `;
 
-  /** @type {any} */
+  /** @type {SteamLookupData|null} */
   let steamData = null;
 
   function showPanel() {
@@ -175,7 +195,7 @@ export function createSteamFloat(gameName, settings) {
       }
       // 重新检索：有封面 appId 直取，否则名称搜索
       const imgAppId = builder.extractSteamAppIdFromImages();
-      /** @type {any} */
+      /** @type {SteamLookupResp|null} */
       let resp = null;
       if (imgAppId) {
         resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
@@ -228,6 +248,7 @@ export function createSteamFloat(gameName, settings) {
   function makeOnRefresh(name) {
     return async () => {
       const appId = builder.extractSteamAppIdFromImages();
+      /** @type {SteamLookupResp|null} */
       let refreshResp;
       if (appId) {
         refreshResp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName: name });
@@ -287,7 +308,7 @@ export function createSteamFloat(gameName, settings) {
         'article, .entry-content, .post-content, .main-content, #main-content, main, .single-content'
       );
       const appId = builder.extractSteamAppIdFromImages(mainEl || document);
-      /** @type {any} */
+      /** @type {SteamLookupResp|null} */
       let response = null;
       if (appId) {
         dbg(`从图片URL提取到 appId: ${appId}，直接获取 Steam 详情`);

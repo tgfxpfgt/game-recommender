@@ -192,11 +192,12 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
 
   // 搜索框事件（300ms 防抖）
   /** @type {ReturnType<typeof setTimeout>|null} */
+  /** @type {ReturnType<typeof setTimeout>|null} */
   let searchTimer = null;
   const input = panel.querySelector('#gr-manual-search-input');
   if (input) {
     input.addEventListener('input', (e) => {
-      if (searchTimer) clearTimeout(/** @type {any} */ (searchTimer));
+      if (searchTimer) clearTimeout(searchTimer);
       const keyword = e.target.value.trim();
       if (keyword.length < 2) return;
       searchTimer = setTimeout(() => searchAndRender(keyword), 300);

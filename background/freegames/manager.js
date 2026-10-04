@@ -656,12 +656,11 @@ async function notifyNewFreeGames(newOnes) {
       .map((g) => g.name)
       .join('、');
     // v10.6.0 F2：收藏游戏进限免 → 通知标题优先提示（愿望单联动）
-    /** @type {any|null} */
+    /** @type {{name?: string}|null} */
     let favHit = null;
     try {
       const { getFavorites } = await import('../storage/favorites.js');
       const favs = await getFavorites();
-      /** @type {any} */
       favHit = newOnes.find((g) => {
         const appId = ((g.url && g.url.match(/\/app\/(\d+)/)) || [])[1] || (g.steamId && String(g.steamId));
         return appId && favs[appId];

@@ -43,8 +43,7 @@
     const m = (p) => chrome.runtime.getURL(p);
     const { CORE_MODULES, OPTIONAL_MODULES } = await import(m('content/module-manifest.js'));
     const coreMods = await Promise.all(CORE_MODULES.map((mod) => import(m(mod.file))));
-    /** @type {any} */
-    const loaded = {};
+    const loaded = {}; // v14 B5：checkJs 进化对象类型，无需 any 断言
     CORE_MODULES.forEach((mod, i) => {
       loaded[mod.key] = coreMods[i];
     });
@@ -89,8 +88,7 @@
       }
     })();
     const M = await ensureModules(settingsEarly);
-    /** @type {any} */
-    const settings = settingsEarly;
+    const settings = settingsEarly; // v14 B5：settingsEarly 已是 any 流转，断言冗余
     try {
       await M.builder.loadSiteRules();
       M.builder.buildSiteAdapters(M.builder.getSITE_RULES());

@@ -32,9 +32,8 @@ export async function loadSiteRules(force) {
   // 兼容回退 1：storage.local 旧副本（消息路径不可用时兜底）
   try {
     const data = await chrome.storage.local.get('adapterRules');
-    // v7.2.0：@types/chrome 下 storage.get 返回 unknown 值——显式断言
-    /** @type {any} */
-    const imported = data.adapterRules;
+    // v7.2.0：@types/chrome 下 storage.get 返回 unknown 值——断言到规则包形状（v14 B5）
+    const imported = /** @type {{version?: number, sites?: Array<Object>}|undefined} */ (data.adapterRules);
     if (imported && imported.version && Array.isArray(imported.sites) && imported.sites.length > 0) {
       SITE_RULES = imported.sites;
       return SITE_RULES;

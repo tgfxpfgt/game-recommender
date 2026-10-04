@@ -28,7 +28,7 @@
     let bin = '';
     const CHUNK = 0x8000;
     for (let i = 0; i < bytes.length; i += CHUNK) {
-      bin += String.fromCharCode.apply(null, /** @type {any} */ (Array.from(bytes.subarray(i, i + CHUNK))));
+      bin += String.fromCharCode.apply(null, Array.from(bytes.subarray(i, i + CHUNK)));
     }
     return btoa(bin);
   }
@@ -52,7 +52,7 @@
     const enc = new TextEncoder();
     const base = await subtle().importKey('raw', enc.encode(String(password)), 'PBKDF2', false, ['deriveKey']);
     return subtle().deriveKey(
-      { name: 'PBKDF2', salt: /** @type {any} */ (saltBytes), iterations, hash: 'SHA-256' },
+      { name: 'PBKDF2', salt: saltBytes, iterations, hash: 'SHA-256' },
       base,
       { name: 'AES-GCM', length: 256 },
       false,
@@ -72,7 +72,7 @@
     const iv = global.crypto.getRandomValues(new Uint8Array(12));
     const key = await deriveKey(password, salt, ITERATIONS);
     const plain = new TextEncoder().encode(JSON.stringify(payload));
-    const cipher = await subtle().encrypt({ name: 'AES-GCM', iv: /** @type {any} */ (iv) }, key, plain);
+    const cipher = await subtle().encrypt({ name: 'AES-GCM', iv: iv }, key, plain);
     return {
       format: ENVELOPE_FORMAT,
       v: 1,
@@ -102,7 +102,7 @@
     const iv = b64ToBytes(String(envelope.iv || ''));
     const data = b64ToBytes(String(envelope.data || ''));
     const key = await deriveKey(password, salt, Number(envelope.iterations) || ITERATIONS);
-    const plain = await subtle().decrypt({ name: 'AES-GCM', iv: /** @type {any} */ (iv) }, key, data);
+    const plain = await subtle().decrypt({ name: 'AES-GCM', iv: iv }, key, data);
     return JSON.parse(new TextDecoder().decode(plain));
   }
 

@@ -30,7 +30,7 @@ function loadDecoder() {
 const processed = new WeakSet(); // 每个元素只试解一次 / one attempt per element
 /** @type {MutationObserver|null} */
 let observer = null;
-/** @type {any} */
+/** @type {{new (): {callback: (err: unknown, value: {result?: string}) => void, decode: (data: unknown) => void}}|null} */
 let QrCode = null;
 /** @type {boolean} */
 let decoderFailed = false;
@@ -105,6 +105,10 @@ async function decodeFromElement(el) {
   const imageData = ctx.getImageData(0, 0, w, h);
   return await new Promise((resolve) => {
     try {
+      if (!QrCode) {
+        resolve('');
+        return;
+      }
       const qr = new QrCode();
       qr.callback = (err, value) => {
         const text = !err && value && value.result ? String(value.result) : '';

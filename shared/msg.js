@@ -22,15 +22,18 @@
    */
   function sendMessage(action, payload, opts = {}) {
     const timeout = opts.timeout === undefined ? DEFAULT_TIMEOUT : opts.timeout;
-    const msg = typeof action === 'object' ? /** @type {any} */ (action) : { action, ...(payload || {}) };
+    // v14 B5：unknown+收窄替代 any 断言——对象模式预提取 action 名供错误文案
+    const isObject = typeof action === 'object' && action !== null;
+    const actionName = isObject ? String(/** @type {{action: unknown}} */ (action).action) : String(action);
+    const msg = isObject ? action : { action, ...(payload || {}) };
     const p = chrome.runtime.sendMessage(msg).catch((e) => {
-      throw new Error(`消息失败 ${msg.action}: ${String((e && e.message) || e)}`);
+      throw new Error(`消息失败 ${actionName}: ${String((e && e.message) || e)}`);
     });
     if (!timeout) return p;
     return Promise.race([
       p,
       new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`消息超时: ${msg.action} (>${timeout}ms)`)), timeout)
+        setTimeout(() => reject(new Error(`消息超时: ${actionName} (>${timeout}ms)`)), timeout)
       )
     ]);
   }

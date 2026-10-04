@@ -62,7 +62,7 @@ export function showStatus(title, current, total, detail) {
       ${pct !== null ? `<div class="gr-status-row" style="margin-top:3px;">${current}/${total} · ${pct}%</div>` : ''}
       ${detail ? `<div class="gr-status-row" style="margin-top:2px;">${common.escapeHtml(detail)}</div>` : ''}
     `;
-  clearTimeout(/** @type {any} */ (hideTimer)); // 进行中不自动消失
+  if (hideTimer) clearTimeout(hideTimer); // 进行中不自动消失
 }
 
 // 显示完成统计（3 秒后按调试模式切换为诊断视图或消失）
@@ -99,7 +99,7 @@ export function showStats(stats) {
       if (row && typeof row.click === 'function') row.click();
     });
   });
-  clearTimeout(/** @type {any} */ (hideTimer));
+  if (hideTimer) clearTimeout(hideTimer);
   // 3 秒后消失（v14 B4：调试视图刷新回调接线整体已死——debugRefreshHandler
   // 从未被注册，setDebugRefreshHandler 已删）
   hideTimer = setTimeout(() => {
@@ -128,7 +128,7 @@ export function showDebugView(html) {
     }
   });
   statusEl.innerHTML = html;
-  clearTimeout(/** @type {any} */ (hideTimer)); // 诊断视图常驻 / persistent
+  if (hideTimer) clearTimeout(hideTimer); // 诊断视图常驻 / persistent
 }
 
 // 调试模式开关（由设置 showDebugPanel 控制；重新开启时允许调试视图再次显示）

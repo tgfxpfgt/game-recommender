@@ -54,6 +54,7 @@ function formatRelativeTime(timestamp) {
 // 消息风暴治理；click_download 等关键事件仍即时发送不攒批）
 /** @type {Array<object>} */
 const trackBatch = [];
+/** @type {ReturnType<typeof setTimeout>|null} */
 let trackTimer = null;
 
 function flushTrackBatch() {
@@ -76,12 +77,10 @@ function trackEvent(type, data) {
     return;
   }
   if (!trackTimer) {
-    trackTimer = /** @type {any} */ (
-      setTimeout(() => {
-        trackTimer = null;
-        flushTrackBatch();
-      }, 500)
-    );
+    trackTimer = setTimeout(() => {
+      trackTimer = null;
+      flushTrackBatch();
+    }, 500);
   }
 }
 

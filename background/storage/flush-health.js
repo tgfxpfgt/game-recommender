@@ -11,16 +11,17 @@
 import { createSessionPersist } from '../core/session-persist.js';
 import { dataStore } from '../../data/data-store.js';
 
-const persist = createSessionPersist('grFlushHealth', {
-  initial: {
-    steamCacheWriteFails: 0,
-    registryWriteFails: 0,
-    nameIndexWriteFails: 0,
-    urlIndexWriteFails: 0,
-    lastFailAt: null,
-    lastFailModule: null
-  }
-});
+// v14 B5：显式标注 initial 形状——null 字面量会把 @template T 推窄成 null
+/** @type {{steamCacheWriteFails: number, registryWriteFails: number, nameIndexWriteFails: number, urlIndexWriteFails: number, lastFailAt: number|null, lastFailModule: string|null}} */
+const FLUSH_HEALTH_INITIAL = {
+  steamCacheWriteFails: 0,
+  registryWriteFails: 0,
+  nameIndexWriteFails: 0,
+  urlIndexWriteFails: 0,
+  lastFailAt: null,
+  lastFailModule: null
+};
+const persist = createSessionPersist('grFlushHealth', { initial: FLUSH_HEALTH_INITIAL });
 
 // 记录一次 flush 写失败 / Record one flush write failure
 export function recordFlushFailure(moduleName) {

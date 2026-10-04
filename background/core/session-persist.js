@@ -16,15 +16,18 @@
 import { debounce } from './mechanisms.js';
 /**
  * 创建 session 持久化句柄（内存优先同步接口）
+ * v14 B5：@template 泛型化——peek/load 返回 initial 同型，消除 memory 的 any 断言
+ * @template T 初始状态形状
  * @param {string} key chrome.storage.session 键
- * @param {{ initial?: any, debounceMs?: number }} [options] initial 为初始状态（深拷贝隔离）
+ * @param {{ initial?: T, debounceMs?: number }} [options] initial 为初始状态（深拷贝隔离）
+ * @returns {{peek: () => T, load: () => Promise<T>, scheduleSave: () => void, flush: () => Promise<void>, reset: () => void}}
  */
 export function createSessionPersist(key, options = {}) {
   const { initial = null, debounceMs = 2000 } = options || {};
   // v10.0.0：initial 深拷贝——reset() 若只赋引用，首个状态变更会污染 initial
   // 本体（对象型 initial 的 reset 失效）；这些载荷均为可 JSON 化纯数据
-  const cloneInitial = () => (Array.isArray(initial) ? initial.slice() : JSON.parse(JSON.stringify(initial)));
-  /** @type {any} */
+  const cloneInitial = () =>
+    /** @type {T} */ (Array.isArray(initial) ? initial.slice() : JSON.parse(JSON.stringify(initial)));
   let memory = cloneInitial();
   let loaded = false;
   // v10.7.0：防抖实现收敛至 core/mechanisms.js 工厂（原手写 timer 同构）
@@ -38,7 +41,7 @@ export function createSessionPersist(key, options = {}) {
     loaded = true;
     try {
       const data = await chrome.storage.session.get(key);
-      if (data && data[key] !== undefined) memory = data[key];
+      if (data && data[key] !== undefined) memory = /** @type {T} */ (data[key]);
     } catch {
       /* session 不可用 → 纯内存模式 */
     }

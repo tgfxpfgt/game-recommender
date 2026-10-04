@@ -251,7 +251,7 @@ function startListScan() {
         }
       }
     }
-    if (scanTimer) clearTimeout(/** @type {any} */ (scanTimer));
+    if (scanTimer) clearTimeout(scanTimer);
     scanTimer = setTimeout(() => {
       const nodes = pendingNodes;
       pendingNodes = [];

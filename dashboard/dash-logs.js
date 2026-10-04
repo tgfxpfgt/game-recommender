@@ -160,8 +160,8 @@ function renderPager(key, containerId, total) {
 
 // 分页控件事件（事件委托：任何 pager 内按钮）
 document.addEventListener('click', (e) => {
-  const t = /** @type {any} */ (e.target);
-  const btn = t && t.closest ? t.closest('.pager-btn') : null;
+  const t = /** @type {HTMLElement|null} */ (e.target);
+  const btn = t && t.closest ? /** @type {HTMLButtonElement|null} */ (t.closest('.pager-btn')) : null;
   if (!btn || btn.disabled) return;
   const key = btn.dataset.key;
   const page = Number(btn.dataset.page);

@@ -50,29 +50,47 @@
  */
 
 /**
- * 应用设置（DEFAULT_SETTINGS 形状，settings.js）
+ * 应用设置（DEFAULT_SETTINGS 全量形状，settings.js）
+ * v14 B5：对照 DEFAULT_SETTINGS 补全遗漏键（showDebugPanel/highlightThreshold/
+ * steamApiKey/enableSortByRating/enableVmFilter/vmFilterKeywords/detailFloat 系/
+ * redTitleRating）与嵌套组子键（weights 四项/badgeVisibility.score/cacheTtls/
+ * dataSources/steamApiModules/floatModules）
  * @typedef {Object} AppSettings
  * @property {boolean} enabled
- * @property {Object} weights - clickRate/downloadRate/keywordMatch/steamRating/playTime/heat（六项和 1.0）
+ * @property {boolean} showDebugPanel - 调试面板开关
+ * @property {number} highlightThreshold - 高亮阈值 0-1
+ * @property {Object} weights - 十项权重和 1.0（v10.5.3 起含 sales/reviews/appStat 两项）
  * @property {number} weights.clickRate
  * @property {number} weights.downloadRate
  * @property {number} weights.keywordMatch
  * @property {number} weights.steamRating
  * @property {number} weights.playTime
  * @property {number} weights.heat
- * @property {Object} llmConfig - provider/endpoint/apiKey/model/temperature
+ * @property {number} weights.sales - SteamSpy 销量信号（v10.5.3）
+ * @property {number} weights.reviews - SteamSpy 评论数信号（v10.5.3）
+ * @property {number} weights.appStatDownload - a 对信号（v10.1.0）
+ * @property {number} weights.appStatDetailView - b 对负信号（v10.1.0）
+ * @property {Object} llmConfig - LLM 评分配置
  * @property {string} llmConfig.provider
  * @property {string} llmConfig.endpoint
  * @property {string} llmConfig.apiKey
  * @property {string} llmConfig.model
  * @property {number} llmConfig.temperature
- * @property {Object} cacheTtls - 每模块 TTL（steamDynamic/detailSteam/spySteam/metaSteam/registryConfirm/downloadUrls/negativeCache）
- * @property {Object} badgeVisibility - recent/all/update/rec/appstat
+ * @property {Object} cacheTtls - 每模块 TTL（value+unit；0 = 长期有效）
+ * @property {{value: number, unit: string}} cacheTtls.steamDynamic
+ * @property {{value: number, unit: string}} cacheTtls.detailSteam
+ * @property {{value: number, unit: string}} cacheTtls.spySteam
+ * @property {{value: number, unit: string}} cacheTtls.metaSteam
+ * @property {{value: number, unit: string}} cacheTtls.registryConfirm
+ * @property {{value: number, unit: string}} cacheTtls.downloadUrls
+ * @property {{value: number, unit: string}} cacheTtls.negativeCache
+ * @property {Object} badgeVisibility - 徽章显隐
  * @property {boolean} badgeVisibility.recent
  * @property {boolean} badgeVisibility.all
  * @property {boolean} badgeVisibility.update
  * @property {boolean} badgeVisibility.rec
  * @property {boolean} badgeVisibility.appstat
+ * @property {boolean} badgeVisibility.score - 综合评分徽章（v10.5.3）
  * @property {boolean} [enableRecommendations] - 推荐值计算开关（v10.3.0）
  * @property {boolean} [downloadTrackingEnabled] - 下载追踪开关（v10.3.0）
  * @property {boolean} [appStatsEnabled] - a-b 行为统计开关（v10.3.0）
@@ -82,9 +100,14 @@
  * @property {boolean} [freeGamesEnabled] - 限免监控开关（v10.6.0）
  * @property {boolean} [favoritePriceWatch] - 收藏折扣监控开关（v11.0 B3）
  * @property {number} [favoriteDiscountThreshold] - 收藏折扣阈值 50-100（v11.0 B3）
-
- * @property {Object} [floatModules] - 浮窗信息模块显隐（chips/tags/developers/description/spy，v12 B4）
- * @property {boolean} [weeklyDigestEnabled] - 周报 digest 通知开关（v13 B9） * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
+ * @property {Object} [floatModules] - 浮窗信息模块显隐（v12 B4）
+ * @property {boolean} [floatModules.chips]
+ * @property {boolean} [floatModules.tags]
+ * @property {boolean} [floatModules.developers]
+ * @property {boolean} [floatModules.description]
+ * @property {boolean} [floatModules.spy]
+ * @property {boolean} [weeklyDigestEnabled] - 周报 digest 通知开关（v13 B9）
+ * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
  * @property {string} [uiThemeDay] - 日间主题名（v10.6.0）
  * @property {string} [uiThemeNight] - 夜间主题名（v10.6.0）
  * @property {number} [uiThemeNightStart] - 夜间窗口起始小时（含，默认 19，v10.7.0）
@@ -104,16 +127,32 @@
  * @property {boolean} [enableRecentFilter] - 30 天好评率过滤（v6.4.4）
  * @property {number} [minRecentSteamRatingFilter] - 30 天好评率阈值
  * @property {string} [ratingFilterMode] - and|or|not（总/30天组合关系）
+ * @property {boolean} [enableSortByRating] - 按好评率重排序（v6.4.4）
+ * @property {boolean} [enableVmFilter] - 标题关键词过滤开关（v6.4.7）
+ * @property {Array<string>} [vmFilterKeywords] - 旧关键词字段（兼容；filterRules 优先）
  * @property {string} [filterKeywords] - 通用标题关键词过滤（逗号分隔，v6.4.7）
  * @property {string} [filterMatchMode] - contains|exact（防误报整段匹配）
  * @property {Array<{keyword: string, exclude: string}>} [filterRules] - 关键词过滤规则（v6.4.8：每条含排除误报词）
+ * @property {string} [steamApiKey] - 历史遗留键（无 UI 无消费方，保留数据兼容）
  * @property {string} [itadApiKey] - ITAD 二次校验 key（限免通知候选确认，v6.3.3；v6.4.19 起 profiles 优先）
- * @property {Array<{id: string, name: string, key: string}>} [itadProfiles] - ITAD 多套配置（v6.4.19）
+ * @property {Array<{id: string, name: string, key: string, createdAt?: number}>} [itadProfiles] - ITAD 多套配置（v6.4.19）
  * @property {string} [itadActiveProfileId] - 激活的 ITAD 配置 id（v6.4.19）
  * @property {string} [uiTheme] - 界面皮肤：steam|vista|win31|win95|win98|winxp|win7|win8|win10|win11（v6.4.19）
  * @property {string} [customThemeCss] - 自定义主题 CSS（本地导入，v7.0.5）
- * @property {Object} [dataSources] - 数据源开关（steam/epic/gog/gamerpower/bing，v6.4.19）
- * @property {Object} [steamApiModules] - Steam 数据模块开关（meta/rating/detail/spy，v6.4.19）
+ * @property {Object} [dataSources] - 数据源开关（v6.4.19）
+ * @property {boolean} [dataSources.steam]
+ * @property {boolean} [dataSources.epic]
+ * @property {boolean} [dataSources.gog]
+ * @property {boolean} [dataSources.gamerpower]
+ * @property {boolean} [dataSources.bing]
+ * @property {Object} [steamApiModules] - Steam 数据模块开关（v6.4.19）
+ * @property {boolean} [steamApiModules.meta]
+ * @property {boolean} [steamApiModules.rating]
+ * @property {boolean} [steamApiModules.detail]
+ * @property {boolean} [steamApiModules.spy]
+ * @property {boolean} [detailFloatExpanded] - 详情浮窗默认展开（v10.4.0）
+ * @property {string} [detailFloatSide] - 详情浮窗位置 left|right（v10.4.0）
+ * @property {number} [redTitleRating] - 标题变红阈值（0 = 关闭，默认 95）
  * @property {number} [maxBehaviorLog] - 行为日志上限
  * @property {boolean} enableLog
  * @property {number} maxRuntimeLog

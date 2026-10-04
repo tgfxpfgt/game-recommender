@@ -191,7 +191,7 @@ export function startRatingJob(job) {
 // Resume the checkpointed job after a SW cold start or alarm wake.
 export async function resumeRatingsBatch() {
   if (resumeInFlight) return { resumed: false, reason: 'in-flight' };
-  /** @type {any} */
+  /** @type {{queue?: Array<Object>, startedAt?: number}|null} */
   let job = null;
   try {
     const data = await chrome.storage.session.get(JOB_SESSION_KEY);
