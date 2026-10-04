@@ -124,6 +124,39 @@ async function loadFavorites() {
         loadFavorites().catch(() => {});
       });
     });
+    // v14.1.0（第一轮 B3 补完）：收藏价格列——现价/历史最低/折扣率。
+    // GET_FAVORITE_PRICES 复用 ITAD 两处 TTL 缓存（暖会话零请求）；未配置
+    // ITAD Key 时显示引导文案（后台 configured:false，不发任何请求）。
+    try {
+      const pr = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITE_PRICES' });
+      if (!pr || pr.configured === false) {
+        const note = document.createElement('div');
+        note.style.cssText = 'font-size:11px;color:#8f98a0;margin-top:6px;';
+        note.textContent = '💰 在设置中配置 ITAD API Key 后，此处显示现价/历史最低/折扣率';
+        el.appendChild(note);
+      } else {
+        const prices = pr.prices || {};
+        el.querySelectorAll('.fav-row').forEach((row) => {
+          const p = prices[row.dataset.appid];
+          if (!p) return;
+          const span = document.createElement('span');
+          span.style.cssText = 'font-size:11px;color:#8f98a0;white-space:nowrap;';
+          if (p.current != null && p.lowest != null && p.lowest > 0) {
+            const off = Math.round((1 - p.current / p.lowest) * 100);
+            const offTxt = off >= 5 ? ` · <span style="color:#a3cf06;">-${off}%</span>` : '';
+            span.innerHTML = `💰 ${Number(p.current).toFixed(2)}（最低 ${Number(p.lowest).toFixed(2)}${offTxt}）`;
+            if (p.shop) span.title = `历史最低商店：${String(p.shop)}`;
+          } else if (p.lowest != null) {
+            span.textContent = `💰 历史最低 ${Number(p.lowest).toFixed(2)}`;
+          } else {
+            span.textContent = '💰 暂无价格数据';
+          }
+          row.insertBefore(span, row.querySelector('.fav-remove'));
+        });
+      }
+    } catch {
+      /* 价格获取失败静默——收藏列表本身不受影响 */
+    }
   } catch {
     el.textContent = '加载失败';
   }

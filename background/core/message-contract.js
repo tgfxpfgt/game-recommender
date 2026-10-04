@@ -222,6 +222,13 @@ const RULES = {
     return { ok: true };
   },
   GET_FAVORITES: () => ({ ok: true }),
+  // v14.1.0：dashboard 收藏价格列（复用 ITAD TTL 缓存，无参读类）
+  GET_FAVORITE_PRICES: () => ({ ok: true }),
+  // v14.1.0：设置页"每项恢复默认"微按钮的默认值快照（只取值不落盘）
+  GET_DEFAULT_SETTINGS: () => ({ ok: true }),
+  // v14.1.0：SidePanel 当前页游戏联动（tabId 语义 = chrome.tabs.id 非负整数）
+  GET_TAB_GAME: (m) =>
+    m && Number.isInteger(m.tabId) && m.tabId >= 0 ? { ok: true } : { error: 'GET_TAB_GAME.tabId 必填（非负整数）' },
   // v10.9：xdgrid 过滤滑块窄化持久化（内容侧只发这两个键，替代被 sender 门
   // 拒绝的全量 SAVE_SETTINGS——特权写不对 web 源开放）
   SAVE_RATING_FILTER_CFG: (m) =>

@@ -296,6 +296,16 @@ function buildUI(all, host, cfg) {
           </div>
           <div data-rf="sortHint" style="color:#999;margin-top:4px"></div>
         </div>
+        <div data-rf="presetBox" style="border-top:1px solid #e5e7eb;margin-top:10px;padding-top:8px">
+          <div style="margin-bottom:6px">过滤预设（跨刷新持久）</div>
+          <div style="display:flex;gap:4px;margin-bottom:6px">
+            <input data-rf="presetName" placeholder="预设名（如 95+）" maxlength="20"
+              style="flex:1;min-width:0;padding:3px 6px;font-size:12px;border:1px solid #ddd;border-radius:6px">
+            <button data-rf="presetSave" title="把当前过滤条件（开关+阈值）存为该名字的预设"
+              style="padding:3px 10px;border:none;border-radius:6px;cursor:pointer;background:#eaf3ff;color:#2d6cb5">存当前</button>
+          </div>
+          <div data-rf="presetList" style="display:flex;flex-wrap:wrap;gap:4px;color:#999;font-size:12px"></div>
+        </div>
       </div>
     `;
   document.body.appendChild(panel);
@@ -431,6 +441,90 @@ function buildUI(all, host, cfg) {
   if (sortRatingBtn) sortRatingBtn.addEventListener('click', () => applySort('rating'));
   if (sortUpdateBtn) sortUpdateBtn.addEventListener('click', () => applySort('update'));
   if (sortResetBtn) sortResetBtn.addEventListener('click', () => applySort('none'));
+  // v14.1.0（第二轮 B8 后半）：过滤命名预设——当前过滤条件（开关+阈值）存为
+  // 命名预设一键切换；按 host 隔离存 chrome.storage.local，跨刷新持久。
+  // Named filter presets, host-scoped, persisted in chrome.storage.local.
+  const presetKey = 'grFilterPresets:' + location.hostname;
+  const presetName = panel.querySelector('[data-rf="presetName"]');
+  const presetSaveBtn = panel.querySelector('[data-rf="presetSave"]');
+  const presetList = panel.querySelector('[data-rf="presetList"]');
+  const readPresets = async () => {
+    try {
+      const d = await chrome.storage.local.get(presetKey);
+      const arr = d && d[presetKey];
+      return Array.isArray(arr) ? arr : [];
+    } catch {
+      return [];
+    }
+  };
+  const renderPresets = async () => {
+    if (!presetList) return;
+    const presets = await readPresets();
+    if (presets.length === 0) {
+      presetList.textContent = '暂无预设';
+      return;
+    }
+    presetList.innerHTML = '';
+    for (const p of presets) {
+      const chip = document.createElement('span');
+      chip.style.cssText =
+        'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;font-size:12px;background:#eaf3ff;color:#2d6cb5;border-radius:6px;';
+      const applyBtn = document.createElement('button');
+      applyBtn.type = 'button';
+      applyBtn.textContent = `${p.name}（${p.enabled ? '≥' + p.min + '%' : '关'}）`;
+      applyBtn.title = '应用此预设';
+      applyBtn.style.cssText = 'border:none;background:none;color:inherit;cursor:pointer;font-size:12px;padding:0;';
+      applyBtn.addEventListener('click', () => {
+        rf.enabled.checked = p.enabled !== false;
+        rf.slider.value = String(Math.min(100, Math.max(0, Number(p.min) || 0)));
+        applyFilterChange(); // 复用既有链路：实时过滤 + 窄化持久化
+      });
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.textContent = '✕';
+      delBtn.title = '删除预设';
+      delBtn.style.cssText = 'border:none;background:none;color:#99a;cursor:pointer;font-size:11px;padding:0;';
+      delBtn.addEventListener('click', async () => {
+        const rest = (await readPresets()).filter((x) => x.name !== p.name);
+        try {
+          await chrome.storage.local.set({ [presetKey]: rest });
+        } catch {
+          /* ignore */
+        }
+        renderPresets();
+      });
+      chip.appendChild(applyBtn);
+      chip.appendChild(delBtn);
+      presetList.appendChild(chip);
+    }
+  };
+  if (presetSaveBtn && presetName) {
+    presetSaveBtn.addEventListener('click', async () => {
+      const name = String(presetName.value || '')
+        .trim()
+        .slice(0, 20);
+      if (!name) {
+        presetName.placeholder = '请先输入预设名';
+        return;
+      }
+      const presets = (await readPresets()).filter((x) => x.name !== name);
+      presets.push({
+        name,
+        enabled: rf.enabled.checked,
+        min: Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0)),
+        at: Date.now()
+      });
+      while (presets.length > 10) presets.shift(); // 上限 10，淘汰最早
+      try {
+        await chrome.storage.local.set({ [presetKey]: presets });
+      } catch {
+        /* 存储失败时预设仅本次会话可用 */
+      }
+      presetName.value = '';
+      renderPresets();
+    });
+  }
+  renderPresets();
   // v13 B8：面板打开时显示 Steam 接口可达性（不可达时提示数据可能不完整）
   try {
     chrome.runtime

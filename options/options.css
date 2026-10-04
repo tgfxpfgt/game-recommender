@@ -1721,3 +1721,36 @@ tr:hover td {
     max-width: calc(100vw - 120px); /* 21:9+ 全宽利用 */
   }
 }
+
+/* ===== v14.1.0：设置页每项"恢复默认"微按钮（hover 行内显现） ===== */
+/* 绝对定位于行标题内（label-text 预留右侧 24px/钮）——不占布局空间，
+   行高与注入前一致（in-flow 方案曾使每行 +2~4px、整页基线漂移）。 */
+.label-text {
+  position: relative;
+  padding-right: 24px;
+}
+.gr-reset-one {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 1px solid var(--gr-line, #2a475e);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--gr-dim, #8f98a0);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.setting-row:hover .gr-reset-one {
+  opacity: 0.75;
+}
+.gr-reset-one:hover {
+  opacity: 1;
+  color: var(--gr-blue, #67c1f5);
+  border-color: var(--gr-blue, #67c1f5);
+}

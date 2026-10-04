@@ -86,6 +86,8 @@
       OPTS.bindThemeEvents(); // 皮肤/自定义 CSS 绑定
       OPTS.bindWeightEvents(); // 权重滑块绑定
       OPTS.bindLLMEvents(); // LLM 开关/提供商/测试绑定
+      OPTS.bindFmOrderEvents(); // 浮窗模块顺序（v14.1.0）
+      OPTS.bindResetDefaults(); // 设置页每项"恢复默认"微按钮（v14.1.0）
       OPTS.bindDataManageEvents(); // 数据导出/导入/清除/备份按钮
       OPTS.bindTtlEvents(); // 缓存有效期输入
       OPTS.bindLogConfigEvents(); // 日志配置输入
@@ -257,12 +259,20 @@
     // v11.0 B3 / v13 B9：收藏折扣监控 + 周报（v14 B2 收集迁至 panels/favorites.js）
     OPTS.collectFavoriteSettings();
     // v12 B4：浮窗模块显隐保存映射
+    // v14.1.0：order 仅在用户自定义过顺序时保留（未自定义 = 不写键 = 模板默认序）
     OPTS.currentSettings.floatModules = {
       chips: document.getElementById('fmChips').checked,
       tags: document.getElementById('fmTags').checked,
       developers: document.getElementById('fmDevelopers').checked,
       description: document.getElementById('fmDescription').checked,
-      spy: document.getElementById('fmSpy').checked
+      spy: document.getElementById('fmSpy').checked,
+      ...(Array.isArray(OPTS.currentSettings.floatModules && OPTS.currentSettings.floatModules.order)
+        ? {
+            order: OPTS.currentSettings.floatModules.order.filter((k) =>
+              ['chips', 'tags', 'developers', 'description', 'spy'].includes(k)
+            )
+          }
+        : {})
     };
     OPTS.currentSettings.freeGamesEnabled = document.getElementById('freeGamesEnabled').checked;
     OPTS.currentSettings.themeAutoSwitch = document.getElementById('themeAutoSwitch').checked;

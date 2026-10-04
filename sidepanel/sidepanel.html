@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <title>游戏雷达侧栏</title>
+    <link rel="stylesheet" href="../styles/themes.css" />
+    <style>
+      /* v14.1.0：SidePanel 精简仪表盘——dashboard 精简组件（当前页游戏 +
+        收藏 + 限免速览），窄宽度自适应（SidePanel 典型 240-360px） */
+      :root {
+        --bg: #1b2838;
+        --card: #16202d;
+        --line: #2a475e;
+        --txt: #c7d5e0;
+        --dim: #8f98a0;
+        --blue: #67c1f5;
+        --green: #a3cf06;
+      }
+      body[data-theme] {
+        margin: 0;
+        background: var(--bg);
+        color: var(--txt);
+        font:
+          13px/1.5 'Segoe UI',
+          'Microsoft YaHei',
+          sans-serif;
+      }
+      .sp-section {
+        margin: 10px 8px;
+        padding: 10px;
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 6px;
+      }
+      .sp-title {
+        font-size: 12px;
+        font-weight: bold;
+        color: #fff;
+        margin: 0 0 8px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .sp-title a {
+        color: var(--blue);
+        font-weight: normal;
+        font-size: 11px;
+        text-decoration: none;
+      }
+      #spGameBody .empty {
+        color: var(--dim);
+        font-size: 12px;
+      }
+      .sp-game {
+        display: flex;
+        gap: 8px;
+      }
+      .sp-game img {
+        width: 64px;
+        height: 30px;
+        object-fit: cover;
+        border-radius: 3px;
+        flex: none;
+        background: #0f1620;
+      }
+      .sp-game .g-name {
+        color: #fff;
+        font-weight: bold;
+        font-size: 13px;
+        word-break: break-all;
+      }
+      .sp-game .g-meta {
+        font-size: 11px;
+        color: var(--dim);
+        margin-top: 2px;
+      }
+      .sp-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+        font-size: 12px;
+      }
+      .sp-row .n {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+      .sp-row a {
+        color: var(--blue);
+        text-decoration: none;
+        font-size: 11px;
+        flex: none;
+      }
+      .sp-row .rm {
+        flex: none;
+        background: none;
+        border: 1px solid var(--line);
+        color: var(--dim);
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 10px;
+        padding: 0 5px;
+      }
+      .sp-row .rm:hover {
+        color: #ff8a8a;
+        border-color: #8e3a3a;
+      }
+      .sp-btn {
+        margin-top: 8px;
+        width: 100%;
+        padding: 6px 0;
+        background: linear-gradient(to right, #3a6c8e, #2a475e);
+        color: var(--txt);
+        border: 1px solid #3a6c8e;
+        border-radius: 3px;
+        cursor: pointer;
+        font-size: 12px;
+        font-family: inherit;
+      }
+      .sp-btn:hover {
+        filter: brightness(1.15);
+      }
+      .sp-btn.is-fav {
+        background: linear-gradient(to right, #8e7a3a, #5e4e2a);
+        border-color: #8e7a3a;
+      }
+      .sp-empty {
+        color: var(--dim);
+        font-size: 12px;
+      }
+      .sp-free {
+        font-size: 12px;
+        margin-top: 3px;
+      }
+      .sp-free b {
+        color: var(--green);
+      }
+      .sp-free a {
+        color: var(--blue);
+        text-decoration: none;
+        margin-left: 6px;
+        font-size: 11px;
+      }
+      .sp-free .tag {
+        color: var(--dim);
+        font-size: 10px;
+        margin-right: 4px;
+      }
+    </style>
+  </head>
+  <body data-theme="steam">
+    <!-- 当前页游戏（随 tab 联动）/ Current-tab game -->
+    <section class="sp-section">
+      <p class="sp-title">🎮 当前页游戏</p>
+      <div id="spGameBody"><div class="empty">在下载站或 Steam 页面打开游戏详情后自动显示</div></div>
+    </section>
+
+    <!-- 收藏 / Favorites -->
+    <section class="sp-section">
+      <p class="sp-title">⭐ 收藏 <a href="../dashboard/dashboard.html" target="_blank">完整面板 ↗</a></p>
+      <div id="spFavBody" class="sp-empty">加载中...</div>
+    </section>
+
+    <!-- 限免速览 / Free games -->
+    <section class="sp-section">
+      <p class="sp-title">🎁 限免速览 <a href="../freegames/freegames.html" target="_blank">全部 ↗</a></p>
+      <div id="spFreeBody" class="sp-empty">加载中...</div>
+    </section>
+
+    <script src="../shared/escape.js"></script>
+    <script src="../shared/msg.js"></script>
+    <script src="../shared/settings-utils.js"></script>
+    <script src="sidepanel.js"></script>
+  </body>
+</html>

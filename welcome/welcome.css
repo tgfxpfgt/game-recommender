@@ -96,3 +96,76 @@
 .hidden {
   display: none;
 }
+
+/* ===== v14.1.0：首次安装分步引导 ===== */
+.guide-step {
+  background: #f8f9fa;
+  border: 1px solid #e6e9ec;
+  border-radius: 10px;
+  padding: 18px 20px;
+}
+.guide-step h3 {
+  margin: 0 0 8px;
+  font-size: 15px;
+}
+.guide-step p {
+  margin: 0 0 10px;
+  font-size: 13px;
+  color: #57606f;
+  line-height: 1.6;
+}
+.guide-nav {
+  margin-top: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+.guide-nav button {
+  padding: 7px 18px;
+  font-size: 13px;
+  color: #fff;
+  background: #1f6feb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.guide-nav button.ghost {
+  color: #57606f;
+  background: transparent;
+  border: 1px solid #d0d7de;
+}
+.guide-nav button:hover {
+  opacity: 0.85;
+}
+.guide-dots .dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin: 0 3px;
+  border-radius: 50%;
+  background: #d0d7de;
+  vertical-align: middle;
+}
+.guide-dots .dot.on {
+  background: #1f6feb;
+}
+.guide-themes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.guide-theme-btn {
+  padding: 7px 14px;
+  font-size: 13px;
+  color: #57606f;
+  background: #fff;
+  border: 1px solid #d0d7de;
+  border-radius: 6px;
+  cursor: pointer;
+}
+.guide-theme-btn.active {
+  color: #fff;
+  background: #1f6feb;
+  border-color: #1f6feb;
+}

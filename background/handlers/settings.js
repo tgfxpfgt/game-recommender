@@ -27,10 +27,17 @@ async function handleResetSettings() {
   return { success: true, settings };
 }
 
+// v14.1.0：返回默认值快照——设置页"每项恢复默认"微按钮的单源数据（与
+// RESET_SETTINGS 不同：只取值不落盘，由页面合并后走常规保存）
+async function handleGetDefaultSettings() {
+  return { defaults: DEFAULT_SETTINGS };
+}
+
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const settingsHandlers = {
   GET_SETTINGS: handleGetSettings,
   SAVE_SETTINGS: handleSaveSettings,
   RESET_SETTINGS: handleResetSettings,
+  GET_DEFAULT_SETTINGS: handleGetDefaultSettings, // v14.1.0：单条恢复默认数据源
   SAVE_RATING_FILTER_CFG: (m) => saveRatingFilterCfg(m.enabled, m.minRating) // v10.9：xdgrid 过滤滑块
 };

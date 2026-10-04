@@ -114,6 +114,7 @@
     document.getElementById('fmDevelopers').checked = fm.developers !== false;
     document.getElementById('fmDescription').checked = fm.description !== false;
     document.getElementById('fmSpy').checked = fm.spy !== false;
+    renderFmOrder(fm.order); // v14.1.0：模块顺序回显（未自定义 = 默认序）
     document.getElementById('redTitleRating').value = settings.redTitleRating ?? 95;
 
     // LLM 设置 / LLM settings
@@ -235,6 +236,69 @@
   function toggleLLMSettings() {
     const useLLM = document.getElementById('useLLM').checked;
     document.getElementById('llmSettings').style.display = useLLM ? 'block' : 'none';
+  }
+
+  // ============ v14.1.0：浮窗模块顺序（写侧——读侧在 detail-templates.js） ============
+  // 与模板 DEFAULT_ORDER 同源；未自定义时 settings.floatModules 无 order 键
+  //（保存映射只保留已自定义的顺序，避免"恢复默认顺序"后残留旧值）。
+  const FM_MODULES = [
+    { key: 'chips', label: '中文支持' },
+    { key: 'tags', label: '用户标签' },
+    { key: 'developers', label: '开发商' },
+    { key: 'description', label: '简介' },
+    { key: 'spy', label: 'SteamSpy' }
+  ];
+  const FM_LABELS = Object.fromEntries(FM_MODULES.map((m) => [m.key, m.label]));
+  let fmOrderState = FM_MODULES.map((m) => m.key); // 面板内工作副本
+
+  function renderFmOrder(savedOrder) {
+    const list = document.getElementById('fmOrderList');
+    if (!list) return;
+    const valid = Array.isArray(savedOrder) ? savedOrder.filter((k) => FM_LABELS[k]) : [];
+    fmOrderState = [...valid];
+    for (const m of FM_MODULES) if (!fmOrderState.includes(m.key)) fmOrderState.push(m.key); // 补缺失
+    list.innerHTML = fmOrderState
+      .map(
+        (k, i) => `
+      <div style="display:flex;align-items:center;gap:6px;">
+        <span style="flex:1;">${i + 1}. ${FM_LABELS[k]}</span>
+        <button type="button" class="gr-btn gr-btn-sm fm-order-up" data-key="${k}" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
+        <button type="button" class="gr-btn gr-btn-sm fm-order-down" data-key="${k}" ${i === fmOrderState.length - 1 ? 'disabled' : ''} title="下移">↓</button>
+      </div>`
+      )
+      .join('');
+  }
+
+  function moveFmModule(key, delta) {
+    const i = fmOrderState.indexOf(key);
+    const j = i + delta;
+    if (i < 0 || j < 0 || j >= fmOrderState.length) return;
+    [fmOrderState[i], fmOrderState[j]] = [fmOrderState[j], fmOrderState[i]];
+    OPTS.currentSettings.floatModules = {
+      ...(OPTS.currentSettings.floatModules || {}),
+      order: [...fmOrderState]
+    };
+    renderFmOrder(fmOrderState);
+    OPTS.scheduleAutoSave();
+  }
+
+  function bindFmOrderEvents() {
+    const list = document.getElementById('fmOrderList');
+    if (!list || list.dataset.grBound) return;
+    list.dataset.grBound = '1';
+    list.addEventListener('click', (e) => {
+      const btn = e.target.closest('button');
+      if (!btn || !btn.dataset.key) return;
+      moveFmModule(btn.dataset.key, btn.classList.contains('fm-order-up') ? -1 : 1);
+    });
+    const resetBtn = document.getElementById('fmOrderReset');
+    if (resetBtn) {
+      resetBtn.addEventListener('click', () => {
+        delete OPTS.currentSettings.floatModules.order; // 未自定义语义 = 不写 order 键
+        renderFmOrder(undefined);
+        OPTS.scheduleAutoSave();
+      });
+    }
   }
 
   function toggleApiKeyRow() {
@@ -466,4 +530,6 @@
   OPTS.bindLLMEvents = bindLLMEvents;
   OPTS.bindWeightEvents = bindWeightEvents;
   OPTS.bindRangeNumberInputs = bindRangeNumberInputs;
+  OPTS.bindFmOrderEvents = bindFmOrderEvents; // v14.1.0：模块顺序 UI
+  OPTS.renderFmOrder = renderFmOrder;
 })(typeof globalThis !== 'undefined' ? globalThis : this);

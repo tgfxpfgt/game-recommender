@@ -296,6 +296,46 @@ node --check options/options.js
 
 ## 更新日志
 
+### v14.1.0（历史路线图收尾：SidePanel 仪表盘 / 浮窗模块排序 / 过滤预设 / 收藏价格列 / 单项恢复默认 / 新手引导）
+
+**B9【功】MV3 SidePanel 仪表盘（第二轮批次 9 补完）**
+
+- chrome.sidePanel（Chrome 114+）承载 dashboard 精简版：当前页游戏 + 收藏 + 限免速览
+- 当前页游戏随 tab 联动——检索/直取成功时记录 per-tab 快照（session 持久化，
+  LRU 上限 24，GET_TAB_GAME 消息），侧栏切换/导航即刷新
+- popup 底部新增「🪟 侧栏」入口；无 sidePanel API 的旧 Chrome 隐藏按钮无感降级
+
+**浮窗模块顺序（第二轮 B4 / 第三轮 B3 延后项补完）**
+
+- 读侧：详情浮窗五信息块（中文支持/用户标签/开发商/简介/SteamSpy）按
+  floatModules.order 真正按序装配（此前 order 只计算未使用）
+- 写侧：设置页新增「浮窗模块顺序」↑↓ 调整 + 恢复默认；未自定义不写键
+
+**过滤命名预设（第二轮 B8 后半）**
+
+- 列表过滤面板可将当前条件（开关+阈值）存为命名预设一键切换/删除；
+  按站点隔离存 chrome.storage.local，跨刷新持久（上限 10 个）
+
+**收藏价格列（第一轮 B3 补完）**
+
+- dashboard 收藏区新增现价/历史最低/折扣率；GET_FAVORITE_PRICES 复用 ITAD
+  两处 TTL 缓存（暖会话零请求）；未配置 Key 显示引导不发请求
+
+**每项"恢复默认"微按钮（第一轮 B6 补完）**
+
+- 设置页每个设置行 hover 显现 ↺，单击恢复该键默认值——复用 renderSettings
+  作为单源应用器（避免 ~60 控件双源取值逻辑）；按钮绝对定位零布局侵入
+
+**welcome 分步引导（第一轮 B6 补完）**
+
+- 首次安装 4 步引导：追踪站点（一键启用）→ 过滤阈值 → 主题预览 → 备份建议，
+  完成直达 dashboard；合并式保存（不整包覆盖并发修改）
+
+**工程**
+
+- 新增 GET_TAB_GAME / GET_FAVORITE_PRICES / GET_DEFAULT_SETTINGS 契约链
+  （规则 + handler + 打包清单）；859 测试（+4 tab-game 快照/LRU/契约）
+
 ### v14.0.0（第四轮 10 批次：架构终态治理 + 全面审计修复）
 
 **B1-B3【构】三大页面拆分终态**

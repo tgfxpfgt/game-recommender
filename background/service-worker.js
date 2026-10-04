@@ -146,6 +146,7 @@ Promise.allSettled([
   // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
   import('./core/api-monitor.js').then((m) => m.warmupApiMonitor()),
   import('./core/metrics.js').then((m) => m.warmupMetrics()), // v10.7.0：运行指标
+  import('./core/tab-game.js').then((m) => m.warmupTabGames()), // v14.1.0：SidePanel tab 快照
   import('./steam/ratings-batch.js').then((m) => m.resumeRatingsBatch())
 ]);
 // v10.8：OPFS 写指标接线（静态导入 + 顶层调用——动态版静默失败难排查）

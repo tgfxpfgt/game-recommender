@@ -54,6 +54,7 @@ export default defineConfig({
       'tests/unit/test-list-batch-capacity.mjs',
       'tests/unit/test-list-local-sort.mjs',
       'tests/unit/test-track-batch.mjs',
+      'tests/unit/test-tab-game.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',

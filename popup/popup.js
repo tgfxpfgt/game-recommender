@@ -254,6 +254,25 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (utils.goHub) utils.goHub('options');
   });
 
+  // v14.1.0：SidePanel 入口（Chrome 116+ 有 open() API；旧版隐藏按钮 = 无感降级）
+  // SidePanel entry: hidden on browsers without chrome.sidePanel.open().
+  const spBtn = document.getElementById('sidePanelBtn');
+  if (spBtn) {
+    const sidePanelApi = chrome.sidePanel;
+    if (sidePanelApi && typeof sidePanelApi.open === 'function') {
+      spBtn.style.display = '';
+      spBtn.addEventListener('click', async () => {
+        try {
+          const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+          await sidePanelApi.open({ tabId: tab && tab.id });
+          window.close();
+        } catch {
+          /* 打开失败（如 chrome:// 页）静默 */
+        }
+      });
+    }
+  }
+
   // ============ 状态加载 / Status loads ============
   loadStats();
   loadApiStatus();

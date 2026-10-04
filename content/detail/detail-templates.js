@@ -105,6 +105,96 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
       <div id="gr-fav-row" style="display:none;margin-top:6px;font-size:11px;"></div>
     `;
 
+  // ============ 五个可排序信息模块（v14.1.0：order 真正接管排布） ============
+  // 此前 order 只计算未使用，块按源码固定序渲染。现各块构建为字符串后按
+  // order 数组装配（mods.xxx === false 的块输出空串；缺失项已在上方补默认序）。
+  // The five sortable info modules are built as strings and joined in the
+  // user's configured order; hidden modules render as empty strings.
+
+  // ① 中文支持 + 发行信息芯片 / chips
+  const chipsHtml =
+    mods.chips === false
+      ? ''
+      : `
+        <div class="gr-detail-tags">
+          <span style="padding:2px 8px;border-radius:2px;background:${data.chineseSupported ? 'rgba(163,207,6,0.15)' : 'rgba(255,255,255,0.05)'};color:${data.chineseSupported ? '#a3cf06' : '#666'};">
+            ${data.chineseSupported ? (data.simplifiedChinese ? '✓ 简体中文' : '✓ 支持中文') : '✗ 暂不支持中文'}
+            ${data.chineseSupported && data.chineseHasAudio ? ' · 音频' : ''}
+            ${data.chineseSupported && data.chineseHasSubtitles ? ' · 字幕' : ''}
+          </span>
+          ${data.releaseDate ? `<span class="gr-detail-chip">📅 ${esc(data.releaseDate)}</span>` : ''}
+          ${data.lastUpdate ? `<a class="gr-detail-chip" href="${common.escapeAttr('https://store.steampowered.com/news/app/' + (data.appId || ''))}" target="_blank" rel="noopener" title="查看 Steam 公告（v11.0 B5）" style="text-decoration:none;">🛠 更新 ${esc(data.lastUpdate)}</a>` : ''}
+          ${(() => {
+            // v12 B6：发售倒计时（releaseDate 为未来日期时显示）
+            const rd = Date.parse(data.releaseDate || '');
+            if (isNaN(rd)) return '';
+            const days = Math.ceil((rd - Date.now()) / 86400000);
+            if (days <= 0) return '';
+            return `<span class="gr-detail-chip" style="background:rgba(103,193,245,0.15);color:#67c1f5;">🚀 ${days <= 30 ? days + ' 天后发售' : esc(data.releaseDate)}</span>`;
+          })()}
+        </div>`;
+
+  // ② 热门用户标签 + 官方类型（genres 非独立模块，始终跟随 tags 块）
+  const tagsHtml = `
+        ${
+          data.userTags && data.userTags.length > 0 && mods.tags !== false
+            ? `
+          <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">🔥 热门用户标签</div>
+            <div class="gr-detail-flex-wrap">
+              ${data.userTags
+                .map(
+                  (t) =>
+                    // v10.4.4：标签可点击跳转 Steam 标签页（新窗口；href 全量编码）
+                    `<a href="${common.escapeAttr('https://store.steampowered.com/tags/zh-cn/' + encodeURIComponent(t))}" target="_blank" rel="noopener" title="在 Steam 查看标签「${esc(t)}」" style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:pointer;text-decoration:none;display:inline-block;">${esc(t)}</a>`
+                )
+                .join('')}
+            </div>
+          </div>
+        `
+            : ''
+        }
+        ${
+          data.genres && data.genres.length > 0
+            ? `
+          <div style="margin-bottom:12px;">
+            <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">类型</div>
+            <div class="gr-detail-flex-wrap">
+              ${data.genres.map((g) => `<span style="padding:3px 8px;font-size:11px;background:rgba(255,255,255,0.06);color:#c7d5e0;border-radius:2px;cursor:default;">${esc(g)}</span>`).join('')}
+            </div>
+          </div>
+        `
+            : ''
+        }`;
+
+  // ③ 开发商 / developers
+  const developersHtml =
+    mods.developers !== false && data.developers && data.developers.length > 0
+      ? `
+          <div style="font-size:12px;color:#8f98a0;margin-bottom:10px;">开发商: <span style="color:#67c1f5;">${esc(data.developers.join(', '))}</span></div>
+        `
+      : '';
+
+  // ④ 简介 / description
+  const descriptionHtml =
+    mods.description !== false && data.description
+      ? `
+          <div style="font-size:12px;color:#acb2b8;margin-bottom:12px;line-height:1.6;max-height:80px;overflow:hidden;">
+            ${esc(data.description.substring(0, 200))}${data.description.length > 200 ? '...' : ''}
+          </div>
+        `
+      : '';
+
+  // ⑤ SteamSpy（spyHtml 上方已按 mods.spy 构建）/ spy
+  const orderedModulesHtml = order
+    .map(
+      (k) =>
+        ({ chips: chipsHtml, tags: tagsHtml, developers: developersHtml, description: descriptionHtml, spy: spyHtml })[
+          k
+        ] || ''
+    )
+    .join('');
+
   return `
       <!-- 头部图片 -->
       ${
@@ -126,25 +216,6 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
               : ''
           }
           ${esc(data.name)}
-        </div>
-
-        <!-- 中文支持 + 发行信息 -->
-        <div class="gr-detail-tags" ${mods.chips === false ? 'style="display:none;"' : ''}>
-          <span style="padding:2px 8px;border-radius:2px;background:${data.chineseSupported ? 'rgba(163,207,6,0.15)' : 'rgba(255,255,255,0.05)'};color:${data.chineseSupported ? '#a3cf06' : '#666'};">
-            ${data.chineseSupported ? (data.simplifiedChinese ? '✓ 简体中文' : '✓ 支持中文') : '✗ 暂不支持中文'}
-            ${data.chineseSupported && data.chineseHasAudio ? ' · 音频' : ''}
-            ${data.chineseSupported && data.chineseHasSubtitles ? ' · 字幕' : ''}
-          </span>
-          ${data.releaseDate ? `<span class="gr-detail-chip">📅 ${esc(data.releaseDate)}</span>` : ''}
-          ${data.lastUpdate ? `<a class="gr-detail-chip" href="${common.escapeAttr('https://store.steampowered.com/news/app/' + (data.appId || ''))}" target="_blank" rel="noopener" title="查看 Steam 公告（v11.0 B5）" style="text-decoration:none;">🛠 更新 ${esc(data.lastUpdate)}</a>` : ''}
-          ${(() => {
-            // v12 B6：发售倒计时（releaseDate 为未来日期时显示）
-            const rd = Date.parse(data.releaseDate || '');
-            if (isNaN(rd)) return '';
-            const days = Math.ceil((rd - Date.now()) / 86400000);
-            if (days <= 0) return '';
-            return `<span class="gr-detail-chip" style="background:rgba(103,193,245,0.15);color:#67c1f5;">🚀 ${days <= 30 ? days + ' 天后发售' : esc(data.releaseDate)}</span>`;
-          })()}
         </div>
 
         <!-- 跳转Steam按钮 -->
@@ -242,62 +313,8 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
           })()}
         </div>
 
-        <!-- 热门用户自定义标签 -->
-        ${
-          data.userTags && data.userTags.length > 0 && mods.tags !== false
-            ? `
-          <div style="margin-bottom:12px;">
-            <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">🔥 热门用户标签</div>
-            <div class="gr-detail-flex-wrap">
-              ${data.userTags
-                .map(
-                  (t) =>
-                    // v10.4.4：标签可点击跳转 Steam 标签页（新窗口；href 全量编码）
-                    `<a href="${common.escapeAttr('https://store.steampowered.com/tags/zh-cn/' + encodeURIComponent(t))}" target="_blank" rel="noopener" title="在 Steam 查看标签「${esc(t)}」" style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:pointer;text-decoration:none;display:inline-block;">${esc(t)}</a>`
-                )
-                .join('')}
-            </div>
-          </div>
-        `
-            : ''
-        }
-
-        <!-- 官方类型标签 -->
-        ${
-          data.genres && data.genres.length > 0
-            ? `
-          <div style="margin-bottom:12px;">
-            <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">类型</div>
-            <div class="gr-detail-flex-wrap">
-              ${data.genres.map((g) => `<span style="padding:3px 8px;font-size:11px;background:rgba(255,255,255,0.06);color:#c7d5e0;border-radius:2px;cursor:default;">${esc(g)}</span>`).join('')}
-            </div>
-          </div>
-        `
-            : ''
-        }
-
-        <!-- 开发商 -->
-        ${
-          mods.developers !== false && data.developers && data.developers.length > 0
-            ? `
-          <div style="font-size:12px;color:#8f98a0;margin-bottom:10px;">开发商: <span style="color:#67c1f5;">${esc(data.developers.join(', '))}</span></div>
-        `
-            : ''
-        }
-
-        <!-- 简介 -->
-        ${
-          mods.description !== false && data.description
-            ? `
-          <div style="font-size:12px;color:#acb2b8;margin-bottom:12px;line-height:1.6;max-height:80px;overflow:hidden;">
-            ${esc(data.description.substring(0, 200))}${data.description.length > 200 ? '...' : ''}
-          </div>
-        `
-            : ''
-        }
-
-        <!-- SteamDB 信息 -->
-        ${spyHtml}
+        <!-- 可排序信息模块（chips/tags/developers/description/spy 按用户配置序） -->
+        ${orderedModulesHtml}
 
         <!-- 中文评测 -->
         ${reviewsHtml}

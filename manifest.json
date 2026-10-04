@@ -1,11 +1,14 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "14.0.0",
+  "version": "14.1.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
-  "permissions": ["storage", "alarms", "notifications", "scripting", "contextMenus"],
+  "permissions": ["storage", "alarms", "notifications", "scripting", "contextMenus", "sidePanel"],
+  "side_panel": {
+    "default_path": "sidepanel/sidepanel.html"
+  },
   "commands": {
     "gr-force-refresh": {
       "suggested_key": {

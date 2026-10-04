@@ -11,6 +11,7 @@ import { DB_KEYS, ENDPOINTS } from '../core/constants.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { getSettings } from '../core/settings.js';
 import { createTtlCache } from '../core/mechanisms.js';
+import { getFavorites } from '../storage/favorites.js'; // v14.1.0：收藏价格列静态导入
 import { Logger } from '../storage/logger.js';
 
 // v7.4.0：最近一次限免通知内容（SW 点击通知时读取）
@@ -467,7 +468,6 @@ export async function watchFavoritePrices() {
   if (settings.favoritePriceWatch === false) return { skipped: true, notified: 0 };
   const apiKey = activeItadKey(settings);
   if (!apiKey) return { skipped: true, notified: 0 }; // 无 Key 零请求
-  const { getFavorites } = await import('../storage/favorites.js');
   const favorites = await getFavorites();
   const keys = Object.keys(favorites).slice(0, 50); // 上限 50（防无界轮询）
   const threshold = Number(settings.favoriteDiscountThreshold) || 0.8; // 现价 ≤ 最低 × 阈值
@@ -532,6 +532,31 @@ export async function watchFavoritePrices() {
     `收藏折扣监控完成：${keys.length} 个收藏，折扣通知 ${notified} 条，发售提醒 ${releaseNotified} 条`
   );
   return { skipped: false, notified, releaseNotified };
+}
+
+// v14.1.0：收藏价格表——dashboard 收藏列数据源。逐条复用 getItadLowest（12h）
+// 与 favPriceCache（24h）两处 TTL 缓存，缓存冷时才逐条发请求（上限 50 同
+// watchFavoritePrices）；无 ITAD Key 返回 configured:false 由 UI 显示引导。
+// Favorite price table for the dashboard columns; reuses both TTL caches so a
+// warm session costs zero requests. configured:false when no ITAD key.
+export async function getFavoritePrices() {
+  const settings = await getSettings();
+  const apiKey = activeItadKey(settings);
+  if (!apiKey) return { configured: false, prices: {} };
+  const favorites = await getFavorites();
+  const keys = Object.keys(favorites).slice(0, 50);
+  /** @type {Record<string, {current: number|null, lowest: number|null, shop: string}>} */
+  const prices = {};
+  for (const appId of keys) {
+    const lowest = await getItadLowest(appId);
+    const current = await fetchFavoriteCurrentPrice(appId, apiKey);
+    prices[appId] = {
+      current: Number.isFinite(current) && current > 0 ? Math.round(current * 100) / 100 : null,
+      lowest: lowest && Number.isFinite(lowest.price) && lowest.price > 0 ? Math.round(lowest.price * 100) / 100 : null,
+      shop: (lowest && lowest.shop) || ''
+    };
+  }
+  return { configured: true, prices };
 }
 
 // v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）// v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）

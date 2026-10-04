@@ -393,6 +393,16 @@
                     >
                   </div>
                 </div>
+                <div class="setting-row">
+                  <div class="setting-label">
+                    <span class="label-text">浮窗模块顺序</span>
+                    <span class="label-desc">Module Order（↑↓ 调整浮窗内信息块排布；未自定义 = 默认序）</span>
+                  </div>
+                  <div>
+                    <div id="fmOrderList" style="display: flex; flex-direction: column; gap: 2px; font-size: 12px"></div>
+                    <button id="fmOrderReset" class="gr-btn gr-btn-sm" style="margin-top: 4px">恢复默认顺序</button>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -1771,6 +1781,7 @@
     <!-- v14 B2 拆分面板：search/favorites/sites（壳最后加载） -->
     <script src="panels/search.js"></script>
     <script src="panels/favorites.js"></script>
+    <script src="panels/reset-defaults.js"></script>
     <script src="panels/sites.js"></script>
     <script src="options.js"></script>
   </body>

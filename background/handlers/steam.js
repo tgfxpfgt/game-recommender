@@ -28,12 +28,29 @@ import {
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
 import { getAppIdByUrl, setUrlAppId, deleteUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
+import { noteTabGame, getTabGame } from '../core/tab-game.js'; // v14.1.0：SidePanel 当前页联动
 
 /**
  * 游戏雷达 Game Radar - 消息处理：Steam 查询 / Steam Message Handlers
  *
  * v5.0.0：由 handlers.js 拆分——搜索/直取/手动映射/候选/预热/报错/自愈。
  */
+
+// v14.1.0：解析成功 → 记录 {tabId → 游戏} 快照（SidePanel"当前页游戏"
+// 联动数据源；无 tab 上下文的列表页批量检索 sender 无 tab，自动忽略）
+// Record a per-tab snapshot after a successful resolution (SidePanel mirror).
+function noteResolvedGame(sender, data) {
+  const tabId = sender && sender.tab ? sender.tab.id : undefined;
+  if (data && data.appId) {
+    noteTabGame(tabId, {
+      appId: data.appId,
+      name: data.name,
+      positiveRate: data.positiveRate ?? null,
+      headerImage: data.headerImage || '',
+      url: data.url || ''
+    });
+  }
+}
 
 // --- Steam 查询 / Steam lookups ---
 // v7.0.2：详情页网址作为检索第一候选——同一 URL 始终指向同一 appId，
@@ -67,6 +84,7 @@ async function doHandleSearchSteam(message, sender) {
           Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${byUrl.name}`, { appId: byUrl.appId });
           await flushAllCaches();
           const cachedEntry = await getSteamCacheEntry(byUrl.appId);
+          noteResolvedGame(sender, byUrl); // v14.1.0：SidePanel 联动
           return { data: byUrl, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
         }
         Logger.warn(
@@ -113,6 +131,7 @@ async function doHandleSearchSteam(message, sender) {
   await flushAllCaches();
   // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"（模块化：取最近模块时间）
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
+  noteResolvedGame(sender, steamResult); // v14.1.0：SidePanel 联动
   return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null, reason };
 }
 
@@ -169,6 +188,7 @@ export async function handleGetSteamByAppId(message, sender) {
     // 返回合并视图（detail 判定完整性；meta/rating 字段随合并返回供浮窗渲染）；
     // v3.3.14：非手动路径校验名称相关性（侧边推荐缓存也可能被误取）
     if (manual || !gameName || namesRelated(gameName, detailData.name)) {
+      noteResolvedGame(sender, detailData); // v14.1.0：SidePanel 联动
       return { data: getMergedData(cached), cachedAt: latestModuleTs(cached) };
     }
     Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${detailData.name} vs ${gameName}），拒绝缓存命中`);
@@ -217,6 +237,7 @@ export async function handleGetSteamByAppId(message, sender) {
     await flushAllCaches();
     const newEntry = await getSteamCacheEntry(target.appId);
     Logger.info('Steam', `通过 appId ${target.appId} 直接获取: ${target.name}`);
+    noteResolvedGame(sender, target); // v14.1.0：SidePanel 联动
     return { data: target, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
   } catch (e) {
     Logger.error('Steam', `通过 appId ${appId} 获取失败: ${String(e)}`);
@@ -396,7 +417,8 @@ export const steamHandlers = {
   CLEAR_CACHE_FOR_PAGE: handleClearCacheForPage,
   CACHE_STEAM_PAGE: handleCacheSteamPage,
   REPORT_WRONG_APPID: handleReportWrongAppId,
-  HEAL_REGISTRY_NAMES: handleHealRegistryNames
+  HEAL_REGISTRY_NAMES: handleHealRegistryNames,
+  GET_TAB_GAME: (m) => ({ game: getTabGame(m && m.tabId) }) // v14.1.0：SidePanel 当前页游戏
 };
 
 // --- Steam API 状态监测（v3.3.0）---

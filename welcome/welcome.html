@@ -51,6 +51,47 @@
         <p class="welcome-note">🔒 所有数据（浏览记录、缓存、设置）均存储在本地，不会上传。</p>
       </section>
 
+      <!-- v14.1.0（第一轮 B6 补完）：首次安装分步引导——站点→阈值→主题→备份建议 -->
+      <section id="guideSection" class="welcome-section hidden">
+        <h2 id="guideTitle">3 分钟完成核心配置</h2>
+        <div id="guideStep1" class="guide-step">
+          <h3>① 追踪站点</h3>
+          <p>游戏雷达会在已启用的下载站注入好评率徽章、行为学习与限免监控。</p>
+          <p id="guideSiteStatus">检查中...</p>
+          <button id="guideEnableAll" type="button" class="ghost" style="display: none">一键启用全部内置站点</button>
+        </div>
+        <div id="guideStep2" class="guide-step hidden">
+          <h3>② 好评率过滤阈值</h3>
+          <p>开启后，列表页自动隐藏低于阈值好评率的游戏（之后可随时在列表浮窗调整，或用每项"恢复默认"按钮还原）。</p>
+          <label style="display: flex; align-items: center; gap: 8px; cursor: pointer">
+            <input id="guideFilterEnabled" type="checkbox" />
+            启用好评率过滤
+          </label>
+          <div style="display: flex; align-items: center; gap: 10px; margin-top: 10px">
+            <input id="guideMinRating" type="range" min="0" max="100" step="5" value="90" style="flex: 1" />
+            <b id="guideMinRatingVal">90%</b>
+          </div>
+        </div>
+        <div id="guideStep3" class="guide-step hidden">
+          <h3>③ 界面主题</h3>
+          <p>选一套主题皮肤（点击即预览，之后可在设置中心更换）。</p>
+          <div id="guideThemeBtns" class="guide-themes"></div>
+        </div>
+        <div id="guideStep4" class="guide-step hidden">
+          <h3>④ 数据与备份</h3>
+          <p>所有数据仅存本地。设置中心支持手动导出备份与自动备份（默认开启，建议保持）。</p>
+          <p class="welcome-note">🔒 浏览记录、缓存与设置不会上传到任何服务器。</p>
+        </div>
+        <div class="guide-nav">
+          <button id="guidePrev" type="button" class="ghost">上一步</button>
+          <span id="guideDots" class="guide-dots"></span>
+          <button id="guideNext" type="button">下一步</button>
+        </div>
+        <p style="text-align: center">
+          <a href="#" id="guideSkipFeature" style="color: inherit; font-size: 12px">跳过引导，查看功能介绍</a>
+        </p>
+      </section>
+
       <section id="updateSection" class="welcome-section hidden">
         <h2>本次更新（v7.4.0）</h2>
         <ul class="changelog">
@@ -71,6 +112,7 @@
         <button id="closeBtn" type="button" class="ghost">关闭本页</button>
       </footer>
     </main>
+    <script src="../shared/msg.js"></script>
     <script src="welcome.js"></script>
   </body>
 </html>

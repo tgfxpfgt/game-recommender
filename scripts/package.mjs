@@ -20,7 +20,7 @@ const version = manifest.version;
 // 运行时固定目录（后台静态 import / 内容脚本动态 import）
 const RUNTIME_DIRS = ['background', 'content', 'data', 'lib', 'shared', 'adapters', 'styles', '_locales'];
 // 扩展页面目录（manifest 引用）
-const PAGE_DIRS = ['popup', 'options', 'dashboard', 'freegames', 'hub', 'welcome', 'icons'];
+const PAGE_DIRS = ['popup', 'options', 'dashboard', 'freegames', 'hub', 'welcome', 'sidepanel', 'icons'];
 // manifest 引用的散落文件
 const MANIFEST_FILES = ['manifest.json'];
 
