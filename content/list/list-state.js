@@ -139,6 +139,7 @@ export function applyRatingsResponse(ratings, mode) {
           return;
         }
       }
+      badges.removeWorkingBadge(item); // v14 F1：移除"等待检索"占位
       badges.prependBadge(item, rating, job.settings);
       job.shown++;
     } else if (mode !== 'first' && Object.prototype.hasOwnProperty.call(ratings, item.name)) {
@@ -147,6 +148,7 @@ export function applyRatingsResponse(ratings, mode) {
       job.processed.add(item.name);
       job.notFoundNames.push(item.name);
       changed = true;
+      badges.removeWorkingBadge(item); // v14 F1：移除"等待检索"占位
       badges.prependBadge(item, null, job.settings);
     }
   });

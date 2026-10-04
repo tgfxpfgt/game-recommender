@@ -180,6 +180,12 @@ export async function searchSteamGame(gameName, options = {}) {
       coverImage: result.headerImage || ''
     });
     await recordNameIndex(gameName, appId);
+    // v14 F3：官方中英文名也入名称索引——后续任一名称搜索均先命中本地字典，
+    // 不再出网（扩大 appId 离线清单覆盖率）
+    if (result.name && result.name !== gameName) await recordNameIndex(result.name, appId).catch(() => {});
+    if (result.englishName && result.englishName !== result.name && result.englishName !== gameName) {
+      await recordNameIndex(result.englishName, appId).catch(() => {});
+    }
 
     return result;
   } catch (error) {

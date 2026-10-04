@@ -89,6 +89,8 @@ function enqueueItems(items) {
     batchState.processItems.push(item);
     if (!batchState.itemsByName.has(item.name)) batchState.itemsByName.set(item.name, item);
     if (!batchState.requested.has(item.name)) batchState.queue.push(item.name);
+    // v14 F1：入队即显示"等待检索"占位徽章（数据到达后移除并替换为真实徽章）
+    badges.showWorkingBadge(item, '⏳ 等待检索');
   }
 }
 

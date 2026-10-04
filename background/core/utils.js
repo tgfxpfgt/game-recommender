@@ -127,6 +127,21 @@ export function isSafeFetchUrl(url) {
 // internal address bypass every SSRF check).
 const FETCH_DEFAULT_TIMEOUT = 15000; // 15s
 const MAX_REDIRECTS = 5;
+// v14 F2：Steam 全局速率限制——多标签页共享同一 SW，各 tab 独立批次并发调用
+// Steam API 时总 QPS 可超出限制。在 fetchWithTimeout 层面统一加最小间隔，
+// 所有经过此函数的 Steam 域请求自动排队（不限并发数、只控最小间隔）。
+// Global minimum interval for Steam API calls: multiple tabs share the same SW,
+// concurrent batches can exceed rate limits. Enforced at fetchWithTimeout level.
+let lastSteamCallAt = 0;
+const STEAM_MIN_INTERVAL_MS = 150;
+const steamHostPattern = /(?:^|\.)steampowered\.com$|(?:^|\.)steamstatic\.com$|(?:^|\.)steampowered\.com\.cn$/;
+
+async function steamRateLimit() {
+  const wait = lastSteamCallAt + STEAM_MIN_INTERVAL_MS - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+  lastSteamCallAt = Date.now();
+}
+
 // v3.4.1：每次出站请求均写入审计（含被拦截/限速/网络错误路径），
 // 并按主机滑动窗口限速（兜底防失控；Steam 批处理另有自身异常降速）。
 // Since v3.4.1 every outbound request is audited (blocked/rate-limited/network
@@ -138,6 +153,8 @@ export async function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAUL
   } catch {
     /* URL 非法时保持 invalid */
   }
+  // v14 F2：Steam 域全局速率限制（多标签页防限流）
+  if (steamHostPattern.test(host)) await steamRateLimit();
   const allowPrivate = !!(options && options.allowPrivateHosts === true && /^https?:\/\//i.test(String(url)));
   const t0 = Date.now();
   if (!checkRateLimit(host)) {
