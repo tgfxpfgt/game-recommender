@@ -9,7 +9,9 @@
  */
 
 import { STORAGE_MODULES, LEGACY_BACKUP_KEYS } from '../../data/storage-registry.js';
+import { FM_DEFAULT_ORDER } from '../../shared/fm-keys.js'; // v14.2.0：浮窗模块键单源
 // 注：import 置顶（ESM 提升后位置无关，置顶仅符合惯例）；依赖方向 core→data 合法
+// v14.2.0：core→shared 开放（shared 为最底层纯数据/纯工具层，handlers/entry 已先行）
 
 // 存储键定义 / Storage keys
 export const DB_KEYS = {
@@ -57,22 +59,18 @@ export const STORAGE_CAPS = {
   searchCache: 200, // 搜索缓存 LRU
   llmCache: 300, // LLM 评分缓存 LRU
   siteHealth: 50, // 站点健康聚合上限
+  tabGames: 24, // v14.2.0：SidePanel per-tab 游戏快照上限（复审轮 P2-6 入单源）
+  itadPriceCache: 500, // v14.2.0：ITAD 价格缓存上限（与 favorites 对齐，复审轮 P2-4）
   runtimeLogDefault: 300, // 运行日志默认条数（设置 maxRuntimeLog 的兜底）
   behaviorLogDefault: 500 // 行为日志默认条数（设置 maxBehaviorLog 的兜底）
 };
 
 // v10.7.0 批次1：SteamSpy 信号归一化刻度单源（推荐引擎纯逻辑——权重可调但
 // 刻度此前写死在 engine.js 内；对数分母与中性缺省是评分语义的一部分）
-// v10.7.0: SteamSpy signal normalization scales (weights are user-tunable;
-// these denominators & neutral defaults are part of the scoring semantics).
-export const SPY_SCALES = {
-  playTimeDivisor: 600, // 平均时长分钟 ÷600 饱和
-  heatLogDivisor: 5, // CCU 对数 ÷5（10 万人封顶）
-  salesLogDivisor: 7, // owners 中点对数 ÷7（千万人封顶）
-  reviewLogDivisor: 5, // 评论数对数 ÷5（10 万封顶）
-  neutral: 0.3, // 无数据时的中性缺省分
-  steamNeutral: 0.4 // Steam 无评分时的中性分
-};
+// v14.2.0：真源下沉 shared/spy-scales.js（补充轮 P1-2——content 层无法反向
+// import background，heatLabelFor 曾把 salesLogDivisor 复制成字面量 /7）；此处
+// re-export 保持 engine 既有 import 路径不变。
+export { SPY_SCALES } from '../../shared/spy-scales.js';
 
 // v10.7.0 批次1：后台出站端点单源（原 storesearch ×3 / appdetails ×2 /
 // ITAD ×2 / 商店页前缀散落多处——纯重复漂移风险最高的一类）
@@ -94,7 +92,10 @@ export const ENDPOINTS = {
   gogFreeApi: 'https://www.gog.com/games/ajax/filtered?mediaType=game&price=free&limit=25',
   gogStore: 'https://www.gog.com',
   steamFeatured: 'https://store.steampowered.com/api/featuredcategories/',
-  gamerPower: 'https://www.gamerpower.com/api/giveaways'
+  gamerPower: 'https://www.gamerpower.com/api/giveaways',
+  // v14.2.0：Bing 检索兜底端点收编（补充轮 P1-3——原字面量在 ai-fallback.js；
+  // host_permissions 已为 cn.bing.com 声明，属正式出站依赖）
+  bingSearch: 'https://cn.bing.com/search?q='
 };
 
 // 默认设置 / Default settings
@@ -200,7 +201,16 @@ export const DEFAULT_SETTINGS = {
   notifyFreeGames: true, // 限免通知推送（新增限免时系统通知）
   favoritePriceWatch: true, // v11.0 B3：收藏折扣监控开关（需 ITAD Key，无 Key 零请求）
   // v12 B4：浮窗信息模块显隐（未列出/未配置 = 全显示）
-  floatModules: { chips: true, tags: true, developers: true, description: true, spy: true },
+  // v14.2.0：order 键入默认值；键序真源 = shared/fm-keys.js（顶部副作用 import
+  // 已保证可用——ESM import 提升先于本模块体执行）
+  floatModules: {
+    chips: true,
+    tags: true,
+    developers: true,
+    description: true,
+    spy: true,
+    order: FM_DEFAULT_ORDER.slice()
+  },
   favoriteDiscountThreshold: 80, // v11.0 B3：折扣阈值百分比（现价 ≤ 最低×80% 通知）
   weeklyDigestEnabled: true, // v13 B9：周报 digest 通知开关
   freeGamesEnabled: true, // v10.6.0：限免监控总开关（关闭后不抓取各源，页面显示旧数据）

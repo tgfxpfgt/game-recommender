@@ -224,6 +224,11 @@ const RULES = {
   GET_FAVORITES: () => ({ ok: true }),
   // v14.1.0：dashboard 收藏价格列（复用 ITAD TTL 缓存，无参读类）
   GET_FAVORITE_PRICES: () => ({ ok: true }),
+  // v14.2.0：ITAD Key 连通性测试（key 必填 ≤200 字符）
+  TEST_ITAD_KEY: (m) =>
+    m && typeof m.key === 'string' && m.key.length > 0 && m.key.length <= 200
+      ? { ok: true }
+      : { error: 'TEST_ITAD_KEY.key 必填（≤200 字符）' },
   // v14.1.0：设置页"每项恢复默认"微按钮的默认值快照（只取值不落盘）
   GET_DEFAULT_SETTINGS: () => ({ ok: true }),
   // v14.1.0：SidePanel 当前页游戏联动（tabId 语义 = chrome.tabs.id 非负整数）

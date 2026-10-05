@@ -1,6 +1,6 @@
 import { recordSteamCall, recordDomainCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
-import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
+import { ENDPOINTS, STORAGE_CAPS } from '../core/constants.js'; // v10.7.0：端点单源
 import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
 import { Logger } from '../storage/logger.js';
 
@@ -179,7 +179,7 @@ export async function fetchReviewSummary(appId) {
       }
     } catch {
       recordSteamCall(false, 0); // 重试一次 / retry once
-      recordDomainCall('store', false); // v14.1.0：网络失败计入 store 域熔断
+      recordDomainCall('store', false); // v14.0.0：网络失败计入 store 域熔断
     }
   }
   return null;
@@ -206,7 +206,7 @@ export async function fetchReviewSummary(appId) {
 // api.steampowered.com（与 appreviews 共享限流域）
 // Session dedupe cache for news lookups (24h incl. negative), cutting repeat
 // GetNewsForApp calls on cache rebuilds and repeated resolutions.
-const lastUpdateCache = createTtlCache({ ttlMs: 24 * 3600e3 });
+const lastUpdateCache = createTtlCache({ ttlMs: 24 * 3600e3, max: STORAGE_CAPS.itadPriceCache }); // v14.2.0：补 max
 
 export async function fetchLastUpdate(appId) {
   const key = String(appId);
@@ -221,7 +221,7 @@ export async function fetchLastUpdate(appId) {
       {},
       4000
     );
-    // v14.1.0：api 域可达性上报（此前 api 域恒为 unknown）——只记 domain 不记
+    // v14.0.0：api 域可达性上报（此前 api 域恒为 unknown）——只记 domain 不记
     // recordSteamCall：全局失败率会因大陆常态不可达而恒报警，误触发批量降速
     recordDomainCall('api', resp.ok);
     if (!resp.ok) {
@@ -243,7 +243,7 @@ export async function fetchLastUpdate(appId) {
     lastUpdateCache.set(key, out);
     return out;
   } catch {
-    recordDomainCall('api', false); // v14.1.0：网络失败计入 api 域熔断
+    recordDomainCall('api', false); // v14.0.0：网络失败计入 api 域熔断
     lastUpdateCache.set(key, null);
     return null;
   }
@@ -279,8 +279,8 @@ async function fetchChineseReviews(appId) {
       }
     }
   } catch (e) {
-    recordSteamCall(false, 0); // v14.1.0：网络失败计入限流统计（与 fetchReviewSummary 对齐）
-    recordDomainCall('store', false); // v14.1.0：计入 store 域熔断
+    recordSteamCall(false, 0); // v14.0.0：网络失败计入限流统计（与 fetchReviewSummary 对齐）
+    recordDomainCall('store', false); // v14.0.0：计入 store 域熔断
     Logger.debug('Steam', '获取中文评价失败:', String(e));
   }
   return { cnReviewSummary, chineseReviews };

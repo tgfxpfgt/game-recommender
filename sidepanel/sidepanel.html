@@ -6,20 +6,13 @@
     <link rel="stylesheet" href="../styles/themes.css" />
     <style>
       /* v14.1.0：SidePanel 精简仪表盘——dashboard 精简组件（当前页游戏 +
-        收藏 + 限免速览），窄宽度自适应（SidePanel 典型 240-360px） */
-      :root {
-        --bg: #1b2838;
-        --card: #16202d;
-        --line: #2a475e;
-        --txt: #c7d5e0;
-        --dim: #8f98a0;
-        --blue: #67c1f5;
-        --green: #a3cf06;
-      }
+        收藏 + 限免速览），窄宽度自适应（SidePanel 典型 240-360px）。
+        v14.2.0（复审轮 P1-3）：颜色改用 themes.css 的 --gr-* 主题变量体系——
+        此前内联 :root 硬编码与 body[data-theme] 变量零交集，切主题侧栏恒不变 */
       body[data-theme] {
         margin: 0;
-        background: var(--bg);
-        color: var(--txt);
+        background: var(--gr-bg, #1b2838);
+        color: var(--gr-text, #c7d5e0);
         font:
           13px/1.5 'Segoe UI',
           'Microsoft YaHei',
@@ -28,8 +21,8 @@
       .sp-section {
         margin: 10px 8px;
         padding: 10px;
-        background: var(--card);
-        border: 1px solid var(--line);
+        background: var(--gr-card, #16202d);
+        border: 1px solid var(--gr-border, #2a475e);
         border-radius: 6px;
       }
       .sp-title {
@@ -42,13 +35,13 @@
         align-items: center;
       }
       .sp-title a {
-        color: var(--blue);
+        color: var(--gr-accent, #67c1f5);
         font-weight: normal;
         font-size: 11px;
         text-decoration: none;
       }
       #spGameBody .empty {
-        color: var(--dim);
+        color: var(--gr-text-dim, #8f98a0);
         font-size: 12px;
       }
       .sp-game {
@@ -61,17 +54,17 @@
         object-fit: cover;
         border-radius: 3px;
         flex: none;
-        background: #0f1620;
+        background: var(--gr-bg-deep, #0f1620);
       }
       .sp-game .g-name {
-        color: #fff;
+        color: var(--gr-text-bright, #fff);
         font-weight: bold;
         font-size: 13px;
         word-break: break-all;
       }
       .sp-game .g-meta {
         font-size: 11px;
-        color: var(--dim);
+        color: var(--gr-text-dim, #8f98a0);
         margin-top: 2px;
       }
       .sp-row {
@@ -88,7 +81,7 @@
         white-space: nowrap;
       }
       .sp-row a {
-        color: var(--blue);
+        color: var(--gr-accent, #67c1f5);
         text-decoration: none;
         font-size: 11px;
         flex: none;
@@ -96,24 +89,24 @@
       .sp-row .rm {
         flex: none;
         background: none;
-        border: 1px solid var(--line);
-        color: var(--dim);
+        border: 1px solid var(--gr-border, #2a475e);
+        color: var(--gr-text-dim, #8f98a0);
         border-radius: 3px;
         cursor: pointer;
         font-size: 10px;
         padding: 0 5px;
       }
       .sp-row .rm:hover {
-        color: #ff8a8a;
-        border-color: #8e3a3a;
+        color: var(--gr-red, #ff8a8a);
+        border-color: var(--gr-red, #8e3a3a);
       }
       .sp-btn {
         margin-top: 8px;
         width: 100%;
         padding: 6px 0;
-        background: linear-gradient(to right, #3a6c8e, #2a475e);
-        color: var(--txt);
-        border: 1px solid #3a6c8e;
+        background: var(--gr-grad-btn, linear-gradient(to right, #3a6c8e, #2a475e));
+        color: var(--gr-text, #c7d5e0);
+        border: 1px solid var(--gr-accent, #3a6c8e);
         border-radius: 3px;
         cursor: pointer;
         font-size: 12px;
@@ -127,7 +120,7 @@
         border-color: #8e7a3a;
       }
       .sp-empty {
-        color: var(--dim);
+        color: var(--gr-text-dim, #8f98a0);
         font-size: 12px;
       }
       .sp-free {
@@ -135,16 +128,16 @@
         margin-top: 3px;
       }
       .sp-free b {
-        color: var(--green);
+        color: var(--gr-green, #a3cf06);
       }
       .sp-free a {
-        color: var(--blue);
+        color: var(--gr-accent, #67c1f5);
         text-decoration: none;
         margin-left: 6px;
         font-size: 11px;
       }
       .sp-free .tag {
-        color: var(--dim);
+        color: var(--gr-text-dim, #8f98a0);
         font-size: 10px;
         margin-right: 4px;
       }

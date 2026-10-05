@@ -111,7 +111,6 @@ if (isBump) {
   fs.writeFileSync(path.join(ROOT, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   fs.writeFileSync(path.join(ROOT, 'package.json'), JSON.stringify(pkg, null, 2) + '\n');
   run('git add manifest.json package.json');
-  const summary = changelog.split('\n')[0].replace('- ', '').slice(0, 80);
   run(`git commit -m "chore: v${version} 发布准备"`);
   run(`git tag ${tag}`);
   const ok = await ask(`推送 v${version} 到远端并创建 Release 草稿？(y/N) `);

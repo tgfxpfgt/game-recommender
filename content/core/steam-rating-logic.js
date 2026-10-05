@@ -8,6 +8,7 @@
  * Pure scoring helpers sunk from detail-templates.js (v10.7.0): shared by
  * list badges and the detail float; templates stay in detail-templates.js.
  */
+import { SPY_SCALES } from '../../shared/spy-scales.js'; // v14.2.0：刻度单源（原字面量 /7 与 engine 分裂，补充轮 P1-2）
 
 // Steam 评级描述 → 中短文案 + 三档情感（XDGame 同口径）
 // Steam review desc → short CN text + 3-band sentiment (XDGame semantics)
@@ -33,14 +34,14 @@ const RATING_TEXT_MAP = {
   差评如潮: ['差评如潮', 'negative']
 };
 
-// 销量热度等级（owners 区间中点对数 /7：<35% 冷门、≥35% 一般、≥60% 热门、
-// ≥85% 爆款）——浮窗 SteamSpy 面板与 v10.5.3 内嵌信息区共用
-// Sales heat grade from the owners midpoint (log10/7), shared by the float's
-// SteamSpy panel and the v10.5.3 inline info section.
+// 销量热度等级（owners 区间中点对数 ÷ salesLogDivisor：<35% 冷门、≥35% 一般、
+// ≥60% 热门、≥85% 爆款）——浮窗 SteamSpy 面板与 v10.5.3 内嵌信息区共用
+// Sales heat grade from the owners midpoint (log10/divisor), shared by the
+// float's SteamSpy panel and the v10.5.3 inline info section.
 export function heatLabelFor(spy) {
   if (!spy || typeof spy.ownersLow !== 'number' || typeof spy.ownersHigh !== 'number' || spy.ownersHigh <= 0) return '';
   const mid = (spy.ownersLow + spy.ownersHigh) / 2;
-  const h = Math.min(Math.log10(mid) / 7, 1);
+  const h = Math.min(Math.log10(mid) / SPY_SCALES.salesLogDivisor, 1);
   return h >= 0.85 ? '爆款' : h >= 0.6 ? '热门' : h >= 0.35 ? '一般' : '冷门';
 }
 

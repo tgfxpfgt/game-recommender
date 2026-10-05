@@ -296,6 +296,84 @@ node --check options/options.js
 
 ## 更新日志
 
+### v14.2.0（审查修复大清算：四轮审查 30 项发现全数落地 + 五条新护栏）
+
+**门禁去假象（补充轮 P0×4 + 复审轮 P0×2——"承诺已生效、实际可绕过"全数关闭）**
+
+- 覆盖率门禁目录白名单补齐 UI 全目录（此前 4492 行 UI 代码零覆盖视野）；
+  coverage include 同步补齐 + 全局阈值按新分母实测下调并锁棘轮
+  （lines 47 / stmts 46 / funcs 43 / branches 42，实测 51.3/50.1/47.9/46.6）
+- `scripts/lint-ratchet.mjs` 落地——lint-baseline.json 类型债基线从纯文档变
+  程序约束（gate 步骤；本次即抓出拆分引入的 2 处新债并当场修掉），
+  基线下调至实测 510/251/272
+- vitest include 清单自检测试（漏登记新测试文件 = 静默不跑 → 门禁必拦）
+- coverage-gate 三修：捕获退出码（崩溃→可读失败）/ 表格行找不到即失败
+  （堵假放行通道）/ 长路径缩写行匹配 + basename 歧义判失败
+- `SITE_SCRIPT_FILES` 真单源（export + manifest js 清单顺序敏感深度相等断言）；
+  域名三方一致检查改动态 import BUILTIN_DOMAINS（删硬编码 7 域名正则）
+
+**XSS 转义机器护栏（主报告 P1-2——铁律 #1 从"靠自觉"到有牙）**
+
+- test-integrity 新增静态扫描：innerHTML 模板串 `${...}` 插值未经
+  esc/escapeHtml/escapeAttr 包裹即计数，实测 19 处（逐条为条件模板噪声）
+  落 `xssUnescapedInterpolations` 棘轮基线（只降不升，后续批次清零）
+
+**test-integrity spawn 假阳性根治（主报告 P1-1）**
+
+- 哨兵自检 + 区分 spawn 失败（status=null）与语法错误——沙箱环境不再
+  128/128 全盘假红；`Element` 引用改能力探测（测试环境可加载）
+
+**E2E 假绿修复（复审轮 P1-1）**
+
+- 欢迎页断言从"DOM 存在 6 卡片"改为"分步引导可见 + 4 步点完跳转
+  dashboard"——v14.1.0 头号功能首次获得真实端到端验证（E2E 50→51 项）
+
+**SidePanel 主题失效修复（复审轮 P1-3——v14.1.0 引入的用户可见缺陷）**
+
+- 内联 `:root` 硬编码色板改用 themes.css 的 `--gr-*` 主题变量体系——
+  此前 19 套主题切换对侧栏完全无效；VALID_THEMES 导出单源 +
+  welcome"10 套主题"文案修正（实为 20 套）
+
+**welcome 向导不再改写用户设置（复审轮 P1-4）**
+
+- 过滤阈值/主题初始值从 GET_SETTINGS 回填（原硬编码 true/90 与出厂
+  语义相反，路过点"下一步"即被静默改写）；删 trackedSitesTouched 死字段
+
+**浮窗模块键 5 份副本归一（复审轮 P1-2）**
+
+- `shared/fm-keys.js` 单源（ESM 导出 + globalThis 双通道）——DEFAULT_SETTINGS
+  / types JSDoc / detail-templates / settings 面板 / options 保存映射全部派生；
+  order 键入 DEFAULT_SETTINGS
+- `shared/spy-scales.js` 刻度单源下沉（content 层 `/7` 字面量与 engine 分裂
+  修复，补充轮 P1-2）；分层矩阵开放 core→shared（最底层纯数据方向）
+
+**零散纪律修复（补充轮 P1/P2 + 复审轮 P2）**
+
+- debounced-store 改用 mechanisms.debounce（9 存储模块脱离手写防抖，
+  flush 语义保持）；ENDPOINTS 补 bingSearch（ai-fallback 收编）；
+  favorites 的 ITAD Key 测试改走后台 TEST_ITAD_KEY（裸 fetch + 端点副本消除，
+  铁律 #8）；4 处 TtlCache 补 max（STORAGE_CAPS.itadPriceCache 单源）；
+  tab-game 容量入 STORAGE_CAPS.tabGames + 截断长度注释 + at 全等淘汰用例；
+  settings-sync 扫描补 reset-defaults.js；manifest refs 校验补 side_panel；
+  package.json lint 口径升级 `eslint .`（sidepanel/welcome/scripts 纳入，
+  顺修 2 个存量 warning）；module-manifest 边界语义说明
+- **31 处 v14.0.0 提交内 v14.1.0 版本注释误标修正**（复审轮 P2-5 计数精确命中）
+- content ESM import 链的 shared 依赖纳入 WAR（`shared/*.js`）+
+  integrity 新断言守护——spy-scales 下沉曾致真机动态 import 全链失败而
+  单测全绿（环境差异型盲区，E2E MOCK 40/51 惨案根因）
+
+**重构 + 新功能测试补齐（主报告 P2-1 + 复审轮 P1-5）**
+
+- `freegames/manager.js` 741 行三域拆分：fetch.js（抓取/分类/Steam 判定）/
+  itad.js（ITAD 价格）/ notify.js（通知/角标/领取）+ manager 编排壳
+  （101 行）——消费面 re-export 兼容；xdgrid 过滤预设外移
+  filter-presets.js 纯函数
+- 新增 4 测试套件：filter-presets（重名更新+上限淘汰组合语义）/
+  favorite-prices（无 Key 短路/价格归一/TTL 复用）/
+  reset-defaults（完整点击委托→resetOne 链路，98.5% 行覆盖）/
+  sidepanel（三刷新链路 + 异型守卫，73% 行覆盖）；总计 **887 用例全绿**
+- 三个静默 catch 补可观测性 warn（SidePanel 渲染失败/reset 失败）
+
 ### v14.1.0（历史路线图收尾：SidePanel 仪表盘 / 浮窗模块排序 / 过滤预设 / 收藏价格列 / 单项恢复默认 / 新手引导）
 
 **B9【功】MV3 SidePanel 仪表盘（第二轮批次 9 补完）**

@@ -79,7 +79,8 @@
           /* 静默 */
         }
       });
-    } catch {
+    } catch (e) {
+      console.warn('[SidePanel] 当前页游戏渲染失败:', e);
       body.innerHTML = '<div class="empty">加载失败</div>';
     }
   }
@@ -131,7 +132,8 @@
           }
         });
       });
-    } catch {
+    } catch (e) {
+      console.warn('[SidePanel] 收藏渲染失败:', e);
       el.textContent = '加载失败';
     }
   }
@@ -157,7 +159,8 @@
           }</div>`;
         })
         .join('');
-    } catch {
+    } catch (e) {
+      console.warn('[SidePanel] 限免渲染失败:', e);
       el.textContent = '加载失败';
     }
   }

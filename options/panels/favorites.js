@@ -100,14 +100,14 @@
       }
       result.textContent = '测试中...';
       try {
-        const r = await fetch(
-          'https://api.isthereanydeal.com/v02/game/prices/?key=' + encodeURIComponent(active.key) + '&appids=steam/730'
-        );
-        // v7.1.0：失效时提示轮换（凭证卫生）
-        if (r.status === 200) result.textContent = `✅ 「${active.name || '配置'}」Key 有效`;
-        else if (r.status === 401 || r.status === 403)
+        // v14.2.0（补充轮 P1-3）：改走后台 TEST_ITAD_KEY（fetchWithTimeout——
+        // SSRF 校验/限速/出站审计内建；此前页面裸 fetch + 端点字面量副本）
+        const r = await window.__GR_MSG__.sendMessage({ action: 'TEST_ITAD_KEY', key: String(active.key) });
+        if (r && r.status === 200) result.textContent = `✅ 「${active.name || '配置'}」Key 有效`;
+        else if (r && (r.status === 401 || r.status === 403))
           result.textContent = `❌ 「${active.name || '配置'}」Key 已失效——建议删除后重新添加（轮换）`;
-        else result.textContent = '⚠️ 服务异常（' + r.status + '）';
+        else if (r && r.status > 0) result.textContent = '⚠️ 服务异常（' + r.status + '）';
+        else result.textContent = '❌ 网络错误';
       } catch {
         result.textContent = '❌ 网络错误';
       }

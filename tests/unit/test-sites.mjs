@@ -5,8 +5,7 @@ import { test, expect } from 'vitest';
  * v4.2.0：extractDetailMeta（更新日期/版本/大小/百度网盘链接与提取码），
  * 覆盖 sites/search.js 的 HTML 解析纯函数（fixture HTML 驱动）。
  */
-'use strict';
-
+('use strict');
 
 const mod = await import(new URL('../../background/sites/search.js', import.meta.url).href + '?t=' + Date.now());
 const { extractDetailMeta } = mod;
@@ -26,21 +25,42 @@ const FIXTURE_HTML = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>�
 </body></html>`;
 
 const meta = extractDetailMeta(FIXTURE_HTML, 'gamer520');
-test('更新日期', () => { expect(meta.updateDate).toEqual('2026-08-10'); });
-test('版本号', () => { expect(meta.version).toEqual('V1.2.3'); });
-test('大小', () => { expect(meta.size).toEqual('25.4GB'); });
-test('百度网盘链接', () => { expect(meta.panUrl).toEqual('https://pan.baidu.com/s/1AbCdEfGhIjK'); });
-test('提取码', () => { expect(meta.panCode).toEqual('abcd'); });
+test('更新日期', () => {
+  expect(meta.updateDate).toEqual('2026-08-10');
+});
+test('版本号', () => {
+  expect(meta.version).toEqual('V1.2.3');
+});
+test('大小', () => {
+  expect(meta.size).toEqual('25.4GB');
+});
+test('百度网盘链接', () => {
+  expect(meta.panUrl).toEqual('https://pan.baidu.com/s/1AbCdEfGhIjK');
+});
+test('提取码', () => {
+  expect(meta.panCode).toEqual('abcd');
+});
 
-test('空 HTML 返回空元信息', () => { expect(JSON.stringify(extractDetailMeta('', 'gamer520'))).toEqual(JSON.stringify({ updateDate: '', version: '', size: '', panUrl: '', panCode: '' })); });
-test('null HTML 返回空元信息', () => { expect(extractDetailMeta(null, 'gamer520').updateDate).toEqual(''); });
-test('无网盘链接时 panUrl 为空', () => { expect(extractDetailMeta('<html><body>无内容</body></html>', 'gamer520').panUrl).toEqual(''); });
+test('空 HTML 返回空元信息', () => {
+  expect(JSON.stringify(extractDetailMeta('', 'gamer520'))).toEqual(
+    JSON.stringify({ updateDate: '', version: '', size: '', panUrl: '', panCode: '' })
+  );
+});
+test('null HTML 返回空元信息', () => {
+  expect(extractDetailMeta(null, 'gamer520').updateDate).toEqual('');
+});
+test('无网盘链接时 panUrl 为空', () => {
+  expect(extractDetailMeta('<html><body>无内容</body></html>', 'gamer520').panUrl).toEqual('');
+});
 // 日期变体（斜杠分隔 + 全角冒号；版本标签支持"游戏版本/版本号"）
 const variantHtml = '<html><body><h1>X</h1>更新时间：2026/08/01 游戏版本：1.0 大小：5.2 GB</body></html>';
 const variant = extractDetailMeta(variantHtml, 'xdgame');
-test('斜杠日期变体', () => { expect(variant.updateDate).toEqual('2026/08/01'); });
-test('全角冒号版本变体', () => { expect(variant.version).toEqual('1.0'); });
-
+test('斜杠日期变体', () => {
+  expect(variant.updateDate).toEqual('2026/08/01');
+});
+test('全角冒号版本变体', () => {
+  expect(variant.version).toEqual('1.0');
+});
 
 // ============ 3. 搜索缓存（v6.4.3） ============
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
@@ -54,7 +74,17 @@ test('二次搜索命中缓存（无新增站点请求）', async () => {
   // 注入站点规则（getDownloadSites 回退源）
   globalThis.__GAME_RECOMMENDER_SITES__ = {
     version: 1,
-    sites: [{ key: 'xdgame', name: 'XDGame', domains: ['xdgame.com'], base: 'https://xdgame.com', searchUrl: 'https://xdgame.com/so/{q}.html', detailUrlPatterns: ['/game/\d+\.html?$'], listItem: { containers: ['.game-list li'], titleLink: 'a.tit' } }]
+    sites: [
+      {
+        key: 'xdgame',
+        name: 'XDGame',
+        domains: ['xdgame.com'],
+        base: 'https://xdgame.com',
+        searchUrl: 'https://xdgame.com/so/{q}.html',
+        detailUrlPatterns: ['/game/\d+\.html?$'],
+        listItem: { containers: ['.game-list li'], titleLink: 'a.tit' }
+      }
+    ]
   };
   const scMod = await import(new URL('../../background/storage/search-cache.js', import.meta.url).href);
   scMod.resetSearchCache();
@@ -78,7 +108,17 @@ test('siteKeys 变更 → 缓存失效重查', async () => {
   sStorage._reset();
   globalThis.__GAME_RECOMMENDER_SITES__ = {
     version: 1,
-    sites: [{ key: 'xdgame', name: 'XDGame', domains: ['xdgame.com'], base: 'https://xdgame.com', searchUrl: 'https://xdgame.com/so/{q}.html', detailUrlPatterns: ['/game/\d+\.html?$'], listItem: { containers: ['.game-list li'], titleLink: 'a.tit' } }]
+    sites: [
+      {
+        key: 'xdgame',
+        name: 'XDGame',
+        domains: ['xdgame.com'],
+        base: 'https://xdgame.com',
+        searchUrl: 'https://xdgame.com/so/{q}.html',
+        detailUrlPatterns: ['/game/\d+\.html?$'],
+        listItem: { containers: ['.game-list li'], titleLink: 'a.tit' }
+      }
+    ]
   };
   const scMod = await import(new URL('../../background/storage/search-cache.js', import.meta.url).href);
   scMod.resetSearchCache();

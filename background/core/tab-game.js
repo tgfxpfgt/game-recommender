@@ -10,8 +10,9 @@
  * with the browser session).
  */
 import { createSessionPersist } from './session-persist.js';
+import { STORAGE_CAPS } from './constants.js';
 
-const MAX_TAB_ENTRIES = 24;
+const MAX_TAB_ENTRIES = STORAGE_CAPS.tabGames; // v14.2.0：容量入单源（原裸字面量 24）
 const persist = createSessionPersist('grTabGames', { initial: {} });
 
 export async function warmupTabGames() {
@@ -27,6 +28,8 @@ export function noteTabGame(tabId, game) {
   if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId < 0 || !game || !game.appId) return;
   const all = persist.peek();
   all[String(tabId)] = {
+    // 截断长度：appId 12（数字 appId ≤10 位留余量）、URL 类 500（Steam 头图
+    // 常规 ~120 字符，500 防异常长参注入）、名称 200（对齐 TOGGLE_FAVORITE 契约）
     appId: String(game.appId).slice(0, 12),
     name: String(game.name || '').slice(0, 200),
     positiveRate: Number.isFinite(game.positiveRate) ? game.positiveRate : null,

@@ -239,29 +239,23 @@
   }
 
   // ============ v14.1.0：浮窗模块顺序（写侧——读侧在 detail-templates.js） ============
-  // 与模板 DEFAULT_ORDER 同源；未自定义时 settings.floatModules 无 order 键
-  //（保存映射只保留已自定义的顺序，避免"恢复默认顺序"后残留旧值）。
-  const FM_MODULES = [
-    { key: 'chips', label: '中文支持' },
-    { key: 'tags', label: '用户标签' },
-    { key: 'developers', label: '开发商' },
-    { key: 'description', label: '简介' },
-    { key: 'spy', label: 'SteamSpy' }
-  ];
-  const FM_LABELS = Object.fromEntries(FM_MODULES.map((m) => [m.key, m.label]));
-  let fmOrderState = FM_MODULES.map((m) => m.key); // 面板内工作副本
+  // v14.2.0：键序/文案改读 globalThis.__GR_FM_KEYS__（shared/fm-keys.js 单源，
+  // options.html 以 module script 加载、先于 DOMContentLoaded 执行；此前为本地
+  // 硬编码副本——全仓 5 份键副本之一，复审轮 P1-2）。
+  let fmOrderState = []; // 面板内工作副本（renderFmOrder 重建）
 
   function renderFmOrder(savedOrder) {
     const list = document.getElementById('fmOrderList');
-    if (!list) return;
-    const valid = Array.isArray(savedOrder) ? savedOrder.filter((k) => FM_LABELS[k]) : [];
+    const fm = globalThis.__GR_FM_KEYS__;
+    if (!list || !fm) return;
+    const valid = Array.isArray(savedOrder) ? savedOrder.filter((k) => fm.keys.includes(k)) : [];
     fmOrderState = [...valid];
-    for (const m of FM_MODULES) if (!fmOrderState.includes(m.key)) fmOrderState.push(m.key); // 补缺失
+    for (const k of fm.keys) if (!fmOrderState.includes(k)) fmOrderState.push(k); // 补缺失
     list.innerHTML = fmOrderState
       .map(
         (k, i) => `
       <div style="display:flex;align-items:center;gap:6px;">
-        <span style="flex:1;">${i + 1}. ${FM_LABELS[k]}</span>
+        <span style="flex:1;">${i + 1}. ${fm.labels[k]}</span>
         <button type="button" class="gr-btn gr-btn-sm fm-order-up" data-key="${k}" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
         <button type="button" class="gr-btn gr-btn-sm fm-order-down" data-key="${k}" ${i === fmOrderState.length - 1 ? 'disabled' : ''} title="下移">↓</button>
       </div>`

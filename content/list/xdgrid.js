@@ -15,6 +15,7 @@ import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';
 import * as listState from './list-state.js';
+import { upsertPreset, clampPct } from './filter-presets.js'; // v14.2.0：预设纯逻辑外移
 
 const dbg = (...a) => debug.dbg(...a);
 
@@ -500,21 +501,17 @@ function buildUI(all, host, cfg) {
   };
   if (presetSaveBtn && presetName) {
     presetSaveBtn.addEventListener('click', async () => {
-      const name = String(presetName.value || '')
-        .trim()
-        .slice(0, 20);
+      // v14.2.0：写入逻辑外移 filter-presets.js（重名更新 + 上限 10 淘汰最早，可单测）
+      const { presets, name } = upsertPreset(
+        await readPresets(),
+        String(presetName.value || ''),
+        rf.enabled.checked,
+        clampPct(rf.slider.value)
+      );
       if (!name) {
         presetName.placeholder = '请先输入预设名';
         return;
       }
-      const presets = (await readPresets()).filter((x) => x.name !== name);
-      presets.push({
-        name,
-        enabled: rf.enabled.checked,
-        min: Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0)),
-        at: Date.now()
-      });
-      while (presets.length > 10) presets.shift(); // 上限 10，淘汰最早
       try {
         await chrome.storage.local.set({ [presetKey]: presets });
       } catch {
@@ -545,7 +542,7 @@ function buildUI(all, host, cfg) {
     /* ignore */
   }
   // 回显持久化模式（面板打开时重放；none/未设置不重放）
-  // v14.1.0：等待批次空闲后再重放——此前 buildUI 即刻重放，评分任务尚在加载
+  // v14.0.0：等待批次空闲后再重放——此前 buildUI 即刻重放，评分任务尚在加载
   // （可排序项 < 2）时重放落空，持久化的排序在刷新后静默丢失。
   try {
     chrome.storage.local

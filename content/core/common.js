@@ -84,7 +84,7 @@ function trackEvent(type, data) {
   }
 }
 
-// v14.1.0：页面卸载兜底——500ms 窗口内未发出的行为事件在页面离开前补发
+// v14.0.0：页面卸载兜底——500ms 窗口内未发出的行为事件在页面离开前补发
 //（pagehide 覆盖关闭/跳转；visibilitychange=hidden 覆盖切后台/最小化）。
 // Unload safety net: flush events still inside the 500ms batch window.
 try {

@@ -49,6 +49,24 @@ describe('noteTabGame / getTabGame（SidePanel 当前页联动）', () => {
     expect(tabGame.getTabGame(1023)).not.toBeNull(); // 较新的保留
   });
 
+  it('容量淘汰顺序：同一毫秒写入（at 全等）时仍稳定保留最新键', () => {
+    // LRU 淘汰按 at 排序；at 全等时排序不稳定——但淘汰只要求"数量正确 + 新键存活"。
+    // 用同 tick 写入 26 键，断言最多 24 存活且最后写入的两个键必在。
+    const base = Date.now();
+    const realNow = Date.now;
+    Date.now = () => base; // 冻结时钟构造 at 全等
+    try {
+      for (let i = 0; i < 26; i++) tabGame.noteTabGame(2000 + i, { appId: String(7000 + i), name: 't' + i });
+    } finally {
+      Date.now = realNow;
+    }
+    let alive = 0;
+    for (let i = 0; i < 26; i++) if (tabGame.getTabGame(2000 + i)) alive++;
+    expect(alive).toEqual(24);
+    expect(tabGame.getTabGame(2025)).not.toBeNull();
+    expect(tabGame.getTabGame(2024)).not.toBeNull();
+  });
+
   it('GET_TAB_GAME 契约校验：非整数/负数 tabId 拒绝', async () => {
     const contract = await import(
       new URL('../../background/core/message-contract.js', import.meta.url).href + '?t=' + Date.now()

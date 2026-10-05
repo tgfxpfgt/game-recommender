@@ -259,18 +259,17 @@
     // v11.0 B3 / v13 B9：收藏折扣监控 + 周报（v14 B2 收集迁至 panels/favorites.js）
     OPTS.collectFavoriteSettings();
     // v12 B4：浮窗模块显隐保存映射
-    // v14.1.0：order 仅在用户自定义过顺序时保留（未自定义 = 不写键 = 模板默认序）
+    // v14.2.0：order 键入 DEFAULT_SETTINGS 后始终随映射保留（键序过滤走
+    // shared/fm-keys.js 单源；fmOrderReset 删除后由此处不再写回 = 回默认序）
     OPTS.currentSettings.floatModules = {
       chips: document.getElementById('fmChips').checked,
       tags: document.getElementById('fmTags').checked,
       developers: document.getElementById('fmDevelopers').checked,
       description: document.getElementById('fmDescription').checked,
       spy: document.getElementById('fmSpy').checked,
-      ...(Array.isArray(OPTS.currentSettings.floatModules && OPTS.currentSettings.floatModules.order)
+      ...(OPTS.currentSettings.floatModules && Array.isArray(OPTS.currentSettings.floatModules.order)
         ? {
-            order: OPTS.currentSettings.floatModules.order.filter((k) =>
-              ['chips', 'tags', 'developers', 'description', 'spy'].includes(k)
-            )
+            order: OPTS.currentSettings.floatModules.order.filter((k) => globalThis.__GR_FM_KEYS__.keys.includes(k))
           }
         : {})
     };

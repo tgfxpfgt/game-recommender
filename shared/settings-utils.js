@@ -153,6 +153,7 @@
   }
 
   global.__GR_SETTINGS_UTILS__ = {
+    VALID_THEMES, // v14.2.0：主题清单单源导出（此前仅模块内私有，页面无法复用）
     deepSet,
     getByPath,
     applyPatch,

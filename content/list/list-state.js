@@ -39,7 +39,7 @@ const dbg = (...a) => debug.dbg(...a);
  * @property {Array<any>} urlEntries
  * @property {boolean} finished
  * @property {any} forceTimer
- * @property {Array<any>|null} domOrder - v14.1.0：原始 DOM 顺序基线（本地排序"恢复原顺序"用）
+ * @property {Array<any>|null} domOrder - v14.0.0：原始 DOM 顺序基线（本地排序"恢复原顺序"用）
  */
 /** @type {{ ratingsJob: RatingsJob|null, batchState: any }} */
 export const _state = { ratingsJob: null, batchState: null };
@@ -59,7 +59,7 @@ function createRatingsJob(processItems, settings, uniqueNames) {
     notFoundNames: [],
     urlEntries: [], // appId → 下载页地址批量写入 / download-URL batch entries
     finished: false,
-    domOrder: null, // v14.1.0：原始顺序基线（首次排序前捕获）/ original DOM order baseline
+    domOrder: null, // v14.0.0：原始顺序基线（首次排序前捕获）/ original DOM order baseline
     forceTimer: null // 强制收尾定时器 / force-finish timer
   };
 }
@@ -204,12 +204,12 @@ export function finishRatings() {
   });
   // v6.4.4：按好评率降序重排（设置开启时）
   if (job.settings && job.settings.enableSortByRating) {
-    captureDomOrder(job); // v14.1.0：自动排序前捕获基线，本地"恢复原顺序"才有原始序可用
+    captureDomOrder(job); // v14.0.0：自动排序前捕获基线，本地"恢复原顺序"才有原始序可用
     sortItemsByRating(job);
   }
 }
 
-// v14.1.0：捕获原始 DOM 顺序基线（幂等——只捕获一次，此后"恢复原顺序"依据它）。
+// v14.0.0：捕获原始 DOM 顺序基线（幂等——只捕获一次，此后"恢复原顺序"依据它）。
 // 按 compareDocumentPosition 取真实 DOM 序；环境不支持时（测试模拟 DOM）退化为
 // processItems 提取序（稳定排序保持相对次序）。
 // Capture the original DOM order once (idempotent) so "restore order" can undo
@@ -224,7 +224,7 @@ function captureDomOrder(job) {
   job.domOrder = live.map((it) => it.element);
 }
 
-// v14.1.0：按基线恢复原始顺序（修复此前 'none' 掉入更新日期排序分支的错误行为）。
+// v14.0.0：按基线恢复原始顺序（修复此前 'none' 掉入更新日期排序分支的错误行为）。
 // 基线中已脱离容器的元素（被过滤移除）跳过；恢复过滤时重新插入的项归位末尾。
 // Restore the original order from the baseline (fixes 'none' wrongly sorting by
 // last-update); elements currently outside the container are skipped.
@@ -353,7 +353,7 @@ export function applyLocalSort(mode) {
   const job = _state.ratingsJob;
   const bs = _state.batchState;
   if (!job || !bs) return 0;
-  // v14.1.0：'none' = 恢复原始顺序（此前掉入更新日期排序分支，取消排序行为错误）
+  // v14.0.0：'none' = 恢复原始顺序（此前掉入更新日期排序分支，取消排序行为错误）
   if (mode === 'none') return restoreDomOrder(job);
   const items = job.processItems.filter((it) => it.element && it.element.parentNode);
   if (items.length < 2) return 0;

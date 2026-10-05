@@ -35,9 +35,12 @@ function step(name, cmd, env = {}) {
 }
 
 step('check（lint + typecheck + vitest）', 'npm run check');
+step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
+step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
 if (!fast) {
   step('E2E 冒烟（MOCK 离线）', 'npm run e2e', { E2E_MOCK: '1' });
 }
 step('visual（视觉回归）', 'npm run visual');
+step('release-smoke（发布打包冒烟）', 'npm run package');
 
 console.log('\n✅ 全部门禁通过（gate passed）');

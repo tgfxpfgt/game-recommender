@@ -28,7 +28,7 @@ function layerOf(relPath) {
   if (p.startsWith('../data/')) return 'data';
   if (p.startsWith('../lib/')) return 'lib';
   if (p.startsWith('../adapters/')) return 'adapters';
-  if (p.startsWith('../shared/')) return 'shared'; // v14.1.0：SW 消费共享纯工具（msg.js 错误归一）
+  if (p.startsWith('../shared/')) return 'shared'; // v14.0.0：SW 消费共享纯工具（msg.js 错误归一）
   if (p === 'service-worker.js') return 'entry';
   if (p === 'handlers.js' || p.startsWith('handlers/')) return 'handlers'; // v5.0.0：handlers/ 子目录
   const first = p.split('/')[0];
@@ -40,10 +40,12 @@ function layerOf(relPath) {
 
 // 允许矩阵：源层 → 可依赖的目标层集合 / allowed targets per source layer
 const ALLOWED = {
-  core: new Set(['core', 'data', 'lib']),
+  // v14.2.0：core → shared 开放（shared 为最底层纯数据/纯工具层——fm-keys/
+  // spy-scales 单源下沉；handlers/entry → shared 已先行，方向一致无环）
+  core: new Set(['core', 'data', 'lib', 'shared']),
   storage: new Set(['storage', 'core', 'data', 'lib']),
   biz: new Set(['biz', 'storage', 'core', 'data', 'lib']),
-  // v14.1.0：handlers/entry 允许 → shared（msg.js 统一错误归一，SW 侧经 global 消费）
+  // v14.0.0：handlers/entry 允许 → shared（msg.js 统一错误归一，SW 侧经 global 消费）
   handlers: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry', 'shared']),
   entry: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry', 'shared']),
   data: new Set(['data', 'lib']),
@@ -196,17 +198,36 @@ test('detail-page 不含完整漂移副本', () => {
   expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true);
 });
 
-let syntaxFail = 0;
-for (const f of jsFiles) {
-  try {
-    execSync(`node --check "${f}"`, { stdio: 'pipe' });
-  } catch {
-    syntaxFail++;
-    console.log('  ❌', path.relative(ROOT, f));
+// v14.2.0：spawn 假阳性根治（主报告 P1-1）——哨兵自检 + 区分"环境不可用"
+// 与"语法错误"。此前 catch 把 spawn 失败（沙箱 cmd.exe EBUSY，status=null）
+// 当语法错误计数，一挂就是全量 N/N 假红且与真实语法错误输出无法区分。
+let spawnBroken = false;
+try {
+  execSync(`node --check "${jsFiles[0]}"`, { stdio: 'pipe' }); // 哨兵：已知合法文件
+} catch (e) {
+  spawnBroken = e.status === null || e.status === undefined;
+}
+const syntaxFails = [];
+if (!spawnBroken) {
+  for (const f of jsFiles) {
+    try {
+      execSync(`node --check "${f}"`, { stdio: 'pipe' });
+    } catch (e) {
+      if (e.status === null || e.status === undefined) {
+        spawnBroken = true; // 中途环境劣化：本轮结果不可信，转跳过
+        break;
+      }
+      syntaxFails.push(path.relative(ROOT, f));
+    }
   }
 }
-test('语法错误数', () => {
-  expect(syntaxFail).toEqual(0);
+test('语法错误数（spawn 不可用时显式跳过，typecheck 仍全量覆盖）', () => {
+  if (spawnBroken) {
+    console.warn('  ⚠ node --check spawn 不可用（环境限制）——语法检查本轮跳过');
+    expect(true).toEqual(true);
+    return;
+  }
+  expect(syntaxFails, `语法错误文件: ${syntaxFails.join(', ')}`).toEqual([]);
 });
 test('JS 文件数', () => {
   expect(jsFiles.length >= 40).toEqual(true);
@@ -222,6 +243,7 @@ for (const cs of manifest.content_scripts || []) {
 for (const v of Object.values(manifest.icons || {})) refs.push(v);
 if (manifest.options_page) refs.push(manifest.options_page);
 if (manifest.action?.default_popup) refs.push(manifest.action.default_popup);
+if (manifest.side_panel?.default_path) refs.push(manifest.side_panel.default_path); // v14.2.0：SidePanel 入口
 const missing = refs.filter((r) => !fs.existsSync(path.join(ROOT, r)));
 test('manifest 引用缺失', () => {
   expect(missing.length).toEqual(0);
@@ -274,13 +296,10 @@ const manifestDomains = [
       .map((m) => m.replace(/^https?:\/\/\*\./, '').replace(/\/\*$/, ''))
   )
 ].sort();
-const builtinDomains = [
-  ...fs
-    .readFileSync(path.join(BG, 'core/site-scripts.js'), 'utf-8')
-    .matchAll(/'(xdgame\.com|xianyudanji\.gg|gamer520\.com|gamers520\.com|3dmgame\.com|ali213\.net|gamersky\.com)'/g)
-]
-  .map((m) => m[1])
-  .sort();
+// v14.2.0：单源改动态 import（此前硬编码 7 域名正则——新增内置站漏改正则
+// 时该域名静默逃过一致性校验，补充轮 P2-1）
+const siteScriptsMod = await import(new URL('../../background/core/site-scripts.js', import.meta.url).href);
+const builtinDomains = [...siteScriptsMod.BUILTIN_DOMAINS].sort();
 const siteRuleDomains = [
   ...collectJs(path.join(ROOT, 'adapters/sites'), [])
     .map((f) => fs.readFileSync(f, 'utf-8'))
@@ -433,4 +452,102 @@ test('P2：DATA_MODULES 每个 storageKey 均在 MODULE_FILES 中', () => {
     (m) => `${m.key}→${m.storageKey}`
   );
   expect(bad, 'storageKey 不在 data-store MODULE_FILES（漏文件映射）:\n  ' + bad.join('\n  ')).toEqual([]);
+});
+
+// ============ 10. vitest include 清单自检（v14.2.0，补充轮 P0-3） ============
+// 显式清单漏加新测试文件时 npm test 静默不跑且门禁全绿——把约定升级为不变量。
+const vitestCfgSrc = fs.readFileSync(path.join(ROOT, 'vitest.config.js'), 'utf-8');
+const declaredSuites = [...vitestCfgSrc.matchAll(/'(tests\/(?:unit|integration)\/test-[^']+\.mjs)'/g)].map((m) => m[1]);
+const onDiskSuites = collectJs(path.join(ROOT, 'tests/unit'), [])
+  .concat(collectJs(path.join(ROOT, 'tests/integration'), []))
+  .map((f) => 'tests/' + path.relative(path.join(ROOT, 'tests'), f).replace(/\\/g, '/'))
+  .filter((f) => /test-[^/]+\.mjs$/.test(f))
+  .sort();
+test('vitest include 清单覆盖全部测试文件（漏登记 = 静默不跑）', () => {
+  const missing = onDiskSuites.filter((f) => !declaredSuites.includes(f));
+  expect(missing, '漏加 vitest.config.js include 的测试文件:\n  ' + missing.join('\n  ')).toEqual([]);
+});
+
+// ============ 11. SITE_SCRIPT_FILES 真单源（v14.2.0，补充轮 P0-4） ============
+// 此前 manifest js 清单与 site-scripts.js 各一份手工副本（零测试守护）——
+// 漂移时内置站静态注入与自定义站动态注册一半失灵且 check 全绿。
+test('manifest content_scripts js 清单 = SITE_SCRIPT_FILES（顺序敏感单源断言）', () => {
+  const manifestJs = (manifest.content_scripts || []).flatMap((cs) => cs.js || []);
+  expect(JSON.stringify(manifestJs)).toEqual(JSON.stringify(siteScriptsMod.SITE_SCRIPT_FILES));
+});
+
+// ============ 12. XSS 转义静态扫描（v14.2.0，主报告 P1-2——铁律 #1 机器护栏） ============
+// 扫描生产 JS 中 innerHTML 模板串的 ${...} 插值：不含引号的纯数字/布尔/变量
+// 运算视为低风险跳过；其余（字符串拼接数据）未经 esc/escapeHtml/escapeAttr
+// 包裹的计为"未防护插值"。当前总数记入 scripts/lint-baseline.json
+// xssUnescapedInterpolations 棘轮（只降不升）——先落基线，后续批次清零。
+const XSS_SCAN_DIRS = [
+  'content',
+  'options',
+  'dashboard',
+  'popup',
+  'sidepanel',
+  'welcome',
+  'hub',
+  'freegames',
+  'shared'
+];
+const SAFE_INTERP_RE = /^\s*(?:[\w.]*\.)?(?:esc|escA|esc2|escapeHtml|escapeAttr)\s*\(/;
+function scanXssInterpolations(file) {
+  const lines = fs.readFileSync(file, 'utf-8').split('\n');
+  const out = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (!/innerHTML\s*(?:\+=|=)/.test(lines[i])) continue;
+    let tpl = lines[i];
+    let j = i;
+    while (j + 1 < lines.length && (tpl.match(/`/g) || []).length % 2 === 1) {
+      j += 1;
+      tpl += '\n' + lines[j];
+    }
+    i = j; // 模板整体消费
+    for (const m of tpl.matchAll(/\$\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g)) {
+      const expr = m[1];
+      if (!/['"`]/.test(expr)) continue; // 纯数字/布尔/变量运算（${size}px 等）
+      if (SAFE_INTERP_RE.test(expr)) continue; // 已被转义包裹
+      out.push({
+        file: path.relative(ROOT, file).replace(/\\/g, '/'),
+        line: i + 1,
+        expr: expr.replace(/\s+/g, ' ').slice(0, 90)
+      });
+    }
+  }
+  return out;
+}
+const xssFindings = XSS_SCAN_DIRS.flatMap((d) => collectJs(path.join(ROOT, d), [])).flatMap((f) =>
+  scanXssInterpolations(f)
+);
+const lintBaseline = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts/lint-baseline.json'), 'utf-8'));
+const xssBaseline = Number(lintBaseline.xssUnescapedInterpolations || 0);
+// ============ 13. 内容 ESM import 链的 WAR 覆盖（v14.2.0） ============
+// content 模块经 chrome.runtime.getURL 动态 import，其静态 import 的 shared
+// 模块必须命中 web_accessible_resources 通配——此前 spy-scales/fm-keys 下沉
+// shared 后不在 WAR，真机动态 import 全链失败而单测全绿（环境差异型盲区）。
+test('content 静态 import 的 shared 模块均在 WAR 覆盖内', () => {
+  const warRes = (manifest.web_accessible_resources || []).flatMap((w) => w.resources || []);
+  const sharedImports = new Set();
+  for (const f of collectJs(path.join(ROOT, 'content'), [])) {
+    const src = fs.readFileSync(f, 'utf-8');
+    for (const m of src.matchAll(/from\s+'[^']*\/\/shared\/([a-z0-9-]+\.js)'/g)) {
+      sharedImports.add('shared/' + m[1]);
+    }
+  }
+  const hit = (res) => warRes.some((w) => w.endsWith('*') && res.startsWith(w.slice(0, -1)));
+  const uncovered = [...sharedImports].filter((r) => !warRes.includes(r) && !hit(r));
+  expect(uncovered, 'WAR 未覆盖的内容侧共享依赖:\n  ' + uncovered.join('\n  ')).toEqual([]);
+});
+
+test('XSS 未防护插值 ≤ 棘轮基线（只降不升——铁律 #1 机器护栏）', () => {
+  if (xssFindings.length > xssBaseline) {
+    const detail = xssFindings
+      .slice(0, 15)
+      .map((f) => '  ' + f.file + ':' + f.line + ' ${' + f.expr + '}')
+      .join('\n');
+    console.error(`❌ XSS 未防护插值 ${xssFindings.length} > 基线 ${xssBaseline}:\n${detail}`);
+  }
+  expect(xssFindings.length).toBeLessThanOrEqual(xssBaseline);
 });

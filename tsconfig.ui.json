@@ -20,6 +20,7 @@
     "freegames/**/*.js",
     "hub/**/*.js",
     "welcome/**/*.js",
+    "sidepanel/**/*.js",
     "adapters/**/*.js",
     "shared/**/*.js",
     "**/*.d.ts"

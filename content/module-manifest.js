@@ -10,6 +10,8 @@
  * 新增内容模块 = 本清单一行 + 业务文件（可选模块另有 setting 键声明）。
  * Single source of truth for content modules; tracker loads from here, the
  * content-sim derives its file list, integrity checks existence.
+ * 边界语义（v14.2.0 消歧义）：本清单只登记**顶层装载单元**（tracker 动态 import 的入口）；
+ * 被入口静态 import 的内部依赖模块（如 detail/sidebar.js、steam-rating-logic.js）无需登记。
  */
 
 /** @type {Array<{key: string, file: string}>} */

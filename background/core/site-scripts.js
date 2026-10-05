@@ -29,8 +29,10 @@ export const BUILTIN_DOMAINS = [
   'gamersky.com'
 ];
 
-// 与 manifest content_scripts 相同的注入清单（动态注册用）
-const SITE_SCRIPT_FILES = [
+// 与 manifest content_scripts 相同的注入清单（动态注册用）。
+// v14.2.0：export 单源化——manifest js 清单由 test-integrity 深度相等断言守护
+//（此前为两份手工副本，内置站与自定义规则站可能一半失灵且 check 全绿）
+export const SITE_SCRIPT_FILES = [
   'shared/patterns.js',
   'shared/msg.js',
   'shared/escape.js',

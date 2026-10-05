@@ -1,7 +1,7 @@
 /**
  * 游戏雷达 Game Radar - TRACK_EVENT_BATCH 批量追踪管线单测
  *
- * v14.1.0 回归补齐：批量事件逐条走与单发相同的管线（单条失败不丢整批）、
+ * v14.0.0 回归补齐：批量事件逐条走与单发相同的管线（单条失败不丢整批）、
  * applied 计数正确、click_download 的 AppID 维度下载计数站点去重键。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';

@@ -1,7 +1,7 @@
 /**
  * 游戏雷达 Game Radar - 列表页本地排序回归单测
  *
- * v14.1.0 P2-4 回归：applyLocalSort('none') 此前掉入"更新日期"排序分支
+ * v14.0.0 P2-4 回归：applyLocalSort('none') 此前掉入"更新日期"排序分支
  * （取消排序行为错误）；现按 domOrder 基线恢复原始顺序——含收尾自动排序
  * （enableSortByRating）先于手动排序时基线不被破坏的场景。
  */

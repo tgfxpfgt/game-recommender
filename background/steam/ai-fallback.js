@@ -15,6 +15,7 @@
  * (hallucination guard). Successful matches cache 7d, failures 24h.
  */
 import { getSettings } from '../core/settings.js';
+import { ENDPOINTS } from '../core/constants.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
 import { getLlmMatch, setLlmMatch, getWebMatch, setWebMatch } from '../storage/llm-cache.js';
@@ -44,7 +45,7 @@ export function parseBingSearchAppIds(html) {
   return ids;
 }
 
-const BING_SEARCH_URL = 'https://cn.bing.com/search?q=';
+// v14.2.0：端点收编 ENDPOINTS.bingSearch（原本地字面量与单源表漂移）
 const BING_UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 
@@ -70,7 +71,7 @@ export async function webSearchFallback(rawName, excludeAppId) {
     }
     // cn.bing.com 为公网域名（fetchWithTimeout 的 SSRF host 校验放行）；
     // 搜索词经 encodeURIComponent 编码，无注入面
-    const searchUrl = BING_SEARCH_URL + encodeURIComponent(rawName + ' steam');
+    const searchUrl = ENDPOINTS.bingSearch + encodeURIComponent(rawName + ' steam');
     const resp = await fetchWithTimeout(searchUrl, { headers: { 'User-Agent': BING_UA } }, 15000);
     const html = await resp.text();
     const appIds = parseBingSearchAppIds(html)

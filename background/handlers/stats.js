@@ -9,9 +9,9 @@ import { getSteam250Info } from '../steam/steam250.js';
 import { getFavorites } from '../storage/favorites.js';
 import { fetchSteamTagRecommendations } from '../steam/api-search.js';
 import { Logger } from '../storage/logger.js';
-import '../../shared/msg.js'; // v14.1.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
+import '../../shared/msg.js'; // v14.0.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
 
-// v14.1.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
+// v14.0.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
 const { toUserMessage } = /** @type {any} */ (globalThis).__GR_MSG__;
 
 /**

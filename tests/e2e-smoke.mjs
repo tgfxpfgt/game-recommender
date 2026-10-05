@@ -210,11 +210,25 @@ async function runChecks() {
   }
   if (welcomeTab) {
     await welcomeTab.waitForTimeout(600);
+    // v14.2.0（复审轮 P1-1 假绿修复）：v14.1.0 起 install 模式默认展示分步引导
+    // （feature-card 所在 installSection 被 hidden）——querySelectorAll 不受
+    // display:none 影响导致旧断言恒真。改为断言"引导可见 + 4 步点完跳 dashboard"。
     const wState = await welcomeTab.evaluate(() => ({
-      cards: document.querySelectorAll('.feature-card').length,
+      guideVisible:
+        !!document.getElementById('guideStep1') && document.getElementById('guideStep1').offsetParent !== null,
+      dots: document.querySelectorAll('#guideDots .dot').length,
       hasHub: !!document.getElementById('openHubBtn')
     }));
-    check('欢迎页功能导览渲染（安装模式）', wState.cards === 6 && wState.hasHub);
+    check('欢迎页分步引导渲染（安装模式，v14.2 假绿修复）', wState.guideVisible && wState.dots === 4 && wState.hasHub);
+    // 引导 4 步走完 → 跳转 dashboard（v14.1.0 头号新功能的端到端验证）
+    for (let i = 0; i < 4; i++) {
+      if (welcomeTab.url().includes('dashboard')) break;
+      const next = await welcomeTab.$('#guideNext');
+      if (!next) break;
+      await next.click();
+      await welcomeTab.waitForTimeout(500);
+    }
+    check('欢迎页引导完成跳转 dashboard', welcomeTab.url().includes('dashboard/dashboard.html'));
   } else {
     check('欢迎页已打开（install 模式）', false);
   }

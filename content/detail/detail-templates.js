@@ -11,6 +11,7 @@ import * as common from '../core/common.js';
 // v10.7.0 批次1：评分口径纯函数下沉 content/core/steam-rating-logic.js（本文件
 // 只留模板）；此处 re-export 保持既有 import 路径兼容（detail-page.js 命名空间用法）
 import { heatLabelFor, ratingTextInfo, adjustedReputation, verdictFor } from '../core/steam-rating-logic.js';
+import { FM_KEYS, FM_DEFAULT_ORDER } from '../../shared/fm-keys.js'; // v14.2.0：键序单源
 export { heatLabelFor, ratingTextInfo, adjustedReputation, verdictFor };
 
 const esc = (text) => common.escapeHtml(text);
@@ -32,10 +33,9 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
   // 未配置 = 全显示（不破坏现有用户）
   // v13 B3：order 排序持久化——块按 order 数组顺序渲染（未配置 = 默认序）
   const mods = (typeof data.floatModules === 'object' && data.floatModules) || {};
-  const DEFAULT_ORDER = ['chips', 'tags', 'developers', 'description', 'spy'];
-  const order =
-    Array.isArray(mods.order) && mods.order.length > 0 ? mods.order.filter((k) => DEFAULT_ORDER.includes(k)) : [];
-  for (const k of DEFAULT_ORDER) if (!order.includes(k)) order.push(k); // 补缺失项（保底）
+  // v14.2.0：键序改读 shared/fm-keys.js 单源（此前为本地字面量副本——5 份副本之一）
+  const order = Array.isArray(mods.order) && mods.order.length > 0 ? mods.order.filter((k) => FM_KEYS.includes(k)) : [];
+  for (const k of FM_DEFAULT_ORDER) if (!order.includes(k)) order.push(k); // 补缺失项（保底）
   // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__；v10.7.0 删字面量 fallback）
   const P = globalThis.__GR_PATTERNS__;
   const rate = Number(data.positiveRate) || 0; // v10.9：非数值防 NaN 进进度条

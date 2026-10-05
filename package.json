@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "14.1.0",
+  "version": "14.2.0",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -10,7 +10,7 @@
   "scripts": {
     "test": "vitest run",
     "e2e": "node tests/e2e-smoke.mjs",
-    "lint": "eslint background content options popup shared tests adapters dashboard data freegames lib hub --no-warn-ignored --max-warnings 0",
+    "lint": "eslint . --no-warn-ignored --max-warnings 0",
     "check": "npm run lint && npm run typecheck && npm test",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.content.json",
     "coverage": "vitest run --coverage",

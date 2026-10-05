@@ -399,7 +399,10 @@
                     <span class="label-desc">Module Order（↑↓ 调整浮窗内信息块排布；未自定义 = 默认序）</span>
                   </div>
                   <div>
-                    <div id="fmOrderList" style="display: flex; flex-direction: column; gap: 2px; font-size: 12px"></div>
+                    <div
+                      id="fmOrderList"
+                      style="display: flex; flex-direction: column; gap: 2px; font-size: 12px"
+                    ></div>
                     <button id="fmOrderReset" class="gr-btn gr-btn-sm" style="margin-top: 4px">恢复默认顺序</button>
                   </div>
                 </div>
@@ -1774,6 +1777,8 @@
     <script src="../shared/msg.js"></script>
     <script src="../shared/settings-utils.js"></script>
     <script src="../shared/crypto-utils.js"></script>
+    <!-- v14.2.0：浮窗模块键单源（module 脚本先于 DOMContentLoaded 执行，运行期读全局） -->
+    <script type="module" src="../shared/fm-keys.js"></script>
     <script src="panels/settings.js"></script>
     <script src="panels/cache.js"></script>
     <script src="panels/data-manage.js"></script>

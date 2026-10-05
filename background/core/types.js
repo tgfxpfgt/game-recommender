@@ -106,6 +106,7 @@
  * @property {boolean} [floatModules.developers]
  * @property {boolean} [floatModules.description]
  * @property {boolean} [floatModules.spy]
+ * @property {string[]} [floatModules.order] - v14.2.0：模块顺序（键序单源 shared/fm-keys.js）
  * @property {boolean} [weeklyDigestEnabled] - 周报 digest 通知开关（v13 B9）
  * @property {boolean} [themeAutoSwitch] - 主题定时切换开关（v10.6.0）
  * @property {string} [uiThemeDay] - 日间主题名（v10.6.0）

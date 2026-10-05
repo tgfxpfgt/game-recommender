@@ -185,9 +185,13 @@
       document.body.dataset.grResetBound = '1';
       document.addEventListener('click', (e) => {
         const target = e.target;
-        const btn = target instanceof Element ? target.closest('.gr-reset-one') : null;
+        // 能力探测 + 结构化收窄（node 测试环境无 Element 全局；DOM 环境两者等价）
+        const el = /** @type {{ closest?: (s: string) => { getAttribute: (k: string) => string | null } | null }} */ (
+          target
+        );
+        const btn = el && typeof el.closest === 'function' ? el.closest('.gr-reset-one') : null;
         const path = btn ? btn.getAttribute('data-path') : null;
-        if (path) resetOne(path).catch(() => {});
+        if (path) resetOne(path).catch((e2) => console.error('[ResetDefaults] 恢复默认失败:', e2));
       });
     }
   }

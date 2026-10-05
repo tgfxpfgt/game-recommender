@@ -9,7 +9,7 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
  * Verifies the audit ring buffer, stats, rate-limit window, and the four
  * fetchWithTimeout audit paths (ok / network error / blocked / rate-limited).
  */
-'use strict';
+('use strict');
 
 // 注意：outbound-audit 必须不带查询参数导入——utils.js 内部以静态 import
 // 引用它（无参数 URL），带 ?t= 会生成独立模块实例，审计状态互不可见。
@@ -33,9 +33,11 @@ describe('1. 审计环形缓冲与统计', () => {
 
   test('entries 倒序（最新在前）', () => {
     const r = getOutboundAudit();
-    expect(
-      r.entries.map((e) => e.host)
-    ).toEqual(['store.steampowered.com', 'store.steampowered.com', 'api.steampowered.com']);
+    expect(r.entries.map((e) => e.host)).toEqual([
+      'store.steampowered.com',
+      'store.steampowered.com',
+      'api.steampowered.com'
+    ]);
   });
   test('统计 total/failed', () => {
     const r = getOutboundAudit();
@@ -47,9 +49,10 @@ describe('1. 审计环形缓冲与统计', () => {
   });
   test('每主机聚合（按次数排序）', () => {
     const r = getOutboundAudit();
-    expect(
-      r.stats.hosts.map((h) => h.host + ':' + h.count)
-    ).toEqual(['store.steampowered.com:2', 'api.steampowered.com:1']);
+    expect(r.stats.hosts.map((h) => h.host + ':' + h.count)).toEqual([
+      'store.steampowered.com:2',
+      'api.steampowered.com:1'
+    ]);
   });
   test('主机失败计数', () => {
     const r = getOutboundAudit();

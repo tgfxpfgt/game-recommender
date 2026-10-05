@@ -55,6 +55,10 @@ export default defineConfig({
       'tests/unit/test-list-local-sort.mjs',
       'tests/unit/test-track-batch.mjs',
       'tests/unit/test-tab-game.mjs',
+      'tests/unit/test-filter-presets.mjs',
+      'tests/unit/test-favorite-prices.mjs',
+      'tests/unit/test-reset-defaults.mjs',
+      'tests/unit/test-sidepanel.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',
@@ -79,12 +83,29 @@ export default defineConfig({
     coverage: {
       provider: 'v8',
       all: true,
-      include: ['background/**/*.js', 'content/**/*.js', 'shared/**/*.js', 'adapters/**/*.js', 'data/**/*.js'],
+      // v14.2.0：补 UI 目录（补充轮 P0-1）——UI 生产代码此前完全在分母之外
+      include: [
+        'background/**/*.js',
+        'content/**/*.js',
+        'shared/**/*.js',
+        'adapters/**/*.js',
+        'data/**/*.js',
+        'dashboard/**/*.js',
+        'options/**/*.js',
+        'popup/**/*.js',
+        'freegames/**/*.js',
+        'hub/**/*.js',
+        'welcome/**/*.js',
+        'sidepanel/**/*.js'
+      ],
       reporter: ['text', 'json-summary'],
-      // v10.5.0 P1-D：全局硬下限——基于全量真实覆盖（lines ≈ 66%）留 ~4pt 余量，
+      // v10.5.0 P1-D：全局硬下限——基于全量真实覆盖留 ~4pt 余量，
       // 防止新增未测代码拉低整体；随测试补齐逐步上调（ratchet）。
-      // Global floor from measured all-in coverage (~66% lines) with headroom.
-      thresholds: { lines: 62, statements: 60, functions: 60, branches: 54 }
+      // v14.2.0（补充轮 P0-1）：coverage include 纳入 UI 目录（分母 +4900 行，
+      // UI 层 DOM 代码单测覆盖天然偏低）→ 实测 lines 51.31/stmts 50.09/funcs
+      // 47.85/branches 46.55，阈值按惯例下调至实测-4pt 并以棘轮锁住。
+      // Global floor from measured all-in coverage with headroom.
+      thresholds: { lines: 47, statements: 46, functions: 43, branches: 42 }
     },
     testTimeout: 120000
   }

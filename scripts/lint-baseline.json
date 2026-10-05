@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-04",
+  "updatedAt": "2026-10-05",
   "batch": "v14 B9 lint 规则收紧——错误/警告数基线锁定（新增即红，防劣化）",
   "eslint": {
     "errors": 0,
@@ -7,9 +7,16 @@
     "enforcedBy": "lint 脚本 --max-warnings 0（check/gate 内生效）"
   },
   "tsNoImplicitAnyErrors": {
-    "main": 891,
-    "ui": 302,
-    "content": 377
+    "main": 510,
+    "ui": 251,
+    "content": 272
+  },
+  "xssUnescapedInterpolations": 19,
+  "xssScan": {
+    "scope": "content/options/dashboard/popup/sidepanel/welcome/hub/freegames/shared 生产 JS 的 innerHTML 模板串",
+    "rule": "含引号的 ${...} 插值未经 esc/escapeHtml/escapeAttr 包裹即计数（纯数字/布尔运算豁免）",
+    "note": "19 处实测（2026-10-05）逐条为条件模板/手动转义类噪声，数据流内层已转义；棘轮只降不升，后续批次清零",
+    "enforcedBy": "test-integrity『XSS 未防护插值 ≤ 棘轮基线』"
   },
   "notes": [
     "noImplicitAny 现为关闭（非 roadmap 预期的 warn）——全开约 1570 处需整库类型工程，",
@@ -17,6 +24,7 @@
     "no-floating-promises 需要 @typescript-eslint 类型感知 lint（离线环境无法安装），",
     "  暂缓——关键异步路径已有 await/回滚语义与测试覆盖；",
     "prefer-const 已是 error 级（baseRules）。",
-    "数字测量于 commit f11707a（B10 后）"
+    "数字测量于 commit f11707a（B10 后）；2026-10-05 下调至实测（510/251/272，v14 死代码清理减债），",
+    "  并由 scripts/lint-ratchet.mjs 程序化消费（gate 步骤，超基线即失败）"
   ]
 }

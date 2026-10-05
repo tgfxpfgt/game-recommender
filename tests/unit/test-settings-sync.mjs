@@ -32,6 +32,7 @@ const optionsLayer = [
   'options/panels/search.js',
   'options/panels/favorites.js',
   'options/panels/sites.js',
+  'options/panels/reset-defaults.js', // v14.2.0：每项恢复默认（69 锚点对 DEFAULT_SETTINGS 的引用入扫描）
   'options/options.html'
 ]
   .map(read)

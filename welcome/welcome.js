@@ -39,12 +39,18 @@
     document.getElementById('guideSection').classList.add('hidden');
   }
 
-  /** @type {{trackedSitesTouched: boolean, uiTheme: string, enableFilter: boolean, minRating: number}} */
+  /**
+   * 向导工作状态。v14.2.0（复审轮 P1-4）：过滤阈值默认值改与出厂一致
+   *（enableRatingFilter:false / minSteamRatingFilter:0），并在步骤 2 渲染前
+   * 从 GET_SETTINGS 回填当前值——此前硬编码 true/90，用户路过点"下一步"
+   * 即被静默改写两个设置键（与"未配置 = 不过滤"的出厂语义相反）。
+   * trackedSitesTouched 死字段已删（写入即保存，无读取点）。
+   * @type {{uiTheme: string, enableFilter: boolean, minRating: number}}
+   */
   const guideState = {
-    trackedSitesTouched: false,
     uiTheme: 'steam',
-    enableFilter: true,
-    minRating: 90
+    enableFilter: false,
+    minRating: 0
   };
 
   async function initGuide() {
@@ -58,6 +64,10 @@
         window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' })
       ]);
       const settings = (settingsResp && settingsResp.settings) || {};
+      // v14.2.0：向导初始值对齐用户当前设置（未配置项保持出厂语义）
+      guideState.enableFilter = settings.enableRatingFilter === true;
+      guideState.minRating = Number(settings.minSteamRatingFilter) || 0;
+      guideState.uiTheme = String(settings.uiTheme || 'steam');
       const rules = (rulesResp && (rulesResp.rules || rulesResp.sites)) || {};
       const sites = Array.isArray(rules.sites) ? rules.sites : [];
       const builtInDomains = [];
@@ -75,7 +85,6 @@
           enableBtn.style.display = '';
           enableBtn.addEventListener('click', async () => {
             await saveSettingsPatch({ trackedSites: [...new Set(builtInDomains)] });
-            guideState.trackedSitesTouched = true;
             statusEl.innerHTML = `✅ 已启用 <b>${builtInDomains.length}</b> 个内置站点`;
             enableBtn.style.display = 'none';
           });
@@ -91,6 +100,9 @@
     const slider = document.getElementById('guideMinRating');
     const sliderVal = document.getElementById('guideMinRatingVal');
     filterCb.checked = guideState.enableFilter;
+    slider.value = String(guideState.minRating);
+    sliderVal.textContent = guideState.minRating + '%';
+    slider.disabled = !guideState.enableFilter;
     slider.addEventListener('input', () => {
       sliderVal.textContent = slider.value + '%';
     });
@@ -115,7 +127,8 @@
         themeBox.querySelectorAll('[data-theme-pick]').forEach((b) => b.classList.toggle('active', b === btn));
       });
     });
-    themeBox.querySelector('[data-theme-pick="steam"]').classList.add('active');
+    const initialPick = themeBox.querySelector(`[data-theme-pick="${guideState.uiTheme}"]`);
+    (initialPick || themeBox.querySelector('[data-theme-pick="steam"]')).classList.add('active');
 
     // 导航
     const steps = [1, 2, 3, 4].map((n) => document.getElementById('guideStep' + n));
