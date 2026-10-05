@@ -1,0 +1,10 @@
+{
+  "schemaVersion": "mimosa-security-scan-seal/v1",
+  "algorithm": "sha256",
+  "artifacts": {
+    "scan-manifest.json": "sha256:9a6b678156fdc42a9b19b447ea1142d5edc9fd434318270eb6852fb0f202297a",
+    "findings.json": "sha256:dabf4eceb54d0cd836a4c9d607f9738732f71c6e68b0e191691d4ba27dcf92ba",
+    "coverage.json": "sha256:3774cf8096b9e45e4c5beac0265449280ca58c289a400d5a838850e6a510a4b9"
+  },
+  "digest": "sha256:c26df144bf78f5788c6f7ba4880b397a0717795b4a498bd747175b9c056c6de5"
+}
