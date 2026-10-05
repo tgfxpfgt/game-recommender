@@ -480,7 +480,11 @@ test('manifest content_scripts js 清单 = SITE_SCRIPT_FILES（顺序敏感单�
 // 扫描生产 JS 中 innerHTML 模板串的 ${...} 插值：不含引号的纯数字/布尔/变量
 // 运算视为低风险跳过；其余（字符串拼接数据）未经 esc/escapeHtml/escapeAttr
 // 包裹的计为"未防护插值"。当前总数记入 scripts/lint-baseline.json
-// xssUnescapedInterpolations 棘轮（只降不升）——先落基线，后续批次清零。
+// v14.2.0 审查核心发现修复（第三次审查报告 §2）：原"无引号即跳过"豁免漏掉
+// 最典型攻击形态——纯变量插值 `${data.desc}`、转义并列裸变量
+// `${escapeHtml(a)} ${b}`（受控实验 0/3 检出）。改**白名单制**：默认可疑、
+// 明确放行——①转义函数须完整包裹（...$）②受控方法白名单（内部生成且格式
+// 确定的数值/日期格式化输出）。检出数由 19 跳升属预期，新数字落基线逐批清。
 const XSS_SCAN_DIRS = [
   'content',
   'options',
@@ -492,7 +496,9 @@ const XSS_SCAN_DIRS = [
   'freegames',
   'shared'
 ];
-const SAFE_INTERP_RE = /^\s*(?:[\w.]*\.)?(?:esc|escA|esc2|escapeHtml|escapeAttr)\s*\(/;
+const SAFE_INTERP_RE = /^\s*(?:[\w.]*\.)?(?:esc|escA|esc2|escapeHtml|escapeAttr)\s*\([\s\S]*\)$/;
+const CONTROLLED_RE =
+  /^\s*(?:[\w.]+\.)?(?:toFixed|toLocaleDateString|toLocaleString|formatRelativeTime|formatElapsed|formatDate|Math\.(?:round|floor|ceil|min|max|abs))\s*\([\s\S]*\)$/;
 function scanXssInterpolations(file) {
   const lines = fs.readFileSync(file, 'utf-8').split('\n');
   const out = [];
@@ -507,8 +513,8 @@ function scanXssInterpolations(file) {
     i = j; // 模板整体消费
     for (const m of tpl.matchAll(/\$\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g)) {
       const expr = m[1];
-      if (!/['"`]/.test(expr)) continue; // 纯数字/布尔/变量运算（${size}px 等）
-      if (SAFE_INTERP_RE.test(expr)) continue; // 已被转义包裹
+      if (SAFE_INTERP_RE.test(expr)) continue; // 转义函数完整包裹（默认放行的唯一通道）
+      if (CONTROLLED_RE.test(expr)) continue; // 受控方法（数值/日期格式化，格式确定）
       out.push({
         file: path.relative(ROOT, file).replace(/\\/g, '/'),
         line: i + 1,

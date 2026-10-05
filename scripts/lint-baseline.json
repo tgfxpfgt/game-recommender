@@ -11,11 +11,11 @@
     "ui": 251,
     "content": 272
   },
-  "xssUnescapedInterpolations": 19,
+  "xssUnescapedInterpolations": 72,
   "xssScan": {
     "scope": "content/options/dashboard/popup/sidepanel/welcome/hub/freegames/shared 生产 JS 的 innerHTML 模板串",
     "rule": "含引号的 ${...} 插值未经 esc/escapeHtml/escapeAttr 包裹即计数（纯数字/布尔运算豁免）",
-    "note": "19 处实测（2026-10-05）逐条为条件模板/手动转义类噪声，数据流内层已转义；棘轮只降不升，后续批次清零",
+    "note": "白名单制口径（v14.2.0 审查修复）：默认可疑、明确放行——转义函数完整包裹或受控方法（toFixed/toLocaleDateString/formatRelativeTime 等）豁免。72 处实测（2026-10-06）含预拼接变量（progressHtml/rows/reasonLine 等上游已转义）与数字配置类噪声；棘轮只降不升，逐批清零。原 19 处口径为含引号子集（漏纯变量形态，已废弃）。",
     "enforcedBy": "test-integrity『XSS 未防护插值 ≤ 棘轮基线』"
   },
   "notes": [
