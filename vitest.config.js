@@ -59,6 +59,7 @@ export default defineConfig({
       'tests/unit/test-favorite-prices.mjs',
       'tests/unit/test-reset-defaults.mjs',
       'tests/unit/test-sidepanel.mjs',
+      'tests/unit/test-sidebar-rows.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',

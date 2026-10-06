@@ -151,6 +151,10 @@ function hostIsDarkMode() {
   }
 }
 
+/**
+ * @param {Object|null} data - Steam 详情缓存（appId/name/totalReviews/...）
+ * @param {number} [cachedAt] - 缓存时间戳（ms）
+ */
 export function renderInlineSteamSection(data, cachedAt) {
   try {
     if (!data) return;

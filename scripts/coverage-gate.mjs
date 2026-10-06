@@ -30,6 +30,23 @@ const COVERED_DIRS = [
   'sidepanel'
 ];
 
+// v14.3.0（第五轮 B3/B6）：classic 页面胶水豁免清单——这些文件 90%+ 为仅浏览
+// 器可执行的 DOM 绑定/挂载（函数定义 + OPTS/window attach），单测行覆盖无法
+// 达标且意义有限；其验收通道为 settings-sync 扫描 + visual 基线 + E2E。
+// 注意：仅豁免"纯胶水"，含逻辑的页面层文件（如 reset-defaults.js/sidepanel.js）
+// 不入清单——新增逻辑文件请配套单测而非加豁免。
+const COVERAGE_EXEMPT = [
+  'options/panels/settings-render.js',
+  'options/panels/settings-bind.js',
+  'options/panels/cache-formatters.js',
+  'popup/popup-status.js',
+  'popup/popup-weights.js',
+  'popup/popup-search.js',
+  // xdgrid-panel：纯面板 DOM 胶水（齿轮面板 + 双标签绑定）；纯逻辑已外移
+  // filter-presets.js / xdgrid-layout.js（均有单测），豁免理由同 B3 胶水
+  'content/list/xdgrid-panel.js'
+];
+
 function run(cmd) {
   try {
     return execSync(cmd, { cwd: ROOT, encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -51,7 +68,12 @@ try {
   newFiles = diff
     .split('\n')
     .map((f) => f.trim())
-    .filter((f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')))
+    .filter(
+      (f) =>
+        /\.(js|mjs)$/.test(f) &&
+        COVERED_DIRS.some((d) => f.startsWith(d + '/')) &&
+        !COVERAGE_EXEMPT.includes(f)
+    )
     .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
 } catch {
   // 无 origin/main（首次克隆/浅克隆）→ 回退 HEAD~1
@@ -60,7 +82,12 @@ try {
     newFiles = diff
       .split('\n')
       .map((f) => f.trim())
-      .filter((f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')))
+      .filter(
+      (f) =>
+        /\.(js|mjs)$/.test(f) &&
+        COVERED_DIRS.some((d) => f.startsWith(d + '/')) &&
+        !COVERAGE_EXEMPT.includes(f)
+    )
       .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
     console.log('⚠️ 无 origin/main 基线，回退对比 HEAD~1');
   } catch {

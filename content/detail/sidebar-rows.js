@@ -10,10 +10,17 @@
  * steamSidebar template.
  */
 
+/** @param {unknown} text */
+/** @param {string} text */
 const esc = (text) => (typeof globalThis.escapeHtml === 'function' ? globalThis.escapeHtml(text) : String(text ?? ''));
 
 // v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2）
 // ITAD：Key 未配置或查询失败 → 行隐藏；收藏：按钮切换 + 状态持久化
+/**
+ * @param {string} appId
+ * @param {string} name
+ * @param {string} releaseDate
+ */
 export async function fillItadAndFavorites(appId, name, releaseDate) {
   // v12 B6
   const itadEl = document.getElementById('gr-itad-row');
@@ -78,6 +85,7 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
 }
 
 // v10.4.4：Steam250 排名行填充（查询后台快照；游戏不在前 250 时隐藏）
+/** @param {string} appId */
 export async function fillSteam250Info(appId) {
   if (!appId) return;
   try {
