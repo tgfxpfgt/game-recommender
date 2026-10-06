@@ -1,3 +1,25 @@
+/*
+ * 游戏雷达 Game Radar - 主题变量体系 / Theme Variables
+ *
+ * 结构：19 套主题 × `body[data-theme=<name>]` 块，每块定义同一套 --gr-* 变量
+ * （变量键集合一致性由 test-integrity『主题变量键集合一致』断言守护——
+ * SidePanel 主题失效的近因防御：新主题漏定义变量会让该主题下消费方回退）。
+ *
+ * 变量清单（19 块共有键）：
+ *   --gr-bg / --gr-bg-deep        页面与深层背景
+ *   --gr-card / --gr-card-hover   卡片面/悬停
+ *   --gr-border / --gr-border-soft 边框
+ *   --gr-text / --gr-text-dim / --gr-text-bright  文字三级
+ *   --gr-accent / --gr-green / --gr-red / --gr-orange  强调色
+ *   --gr-panel / --gr-panel-*     面板族
+ *   --gr-grad-btn / --gr-page-grad 渐变
+ *   --gr-radius / --gr-radius-sm / --gr-gap / --gr-control-h / --gr-font / --gr-shadow(-lg)
+ *
+ * 消费方：options/dashboard/popup/sidepanel/welcome（classic+module 均经
+ * body[data-theme] 继承——变量挂在 body 上而非 :root，applyPageTheme 切换）。
+ */
+
+/* ==================== 1. 主题定义（19 套） ==================== */
 /**
  * 游戏雷达 Game Radar - 皮肤系统 / Theme Skins
  *

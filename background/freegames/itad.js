@@ -12,6 +12,7 @@ import { getSettings } from '../core/settings.js';
 import { createTtlCache } from '../core/mechanisms.js';
 import { getFavorites } from '../storage/favorites.js';
 import { Logger } from '../storage/logger.js';
+import { notifyBase } from './notify.js'; // v14.3.0：通知构造单源（B8）
 
 // v6.3.3：ITAD 二次校验（可选 key）——确认 Steam 游戏当前确实免费（价格 0），
 // 防 GamerPower 数据过期/错误导致的误报；无 key 或失败时容错放行（按原分类）
@@ -127,14 +128,9 @@ export async function watchFavoritePrices() {
     if (!Number.isFinite(current) || current <= 0) continue;
     if (current <= lowest.price * threshold) {
       const name = (favorites[appId] && favorites[appId].name) || 'AppID ' + appId;
-      chrome.notifications
-        .create({
-          type: 'basic',
-          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-          title: '💥 收藏折扣提醒',
-          message: `${name} 现价 ${current.toFixed(2)}（历史最低 ${lowest.price.toFixed(2)} @ ${lowest.shop || 'ITAD'}）`
-        })
-        .catch(() => {});
+      notifyBase('💥 收藏折扣提醒', `${name} 现价 ${current.toFixed(2)}（历史最低 ${lowest.price.toFixed(2)} @ ${lowest.shop || 'ITAD'}）`, {
+        icon: chrome.runtime.getURL('icons/icon128.png')
+      });
       notified += 1;
     }
   }
@@ -164,14 +160,9 @@ export async function watchFavoritePrices() {
       /* ignore */
     }
     const name = (info && info.name) || 'AppID ' + appId;
-    chrome.notifications
-      .create({
-        type: 'basic',
-        iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-        title: '🚀 收藏游戏发售提醒',
-        message: `${name} ${daysTo <= 0 ? '今天' : daysTo + ' 天后'}发售（${info.releaseDate || ''}）`
-      })
-      .catch(() => {});
+    notifyBase('🚀 收藏游戏发售提醒', `${name} ${daysTo <= 0 ? '今天' : daysTo + ' 天后'}发售（${info.releaseDate || ''}）`, {
+      icon: chrome.runtime.getURL('icons/icon128.png')
+    });
     releaseNotified += 1;
   }
 

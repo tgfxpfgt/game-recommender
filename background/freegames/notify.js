@@ -36,6 +36,19 @@ export async function getLastNotifyGames() {
   return [];
 }
 
+// v14.3.0（第五轮 B8）：通知构造单源——各处 chrome.notifications.create 的
+// 公共形状（type/iconUrl/异常吞没）收敛为 notifyBase 工厂。
+function notifyBase(title, message, options = {}) {
+  try {
+    chrome.notifications.create(
+      options.id || undefined,
+      { type: 'basic', iconUrl: options.icon || 'icons/icon128.png', title, message, priority: options.priority ?? 0 }
+    );
+  } catch (e) {
+    Logger.debug('FreeGames', '通知创建失败:', String(e));
+  }
+}
+
 // v6.3.2 C2：新限免推送通知（聚合一条，防骚扰；通知权限在 manifest）
 // Push notification for new free games (one aggregated notification)
 export async function notifyNewFreeGames(newOnes) {
@@ -90,13 +103,11 @@ export async function notifyNewFreeGames(newOnes) {
     } catch {
       /* 收藏读取失败不影响通知 */
     }
-    chrome.notifications.create('gr-free-games', {
-      type: 'basic',
-      iconUrl: 'icons/icon128.png',
-      title: favHit ? `⭐ 收藏游戏进限免：${(favHit.name || '').slice(0, 30)}` : `🎮 新增 ${newOnes.length} 款限免游戏`,
-      message: names + (newOnes.length > 3 ? ` 等 ${newOnes.length} 款` : ''),
-      priority: 1
-    });
+    notifyBase(
+      favHit ? `⭐ 收藏游戏进限免：${(favHit.name || '').slice(0, 30)}` : `🎮 新增 ${newOnes.length} 款限免游戏`,
+      names + (newOnes.length > 3 ? ` 等 ${newOnes.length} 款` : ''),
+      { id: 'gr-free-games', priority: 1 }
+    );
   } catch (e) {
     Logger.debug('FreeGames', '限免通知失败:', String(e));
   }

@@ -547,6 +547,27 @@ test('content 静态 import 的 shared 模块均在 WAR 覆盖内', () => {
   expect(uncovered, 'WAR 未覆盖的内容侧共享依赖:\n  ' + uncovered.join('\n  ')).toEqual([]);
 });
 
+// ============ 14. 主题变量键集合一致（v14.3.0 B10） ============
+// 19 套主题必须定义同一套 --gr-* 变量——新主题漏键会让该主题下消费方回退
+// 默认值（SidePanel 主题失效的近因防御）。
+test('主题变量键集合一致（19 套 --gr-* 全等）', () => {
+  const css = fs.readFileSync(path.join(ROOT, 'styles/themes.css'), 'utf-8');
+  const blocks = [...css.matchAll(/body\[data-theme='([^']+)'\]\s*\{([^}]*)\}/g)];
+  expect(blocks.length).toBeGreaterThanOrEqual(19);
+  const keySets = blocks.map(([, body]) => {
+    const keys = [...body.matchAll(/(--gr-[a-z-]+)\s*:/g)].map((m) => m[1]).sort();
+    return { theme: null, keys: keys.join(',') };
+  });
+  const first = keySets[0].keys;
+  const drift = blocks.filter((b) => b.keys !== first).map((b, i) => blocks[i][0] || i);
+  // 逐块比对键集合（变量名集合全等，值可不同）
+  const bad = [];
+  for (let i = 1; i < keySets.length; i++) {
+    if (keySets[i].keys !== first) bad.push(blocks[i] && blocks[i][0]);
+  }
+  expect(bad, `主题变量键漂移: ${bad.length} 块与首块不一致`).toEqual([]);
+});
+
 test('XSS 未防护插值 ≤ 棘轮基线（只降不升——铁律 #1 机器护栏）', () => {
   if (xssFindings.length > xssBaseline) {
     const detail = xssFindings
