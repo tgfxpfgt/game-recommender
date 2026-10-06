@@ -296,7 +296,51 @@ node --check options/options.js
 
 ## 更新日志
 
-### v14.2.0（审查修复大清算：四轮审查 30 项发现全数落地 + 五条新护栏）
+### v14.3.0（第五轮 10 批次：拆分/模块化/合并/重组——9/10 落地）
+
+**五大巨石拆分（TOP8 均值 537 → 313，全部 ≤420）**
+
+- B1 content/detail/sidebar.js 653→375（编排壳）+ sidebar-rows.js 103（ITAD/收藏/
+  Steam250 异步行填充）+ inline-card.js 204（XDGame 同款内嵌信息卡）
+- B2 content/list/xdgrid.js 600→xdgrid-layout.js 178（布局引擎）+
+  xdgrid-panel.js 414（双标签面板）+ 壳 40（computeContainerStyle 等经
+  re-export 消费面兼容）
+- B3 options/panels/settings.js 529→settings-render 281（区渲染器）+
+  settings-bind 206（事件绑定）+ settings.js 75（浮窗模块顺序）；cache.js
+  510→cache 396 + cache-formatters 137
+- B4 steam/orchestrator.js 497→orchestrator-detail 177（详情页管线）+
+  orchestrator-list 305（列表页两波查询）+ orchestrator-shared 61（Demo 判定/
+  统一命中）+ 壳 15；B5 recommend/engine.js 493→engine-signals 274（零 IO
+  信号纯函数）+ engine 壳 227（编排 + LLM）
+- B6 popup/popup.js 491→287（壳）+ popup-status 124 + popup-weights 67 +
+  popup-search 49（classic 脚本 window 挂载 + /* global */ 声明模式）
+
+**单源归一与地图（B7/B8）**
+
+- steam 域模块地图（README.md：管线/原子层/支撑层职责与边界规则）
+- notifyBase 工厂收敛三处通知构造（notify.js/itad.js，B4 拆分后跨文件）
+- 重复实现清点报告（docs/reports/重复实现清点-B8-2026-10-07.md：
+  5 候选中 1 合并 4 豁免含理由——格式化方言/搜索语义/导出通道/卡片粒度）
+
+**B10 styles 与防线**
+
+- themes.css 文件头变量清单目录；integrity 新增『主题变量键集合一致』断言
+  （19 套 --gr-* 全等，新主题漏键即红——SidePanel 主题失效近因防御）
+
+**B9 测试巨文件重组**：唯一延后批（content-sim 模块单例纪律 + e2e runner
+耦合需逐节验证，转下一会话首批）
+
+**审查修复（v14.2.0 审查核心发现）**
+
+- XSS 扫描改白名单制（默认可疑/明确放行——原"无引号豁免"漏纯变量形态，
+  受控实验 0/3 检出；基线 19→72 重落棘轮）
+- coverage-gate 胶水豁免清单（COVERAGE_EXEMPT：纯 DOM 绑定文件 6 个，
+  验收通道为 settings-sync/visual/E2E；含逻辑文件不豁免）
+
+**门禁**：888 用例全绿（新增 sidebar-rows 6 例）· E2E 51 · visual 11 ·
+lint-ratchet/coverage-gate（23 新文件全检）/release-smoke 全过
+
+### v14.2.0（第四轮 10 批次：架构终态治理 + 全面审计修复）（审查修复大清算：四轮审查 30 项发现全数落地 + 五条新护栏）
 
 **门禁去假象（补充轮 P0×4 + 复审轮 P0×2——"承诺已生效、实际可绕过"全数关闭）**
 
