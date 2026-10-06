@@ -1051,6 +1051,8 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   const detailSrc = [
     'content/detail/detail-page.js',
     'content/detail/sidebar.js',
+    'content/detail/sidebar-rows.js', // v14.3.0 B1 拆分：detail 模块族随拆分扩展
+    'content/detail/inline-card.js',
     'content/detail/candidates.js',
     'content/detail/tracking.js'
   ]
@@ -1199,6 +1201,8 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
   const detailSrc2 = [
     'content/detail/detail-page.js',
     'content/detail/sidebar.js',
+    'content/detail/sidebar-rows.js', // v14.3.0 B1 拆分：detail 模块族随拆分扩展
+    'content/detail/inline-card.js',
     'content/detail/candidates.js',
     'content/detail/tracking.js'
   ]
