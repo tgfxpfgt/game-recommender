@@ -37,7 +37,9 @@ const optionsLayer = [
 ]
   .map(read)
   .join('\n');
-const popupLayer = ['popup/popup.js', 'popup/popup.html'].map(read).join('\n');
+const popupLayer = ['popup/popup.js', 'popup/popup-weights.js', 'popup/popup.html']
+  .map(read)
+  .join('\n'); // v14.3.0：B6 拆分后权重滑块在 popup-weights.js
 
 const hasWord = (src, k) => new RegExp('(?:^|[^\\w$])' + k + '(?:[^\\w$]|$)').test(src);
 

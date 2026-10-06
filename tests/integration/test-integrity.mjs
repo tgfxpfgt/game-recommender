@@ -556,14 +556,13 @@ test('主题变量键集合一致（19 套 --gr-* 全等）', () => {
   expect(blocks.length).toBeGreaterThanOrEqual(19);
   const keySets = blocks.map(([, body]) => {
     const keys = [...body.matchAll(/(--gr-[a-z-]+)\s*:/g)].map((m) => m[1]).sort();
-    return { theme: null, keys: keys.join(',') };
+    return keys.join(',');
   });
-  const first = keySets[0].keys;
-  const drift = blocks.filter((b) => b.keys !== first).map((b, i) => blocks[i][0] || i);
+  const first = keySets[0];
   // 逐块比对键集合（变量名集合全等，值可不同）
   const bad = [];
   for (let i = 1; i < keySets.length; i++) {
-    if (keySets[i].keys !== first) bad.push(blocks[i] && blocks[i][0]);
+    if (keySets[i] !== first) bad.push(blocks[i] && blocks[i][1]);
   }
   expect(bad, `主题变量键漂移: ${bad.length} 块与首块不一致`).toEqual([]);
 });

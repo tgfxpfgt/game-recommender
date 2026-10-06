@@ -16,8 +16,6 @@ import {
   validateSteamNames,
   DEMO_NAME_PATTERN,
   ADDON_NAME_PATTERN,
-  ensureRegistryEntry,
-  ensureValidRegistryNames,
   coverImageFor,
   isDemoAppId,
   baseAppIdFromDetails,
@@ -25,7 +23,6 @@ import {
 } from './api.js';
 import {
   isModuleValid,
-  getModuleData,
   getMergedData,
   getSteamCacheEntry,
   setSteamCacheEntry
