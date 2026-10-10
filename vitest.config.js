@@ -70,6 +70,7 @@ export default defineConfig({
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',
       'tests/integration/test-integrity.mjs',
+      'tests/integration/test-integrity-security.mjs',
       'tests/integration/test-data-store-opfs.mjs'
     ],
     server: {
