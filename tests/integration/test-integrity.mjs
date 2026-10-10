@@ -11,7 +11,6 @@ import { test, expect } from 'vitest';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 

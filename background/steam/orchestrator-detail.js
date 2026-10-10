@@ -109,8 +109,43 @@ export async function searchSteamGame(gameName, options = {}) {
   try {
     // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取详情；
     //    v3.3.13：排除曾报错的错误 appid）
+    // v14.3.1：rawTitle 透传 + 三阶段匹配——
+    // 阶段 1：中文检索（现有逻辑）
+    // 阶段 2：中文命中的名字与 raw 标题英文段不相关（namesRelated false）→
+    //   英文交叉检索。新游戏中文命中常为通用 franchise 词的错配（"战争机器"
+    //   → Metal Force 而非 Gears of War），英文名是更可靠的区分信号。
+    // 阶段 3：中文全空时从 raw 标题提取纯英文词条兜底。
+    // 从 raw 标题提取英文段（首个 ≥6 字符纯拉丁段；去站名噪声）
+    const enSegment = options.rawTitle
+      ? (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim()
+      : '';
     if (!appId) {
-      const searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
+      let searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
+    // 阶段 2：交叉验证——中文命中名的英文词与英文段无交集 → 英文重搜。
+    // 用英文词交集而非 namesRelated：后者跨语言信任在 franchise 系列场景
+    // 过于宽松（"德米欧 x D&D" 与 "D&D Neverwinter Nights 2" 被误判相关）。
+    // 交集 = 0 → 中文命中的 Steam 名不含 raw 标题英文名的任何词 → 疑似错配。
+    /** @param {string} s */
+const enWordsOf = (s) => new Set((String(s).toLowerCase().match(/[a-z][a-z0-9]{3,}/g) || []));
+    if (searchResult && enSegment) {
+      const overlap = [...enWordsOf(searchResult.name)].filter((w) => enWordsOf(enSegment).has(w));
+      if (overlap.length === 0) {
+        Logger.info(
+          'Steam',
+          `交叉验证: 中文命中 "${searchResult.name}" 与英文段 "${enSegment}" 零词交集，英文重搜`
+        );
+        const enResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
+        if (enResult) {
+          Logger.info('Steam', `英文重搜命中: ${enResult.name} (appId ${enResult.appId})`);
+          searchResult = enResult;
+        }
+        // 英文重搜未命中 → 保留中文结果（可能正确，仅交叉验证严格）
+      }
+    }
+      // 阶段 3：中文全空 → raw 标题英文段兜底（l=english）
+      if (!searchResult && enSegment) {
+        searchResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
+      }
       if (!searchResult) {
         // v6.4.16：规则匹配失败 → 匹配兜底（防幻觉：均经官方数据校验后才采用）
         // v6.4.17：搜索引擎兜底（Bing，免费无需配置）优先 → AI/LLM 兜底（用户配置时）

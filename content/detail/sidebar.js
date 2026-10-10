@@ -113,7 +113,7 @@ export function createSteamFloat(gameName, settings) {
         resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
       }
       if (!resp || !resp.data) {
-        resp = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName: name });
+        resp = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title });
       }
       // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
       const sameAppId = resp && resp.data && wrongAppId && String(resp.data.appId) === wrongAppId;
@@ -141,7 +141,7 @@ export function createSteamFloat(gameName, settings) {
           '报错重检索仍未命中',
           async () => {
             const rr = await window.__GR_MSG__
-              .sendMessage({ action: 'SEARCH_STEAM', gameName: name, ignoreNegativeCache: true }, null, {
+              .sendMessage({ action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true }, null, {
                 timeout: 25000
               })
               .catch(() => null);
@@ -230,12 +230,16 @@ export function createSteamFloat(gameName, settings) {
       if (!response || !response.data) {
         // v10.9.2：显式 25s 超时（GetNewsForApp 等 Steam 慢接口 + 搜索全链预算；
         // 默认 10s 会被大陆网络下 api.steampowered.com 的挂起拖爆）
-        response = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName }, null, { timeout: 25000 });
+        response = await window.__GR_MSG__.sendMessage(
+          { action: 'SEARCH_STEAM', gameName, rawTitle: document.title },
+          null,
+          { timeout: 25000 }
+        );
         // 未命中自动重试一次（穿透负缓存）——历史失败遗留的负缓存不再把
         // 可匹配的游戏永久推入手动选择；仅在"干净未命中"时重试（超时不重试）
         if (response && !response.data && !response.error) {
           response = await window.__GR_MSG__
-            .sendMessage({ action: 'SEARCH_STEAM', gameName, ignoreNegativeCache: true }, null, { timeout: 25000 })
+            .sendMessage({ action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true }, null, { timeout: 25000 })
             .catch(() => null);
         }
       }
@@ -275,7 +279,7 @@ export function createSteamFloat(gameName, settings) {
           missReason,
           async () => {
             const retryResp = await window.__GR_MSG__
-              .sendMessage({ action: 'SEARCH_STEAM', gameName, ignoreNegativeCache: true }, null, { timeout: 25000 })
+              .sendMessage({ action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true }, null, { timeout: 25000 })
               .catch(() => null);
             if (retryResp && retryResp.data) {
               renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), gameName);

@@ -105,7 +105,8 @@ async function doHandleSearchSteam(message, sender) {
   let reason = null;
   try {
     steamResult = await searchSteamGame(message.gameName, {
-      ignoreNegativeCache: message.ignoreNegativeCache === true
+      ignoreNegativeCache: message.ignoreNegativeCache === true,
+      rawTitle: message.rawTitle // v14.3.1：原始标题透传（扩展搜索英文变体）
     });
   } catch (e) {
     reason = 'error: ' + String((e && /** @type {Error} */ (e).message) || e).slice(0, 120);

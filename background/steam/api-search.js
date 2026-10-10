@@ -275,14 +275,14 @@ export function rankCandidatesByType(items) {
 // 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
 // One search pass (throws on total network failure for outer retry; null = not
 // found). Results must pass the name-relevance check.
-async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
+async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = 'schinese') {
   for (const term of searchTerms) {
     /** @type {{items: Array<{id: number, name: string, type?: string}>}|null} */
     let cnData = null;
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
         const resp = await fetchWithTimeout(
-          `${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=schinese&cc=cn`
+          `${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=${lang}&cc=cn`
         );
         // v9.7.0：传入 status 且非 2xx 不计成功（与 api-details/reviews 一致）
         recordSteamCall(resp.ok || resp.status === 404, resp.status); // v10.3.0：404=空结果非失败
@@ -351,13 +351,13 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId) {
  * @param {string|number|null} [excludeAppId]
  * @returns {Promise<import('../core/types.js').SteamSearchResult|null>}
  */
-export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
+export async function searchSteamAppId(searchTerms, rawName, excludeAppId, lang = 'schinese') {
   // v11.0 B1：熔断打开 → 短路返回 null（不发请求逐个超时；orchestrator 的
   // failed>0 门会跳过负缓存固化，恢复后自动重搜）
   if (isCircuitOpen('store')) return null; // v12 B1：per-domain 熔断
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId);
+      const result = await searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang);
       if (result) return result;
       break; // 网络正常但未找到：不重试
     } catch {
@@ -383,7 +383,7 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId) {
     variants.push(...extras);
     for (const variant of variants) {
       // v6.4.16：变体搜索走删词校验（结果名须与标题其余核心词相关）
-      const result = await searchSteamAppIdLight(variant, rawName, excludeAppId, true);
+      const result = await searchSteamAppIdLight(variant, rawName, excludeAppId, true, lang);
       if (result) {
         // 成功 → 自动学习被跳过的词（计数确认后才生效，防误学副标题）
         const noiseWords = extractNoiseCandidates(rawName, variant);
@@ -451,10 +451,10 @@ export async function findVersionVariant(appId, title) {
 
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
-async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = false) {
+async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = false, lang = 'schinese') {
   try {
     const data = await (
-      await fetchWithTimeout(`${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=schinese&cc=cn`)
+      await fetchWithTimeout(`${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=${lang}&cc=cn`)
     ).json();
     const items = (data && data.items) || [];
     if (items.length === 0) return null;

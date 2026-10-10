@@ -10,8 +10,7 @@ import { test, expect } from 'vitest';
 
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { ROOT, BG, collectJs } from './integrity-helpers.mjs';
+import { ROOT, collectJs } from './integrity-helpers.mjs';
 
 // ============ 12. XSS 转义静态扫描（v14.2.0，主报告 P1-2——铁律 #1 机器护栏） ============
 // 扫描生产 JS 中 innerHTML 模板串的 ${...} 插值：不含引号的纯数字/布尔/变量

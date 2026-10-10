@@ -109,7 +109,16 @@ const RULES = {
     }
     return { ok: true };
   },
-  SEARCH_STEAM: nameRule('SEARCH_STEAM.gameName'),
+  // v14.3.1：rawTitle 可选——原始页面标题（未清洗），供扩展搜索提取英文变体
+  //（新游戏 schinese storesearch 返回空时，英文变体是唯一有效检索路径）
+  SEARCH_STEAM: (m) => {
+    const base = nameRule('SEARCH_STEAM.gameName')(m);
+    if (!base.ok) return base;
+    if (m && m.rawTitle !== undefined && (typeof m.rawTitle !== 'string' || m.rawTitle.length > 300)) {
+      return { error: 'SEARCH_STEAM.rawTitle 可选且不超过 300 字符' };
+    }
+    return { ok: true };
+  },
   REFRESH_STEAM_CACHE: nameRule('REFRESH_STEAM_CACHE.gameName'),
   GET_STEAM_BY_APPID: (m) => appIdRule(m && m.appId, 'GET_STEAM_BY_APPID.appId'),
   SAVE_MANUAL_MAPPING: (m) => {
