@@ -188,8 +188,24 @@ export async function searchSteamGame(gameName, options = {}) {
     }
 
     // 5. 获取完整 Steam 详情 / Fetch full Steam details
-    const result = await fetchSteamFullDetailsByAppId(appId);
+    let result = await fetchSteamFullDetailsByAppId(appId);
     if (!result) return null;
+
+    // v14.3.2：DLC → 自动解析为本体 appId（与列表页 step 4.5 对齐）。
+    // fetchSteamFullDetailsByAppId 返回 appdetails 原始 type/fullgame 字段——
+    // DLC 命中时好评率/评测数据归属 DLC 而非本体，需替换后重取本体详情。
+    if (result.type === 'dlc' && result.fullgame) {
+      const baseId = String(result.fullgame.appid || result.fullgame.appId || '');
+      if (baseId && baseId !== String(appId)) {
+        Logger.info('Steam', `DLC 解析: ${result.name} (DLC ${appId}) → 本体 ${baseId} (${result.fullgame.name || ''})`);
+        const baseResult = await fetchSteamFullDetailsByAppId(baseId);
+        if (baseResult) {
+          appId = baseId;
+          result = baseResult;
+        }
+        // 本体获取失败 → 保留 DLC 数据（劣于无数据）
+      }
+    }
 
     // 6. 写入三层缓存：Steam 动态缓存(24h) + 游戏注册表(永久) + 名称索引
     //    注册表以 Steam 官方中英文名为准，下载站标题入 names 变体，封面一并缓存
