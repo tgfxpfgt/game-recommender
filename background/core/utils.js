@@ -133,7 +133,8 @@ const MAX_REDIRECTS = 5;
 // Global minimum interval for Steam API calls: multiple tabs share the same SW,
 // concurrent batches can exceed rate limits. Enforced at fetchWithTimeout level.
 let lastSteamCallAt = 0;
-const STEAM_MIN_INTERVAL_MS = 150;
+import { PERF_CONFIG } from './constants.js';
+const STEAM_MIN_INTERVAL_MS = PERF_CONFIG.steamRateLimitMs;
 const steamHostPattern = /(?:^|\.)steampowered\.com$|(?:^|\.)steamstatic\.com$|(?:^|\.)steampowered\.com\.cn$/;
 
 async function steamRateLimit() {

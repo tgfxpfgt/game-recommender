@@ -10,6 +10,7 @@
  * Keep-alive, rate-limit slowdown, retry and debounced persistence live here.
  */
 import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrator.js';
+import { PERF_CONFIG } from '../core/constants.js';
 import { flushAllCaches } from '../storage/flush.js';
 import { getSteamCacheEntry, isModuleValid, getModuleData } from '../storage/steam-cache.js';
 import { getAppIdByUrl } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
@@ -229,7 +230,7 @@ async function runRatingJob(job) {
       }
     };
     // v6.4.15：并发自适应（恢复时重算——限流状态可能已变化）
-    let batchSize = getSteamApiStatus().anomaly ? 2 : 6;
+    let batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : PERF_CONFIG.ratingsBatchSize;
     let queue = job.queue;
     let retried = job.retried === true;
     let consecutiveAnomaly = 0;
@@ -273,12 +274,12 @@ async function runRatingJob(job) {
       // 限流降速：Steam API 异常状态时拉大批次间隔；连续异常暂停 30s 等窗口恢复
       if (getSteamApiStatus().anomaly) {
         consecutiveAnomaly++;
-        batchSize = 2;
-        const wait = consecutiveAnomaly >= 2 ? 30000 : 5000;
+        batchSize = PERF_CONFIG.ratingsBatchSizeAnomaly;
+        const wait = consecutiveAnomaly >= 2 ? PERF_CONFIG.anomalyConsecutivePauseMs : PERF_CONFIG.anomalyWaitMs;
         if (queue.length > 0 || retryBatch.length > 0) await new Promise((r) => setTimeout(r, wait));
       } else {
         consecutiveAnomaly = 0;
-        batchSize = 6;
+        batchSize = PERF_CONFIG.ratingsBatchSize;
       }
       // 一轮结束后重试失败的条目（最多一轮，防无限循环）
       if (queue.length === 0 && retryBatch.length > 0 && !retried) {

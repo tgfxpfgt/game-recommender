@@ -47,6 +47,20 @@ export const DB_KEYS = {
 // v10.7.0 批次1：存储容量上限单源（原 14 处散落各存储文件顶部——调参需逐文件
 // 找；现集中声明、各文件引用同一常量，批次2 存储注册表将直接消费此表）
 // v10.7.0: single source for storage caps (was scattered across 14 files).
+// v14.4.1（B4）：性能调优常量单源——所有魔法数字集中管理，消费者只引用不硬编码
+export const PERF_CONFIG = {
+  steamRateLimitMs: 150, // Steam 域请求最小间隔（fetchWithTimeout 限速器）
+  ratingsBatchSize: 6, // 列表页好评率批量每批数量（异常时降至 anomalyBatchSize）
+  ratingsBatchSizeAnomaly: 2, // API 异常时的批次大小
+  anomalyWaitMs: 5000, // API 异常时批次间隔
+  anomalyConsecutivePauseMs: 30000, // 连续异常暂停时长
+  searchRetryDelayMs: 3000, // 搜索重试间隔
+  maxSearchRetries: 1, // 搜索失败重试次数
+  detailAbortTimeoutMs: 15000, // 列表页内容脚本 abort 超时
+  layoutRetryIntervalMs: 1000, // xdgrid 布局重试间隔
+  layoutRetryMax: 10 // xdgrid 布局最大重试次数
+};
+
 export const STORAGE_CAPS = {
   gameProfiles: 5000, // 游戏画像条目上限
   favorites: 500, // 收藏上限
