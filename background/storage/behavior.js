@@ -9,6 +9,7 @@ import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS, PREF_UPDATE_INTERVAL, STORAGE_CAPS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { withLock } from '../core/mechanisms.js';
+import { createDebouncedStore } from './debounced-store.js';
 
 // --- 行为日志 / Behavior Log ---
 // v7.0.4：内存缓存（内存换延迟）——行为日志/画像/关键词权重常被读取（推荐
@@ -91,6 +92,10 @@ export async function warmupBehavior() {
 // 清空内存缓存（导入/清除数据后调用）
 export function resetBehaviorMemory() {
   behaviorCache = { log: null, profiles: null, keywordWeights: null };
+  // v14.5.0 B5：取消挂起的画像防抖写——导入/恢复/清除后新数据已直写存储，
+  // 挂起的旧基线防抖写若再触发会用旧内存覆盖新数据（"清空被撤销"）
+  profilesWriter.reset();
+  profilesDirty = false;
   dataVersion++;
 }
 
@@ -101,14 +106,45 @@ export function resetBehaviorMemory() {
 // v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
 const withProfilesLock = withLock();
 
+// v14.5.0 B5：画像防抖落盘（写合并）——TRACK_EVENT_BATCH 每批 ≤10 事件此前
+// 逐事件"读盘 + 全量重写画像"（写放大热点），现合并为内存读-改-写 + 2s
+// 防抖单次落盘（与 registry/name-index/url-index/app-stats 同模式）。
+// 强制落盘走 flushProfiles（flushAllCaches 纳管：批次收尾/周期兜底不丢窗口）；
+// 重置走 resetBehaviorMemory（取消挂起 + 清 dirty）。
+// Profile writes coalesced via the shared debounced-store factory; forced
+// persistence goes through flushProfiles in flushAllCaches.
+let profilesDirty = false;
+const profilesWriter = createDebouncedStore({
+  name: '游戏画像',
+  debounceMs: 2000,
+  save: async () => {
+    if (!profilesDirty || !behaviorCache.profiles) return;
+    profilesDirty = false;
+    try {
+      await dataStore.writeModule(DB_KEYS.GAME_PROFILES, behaviorCache.profiles);
+    } catch (e) {
+      // 铁律 6：写失败回滚 dirty 并重新调度（否则本批修改静默丢失且永不重试）
+      profilesDirty = true;
+      profilesWriter.scheduleWrite();
+      console.error('游戏画像写入失败:', String(e));
+    }
+  }
+});
+
+// v14.5.0 B5：画像强制落盘 / Force-persist profiles (flushAllCaches member)
+export async function flushProfiles() {
+  await profilesWriter.flush();
+}
+
 // 更新游戏画像（view/download 事件） / Update a game profile
 export function updateGameProfile(gameInfo) {
   return withProfilesLock(() => doUpdateGameProfile(gameInfo));
 }
 
 async function doUpdateGameProfile(gameInfo) {
-  const stored = await dataStore.readModule(DB_KEYS.GAME_PROFILES);
-  const profiles = stored || {};
+  // v14.5.0 B5：基座改内存缓存优先（与写回一致）——缓存未热（冷启动首事件/
+  // 重置后首事件）才读盘；此前逐事件读盘 + 全量重写（读放大 + 写放大热点）
+  const profiles = behaviorCache.profiles || (await dataStore.readModule(DB_KEYS.GAME_PROFILES)) || {};
 
   const key = gameInfo.name.toLowerCase().trim();
   if (!profiles[key]) {
@@ -151,8 +187,10 @@ async function doUpdateGameProfile(gameInfo) {
     }
   }
 
-  await dataStore.writeModule(DB_KEYS.GAME_PROFILES, profiles);
+  // v14.5.0 B5：防抖合并落盘（内存先行——读路径即时可见，磁盘 2s 窗口合并）
   behaviorCache.profiles = profiles; // v7.0.4：写回内存缓存（读写一致）
+  profilesDirty = true;
+  profilesWriter.scheduleWrite();
   bumpVersion();
   return profiles;
 }

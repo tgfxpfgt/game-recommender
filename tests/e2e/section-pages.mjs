@@ -364,13 +364,25 @@ export async function runPages(state) {
     doc.querySelector('.claim-btn-filter[data-claim="all"]').click();
   });
   await hub.waitForTimeout(600);
+  // v14.5.0 B5：首窗口未出卡片时点一次刷新再轮询——页面首载 GET_FREE_GAMES 走
+  // 10s 消息超时，SW 恰被列表批次/温层预热占满时首载可能撞线（2026-10-11 观测，
+  // worktree A/B 证实与功能批次无关的边际时序）。重试仅容忍瞬态忙碌：持续性
+  // 故障（如 B2 动态 import 失效）刷新后仍失败，回归检出能力不变。
   let freeCardCount = 0;
-  for (let i = 0; i < 20 && freeCardCount === 0; i++) {
-    await new Promise((r) => setTimeout(r, 500));
-    freeCardCount = await hub.evaluate(() => {
-      const doc = document.getElementById('hubFrame').contentDocument;
-      return doc ? doc.querySelectorAll('.game-card').length : 0;
-    });
+  for (let round = 0; round < 2 && freeCardCount === 0; round++) {
+    if (round > 0) {
+      await hub.evaluate(() => {
+        const doc = document.getElementById('hubFrame').contentDocument;
+        if (doc && doc.getElementById('refreshBtn')) doc.getElementById('refreshBtn').click();
+      });
+    }
+    for (let i = 0; i < 20 && freeCardCount === 0; i++) {
+      await new Promise((r) => setTimeout(r, 500));
+      freeCardCount = await hub.evaluate(() => {
+        const doc = document.getElementById('hubFrame').contentDocument;
+        return doc ? doc.querySelectorAll('.game-card').length : 0;
+      });
+    }
   }
   const freeData = await hub.evaluate(async () => {
     const resp = await chrome.runtime.sendMessage({ action: 'GET_FREE_GAMES', force: false });

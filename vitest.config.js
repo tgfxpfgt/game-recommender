@@ -52,6 +52,7 @@ export default defineConfig({
       'tests/unit/test-mechanisms.mjs',
       'tests/unit/test-metrics.mjs',
       'tests/unit/test-list-batch-capacity.mjs',
+      'tests/unit/test-flush-concurrency.mjs',
       'tests/unit/test-list-local-sort.mjs',
       'tests/unit/test-track-batch.mjs',
       'tests/unit/test-tab-game.mjs',
