@@ -296,6 +296,36 @@ node --check options/options.js
 
 ## 更新日志
 
+### v14.4.0（第五轮收官：B9 全量拆分 + 主题按需加载 + franchise 匹配策略）
+
+**B9 测试巨文件重组（10/10 批次全落地）**
+
+- test-content-sim.mjs 1451 行 → tests/sim/（sim-harness 共享工具 + sim-list + sim-detail + sim-badges）
+- e2e-smoke.mjs 895 行 → tests/e2e/（helpers + run 聚合 + 7 个 section 模块）
+- test-integrity.mjs 553 行 → 主册 467 + test-integrity-security 116 + integrity-helpers 24
+- vitest include 自检绿 · 894 用例全绿
+
+**主题按需加载（任务 1）**
+
+- themes.css 1438 行拆为 19 套独立文件 + applyTheme 动态 `<link>` 注入
+- SidePanel 实时跟随 · integrity 主题变量键一致性断言改扫描拆分后文件
+
+**匹配管线 franchise 区分（P1-A 覆盖判据）**
+
+- orchestrator-detail 阶段 2 交叉验证：零交集判据 → 内容词覆盖判据
+- 单调改进护栏 + 单词段不触发 + 等覆盖防抖动
+- P2-1 列表页 rawTitle 英文兜底 / P2-2 appId 直取失败落回搜索
+
+**架构介绍页 + 知识库 + 工具**
+
+- docs/architecture.html（SVG 交互图 + 匹配管线动画 + 数据流可视化）
+- docs/KNOWLEDGE.md（匹配管线/存储模型/消息契约/单源表）
+- gate 新增 architecture 步骤 + npm audit 0 漏洞
+
+### v14.3.1（匹配修复：rawTitle 透传 + 三阶段匹配）
+
+- Steam schinese storesearch 对新游戏中文名返回空——rawTitle 透传 + 英文兜底
+
 ### v14.3.0（第五轮 10 批次：拆分/模块化/合并/重组——9/10 落地）
 
 **五大巨石拆分（TOP8 均值 537 → 313，全部 ≤420）**
