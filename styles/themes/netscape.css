@@ -1,0 +1,91 @@
+/*
+ * 游戏雷达 Game Radar - 主题 9/19：90 年代 Netscape 远古网页 / 90s Netscape
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 直角方块、3D 斜面立体灰色控件、老式原生 html 按钮、
+ * 无圆角、互联网早期复古界面
+ */
+body[data-theme='netscape'] {
+  --gr-bg-deep: #c0c0c0;
+  --gr-bg: #d4d0c8;
+  --gr-panel: #c0c0c0;
+  --gr-panel-2: #b8b8b8;
+  --gr-card: #d4d0c8;
+  --gr-card-hover: #dedad2;
+  --gr-accent: #000080;
+  --gr-accent-btn: #000080;
+  --gr-accent-btn-hover: #0000a0;
+  --gr-grad-btn: linear-gradient(180deg, #ffffff 0%, #d4d0c8 45%, #a8a8a8 100%);
+  --gr-green: #008000;
+  --gr-red: #800000;
+  --gr-orange: #804000;
+  --gr-text: #000000;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #404040;
+  --gr-border: #808080;
+  --gr-border-soft: #a0a0a0;
+  --gr-radius: 0px;
+  --gr-radius-sm: 0px;
+  --gr-shadow: 2px 2px 0 rgba(0, 0, 0, 0.25);
+  --gr-shadow-lg: 3px 3px 0 rgba(0, 0, 0, 0.3);
+  --gr-page-grad: linear-gradient(180deg, #d8d4cc 0%, #c4c0b8 100%);
+  --gr-font: 'MS Sans Serif', Tahoma, 'PingFang SC', sans-serif;
+  --gr-gap: 8px;
+  --gr-control-h: 28px;
+}
+body[data-theme='netscape'] .gr-btn {
+  border: 2px solid;
+  border-color: #ffffff #404040 #404040 #ffffff;
+  border-radius: 0;
+  background: var(--gr-grad-btn);
+  color: #000;
+  box-shadow: none;
+  font-size: 12px;
+}
+body[data-theme='netscape'] .gr-btn:active {
+  border-color: #404040 #ffffff #ffffff #404040;
+}
+body[data-theme='netscape'] .gr-btn.primary {
+  color: #000080;
+  font-weight: bold;
+}
+body[data-theme='netscape'] .gr-input {
+  background: #ffffff;
+  border: 2px solid;
+  border-color: #404040 #ffffff #ffffff #404040;
+  border-radius: 0;
+  box-shadow: none;
+  color: #000;
+  font-size: 13px;
+}
+body[data-theme='netscape'] .gr-panel,
+body[data-theme='netscape'] .gr-card,
+body[data-theme='netscape'] .gr-stat-card {
+  border: 1px solid #808080;
+  border-radius: 0;
+  box-shadow:
+    1px 1px 0 rgba(255, 255, 255, 0.6) inset,
+    -1px -1px 0 rgba(0, 0, 0, 0.2) inset;
+}
+body[data-theme='netscape'] .gr-switch .gr-slider-ui {
+  background: #d4d0c8;
+  border: 2px solid;
+  border-color: #404040 #ffffff #ffffff #404040;
+}
+body[data-theme='netscape'] .gr-switch input:checked + .gr-slider-ui {
+  background: #000080;
+}
+body[data-theme='netscape'] .gr-nav-item.active {
+  background: #000080;
+  color: #fff;
+  box-shadow: none;
+}
+body[data-theme='netscape'] a {
+  color: #0000ee;
+}
+body[data-theme='netscape'] a:visited {
+  color: #551a8b;
+}

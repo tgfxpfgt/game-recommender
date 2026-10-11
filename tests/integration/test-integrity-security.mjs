@@ -84,24 +84,62 @@ test('content 静态 import 的 shared 模块均在 WAR 覆盖内', () => {
   expect(uncovered, 'WAR 未覆盖的内容侧共享依赖:\n  ' + uncovered.join('\n  ')).toEqual([]);
 });
 
-// ============ 14. 主题变量键集合一致（v14.3.0 B10） ============
-// 19 套主题必须定义同一套 --gr-* 变量——新主题漏键会让该主题下消费方回退
-// 默认值（SidePanel 主题失效的近因防御）。
-test('主题变量键集合一致（19 套 --gr-* 全等）', () => {
-  const css = fs.readFileSync(path.join(ROOT, 'styles/themes.css'), 'utf-8');
-  const blocks = [...css.matchAll(/body\[data-theme='([^']+)'\]\s*\{([^}]*)\}/g)];
-  expect(blocks.length).toBeGreaterThanOrEqual(19);
-  const keySets = blocks.map(([, body]) => {
-    const keys = [...body.matchAll(/(--gr-[a-z-]+)\s*:/g)].map((m) => m[1]).sort();
-    return keys.join(',');
-  });
-  const first = keySets[0];
-  // 逐块比对键集合（变量名集合全等，值可不同）
-  const bad = [];
-  for (let i = 1; i < keySets.length; i++) {
-    if (keySets[i] !== first) bad.push(blocks[i] && blocks[i][1]);
+// ============ 14. 主题文件一致性（v14.3.0 B10 引入；v14.3.2 改扫描拆分文件） ============
+// styles/themes/<name>.css 每主题一文件（applyTheme 动态加载）。四重守护：
+// ①文件集合与 settings-utils 的 VALID_THEMES 全等（steam 为默认主题，定义于
+//   ui-theme.css :root，无独立文件）；②每文件变量块 ⊇ 核心键集（:root 减可选
+//   键——漏键 = 该主题下消费方回退 steam 默认，SidePanel 主题失效的近因防御）；
+//   ③仅部分主题定义的键必须 ∈ 可选键白名单（防笔误/半截键漂移）；④每文件内
+//   所有 data-theme 选择器与文件名一致（拆分归属漂移防御）。
+//   契约为「核心全量 + 可选覆盖」而非全等：--gr-control-h（紧凑终端系）与
+//   --gr-font（等宽/衬线主题）是有意的按主题覆盖。注：v14.3.0 旧断言因解构
+//   笔误（([, body]) 取到主题名而非块体）从未实际生效，本版为首个真实校验。
+const THEME_OPTIONAL_KEYS = new Set(['--gr-control-h', '--gr-font']);
+test('主题文件与变量键一致（19 文件 ↔ VALID_THEMES，核心键全覆盖）', () => {
+  const dir = path.join(ROOT, 'styles/themes');
+  const files = fs
+    .readdirSync(dir)
+    .filter((f) => f.endsWith('.css'))
+    .sort();
+  // VALID_THEMES 单源提取（shared/settings-utils.js 经典脚本，正则取 Set 字面量）
+  const su = fs.readFileSync(path.join(ROOT, 'shared/settings-utils.js'), 'utf-8');
+  const setBody = su.match(/const VALID_THEMES = new Set\(\[([\s\S]*?)\]\)/);
+  expect(setBody, 'settings-utils.js 中未找到 VALID_THEMES 声明').not.toBeNull();
+  const validThemes = [...setBody[1].matchAll(/'([a-z0-9]+)'/g)].map((m) => m[1]).sort();
+  expect(validThemes.length, 'VALID_THEMES 应含 steam + 19 主题').toBe(20);
+  expect(
+    files.map((f) => f.replace('.css', '')),
+    '主题文件集合应与 VALID_THEMES − steam 全等'
+  ).toEqual(validThemes.filter((t) => t !== 'steam'));
+  // 核心键 = ui-theme.css :root（steam 默认）减可选覆盖键
+  const uiTheme = fs.readFileSync(path.join(ROOT, 'styles/ui-theme.css'), 'utf-8');
+  const rootBlock = uiTheme.match(/:root\s*\{([^}]*)\}/);
+  expect(rootBlock, 'ui-theme.css 缺少 :root 默认主题块').not.toBeNull();
+  const rootKeys = [...rootBlock[1].matchAll(/(--gr-[a-z0-9-]+)\s*:/g)].map((m) => m[1]);
+  const requiredKeys = rootKeys.filter((k) => !THEME_OPTIONAL_KEYS.has(k)).sort();
+  // 逐文件：归属一致 + 变量块校验
+  const keyFileCount = new Map(); // 变量键 → 定义它的文件数
+  for (const f of files) {
+    const css = fs.readFileSync(path.join(dir, f), 'utf-8');
+    const name = f.replace('.css', '');
+    // 归属一致：本文件内所有 data-theme 引用必须是文件自身主题
+    const foreign = [...css.matchAll(/data-theme='([^']+)'/g)].map((m) => m[1]).filter((t) => t !== name);
+    expect(foreign, `${f} 含其他主题的选择器（拆分归属漂移）`).toEqual([]);
+    // 变量块：body[data-theme='<name>'] { ... }（match()[1] = 块体）
+    const varBlock = css.match(new RegExp(`body\\[data-theme='${name}'\\]\\s*\\{([^}]*)\\}`));
+    expect(varBlock, `${f} 缺少变量块 body[data-theme='${name}']`).not.toBeNull();
+    const keys = [...varBlock[1].matchAll(/(--gr-[a-z0-9-]+)\s*:/g)].map((m) => m[1]).sort();
+    expect(keys.length, `${f} 变量块为空`).toBeGreaterThan(0);
+    const missing = requiredKeys.filter((k) => !keys.includes(k));
+    expect(missing, `${f} 缺少核心变量键: ${missing.join(', ')}`).toEqual([]);
+    for (const k of keys) keyFileCount.set(k, (keyFileCount.get(k) || 0) + 1);
   }
-  expect(bad, `主题变量键漂移: ${bad.length} 块与首块不一致`).toEqual([]);
+  // 非全量键（部分主题才有）必须是有意可选键——防笔误/半截键混入
+  for (const [k, n] of keyFileCount) {
+    if (n < files.length) {
+      expect(THEME_OPTIONAL_KEYS.has(k), `变量键 ${k} 仅 ${n}/${files.length} 套主题定义且不在可选白名单`).toBe(true);
+    }
+  }
 });
 
 test('XSS 未防护插值 ≤ 棘轮基线（只降不升——铁律 #1 机器护栏）', () => {

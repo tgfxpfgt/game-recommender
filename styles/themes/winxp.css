@@ -1,0 +1,65 @@
+/*
+ * 游戏雷达 Game Radar - 主题 4/19：Windows XP Luna 蓝 / Windows XP Luna Blue
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * XP 经典家用系统、鲜艳蓝色渐变、饱满圆润控件、明亮高光、
+ * 2000 年代复古桌面 UI
+ */
+body[data-theme='winxp'] {
+  --gr-bg-deep: #4a79d0;
+  --gr-bg: #5584d9;
+  --gr-panel: #7da2e0;
+  --gr-panel-2: #6d95da;
+  --gr-card: #8fb0e8;
+  --gr-card-hover: #9dbcef;
+  --gr-accent: #ffe86b;
+  --gr-accent-btn: #3c78d8;
+  --gr-accent-btn-hover: #5589e2;
+  --gr-grad-btn: linear-gradient(180deg, #f0f6ff 0%, #7fa9e6 45%, #3c78d8 100%);
+  --gr-green: #3c9a2e;
+  --gr-red: #e05050;
+  --gr-orange: #f0a030;
+  --gr-text: #0d1f3c;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #46608a;
+  --gr-border: #2c56a0;
+  --gr-border-soft: #3f6ab0;
+  --gr-radius: 6px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 3px 8px rgba(20, 50, 110, 0.35);
+  --gr-shadow-lg: 0 6px 18px rgba(20, 50, 110, 0.4);
+  --gr-page-grad: linear-gradient(180deg, #6f9ae4 0%, #3f6fc0 100%);
+  --gr-gap: 11px;
+}
+body[data-theme='winxp'] .gr-btn {
+  border: 1px solid #2c56a0;
+  border-radius: 6px;
+  background-image: linear-gradient(180deg, #ffffff 0%, #bcd4f5 45%, #5c8fe0 100%);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(10, 40, 90, 0.4);
+  color: #0d1f3c;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+body[data-theme='winxp'] .gr-btn:hover {
+  background-image: linear-gradient(180deg, #ffffff 0%, #d8e8fb 45%, #7aa6ec 100%);
+}
+body[data-theme='winxp'] .gr-input {
+  background: #ffffff;
+  border: 1px solid #7a9bd8;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 4px rgba(30, 60, 120, 0.25);
+  color: #0d1f3c;
+}
+body[data-theme='winxp'] .gr-nav-item.active {
+  background: linear-gradient(180deg, #ffe87a, #ffd94a);
+  color: #0d1f3c;
+  box-shadow: inset 2px 0 0 #b8860b;
+}
+body[data-theme='winxp'] .gr-stat-card {
+  background: linear-gradient(180deg, #a8c4f0, #7da2e0);
+  border: 1px solid #5a84c8;
+}

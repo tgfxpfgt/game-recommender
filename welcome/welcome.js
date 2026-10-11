@@ -123,7 +123,11 @@
     themeBox.querySelectorAll('[data-theme-pick]').forEach((btn) => {
       btn.addEventListener('click', () => {
         guideState.uiTheme = btn.dataset.themePick;
-        document.body.dataset.theme = guideState.uiTheme; // 即时预览
+        // v14.3.2：预览统一走 applyTheme（主题文件按需加载）——直接设
+        // data-theme 不再加载 styles/themes/<t>.css，非 steam 预览会落空
+        const u = globalThis.__GR_SETTINGS_UTILS__;
+        if (u && u.applyTheme) u.applyTheme(guideState.uiTheme);
+        else document.body.dataset.theme = guideState.uiTheme; // 兜底（无工具文件时）
         themeBox.querySelectorAll('[data-theme-pick]').forEach((b) => b.classList.toggle('active', b === btn));
       });
     });

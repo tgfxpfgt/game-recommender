@@ -1,0 +1,63 @@
+/*
+ * 游戏雷达 Game Radar - 主题 5/19：Windows 11 Fluent 云母 / Win11 Fluent Mica
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 云母半透明材质、柔和软阴影、中等圆角、低饱和度强调色、
+ * 微软现代原生系统控件
+ */
+body[data-theme='win11'] {
+  --gr-bg-deep: #202020;
+  --gr-bg: #2b2b2b;
+  --gr-panel: rgba(60, 60, 60, 0.75);
+  --gr-panel-2: rgba(70, 70, 70, 0.7);
+  --gr-card: rgba(82, 82, 82, 0.72);
+  --gr-card-hover: rgba(96, 96, 96, 0.75);
+  --gr-accent: #60cdff;
+  --gr-accent-btn: #4cc2ff;
+  --gr-accent-btn-hover: #7ad5ff;
+  --gr-grad-btn: linear-gradient(180deg, #6dd0ff 0%, #3bb3f2 100%);
+  --gr-green: #6ccb5f;
+  --gr-red: #ff6161;
+  --gr-orange: #ffb63d;
+  --gr-text: #e8e8e8;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #9a9a9a;
+  --gr-border: rgba(255, 255, 255, 0.12);
+  --gr-border-soft: rgba(255, 255, 255, 0.08);
+  --gr-radius: 8px;
+  --gr-radius-sm: 6px;
+  --gr-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  --gr-shadow-lg: 0 10px 36px rgba(0, 0, 0, 0.3);
+  --gr-page-grad: linear-gradient(180deg, #333333 0%, #242424 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='win11'] .gr-panel,
+body[data-theme='win11'] .gr-card,
+body[data-theme='win11'] .gr-stat-card {
+  backdrop-filter: blur(30px) saturate(1.2);
+  -webkit-backdrop-filter: blur(30px) saturate(1.2);
+}
+body[data-theme='win11'] .gr-btn {
+  border-radius: 6px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+body[data-theme='win11'] .gr-btn.ghost {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+body[data-theme='win11'] .gr-input {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  box-shadow: none;
+}
+body[data-theme='win11'] .gr-nav-item.active {
+  background: rgba(76, 194, 255, 0.16);
+  box-shadow: none;
+}
+body[data-theme='win11'] .gr-switch .gr-slider-ui {
+  background: rgba(255, 255, 255, 0.2);
+}

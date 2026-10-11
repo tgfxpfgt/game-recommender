@@ -1,0 +1,88 @@
+/*
+ * 游戏雷达 Game Radar - 主题 15/19：复古 CRT 显像管显示器 / Retro CRT Monitor
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 深色背景、微弱扫描线、轻微色彩偏移、绿琥珀荧光文字、
+ * 老式显示器终端效果
+ */
+body[data-theme='crt'] {
+  --gr-bg-deep: #0a0f0a;
+  --gr-bg: #0e140e;
+  --gr-panel: #121a12;
+  --gr-panel-2: #162016;
+  --gr-card: #1a261a;
+  --gr-card-hover: #223022;
+  --gr-accent: #33ff66;
+  --gr-accent-btn: #2ee659;
+  --gr-accent-btn-hover: #5cff85;
+  --gr-grad-btn: linear-gradient(180deg, #2ee659 0%, #1c9e3c 100%);
+  --gr-green: #33ff66;
+  --gr-red: #ff6a33;
+  --gr-orange: #ffaa33;
+  --gr-text: #8fffaa;
+  --gr-text-bright: #c8ffd4;
+  --gr-text-dim: #4a8a5a;
+  --gr-border: rgba(51, 255, 102, 0.35);
+  --gr-border-soft: rgba(51, 255, 102, 0.18);
+  --gr-radius: 6px;
+  --gr-radius-sm: 4px;
+  --gr-shadow: 0 0 12px rgba(51, 255, 102, 0.2);
+  --gr-shadow-lg: 0 0 24px rgba(51, 255, 102, 0.28);
+  --gr-page-grad: linear-gradient(180deg, #0e140e 0%, #080c08 100%);
+  --gr-font: 'Consolas', 'Courier New', 'PingFang SC', monospace;
+  --gr-gap: 9px;
+  --gr-control-h: 30px;
+}
+body[data-theme='crt'] .gr-panel,
+body[data-theme='crt'] .gr-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(51, 255, 102, 0.25);
+  box-shadow: 0 0 18px rgba(51, 255, 102, 0.12) inset;
+}
+body[data-theme='crt'] .gr-panel::after,
+body[data-theme='crt'] .gr-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px);
+}
+body[data-theme='crt'] .gr-btn {
+  border: 1px solid rgba(51, 255, 102, 0.5);
+  border-radius: 4px;
+  background: rgba(51, 255, 102, 0.08);
+  color: var(--gr-accent);
+  text-shadow: 0 0 6px rgba(51, 255, 102, 0.6);
+}
+body[data-theme='crt'] .gr-btn:hover {
+  background: rgba(51, 255, 102, 0.2);
+  box-shadow: 0 0 12px rgba(51, 255, 102, 0.4);
+}
+body[data-theme='crt'] .gr-input {
+  background: #060a06;
+  border: 1px solid rgba(51, 255, 102, 0.4);
+  border-radius: 3px;
+  box-shadow: inset 0 0 8px rgba(51, 255, 102, 0.15);
+  color: var(--gr-accent);
+  text-shadow: 0 0 4px rgba(51, 255, 102, 0.4);
+}
+body[data-theme='crt'] .gr-nav-item.active {
+  background: rgba(51, 255, 102, 0.18);
+  color: #c8ffd4;
+  box-shadow: inset 2px 0 0 var(--gr-accent);
+}
+body[data-theme='crt'] .gr-stat-card .gr-stat-value {
+  color: var(--gr-accent);
+  text-shadow: 0 0 8px rgba(51, 255, 102, 0.5);
+}
+body[data-theme='crt'] .gr-switch .gr-slider-ui {
+  background: #0a140a;
+  border: 1px solid rgba(51, 255, 102, 0.4);
+}
+body[data-theme='crt'] .gr-switch input:checked + .gr-slider-ui {
+  background: rgba(51, 255, 102, 0.6);
+}

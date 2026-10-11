@@ -125,8 +125,14 @@ try {
     // 默认态 + 交互态（v9.1.0：states 为附加基线）
     const states = [{ name: null, prep: null }, ...(p.states || [])];
     for (const theme of p.themes) {
-      // 直接设置 data-theme（themes.css 按 body[data-theme] 生效）
-      await page.evaluate((t) => document.body.setAttribute('data-theme', t), theme);
+      // v14.3.2：主题 CSS 已拆分为 styles/themes/<t>.css 由 applyTheme 动态
+      // 注入 <link>——直接 setAttribute 不再加载主题样式，统一走生产同路径
+      // applyTheme（ steam 回默认、其余注入对应文件）
+      await page.evaluate((t) => {
+        const u = globalThis.__GR_SETTINGS_UTILS__;
+        if (u && u.applyTheme) u.applyTheme(t);
+        else document.body.setAttribute('data-theme', t); // 兜底（页面缺工具文件时）
+      }, theme);
       await page.waitForTimeout(300);
       for (const st of states) {
         if (st.prep) await st.prep(page);

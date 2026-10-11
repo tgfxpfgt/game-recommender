@@ -25,6 +25,24 @@
     }
   })();
 
+  // v14.3.2：设置变更实时跟随（后台 saveSettings 广播 GR_SETTINGS_CHANGED）——
+  // 用户在设置中心切主题，已打开的侧栏即时变色，无需重开。
+  // Live-follow settings changes (background broadcast on save): an open panel
+  // re-applies the theme without being reopened.
+  try {
+    chrome.runtime.onMessage.addListener((msg) => {
+      if (!msg || msg.type !== 'GR_SETTINGS_CHANGED') return;
+      send({ action: 'GET_SETTINGS' })
+        .then((r) => {
+          const s = r && r.settings;
+          if (s && globalThis.__GR_SETTINGS_UTILS__) globalThis.__GR_SETTINGS_UTILS__.applyPageTheme(s);
+        })
+        .catch(() => {});
+    });
+  } catch {
+    /* 无 onMessage 环境时静默 */
+  }
+
   const esc = (t) =>
     typeof globalThis.escapeHtml === 'function' ? globalThis.escapeHtml(String(t ?? '')) : String(t ?? '');
   const escA = (t) =>

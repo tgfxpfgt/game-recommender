@@ -62,9 +62,53 @@
     }
   }
 
-  // v6.4.19：应用皮肤主题（body data-theme → themes.css 变量覆盖生效）
-  // Apply the UI skin theme (body[data-theme] drives themes.css overrides).
+  // v14.3.2：主题文件动态加载——styles/themes/<name>.css 每主题一文件，
+  // applyTheme 切换时经 <link id="gr-theme-file"> 注入（重复切换复用同一元素
+  // 换 href，保持在 head 尾部 → 晚于 ui-theme.css 生效，层叠序与拆分前一致）。
+  // steam 为默认主题（ui-theme.css :root），无需文件 → 移除注入的 link。
+  // Theme CSS is now one file per skin under styles/themes/, injected on demand
+  // by applyTheme via a single reusable <link>; 'steam' (the :root default in
+  // ui-theme.css) removes the link instead.
+  /**
+   * @param {string} name 主题名（VALID_THEMES 成员）
+   * @returns {string} 主题 CSS 文件 URL
+   */
+  function themeFileUrl(name) {
+    if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.getURL) {
+      return chrome.runtime.getURL('styles/themes/' + name + '.css');
+    }
+    // 页面均在一级子目录（popup/ 等），兜底相对路径
+    // Pages live one level deep; relative fallback for non-extension contexts.
+    return '../styles/themes/' + name + '.css';
+  }
+  /**
+   * @param {string} theme 主题名（'steam' 时移除注入的 link）
+   * @returns {void}
+   */
+  function applyThemeFile(theme) {
+    if (typeof document === 'undefined' || !document.head) return;
+    const el = document.getElementById('gr-theme-file');
+    if (theme === 'steam') {
+      if (el) el.remove();
+      return;
+    }
+    const href = themeFileUrl(theme);
+    if (el) {
+      if (el.getAttribute('href') === href) return; // 同主题幂等（防重复注入）
+      el.setAttribute('href', href);
+      return;
+    }
+    const link = document.createElement('link');
+    link.id = 'gr-theme-file';
+    link.rel = 'stylesheet';
+    link.href = href;
+    document.head.appendChild(link);
+  }
+
+  // v6.4.19：应用皮肤主题（body data-theme → 主题变量覆盖生效）
+  // Apply the UI skin theme (body[data-theme] drives theme variable overrides).
   // v9.2.0：20 套主题（win31/95/98/win7/win10 已清理——netscape/vista/ios17 覆盖）
+  // v14.3.2：主题样式改动态加载（见 applyThemeFile）
   const VALID_THEMES = new Set([
     'steam',
     'vista',
@@ -91,6 +135,7 @@
     if (typeof document === 'undefined') return;
     const t = VALID_THEMES.has(theme) ? theme : 'steam';
     document.body.dataset.theme = t;
+    applyThemeFile(t); // v14.3.2：动态加载该主题文件（steam 移除）
   }
 
   // v10.6.0 F4：主题定时切换解析（纯函数，可单测）——themeAutoSwitch 开启时
@@ -116,6 +161,24 @@
   function applyThemeAuto(settings) {
     if (!settings) return;
     applyTheme(resolveTheme(settings));
+  }
+
+  // v14.3.2：统一入口补齐——dashboard/freegames/hub/popup/sidepanel 五页在
+  // v10.7.0 批次5 即调用 applyPageTheme，但工具文件从未实现（调用方守卫
+  // 静默跳过 = 除 popup 外四页主题恒不生效）。契约：定时解析主题 + 自定义
+  // CSS 一次完成。
+  // Unified entry finally implemented: auto-switch-aware resolution + custom
+  // theme CSS in one call (was referenced by 5 pages but never defined).
+  /**
+   * @param {{uiTheme?: string, themeAutoSwitch?: boolean, uiThemeDay?: string,
+   *   uiThemeNight?: string, uiThemeNightStart?: number, uiThemeNightEnd?: number,
+   *   customThemeCss?: string}} settings 完整设置对象（消费键列出）
+   * @returns {void}
+   */
+  function applyPageTheme(settings) {
+    if (!settings) return;
+    applyThemeAuto(settings);
+    applyCustomTheme(settings.customThemeCss);
   }
 
   // v7.0.5：应用自定义主题 CSS（覆盖任意主题变量；空值移除）
@@ -160,6 +223,7 @@
     goHub,
     applyTheme,
     applyThemeAuto,
+    applyPageTheme, // v14.3.2：统一入口（v10.7.0 起五页面调用，此前缺失）
     resolveTheme,
     applyCustomTheme,
     createSaveQueue

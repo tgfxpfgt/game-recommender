@@ -1,0 +1,75 @@
+/*
+ * 游戏雷达 Game Radar - 主题 17/19：莫兰迪低饱和配色 / Morandi Muted
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 全部颜色灰度抬高、柔和哑光、低对比度、中等圆角、
+ * 安静柔和艺术质感
+ */
+body[data-theme='morandi'] {
+  --gr-bg-deep: #b8b2a6;
+  --gr-bg: #c4beb2;
+  --gr-panel: #cfc9bd;
+  --gr-panel-2: #c8c2b6;
+  --gr-card: #d6d0c4;
+  --gr-card-hover: #ccc6ba;
+  --gr-accent: #8a9a8e;
+  --gr-accent-btn: #7d8d81;
+  --gr-accent-btn-hover: #97a79b;
+  --gr-grad-btn: linear-gradient(180deg, #97a79b 0%, #7d8d81 100%);
+  --gr-green: #9aa88a;
+  --gr-red: #b08a84;
+  --gr-orange: #b5a184;
+  --gr-text: #5a554d;
+  --gr-text-bright: #4a453d;
+  --gr-text-dim: #8d877c;
+  --gr-border: #b5afa3;
+  --gr-border-soft: #c2bcb0;
+  --gr-radius: 12px;
+  --gr-radius-sm: 9px;
+  --gr-shadow: 0 3px 12px rgba(120, 110, 90, 0.18);
+  --gr-shadow-lg: 0 8px 26px rgba(120, 110, 90, 0.22);
+  --gr-page-grad: linear-gradient(180deg, #c9c3b7 0%, #b8b2a6 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='morandi'] .gr-panel,
+body[data-theme='morandi'] .gr-card,
+body[data-theme='morandi'] .gr-stat-card {
+  background: #d3cdc1;
+  border: 1px solid #bdb7ab;
+}
+body[data-theme='morandi'] .gr-btn {
+  border: 1px solid #a8a295;
+  border-radius: 10px;
+  background: #d9d3c7;
+  color: #6a655c;
+  box-shadow: 0 2px 6px rgba(120, 110, 90, 0.15);
+}
+body[data-theme='morandi'] .gr-btn:hover {
+  background: #e0dacd;
+}
+body[data-theme='morandi'] .gr-btn.primary {
+  background: #7d8d81;
+  border-color: #7d8d81;
+  color: #f0ece2;
+}
+body[data-theme='morandi'] .gr-input {
+  background: #e3ddd1;
+  border: 1px solid #bdb7ab;
+  border-radius: 9px;
+  box-shadow: inset 0 1px 3px rgba(120, 110, 90, 0.15);
+  color: #5a554d;
+}
+body[data-theme='morandi'] .gr-nav-item.active {
+  background: #b9c0b4;
+  color: #6a655c;
+  box-shadow: none;
+}
+body[data-theme='morandi'] .gr-switch .gr-slider-ui {
+  background: #b8b2a4;
+}
+body[data-theme='morandi'] .gr-switch input:checked + .gr-slider-ui {
+  background: #8a9a8e;
+}

@@ -1,0 +1,79 @@
+/*
+ * 游戏雷达 Game Radar - 主题 13/19：OLED 极致纯黑极简 / OLED Pure Black
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 真正 #000 纯黑背景、高对比高亮强调色、极小阴影、
+ * 极少装饰、省电暗黑极简
+ */
+body[data-theme='oled'] {
+  --gr-bg-deep: #000000;
+  --gr-bg: #000000;
+  --gr-panel: #0a0a0a;
+  --gr-panel-2: #111111;
+  --gr-card: #141414;
+  --gr-card-hover: #1c1c1c;
+  --gr-accent: #00e676;
+  --gr-accent-btn: #00e676;
+  --gr-accent-btn-hover: #33eb8c;
+  --gr-grad-btn: linear-gradient(180deg, #1db954 0%, #0a8f3c 100%);
+  --gr-green: #00e676;
+  --gr-red: #ff5252;
+  --gr-orange: #ffab40;
+  --gr-text: #e0e0e0;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #616161;
+  --gr-border: #1f1f1f;
+  --gr-border-soft: #161616;
+  --gr-radius: 8px;
+  --gr-radius-sm: 6px;
+  --gr-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  --gr-shadow-lg: 0 2px 6px rgba(0, 0, 0, 0.7);
+  --gr-page-grad: linear-gradient(180deg, #000000 0%, #000000 100%);
+  --gr-gap: 10px;
+}
+body[data-theme='oled'] .gr-panel,
+body[data-theme='oled'] .gr-card,
+body[data-theme='oled'] .gr-stat-card {
+  background: #0a0a0a;
+  border: 1px solid #1a1a1a;
+}
+body[data-theme='oled'] .gr-btn {
+  border: 1px solid rgba(0, 230, 118, 0.4);
+  background: transparent;
+  color: #00e676;
+}
+body[data-theme='oled'] .gr-btn:hover {
+  background: rgba(0, 230, 118, 0.12);
+}
+body[data-theme='oled'] .gr-btn.primary {
+  background: #00e676;
+  color: #000;
+  border: none;
+  font-weight: 700;
+}
+body[data-theme='oled'] .gr-input {
+  background: #000;
+  border: 1px solid #1f1f1f;
+  box-shadow: none;
+  color: #e0e0e0;
+}
+body[data-theme='oled'] .gr-input:focus {
+  border-color: #00e676;
+}
+body[data-theme='oled'] .gr-nav-item.active {
+  background: rgba(0, 230, 118, 0.15);
+  color: #00e676;
+  box-shadow: none;
+}
+body[data-theme='oled'] .gr-switch .gr-slider-ui {
+  background: #1a1a1a;
+}
+body[data-theme='oled'] .gr-switch input:checked + .gr-slider-ui {
+  background: #00e676;
+}
+body[data-theme='oled'] .gr-stat-card .gr-stat-value {
+  color: #00e676;
+}

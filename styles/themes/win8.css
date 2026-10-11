@@ -1,0 +1,81 @@
+/*
+ * 游戏雷达 Game Radar - 主题 16/19：微软 Metro 初代扁平 / Win8 Metro Flat
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 直角方块、无渐变无阴影、大块纯色、极简硬朗、
+ * 高对比色块、无多余装饰
+ */
+body[data-theme='win8'] {
+  --gr-bg-deep: #1b1b1b;
+  --gr-bg: #1e1e1e;
+  --gr-panel: #232323;
+  --gr-panel-2: #2a2a2a;
+  --gr-card: #2d2d2d;
+  --gr-card-hover: #383838;
+  --gr-accent: #00b7c3;
+  --gr-accent-btn: #00b7c3;
+  --gr-accent-btn-hover: #00d0dd;
+  --gr-grad-btn: linear-gradient(180deg, #00b7c3 0%, #00b7c3 100%);
+  --gr-green: #7cb72e;
+  --gr-red: #e74856;
+  --gr-orange: #f4721e;
+  --gr-text: #e6e6e6;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #7a7a7a;
+  --gr-border: #3a3a3a;
+  --gr-border-soft: #303030;
+  --gr-radius: 0px;
+  --gr-radius-sm: 0px;
+  --gr-shadow: none;
+  --gr-shadow-lg: none;
+  --gr-page-grad: linear-gradient(180deg, #1e1e1e 0%, #1b1b1b 100%);
+  --gr-gap: 8px;
+  --gr-control-h: 32px;
+}
+body[data-theme='win8'] .gr-btn {
+  border: none;
+  border-radius: 0;
+  background: #00b7c3;
+  color: #fff;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 12px;
+}
+body[data-theme='win8'] .gr-btn:hover {
+  background: #00d0dd;
+}
+body[data-theme='win8'] .gr-btn.ghost {
+  background: #3a3a3a;
+  color: #e6e6e6;
+  border: none;
+}
+body[data-theme='win8'] .gr-btn.danger {
+  background: #e74856;
+}
+body[data-theme='win8'] .gr-input {
+  background: #1b1b1b;
+  border: 1px solid #3a3a3a;
+  border-radius: 0;
+  box-shadow: none;
+  color: #e6e6e6;
+}
+body[data-theme='win8'] .gr-nav-item.active {
+  background: #00b7c3;
+  color: #fff;
+  box-shadow: none;
+}
+body[data-theme='win8'] .gr-stat-card {
+  border-radius: 0;
+  background: #2d2d2d;
+  box-shadow: none;
+}
+body[data-theme='win8'] .gr-switch .gr-slider-ui {
+  background: #3a3a3a;
+  border-radius: 0;
+}
+body[data-theme='win8'] .gr-switch input:checked + .gr-slider-ui {
+  background: #00b7c3;
+}

@@ -1,0 +1,69 @@
+/*
+ * 游戏雷达 Game Radar - 主题 12/19：蒸汽波 Vaporwave 复古 80-90 / Vaporwave Retro
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 粉紫、薄荷蓝高饱和复古渐变、柔和模糊、梦幻霓虹复古氛围
+ */
+body[data-theme='vaporwave'] {
+  --gr-bg-deep: #2a1a4a;
+  --gr-bg: #3a2a5e;
+  --gr-panel: rgba(58, 40, 100, 0.6);
+  --gr-panel-2: rgba(72, 50, 120, 0.55);
+  --gr-card: rgba(92, 60, 150, 0.45);
+  --gr-card-hover: rgba(110, 72, 175, 0.5);
+  --gr-accent: #ff9ef5;
+  --gr-accent-btn: #00d9d9;
+  --gr-accent-btn-hover: #5ce8e8;
+  --gr-grad-btn: linear-gradient(90deg, #ff71ce 0%, #01cdfe 100%);
+  --gr-green: #b3ff00;
+  --gr-red: #ff3d81;
+  --gr-orange: #ffd319;
+  --gr-text: #ffe9fb;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #c9a8e8;
+  --gr-border: rgba(255, 158, 245, 0.45);
+  --gr-border-soft: rgba(255, 158, 245, 0.2);
+  --gr-radius: 16px;
+  --gr-radius-sm: 12px;
+  --gr-shadow: 0 4px 20px rgba(255, 60, 180, 0.3);
+  --gr-shadow-lg: 0 8px 36px rgba(1, 205, 254, 0.35);
+  --gr-page-grad: linear-gradient(180deg, #3a2a5e 0%, #1a1030 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='vaporwave'] .gr-panel,
+body[data-theme='vaporwave'] .gr-card {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  background-image: linear-gradient(135deg, rgba(255, 113, 206, 0.12) 0%, rgba(1, 205, 254, 0.08) 100%);
+}
+body[data-theme='vaporwave'] .gr-btn {
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 24px;
+  box-shadow:
+    0 0 18px rgba(255, 113, 206, 0.4),
+    0 0 36px rgba(1, 205, 254, 0.2);
+}
+body[data-theme='vaporwave'] .gr-btn:hover {
+  box-shadow:
+    0 0 26px rgba(255, 113, 206, 0.6),
+    0 0 50px rgba(1, 205, 254, 0.35);
+}
+body[data-theme='vaporwave'] .gr-input {
+  background: rgba(20, 10, 40, 0.55);
+  border: 1px solid rgba(255, 158, 245, 0.4);
+  border-radius: 20px;
+  box-shadow: 0 0 12px rgba(255, 113, 206, 0.15) inset;
+  color: #ffe9fb;
+}
+body[data-theme='vaporwave'] .gr-stat-card {
+  background: linear-gradient(135deg, rgba(255, 113, 206, 0.25), rgba(1, 205, 254, 0.2));
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+body[data-theme='vaporwave'] .gr-nav-item.active {
+  background: linear-gradient(90deg, rgba(255, 113, 206, 0.35), rgba(1, 205, 254, 0.3));
+  box-shadow: none;
+  color: #fff;
+}

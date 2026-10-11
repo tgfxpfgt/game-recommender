@@ -3,12 +3,13 @@
   <head>
     <meta charset="utf-8" />
     <title>游戏雷达侧栏</title>
-    <link rel="stylesheet" href="../styles/themes.css" />
+    <!-- v14.3.2：主题文件改 applyTheme 动态加载（styles/themes/<name>.css），无静态全量主题表 -->
     <style>
       /* v14.1.0：SidePanel 精简仪表盘——dashboard 精简组件（当前页游戏 +
         收藏 + 限免速览），窄宽度自适应（SidePanel 典型 240-360px）。
-        v14.2.0（复审轮 P1-3）：颜色改用 themes.css 的 --gr-* 主题变量体系——
-        此前内联 :root 硬编码与 body[data-theme] 变量零交集，切主题侧栏恒不变 */
+        v14.2.0（复审轮 P1-3）：颜色改用 --gr-* 主题变量体系（v14.3.2 起主题
+        文件经 applyTheme 动态加载）——此前内联 :root 硬编码与 body[data-theme]
+        变量零交集，切主题侧栏恒不变 */
       body[data-theme] {
         margin: 0;
         background: var(--gr-bg, #1b2838);

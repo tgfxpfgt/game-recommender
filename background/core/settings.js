@@ -107,6 +107,22 @@ export function clampNumericSettings(settings) {
   return out;
 }
 
+// v14.3.2：设置变更广播——SidePanel 等常驻扩展页实时跟随主题（applyPageTheme）。
+// 设置存 OPFS（chrome.storage.onChanged 不适用）；runtime.sendMessage 只达
+// 扩展页不达内容脚本；无监听者时该调用会 reject，必须吞掉。
+// Broadcast settings changes so resident pages (SidePanel) re-apply the theme
+// live; OPFS-backed settings emit no storage.onChanged, and the send rejects
+// when no page listens — swallow it.
+function broadcastSettingsChanged() {
+  try {
+    if (typeof chrome === 'undefined' || !chrome.runtime || !chrome.runtime.sendMessage) return;
+    const p = chrome.runtime.sendMessage({ type: 'GR_SETTINGS_CHANGED' });
+    if (p && typeof p.catch === 'function') p.catch(() => {});
+  } catch {
+    /* 广播失败不影响保存 / broadcast failure must not break the save */
+  }
+}
+
 // 保存设置（同步刷新 TTL 配置）/ Save settings (refresh TTL config)
 export async function saveSettings(settings) {
   const clamped = clampNumericSettings(settings); // v10.8 B-2
@@ -114,6 +130,7 @@ export async function saveSettings(settings) {
   settingsCache = deepMergeSettings(DEFAULT_SETTINGS, clamped || {});
   settingsCacheTime = Date.now();
   await refreshTtlConfig();
+  broadcastSettingsChanged(); // v14.3.2：通知常驻页（SAVE/RESET/窄化持久化的单点写入）
 }
 
 // v10.9：xdgrid 过滤滑块窄化持久化——内容侧 sender 门禁不允许全量 SAVE_SETTINGS，

@@ -1,0 +1,76 @@
+/*
+ * 游戏雷达 Game Radar - 主题 10/19：Material You Material3 / Material You (M3)
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 柔和大圆角、动态低饱和配色、柔和大阴影、
+ * 谷歌现代安卓材质风格
+ */
+body[data-theme='material'] {
+  --gr-bg-deep: #ece6f0;
+  --gr-bg: #f3eff7;
+  --gr-panel: #f8f5fa;
+  --gr-panel-2: #efeaf4;
+  --gr-card: #ffffff;
+  --gr-card-hover: #f1ecf6;
+  --gr-accent: #6750a4;
+  --gr-accent-btn: #6750a4;
+  --gr-accent-btn-hover: #7c66b8;
+  --gr-grad-btn: linear-gradient(180deg, #7c66b8 0%, #6750a4 100%);
+  --gr-green: #3a9b63;
+  --gr-red: #b3261e;
+  --gr-orange: #b26a00;
+  --gr-text: #1d1b20;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #79747e;
+  --gr-border: rgba(29, 27, 32, 0.08);
+  --gr-border-soft: rgba(29, 27, 32, 0.05);
+  --gr-radius: 24px;
+  --gr-radius-sm: 16px;
+  --gr-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  --gr-shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.14);
+  --gr-page-grad: linear-gradient(180deg, #f7f4fa 0%, #ece6f0 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 44px;
+}
+body[data-theme='material'] .gr-btn {
+  border-radius: 22px;
+  box-shadow: 0 3px 10px rgba(103, 80, 164, 0.3);
+  text-transform: none;
+  letter-spacing: 0.2px;
+}
+body[data-theme='material'] .gr-btn.ghost {
+  background: rgba(103, 80, 164, 0.08);
+  border: none;
+  box-shadow: none;
+  color: #6750a4;
+}
+body[data-theme='material'] .gr-input {
+  background: #ece6f0;
+  border: none;
+  border-radius: 28px;
+  box-shadow: none;
+  color: #1d1b20;
+  padding-left: 16px;
+}
+body[data-theme='material'] .gr-nav-item.active {
+  background: #e8def8;
+  color: #4f378b;
+  box-shadow: none;
+}
+body[data-theme='material'] .gr-stat-card {
+  background: #ffffff;
+  border-radius: 24px;
+}
+body[data-theme='material'] .gr-switch .gr-slider-ui {
+  background: #cac4d0;
+}
+body[data-theme='material'] .gr-switch input:checked + .gr-slider-ui {
+  background: #6750a4;
+}
+body[data-theme='material'] .gr-pill.blue {
+  background: #e8def8;
+  color: #4f378b;
+}

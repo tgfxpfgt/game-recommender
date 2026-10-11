@@ -1,0 +1,81 @@
+/*
+ * 游戏雷达 Game Radar - 主题 14/19：日系和风素雅 / Japanese Wabi-Sabi
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 米白、炭灰、赭石低饱和传统日式配色、细微线条分割、
+ * 克制圆角、素雅沉静、无花哨特效
+ */
+body[data-theme='wabi'] {
+  --gr-bg-deep: #e8e0d2;
+  --gr-bg: #f2ecdf;
+  --gr-panel: #efe8d9;
+  --gr-panel-2: #e9e1d1;
+  --gr-card: #f6f1e5;
+  --gr-card-hover: #ede5d4;
+  --gr-accent: #8c6b4a;
+  --gr-accent-btn: #7a5c3e;
+  --gr-accent-btn-hover: #9a7a58;
+  --gr-grad-btn: linear-gradient(180deg, #9a7a58 0%, #7a5c3e 100%);
+  --gr-green: #5c7a4a;
+  --gr-red: #9a4a3a;
+  --gr-orange: #b07a3a;
+  --gr-text: #3a342c;
+  --gr-text-bright: #2a241c;
+  --gr-text-dim: #8a8274;
+  --gr-border: #d5ccb8;
+  --gr-border-soft: #ddd4c2;
+  --gr-radius: 4px;
+  --gr-radius-sm: 2px;
+  --gr-shadow: 0 1px 3px rgba(90, 75, 50, 0.12);
+  --gr-shadow-lg: 0 3px 10px rgba(90, 75, 50, 0.15);
+  --gr-page-grad: linear-gradient(180deg, #f2ecdf 0%, #e8e0d2 100%);
+  --gr-gap: 12px;
+}
+body[data-theme='wabi'] .gr-panel,
+body[data-theme='wabi'] .gr-card,
+body[data-theme='wabi'] .gr-stat-card {
+  border: 1px solid #ddd4c2;
+  box-shadow: none;
+}
+body[data-theme='wabi'] .gr-panel {
+  border-top: 2px solid #8c6b4a;
+}
+body[data-theme='wabi'] .gr-btn {
+  border: 1px solid #b5a88e;
+  border-radius: 3px;
+  background: #f0ead9;
+  color: #5c4a34;
+  box-shadow: none;
+}
+body[data-theme='wabi'] .gr-btn:hover {
+  background: #e5dcc8;
+}
+body[data-theme='wabi'] .gr-btn.primary {
+  background: #7a5c3e;
+  color: #f6f1e5;
+  border-color: #7a5c3e;
+}
+body[data-theme='wabi'] .gr-input {
+  background: #faf6ec;
+  border: 1px solid #ccc2ac;
+  border-radius: 2px;
+  box-shadow: none;
+  color: #3a342c;
+}
+body[data-theme='wabi'] .gr-nav-item.active {
+  background: transparent;
+  color: #7a5c3e;
+  box-shadow: inset 2px 0 0 #8c6b4a;
+}
+body[data-theme='wabi'] .gr-switch .gr-slider-ui {
+  background: #d8ceba;
+}
+body[data-theme='wabi'] .gr-switch input:checked + .gr-slider-ui {
+  background: #8c6b4a;
+}
+body[data-theme='wabi'] .gr-section-title {
+  border-bottom-color: #c8b89a;
+}

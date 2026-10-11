@@ -1,0 +1,76 @@
+/*
+ * 游戏雷达 Game Radar - 主题 3/19：iOS 17 现代扁平化 / iOS 17 Modern Flat
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 极简干净、大圆角、低饱和柔和配色、轻微半透明、高留白、
+ * 现代移动端扁平移植
+ */
+body[data-theme='ios17'] {
+  --gr-bg-deep: #f2f2f7;
+  --gr-bg: #f7f7fa;
+  --gr-panel: rgba(255, 255, 255, 0.72);
+  --gr-panel-2: rgba(240, 240, 246, 0.8);
+  --gr-card: rgba(255, 255, 255, 0.85);
+  --gr-card-hover: #eef0f6;
+  --gr-accent: #0a84ff;
+  --gr-accent-btn: #0a84ff;
+  --gr-accent-btn-hover: #3b9cff;
+  --gr-grad-btn: linear-gradient(180deg, #3b9cff 0%, #0a84ff 100%);
+  --gr-green: #30d158;
+  --gr-red: #ff453a;
+  --gr-orange: #ff9f0a;
+  --gr-text: #1c1c1e;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #8e8e93;
+  --gr-border: rgba(60, 60, 67, 0.12);
+  --gr-border-soft: rgba(60, 60, 67, 0.08);
+  --gr-radius: 18px;
+  --gr-radius-sm: 12px;
+  --gr-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  --gr-shadow-lg: 0 12px 36px rgba(0, 0, 0, 0.1);
+  --gr-page-grad: linear-gradient(180deg, #fafafd 0%, #f2f2f7 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 40px;
+}
+body[data-theme='ios17'] .gr-panel,
+body[data-theme='ios17'] .gr-card,
+body[data-theme='ios17'] .gr-stat-card {
+  backdrop-filter: blur(20px) saturate(1.6);
+  -webkit-backdrop-filter: blur(20px) saturate(1.6);
+}
+body[data-theme='ios17'] .gr-btn {
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(10, 132, 255, 0.25);
+}
+body[data-theme='ios17'] .gr-btn.ghost {
+  background: rgba(120, 120, 128, 0.1);
+  border: none;
+  box-shadow: none;
+}
+body[data-theme='ios17'] .gr-input {
+  background: rgba(120, 120, 128, 0.1);
+  border: none;
+  border-radius: 12px;
+  box-shadow: none;
+  color: #1c1c1e;
+}
+body[data-theme='ios17'] .gr-input::placeholder {
+  color: #aeaeb2;
+}
+body[data-theme='ios17'] .gr-nav-item.active {
+  background: rgba(10, 132, 255, 0.12);
+  color: var(--gr-accent);
+  box-shadow: none;
+}
+body[data-theme='ios17'] .gr-switch .gr-slider-ui {
+  background: rgba(120, 120, 128, 0.24);
+}
+body[data-theme='ios17'] .gr-switch input:checked + .gr-slider-ui {
+  background: #34c759;
+}
+body[data-theme='ios17'] .gr-stat-card {
+  background: rgba(255, 255, 255, 0.75);
+}

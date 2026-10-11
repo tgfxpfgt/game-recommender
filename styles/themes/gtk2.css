@@ -1,0 +1,74 @@
+/*
+ * 游戏雷达 Game Radar - 主题 11/19：GTK2 Linux 复古桌面 / GTK2 Linux Retro
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 复古 Linux 旧桌面、细微浮雕控件、中性灰底色、小圆角、
+ * 朴素开源桌面工具 UI
+ */
+body[data-theme='gtk2'] {
+  --gr-bg-deep: #3f3f3f;
+  --gr-bg: #4a4a4a;
+  --gr-panel: #555555;
+  --gr-panel-2: #4e4e4e;
+  --gr-card: #606060;
+  --gr-card-hover: #6a6a6a;
+  --gr-accent: #729fcf;
+  --gr-accent-btn: #5c85b8;
+  --gr-accent-btn-hover: #729fcf;
+  --gr-grad-btn: linear-gradient(180deg, #777777 0%, #5a5a5a 50%, #4a4a4a 100%);
+  --gr-green: #8ae234;
+  --gr-red: #ef2929;
+  --gr-orange: #fcaf3e;
+  --gr-text: #e0e0e0;
+  --gr-text-bright: #ffffff;
+  --gr-text-dim: #9a9a9a;
+  --gr-border: #2e2e2e;
+  --gr-border-soft: #3c3c3c;
+  --gr-radius: 4px;
+  --gr-radius-sm: 3px;
+  --gr-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --gr-shadow-lg: 0 3px 8px rgba(0, 0, 0, 0.45);
+  --gr-page-grad: linear-gradient(180deg, #515151 0%, #424242 100%);
+  --gr-gap: 9px;
+  --gr-control-h: 30px;
+}
+body[data-theme='gtk2'] .gr-btn {
+  border: 1px solid #2e2e2e;
+  border-radius: 4px;
+  background-image: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.12) 0%,
+    rgba(255, 255, 255, 0.02) 50%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.25) inset;
+}
+body[data-theme='gtk2'] .gr-btn:hover {
+  background-image: linear-gradient(180deg, rgba(114, 159, 207, 0.35) 0%, rgba(114, 159, 207, 0.1) 100%);
+}
+body[data-theme='gtk2'] .gr-input {
+  background: #3a3a3a;
+  border: 1px solid #2e2e2e;
+  border-radius: 3px;
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, 0.4);
+}
+body[data-theme='gtk2'] .gr-switch .gr-slider-ui {
+  background: #3a3a3a;
+  border: 1px solid #2e2e2e;
+}
+body[data-theme='gtk2'] .gr-switch input:checked + .gr-slider-ui {
+  background: #5c85b8;
+}
+body[data-theme='gtk2'] .gr-nav-item.active {
+  background: #5c85b8;
+  color: #fff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.2) inset;
+}
+body[data-theme='gtk2'] .gr-panel {
+  border: 1px solid #3c3c3c;
+}

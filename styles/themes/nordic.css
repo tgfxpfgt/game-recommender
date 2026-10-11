@@ -1,0 +1,76 @@
+/*
+ * 游戏雷达 Game Radar - 主题 19/19：清爽北欧 Scandinavian / Nordic Scandinavian
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 大量留白、浅原木米色底色、冷灰简约、轻微细边框、
+ * 圆角适中、干净家居简约质感
+ */
+body[data-theme='nordic'] {
+  --gr-bg-deep: #f0ece4;
+  --gr-bg: #f7f4ee;
+  --gr-panel: #fdfbf6;
+  --gr-panel-2: #f5f1e9;
+  --gr-card: #ffffff;
+  --gr-card-hover: #f4f0e8;
+  --gr-accent: #5c6b73;
+  --gr-accent-btn: #4a5961;
+  --gr-accent-btn-hover: #6b7c85;
+  --gr-grad-btn: linear-gradient(180deg, #6b7c85 0%, #4a5961 100%);
+  --gr-green: #6b8f6b;
+  --gr-red: #a86f6f;
+  --gr-orange: #b08f5a;
+  --gr-text: #3d3d3a;
+  --gr-text-bright: #2b2b28;
+  --gr-text-dim: #9a958c;
+  --gr-border: #e2ddd2;
+  --gr-border-soft: #eae5da;
+  --gr-radius: 10px;
+  --gr-radius-sm: 7px;
+  --gr-shadow: 0 2px 8px rgba(90, 80, 60, 0.07);
+  --gr-shadow-lg: 0 6px 22px rgba(90, 80, 60, 0.1);
+  --gr-page-grad: linear-gradient(180deg, #faf7f1 0%, #f0ece4 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 38px;
+}
+body[data-theme='nordic'] .gr-panel,
+body[data-theme='nordic'] .gr-card,
+body[data-theme='nordic'] .gr-stat-card {
+  border: 1px solid #e6e1d6;
+  box-shadow: 0 2px 8px rgba(90, 80, 60, 0.06);
+}
+body[data-theme='nordic'] .gr-btn {
+  border: 1px solid #d8d3c8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #4a5961;
+  box-shadow: none;
+}
+body[data-theme='nordic'] .gr-btn:hover {
+  background: #f4f0e8;
+}
+body[data-theme='nordic'] .gr-btn.primary {
+  background: #4a5961;
+  border-color: #4a5961;
+  color: #fff;
+}
+body[data-theme='nordic'] .gr-input {
+  background: #ffffff;
+  border: 1px solid #ddd8cd;
+  border-radius: 7px;
+  box-shadow: none;
+  color: #3d3d3a;
+}
+body[data-theme='nordic'] .gr-nav-item.active {
+  background: #eef0ec;
+  color: #4a5961;
+  box-shadow: none;
+}
+body[data-theme='nordic'] .gr-switch .gr-slider-ui {
+  background: #d8d3c8;
+}
+body[data-theme='nordic'] .gr-switch input:checked + .gr-slider-ui {
+  background: #6b8f6b;
+}

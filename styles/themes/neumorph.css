@@ -1,0 +1,94 @@
+/*
+ * 游戏雷达 Game Radar - 主题 8/19：Neumorphism 新拟态软 UI / Neumorphism Soft UI
+ *
+ * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
+ * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
+ * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ *
+ * 同色系凹凸双层软阴影、无硬边框、控件与背景颜色接近、
+ * 柔和一体软质感
+ */
+body[data-theme='neumorph'] {
+  --gr-bg-deep: #e0e5ec;
+  --gr-bg: #e0e5ec;
+  --gr-panel: #e0e5ec;
+  --gr-panel-2: #d9dee6;
+  --gr-card: #e0e5ec;
+  --gr-card-hover: #d6dbe3;
+  --gr-accent: #4a7bd0;
+  --gr-accent-btn: #4a7bd0;
+  --gr-accent-btn-hover: #5a8be0;
+  --gr-grad-btn: linear-gradient(145deg, #eef2f8 0%, #d4dae4 100%);
+  --gr-green: #3f9d5a;
+  --gr-red: #cf5b5b;
+  --gr-orange: #cf9a3f;
+  --gr-text: #4a5468;
+  --gr-text-bright: #2f3644;
+  --gr-text-dim: #9aa5b5;
+  --gr-border: transparent;
+  --gr-border-soft: transparent;
+  --gr-radius: 18px;
+  --gr-radius-sm: 14px;
+  --gr-shadow: 8px 8px 18px rgba(163, 177, 198, 0.6), -8px -8px 18px rgba(255, 255, 255, 0.9);
+  --gr-shadow-lg: 12px 12px 26px rgba(163, 177, 198, 0.65), -12px -12px 26px rgba(255, 255, 255, 0.95);
+  --gr-page-grad: linear-gradient(145deg, #e8ecf2 0%, #d8dde6 100%);
+  --gr-gap: 14px;
+  --gr-control-h: 40px;
+}
+body[data-theme='neumorph'] .gr-panel,
+body[data-theme='neumorph'] .gr-card,
+body[data-theme='neumorph'] .gr-stat-card {
+  border: none;
+  box-shadow: var(--gr-shadow);
+}
+body[data-theme='neumorph'] .gr-btn {
+  border: none;
+  background: var(--gr-grad-btn);
+  color: #4a5468;
+  box-shadow:
+    6px 6px 12px rgba(163, 177, 198, 0.6),
+    -6px -6px 12px rgba(255, 255, 255, 0.9);
+  border-radius: 14px;
+}
+body[data-theme='neumorph'] .gr-btn:hover {
+  box-shadow:
+    4px 4px 10px rgba(163, 177, 198, 0.6),
+    -4px -4px 10px rgba(255, 255, 255, 0.9);
+}
+body[data-theme='neumorph'] .gr-btn:active {
+  box-shadow:
+    inset 6px 6px 12px rgba(163, 177, 198, 0.6),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.9);
+}
+body[data-theme='neumorph'] .gr-btn.primary {
+  background: linear-gradient(145deg, #5b8de0, #3a68b8);
+  color: #fff;
+}
+body[data-theme='neumorph'] .gr-input {
+  background: #e0e5ec;
+  border: none;
+  border-radius: 14px;
+  box-shadow:
+    inset 6px 6px 12px rgba(163, 177, 198, 0.6),
+    inset -6px -6px 12px rgba(255, 255, 255, 0.9);
+  color: #4a5468;
+}
+body[data-theme='neumorph'] .gr-switch .gr-slider-ui {
+  background: #d0d6e0;
+  box-shadow:
+    inset 3px 3px 6px rgba(163, 177, 198, 0.6),
+    inset -3px -3px 6px rgba(255, 255, 255, 0.8);
+}
+body[data-theme='neumorph'] .gr-switch input:checked + .gr-slider-ui {
+  background: #4a7bd0;
+}
+body[data-theme='neumorph'] .gr-nav-item.active {
+  background: #dde2ea;
+  color: #3a68b8;
+  box-shadow:
+    inset 4px 4px 8px rgba(163, 177, 198, 0.6),
+    inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+}
+body[data-theme='neumorph'] .gr-check input[type='checkbox'] {
+  accent-color: #4a7bd0;
+}
