@@ -1,0 +1,142 @@
+{
+  "generatedAt": "2026-10-11T00:51:15.432Z",
+  "version": "14.3.1",
+  "nodes": [
+    {
+      "dir": "background",
+      "label": "Background (MV3 SW)",
+      "color": "#4a9eff",
+      "desc": "Service Worker — 消息分发/检索管线/推荐引擎/存储",
+      "files": 2,
+      "lines": 344
+    },
+    {
+      "dir": "content",
+      "label": "Content Scripts",
+      "color": "#a3cf06",
+      "desc": "内容脚本 — 徽章注入/浮窗/行为采集",
+      "files": 2,
+      "lines": 476
+    },
+    {
+      "dir": "options",
+      "label": "Options",
+      "color": "#e74c3c",
+      "desc": "设置中心 — 全量配置/缓存管理/规则编辑",
+      "files": 3,
+      "lines": 3954
+    },
+    {
+      "dir": "dashboard",
+      "label": "Dashboard",
+      "color": "#ff7b00",
+      "desc": "数据分析 — 统计/洞察/诊断/备份",
+      "files": 9,
+      "lines": 1871
+    },
+    {
+      "dir": "popup",
+      "label": "Popup",
+      "color": "#b48ce0",
+      "desc": "弹出面板 — 快捷设置/快速搜索/状态",
+      "files": 6,
+      "lines": 1496
+    },
+    {
+      "dir": "sidepanel",
+      "label": "SidePanel",
+      "color": "#67c1f5",
+      "desc": "侧边栏 — 当前页游戏/收藏/限免速览",
+      "files": 2,
+      "lines": 343
+    },
+    {
+      "dir": "freegames",
+      "label": "Free Games",
+      "color": "#e67e22",
+      "desc": "限免页 — Epic/GOG/Steam/GamerPower",
+      "files": 3,
+      "lines": 531
+    },
+    {
+      "dir": "shared",
+      "label": "Shared",
+      "color": "#95a5a6",
+      "desc": "跨侧共享 — msg/escape/settings-utils/fm-keys/spy-scales",
+      "files": 8,
+      "lines": 497
+    },
+    {
+      "dir": "adapters",
+      "label": "Adapters",
+      "color": "#2ecc71",
+      "desc": "站点适配器 — 规则/选择器/搜索 URL",
+      "files": 2,
+      "lines": 91
+    },
+    {
+      "dir": "data",
+      "label": "Data Layer",
+      "color": "#f39c12",
+      "desc": "OPFS 持久化 — data-store/STORAGE_MODULES 注册表",
+      "files": 3,
+      "lines": 655
+    }
+  ],
+  "stats": {
+    "actionCount": 64,
+    "storageCount": 25,
+    "testCount": 0,
+    "suiteCount": 43
+  },
+  "flows": [
+    {
+      "from": "Content Scripts",
+      "to": "Background (MV3 SW)",
+      "label": "SEARCH_STEAM / TRACK_EVENT / GET_* (~60 actions)",
+      "color": "#a3cf06"
+    },
+    {
+      "from": "Background (MV3 SW)",
+      "to": "Data Layer",
+      "label": "OPFS read/write via data-store",
+      "color": "#f39c12"
+    },
+    {
+      "from": "Background (MV3 SW)",
+      "to": "Steam API",
+      "label": "storesearch / appdetails / appreviews / SteamSpy",
+      "color": "#4a9eff"
+    },
+    {
+      "from": "Background (MV3 SW)",
+      "to": "Free Games",
+      "label": "限免推送通知",
+      "color": "#e67e22"
+    },
+    {
+      "from": "Options",
+      "to": "Background (MV3 SW)",
+      "label": "GET_SETTINGS / SAVE_SETTINGS",
+      "color": "#e74c3c"
+    },
+    {
+      "from": "Dashboard",
+      "to": "Background (MV3 SW)",
+      "label": "GET_STATS / GET_RUNTIME_METRICS",
+      "color": "#ff7b00"
+    },
+    {
+      "from": "SidePanel",
+      "to": "Background (MV3 SW)",
+      "label": "GET_TAB_GAME / GET_FAVORITES",
+      "color": "#67c1f5"
+    },
+    {
+      "from": "Popup",
+      "to": "Background (MV3 SW)",
+      "label": "GET_SETTINGS / SAVE_SETTINGS / GET_API_STATUS",
+      "color": "#b48ce0"
+    }
+  ]
+}
