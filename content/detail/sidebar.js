@@ -9,6 +9,9 @@
  * v14.3.0（第五轮 B1）：653 行按域拆分——异步行填充 sidebar-rows.js、内嵌
  * 信息卡 inline-card.js；本文件保留浮窗编排（数据装载/纠错/刷新回调）与
  * DOM 绑定（renderSteamSidebar 单一挂点保持浮窗与内嵌卡同步）。
+ * v14.5.0 B3：sidebar-rows / inline-card 改按需加载——两模块仅详情页浮窗
+ * 渲染路径需要，列表页/首页/Steam 页零网络请求（getURL 动态 import，与
+ * tracker 装载同模式；内嵌卡先做 features 预判，未声明站点连模块都不拉）。
  */
 import * as detailTemplates from './detail-templates.js';
 import * as float from '../core/floats.js';
@@ -18,11 +21,32 @@ import * as common from '../core/common.js';
 import * as builder from '../adapters/builder.js';
 import * as candidates from './candidates.js';
 import * as tracking from './tracking.js';
-import { fillItadAndFavorites, fillSteam250Info } from './sidebar-rows.js';
-import { renderInlineSteamSection } from './inline-card.js';
 
 const dbg = (...a) => debug.dbg(...a);
 const esc = (text) => common.escapeHtml(text);
+
+// ============ 详情页专属子模块按需加载（v14.5.0 B3） ============
+// Promise 单例：并发渲染共享同一次模块加载；getURL 由 sim mock 解析到同一
+// 文件 URL，实例与静态导入时代一致（无状态分裂）。
+// Lazy loaders (promise singletons): concurrent renders share one fetch; the
+// sim getURL mock resolves to the same file URL, so instances match the
+// static-import era exactly.
+/** @type {Promise<any>|null} */
+let sidebarRowsMod = null;
+/** @type {Promise<any>|null} */
+let inlineCardMod = null;
+function loadSidebarRows() {
+  if (!sidebarRowsMod) {
+    sidebarRowsMod = /** @type {Promise<any>} */ (import(chrome.runtime.getURL('content/detail/sidebar-rows.js')));
+  }
+  return sidebarRowsMod;
+}
+function loadInlineCard() {
+  if (!inlineCardMod) {
+    inlineCardMod = /** @type {Promise<any>} */ (import(chrome.runtime.getURL('content/detail/inline-card.js')));
+  }
+  return inlineCardMod;
+}
 
 /**
  * Steam 详情数据载荷（GET_STEAM_BY_APPID / SEARCH_STEAM 响应 data，v14 B5 类型化）
@@ -49,6 +73,7 @@ const esc = (text) => common.escapeHtml(text);
 // v10.4.0：接收 settings——浮窗位置（detailFloatSide 左/右）与默认展开
 // （detailFloatExpanded）可配置
 let floatModules = null; // v12 B4：浮窗模块显隐设置（注入时随 settings 传入）
+let inlineRenderSeq = 0; // v14.5.0 B3：内嵌卡渲染令牌（按需加载窗口内重渲染防旧卡回挂）
 
 // 由 detail-page.js 入口（injectSteamButton）委托调用——tracker 调用面不变。
 export function createSteamFloat(gameName, settings) {
@@ -113,7 +138,11 @@ export function createSteamFloat(gameName, settings) {
         resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
       }
       if (!resp || !resp.data) {
-        resp = await window.__GR_MSG__.sendMessage({ action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title });
+        resp = await window.__GR_MSG__.sendMessage({
+          action: 'SEARCH_STEAM',
+          gameName: name,
+          rawTitle: document.title
+        });
       }
       // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
       const sameAppId = resp && resp.data && wrongAppId && String(resp.data.appId) === wrongAppId;
@@ -141,9 +170,13 @@ export function createSteamFloat(gameName, settings) {
           '报错重检索仍未命中',
           async () => {
             const rr = await window.__GR_MSG__
-              .sendMessage({ action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true }, null, {
-                timeout: 25000
-              })
+              .sendMessage(
+                { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
+                null,
+                {
+                  timeout: 25000
+                }
+              )
               .catch(() => null);
             if (rr && rr.data) {
               renderAndShow(rr.data, rr.cachedAt || Date.now(), name);
@@ -199,9 +232,17 @@ export function createSteamFloat(gameName, settings) {
     common.trackDownloadSiteVisit(data.appId, name);
 
     // v10.4.4：Steam250 排名行（浮窗 + 内嵌卡双挂点；异步填充，无数据隐藏）
-    fillSteam250Info(String(data.appId));
     // v10.6.0：ITAD 最低价行 + 收藏按钮（Key 未配置/无数据时自动隐藏）
-    fillItadAndFavorites(String(data.appId), name, (steamData && steamData.releaseDate) || '');
+    // v14.5.0 B3：两填充改按需模块调用——参数同步捕获（模块加载窗口期内
+    // steamData 可能被重检索改写，读旧值保持与静态导入时代一致的语义）
+    const appIdStr = String(data.appId);
+    const releaseDate = (steamData && steamData.releaseDate) || '';
+    loadSidebarRows()
+      .then((rows) => {
+        rows.fillSteam250Info(appIdStr);
+        rows.fillItadAndFavorites(appIdStr, name, releaseDate);
+      })
+      .catch((e) => dbg('浮窗行填充模块加载失败: ' + String(e)));
 
     // 回写Steam标签（v14 B3：TRACK_EVENT 采集迁至 tracking.js）
     tracking.trackSteamTagsUpdate(data, name);
@@ -238,7 +279,13 @@ export function createSteamFloat(gameName, settings) {
       if (response && !response.data && !response.error) {
         response = await window.__GR_MSG__
           .sendMessage(
-            { action: 'SEARCH_STEAM', gameName, rawTitle: document.title, appId: imgAppId || undefined, ignoreNegativeCache: true },
+            {
+              action: 'SEARCH_STEAM',
+              gameName,
+              rawTitle: document.title,
+              appId: imgAppId || undefined,
+              ignoreNegativeCache: true
+            },
             null,
             { timeout: 25000 }
           )
@@ -280,7 +327,11 @@ export function createSteamFloat(gameName, settings) {
           missReason,
           async () => {
             const retryResp = await window.__GR_MSG__
-              .sendMessage({ action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true }, null, { timeout: 25000 })
+              .sendMessage(
+                { action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true },
+                null,
+                { timeout: 25000 }
+              )
               .catch(() => null);
             if (retryResp && retryResp.data) {
               renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), gameName);
@@ -376,5 +427,21 @@ function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport)
   // 单一挂点保证浮窗与内嵌信息区始终同步
   // Keep the inline Steam info card in sync here: every ready-data path goes
   // through this function, so the float and the inline card never diverge.
-  renderInlineSteamSection(data, cachedAt);
+  // v14.5.0 B3：内嵌卡模块按需加载 + 渲染令牌——异步加载窗口内浮窗可能重渲染
+  //（刷新/纠错），过期令牌直接丢弃，防旧数据卡挂到新模板；features 预判与
+  // inline-card 内部门控同源（未声明站点零模块加载，门控仍以模块内为权威）。
+  let inlineEnabled = false;
+  try {
+    inlineEnabled = !!((builder.getAdapter() || {}).features || {}).inlineSteamCard;
+  } catch {
+    /* 适配器不可用时跳过 / skip when the adapter is unavailable */
+  }
+  if (!inlineEnabled) return;
+  const seq = ++inlineRenderSeq;
+  loadInlineCard()
+    .then((m) => {
+      if (seq !== inlineRenderSeq) return; // 已被更新的渲染取代 / superseded
+      m.renderInlineSteamSection(data, cachedAt);
+    })
+    .catch((e) => dbg('内嵌信息卡模块加载失败: ' + String(e)));
 }
