@@ -34,10 +34,12 @@ export function showWorkingBadge(item, text) {
   target.insertBefore(badge, target.firstChild);
 }
 
+// v14.3.2 修复：搜索目标与 showWorkingBadge 插入目标对齐（titleEl || link）——
+// 原实现只搜 link 后代，titleEl 是 <h3> 包裹 <a> 时徽章在 h3 里永远删不掉
 export function removeWorkingBadge(item) {
-  const link = item.link;
-  if (!link) return;
-  const badge = link.querySelector('.gr-working-badge');
+  const target = (item && (item.titleEl || item.link)) || null;
+  if (!target) return;
+  const badge = target.querySelector('.gr-working-badge');
   if (badge) badge.remove();
 }
 
