@@ -38,7 +38,7 @@ import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
 import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/17：规则匹配失败后的匹配兜底
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络故障期跳过负缓存
-import { isDemoCacheWithoutRating } from './orchestrator-shared.js';
+import { isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js';
 
 /**
  * 搜索游戏并获取完整 Steam 详情（详情页/浮窗使用）
@@ -46,9 +46,18 @@ import { isDemoCacheWithoutRating } from './orchestrator-shared.js';
  * Search a game and fetch full Steam details (detail pages/panels).
  */
 export async function searchSteamGame(gameName, options = {}) {
-  // 1. 通过名称索引查找 appId / Lookup appId via name index
+  // v14.3.2：Phase 0 — 元素直取 appId + DLC 解析（内容侧封面图提取的 appId 作为起点，
+  // 经 resolveDlcToBase 解析后与名称索引/纠正路径汇合——统一入口消 aside 双管线分叉）
   /** @type {string|number|null} */
-  let appId = await lookupAppIdByName(gameName);
+  let appId = null;
+  if (options.appId) {
+    appId = await resolveDlcToBase(String(options.appId));
+  }
+
+  // 1. 通过名称索引查找 appId / Lookup appId via name index
+  if (!appId) {
+    appId = await lookupAppIdByName(gameName);
+  }
 
   // 1.5 人工纠正知识库优先（v3.3.13）：该标题曾报错并手动确认了正确 appid——
   // 用户确认 > 自动匹配；同时清除该名负缓存（纠正名不应被负缓存拦截）

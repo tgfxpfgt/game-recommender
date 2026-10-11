@@ -117,6 +117,10 @@ const RULES = {
     if (m && m.rawTitle !== undefined && (typeof m.rawTitle !== 'string' || m.rawTitle.length > 300)) {
       return { error: 'SEARCH_STEAM.rawTitle 可选且不超过 300 字符' };
     }
+    // v14.3.2：appId 可选（元素直取提示——数字字符串）
+    if (m && m.appId !== undefined && !/^\d{1,10}$/.test(String(m.appId))) {
+      return { error: 'SEARCH_STEAM.appId 可选且必须为数字字符串' };
+    }
     return { ok: true };
   },
   REFRESH_STEAM_CACHE: nameRule('REFRESH_STEAM_CACHE.gameName'),

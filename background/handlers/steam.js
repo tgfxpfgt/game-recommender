@@ -106,7 +106,8 @@ async function doHandleSearchSteam(message, sender) {
   try {
     steamResult = await searchSteamGame(message.gameName, {
       ignoreNegativeCache: message.ignoreNegativeCache === true,
-      rawTitle: message.rawTitle // v14.3.1：原始标题透传（扩展搜索英文变体）
+      rawTitle: message.rawTitle, // v14.3.1：原始标题透传（扩展搜索英文变体）
+      appId: message.appId // v14.3.2：元素直取 appId（统一入口）
     });
   } catch (e) {
     reason = 'error: ' + String((e && /** @type {Error} */ (e).message) || e).slice(0, 120);

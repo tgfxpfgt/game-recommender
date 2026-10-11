@@ -10,8 +10,11 @@
 import {
   DEMO_NAME_PATTERN,
   ensureRegistryEntry,
-  ensureValidRegistryNames
+  ensureValidRegistryNames,
+  fetchSteamAppDetails,
+  baseAppIdFromDetails
 } from './api.js';
+import { Logger } from '../storage/logger.js';
 
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
@@ -58,4 +61,18 @@ export async function applyCacheHit(merged, appId, gameName) {
     lastUpdate: merged.lastUpdate || null,
     releaseDate: merged.releaseDate || ''
   };
+}
+
+// v14.3.2：DLC→本体解析（元素直取/搜索命中后立即调用，防止 DLC 数据污染缓存）
+// DLC resolution: check if appId is a DLC and resolve to base game's appId.
+/** @param {string} appId */
+export async function resolveDlcToBase(appId) {
+  const detail = await fetchSteamAppDetails(appId, 'schinese').catch(() => null);
+  if (!detail) return appId;
+  const baseId = baseAppIdFromDetails(detail);
+  if (baseId && baseId !== String(appId)) {
+    Logger.info('Steam', `DLC 解析: appId ${appId} → 本体 ${baseId} (${detail.name || ''})`);
+    return baseId;
+  }
+  return appId;
 }

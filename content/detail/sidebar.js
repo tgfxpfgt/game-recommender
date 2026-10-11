@@ -207,44 +207,42 @@ export function createSteamFloat(gameName, settings) {
     tracking.trackSteamTagsUpdate(data, name);
   }
 
-  // 自动加载Steam数据：优先 appId 直取，回退名称搜索，都失败显示手动选择浮窗
+  // 自动加载Steam数据：单消息 SEARCH_STEAM（背景统一处理全匹配管线）
   (async () => {
     debug.DEBUG.steamStatus = '查询中...';
     debug.scheduleDebugUpdate();
     status.showStatus('正在查询 Steam 信息', null, null, gameName); // 工作状态浮窗
     try {
       // v3.3.14：appId 提取限定主内容区——gamer520 侧边推荐图是 Steam CDN
-      // 封面，全页提取会误取推荐游戏的 appId（如 16598 页右侧推荐 2001760）；
-      // 主内容区无图时回退全页（后台另有 namesRelated 校验兜底）
+      // 封面，全页提取会误取推荐游戏的 appId（如 16598 页右侧推荐 2001760）
       const mainEl = document.querySelector(
         'article, .entry-content, .post-content, .main-content, #main-content, main, .single-content'
       );
-      const appId = builder.extractSteamAppIdFromImages(mainEl || document);
+      const imgAppId = builder.extractSteamAppIdFromImages(mainEl || document);
       /** @type {SteamLookupResp|null} */
       let response = null;
-      if (appId) {
-        dbg(`从图片URL提取到 appId: ${appId}，直接获取 Steam 详情`);
-        // v14.3.2（P2-2）：appId 直取超时/网络错误 → 落回标题搜索（而非终止到"查询失败"）
+      // v14.3.2：单消息合并——appId(元素直取) / pageUrl(sender) / gameName / rawTitle
+      // 四项提示一次发送，背景 resolveAppId 按 URL→元素+DLC→字典→搜索→兜底统一排序
+      response = await window.__GR_MSG__.sendMessage(
+        {
+          action: 'SEARCH_STEAM',
+          gameName,
+          rawTitle: document.title,
+          appId: imgAppId || undefined
+        },
+        null,
+        { timeout: 25000 }
+      );
+      // 未命中自动重试一次（穿透负缓存）——历史失败遗留的负缓存不再把
+      // 可匹配的游戏永久推入手动选择；仅在"干净未命中"时重试（超时不重试）
+      if (response && !response.data && !response.error) {
         response = await window.__GR_MSG__
-          .sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName })
+          .sendMessage(
+            { action: 'SEARCH_STEAM', gameName, rawTitle: document.title, appId: imgAppId || undefined, ignoreNegativeCache: true },
+            null,
+            { timeout: 25000 }
+          )
           .catch(() => null);
-      }
-
-      if (!response || !response.data) {
-        // v10.9.2：显式 25s 超时（GetNewsForApp 等 Steam 慢接口 + 搜索全链预算；
-        // 默认 10s 会被大陆网络下 api.steampowered.com 的挂起拖爆）
-        response = await window.__GR_MSG__.sendMessage(
-          { action: 'SEARCH_STEAM', gameName, rawTitle: document.title },
-          null,
-          { timeout: 25000 }
-        );
-        // 未命中自动重试一次（穿透负缓存）——历史失败遗留的负缓存不再把
-        // 可匹配的游戏永久推入手动选择；仅在"干净未命中"时重试（超时不重试）
-        if (response && !response.data && !response.error) {
-          response = await window.__GR_MSG__
-            .sendMessage({ action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true }, null, { timeout: 25000 })
-            .catch(() => null);
-        }
       }
 
       if (response && response.data) {
