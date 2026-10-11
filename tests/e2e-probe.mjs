@@ -13,8 +13,12 @@
  * 用法 / Usage:
  *   node tests/e2e-probe.mjs [--url <页面URL>] [--count 3] [--timeout 8000]
  *                            [--settings <JSON片段>] [--dump-logs] [--keep-profile]
+ *                            [--live]
  * 不带 --url 时使用内置 fixture（xianyudanji 域名映射 + N 个列表项）；
  * --settings 在开页前合并进扩展设置（验证条件加载等设置驱动行为，T3）。
+ * --live：实测真实站点——跳过 www.xianyudanji.gg → 127.0.0.1 的 fixture 域名
+ * 映射（v14 B9 匹配实测增强；配合 --dump-logs 观察三阶段匹配/交叉验证日志）。
+ * --live probes the real site by omitting the local fixture DNS mapping.
  */
 import path from 'node:path';
 import fs from 'node:fs';
@@ -38,6 +42,7 @@ const COUNT = Math.max(1, Number(argOf('--count', '3')) || 3);
 const WAIT_MS = Math.max(1000, Number(argOf('--timeout', '8000')) || 8000);
 const DUMP_LOGS = has('--dump-logs');
 const KEEP_PROFILE = has('--keep-profile');
+const LIVE = has('--live');
 // v10.6.0 T3：--settings 传 JSON 片段，在打开目标页前合并进设置（验证条件加载等
 // 设置驱动的行为）——如 --settings '{"qrUnlockEnabled":false,"xdgridEnabled":false}'
 const SETTINGS_PATCH = /** @type {any} */ (
@@ -86,7 +91,8 @@ const context = await chromium.launchPersistentContext(userDataDir, {
   args: [
     `--disable-extensions-except=${EXTENSION_DIR}`,
     `--load-extension=${EXTENSION_DIR}`,
-    `--host-resolver-rules=MAP www.xianyudanji.gg 127.0.0.1`
+    // --live：实测真实站点（跳过本地 fixture 域名映射，v14 B9 匹配实测增强）
+    ...(LIVE ? [] : [`--host-resolver-rules=MAP www.xianyudanji.gg 127.0.0.1`])
   ]
 });
 

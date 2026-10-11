@@ -66,7 +66,12 @@ export default defineConfig({
       'tests/unit/test-escape-robust.mjs',
       'tests/unit/test-settings-lite.mjs',
       'tests/unit/test-last-update-timeout.mjs',
-      'tests/integration/test-content-sim.mjs',
+      // v14 B9（第五轮）：content-sim 拆分为 tests/sim/ 三套件（共享
+      // sim-harness.mjs 不入 include——非测试文件）；节→文件映射：
+      // sim-list=1-7+11 / sim-badges=8-8d / sim-detail=9-9d+10
+      'tests/sim/sim-list.mjs',
+      'tests/sim/sim-badges.mjs',
+      'tests/sim/sim-detail.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',
       'tests/integration/test-integrity.mjs',

@@ -109,40 +109,52 @@ export async function searchSteamGame(gameName, options = {}) {
   try {
     // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取详情；
     //    v3.3.13：排除曾报错的错误 appid）
-    // v14.3.1：rawTitle 透传 + 三阶段匹配——
+    // v14.3.2：rawTitle 三阶段匹配（franchise 区分策略，审查报告 P1-A）
     // 阶段 1：中文检索（现有逻辑）
-    // 阶段 2：中文命中的名字与 raw 标题英文段不相关（namesRelated false）→
-    //   英文交叉检索。新游戏中文命中常为通用 franchise 词的错配（"战争机器"
-    //   → Metal Force 而非 Gears of War），英文名是更可靠的区分信号。
-    // 阶段 3：中文全空时从 raw 标题提取纯英文词条兜底。
-    // 从 raw 标题提取英文段（首个 ≥6 字符纯拉丁段；去站名噪声）
+    // 阶段 2：交叉验证——内容词覆盖判据（替代 v14.3.1 零交集判据）：
+    //   正确命中名覆盖 raw 英文段全部内容词；franchise 兄弟篇只覆盖头词、
+    //   缺失特征词（如 "德米欧 x D&D" 缺 neverwinter/nights）。
+    //   触发条件：rawWords ≥ 2 且（零交集 或 覆盖不全）→ 英文重搜 l=english。
+    //   单调改进护栏：仅当英文结果覆盖严格更优才替换。
+    // 阶段 3：中文全空 → raw 标题英文段兜底。
     const enSegment = options.rawTitle
       ? (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim()
       : '';
+    // 版本级噪声词（命中名缺版本后缀属正常，不计入覆盖判据）
+    const EDITION_WORDS = new Set([
+      'edition', 'enhanced', 'deluxe', 'upgrade', 'remastered', 'remaster',
+      'definitive', 'complete', 'goty', 'bundle', 'collection', 'demo', 'trial'
+    ]);
+    /** @param {string} s */
+    const enWordsOf = (s) => new Set((String(s).toLowerCase().match(/[a-z][a-z0-9]{3,}/g) || []));
     if (!appId) {
       let searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
-    // 阶段 2：交叉验证——中文命中名的英文词与英文段无交集 → 英文重搜。
-    // 用英文词交集而非 namesRelated：后者跨语言信任在 franchise 系列场景
-    // 过于宽松（"德米欧 x D&D" 与 "D&D Neverwinter Nights 2" 被误判相关）。
-    // 交集 = 0 → 中文命中的 Steam 名不含 raw 标题英文名的任何词 → 疑似错配。
-    /** @param {string} s */
-const enWordsOf = (s) => new Set((String(s).toLowerCase().match(/[a-z][a-z0-9]{3,}/g) || []));
-    if (searchResult && enSegment) {
-      const overlap = [...enWordsOf(searchResult.name)].filter((w) => enWordsOf(enSegment).has(w));
-      if (overlap.length === 0) {
-        Logger.info(
-          'Steam',
-          `交叉验证: 中文命中 "${searchResult.name}" 与英文段 "${enSegment}" 零词交集，英文重搜`
-        );
-        const enResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
-        if (enResult) {
-          Logger.info('Steam', `英文重搜命中: ${enResult.name} (appId ${enResult.appId})`);
-          searchResult = enResult;
+      // 阶段 2：内容词覆盖交叉验证
+      if (searchResult && enSegment) {
+        const rawWords = [...enWordsOf(enSegment)].filter((w) => !EDITION_WORDS.has(w));
+        const coverOf = (name) => rawWords.filter((w) => enWordsOf(name).has(w)).length;
+        const hitCover = coverOf(searchResult.name);
+        // rawWords ≥ 2 护栏：单词段区分度不足，不触发
+        const needEn =
+          rawWords.length >= 2 && (hitCover === 0 || hitCover < rawWords.length);
+        if (needEn) {
+          Logger.info(
+            'Steam',
+            `交叉验证: 中文命中 "${searchResult.name}" 覆盖 ${hitCover}/${rawWords.length} 内容词（需 ${rawWords.join('+')}），英文重搜`
+          );
+          const enResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
+          if (enResult) {
+            const enCover = coverOf(enResult.name);
+            // 单调改进护栏：仅当英文结果覆盖严格更优才替换
+            if (enCover > hitCover) {
+              Logger.info('Steam', `交叉验证升级: "${enResult.name}" 覆盖 ${enCover}/${rawWords.length}，替换`);
+              searchResult = enResult;
+            }
+            // 等覆盖/更差 → 保留中文命中（防英文段拼写噪声抖动）
+          }
         }
-        // 英文重搜未命中 → 保留中文结果（可能正确，仅交叉验证严格）
       }
-    }
-      // 阶段 3：中文全空 → raw 标题英文段兜底（l=english）
+      // 阶段 3：中文全空 → raw 标题英文段兜底
       if (!searchResult && enSegment) {
         searchResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
       }

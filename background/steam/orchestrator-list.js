@@ -112,6 +112,13 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     const corr = await lookupWrongReportCorrection(gameName);
     if (!foundAppId) {
       searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
+      // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
+      if (!searchResult && options.rawTitle) {
+        const enSeg = (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
+        if (enSeg) {
+          searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
+        }
+      }
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
         Logger.warn('Steam', `列表页搜索未找到: ${gameName}`);

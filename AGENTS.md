@@ -26,7 +26,7 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 - `content/`：内容脚本。`tracker.js` 经典入口 + 动态 `import(getURL('content/...'))`，
   装载清单单源 = `content/module-manifest.js`（CORE_MODULES 并行加载；OPTIONAL_MODULES
   按 setting 键条件加载，禁用 = 代码零加载）。**新内容模块只改该清单一行**——tracker
-  装载、test-content-sim 文件表、test-integrity 存在性校验均由其派生。站点静态注入脚本
+  装载、tests/sim/sim-harness 文件表、test-integrity 存在性校验均由其派生。站点静态注入脚本
   另走 `background/core/site-scripts.js` 的 SITE_SCRIPT_FILES（manifest content_scripts）。
 - 站点专属功能（内嵌 Steam 卡/布局默认/详情解析）走 adapter 规则 `features` 字段声明，
   **勿在业务里写 siteKey/host 判断**（v10.7.0 收编三处；xdgrid.js 的 host 兜底判断是
@@ -81,7 +81,12 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 ## 测试约定
 
 - 单测入 vitest.config.js 的 include 显式清单；storage/fetch mock 在 tests/helpers。
-- content-sim：FakeEl DOM 模拟 + `__grImport` 注入；模块实例共享依赖"无 ?t= 导入"。
+- sim 套件（v14 B9 拆分）：FakeEl DOM 模拟 + `__grImport` 注入；共享 harness 在
+  `tests/sim/sim-harness.mjs`（getGR/setQueryStubs/fireDomReady 显式状态访问，勿再
+  引入文件级顺序状态机）；模块实例共享依赖"无 ?t= 导入"——reloadContentScripts
+  **不得** vi.resetModules()（shared/ 未列 deps.inline，reset 致 content/shared 实例分裂）。
+- e2e 冒烟：入口 `tests/e2e-smoke.mjs`（re-export 壳）→ `tests/e2e/run.mjs` 节管线；
+  新增检查项写入对应 `section-*.mjs`（E2E_MOCK 双模式语义不动）。
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
   真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
   主世界 evaluate 读不到，模块加载以网络请求为准）；不进门禁。

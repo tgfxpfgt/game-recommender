@@ -224,7 +224,10 @@ export function createSteamFloat(gameName, settings) {
       let response = null;
       if (appId) {
         dbg(`从图片URL提取到 appId: ${appId}，直接获取 Steam 详情`);
-        response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName });
+        // v14.3.2（P2-2）：appId 直取超时/网络错误 → 落回标题搜索（而非终止到"查询失败"）
+        response = await window.__GR_MSG__
+          .sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName })
+          .catch(() => null);
       }
 
       if (!response || !response.data) {
