@@ -403,6 +403,50 @@ test('P1-B：周期性兜底落盘 alarm 已接线', () => {
 test('P1-B：日志写失败回滚后重排一次', () => {
   expect(loggerSrc8.includes('writer.scheduleWrite()')).toEqual(true);
 });
+
+// v14.5.0 B2：后台零动态 import 扫描 + 预热/续跑/周报静态接线（防回归静默移除）
+// HTML 规范禁止 ServiceWorkerGlobalScope 使用 import()（w3c/ServiceWorker#1356，
+// 运行时 TypeError；此前 SW 内 4 处动态导入的错误被 allSettled/catch 吞掉，
+// 分层预热/批量续跑/周报自 v7.0.4 起静默失效）——扫描 background/ + data/
+// 全部文件，动态 import 调用一律拦截；内容脚本/扩展页不受限（页面上下文
+// 允许，走 getURL）。
+test('B2：后台零动态 import（SW import() 禁令回归护栏）', () => {
+  const offenders = [];
+  for (const file of collectJs(BG, []).concat(collectJs(path.join(ROOT, 'data'), []))) {
+    const src = fs.readFileSync(file, 'utf-8');
+    // 剥离块注释与行注释后再扫（注释里的 import() 示例不算数）；
+    // import.meta（类型断言等）不是动态导入调用
+    const stripped = src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+    for (const m of stripped.matchAll(/(?<![\w.$])import\s*\(/g)) {
+      offenders.push(`${path.relative(ROOT, file)}:${src.slice(0, m.index).split('\n').length}`);
+    }
+  }
+  expect(offenders, '后台存在动态 import()（SW 规范禁止，运行时必失败）:\n  ' + offenders.join('\n  ')).toEqual([]);
+});
+test('B2：分层预热/批量续跑/周报静态接线（防再次退化为动态 import 静默失效）', () => {
+  // 热层预热（启动即调）+ 温层预热（setTimeout 15s）+ 批量续跑 + 周报——
+  // 全部须为 service-worker.js 的静态导入直接调用
+  for (const fn of [
+    'loadSteamCacheToMemory',
+    'warmupNameIndex',
+    'warmupApiMonitor',
+    'warmupMetrics',
+    'warmupTabGames',
+    'resumeRatingsBatch',
+    'warmupRegistry',
+    'warmupWrongReports',
+    'warmupLearnedNoise',
+    'warmupUrlIndex',
+    'warmupBehavior',
+    'warmupDownloadUrls',
+    'warmupOutboundAudit',
+    'warmupSiteAlertPersist',
+    'handleGetStats'
+  ]) {
+    expect(swSrc8.includes(fn), `SW 缺少 ${fn} 静态接线`).toEqual(true);
+  }
+  expect(swSrc8.includes('WARM_TIER_DELAY_MS')).toEqual(true);
+});
 test('P2-D：每个 MESSAGE_HANDLERS action 都有契约规则（默认拒绝前提）', async () => {
   // v14 B10：MESSAGE_HANDLERS 改领域段聚合展开——源码正则无法提取键，改运行时
   // 装配取 Object.keys（不变量更强：绑定与契约规则直接比对）。handlers.js 导入

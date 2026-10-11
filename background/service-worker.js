@@ -14,6 +14,19 @@
  * Modular architecture (split by feature for maintainability):
  *   core/ storage/ steam/ recommend/ sites/ freegames/ handlers.js
  * This entry only wires imports, the message listener, alarms and startup.
+ *
+ * v14.5.0 B2 修正：本文件此前的"动态 import 预热/续跑/周报"因 HTML 规范禁止
+ * ServiceWorkerGlobalScope 使用 import()（w3c/ServiceWorker#1356，运行时
+ * TypeError）而自 v7.0.4 起静默失效（错误被 allSettled/catch 吞掉）——
+ * MV3 SW 无延迟加载手段，延迟需求一律"静态加载 + 延迟调用"：
+ *   - 分层预热：模块本就在 handlers 静态图内，热层启动即调、温层 setTimeout 15s
+ *     再调（SW 短命则跳过温层 IO，分层设计原意不变）
+ *   - 批量续跑/周报：alarm 回调内直接调用（静态导入）
+ * v14.5.0 B2 fix: the previous dynamic-import warm-up/resume/digest never ran
+ * (import() is disallowed on ServiceWorkerGlobalScope per HTML spec; the
+ * TypeError was swallowed by allSettled/catch). MV3 SW has no lazy-loading
+ * mechanism — defer the CALL, never the LOAD: static imports + setTimeout
+ * (warm tier) or direct calls inside alarm callbacks.
  */
 
 // 下载站适配规则（default 基础 + sites 各站，副作用导入：
@@ -32,7 +45,7 @@ import '../adapters/index.js';
 // Data store layer (OPFS per-module files; falls back to storage.local)
 import { initStorage, getSettings } from './core/settings.js';
 import { setWriteMetricsHook } from '../data/data-store.js'; // v10.8：写指标钩子（静态——铁律 2）
-import { trackOpfsWrite } from './core/metrics.js';
+import { trackOpfsWrite, warmupMetrics } from './core/metrics.js';
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
 import { refreshFreeGames, getLastNotifyGames, watchFavoritePrices } from './freegames/manager.js';
@@ -40,8 +53,35 @@ import { createBackup, restoreLatestIfFresh } from './storage/backups.js';
 import { syncSiteScripts } from './core/site-scripts.js';
 import { flushAllCaches } from './storage/flush.js';
 
+// v14.5.0 B2：预热/续跑目标模块改静态导入（此前动态 import 全部静默失效）——
+// 这些模块本就经 handlers 图在冷启动加载，静态导入零新增文件，只修好"调用"
+// Warm-up/resume targets now statically imported (dynamic imports never ran);
+// these modules were already in the handlers graph, so this adds no files —
+// it only fixes the calls that silently no-op'd.
+import { loadSteamCacheToMemory } from './storage/steam-cache.js';
+import { warmupNameIndex } from './storage/name-index.js';
+import { warmupApiMonitor } from './core/api-monitor.js';
+import { warmupTabGames } from './core/tab-game.js';
+import { resumeRatingsBatch } from './steam/ratings-batch.js';
+import { warmupRegistry } from './storage/registry.js';
+import { warmupWrongReports } from './storage/wrong-reports.js';
+import { warmupLearnedNoise } from './storage/learned-noise.js';
+import { warmupUrlIndex } from './storage/url-index.js';
+import { warmupBehavior } from './storage/behavior.js';
+import { warmupDownloadUrls } from './storage/download-urls.js';
+import { warmupOutboundAudit } from './core/outbound-audit.js';
+import { warmupSiteAlertPersist } from './handlers/diag-status.js';
+import { handleGetStats } from './handlers/stats.js';
+
 // v9.1.0：SW 启动计时（性能基线——Perf 日志落盘 runtimeLog，可脚本分析）
 const BOOT_START = Date.now();
+// v14.5.0 B2：模块图就绪耗时（timeOrigin → 入口顶层执行，含全部静态 import
+// 的取载+求值）——冷启动优化的直接观测量：入口体在依赖图求值完成后才运行，
+// handleMessage 可用时刻 ≈ 该值（监听器注册在入口体首段）。
+// Module-graph-ready time (timeOrigin → entry top-level), including fetch and
+// evaluation of every static import — the direct observable for cold-start
+// work, since handleMessage becomes available right after listener registration.
+const GRAPH_READY_MS = Math.round(performance.now());
 
 // ============ 消息监听 / Message Listener ============
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -66,8 +106,9 @@ restoreLatestIfFresh()
     initStorage().catch((e) => console.error('初始化失败:', e));
   });
 // v9.1.0：启动完成基线（监听器已注册 + 存储初始化发起）——Perf 日志供 dashboard
-// 诊断卡与自动化分析读取
+// 诊断卡与自动化分析读取；v14.5.0 B2 增加模块图就绪耗时（冷启动→消息可用）
 Logger.info('Perf', `SW 启动耗时: ${Date.now() - BOOT_START}ms (冷启动)`);
+Logger.info('Perf', `SW 模块图就绪: ${GRAPH_READY_MS}ms (冷启动→消息可用)`);
 
 // v7.4.0：自定义站点内容脚本动态注册（SW 启动时补齐；规则保存后由 handlers 再触发）
 // Custom-site content scripts (registered on startup; re-synced after rule saves)
@@ -89,13 +130,15 @@ chrome.notifications.onClicked.addListener((notificationId) => {
   if (notificationId !== 'gr-free-games') return;
   // v9.7.0：getLastNotifyGames 已改 async（内容持久化在 chrome.storage.session，
   // SW 冷启动后仍可读取——此前纯内存在 30s SW 生命周期下点击必然为空）
-  getLastNotifyGames().then((games) => {
-    if (games.length === 0) return;
-    const first = games[0];
-    const url = first.url || (first.steamId ? `https://store.steampowered.com/app/${first.steamId}` : '');
-    if (url) chrome.tabs.create({ url });
-    chrome.notifications.clear(notificationId);
-  });
+  getLastNotifyGames()
+    .then((games) => {
+      if (games.length === 0) return;
+      const first = games[0];
+      const url = first.url || (first.steamId ? `https://store.steampowered.com/app/${first.steamId}` : '');
+      if (url) chrome.tabs.create({ url });
+      chrome.notifications.clear(notificationId);
+    })
+    .catch((e) => console.error('限免通知点击处理失败:', String(e)));
 });
 
 // v7.4.0：右键菜单（选中文本 → 搜 Steam）
@@ -134,34 +177,37 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // 加载兜底）。Memory warm-up: parallel preload of local stores so the first
 // list/detail queries never wait on disk IO.
 // v10.7.0 批次3：分级预热——热层（steam 缓存/名称索引/任务续跑）保持启动即载；
-// 温层（注册表/索引/行为/审计等大而低频的模块）延迟 15s 再载：SW 若在 15s 内
+// 温层（注册表/索引/行为/审计等大而低频的模块）延迟 15s 再调：SW 若在 15s 内
 // 休眠则完全跳过这 14 文件中约 2/3 的冷启动 IO；温层模块均有惰性加载兜底，
 // 最坏情况只是首个查询多付一次磁盘读。
-// Tiered warm-up: hot stores load immediately; warm stores (lazy-loading
-// anyway) are deferred so short-lived SWs skip ~2/3 of cold-start IO.
+// v14.5.0 B2：预热改静态导入 + 延迟调用——原动态 import 写法因 HTML 规范
+// 禁止 SW import() 而自 v7.0.4 起静默失效（本批修复）。
+// Tiered warm-up via static imports + deferred calls: hot tier runs at boot,
+// warm tier at +15s (short-lived SWs skip it entirely — same intent as the
+// original design, which silently never ran due to the SW import() ban).
+// v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
+// 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
 Promise.allSettled([
-  import('./storage/steam-cache.js').then((m) => m.loadSteamCacheToMemory()),
-  import('./storage/name-index.js').then((m) => m.warmupNameIndex()),
-  // v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
-  // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
-  import('./core/api-monitor.js').then((m) => m.warmupApiMonitor()),
-  import('./core/metrics.js').then((m) => m.warmupMetrics()), // v10.7.0：运行指标
-  import('./core/tab-game.js').then((m) => m.warmupTabGames()), // v14.1.0：SidePanel tab 快照
-  import('./steam/ratings-batch.js').then((m) => m.resumeRatingsBatch())
+  loadSteamCacheToMemory(),
+  warmupNameIndex(),
+  warmupApiMonitor(),
+  warmupMetrics(), // v10.7.0：运行指标
+  warmupTabGames(), // v14.1.0：SidePanel tab 快照
+  resumeRatingsBatch()
 ]);
-// v10.8：OPFS 写指标接线（静态导入 + 顶层调用——动态版静默失败难排查）
+// v10.8：OPFS 写指标接线（静态导入 + 顶层调用）
 setWriteMetricsHook(trackOpfsWrite);
 const WARM_TIER_DELAY_MS = 15000;
 setTimeout(() => {
   Promise.allSettled([
-    import('./storage/registry.js').then((m) => m.warmupRegistry()),
-    import('./storage/wrong-reports.js').then((m) => m.warmupWrongReports()),
-    import('./storage/learned-noise.js').then((m) => m.warmupLearnedNoise()),
-    import('./storage/url-index.js').then((m) => m.warmupUrlIndex()),
-    import('./storage/behavior.js').then((m) => m.warmupBehavior()),
-    import('./storage/download-urls.js').then((m) => m.warmupDownloadUrls()),
-    import('./core/outbound-audit.js').then((m) => m.warmupOutboundAudit()),
-    import('./handlers/diag-status.js').then((m) => m.warmupSiteAlertPersist())
+    warmupRegistry(),
+    warmupWrongReports(),
+    warmupLearnedNoise(),
+    warmupUrlIndex(),
+    warmupBehavior(),
+    warmupDownloadUrls(),
+    warmupOutboundAudit(),
+    warmupSiteAlertPersist()
   ]);
 }, WARM_TIER_DELAY_MS);
 
@@ -212,24 +258,24 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     watchFavoritePrices().catch((e) => console.error('收藏折扣监控失败:', String(e)));
   }
   if (alarm.name === 'weeklyDigest') {
-    import('./handlers/stats.js')
-      .then(async (m) => {
-        const settings = await getSettings();
-        if (settings.weeklyDigestEnabled === false) return; // v13 B9：用户可关
-        const stats = await m.handleGetStats();
-        const games = (stats && stats.gameList) || [];
-        const views = games.reduce((a, g) => a + (Number(g.views) || 0), 0);
-        const downloads = games.reduce((a, g) => a + (Number(g.downloads) || 0), 0);
-        chrome.notifications
-          .create({
-            type: 'basic',
-            iconUrl: chrome.runtime.getURL('icons/icon128.png'),
-            title: '📊 游戏雷达周报',
-            message: `本周浏览 ${views} 次 · 下载 ${downloads} 次 · 收录游戏 ${games.length} 款——打开 dashboard 查看详情`
-          })
-          .catch(() => {});
-      })
-      .catch(() => {});
+    // v14.5.0 B2：handleGetStats 改静态调用——原动态 import 被 SW import()
+    // 禁令拦截，周报自 v12 B10 起静默失效（本批修复）
+    (async () => {
+      const settings = await getSettings();
+      if (settings.weeklyDigestEnabled === false) return; // v13 B9：用户可关
+      const stats = await handleGetStats();
+      const games = (stats && stats.gameList) || [];
+      const views = games.reduce((a, g) => a + (Number(g.views) || 0), 0);
+      const downloads = games.reduce((a, g) => a + (Number(g.downloads) || 0), 0);
+      chrome.notifications
+        .create({
+          type: 'basic',
+          iconUrl: chrome.runtime.getURL('icons/icon128.png'),
+          title: '📊 游戏雷达周报',
+          message: `本周浏览 ${views} 次 · 下载 ${downloads} 次 · 收录游戏 ${games.length} 款——打开 dashboard 查看详情`
+        })
+        .catch(() => {});
+    })().catch(() => {});
   }
   if (alarm.name === 'autoBackup') {
     getSettings().then((settings) => {
@@ -237,11 +283,10 @@ chrome.alarms.onAlarm.addListener((alarm) => {
     });
   }
   // v10.0.0：批量好评率任务续跑（SW 被 5 分钟硬上限杀死后由 alarm 唤醒；
-  // 任务已在途/无任务时幂等早退）
+  // 任务已在途/无任务时幂等早退）。v14.5.0 B2：改静态调用——原动态 import
+  // 被禁令拦截，续跑自 v10.0.0 起静默失效（B1 的续跑链路依赖本修复）。
   if (alarm.name === 'ratingsBatchResume') {
-    import('./steam/ratings-batch.js')
-      .then((m) => m.resumeRatingsBatch())
-      .catch((e) => console.error('批量好评率续跑失败:', String(e)));
+    resumeRatingsBatch().catch((e) => console.error('批量好评率续跑失败:', String(e)));
   }
   // v10.5.0 P1-B：周期性兜底落盘——SW 存活但空闲（两次操作之间的 2s 防抖窗口）时
   // 也能把脏数据刷回存储，降低 MV3 SW 被回收导致的写入丢失概率

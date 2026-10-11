@@ -42,7 +42,12 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ## 铁律（违反 = 测试/钩子拦截或线上事故）
 
 1. 动态内容一律 `escapeHtml/escapeAttr`（shared/escape.js）；禁止内联事件处理器（CSP）。
-2. **MV3 SW 不支持动态 import()**——后台模块必须静态 import；内容脚本动态 import 走 getURL。
+2. **MV3 SW 禁止动态 import()**（HTML 规范：import() disallowed on
+   ServiceWorkerGlobalScope——运行时 TypeError "import() is disallowed…"，
+   v6.3.0 E2E 验证、v14.5.0 B2 复证并修复 4 处曾静默失效的动态导入）——
+   后台模块必须静态 import；延迟需求一律"静态加载 + 延迟调用"（setTimeout/
+   alarm 触发函数调用，见 service-worker.js 分层预热）。内容脚本/扩展页的
+   动态 import 走 getURL（页面上下文允许）。
 3. **Chrome content_scripts 不支持 type:module**（勿再提议）。
 4. 顶层 const 初始化不得引用后声明的标识符（TDZ，test-integrity 扫描）。
 5. 双语注释（中英）；eslint 零警告；prettier（2 空格/单引号/120 列）。

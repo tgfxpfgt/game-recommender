@@ -76,7 +76,7 @@ npm run coverage       # vitest 覆盖率
 - 出站请求仅经 `fetchWithTimeout`（SSRF host 校验、重定向逐跳复检、每主机限速、出站审计）。
 - 规则/备份导入均过模块白名单校验（`sanitizeImportedModule`）；备份剔除 API 密钥。
 - 不引入运行期框架；TypeScript 仅编译期（noEmit）。
-- **MV3 Service Worker 不支持动态 import()**（v6.3.0 E2E 验证）——后台模块必须静态 import；内容脚本的动态 import 走 chrome.runtime.getURL。
+- **MV3 Service Worker 不支持动态 import()**（v6.3.0 E2E 验证；v14.5.0 B2 复证：运行时 `TypeError: import() is disallowed on ServiceWorkerGlobalScope`，w3c/ServiceWorker#1356）——后台模块必须静态 import，延迟需求一律"静态加载 + 延迟调用"（setTimeout/alarm 内直接调函数，见 service-worker.js 分层预热）。v14.5.0 B2 修复：SW 内 4 处动态 import（双层预热/批量续跑/周报）因错误被 allSettled/catch 吞掉而自 v7.0.4 起静默失效——test-integrity 已加"后台零动态 import"扫描防回归。内容脚本的动态 import 走 chrome.runtime.getURL（页面上下文允许，不变）。
 - **content-sim 用自研 FakeEl**（v6.3.2 评估：jsdom 迁移收益有限——测试聚焦流程逻辑，FakeEl 已工作正常；若未来需标准 DOM 语义（选择器/事件冒泡）再评估 jsdom）
 - **UI 层 DOM 类型宽松化**（globals.d.ts）：document 返回 any（元素存在性由浏览器保证），类型化聚焦业务字段与消息形状
 - 发布前 Mimosa 深度扫描必须 0 findings。
