@@ -153,3 +153,37 @@ chrome.storage.session
 | STORAGE_CAPS | background/core/constants.js | 各容量上限（favorites/tabGames/itadPriceCache 等） |
 | ENDPOINTS | background/core/constants.js | 出站端点 URL |
 | TTL_FIELDS | options 壳 | 缓存有效期控件映射 |
+
+---
+
+## 7. 主题系统（v14.3.2 拆分后）
+
+```
+settings.uiTheme
+  │ shared/settings-utils.js
+  ├─ applyPageTheme(settings)   ← 统一入口（v10.7.0 计划、v14.3.2 落地）：
+  │    applyThemeAuto(settings)   定时窗口解析 + applyTheme + 自定义 CSS
+  ├─ applyTheme(name)
+  │    ├─ body.dataset.theme = name
+  │    └─ <link id="gr-theme-file"> 按需注入 styles/themes/<name>.css
+  │       （重复切换复用同一元素换 href；'steam' = ui-theme.css :root 默认，
+  │        移除 link 即回默认）
+  └─ 内容侧独立：content.css 自带 .gr-float[data-theme] 浅色覆盖块，
+     不依赖 styles/themes/（web 页无法加载扩展 CSS，无 WAR 诉求）
+```
+
+- 文件布局：`styles/themes/<name>.css` ×19（每文件 = 变量块 + 组件级覆盖）；
+  steam 默认在 ui-theme.css :root，无独立文件。
+- 实时跟随：后台 `saveSettings`（core/settings.js 单点写入）广播
+  `GR_SETTINGS_CHANGED`（runtime 消息只达扩展页、不达内容脚本）；
+  sidepanel.js 监听后重拉设置并 applyPageTheme——设置中心切主题，
+  已打开的 SidePanel 即时变色。
+- 完整性守护：test-integrity-security 节 14 四重断言——①文件集合 ↔
+  settings-utils VALID_THEMES 全等；②每主题变量块 ⊇ 核心键（:root 减
+  可选键）；③仅部分主题定义的键必须在可选白名单（--gr-control-h 紧凑
+  终端系 / --gr-font 等宽衬线主题，有意按主题覆盖）；④文件内 data-theme
+  选择器与文件名一致（拆分归属漂移防御）。
+- 历史：v14.3.0 的旧断言因 `([, body])` 解构笔误取到主题名而非块体，
+  从未实际生效（空转通过）；另发现 dashboard/freegames/hub/sidepanel
+  四页调用 applyPageTheme 而工具文件从未实现（守卫静默降级），均 v14.3.2
+  修复。
