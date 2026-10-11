@@ -21,7 +21,7 @@ export const CORE_MODULES = [
   { key: 'status', file: 'content/core/status-bar.js' },
   { key: 'debug', file: 'content/core/debug.js' },
   { key: 'builder', file: 'content/adapters/builder.js' },
-  { key: 'badges', file: 'content/list/badges.js' },
+  { key: 'badges', file: 'content/list/badges/core.js' }, // v14.5.0 B6：域拆分入口（working/rec/badge-base 同目录）
   { key: 'listBatch', file: 'content/list/list-batch.js' },
   { key: 'list', file: 'content/list/list-page.js' },
   { key: 'listState', file: 'content/list/list-state.js' },

@@ -12,7 +12,7 @@
  * dependency that occasionally raced during concurrent module loading.
  * 注意：本模块不得 import list-page/list-batch（依赖方向保持单向）。
  */
-import * as badges from './badges.js';
+import * as badges from './badges/core.js';
 import * as builder from '../adapters/builder.js';
 import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';

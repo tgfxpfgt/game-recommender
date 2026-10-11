@@ -1,107 +1,19 @@
 /**
- * 游戏雷达 Game Radar - 列表页徽章渲染 / List-Page Badges
+ * 游戏雷达 Game Radar - 列表页徽章域入口 / List-Page Badge Family Entry
  *
- * v5.0.0：由 list-page.js 拆分——徽章创建/插入/三段式渲染/推荐徽章/
- * 高亮/DOM 移除。纯 DOM 无调度状态（prependBadge 的 settings 参数化）。
- * v10.5.3：新增段0「综合评分」徽章——XDGame「Steam 玩家评价」同口径
- * （修正口碑 ÷ 10，好评率贝叶斯收缩；口径函数与详情页内嵌信息卡同源，
- * 见 detail-templates.js）；悬停展示与 XDGame 卡片一致的详细信息。
- * Badge rendering split from list-page.js (v5.0.0); pure DOM, no scheduler
- * state. v10.5.3 adds the leading composite-score badge (XDGame-native
- * semantics, helpers shared with the detail inline card).
+ * v5.0.0：由 list-page.js 拆分——徽章创建/插入/三段式渲染/推荐徽章/高亮。
+ * v14.5.0 B6：按域拆为 badges/ 目录——本文件 = 主渲染（prependBadge 三段式
+ * + a-b 徽章 + 标题变色）与家族 re-export（manifest 装载路径 = 本文件）；
+ * working.js（占位/异常/高亮）、rec.js（推荐值）、badge-base.js（createBadge/
+ * insertBadges 单点，铁律 12 契约所在）。
+ * Badge family entry (B6): main render lives here; the manifest loads this
+ * file. working/rec/badge-base are sibling domains.
  */
-import { adjustedReputation, verdictFor, ratingTextInfo } from '../core/steam-rating-logic.js'; // v10.7.0：评分口径单源（不再反向依赖 detail 模板）
+import { adjustedReputation, verdictFor, ratingTextInfo } from '../../core/steam-rating-logic.js'; // v10.7.0：评分口径单源
+import { createBadge, insertBadges } from './badge-base.js';
 
-// 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
-export function removeItemFromDom(item) {
-  if (!item.element || !item.element.parentNode) return;
-  const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
-  const toRemove = colContainer && colContainer !== item.element ? colContainer : item.element;
-  if (toRemove.parentNode) toRemove.remove();
-}
-
-// v14 F1：工作状态徽章——入队时显示"⏳ 等待检索"，数据到达后替换为真实徽章
-// Working status badge: shown at enqueue time, replaced by real badges on data.
-export function showWorkingBadge(item, text) {
-  const link = item.link;
-  if (!link || link.querySelector('.gr-working-badge')) return;
-  const badge = document.createElement('span');
-  badge.className = 'gr-working-badge';
-  badge.textContent = text || '⏳ 等待检索';
-  badge.style.cssText =
-    'padding:2px 6px;font-size:10px;background:rgba(255,255,255,0.08);color:#8f98a0;border:1px dashed #444;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;';
-  const target = item.titleEl || link;
-  target.insertBefore(badge, target.firstChild);
-}
-
-// v14.3.2 修复：搜索目标与 showWorkingBadge 插入目标对齐（titleEl || link）——
-// 原实现只搜 link 后代，titleEl 是 <h3> 包裹 <a> 时徽章在 h3 里永远删不掉
-export function removeWorkingBadge(item) {
-  const target = (item && (item.titleEl || item.link)) || null;
-  if (!target) return;
-  const badge = target.querySelector('.gr-working-badge');
-  if (badge) badge.remove();
-}
-
-// v14 F1：检索异常徽章——网络失败/超时时显示
-export function showErrorBadge(item, text) {
-  removeWorkingBadge(item);
-  const link = item.link;
-  if (!link || link.querySelector('.gr-rating-badge')) return;
-  const badge = document.createElement('span');
-  badge.className = 'gr-working-badge gr-error-badge';
-  badge.textContent = text || '⚠️ 检索异常';
-  badge.style.cssText =
-    'padding:2px 6px;font-size:10px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px dashed #e74c3c;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;';
-  const target = item.titleEl || link;
-  target.insertBefore(badge, target.firstChild);
-}
-
-// 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）
-// Create one badge span (shared styling; clickable badges open the store)
-/**
- * 创建徽章元素。base 默认含 gr-rating-badge（好评率徽章组标记——prependBadge
- * 防重复守卫、推荐徽章插入锚点与测试契约都依赖它）；组外徽章（推荐值）必须
- * 传 base:'gr-badge'，否则推荐徽章先渲染时会污染守卫导致好评率徽章永久缺失。
- * @param {any} link
- * @param {{text: string, color: string, bg: string, cls: string, title: string, clickable?: boolean, appId?: any, dashed?: boolean, base?: string}} opts
- */
-function createBadge(link, { text, color, bg, cls, title, clickable, appId, dashed, base }) {
-  // v8.1.0：公共样式走 .gr-badge 基类（content.css）；动态颜色与变体类仍由调用方提供
-  const badge = document.createElement('span');
-  badge.className = (base || 'gr-badge gr-rating-badge') + ' ' + (cls || '');
-  badge.textContent = text;
-  badge.style.cssText = `color:${color};background:${bg};border-color:${color};${clickable ? 'cursor:pointer;text-decoration:none;' : ''}`;
-  if (dashed) badge.classList.add('gr-badge-dashed');
-  if (clickable) badge.classList.add('gr-badge-clickable');
-  badge.title = title || '';
-  // span+click 避免嵌套链接 / span + click to avoid nested anchors
-  if (clickable && appId) {
-    badge.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      window.open(`https://store.steampowered.com/app/${appId}/`, '_blank', 'noopener');
-    });
-  }
-  return badge;
-}
-
-// 批量插入徽章组（从后往前插保证从左到右顺序；标题元素优先，回退链接文本节点）
-// Insert a badge group (reverse-order insert keeps left-to-right order)
-function insertBadges(item, link, badges) {
-  let targetEl = item.titleEl || null;
-  if (!targetEl && item.element) {
-    targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
-  }
-  if (targetEl) {
-    for (let i = badges.length - 1; i >= 0; i--) targetEl.insertBefore(badges[i], targetEl.firstChild);
-  } else {
-    const walker = document.createTreeWalker(link, NodeFilter.SHOW_TEXT, null);
-    const firstTextNode = walker.nextNode();
-    const ref = firstTextNode && (firstTextNode.textContent || '').trim().length > 1 ? firstTextNode : link.firstChild;
-    for (let i = badges.length - 1; i >= 0; i--) link.insertBefore(badges[i], ref);
-  }
-}
+export { removeItemFromDom, showWorkingBadge, removeWorkingBadge, showErrorBadge, highlightItem } from './working.js';
+export { prependRecBadge } from './rec.js';
 
 // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
 // 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
@@ -338,102 +250,4 @@ export function prependBadge(item, rating, settings) {
       if (titleEl && titleEl.classList) titleEl.classList.add('gr-title-green');
     }
   }
-}
-
-// 推荐值徽章：好评率徽章之后插入，显示推荐数值；悬停展示各分值组成；
-// 按推荐值分级着色（≥80% 红 / ≥60% 橙 / ≥40% 黄绿 / 其余灰）。
-// v3.3.8：插入到**最后一个**好评率/更新徽章之后（此前插到第一个 rating 徽章
-// 后，三段式下顺序错乱）；受 badgeVisibility.rec 开关控制（关闭同时停用高亮）。
-// Recommendation badge (after the rating badges): shows the score, tooltip with
-// the breakdown, and a score-graded color. Inserted after the LAST rating badge
-// (the old nextSibling logic broke ordering with three badges).
-export function prependRecBadge(item, recommendation, settings) {
-  const link = item.link;
-  if (!link || !recommendation) return;
-  // v4.1.0：防重复（REFRESH 强制刷新/多批回填场景）
-  if (link.querySelector('.gr-rec-badge')) return;
-  const bv = (settings && settings.badgeVisibility) || {};
-  if (bv.rec === false) return;
-  const score = recommendation.score;
-  if (score === null || score === undefined || isNaN(score)) return;
-
-  const pct = Math.round(score * 100);
-  const color = pct >= 80 ? '#e74c3c' : pct >= 60 ? '#ff7b00' : pct >= 40 ? '#a3cf06' : '#8f98a0';
-  const bg =
-    pct >= 80
-      ? 'rgba(231,76,60,0.12)'
-      : pct >= 60
-        ? 'rgba(255,123,0,0.12)'
-        : pct >= 40
-          ? 'rgba(163,207,6,0.12)'
-          : 'rgba(143,152,160,0.1)';
-
-  const b = recommendation.breakdown || {};
-  const fmt = (v) => Math.round((v || 0) * 100) + '%';
-  // v11.0 B8：LLM 推荐理由上浮（method=llm 时 recommendation.reason 可用）
-  const reasonLine = recommendation.method === 'llm' && recommendation.reason ? '\n🤖 ' + recommendation.reason : '';
-  // v10.6.0 U1：走 createBadge 基类（.gr-badge 统一规格），样式差异收敛到 CSS；
-  // base:'gr-badge'——推荐徽章在好评率组之外，不得带 gr-rating-badge 组标记
-  //（否则先于评分渲染时污染防重复守卫/测试契约）
-  const badge = createBadge(link, {
-    text: `🎯 ${pct}%`,
-    color,
-    bg,
-    cls: 'gr-rec-badge',
-    base: 'gr-badge',
-    title:
-      `推荐度: ${pct}%` +
-      `\n🖱 点击率: ${fmt(b.clickScore)} · ⬇ 下载率: ${fmt(b.downloadScore)}` +
-      `\n🏷 关键词: ${fmt(b.keywordScore)} · ⭐ Steam: ${fmt(b.steamScore)}` +
-      `\n⏱ 游玩时长: ${fmt(b.playTimeScore)} · 🔥 热度: ${fmt(b.heatScore)}` +
-      `\n📊 销量: ${fmt(b.salesScore)} · 📝 评论数: ${fmt(b.reviewScore)}` +
-      `\n各信号为 0-100% 加权贡献，权重总和 100%（超 1 自动归一）${reasonLine}`
-  });
-  badge.style.cursor = 'default';
-
-  // v6.3.2 C3：不感兴趣按钮（推荐反馈循环）——点击标记负信号并淡化徽章
-  const dislikeBtn = document.createElement('span');
-  dislikeBtn.className = 'gr-dislike-btn';
-  dislikeBtn.textContent = '✕';
-  dislikeBtn.style.cssText = 'margin-left:4px;cursor:pointer;font-size:10px;opacity:0.6;';
-  dislikeBtn.title = '不感兴趣';
-  dislikeBtn.addEventListener('click', (ev) => {
-    ev.preventDefault();
-    ev.stopPropagation();
-    badge.style.opacity = '0.3';
-    badge.style.textDecoration = 'line-through';
-    dislikeBtn.remove();
-    try {
-      window.__GR_MSG__.sendMessage({
-        action: 'TRACK_EVENT',
-        data: { type: 'dislike_game', gameName: item.name || '' }
-      });
-    } catch {
-      /* 后台不可达时静默 */
-    }
-  });
-  badge.appendChild(dislikeBtn);
-
-  // 与 prependBadge 相同的定位逻辑；插到最后一个徽章之后
-  let targetEl = item.titleEl || null;
-  if (!targetEl && item.element) {
-    targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
-  }
-  if (targetEl) {
-    const lastBadge = [...targetEl.querySelectorAll('.gr-rating-badge, .gr-recent-badge, .gr-update-badge')].pop();
-    if (lastBadge && lastBadge.nextSibling) {
-      targetEl.insertBefore(badge, lastBadge.nextSibling);
-    } else if (lastBadge) {
-      targetEl.appendChild(badge);
-    } else {
-      targetEl.insertBefore(badge, targetEl.firstChild);
-    }
-  } else if (!link.querySelector('.gr-rec-badge')) {
-    link.insertBefore(badge, link.firstChild);
-  }
-}
-
-export function highlightItem(item) {
-  const el = item.element;
-  el.classList.add('gr-highlighted');
 }

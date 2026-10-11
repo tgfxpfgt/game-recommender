@@ -12,7 +12,7 @@
 import * as listBatch from './list-batch.js';
 import { _state, applyRatingsResponse, finishRatings } from './list-state.js';
 import * as builder from '../adapters/builder.js';
-import * as badges from './badges.js';
+import * as badges from './badges/core.js';
 import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
 

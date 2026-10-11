@@ -110,13 +110,18 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   // v3.4.1：原断言恒真（"由 E2E 验证"），改为源码级守护——报错按钮绑定 +
   // REPORT_WRONG_APPID 消息流 + 手动选择面板兜底路径必须存在
   // v14 B3：detail 拆分为 page/sidebar/candidates/tracking 四文件，聚合读取
+  // v14.5.0 B6：模板实现拆至 render/（sidebar-html/inline-html/rating-rows），
+  // 入口 detail-templates.js 为 re-export——聚合纳入 render 目录
   const detailSrc = [
     'content/detail/detail-page.js',
     'content/detail/sidebar.js',
     'content/detail/sidebar-rows.js', // v14.3.0 B1 拆分：detail 模块族随拆分扩展
     'content/detail/inline-card.js',
     'content/detail/candidates.js',
-    'content/detail/tracking.js'
+    'content/detail/tracking.js',
+    'content/detail/render/sidebar-html.js', // v14.5.0 B6
+    'content/detail/render/inline-html.js', // v14.5.0 B6
+    'content/detail/render/rating-rows.js' // v14.5.0 B6
   ]
     .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf-8'))
     .join('\n');
@@ -262,14 +267,17 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
 
   // 源码级守护：站点门控走规则 features 声明（v10.7.0 批次4——原硬编码名单
   // INLINE_SECTION_SITES 已删除，XDGame 等原生卡站点默认不声明即不注入；
-  // v14 B3 门控代码迁至 sidebar.js，聚合读取 detail 模块族）
+  // v14 B3 门控代码迁至 sidebar.js，聚合读取 detail 模块族；B6 纳入 render/）
   const detailSrc2 = [
     'content/detail/detail-page.js',
     'content/detail/sidebar.js',
     'content/detail/sidebar-rows.js', // v14.3.0 B1 拆分：detail 模块族随拆分扩展
     'content/detail/inline-card.js',
     'content/detail/candidates.js',
-    'content/detail/tracking.js'
+    'content/detail/tracking.js',
+    'content/detail/render/sidebar-html.js', // v14.5.0 B6
+    'content/detail/render/inline-html.js', // v14.5.0 B6
+    'content/detail/render/rating-rows.js' // v14.5.0 B6
   ]
     .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf-8'))
     .join('\n');

@@ -12,7 +12,7 @@ export { waitForBatchIdle }; // v12 B2：测试显式信号透出
 import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';
-import * as badges from './badges.js';
+import * as badges from './badges/core.js';
 
 const dbg = (...a) => debug.dbg(...a);
 

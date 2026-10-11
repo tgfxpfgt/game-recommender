@@ -8,7 +8,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 // list-state 的四个依赖全部桩化（避免加载 content 侧 DOM/chrome 依赖链）
-vi.mock('../../content/list/badges.js', () => ({
+vi.mock('../../content/list/badges/core.js', () => ({
   removeItemFromDom: vi.fn(),
   removeWorkingBadge: vi.fn(),
   prependBadge: vi.fn()
