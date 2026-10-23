@@ -36,6 +36,16 @@
   OPTS.CACHE_PAGE_SIZE = 20;
   OPTS.cacheSearchTimer = null;
 
+  // v14.5.0 B8：DOM 读取微助手——此前 60+ 处 getElementById 全称重复；
+  // 语义与直调完全一致（checked/value/parseInt），仅缩短保存映射与绑定表。
+  // DOM read micro-helpers: identical semantics to the direct calls.
+  /** @param {string} id */
+  const val = (id) => document.getElementById(id).value;
+  /** @param {string} id */
+  const chk = (id) => document.getElementById(id).checked;
+  /** @param {string} id */
+  const intVal = (id) => parseInt(document.getElementById(id).value);
+
   // v6.4.6：切换到 Vista Aero 新菜单
   document.addEventListener('DOMContentLoaded', async () => {
     // v6.4.11：集中入口（hub）——内嵌时切换面板，独立打开时新开标签
@@ -124,36 +134,31 @@
 
   // ============ 通用设置事件绑定 / Generic Settings Bindings ============
   // 域内绑定已随实现迁往各 panels 模块（v14 B2）；此处仅通用开关与保存路径。
+  // v14.5.0 B8：滑块回显与自动保存绑定微助手（原三份回显块 + 二十余处
+  // 单行 scheduleAutoSave 绑定同构收敛）。
   function bindEvents() {
     OPTS.bindSettingsSearch(); // v11.0 B6
-    // 阈值滑块
-    document.getElementById('threshold').addEventListener('input', (e) => {
-      document.getElementById('thresholdVal').textContent = `${e.target.value}%`;
-      scheduleAutoSave();
-    });
 
-    // 好评率过滤
-    document.getElementById('ratingFilterEnabled').addEventListener('change', () => {
-      scheduleAutoSave();
-    });
-    document.getElementById('minRating').addEventListener('input', (e) => {
-      document.getElementById('minRatingVal').textContent = `${e.target.value}%`;
-      scheduleAutoSave();
-    });
-    // v6.4.4：30 天好评过滤 + 关系模式 + 重排序
-    document.getElementById('recentFilterEnabled').addEventListener('change', () => scheduleAutoSave());
-    document.getElementById('minRecentRating').addEventListener('input', (e) => {
-      document.getElementById('minRecentRatingVal').textContent = `${e.target.value}%`;
-      scheduleAutoSave();
-    });
-    document.getElementById('ratingFilterMode').addEventListener('change', () => scheduleAutoSave());
-    document.getElementById('sortByRatingEnabled').addEventListener('change', () => scheduleAutoSave());
+    // 滑块：input 回显 + 自动保存 / slider display + auto-save
+    /** @param {string} id @param {string} valId */
+    const bindSliderVal = (id, valId) => {
+      document.getElementById(id).addEventListener('input', (e) => {
+        document.getElementById(valId).textContent = `${e.target.value}%`;
+        scheduleAutoSave();
+      });
+    };
+    bindSliderVal('threshold', 'thresholdVal'); // 阈值滑块
+    bindSliderVal('minRating', 'minRatingVal'); // 好评率过滤
+    bindSliderVal('minRecentRating', 'minRecentRatingVal'); // v6.4.4：30 天好评过滤
 
-    // v6.4.19：关键词过滤（纯规则列表，简单关键词输入已移除）
-    document.getElementById('vmFilterEnabled').addEventListener('change', () => scheduleAutoSave());
-
-    // v10.3.0：内容功能开关 + a-b 计算参数（变更即自动保存）
-    const newToggleIds = [
+    // 变更即自动保存（v6.4.4 关系模式/重排序；v6.4.19 关键词过滤；
+    // v10.3.0 内容功能开关 + a-b 计算参数；v10.4.0 浮窗形态/红标题阈值）
+    const autoSaveIds = [
+      'ratingFilterEnabled',
+      'recentFilterEnabled',
+      'ratingFilterMode',
+      'sortByRatingEnabled',
+      'vmFilterEnabled',
       'enableRecommendations',
       'downloadTrackingEnabled',
       'appStatsEnabled',
@@ -167,21 +172,17 @@
       'badgeAppstat',
       'appStatDedupHours',
       'appStatDownloadCap',
-      'appStatDetailViewCap'
+      'appStatDetailViewCap',
+      'detailFloatExpanded',
+      'detailFloatSide',
+      'redTitleRating',
+      'enabled',
+      'maxLog'
     ];
-    newToggleIds.forEach((id) => {
+    autoSaveIds.forEach((id) => {
       const el = document.getElementById(id);
       if (el) el.addEventListener('change', () => scheduleAutoSave());
     });
-    // v10.4.0：详情浮窗形态 + 红标题阈值
-    ['detailFloatExpanded', 'detailFloatSide', 'redTitleRating'].forEach((id) => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('change', () => scheduleAutoSave());
-    });
-
-    // 基本设置
-    document.getElementById('enabled').addEventListener('change', () => scheduleAutoSave());
-    document.getElementById('maxLog').addEventListener('change', () => scheduleAutoSave());
 
     // 手动保存（立即保存）——v6.4.12：await 完成并反馈（此前 fire-and-forget，
     // 点击后立即关闭页面可能未送达）
@@ -223,110 +224,121 @@
   let saveQueue = Promise.resolve();
   async function saveSettings() {
     // 从 UI 收集所有值（同步，调用时 DOM 状态）
-    OPTS.currentSettings.enabled = document.getElementById('enabled').checked;
-    OPTS.currentSettings.showStatusBar = document.getElementById('showStatusBar').checked;
-    OPTS.currentSettings.showDebugPanel = document.getElementById('showDebugPanel').checked;
-    OPTS.currentSettings.highlightThreshold = document.getElementById('threshold').value / 100;
-    OPTS.currentSettings.maxBehaviorLog = parseInt(document.getElementById('maxLog').value);
+    // v14.5.0 B8：读取走 val/chk/intVal 微助手；徽章/权重/LLM 三个嵌套对象
+    // 改微型表驱动（键名 = DEFAULT_SETTINGS 键名，逐项变换不变——铁律 11
+    // 的逐键核对由此变成一行一键的表审阅）。
+    OPTS.currentSettings.enabled = chk('enabled');
+    OPTS.currentSettings.showStatusBar = chk('showStatusBar');
+    OPTS.currentSettings.showDebugPanel = chk('showDebugPanel');
+    OPTS.currentSettings.highlightThreshold = val('threshold') / 100;
+    OPTS.currentSettings.maxBehaviorLog = intVal('maxLog');
 
     // 好评率过滤
-    OPTS.currentSettings.enableRatingFilter = document.getElementById('ratingFilterEnabled').checked;
-    OPTS.currentSettings.minSteamRatingFilter = parseInt(document.getElementById('minRating').value);
+    OPTS.currentSettings.enableRatingFilter = chk('ratingFilterEnabled');
+    OPTS.currentSettings.minSteamRatingFilter = intVal('minRating');
     // v6.4.11：修复 30 天好评过滤/关系模式/重排序无法保存（此前仅在事件
     // 绑定中 scheduleAutoSave，收集阶段漏读这 4 个 DOM 字段，保存时被旧值覆盖）
-    OPTS.currentSettings.enableRecentFilter = document.getElementById('recentFilterEnabled').checked;
-    OPTS.currentSettings.minRecentSteamRatingFilter = parseInt(document.getElementById('minRecentRating').value);
-    OPTS.currentSettings.ratingFilterMode = document.getElementById('ratingFilterMode').value;
-    OPTS.currentSettings.enableSortByRating = document.getElementById('sortByRatingEnabled').checked;
+    OPTS.currentSettings.enableRecentFilter = chk('recentFilterEnabled');
+    OPTS.currentSettings.minRecentSteamRatingFilter = intVal('minRecentRating');
+    OPTS.currentSettings.ratingFilterMode = val('ratingFilterMode');
+    OPTS.currentSettings.enableSortByRating = chk('sortByRatingEnabled');
 
     // 徽章显示开关（v3.3.8；v10.5.3 新增 score 综合评分）
-    OPTS.currentSettings.badgeVisibility = {
-      score: document.getElementById('badgeScore').checked, // v10.5.3
-      recent: document.getElementById('badgeRecent').checked,
-      all: document.getElementById('badgeAll').checked,
-      update: document.getElementById('badgeUpdate').checked,
-      rec: document.getElementById('badgeRec').checked,
-      appstat: document.getElementById('badgeAppstat').checked // v10.3.0
+    /** @type {Object<string, string>} 设置键 → 控件 id（checked） */
+    const badgeIds = {
+      score: 'badgeScore', // v10.5.3
+      recent: 'badgeRecent',
+      all: 'badgeAll',
+      update: 'badgeUpdate',
+      rec: 'badgeRec',
+      appstat: 'badgeAppstat' // v10.3.0
     };
+    OPTS.currentSettings.badgeVisibility = Object.fromEntries(Object.entries(badgeIds).map(([k, id]) => [k, chk(id)]));
 
-    // v10.3.0：内容功能独立开关 + a-b 统计计算参数（全量收集保存）
-    OPTS.currentSettings.enableRecommendations = document.getElementById('enableRecommendations').checked;
-    OPTS.currentSettings.downloadTrackingEnabled = document.getElementById('downloadTrackingEnabled').checked;
-    OPTS.currentSettings.appStatsEnabled = document.getElementById('appStatsEnabled').checked;
-    OPTS.currentSettings.qrUnlockEnabled = document.getElementById('qrUnlockEnabled').checked;
-    OPTS.currentSettings.xdgridEnabled = document.getElementById('xdgridEnabled').checked;
-    OPTS.currentSettings.notifyFreeGames = document.getElementById('notifyFreeGames').checked;
+    // v10.3.0：内容功能独立开关（全量收集保存）
+    OPTS.currentSettings.enableRecommendations = chk('enableRecommendations');
+    OPTS.currentSettings.downloadTrackingEnabled = chk('downloadTrackingEnabled');
+    OPTS.currentSettings.appStatsEnabled = chk('appStatsEnabled');
+    OPTS.currentSettings.qrUnlockEnabled = chk('qrUnlockEnabled');
+    OPTS.currentSettings.xdgridEnabled = chk('xdgridEnabled');
+    OPTS.currentSettings.notifyFreeGames = chk('notifyFreeGames');
     // v11.0 B3 / v13 B9：收藏折扣监控 + 周报（v14 B2 收集迁至 panels/favorites.js）
     OPTS.collectFavoriteSettings();
     // v12 B4：浮窗模块显隐保存映射
     // v14.2.0：order 键入 DEFAULT_SETTINGS 后始终随映射保留（键序过滤走
     // shared/fm-keys.js 单源；fmOrderReset 删除后由此处不再写回 = 回默认序）
+    /** @type {Object<string, string>} 显隐键 → 控件 id（checked） */
+    const fmIds = {
+      chips: 'fmChips',
+      tags: 'fmTags',
+      developers: 'fmDevelopers',
+      description: 'fmDescription',
+      spy: 'fmSpy'
+    };
     OPTS.currentSettings.floatModules = {
-      chips: document.getElementById('fmChips').checked,
-      tags: document.getElementById('fmTags').checked,
-      developers: document.getElementById('fmDevelopers').checked,
-      description: document.getElementById('fmDescription').checked,
-      spy: document.getElementById('fmSpy').checked,
+      ...Object.fromEntries(Object.entries(fmIds).map(([k, id]) => [k, chk(id)])),
       ...(OPTS.currentSettings.floatModules && Array.isArray(OPTS.currentSettings.floatModules.order)
         ? {
             order: OPTS.currentSettings.floatModules.order.filter((k) => globalThis.__GR_FM_KEYS__.keys.includes(k))
           }
         : {})
     };
-    OPTS.currentSettings.freeGamesEnabled = document.getElementById('freeGamesEnabled').checked;
-    OPTS.currentSettings.themeAutoSwitch = document.getElementById('themeAutoSwitch').checked;
-    OPTS.currentSettings.uiThemeDay = document.getElementById('uiThemeDay').value.trim() || 'steam';
-    OPTS.currentSettings.uiThemeNight = document.getElementById('uiThemeNight').value.trim() || 'oled';
+    OPTS.currentSettings.freeGamesEnabled = chk('freeGamesEnabled');
+    OPTS.currentSettings.themeAutoSwitch = chk('themeAutoSwitch');
+    OPTS.currentSettings.uiThemeDay = val('uiThemeDay').trim() || 'steam';
+    OPTS.currentSettings.uiThemeNight = val('uiThemeNight').trim() || 'oled';
     // v10.7.0 批次5：夜间窗口（越界/空值回默认，防把窗口配成空集）
-    const nightStart = parseInt(document.getElementById('uiThemeNightStart').value);
-    const nightEnd = parseInt(document.getElementById('uiThemeNightEnd').value);
+    const nightStart = intVal('uiThemeNightStart');
+    const nightEnd = intVal('uiThemeNightEnd');
     OPTS.currentSettings.uiThemeNightStart =
       Number.isInteger(nightStart) && nightStart >= 0 && nightStart <= 23 ? nightStart : 19;
     OPTS.currentSettings.uiThemeNightEnd = Number.isInteger(nightEnd) && nightEnd >= 0 && nightEnd <= 23 ? nightEnd : 7;
-    OPTS.currentSettings.appStatDedupHours = parseInt(document.getElementById('appStatDedupHours').value) || 0;
-    OPTS.currentSettings.appStatDownloadCap = parseInt(document.getElementById('appStatDownloadCap').value) || 100;
-    OPTS.currentSettings.appStatDetailViewCap = parseInt(document.getElementById('appStatDetailViewCap').value) || 100;
+    OPTS.currentSettings.appStatDedupHours = intVal('appStatDedupHours') || 0;
+    OPTS.currentSettings.appStatDownloadCap = intVal('appStatDownloadCap') || 100;
+    OPTS.currentSettings.appStatDetailViewCap = intVal('appStatDetailViewCap') || 100;
     // 列表页链接扫描上限（v3.3.9）
-    OPTS.currentSettings.maxScanLinks = parseInt(document.getElementById('maxScanLinks').value) || 500;
+    OPTS.currentSettings.maxScanLinks = intVal('maxScanLinks') || 500;
     // v10.7.0 批次5：评分批次大小（10-200 越界回默认）/ 二维码图片上限 KB
-    const batchRaw = parseInt(document.getElementById('ratingsBatchSize').value);
+    const batchRaw = intVal('ratingsBatchSize');
     OPTS.currentSettings.ratingsBatchSize =
       Number.isInteger(batchRaw) && batchRaw >= 10 && batchRaw <= 200 ? batchRaw : 60;
-    const qrKbRaw = parseInt(document.getElementById('qrImageMaxKb').value);
+    const qrKbRaw = intVal('qrImageMaxKb');
     OPTS.currentSettings.qrImageMaxKb =
       Number.isInteger(qrKbRaw) && qrKbRaw >= 512 && qrKbRaw <= 30720 ? qrKbRaw : 3072;
 
     // v6.4.19：关键词过滤（纯规则列表——filterRules 由编辑器维护；
     // 兼容字段保留旧值不覆盖，避免清掉历史简单关键词配置）
-    OPTS.currentSettings.enableVmFilter = document.getElementById('vmFilterEnabled').checked;
+    OPTS.currentSettings.enableVmFilter = chk('vmFilterEnabled');
 
     // 权重（v4.0.0：新增 playTime/heat——必须写入保存映射，否则用户保存时
     // 会抹掉新权重项的自定义值；v10.1.0：appStat 两项、v10.5.3：sales/
-    // reviews 两项同理）
-    OPTS.currentSettings.weights = {
-      clickRate: document.getElementById('weightClick').value / 100,
-      downloadRate: document.getElementById('weightDownload').value / 100,
-      keywordMatch: document.getElementById('weightKeyword').value / 100,
-      steamRating: document.getElementById('weightSteam').value / 100,
-      playTime: document.getElementById('weightPlayTime').value / 100,
-      heat: document.getElementById('weightHeat').value / 100,
-      sales: document.getElementById('weightSales').value / 100,
-      reviews: document.getElementById('weightReviews').value / 100,
-      appStatDownload: document.getElementById('weightAppStatDownload').value / 100,
-      appStatDetailView: document.getElementById('weightAppStatDetailView').value / 100
+    // reviews 两项同理）——单一变换 value/100，表驱动一行一键
+    /** @type {Object<string, string>} 权重键 → 控件 id（value/100） */
+    const weightIds = {
+      clickRate: 'weightClick',
+      downloadRate: 'weightDownload',
+      keywordMatch: 'weightKeyword',
+      steamRating: 'weightSteam',
+      playTime: 'weightPlayTime',
+      heat: 'weightHeat',
+      sales: 'weightSales',
+      reviews: 'weightReviews',
+      appStatDownload: 'weightAppStatDownload',
+      appStatDetailView: 'weightAppStatDetailView'
     };
+    OPTS.currentSettings.weights = Object.fromEntries(Object.entries(weightIds).map(([k, id]) => [k, val(id) / 100]));
 
     // LLM 配置
-    OPTS.currentSettings.useLLM = document.getElementById('useLLM').checked;
+    OPTS.currentSettings.useLLM = chk('useLLM');
     OPTS.currentSettings.llmConfig = {
-      provider: document.getElementById('llmProvider').value,
-      endpoint: document.getElementById('llmEndpoint').value.trim(),
-      apiKey: document.getElementById('llmApiKey').value.trim(),
-      model: document.getElementById('llmModel').value.trim(),
-      temperature: document.getElementById('llmTemp').value / 100
+      provider: val('llmProvider'),
+      endpoint: val('llmEndpoint').trim(),
+      apiKey: val('llmApiKey').trim(),
+      model: val('llmModel').trim(),
+      temperature: val('llmTemp') / 100
     };
     // v6.4.19：界面皮肤
-    OPTS.currentSettings.uiTheme = document.getElementById('uiTheme').value;
+    OPTS.currentSettings.uiTheme = val('uiTheme');
     // v6.4.19：ITAD 多套配置（编辑器已维护 currentSettings.itadProfiles/
     // itadActiveProfileId——见 panels/favorites.js；旧 itadApiKey 字段保留兼容，
     // 后台读取时 profiles 优先）
@@ -339,17 +351,17 @@
     OPTS.currentSettings.cacheTtls = {};
     OPTS.TTL_FIELDS.forEach((f) => {
       OPTS.currentSettings.cacheTtls[f.key] = {
-        value: parseInt(document.getElementById(f.id).value) || 0,
-        unit: document.getElementById(f.id + 'Unit').value
+        value: intVal(f.id) || 0,
+        unit: val(f.id + 'Unit')
       };
     });
 
     // 日志配置
-    OPTS.currentSettings.enableLog = document.getElementById('logEnabled').checked;
-    OPTS.currentSettings.logLevel = document.getElementById('logLevel').value;
-    OPTS.currentSettings.logRetentionDays = parseInt(document.getElementById('logRetentionDays').value) || 0;
-    OPTS.currentSettings.logStorage = document.getElementById('logStorage').value;
-    OPTS.currentSettings.maxRuntimeLog = parseInt(document.getElementById('maxRuntimeLog').value) || 300;
+    OPTS.currentSettings.enableLog = chk('logEnabled');
+    OPTS.currentSettings.logLevel = val('logLevel');
+    OPTS.currentSettings.logRetentionDays = intVal('logRetentionDays') || 0;
+    OPTS.currentSettings.logStorage = val('logStorage');
+    OPTS.currentSettings.maxRuntimeLog = intVal('maxRuntimeLog') || 300;
 
     // v6.4.11：自动备份配置（此前无 UI，仅 DEFAULT_SETTINGS 默认值生效）
     OPTS.currentSettings.autoBackup = document.getElementById('autoBackup').checked;

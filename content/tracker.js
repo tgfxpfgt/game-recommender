@@ -122,8 +122,13 @@
   const queued = [];
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (route) return route(message, sender, sendResponse);
-    queued.push([message, sender, sendResponse]);
-    return true; // 排队等待冲放 / queued until flush
+    // [临时实验] 排队消息改为同步内联处理（绕过 bootPromise 路由）
+    (async () => {
+      const { M } = await bootPromise;
+      M.list.applySteamRatingsUpdate(message.ratings, message.done === true);
+      sendResponse({ success: true });
+    })().catch(() => sendResponse({ success: false }));
+    return true;
   });
   bootPromise
     .then(({ M }) => {

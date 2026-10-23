@@ -22,6 +22,16 @@ export function createMessageRouter({ bootPromise, getModules }) {
     const boot = await bootPromise;
     return boot.M;
   };
+  // 推送类消息的就绪快路径：MODULES 就绪时**同步**应用（B7 前语义）——
+  // 经 getM 的微任务延迟会让并发批次收尾（finishRatings）抢先终止 job，
+  // 迟到推送被 ratingsJob 空值守卫静默丢弃（节 2/2b 竞态的根源）。
+  // Push fast path: apply synchronously when modules are ready (pre-B7
+  // semantics) — a microtask hop lets concurrent batch finalization win.
+  /** @returns {{M: any}|null} */
+  const readyM = () => {
+    const mods = getModules();
+    return mods && mods.status ? { M: mods } : null;
+  };
 
   return function route(message, sender, sendResponse) {
     if (message.action === 'REFRESH_RECOMMENDATIONS') {
@@ -55,22 +65,40 @@ export function createMessageRouter({ bootPromise, getModules }) {
     }
     if (message.action === 'SHOW_LAST_STATS') {
       // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats
-      getM()
-        .then((M) => M.status.showLastStats())
-        .catch(() => {});
+      const ready = readyM();
+      if (ready) {
+        try {
+          ready.M.status.showLastStats();
+        } catch (e) {
+          console.warn('【游戏雷达】 最近统计重显失败:', e);
+        }
+      } else {
+        getM()
+          .then((M) => M.status.showLastStats())
+          .catch(() => {});
+      }
       sendResponse({ success: true });
       return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }
     if (message.action === 'STEAM_RATINGS_UPDATE') {
       // 后台推送：缓存未命中的游戏已从 Steam 拉取完成（多波增量，done 标记收尾）
       // Background push: cache misses fetched from Steam (incremental waves + done)
-      // 模块已就绪时同步应用（徽章即时渲染）；否则等 boot 完成后处理
-      getM()
-        .then((M) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true))
-        .catch((e) => {
+      // 就绪快路径同步应用（徽章即时渲染，B7 前语义）；boot 未完成走延迟路径
+      const ready = readyM();
+      if (ready) {
+        try {
+          ready.M.list.applySteamRatingsUpdate(message.ratings, message.done === true);
+        } catch (e) {
           // v6.4.10：推送处理错误可见（此前静默吞错——偶发状态下徽章丢失难排查）
           console.warn('【游戏雷达】 好评率推送处理失败:', e);
-        });
+        }
+      } else {
+        bootPromise
+          .then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true))
+          .catch((e) => {
+            console.warn('【游戏雷达】 好评率推送处理失败:', e);
+          });
+      }
       sendResponse({ success: true });
       return; // 同步响应，无需保持消息通道 / sync response, no channel held
     }

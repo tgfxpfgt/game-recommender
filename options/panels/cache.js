@@ -12,45 +12,34 @@
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
   // ============ 游戏缓存管理 / Game Cache Management ============
+  // v14.5.0 B8：防抖搜索单点（原搜索框/筛选下拉三份 timer+reset+load 同构）
+  function scheduleCacheSearch() {
+    if (OPTS.cacheSearchTimer) clearTimeout(OPTS.cacheSearchTimer);
+    OPTS.cacheSearchTimer = setTimeout(() => {
+      OPTS.cacheCurrentPage = 1;
+      loadGameCache();
+    }, 300);
+  }
+  function resetAndLoad() {
+    OPTS.cacheCurrentPage = 1;
+    loadGameCache();
+  }
+
   function bindCacheEvents() {
     // v7.1.0：本页过期条目批量刷新
     bindStaleRefresh();
-    // 搜索按钮
-    document.getElementById('cacheSearchBtn').addEventListener('click', () => {
-      OPTS.cacheCurrentPage = 1;
-      loadGameCache();
-    });
-    // 搜索框回车
+    // 搜索按钮 / 搜索框回车（即时检索）
+    document.getElementById('cacheSearchBtn').addEventListener('click', resetAndLoad);
     document.getElementById('cacheSearchInput').addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        OPTS.cacheCurrentPage = 1;
-        loadGameCache();
-      }
+      if (e.key === 'Enter') resetAndLoad();
     });
-    // 搜索框防抖（300ms）
-    document.getElementById('cacheSearchInput').addEventListener('input', () => {
-      if (OPTS.cacheSearchTimer) clearTimeout(OPTS.cacheSearchTimer);
-      OPTS.cacheSearchTimer = setTimeout(() => {
-        OPTS.cacheCurrentPage = 1;
-        loadGameCache();
-      }, 300);
-    });
-    // 好评率 / 标签 / 站点 / 类型筛选：变更即搜索（防抖 300ms）
+    // 搜索框防抖（300ms）/ 筛选下拉：变更即检索
+    document.getElementById('cacheSearchInput').addEventListener('input', scheduleCacheSearch);
     ['cacheMinRating', 'cacheTagInput', 'cacheSiteFilter', 'cacheTypeFilter'].forEach((id) => {
       const el = document.getElementById(id);
       if (!el) return;
-      el.addEventListener('input', () => {
-        if (OPTS.cacheSearchTimer) clearTimeout(OPTS.cacheSearchTimer);
-        OPTS.cacheSearchTimer = setTimeout(() => {
-          OPTS.cacheCurrentPage = 1;
-          loadGameCache();
-        }, 300);
-      });
-      el.addEventListener('change', () => {
-        if (OPTS.cacheSearchTimer) clearTimeout(OPTS.cacheSearchTimer);
-        OPTS.cacheCurrentPage = 1;
-        loadGameCache();
-      });
+      el.addEventListener('input', scheduleCacheSearch);
+      el.addEventListener('change', resetAndLoad);
     });
     // 刷新按钮
     document.getElementById('cacheRefreshBtn').addEventListener('click', () => loadGameCache());
@@ -62,17 +51,31 @@
     document.getElementById('cacheClearAllBtn').addEventListener('click', clearAllCache);
   }
 
+  // v14.5.0 B8：任务按钮模式单点（busy 置位 → 发消息 → 恢复；原自愈/清理
+  // 两份 disable+textContent+finally 同构）。返回任务结果供调用方渲染统计。
+  /** @param {string} btnId @param {string} busyText @param {() => Promise<any>} task */
+  async function runCacheAction(btnId, busyText, task) {
+    const btn = document.getElementById(btnId);
+    const oldText = btn.textContent;
+    btn.disabled = true;
+    btn.textContent = busyText;
+    try {
+      return await task();
+    } finally {
+      btn.disabled = false;
+      btn.textContent = oldText;
+    }
+  }
+
   // 批量自愈：扫描并修复注册表中名称异常（中文名无中文/英文名无英文）的条目
   // Batch self-heal: scan & fix abnormal registry names (CN without Chinese / EN
   // without English)
   async function healRegistryNames() {
-    const btn = document.getElementById('cacheHealNamesBtn');
-    const oldText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '🩹 修复中...';
+    const statsEl = document.getElementById('cacheStats');
     try {
-      const resp = await window.__GR_MSG__.sendMessage({ action: 'HEAL_REGISTRY_NAMES' });
-      const statsEl = document.getElementById('cacheStats');
+      const resp = await runCacheAction('cacheHealNamesBtn', '🩹 修复中...', () =>
+        window.__GR_MSG__.sendMessage({ action: 'HEAL_REGISTRY_NAMES' })
+      );
       if (resp) {
         // v10.9.1：?? 0 兜底（"undefined" 字面量）
         statsEl.innerHTML = `✅ 名称自愈：扫描 <b>${resp.scanned ?? 0}</b> 条异常 · 修复 <b>${resp.healed ?? 0}</b> 条${(resp.remaining ?? 0) > 0 ? ` · 剩余 <b>${resp.remaining}</b> 条（可再次点击）` : ''}`;
@@ -81,24 +84,18 @@
         statsEl.textContent = '自愈失败，请查看运行日志';
       }
     } catch (e) {
-      const statsEl = document.getElementById('cacheStats');
       statsEl.textContent = '自愈失败: ' + String(e);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = oldText;
     }
   }
 
   // 一键清理过期缓存：Steam 动态缓存 / 名称负缓存 / 下载站网址（按 TTL）
   // One-click expired-cache cleanup (Steam / name negative / download URLs)
   async function cleanExpiredCache() {
-    const btn = document.getElementById('cacheCleanExpiredBtn');
-    const oldText = btn.textContent;
-    btn.disabled = true;
-    btn.textContent = '🧹 清理中...';
+    const statsEl = document.getElementById('cacheStats');
     try {
-      const resp = await window.__GR_MSG__.sendMessage({ action: 'CLEAN_EXPIRED_CACHE' });
-      const statsEl = document.getElementById('cacheStats');
+      const resp = await runCacheAction('cacheCleanExpiredBtn', '🧹 清理中...', () =>
+        window.__GR_MSG__.sendMessage({ action: 'CLEAN_EXPIRED_CACHE' })
+      );
       if (resp && resp.total >= 0) {
         statsEl.innerHTML = `✅ 清理完成：Steam 缓存 <b>${resp.steamCache}</b> · 名称负缓存 <b>${resp.nameIndex}</b> · 下载站网址 <b>${resp.downloadUrls}</b>，共 <b>${resp.total}</b> 条过期条目`;
         await loadGameCache(); // 刷新列表
@@ -106,11 +103,7 @@
         statsEl.textContent = '清理失败，请查看运行日志';
       }
     } catch (e) {
-      const statsEl = document.getElementById('cacheStats');
       statsEl.textContent = '清理失败: ' + String(e);
-    } finally {
-      btn.disabled = false;
-      btn.textContent = oldText;
     }
   }
 
@@ -263,36 +256,33 @@
     }
   }
 
-
   // 手动更新单条缓存（Steam 中英文名/标签 + 下载站地址）
+  // v14.5.0 B8：三份"✅/❌ + setTimeout 恢复"同构收敛 restoreBtn 单点
+  /** @param {HTMLButtonElement} btn @param {string} text @param {number} delayMs */
+  function restoreBtn(btn, text, delayMs) {
+    btn.textContent = text;
+    setTimeout(() => {
+      btn.textContent = btn.dataset.grOriginal || '';
+      btn.disabled = false;
+    }, delayMs);
+  }
+
   async function refreshCacheEntry(appId, btn) {
     if (!btn) return;
-    const originalText = btn.textContent;
+    btn.dataset.grOriginal = btn.textContent;
     btn.textContent = '⏳';
     btn.disabled = true;
     try {
       const resp = await window.__GR_MSG__.sendMessage({ action: 'REFRESH_GAME_CACHE_ENTRY', appId });
       if (resp && resp.success) {
-        btn.textContent = '✅';
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.disabled = false;
-        }, 1200);
+        restoreBtn(btn, '✅', 1200);
         loadGameCache();
       } else {
-        btn.textContent = '❌';
-        setTimeout(() => {
-          btn.textContent = originalText;
-          btn.disabled = false;
-        }, 1500);
+        restoreBtn(btn, '❌', 1500);
         alert('更新失败: ' + (resp ? resp.error : '未知错误'));
       }
     } catch (e) {
-      btn.textContent = '❌';
-      setTimeout(() => {
-        btn.textContent = originalText;
-        btn.disabled = false;
-      }, 1500);
+      restoreBtn(btn, '❌', 1500);
       alert('更新失败: ' + String(e));
     }
   }
@@ -376,7 +366,6 @@
   }
 
   // ============ 缓存页面工具函数 / Cache Page Utility Functions ============
-
 
   OPTS.bindCacheEvents = bindCacheEvents;
   OPTS.populateCacheSiteFilter = populateCacheSiteFilter;

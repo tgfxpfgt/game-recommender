@@ -24,11 +24,22 @@ export default defineConfig({
     // v6.4.10：content-sim 高负载与并行文件 CPU 竞争致节 2/2b 偶发超时——串行。
     // v8.2.0：P0-1 根治后恢复并行；v9.1.0：测试集增长（615 项）后并行负载再次
     // 吃满 20s 余量（节 2/2b 偶发超时回归）——回退串行，稳定性优先（~15s 可接受）
+    // v14.5.0 B8：池级 isolate 显式声明——跨文件连跑（test-freegames →
+    // sim-list 同进程复用）时 Node ESM 模块注册表跨文件残留引发推送竞态；
+    // 池级标志强制每文件新进程。
     fileParallelism: false,
     isolate: true,
+    poolOptions: { forks: { isolate: true } },
     include: [
       // v6.2.0：14 个套件全部由 vitest 收集（content-sim 经 __grImport
       // 注入兼容 eval 动态 import，单 runner 全量统一）
+      // v14.5.0 B8：sim 套件前置——forks 池顺序复用进程时，重载荷 unit
+      // 套件（test-freegames 等）先于 sim 运行会在同进程留下竞态残留
+      //（节 2/2b 推送丢失，~20% 频率）；sim 先行 + integration 收尾让
+      // sim 在最干净的 fork 窗口运行。
+      'tests/sim/sim-list.mjs',
+      'tests/sim/sim-badges.mjs',
+      'tests/sim/sim-detail.mjs',
       'tests/unit/test-title-parser.mjs',
       'tests/unit/test-engine.mjs',
       'tests/unit/test-contract.mjs',
@@ -61,6 +72,8 @@ export default defineConfig({
       'tests/unit/test-reset-defaults.mjs',
       'tests/unit/test-sidepanel.mjs',
       'tests/unit/test-sidebar-rows.mjs',
+      'tests/unit/test-sidebar-actions.mjs',
+      'tests/unit/test-content-messages.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',
@@ -70,9 +83,6 @@ export default defineConfig({
       // v14 B9（第五轮）：content-sim 拆分为 tests/sim/ 三套件（共享
       // sim-harness.mjs 不入 include——非测试文件）；节→文件映射：
       // sim-list=1-7+11 / sim-badges=8-8d / sim-detail=9-9d+10
-      'tests/sim/sim-list.mjs',
-      'tests/sim/sim-badges.mjs',
-      'tests/sim/sim-detail.mjs',
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',
       'tests/integration/test-integrity.mjs',

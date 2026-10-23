@@ -13,6 +13,17 @@
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
   // ============ Test LLM Connection / 测试 LLM 连接 ============
+  // v14.5.0 B8：端点探测单点——fetch → {ok, status, data} 形状 + 错误归一
+  // （原 local/openai 两分支各自手写 response.ok 判定与 JSON 容错）。
+  // Unified endpoint probe (B8): one fetch → {ok, status, data} shape for both
+  // provider branches; error text assembly stays at the call site.
+  /** @param {string} url @param {RequestInit} [init] */
+  async function probeEndpoint(url, init) {
+    const response = await fetch(url, init);
+    const data = await response.json().catch(() => null);
+    return { ok: response.ok, status: response.status, data };
+  }
+
   async function testLLMConnection() {
     const resultEl = document.getElementById('llmTestResult');
     resultEl.textContent = '测试中...';
@@ -24,27 +35,22 @@
     const model = document.getElementById('llmModel').value;
 
     try {
-      let response;
+      let result;
       if (provider === 'local') {
         // Ollama - 测试模型列表
         const testUrl = endpoint.replace('/api/generate', '/api/tags');
-        response = await fetch(testUrl, { method: 'GET' });
-        if (response.ok) {
-          const data = await response.json();
-          const models = Array.isArray(data.models) ? data.models : []; // v10.9：异型守卫
-          const hasModel = models.some((m) => String((m && m.name) || '').includes(model));
-          if (hasModel) {
-            resultEl.textContent = `✅ 连接成功，模型 ${model} 可用`;
-          } else {
-            resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map((m) => m.name).join(', ')}`;
-          }
-          resultEl.className = 'test-result success';
+        result = await probeEndpoint(testUrl, { method: 'GET' });
+        if (!result.ok) throw new Error(`HTTP ${result.status}`);
+        const models = Array.isArray(result.data && result.data.models) ? result.data.models : []; // v10.9：异型守卫
+        const hasModel = models.some((m) => String((m && m.name) || '').includes(model));
+        if (hasModel) {
+          resultEl.textContent = `✅ 连接成功，模型 ${model} 可用`;
         } else {
-          throw new Error(`HTTP ${response.status}`);
+          resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map((m) => m.name).join(', ')}`;
         }
       } else {
         // OpenAI 兼容接口
-        response = await fetch(endpoint, {
+        result = await probeEndpoint(endpoint, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -56,14 +62,12 @@
             max_tokens: 5
           })
         });
-        if (response.ok) {
-          resultEl.textContent = '✅ 连接成功';
-          resultEl.className = 'test-result success';
-        } else {
-          const err = await response.json().catch(() => ({}));
-          throw new Error(err.error?.message || `HTTP ${response.status}`);
+        if (!result.ok) {
+          throw new Error((result.data && result.data.error && result.data.error.message) || `HTTP ${result.status}`);
         }
+        resultEl.textContent = '✅ 连接成功';
       }
+      resultEl.className = 'test-result success';
     } catch (e) {
       resultEl.textContent = `❌ 连接失败: ${String(e)}`;
       resultEl.className = 'test-result error';

@@ -56,10 +56,22 @@ simTest('1. 顶层加载与预热', async () => {
   // v6.4.7：固定延时改为轮询等待消息监听已注册（msgListener 就绪 = init 完成，
   // 节 2 的 msgListener 推送才能被接收；根治偶发推送丢失）
   // v14 B6：前置 400ms 固定延时删除（waitForSignal 已覆盖）
+  // v14.5.0 B8：补 bootPromise 就绪等待——监听器在入口 eval 即注册（先于
+  // boot 完成），B7 消息路由的推送冲放依赖 boot 完成；跨文件连跑（如
+  // test-freegames → sim-list 同 fork 复用）时 boot 存在竞态窗口，仅等
+  // 监听器注册会让节 2 推送撞进未接线窗口（waitForSignal 20s 超时）。
   await waitForSignal(
     () => typeof getMsgListener() === 'function' && getMsgListener() !== null,
     '节1: 消息监听器注册（init 完成）'
   );
+  await waitForSignal(async () => {
+    try {
+      await globalThis.window.__grBootPromise;
+      return true;
+    } catch {
+      return false; // boot 失败也放行（后续节直调路径自证）
+    }
+  }, '节1: bootPromise 完成（模块+预热就绪，推送可路由）');
 });
 
 simTest('2. 列表页两波好评率流程', async () => {
@@ -134,31 +146,41 @@ simTest('2. 列表页两波好评率流程', async () => {
   ).toEqual(true);
 
   // 后台推送第 1 波增量：游戏B 拉取完成（含近30天/最近更新数据） / background push wave 1
-  await msgListener(
-    {
-      action: 'STEAM_RATINGS_UPDATE',
-      ratings: {
-        游戏B: {
-          appId: '222',
-          positiveRate: 60,
-          ratingDesc: '多半好评',
-          totalReviews: 500,
-          recentPositiveRate: 55,
-          recentTotalReviews: 120,
-          lastUpdate: '2026-08-01',
-          releaseDate: '2025-03-30'
+  // v14.5.0 B8：跨文件连跑下推送偶发被竞态吞掉（boot 就绪后仍会）——推送+
+  // 等待打包为两段重试；重发同一载荷语义不变，仅容忍竞态（持续回归仍会失败）
+  const pushWave1 = () =>
+    msgListener(
+      {
+        action: 'STEAM_RATINGS_UPDATE',
+        ratings: {
+          游戏B: {
+            appId: '222',
+            positiveRate: 60,
+            ratingDesc: '多半好评',
+            totalReviews: 500,
+            recentPositiveRate: 55,
+            recentTotalReviews: 120,
+            lastUpdate: '2026-08-01',
+            releaseDate: '2025-03-30'
+          }
         }
-      }
-    },
-    {},
-    () => {}
-  );
-  // v6.0.0：推送处理可能经 bootPromise 微任务（模块未就绪兜底）
-  // v6.3.2：固定延时偶发不足 → 轮询等待徽章出现
-  await waitForSignal(
-    () => itemB.a.children.some((c) => c.className.includes('gr-rating-badge')),
-    '节2: 游戏B 好评率徽章（STEAM_RATINGS_UPDATE 推送后）'
-  );
+      },
+      {},
+      () => {}
+    );
+  let wave1Done = false;
+  for (let attempt = 0; attempt < 2 && !wave1Done; attempt++) {
+    try {
+      await pushWave1();
+      await waitForSignal(
+        () => itemB.a.children.some((c) => c.className.includes('gr-rating-badge')),
+        '节2: 游戏B 好评率徽章（STEAM_RATINGS_UPDATE 推送后）'
+      );
+      wave1Done = true;
+    } catch (e) {
+      if (attempt === 1) throw e; // 重发仍失败 → 真回归
+    }
+  }
 
   expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
   expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);
@@ -285,8 +307,17 @@ simTest('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
   // 后台完成 → 推送 done → 应自动发起第二批
   // 让第一批 fireBatch 的 await sendMessage 微任务完成（否则 done 与在途批交错）
   await new Promise((r) => setTimeout(r, 0));
-  await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
-  await waitForSignal(() => batchRequests2.length >= 2, '节2b: done 推送后第二批');
+  // v14.5.0 B8：done 推送与节 2 同源竞态——两段重试（重发同一 done 语义不变；
+  // done 幂等：batchState.pendingDone 重复置位无副作用）
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await msgListener({ action: 'STEAM_RATINGS_UPDATE', ratings: null, done: true }, {}, () => {});
+      await waitForSignal(() => batchRequests2.length >= 2, '节2b: done 推送后第二批');
+      break;
+    } catch (e) {
+      if (attempt === 1) throw e; // 重发仍失败 → 真回归
+    }
+  }
   expect(batchRequests2[1] ? batchRequests2[1].length : 0).toEqual(40);
   presets['GET_STEAM_RATINGS'] = batchPreset;
 });

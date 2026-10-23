@@ -138,79 +138,83 @@ document.addEventListener('DOMContentLoaded', async () => {
   document.getElementById('ppMaxRuntimeLog').value = settings.maxRuntimeLog || 300;
 
   // ============ 事件绑定 / Events ============
-  // 开关类（值随事件即时保存）
-  const toggleMap = [
-    ['enableToggle', 'enabled'],
-    ['ppStatusBar', 'showStatusBar'],
-    ['ppDebug', 'showDebugPanel'],
-    ['ppRatingFilter', 'enableRatingFilter'],
-    ['ppRecentFilter', 'enableRecentFilter'],
-    ['ppSortByRating', 'enableSortByRating'],
-    ['ppVmFilter', 'enableVmFilter'],
-    ['ppUseLLM', 'useLLM'],
-    ['ppBadgeScore', 'badgeVisibility.score'], // v10.5.3：综合评分徽章
-    ['ppBadgeRecent', 'badgeVisibility.recent'],
-    ['ppBadgeAll', 'badgeVisibility.all'],
-    ['ppBadgeUpdate', 'badgeVisibility.update'],
-    ['ppBadgeRec', 'badgeVisibility.rec'],
-    ['ppBadgeAppstat', 'badgeVisibility.appstat'],
-    ['ppRecommendations', 'enableRecommendations'],
-    ['ppDownloadTracking', 'downloadTrackingEnabled'],
-    ['ppAppStats', 'appStatsEnabled'],
-    ['ppQrUnlock', 'qrUnlockEnabled'],
-    ['ppXdgrid', 'xdgridEnabled'],
-    ['ppNotifyFreeGames', 'notifyFreeGames'],
-    ['ppAutoBackup', 'autoBackup'],
-    ['ppLogEnabled', 'enableLog']
-  ];
-  toggleMap.forEach(([id, key]) => {
-    document.getElementById(id).addEventListener('change', async (e) => {
-      await saveSettingsPatch({ [key]: e.target.checked });
-      if (id === 'ppRatingFilter') {
-        document.getElementById('ppRatingControl').style.display = e.target.checked ? 'flex' : 'none';
-      }
-      if (id === 'ppRecentFilter') {
-        document.getElementById('ppRecentControl').style.display = e.target.checked ? 'flex' : 'none';
-      }
-      if (id === 'ppUseLLM') updateLLMStatus(settings);
-    });
-  });
-
-  // 滑块（input 实时更新显示，change 保存）
-  /** @type {Array<[string, string, (v: string) => unknown, string]>} */
-  const sliderMap = [
-    ['ppThreshold', 'highlightThreshold', (v) => Number(v) / 100, 'ppThresholdVal'],
-    ['ppMinRating', 'minSteamRatingFilter', Number, 'ppMinRatingVal'],
-    ['ppMinRecent', 'minRecentSteamRatingFilter', Number, 'ppMinRecentVal']
-  ];
-  sliderMap.forEach(([id, key, parse, valId]) => {
+  // v14.5.0 B8：三类控件统一 bindSettingControl（原 toggle/slider/input 三个
+  // map 三份循环同构——type 决定事件与值语义，parse 决定保存类型）。
+  // Unified control binding (B8): type picks the event + value semantics.
+  /**
+   * @param {'toggle'|'slider'|'input'} type
+   * @param {string} id
+   * @param {string} key
+   * @param {((v: string) => unknown)|undefined} parse
+   * @param {string} [valId] - slider 实时回显元素
+   */
+  function bindSettingControl(type, id, key, parse, valId) {
     const el = document.getElementById(id);
-    el.addEventListener('input', (e) => {
-      document.getElementById(valId).textContent = `${e.target.value}%`;
-    });
-    el.addEventListener('change', async (e) => {
-      await saveSettingsPatch({ [key]: parse(e.target.value) });
-    });
-  });
+    if (!el) return;
+    const save = (e) => saveSettingsPatch({ [key]: type === 'toggle' ? e.target.checked : parse(e.target.value) });
+    if (type === 'toggle') {
+      el.addEventListener('change', async (e) => {
+        await save(e);
+        if (id === 'ppRatingFilter') {
+          document.getElementById('ppRatingControl').style.display = e.target.checked ? 'flex' : 'none';
+        }
+        if (id === 'ppRecentFilter') {
+          document.getElementById('ppRecentControl').style.display = e.target.checked ? 'flex' : 'none';
+        }
+        if (id === 'ppUseLLM') updateLLMStatus(settings);
+      });
+      return;
+    }
+    if (type === 'slider') {
+      // 滑块：input 实时更新显示，change 保存
+      el.addEventListener('input', (e) => {
+        document.getElementById(valId).textContent = `${e.target.value}%`;
+      });
+    }
+    el.addEventListener('change', save);
+  }
 
-  // 下拉 / 数字输入（change 保存）
-  /** @type {Array<[string, string, (v: string) => unknown]>} */
-  const inputMap = [
-    ['ppMaxLog', 'maxBehaviorLog', Number],
-    ['ppFilterMode', 'ratingFilterMode', String],
-    ['ppMaxScan', 'maxScanLinks', Number],
-    ['ppBackupInterval', 'backupIntervalHours', Number],
-    ['ppMaxBackups', 'maxBackups', Number],
-    ['ppLogLevel', 'logLevel', String],
-    ['ppLogRetention', 'logRetentionDays', Number],
-    ['ppLogStorage', 'logStorage', String],
-    ['ppMaxRuntimeLog', 'maxRuntimeLog', Number]
+  /** @type {Array<['toggle'|'slider'|'input', string, string, ((v: string) => unknown)?, string?]>} */
+  const controlMap = [
+    // 开关类（值随事件即时保存）/ toggles
+    ['toggle', 'enableToggle', 'enabled'],
+    ['toggle', 'ppStatusBar', 'showStatusBar'],
+    ['toggle', 'ppDebug', 'showDebugPanel'],
+    ['toggle', 'ppRatingFilter', 'enableRatingFilter'],
+    ['toggle', 'ppRecentFilter', 'enableRecentFilter'],
+    ['toggle', 'ppSortByRating', 'enableSortByRating'],
+    ['toggle', 'ppVmFilter', 'enableVmFilter'],
+    ['toggle', 'ppUseLLM', 'useLLM'],
+    ['toggle', 'ppBadgeScore', 'badgeVisibility.score'], // v10.5.3：综合评分徽章
+    ['toggle', 'ppBadgeRecent', 'badgeVisibility.recent'],
+    ['toggle', 'ppBadgeAll', 'badgeVisibility.all'],
+    ['toggle', 'ppBadgeUpdate', 'badgeVisibility.update'],
+    ['toggle', 'ppBadgeRec', 'badgeVisibility.rec'],
+    ['toggle', 'ppBadgeAppstat', 'badgeVisibility.appstat'],
+    ['toggle', 'ppRecommendations', 'enableRecommendations'],
+    ['toggle', 'ppDownloadTracking', 'downloadTrackingEnabled'],
+    ['toggle', 'ppAppStats', 'appStatsEnabled'],
+    ['toggle', 'ppQrUnlock', 'qrUnlockEnabled'],
+    ['toggle', 'ppXdgrid', 'xdgridEnabled'],
+    ['toggle', 'ppNotifyFreeGames', 'notifyFreeGames'],
+    ['toggle', 'ppAutoBackup', 'autoBackup'],
+    ['toggle', 'ppLogEnabled', 'enableLog'],
+    // 滑块 / sliders
+    ['slider', 'ppThreshold', 'highlightThreshold', (v) => Number(v) / 100, 'ppThresholdVal'],
+    ['slider', 'ppMinRating', 'minSteamRatingFilter', Number, 'ppMinRatingVal'],
+    ['slider', 'ppMinRecent', 'minRecentSteamRatingFilter', Number, 'ppMinRecentVal'],
+    // 下拉 / 数字输入 / selects & numbers
+    ['input', 'ppMaxLog', 'maxBehaviorLog', Number],
+    ['input', 'ppFilterMode', 'ratingFilterMode', String],
+    ['input', 'ppMaxScan', 'maxScanLinks', Number],
+    ['input', 'ppBackupInterval', 'backupIntervalHours', Number],
+    ['input', 'ppMaxBackups', 'maxBackups', Number],
+    ['input', 'ppLogLevel', 'logLevel', String],
+    ['input', 'ppLogRetention', 'logRetentionDays', Number],
+    ['input', 'ppLogStorage', 'logStorage', String],
+    ['input', 'ppMaxRuntimeLog', 'maxRuntimeLog', Number]
   ];
-  inputMap.forEach(([id, key, parse]) => {
-    document.getElementById(id).addEventListener('change', async (e) => {
-      await saveSettingsPatch({ [key]: parse(e.target.value) });
-    });
-  });
+  controlMap.forEach((c) => bindSettingControl(c[0], c[1], c[2], c[3], c[4]));
 
   // ============ 底部操作 / Footer actions ============
   // 刷新当前页推荐

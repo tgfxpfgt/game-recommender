@@ -8,7 +8,8 @@
     "node": ">=18"
   },
   "scripts": {
-    "test": "vitest run",
+    "test": "vitest run tests/unit && vitest run tests/sim tests/integration",
+    "test:sim": "vitest run tests/sim tests/integration",
     "e2e": "node tests/e2e-smoke.mjs",
     "lint": "eslint . --no-warn-ignored --max-warnings 0",
     "check": "npm run lint && npm run typecheck && npm test",
