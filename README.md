@@ -296,6 +296,51 @@ node --check options/options.js
 
 ## 更新日志
 
+### v14.5.0（第六轮 10 批次：SW 冷启动修复 + 按需加载 + 写合并 + 模块拆分 + 测试基建）
+
+**B2 SW 动态 import 全量失效修复（重大）**
+
+- 真机复证：HTML 规范禁止 ServiceWorkerGlobalScope 使用 import()（w3c/ServiceWorker#1356）——仓库内 4 处动态 import（双层内存预热 / 批量好评率续跑 / 周报 digest）因错误被 allSettled/catch 吞掉而**自 v7.0.4 起静默失效**，本批改静态导入后首次真正生效
+- 新增"SW 模块图就绪 Xms"性能基线日志 + test-integrity"后台零动态 import"回归扫描
+- AGENTS.md 铁律 2 / CONTRIBUTING 修正并强化（规范依据 + "静态加载+延迟调用"模式）
+
+**B3 内容脚本按需加载**
+
+- 详情页专属 sidebar-rows / inline-card 改首用时加载——列表页/首页/Steam 页零网络请求（-2 请求/页）；内嵌卡按 features.inlineSteamCard 预判
+
+**B5 写合并 + 落盘并发**
+
+- 游戏画像写合并（TRACK_EVENT_BATCH 每批 ≤10 次全量重写 → 2s 防抖单次落盘；写失败回滚重试 + flushAllCaches 纳管 + reset 取消挂起）
+- 落盘并发压力测试（3 tab × flushAllCaches，死锁 canary）锁住"逐模块串行无死锁面"保证
+
+**B6 模块拆分（8 文件全部 ≤300 行）**
+
+- badges.js 439 → badges/（core/working/rec/badge-base 四域）；detail-templates.js 440 → 模板入口 + render/（sidebar-html/rating-rows/inline-html）
+
+**B7 内容入口重构**
+
+- tracker.js 436→199：页面检测分派迁 page-init.js、入站消息迁 messages.js（薄监听排队 + boot 后接线）、chrome.storage 直调收敛 common 封装
+- sidebar.js 报错重检/手动刷新两闭包统一 createSteamActions 工厂
+- **修复推送竞态**：推送类消息就绪快路径同步应用（微任务延迟会让批次收尾抢先终止 job，迟到推送被静默丢弃）
+
+**B8 UI 模式单点化**
+
+- popup 三份控件映射统一 bindSettingControl；options 保存映射微助手+四对象表驱动（铁律 11 逐键核对变表审阅）；cache 任务按钮/防抖搜索单点；LLM 测试 probeEndpoint 统一
+
+**B9 消息管道治理**
+
+- **ratingsBatchSize 设置接线修复**（v10.7.0 起设置键收集但从未被消费，UI 配置静默失效）
+- 状态浮窗渲染合并（100ms 窗口，列表流程 ×N→×1）；TRACK_BATCH_CONFIG 单源
+
+**B10 文档**
+
+- KNOWLEDGE.md 新增并发模型与锁策略/性能基线/消息路由三章；AGENTS.md 新增并发与写入纪律
+
+**测试基建**
+
+- npm test 两阶段拆分（unit → sim/integration 分进程）+ sim 前置 + 推送前置 boot 等待 + 两段重试——根治跨文件 fork 复用残留竞态的间歇红
+- 新增 12 用例（消息路由 7 / sidebar-actions 5 / 落盘并发 4）；917 用例 · E2E 51 · visual 11
+
 ### v14.4.0（第五轮收官：B9 全量拆分 + 主题按需加载 + franchise 匹配策略）
 
 **B9 测试巨文件重组（10/10 批次全落地）**
