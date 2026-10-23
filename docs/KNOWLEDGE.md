@@ -187,3 +187,55 @@ settings.uiTheme
   从未实际生效（空转通过）；另发现 dashboard/freegames/hub/sidepanel
   四页调用 applyPageTheme 而工具文件从未实现（守卫静默降级），均 v14.3.2
   修复。
+
+---
+
+## 8. 并发模型与锁策略（v14.5.0 B5/B8 盘点）
+
+```
+锁面（withLock 工厂单点串行，core/mechanisms.js）：
+  download-urls / history / app-stats / behavior-profiles / logger-flush
+数据层写队列：dataStore._serialize（按模块键串行——并发写同一文件不互覆）
+
+flushAllCaches（storage/flush.js 聚合落盘）：
+  steam-cache → name-index → registry → url-index → wrong-reports
+  → learned-noise → app-stats → profiles(B5) → logBuffer
+  逐模块 await 串行获取/释放——同一时刻至多持有一把锁，无嵌套持有
+  → 无死锁面（B5 压力测试锁住：3 tab × flushAllCaches + 并发写入，
+  5s 死锁 canary，tests/unit/test-flush-concurrency.mjs）
+
+写合并（createDebouncedStore 2s 防抖单点，B5 前已有四模块、B5 补画像）：
+  registry / name-index / url-index / app-stats / gameProfiles(B5)
+  纪律：写失败回滚 dirty 重试（铁律 6）；flushAllCaches 强制落盘纳管；
+  reset 必须取消挂起写（防"清空被撤销"）
+```
+
+---
+
+## 9. 性能基线（v14.5.0 第六轮实测）
+
+| 维度 | 现状 | 度量位置 |
+|---|---|---|
+| SW 冷启动 | 静态图 77 文件 / ~11.5k 行（MV3 SW 禁动态 import，无懒加载手段） | Perf 日志 `SW 模块图就绪 Xms`（timeOrigin→入口顶层 ≈ 消息可用时刻） |
+| OPFS 写 | 计数器模式（metricInc + session-persist 防抖）+ 5 模块 2s 防抖合并 | dashboard 运行指标卡（opfs.writeCount/writeBytes） |
+| 消息管道 | TRACK_EVENT_BATCH（500ms/10 条，10→1）+ GET_STEAM_RATINGS 批量（settings.ratingsBatchSize，B9 接线）+ click_download 即时 | metrics 消息计数器 |
+| 状态渲染 | showStats 100ms 合并（B9，列表流程 ×N→×1） | — |
+| 内容装载 | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求） | e2e-probe 模块网络加载 |
+
+---
+
+## 10. 消息路由（v14.5.0 B7）
+
+```
+tracker.js（装载器：boot + 薄监听排队）
+  │ boot 完成 → M.messages.createMessageRouter 接线 + 冲放排队消息
+  ▼
+core/messages.js（四类入站：REFRESH_RECOMMENDATIONS / SHOW_LAST_STATS /
+  STEAM_RATINGS_UPDATE / FORCE_REFRESH_PAGE）
+  推送类就绪快路径同步应用（B8 修复：微任务延迟会让批次收尾抢先终止
+  job，迟到推送被 ratingsJob 空值守卫静默丢弃）
+core/page-init.js（页面类型检测 + 各域功能分派，B7 自 tracker init 迁出）
+```
+
+纪律：新增入站消息 = core/messages.js 路由分支 + message-contract RULES +
+background handler 三处同步；推送类必须走就绪快路径（同步应用）。

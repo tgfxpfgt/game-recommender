@@ -86,16 +86,31 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 ## 测试约定
 
 - 单测入 vitest.config.js 的 include 显式清单；storage/fetch mock 在 tests/helpers。
+- **npm test 两阶段（B8）**：unit 先行 + sim/integration 全新进程——跨文件 fork
+  复用的模块注册表残留会引发竞态（test-freegames→sim-list 同进程连跑时推送
+  丢失 ~20-50%）；新套件入 include 时勿把重载荷 unit 套件排到 sim 之前。
 - sim 套件（v14 B9 拆分）：FakeEl DOM 模拟 + `__grImport` 注入；共享 harness 在
   `tests/sim/sim-harness.mjs`（getGR/setQueryStubs/fireDomReady 显式状态访问，勿再
   引入文件级顺序状态机）；模块实例共享依赖"无 ?t= 导入"——reloadContentScripts
   **不得** vi.resetModules()（shared/ 未列 deps.inline，reset 致 content/shared 实例分裂）。
+  推送前置等待：节 1 等 bootPromise（B7 后监听器注册先于 boot）；推送断言
+  用 waitForSignal（B9 showStats 100ms 合并后状态栏渲染非同步）。
 - e2e 冒烟：入口 `tests/e2e-smoke.mjs`（re-export 壳）→ `tests/e2e/run.mjs` 节管线；
   新增检查项写入对应 `section-*.mjs`（E2E_MOCK 双模式语义不动）。
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
   真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
   主世界 evaluate 读不到，模块加载以网络请求为准）；不进门禁。
 - 已知问题：background/handlers.js 的 coverage 归因伪影（见 CONTRIBUTING 末尾）。
+
+## 并发与写入纪律（B5/B9 单源）
+
+- 锁：withLock 单点串行，**禁止嵌套持有**；flushAllCaches 逐模块串行获取/释放
+  （同一时刻至多一把锁——新增落盘目标并入 flush.js 链尾，勿自持多锁）。
+- 写合并：高频计数/映射新增一律 createDebouncedStore（2s）——三件套缺一不可：
+  写失败回滚 dirty 重试（铁律 6）+ flushAllCaches 强制落盘纳管 + reset 取消挂起
+  （防"清空被撤销"）。参考 gameProfiles（B5）。
+- 消息推送：内容侧推送类 action（STEAM_RATINGS_UPDATE 等）就绪快路径**同步**
+  应用——微任务延迟会让批次收尾抢先终止 job，迟到推送被静默丢弃（B8 实证）。
 
 ## 发布流程
 
