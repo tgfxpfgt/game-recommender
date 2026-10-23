@@ -11,6 +11,7 @@
  */
 import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrator.js';
 import { PERF_CONFIG } from '../core/constants.js';
+import { getSettings } from '../core/settings.js'; // v14.5.0 B9：用户批大小接线
 import { flushAllCaches } from '../storage/flush.js';
 import { getSteamCacheEntry, isModuleValid, getModuleData } from '../storage/steam-cache.js';
 import { getAppIdByUrl } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
@@ -230,7 +231,17 @@ async function runRatingJob(job) {
       }
     };
     // v6.4.15：并发自适应（恢复时重算——限流状态可能已变化）
-    let batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : PERF_CONFIG.ratingsBatchSize;
+    // v14.5.0 B9：用户设置接线——settings.ratingsBatchSize（v10.7.0 起设置键
+    // 收集但从未被消费，UI 配置静默失效）作为基础批大小；API 异常降速仍走
+    // PERF_CONFIG（自适应优先于用户偏好）；设置不可达回退 PERF_CONFIG
+    let baseBatch = PERF_CONFIG.ratingsBatchSize;
+    try {
+      const settings = await getSettings();
+      if (settings && settings.ratingsBatchSize) baseBatch = settings.ratingsBatchSize;
+    } catch {
+      /* 设置不可达回退 PERF_CONFIG */
+    }
+    let batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
     let queue = job.queue;
     let retried = job.retried === true;
     let consecutiveAnomaly = 0;
@@ -279,7 +290,7 @@ async function runRatingJob(job) {
         if (queue.length > 0 || retryBatch.length > 0) await new Promise((r) => setTimeout(r, wait));
       } else {
         consecutiveAnomaly = 0;
-        batchSize = PERF_CONFIG.ratingsBatchSize;
+        batchSize = baseBatch; // v14.5.0 B9：恢复用户基础批大小
       }
       // 一轮结束后重试失败的条目（最多一轮，防无限循环）
       if (queue.length === 0 && retryBatch.length > 0 && !retried) {

@@ -221,8 +221,11 @@ simTest('2. 列表页两波好评率流程', async () => {
   expect(itemC.a.children.some((c) => c.className.includes('gr-badge-type'))).toEqual(true);
   expect(itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-badge-type') : false).toEqual(true);
   expect(itemC.a.children.find((c) => c.className.includes('gr-badge-type')).textContent).toEqual('bundle');
-  const barEl = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
-  expect(barEl ? barEl.innerHTML.includes('Steam 好评率获取完成') : false).toEqual(true);
+  // v14.5.0 B9：状态渲染合并（100ms 窗口）——收尾文案改轮询等待
+  await waitForSignal(() => {
+    const barEl = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
+    return !!barEl && barEl.innerHTML.includes('Steam 好评率获取完成');
+  }, '节2: 状态浮窗收尾渲染（合并窗口）');
   const batchMsg = sentMessages.find((m) => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
   expect(batchMsg ? batchMsg.data.entries.length : 0).toEqual(2);
 });
@@ -275,8 +278,11 @@ simTest('2b. 批次调度（首屏 60 + 滚动衔接）', async () => {
       return new Set(all).size === all.length && all.length === 100;
     })()
   ).toEqual(true);
-  const doneBar = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
-  expect(doneBar ? doneBar.innerHTML.includes('Steam 好评率获取完成') : false).toEqual(true);
+  // v14.5.0 B9：状态渲染合并（100ms 窗口）——收尾文案改轮询等待
+  await waitForSignal(() => {
+    const doneBar = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
+    return !!doneBar && doneBar.innerHTML.includes('Steam 好评率获取完成');
+  }, '节2b: 状态浮窗收尾渲染（合并窗口）');
 
   // v10.1.0：a-b 徽章渲染（下载 a-详情页打开 b）+ 只看不下绿标题
   const statBadge0 = manyItems[0].link.children.find((c) => (c.className || '').includes('gr-badge-appstat'));

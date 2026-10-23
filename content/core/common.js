@@ -50,8 +50,13 @@ function formatRelativeTime(timestamp) {
 }
 
 // 发送行为追踪消息 / Send a behavior-tracking message
-// v12 B3：TRACK_EVENT 攒批——500ms 窗口或满 10 条一次性发送（大列表滚动时
-// 消息风暴治理；click_download 等关键事件仍即时发送不攒批）
+// v12 B3：TRACK_EVENT 攒批——窗口或满批一次性发送（大列表滚动时消息风暴
+// 治理；click_download 等关键事件仍即时发送不攒批）。
+// v14.5.0 B9：阈值单源化（原 500/10 字面量两处内联）——调参改一处生效；
+// 不走 settings 键（内容侧热路径读设置得不偿失，铁律 10 成本>收益）。
+// Batch thresholds single-sourced (B9); deliberately not a settings key.
+const TRACK_BATCH_CONFIG = { windowMs: 500, maxEvents: 10 };
+
 /** @type {Array<object>} */
 const trackBatch = [];
 /** @type {ReturnType<typeof setTimeout>|null} */
@@ -72,7 +77,7 @@ function trackEvent(type, data) {
     return;
   }
   trackBatch.push(event);
-  if (trackBatch.length >= 10) {
+  if (trackBatch.length >= TRACK_BATCH_CONFIG.maxEvents) {
     flushTrackBatch();
     return;
   }
@@ -80,7 +85,7 @@ function trackEvent(type, data) {
     trackTimer = setTimeout(() => {
       trackTimer = null;
       flushTrackBatch();
-    }, 500);
+    }, TRACK_BATCH_CONFIG.windowMs);
   }
 }
 

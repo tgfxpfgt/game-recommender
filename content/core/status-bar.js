@@ -18,10 +18,17 @@ import * as common from './common.js';
 let statusEl = null;
 /** @type {ReturnType<typeof setTimeout>|null} */
 let hideTimer = null;
-let lastStats = null; // 最近一次统计（供 popup 重新显示）/ latest stats
+/** @type {any} 最近一次统计（供 popup 重新显示；B9 渲染合并读终态） */
+let lastStats = null;
 let startTime = 0; // 本次任务开始时间（计时器）/ task start time
 let enabled = true; // 总开关（showStatusBar）/ master switch
 let debugMode = false; // 调试模式（showDebugPanel）/ debug mode
+/** @type {ReturnType<typeof setTimeout>|null} */
+let renderTimer = null; // v14.5.0 B9：统计渲染合并窗口
+
+// 统计渲染合并窗口（B9）：列表流程"开始→逐波→收尾"连续 showStats，
+// 100ms 窗口内只渲染最后一次（DOM 重建 ×N → ×1）
+const SHOW_STATS_COALESCE_MS = 100;
 
 // 格式化耗时 / Format elapsed time
 function formatElapsed() {
@@ -68,9 +75,22 @@ export function showStatus(title, current, total, detail) {
 // 显示完成统计（3 秒后按调试模式切换为诊断视图或消失）
 export function showStats(stats) {
   lastStats = stats || null;
-  const elapsed = formatElapsed();
   startTime = 0;
   if (!enabled) return;
+  // v14.5.0 B9：渲染合并——100ms 窗口内多次调用只渲染最后一次（读 lastStats
+  // 终态）；lastStats 本身保持同步更新（SHOW_LAST_STATS 重显语义不变）
+  if (renderTimer) return;
+  renderTimer = setTimeout(() => {
+    renderTimer = null;
+    renderStats();
+  }, SHOW_STATS_COALESCE_MS);
+}
+
+// 渲染统计浮窗（B9：由 showStats 的合并窗口调度）
+function renderStats() {
+  if (!enabled) return; // 合并窗口内被关闭 → 放弃渲染
+  const stats = lastStats;
+  const elapsed = formatElapsed();
   const el = ensureEl();
   // v7.4.0：行支持 {text, click} 对象——可点击行（如"恢复被过滤游戏"）
   // Rows may be strings or {text, click} objects (interactive rows)
