@@ -316,6 +316,8 @@ export const MODULE_KEYS = [
   'float',
   'status',
   'debug',
+  'messages', // v14.5.0 B7：入站消息路由域（键序与 manifest 对齐）
+  'pageInit', // v14.5.0 B7：页面检测与功能分发域
   'builder',
   'badges',
   'listBatch',

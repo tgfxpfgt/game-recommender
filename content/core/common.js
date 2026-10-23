@@ -123,6 +123,27 @@ function cleanPageTitle(title) {
     .trim();
 }
 
+// v14.5.0 B7：chrome.storage.local 读写统一封装（此前 tracker 更新自检等
+// 3 处直调）——统一异常静默语义，调用方不再各自 try/catch。
+// Unified chrome.storage.local access (was 3 direct call sites in tracker).
+/** @param {string} key @returns {Promise<any>} */
+async function storageLocalGet(key) {
+  try {
+    const res = await chrome.storage.local.get(key);
+    return res && res[key];
+  } catch {
+    return undefined;
+  }
+}
+/** @param {string} key @param {any} value @returns {Promise<void>} */
+async function storageLocalSet(key, value) {
+  try {
+    await chrome.storage.local.set({ [key]: value });
+  } catch {
+    /* 存储不可用时静默（不影响主流程） */
+  }
+}
+
 export {
   getCurrentDomain,
   escapeHtml,
@@ -130,5 +151,7 @@ export {
   formatRelativeTime,
   cleanPageTitle,
   trackEvent,
-  trackDownloadSiteVisit
+  trackDownloadSiteVisit,
+  storageLocalGet,
+  storageLocalSet
 };

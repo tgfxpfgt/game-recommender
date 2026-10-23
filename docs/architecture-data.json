@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-11T17:00:55.499Z",
+  "generatedAt": "2026-10-23T15:55:47.530Z",
   "version": "14.4.0",
   "nodes": [
     {
@@ -16,7 +16,7 @@
       "color": "#a3cf06",
       "desc": "内容脚本 — 徽章注入/浮窗/行为采集",
       "files": 2,
-      "lines": 476
+      "lines": 241
     },
     {
       "dir": "options",

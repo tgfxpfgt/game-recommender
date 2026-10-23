@@ -20,6 +20,8 @@ export const CORE_MODULES = [
   { key: 'floats', file: 'content/core/floats.js' },
   { key: 'status', file: 'content/core/status-bar.js' },
   { key: 'debug', file: 'content/core/debug.js' },
+  { key: 'messages', file: 'content/core/messages.js' }, // v14.5.0 B7：入站消息路由域
+  { key: 'pageInit', file: 'content/core/page-init.js' }, // v14.5.0 B7：页面检测与功能分发域
   { key: 'builder', file: 'content/adapters/builder.js' },
   { key: 'badges', file: 'content/list/badges/core.js' }, // v14.5.0 B6：域拆分入口（working/rec/badge-base 同目录）
   { key: 'listBatch', file: 'content/list/list-batch.js' },

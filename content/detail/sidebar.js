@@ -21,6 +21,7 @@ import * as common from '../core/common.js';
 import * as builder from '../adapters/builder.js';
 import * as candidates from './candidates.js';
 import * as tracking from './tracking.js';
+import { createSteamActions } from './sidebar-actions.js'; // v14.5.0 B7：回调工厂
 
 const dbg = (...a) => debug.dbg(...a);
 const esc = (text) => common.escapeHtml(text);
@@ -114,110 +115,22 @@ export function createSteamFloat(gameName, settings) {
     panel.style.display = 'none';
   }
 
-  // 人工报错重检索回调（v3.3.11）：清除错误 appid 缓存 → 重新检索 →
-  // 更新浮窗；**重检索结果仍是同一 appid（未纠正）或失败时，自动进入
-  // 手动选择面板**（v3.3.12）。reportIssue 在 renderAndShow 时创建
-  // 并随渲染传递（makeOnRefresh 重渲染时复用同一回调）
+  // v14.5.0 B7：报错重检索/手动刷新回调统一为 createSteamActions 工厂
+  //（状态 steamData/reportIssue 经存取器互通——原两份同构闭包收敛单点）。
+  // steamData 本地引用保留为工厂状态的只读镜像（renderAndShow 同步读用）。
   /** @type {(() => Promise<void>)|null} */
   let reportIssue = null;
-  function makeReportIssue(name) {
-    return async () => {
-      const wrongAppId =
-        steamData && steamData.appId ? String(steamData.appId) : builder.extractSteamAppIdFromImages() || '';
-      dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
-      try {
-        await window.__GR_MSG__.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
-      } catch {
-        /* 后台不可达不阻断重检索 */
-      }
-      // 重新检索：有封面 appId 直取，否则名称搜索
-      const imgAppId = builder.extractSteamAppIdFromImages();
-      /** @type {SteamLookupResp|null} */
-      let resp = null;
-      if (imgAppId) {
-        resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
-      }
-      if (!resp || !resp.data) {
-        resp = await window.__GR_MSG__.sendMessage({
-          action: 'SEARCH_STEAM',
-          gameName: name,
-          rawTitle: document.title
-        });
-      }
-      // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
-      const sameAppId = resp && resp.data && wrongAppId && String(resp.data.appId) === wrongAppId;
-      if (resp && resp.data && !sameAppId) {
-        steamData = resp.data;
-        const newCachedAt = resp.cachedAt || Date.now();
-        dbg(`✅ 报错重检索成功: ${steamData.name} (appId ${steamData.appId})`);
-        renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
-        showPanel();
-      } else {
-        dbg(
-          sameAppId ? `⚠️ 报错重检索仍是同一 appId ${wrongAppId}，进入手动选择` : '⚠️ 报错重检索未找到，进入手动选择'
-        );
-        // v10.9.3：重检路径同样带原因与重试
-        candidates.renderManualSelectPanel(
-          panel,
-          name,
-          hidePanel,
-          (selData, selAppId) => {
-            renderAndShow(selData, Date.now(), name);
-            chrome.runtime
-              .sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId })
-              .catch(() => {});
-          },
-          '报错重检索仍未命中',
-          async () => {
-            const rr = await window.__GR_MSG__
-              .sendMessage(
-                { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
-                null,
-                {
-                  timeout: 25000
-                }
-              )
-              .catch(() => null);
-            if (rr && rr.data) {
-              renderAndShow(rr.data, rr.cachedAt || Date.now(), name);
-              return true;
-            }
-            return false;
-          }
-        );
-      }
-    };
-  }
-
-  // 手动更新缓存回调（成功获取数据后复用渲染逻辑）
-  function makeOnRefresh(name) {
-    return async () => {
-      const appId = builder.extractSteamAppIdFromImages();
-      /** @type {SteamLookupResp|null} */
-      let refreshResp;
-      if (appId) {
-        refreshResp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName: name });
-      } else {
-        refreshResp = await window.__GR_MSG__.sendMessage({ action: 'REFRESH_STEAM_CACHE', gameName: name });
-      }
-      if (refreshResp && refreshResp.data) {
-        steamData = refreshResp.data;
-        const newCachedAt = refreshResp.cachedAt || Date.now();
-        dbg(`🔄 手动刷新缓存成功: ${steamData.name}`);
-        renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
-      } else {
-        throw new Error('刷新后未获取到数据');
-      }
-    };
-  }
+  const actions = createSteamActions({ panel, hidePanel, showPanel, renderSteamSidebar, renderAndShow });
 
   // 渲染数据并显示浮窗的通用函数
   function renderAndShow(data, cachedAt, name) {
     steamData = data;
-    reportIssue = makeReportIssue(name);
+    actions.setSteamData(data);
+    reportIssue = actions.makeReportIssue(name);
+    actions.setReportIssue(reportIssue);
     debug.DEBUG.steamStatus = `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
     dbg(`Steam: ${data.name} - ${data.ratingDesc} ${data.positiveRate}%`);
-    renderSteamSidebar(panel, data, hidePanel, cachedAt, makeOnRefresh(name), reportIssue);
+    renderSteamSidebar(panel, data, hidePanel, cachedAt, actions.makeOnRefresh(name), reportIssue);
     showPanel();
 
     // v10.1.0：AppID 写 DOM 数据桥接——download-tracking 的点击委托（隔离世界

@@ -119,6 +119,7 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
     'content/detail/inline-card.js',
     'content/detail/candidates.js',
     'content/detail/tracking.js',
+    'content/detail/sidebar-actions.js', // v14.5.0 B7：回调工厂（报错重检索消息流）
     'content/detail/render/sidebar-html.js', // v14.5.0 B6
     'content/detail/render/inline-html.js', // v14.5.0 B6
     'content/detail/render/rating-rows.js' // v14.5.0 B6
@@ -275,6 +276,7 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
     'content/detail/inline-card.js',
     'content/detail/candidates.js',
     'content/detail/tracking.js',
+    'content/detail/sidebar-actions.js', // v14.5.0 B7：回调工厂（报错重检索消息流）
     'content/detail/render/sidebar-html.js', // v14.5.0 B6
     'content/detail/render/inline-html.js', // v14.5.0 B6
     'content/detail/render/rating-rows.js' // v14.5.0 B6

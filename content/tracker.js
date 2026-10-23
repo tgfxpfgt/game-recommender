@@ -1,17 +1,14 @@
 /**
- * 游戏雷达 Game Radar - 内容脚本入口 / Content Script Entry
+ * 游戏雷达 Game Radar - 内容脚本入口（装载器）/ Content Script Entry (Loader)
  *
  * v6.0.0：内容脚本 ESM 化（动态 import 路径）——Chrome content_scripts 官方
  * 不支持原生 ESM，本入口保持经典脚本，内部 await import() 并行加载模块
  *（模块间依赖由 ESM import 图显式表达，替代旧 __GR__ 全局命名空间）。
- * Since v6.0.0 modules load via dynamic import() from this classic entry;
- * module-to-module dependencies are explicit ESM imports (no __GR__ namespace).
- *
- * v10.5.3：下载站首页（根路径/无查询串）暂停列表与详情功能，仅保留下载
- * 追踪与二维码——首页混排布局会被列表功能打破（错位反馈），详见 init 内
- * isHomePageUrl 门控。
- *
- * 本文件仅负责：模块加载（boot）、预热、主流程（init）、启动与消息监听。
+ * v14.5.0 B7：装载器瘦身——仅保留"模块加载（boot）+ 预热 + 消息接线 + 启动
+ * 触发 + 更新自检"；页面检测/分发迁 core/page-init.js（M.pageInit），入站
+ * 消息处理器迁 core/messages.js（M.messages，薄监听排队 + boot 后冲放）。
+ * B7 slim-down: loader only — module loading, warm-up, message wiring,
+ * startup trigger and the update self-check.
  */
 (function () {
   'use strict';
@@ -26,6 +23,7 @@
    *   common: any, floats: any, status: any, debug: any, builder: any,
    *   badges: any, listBatch: any, list: any, listState: any,
    *   detailTemplates: any, detail: any, tracking: any,
+   *   messages: any, pageInit: any,
    *   qrUnlock: any, xdgrid: any
    * }} GRModules
    */
@@ -67,6 +65,8 @@
       detailTemplates: loaded.detailTemplates,
       detail: loaded.detail,
       tracking: loaded.tracking,
+      messages: loaded.messages, // v14.5.0 B7：消息路由域
+      pageInit: loaded.pageInit, // v14.5.0 B7：页面检测与分发域
       qrUnlock: loaded.qrUnlock || null,
       xdgrid: loaded.xdgrid || null
     };
@@ -88,7 +88,6 @@
       }
     })();
     const M = await ensureModules(settingsEarly);
-    const settings = settingsEarly; // v14 B5：settingsEarly 已是 any 流转，断言冗余
     try {
       await M.builder.loadSiteRules();
       M.builder.buildSiteAdapters(M.builder.getSITE_RULES());
@@ -107,187 +106,47 @@
     } catch {
       /* 忽略上报失败 */
     }
-    return { M, settings };
+    return { M, settings: settingsEarly };
   })();
   // v8.2.0：boot 就绪信号（测试等待模块+预热完成——推送不再走延迟路径）
   window.__grBootPromise = bootPromise;
 
-  // ============ 核心初始化（URL检测页面类型） ============
-  async function init() {
-    const { M, settings: bootSettings } = await bootPromise;
-    const { common, debug, builder, list, detail, tracking, status } = M;
-    // 复用预热结果（通常已就绪，立即返回；否则等待剩余时间）
-    let settings = bootSettings;
-    // SW 冷启动失败兜底：重试一次获取设置，避免整页功能静默失效
-    // Fallback when the warm-up failed (e.g. SW cold start): retry once
-    if (!settings) {
-      try {
-        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
-        settings = resp?.settings;
-      } catch {
-        /* 仍失败则放弃本页 */
-      }
-    }
-    if (!settings || !settings.enabled) return;
-
-    // 工作状态浮窗总开关（设置控制，默认开启）/ Status-bar master switch
-    status.setEnabled(settings.showStatusBar !== false);
-    // v8.1.0：浮窗主题跟随设置页皮肤系统（内容侧 data-theme）
-    // v10.6.0 F4：主题定时切换解析（浮窗 data-theme 跟随日/夜选择）
-    let effectiveTheme = settings.uiTheme || 'steam';
-    if (settings.themeAutoSwitch === true) {
-      const h = new Date().getHours();
-      effectiveTheme = h >= 19 || h < 7 ? settings.uiThemeNight || 'oled' : settings.uiThemeDay || 'steam';
-    }
-    M.floats.applyFloatTheme(effectiveTheme);
-
-    // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
-    await builder.loadSiteRules();
-    builder.buildSiteAdapters(builder.getSITE_RULES());
-    // v3.3.9：列表页链接扫描上限可配置（默认 500）
-    if (builder.setScanLimit) builder.setScanLimit(settings.maxScanLinks || 500);
-
-    const domain = common.getCurrentDomain();
-    const trackedSites = settings.trackedSites || [];
-    const isTracked = trackedSites.length === 0 || trackedSites.some((s) => domain.includes(s));
-    const isSteamPage = domain.includes('store.steampowered.com');
-
-    // 调试模式：开启时统一浮窗在统计显示 3 秒后切换为诊断视图
-    // Debug mode: with it on, the unified bar switches to the debug view after stats
-    debug.DEBUG.siteTracked = isTracked;
-    status.setDebugMode(settings.showDebugPanel && (isTracked || isSteamPage));
-
-    // === 功能4：非追踪网站且非Steam页 → 尽早退出，节省资源 ===
-    if (!isTracked && !isSteamPage) {
-      return;
-    }
-
-    const dbg = (...a) => debug.dbg(...a);
-    dbg('插件初始化...');
-    dbg(`域名: ${domain}, 追踪: ${isTracked ? '是' : '否'}, Steam: ${isSteamPage ? '是' : '否'}`);
-
-    // v10.4.4：Steam 标签页（/tags/）不注入——标签聚合页没有单一游戏对象，
-    // 浮窗/评分/追踪均无意义且干扰浏览（用户需求：扩展在 tags 页应不工作）
-    if (isSteamPage && window.location.pathname.startsWith('/tags/')) {
-      dbg('Steam 标签页：跳过注入');
-      return;
-    }
-
-    // === 功能3：Steam页面 → 注入下载站跳转浮窗 ===
-    if (isSteamPage) {
-      detail.injectDownloadSitePanel();
-      // v3.3.8：浏览 Steam 商品页时预取并缓存该游戏完整数据——回到下载站
-      // 列表页时徽章/筛选立即有数据（后台 detail 缓存有效则自动跳过）
-      // Cache the game when browsing a Steam store page, so badges are ready
-      // when the user returns to download-site lists (the background skips
-      // when the detail module is still valid)
-      const appIdMatch = window.location.pathname.match(/\/app\/(\d+)/);
-      if (appIdMatch) {
-        const nameEl = document.querySelector('.apphub_AppName');
-        const pageName = (
-          nameEl ? nameEl.textContent : document.title.replace(/^Steam 上的\s*|\s*on Steam$/i, '')
-        ).trim();
-        chrome.runtime
-          .sendMessage({ action: 'CACHE_STEAM_PAGE', appId: appIdMatch[1], gameName: pageName })
-          .catch(() => {});
-      }
-      if (!isTracked) return; // Steam页只注入下载站浮窗，不做行为追踪
-    }
-
-    // === v10.5.3 任务2：下载站首页错位修复 ===
-    // 各下载站首页混排轮播/新闻/多尺寸卡片，列表功能（徽章插入/网格重排/
-    // 过滤控件）会打破站点原生布局（用户反馈首页显示错位）。首页（根路径或
-    // /index.html 且无查询串）暂停列表与详情功能，仅保留下载追踪与二维码
-    // 转链接；带查询串的根路径（如 WordPress 搜索 /?s=）仍按列表页处理。
-    // Download-site homepages mix carousels/news/varied cards and break under
-    // list features; suspend them there (keep download tracking + QR unlock).
-    // Root paths WITH a query string (e.g. /?s=) still run the list flow.
-    if (list.isHomePageUrl()) {
-      debug.DEBUG.pageType = '首页';
-      dbg('🏠 下载站首页：跳过列表/详情功能（防错位），仅保留下载追踪与二维码');
-      tracking.setupDownloadTracking(settings);
-      M.qrUnlock.init(settings);
-      return;
-    }
-
-    const adapter = builder.getAdapter();
-    debug.DEBUG.adapter = adapter.name;
-
-    // === 页面类型检测：URL优先，DOM辅助 ===
-    const detailByUrl = list.isDetailPageByUrl();
-    const listByUrl = list.isListPageByUrl();
-    dbg(`URL检测: 详情=${detailByUrl}, 列表=${listByUrl}`);
-
-    // === 1. 列表页：提取游戏列表并高亮 ===
-    const isList = listByUrl || (!detailByUrl && adapter.isListPage());
-    if (isList) {
-      debug.DEBUG.pageType = '列表页';
-      dbg('✅ 检测到列表页');
-      // 页面数据渲染完成即开始（AJAX 延迟渲染页面：等待列表容器出现，最多 4 秒）
-      let items = list.getListItemsSmart(adapter);
-      if (items.length === 0) {
-        dbg('列表项为空，等待页面数据渲染...');
-        items = await list.waitForListItems(adapter, 4000);
-      }
-      if (items.length > 0) {
-        dbg(`找到 ${items.length} 个游戏项`);
-        list.trackListView(adapter, items, settings);
-      } else {
-        // 适配器未提取到游戏：统一浮窗提示（页面结构可能已变化）
-        dbg('⚠️ 适配器未提取到游戏项');
-        status.showStats({ title: '列表页处理', summary: '适配器未提取到游戏项（页面结构可能已变化）' });
-      }
-      // v10.5.1 任务1：列表页好评率过滤悬浮控件（开关+滑块，实时调节）
-    }
-
-    // === 2. 下载追踪（v10.3.0 独立开关；v10.5.0 P3 起真正生效——关闭则不接线）===
-    tracking.setupDownloadTracking(settings);
-
-    // === 3. 详情页：注入Steam浮窗和下载历史浮窗 ===
-    const isDetail = detailByUrl || (!isList && !!document.querySelector('h1'));
-    if (isDetail) {
-      debug.DEBUG.pageType = '详情页';
-      const gameName = detail.detectGameName();
-      // 即使未检测到游戏名，若页面含 Steam 图片可提取 appId，仍注入 Steam 浮窗
-      const appIdFromImg = builder.extractSteamAppIdFromImages();
-      if (gameName && gameName.length > 1) {
-        debug.DEBUG.gameName = gameName;
-        dbg(`详情页游戏名: ${gameName}`);
-        common.trackEvent('view_detail', { gameName: gameName, keywords: [], description: '' });
-        detail.injectSteamButton(gameName, settings);
-        detail.injectDownloadHistoryPanel(gameName);
-      } else if (appIdFromImg) {
-        // 仅有 appId 无游戏名：用 document.title 作为回退名，仅注入 Steam 浮窗
-        // v5.0.0：清洗链收敛至 common.cleanPageTitle
-        const fallbackName = common.cleanPageTitle(document.title);
-        debug.DEBUG.gameName = fallbackName || `(appId:${appIdFromImg})`;
-        dbg(`详情页游戏名为空，但图片含 appId: ${appIdFromImg}，使用回退名注入 Steam 浮窗`);
-        detail.injectSteamButton(fallbackName || '', settings);
-      } else {
-        dbg('⚠️ 详情页未检测到游戏名称');
-      }
-    } else if (!isList) {
-      dbg('⚠️ 未识别页面类型');
-    }
-
-    // === 4. v10.2.0：二维码转链接 + XDGAME 列表布局定制 ===
-    // v10.3.0：传入 settings（各内容功能独立开关，关闭早退互不影响）；放在
-    // 主流程末尾——二维码扫描/布局定制不与徽章/评分流程竞争初始化时序
-    //（E2E 间歇性 3b 失败定位：早期初始化的 MutationObserver 介入波次时序）
-    M.qrUnlock?.init?.(settings);
-    M.xdgrid?.init?.(settings);
-
-    dbg('✅ 初始化完成');
-  }
+  // ============ 消息接线（薄监听 + boot 后路由） ============
+  // v14.5.0 B7：处理器在 core/messages.js（M.messages.createMessageRouter）。
+  // 模块装载完成前的早到消息排队（保持通道），boot 后统一冲放——与原实现
+  // "MODULES 就绪直处理 / 否则 bootPromise.then"语义等价。
+  // Early messages queue (channel held) until the router is wired post-boot.
+  /** @type {Function|null} */
+  let route = null;
+  /** @type {Array<[any, any, Function]>} */
+  const queued = [];
+  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (route) return route(message, sender, sendResponse);
+    queued.push([message, sender, sendResponse]);
+    return true; // 排队等待冲放 / queued until flush
+  });
+  bootPromise
+    .then(({ M }) => {
+      const r = M.messages.createMessageRouter({ bootPromise, getModules: () => MODULES });
+      route = r;
+      queued.splice(0).forEach(([m, s, res]) => r(m, s, res));
+    })
+    .catch(() => {});
 
   // ============ Startup / 启动 ============
   // document_start 注入：boot（模块加载+预热）已在顶层并行执行，DOM 就绪立即
   // init（无额外延迟）。Injected at document_start: boot (module load + warm-up)
   // already runs in parallel; init fires as soon as the DOM is ready.
+  // v14.5.0 B7：页面检测与功能分发在 core/page-init.js（M.pageInit.initPage）。
+  const startInit = () => {
+    bootPromise
+      .then((boot) => boot.M.pageInit.initPage(boot))
+      .catch((e) => console.warn('【游戏雷达】 初始化失败:', e));
+  };
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
-    void init();
+    startInit();
   } else {
-    window.addEventListener('DOMContentLoaded', () => void init(), { once: true });
+    window.addEventListener('DOMContentLoaded', startInit, { once: true });
   }
 
   // ============ 扩展更新自检（v7.3.0：旧版本问题根治） ============
@@ -296,16 +155,17 @@
   // refresh. Content scripts of an updated extension do NOT re-inject into
   // already-open tabs, so a stale page silently runs old logic — the root
   // cause of many "settings not saving" reports.
+  // v14.5.0 B7：chrome.storage.local 直调收敛至 common 封装（storageLocalGet/Set）。
   const EXT_VER_KEY = 'extLastInjectedVersion';
-  function checkExtensionUpdate() {
+  async function checkExtensionUpdate() {
     try {
       const ver = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '';
       if (!ver) return;
-      chrome.storage.local.get(EXT_VER_KEY, (res) => {
-        const last = res[EXT_VER_KEY];
-        if (last && last !== ver) showUpdateToast(ver);
-        if (last !== ver) chrome.storage.local.set({ [EXT_VER_KEY]: ver });
-      });
+      const m = (p) => chrome.runtime.getURL(p);
+      const common = await import(m('content/core/common.js'));
+      const last = await common.storageLocalGet(EXT_VER_KEY);
+      if (last && last !== ver) showUpdateToast(ver);
+      if (last !== ver) await common.storageLocalSet(EXT_VER_KEY, ver);
     } catch {
       /* 存储不可用时静默（不影响主流程） */
     }
@@ -335,102 +195,5 @@
   }
 
   // 顶层立即执行（document_start 阶段 html 元素已存在）
-  checkExtensionUpdate();
-
-  // Message listener / 消息监听（模块句柄惰性获取）
-  chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === 'REFRESH_RECOMMENDATIONS') {
-      // 刷新推荐需要 settings 来读取高亮阈值，并应用虚拟机过滤
-      (async () => {
-        try {
-          const { M } = await bootPromise;
-          const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
-          const settings = resp?.settings;
-          if (!settings) {
-            sendResponse({ success: false });
-            return;
-          }
-          const adapter = M.builder.getAdapter();
-          // v10.5.3 任务2：首页不响应推荐刷新（首页无列表功能，防止徽章
-          // 经消息通道错位注入）/ skip on homepages (no list features there)
-          if (!M.list.isHomePageUrl() && (M.list.isListPageByUrl() || adapter.isListPage())) {
-            let items = M.list.getListItemsSmart(adapter);
-            // 应用关键词过滤规则（若已启用；v7.2.0 修正参数——原传 vmFilterKeywords 数组）
-            if (settings.enableVmFilter) {
-              items = M.list.applyVmFilter(items, settings);
-            }
-            M.list.requestRecommendations(items, settings);
-          }
-          sendResponse({ success: true });
-        } catch (e) {
-          sendResponse({ success: false, error: String(e) });
-        }
-      })();
-      return true; // 异步响应 / Async response
-    }
-    if (message.action === 'SHOW_LAST_STATS') {
-      // 弹窗请求重新显示最近一次统计 / Popup asks to re-show the latest stats
-      if (MODULES) MODULES.status.showLastStats();
-      else bootPromise.then(({ M }) => M.status.showLastStats()).catch(() => {});
-      sendResponse({ success: true });
-      return; // 同步响应，无需保持消息通道 / sync response, no channel held
-    }
-    if (message.action === 'STEAM_RATINGS_UPDATE') {
-      // 后台推送：缓存未命中的游戏已从 Steam 拉取完成（多波增量，done 标记收尾）
-      // Background push: cache misses fetched from Steam (incremental waves + done)
-      // 模块已就绪时同步应用（徽章即时渲染）；否则等 boot 完成后处理
-      if (MODULES) MODULES.list.applySteamRatingsUpdate(message.ratings, message.done === true);
-      else
-        bootPromise
-          .then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true))
-          .catch((e) => {
-            // v6.4.10：推送处理错误可见（此前静默吞错——偶发状态下徽章丢失难排查）
-            console.warn('【游戏雷达】 好评率推送处理失败:', e);
-          });
-      sendResponse({ success: true });
-      return; // 同步响应，无需保持消息通道 / sync response, no channel held
-    }
-    if (message.action === 'FORCE_REFRESH_PAGE') {
-      // popup 强制刷新：收集当前页游戏引用 → 后台清除对应 Steam 缓存（忽视
-      // 缓存有效期与 0 评测冷却）→ 重载页面后全部重新获取
-      // Popup force-refresh: collect this page's game refs → clear their Steam
-      // cache (ignoring TTLs and the zero-review cooldown) → reload to re-fetch
-      (async () => {
-        try {
-          const { M } = await bootPromise;
-          const names = new Set();
-          const appIds = new Set();
-          if (M.list.isDetailPageByUrl()) {
-            const gn = M.detail.detectGameName();
-            if (gn && gn.length > 1) names.add(gn);
-            const img = M.builder.extractSteamImageInfo(document);
-            if (img) appIds.add(img.appId);
-          } else {
-            const adapter = M.builder.getAdapter();
-            if (M.list.isListPageByUrl() || adapter.isListPage()) {
-              M.list.getListItemsSmart(adapter).forEach((item) => {
-                if (item.name) names.add(item.name);
-                const info = M.builder.extractSteamImageInfo(item.element);
-                if (info) appIds.add(info.appId);
-              });
-            }
-          }
-          const resp = await window.__GR_MSG__.sendMessage({
-            action: 'CLEAR_CACHE_FOR_PAGE',
-            names: [...names],
-            appIds: [...appIds]
-          });
-          M.debug.dbg(`♻️ 强制刷新：已清除 ${resp && resp.cleared} 条缓存，重载页面`);
-          sendResponse({ success: true, cleared: resp && resp.cleared });
-          location.reload();
-        } catch (e) {
-          sendResponse({ success: false, error: String(e) });
-        }
-      })();
-      return true; // 异步响应 / Async response
-    }
-    // v3.4.1：未处理的消息不返回 true（不无谓地保持消息通道，避免拖住
-    // Service Worker 生命周期）/ Unhandled messages return nothing, so no
-    // message channel is held open
-  });
+  void checkExtensionUpdate();
 })();
