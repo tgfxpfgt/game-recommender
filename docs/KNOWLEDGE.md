@@ -26,6 +26,10 @@ orchestrator-list.js getSteamPositiveRate()  ← 列表页轻量查询
   │
   ├─ 1. lookupAppIdByName(gameName)          ← 名称索引（本地字典，零网络）
   ├─ 2. lookupWrongReportCorrection(gameName) ← 人工纠错知识库优先
+  ├─ 2.5 matchAppListExact(gameName)          ← ★ 全量目录离线索引（v14.6，调研
+  │     建议 1）：归一化精确命中直接作为检索结果——下架游戏 storesearch 搜不到
+  │     （结构性盲区）由目录覆盖 + 命中免网络往返；数据源 jsnli 每日镜像（免
+  │     key）→ IStoreService+steamApiKey（备源），双失败熔断式降级回在线
   ├─ 3. Steam 动态缓存命中检查（detail/rating 模块 TTL + namesRelated 校验）
   │     └─ Demo 版无评测 → 自愈重搜
   ├─ 4. searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId)
@@ -34,6 +38,8 @@ orchestrator-list.js getSteamPositiveRate()  ← 列表页轻量查询
   │     │   └─ matchCandidateScore() 多候选打分排序
   │     ├─ 扩展搜索：删词变体 + 噪声词自学习（generateSearchVariants）
   │     └─ ★ v14.3.1：rawTitle 透传 → 中文空时英文兜底（l=english）
+  │     └─ ★ v14.6：英文未命中 → searchCommunityApps（steamcommunity
+  │        SearchApps 免 key 仅英文，同一相关性校验 + store 域熔断）
   ├─ 5. webSearchFallback(gameName)            ← Bing 检索兜底
   ├─ 6. llmMatchGame(gameName)                 ← LLM 兜底（用户配置时）
   └─ 7. 三层缓存写入：Steam 动态缓存 + 游戏注册表 + 名称索引
@@ -49,6 +55,8 @@ orchestrator-list.js getSteamPositiveRate()  ← 列表页轻量查询
 | 负缓存         | 搜索未命中 → name-index 记 null；网络故障期跳过（防固化）   | orchestrator-detail.js         |
 | 熔断           | 连续 5 次网络失败 → 60s 熔断；半开探测通过后闭合            | api-monitor.js                 |
 | 交叉验证       | 中文命中名 EN 词交集与 raw 英文段 = 0 → 英文重搜 l=english  | orchestrator-detail.js v14.3.1 |
+| 目录层降级     | dump/IStoreService 双失败 → 本 SW 生命周期回退纯在线管线    | app-list-index.js v14.6        |
+| 目录刷新节流   | miss/过期触发后台刷新，每 SW 生命周期至多一次（防 miss 风暴） | app-list-index.js v14.6        |
 
 ---
 
