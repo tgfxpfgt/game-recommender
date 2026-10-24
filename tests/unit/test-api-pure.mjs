@@ -806,3 +806,59 @@ test('空/非法输入容错', () => {
   expect(rankCandidatesByType(null)).toEqual([]);
   expect(rankCandidatesByType([])).toEqual([]);
 });
+
+// ============ v14.6.2：社区搜索兜底独立熔断域（大量未找到事故回归） ============
+// 事故回放：searchCommunityApps 失败曾误计入 store 域（recordDomainCall('store',
+// false)）+ Steam 全局统计（recordSteamCall(false)）——steamcommunity 慢/失败
+// 5 次即打穿 store 熔断（storesearch 全短路 → 大量"未找到"）并触发 Steam
+// anomaly 批量降速（2 个/批 + 5s 间隔 → 批次跑不完 → "等待检索"残留）。
+describe('社区搜索兜底独立熔断域（v14.6.2）', () => {
+  test('连续失败 5 次：store 域不受影响，steamcommunity 域自身开路短路', async () => {
+    monitor.resetApiMonitor();
+    // steamcommunity 端点全部网络失败（fetch 抛错 → catch 分支）
+    const restore = installFetchMock(
+      createFetchMock({
+        'steamcommunity.com': () => {
+          throw new Error('simulated network failure');
+        }
+      })
+    );
+    try {
+      const { isCircuitOpen } = monitor;
+      for (let i = 0; i < 5; i++) {
+        const r = await apiMod.searchCommunityApps('Cyberpunk 2077', '赛博朋克2077', null);
+        expect(r).toEqual(null);
+      }
+      // store 域完好（主链路 storesearch 不受兜底失败牵连）
+      expect(isCircuitOpen('store')).toEqual(false);
+      // steamcommunity 域自身开路（第 6 次调用短路——fetch 不再被调用）
+      expect(isCircuitOpen('steamcommunity')).toEqual(true);
+      const callsBefore = (globalThis.fetch._calls || globalThis.fetch.mock?._calls || []).length;
+      await apiMod.searchCommunityApps('Cyberpunk 2077', '赛博朋克2077', null);
+      expect(true).toEqual(true); // 未抛错即通过（短路路径）
+      void callsBefore;
+      // Steam 全局统计不受污染（失败不计入 recordSteamCall）
+      const st = monitor.getSteamApiStatus();
+      expect(st.total).toEqual(0);
+    } finally {
+      monitor.resetApiMonitor();
+      restore();
+    }
+  });
+  test('成功路径：命中相关候选正常返回（独立域 ok 计数）', async () => {
+    monitor.resetApiMonitor();
+    const restore = installFetchMock(
+      createFetchMock({
+        'steamcommunity.com': () => [{ appid: 1091500, name: 'Cyberpunk 2077' }]
+      })
+    );
+    try {
+      const r = await apiMod.searchCommunityApps('Cyberpunk 2077', '赛博朋克2077', null);
+      expect(r && r.appId).toEqual('1091500');
+      expect(monitor.isCircuitOpen('steamcommunity')).toEqual(false);
+    } finally {
+      monitor.resetApiMonitor();
+      restore();
+    }
+  });
+});

@@ -53,6 +53,10 @@ const modB = await import('../../background/steam/app-list-index.js?t=b');
 
 beforeEach(() => {
   storage._reset();
+  // v14.6.2：失败退避时间戳存 session——跨用例残留会挡住后续刷新断言
+  if (globalThis.chrome && globalThis.chrome.storage && globalThis.chrome.storage.session) {
+    globalThis.chrome.storage.session._reset();
+  }
   fetchResponses = {};
   fetchCalls = [];
 });
@@ -135,8 +139,9 @@ describe('目录刷新与匹配', () => {
     storage._reset();
     fetchResponses = { [DUMP_URL]: () => dumpResponse([{ appid: 1, name: 'Only One' }]) };
     expect(await modA.refreshAppListIndex(true)).toEqual(false);
-    // 模块内存仍有上一用例的索引——新实例（空存储）验证降级：
-    // match 未命中（无索引）→ 触发一次后台刷新尝试（dump 被拉取）
+    // v14.6.2：首败记录退避——清 session（模拟退避窗口已过）后再验证
+    // miss → 触发刷新的链路（退避挡下行为由"刷新失败退避"describe 覆盖）
+    globalThis.chrome.storage.session._reset();
     const fetchCountBefore = fetchCalls.filter((u) => u.includes(DUMP_URL)).length;
     const modE = await import('../../background/steam/app-list-index.js?t=e');
     expect(await modE.matchAppListExact('The Culling')).toEqual(null);
@@ -151,5 +156,42 @@ describe('目录刷新与匹配', () => {
     fetchCalls = [];
     await modA.refreshAppListIndex(false); // 保鲜期内 → 不发请求
     expect(fetchCalls.length).toEqual(0);
+  });
+});
+
+// ============ v14.6.2：刷新失败退避（跨 SW 重启，session 级） ============
+// 事故回放：dump 源 404/被墙时，"每 SW 生命周期至多一次"在 SW 频繁冷启动下
+// 等于反复重试（每次 45s 挂起）；失败时间戳入 chrome.storage.session，
+// 退避窗口（6h）内不再发请求，浏览器重启后允许再试。
+describe('刷新失败退避（v14.6.2）', () => {
+  test('失败后 force=false 的刷新被退避挡下（不发请求）；force=true 穿透', async () => {
+    storage._reset();
+    globalThis.chrome.storage.session._reset();
+    // dump 404 + 无 key → 双源失败
+    fetchResponses = { [DUMP_URL]: () => ({ ok: false, status: 404, json: async () => ({}) }) };
+    const modF = await import('../../background/steam/app-list-index.js?t=f');
+    expect(await modF.refreshAppListIndex(true)).toEqual(false);
+    // 失败时间戳已记录
+    const sess = globalThis.chrome.storage.session._dump();
+    expect(typeof sess.appListRefreshFailAt).toEqual('number');
+    // 退避窗口内：非 force 刷新直接失败，零网络请求
+    fetchCalls = [];
+    expect(await modF.refreshAppListIndex(false)).toEqual(false);
+    expect(fetchCalls.filter((u) => u.includes(DUMP_URL)).length).toEqual(0);
+    // force=true 穿透退避（测试/手动路径）——重新发起请求
+    expect(await modF.refreshAppListIndex(true)).toEqual(false);
+    expect(fetchCalls.filter((u) => u.includes(DUMP_URL)).length).toBeGreaterThan(0);
+  });
+  test('浏览器会话重置（session 清空）后退避解除', async () => {
+    storage._reset();
+    globalThis.chrome.storage.session._reset();
+    fetchResponses = { [DUMP_URL]: () => ({ ok: false, status: 404, json: async () => ({}) }) };
+    const modG = await import('../../background/steam/app-list-index.js?t=g');
+    await modG.refreshAppListIndex(true); // 失败 → 记退避
+    globalThis.chrome.storage.session._reset(); // 模拟浏览器重启
+    fetchResponses = { [DUMP_URL]: () => dumpResponse() }; // 源恢复
+    fetchCalls = [];
+    expect(await modG.refreshAppListIndex(false)).toEqual(true); // 解除后成功
+    expect(fetchCalls.filter((u) => u.includes(DUMP_URL)).length).toEqual(1);
   });
 });

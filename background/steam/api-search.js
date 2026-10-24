@@ -431,7 +431,12 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId, lang 
  */
 export async function searchCommunityApps(term, rawName, excludeAppId) {
   if (!term) return null;
-  if (isCircuitOpen('store')) return null; // 与 storesearch 同一 store 域熔断
+  // v14.6.2 修复：独立熔断域——steamcommunity.com 与 store.steampowered.com 是
+  // 不同主机，此处失败曾误计入 store 域熔断与 Steam 全局失败统计（recordSteamCall），
+  // 导致：store 域 5 次失败熔断误开（storesearch 全短路 → 大量"未找到"）+
+  // Steam anomaly 误触发（批量降速 2 个/批 + 5s 间隔 → 批次跑不完 → "等待检索"
+  // 徽章残留）。兜底端点自身失败只影响自己（独立域开路时本函数短路）。
+  if (isCircuitOpen('steamcommunity')) return null;
   try {
     const resp = await fetchWithTimeout(
       ENDPOINTS.steamCommunitySearch + encodeURIComponent(String(term).trim()),
@@ -439,8 +444,7 @@ export async function searchCommunityApps(term, rawName, excludeAppId) {
       PERF_CONFIG.fetchTimeoutCommunitySearchMs
     );
     // 404/空结果非失败（SearchApps 未命中返回 []）
-    recordSteamCall(resp.ok || resp.status === 404, resp.status);
-    recordDomainCall('store', resp.ok || resp.status === 404);
+    recordDomainCall('steamcommunity', resp.ok || resp.status === 404);
     if (!resp.ok) return null;
     const list = await resp.json();
     if (!Array.isArray(list)) return null;
@@ -453,8 +457,7 @@ export async function searchCommunityApps(term, rawName, excludeAppId) {
     }
     return null;
   } catch {
-    recordSteamCall(false, 0);
-    recordDomainCall('store', false);
+    recordDomainCall('steamcommunity', false);
     return null;
   }
 }

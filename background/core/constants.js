@@ -61,8 +61,9 @@ export const PERF_CONFIG = {
   layoutRetryIntervalMs: 1000, // xdgrid 布局重试间隔
   layoutRetryMax: 10, // xdgrid 布局最大重试次数
   appListIndexMaxAgeDays: 7, // v14.6：全量目录索引保鲜期（过期后首次匹配触发后台刷新）
-  appListDumpTimeoutMs: 90000, // v14.6：目录 dump 下载超时（~20MB）
+  appListDumpTimeoutMs: 45000, // v14.6.2：90→45s——源 404/被墙时尽早失败（可达时 20MB 足够）
   appListServiceMaxPages: 10, // v14.6：IStoreService 分页上限（5 万/页 × 10 ≥ 全量）
+  appListRefreshBackoffMs: 21600000, // v14.6.2：刷新失败退避 6h（session 级——SW 频繁冷启动下防反复挂起）
   // v14.6.2：出站 fetch 超时单源组（原五处字面量散落各业务文件——
   // 铁律 13"写死值入单源"；调参集中此处，语义见各消费点）
   fetchTimeoutDefaultMs: 15000, // fetchWithTimeout 默认超时（utils.js 消费）

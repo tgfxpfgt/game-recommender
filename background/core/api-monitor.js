@@ -130,7 +130,8 @@ export function circuitState(domain) {
 // Per-domain reachability: rolling success over recent calls per domain.
 const domainStats = {
   store: { ok: 0, total: 0 },
-  api: { ok: 0, total: 0 }
+  api: { ok: 0, total: 0 },
+  steamcommunity: { ok: 0, total: 0 } // v14.6.2：社区搜索兜底独立域——失败不打穿 store 熔断
 };
 const DOMAIN_WINDOW = 8;
 

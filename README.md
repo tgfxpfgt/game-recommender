@@ -296,6 +296,19 @@ node --check options/options.js
 
 ## 更新日志
 
+### v14.6.2（紧急修复：大量"未找到/等待检索"事故 + 硬编码全量消除）
+
+**事故修复（v14.6.0 引入的回归，两处叠加）**
+
+- **根因 1（主因）**：社区搜索兜底（searchCommunityApps）失败被误计入 store 域熔断与 Steam 全局失败统计——steamcommunity.com 慢/失败 5 次即打穿 store 熔断（storesearch 全短路 → **大量"未找到"**）并触发 Steam anomaly 批量降速（2 个/批 + 5s 间隔 → 60 游戏 150s ≫ 45s 收尾 → **"等待检索"徽章大量残留**）。修复：剥离 Steam 全局统计，独立 `steamcommunity` 熔断域——兜底失败只影响自己
+- **根因 2（火上浇油）**：目录镜像源 raw.githubusercontent 当前 404（GitHub API 确认文件在，raw CDN 分发故障）+ 大陆访问挂起，"每 SW 生命周期一次"刷新在 SW 频繁冷启动下反复 45-90s 挂起。修复：失败退避 6h（chrome.storage.session 级，浏览器重启后允许再试）+ dump 超时 90s→45s
+- 回归锁定：独立域隔离测试（community 失败 ×5 后 store 熔断仍闭合）+ 退避/会话重置测试 ×2
+
+**硬编码全量消除（16 处 + 自动护栏）**
+
+- background 7 处入 PERF_CONFIG 超时单源组；内容侧/页面层 11 处文件顶具名常量；顺手修一处"同主流程"注释与实值漂移（3000→anomalyWaitMs 5000）
+- test-integrity 新增自动护栏：≥1000ms 延时与出站超时零字面量（B4 后回流的防线上移到 check）
+
 ### v14.6.1（用户反馈修复：系列序号错配 + 更新页改造）
 
 **系列序号错配修复（gamer520 123938 现场回放）**

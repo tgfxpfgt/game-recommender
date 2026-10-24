@@ -24,6 +24,9 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { metricInc } from '../core/metrics.js';
 import { Logger } from '../storage/logger.js';
 
+// v14.6.2：刷新失败退避窗口（PERF_CONFIG 单源别名——本文件多处消费）
+const APP_LIST_REFRESH_BACKOFF_MS = PERF_CONFIG.appListRefreshBackoffMs;
+
 /** 目录条目（持久化为 [normName, appId, name] 紧凑数组） */
 /**
  * 归一化标题：NFKC（全角→半角）+ 小写 + 符号→空格（保留 CJK/字母/数字）+
@@ -163,6 +166,19 @@ export async function refreshAppListIndex(force = false) {
   refreshInFlight = (async () => {
     try {
       if (!force && !isStale(meta) && indexMap) return true; // 保鲜期内跳过
+      // v14.6.2 修复：失败退避跨 SW 重启——"每 SW 生命周期至多一次"在 SW 频繁
+      // 冷启动下等于反复重试（dump 源 404/被墙时每次 45s 挂起 × 每次冷启动）；
+      // 失败时间戳存 chrome.storage.session（浏览器会话级，重启清零允许再试），
+      // 退避窗口内直接跳过
+      if (!force) {
+        try {
+          const backoff = await chrome.storage.session.get('appListRefreshFailAt');
+          const failAt = backoff && backoff.appListRefreshFailAt;
+          if (failAt && Date.now() - failAt < APP_LIST_REFRESH_BACKOFF_MS) return false;
+        } catch {
+          /* session 不可读按无退避处理 */
+        }
+      }
       refreshAttempted = true;
       const t0 = Date.now();
       /** @type {{entries: Array<{appId: string, name: string}>}|null} */
@@ -188,6 +204,12 @@ export async function refreshAppListIndex(force = false) {
       }
       if (!payload || payload.entries.length < 10000) {
         metricInc('appListIndex.refresh.fail');
+        // v14.6.2：记录失败时间戳（session 级退避——浏览器重启后允许再试）
+        try {
+          await chrome.storage.session.set({ appListRefreshFailAt: Date.now() });
+        } catch {
+          /* session 不可写忽略 */
+        }
         Logger.warn('AppListIndex', '目录刷新失败（双源均不可用或数据异常），回退纯在线管线');
         return false;
       }
