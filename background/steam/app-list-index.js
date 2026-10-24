@@ -116,6 +116,24 @@ function isStale(m) {
  */
 export async function matchAppListExact(title, excludeAppId = null) {
   if (!title) return null;
+  // 快路径：索引已加载（含"确认无索引"）→ 零 await 返回——列表批量场景每 miss
+  // 一次 await ensure 都会在批次等待窗口塞微任务（sim 节 2/2b 竞态实证）
+  if (loaded) {
+    if (isStale(meta) && !refreshInFlight && !refreshAttempted) {
+      refreshAppListIndex().catch(() => {});
+    }
+    if (!indexMap) {
+      metricInc('appListIndex.miss');
+      return null;
+    }
+    const fast = indexMap.get(normalizeTitle(title));
+    if (!fast || (excludeAppId != null && String(fast.appId) === String(excludeAppId))) {
+      metricInc('appListIndex.miss');
+      return null;
+    }
+    metricInc('appListIndex.hit');
+    return { appId: fast.appId, name: fast.name };
+  }
   const map = await ensureAppListIndex();
   if (isStale(meta) && !refreshInFlight && !refreshAttempted) {
     // 过期/缺失 → 后台刷新（不阻塞当前查询；完成后后续查询命中）
