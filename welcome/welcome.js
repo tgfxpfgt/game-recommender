@@ -26,6 +26,51 @@
     ? '已更新到新版本，看看有什么新变化'
     : '下载站好游戏，一眼看穿';
 
+  // ============ v14.6.1：更新记录动态渲染（welcome/changelog.js 单源） ============
+  // 当前版本条目置顶高亮 + 最近 3 版列表 + 完整记录外链；数据文件缺失时
+  // 退化为外链提示（不阻塞页面）
+  if (isUpdate) {
+    /** @type {{versions?: Array<{ver: string, date?: string, items: string[]}>, releasesUrl?: string}} */
+    const cl = globalThis.__GR_CHANGELOG__ || {};
+    const box = document.getElementById('changelogList');
+    const link = document.getElementById('allReleasesLink');
+    if (link) {
+      link.href = cl.releasesUrl || 'https://github.com/tgfxpfgt/game-recommender/releases';
+    }
+    if (box) {
+      /** @type {Array<{ver: string, date?: string, items: string[]}>} */
+      const list = Array.isArray(cl.versions) ? cl.versions : [];
+      // 当前版本条目（manifest 版本号精确匹配；缺失时回退最近一版）
+      const current = list.find((v) => v && v.ver === ver) || list[0] || null;
+      const recents = list.filter((v) => v && v !== current).slice(0, 2);
+      /** @param {string} s */
+      const esc = (s) =>
+        String(s || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;');
+      if (current) {
+        box.innerHTML =
+          `<div class="changelog-current"><h3>✨ 本次更新 v${esc(current.ver)}${current.date ? ` <small>(${esc(current.date)})</small>` : ''}</h3>` +
+          `<ul class="changelog">${current.items.map((it) => `<li>${it}</li>`).join('')}</ul></div>` +
+          (recents.length > 0
+            ? `<div class="changelog-recent"><h3>近期版本</h3>` +
+              recents
+                .map(
+                  (v) =>
+                    `<details><summary>v${esc(v.ver)}${v.date ? ` · ${esc(v.date)}` : ''}</summary>` +
+                    `<ul class="changelog">${v.items.map((it) => `<li>${it}</li>`).join('')}</ul></details>`
+                )
+                .join('') +
+              '</div>'
+            : '');
+      } else {
+        box.innerHTML = '<p>本版更新说明见完整记录。</p>';
+      }
+    }
+  }
+
   document.getElementById('openHubBtn').addEventListener('click', () => {
     chrome.runtime.sendMessage({ action: 'OPEN_HUB' }).catch(() => {});
     window.close();

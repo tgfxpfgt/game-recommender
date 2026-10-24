@@ -701,6 +701,78 @@ describe('俗称序号（生化危机9 → Resident Evil Requiem）', () => {
   });
 });
 
+// ============ v14.6.1：数字对齐放行（gamer520 123938 错配修复） ============
+// 现场回放：标题"生化危机4 重制版|...|Build.22377325+..."——schinese 索引对
+// "生化危机4"返回空 → 去数字变体"生化危机"命中系列列表 → 旧"俗称序号例外"
+// 只放行无数字候选（Requiem 挤掉带 4 正主）。修复：结果名含与标题相同序号
+// 是更强同源信号，优先放行 + 跨语言打分加权。
+describe('数字对齐放行（生化危机4 → Resident Evil 4，v14.6.1）', () => {
+  const nm3 = apiMod.nameMatchesSearch;
+  const mcs3 = apiMod.matchCandidateScore;
+  const RAW4 = '生化危机4 重制版|中字-国语|Build.22377325+超级MOD整合+逆命殊途DLC+全DLC+修改器-支持手柄|解压即撸|';
+  test('对齐放行：结果名含标题同序号（4）→ 通过（此前被"须无数字"拒绝）', () => {
+    expect(nm3('Resident Evil 4', '生化危机', RAW4)).toEqual(true);
+    expect(nm3('生化危机4 重制版', '生化危机4', RAW4)).toEqual(true); // 中文结果名同语言对齐
+  });
+  test('不对齐拒绝：结果带不同数字（2 代/7 代）→ 仍拒', () => {
+    expect(nm3('Resident Evil 2', '生化危机', RAW4)).toEqual(false);
+    expect(nm3('Resident Evil 7 Biohazard', '生化危机', RAW4)).toEqual(false);
+  });
+  test('无数字例外保留：Requiem 通过校验（但打分低于对齐候选）', () => {
+    expect(nm3('Resident Evil Requiem', '生化危机', RAW4)).toEqual(true);
+    // 跨语言数字对齐 2 分（对齐 1 + 跨语言加权 1）> 无数字例外 1 分
+    expect(mcs3('Resident Evil 4', '生化危机', RAW4)).toBeGreaterThan(mcs3('Resident Evil Requiem', '生化危机', RAW4));
+  });
+  test('搜索链路回放：真实候选顺序（storesearch "生化危机"）→ 命中 2050650', async () => {
+    // 主词"生化危机4"模拟 schinese 索引空（total:0）→ 变体路径接管；
+    // 变体词（"生化危机"等）返回真实候选序列
+    const fetchMock = createFetchMock({
+      '/api/storesearch': (url) => {
+        if (decodeURIComponent(String(url)).includes('生化危机4')) return { total: 0, items: [] };
+        return {
+          total: 5,
+          items: [
+            { id: 1634040, name: '黎明杀机-生化危机', type: 'app' },
+            { id: 2050650, name: 'Resident Evil 4', type: 'app' },
+            { id: 3764200, name: 'Resident Evil Requiem', type: 'app' },
+            { id: 883710, name: 'Resident Evil 2', type: 'app' },
+            { id: 2109300, name: 'Resident Evil 4 逆命殊途', type: 'dlc' }
+          ]
+        };
+      }
+    });
+    const restore = installFetchMock(fetchMock);
+    try {
+      const r = await apiMod.searchSteamAppId(['生化危机4'], RAW4, null);
+      expect(r && r.appId).toEqual(2050650);
+    } finally {
+      restore();
+    }
+  });
+  test('正例不破坏：生化危机9 → Requiem（9 无对齐候选，旧例外仍命中）', async () => {
+    const fetchMock = createFetchMock({
+      '/api/storesearch': {
+        items: [
+          { id: 1634040, name: '黎明杀机-生化危机', type: 'app' },
+          { id: 2050650, name: 'Resident Evil 4', type: 'app' },
+          { id: 3764200, name: 'Resident Evil Requiem', type: 'app' }
+        ]
+      }
+    });
+    const restore = installFetchMock(fetchMock);
+    try {
+      const r = await apiMod.searchSteamAppId(
+        ['生化危机9 安魂曲'],
+        '生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器',
+        null
+      );
+      expect(r && r.appId).toEqual(3764200);
+    } finally {
+      restore();
+    }
+  });
+});
+
 // ============ v9.6.0：候选按 type 筛选（去 DLC/音乐集） ============
 const { rankCandidatesByType } = await import('../../background/steam/api-search.js');
 test('存在游戏候选时剔除 DLC/音乐集', () => {

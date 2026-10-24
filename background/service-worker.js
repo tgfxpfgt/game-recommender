@@ -115,13 +115,27 @@ Logger.info('Perf', `SW 模块图就绪: ${GRAPH_READY_MS}ms (冷启动→消息
 // Custom-site content scripts (registered on startup; re-synced after rule saves)
 syncSiteScripts().catch((e) => console.error('站点脚本同步失败:', String(e)));
 
-// v7.4.0：安装/更新欢迎页（首次安装显示功能导览；更新显示 What's new）
-// Welcome page on install (feature tour) / update (what's new)
+// v7.4.0：安装/更新欢迎页（首次安装显示功能导览；更新显示版本更新记录）
+// v14.6.1：更新分流收紧——update 但用户从未使用过（无任何注入痕迹，如装完
+// 旧版从未打开过浏览器即升级）仍按首次安装显示导览；正常更新打开更新记录
+// 页（welcome/changelog.js 单源渲染，非旧版硬编码欢迎页）。
+// Welcome page: fresh installs get the tour; updates get release notes —
+// except never-used installs (no injection footprint) which get the tour.
 chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     chrome.tabs.create({ url: chrome.runtime.getURL('welcome/welcome.html?source=install') });
   } else if (details.reason === 'update') {
-    chrome.tabs.create({ url: chrome.runtime.getURL('welcome/welcome.html?source=update') });
+    // "从未使用"判据：内容脚本注入时写入的 extLastInjectedVersion 不存在
+    //（storage.local 恒可读，与 OPFS 可用性无关；settings 走 OPFS 不可靠）
+    chrome.storage.local
+      .get('extLastInjectedVersion')
+      .then((/** @type {{extLastInjectedVersion?: string}} */ res) => {
+        const source = res && res.extLastInjectedVersion ? 'update' : 'install';
+        chrome.tabs.create({ url: chrome.runtime.getURL(`welcome/welcome.html?source=${source}`) });
+      })
+      .catch(() => {
+        chrome.tabs.create({ url: chrome.runtime.getURL('welcome/welcome.html?source=update') });
+      });
   }
 });
 

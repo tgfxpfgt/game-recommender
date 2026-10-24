@@ -92,19 +92,13 @@
         </p>
       </section>
 
+      <!-- v14.6.1：更新记录由 changelog.js 数据动态渲染（原 v7.4.0 硬编码已删） -->
       <section id="updateSection" class="welcome-section hidden">
-        <h2>本次更新（v7.4.0）</h2>
-        <ul class="changelog">
-          <li>🌐 <b>网站范围注入</b>——扩展只在内置游戏站与 Steam 工作，浏览其他网站零打扰（性能 + 隐私）</li>
-          <li>👋 <b>欢迎页</b>——安装/更新后自动展示功能导览与本页更新说明</li>
-          <li>💡 <b>推荐可解释</b>——推荐徽章悬停显示六项评分信号明细</li>
-          <li>🔔 <b>通知可点击</b>——限免通知点击直达商店页</li>
-          <li>🔎 <b>快速搜索</b>——弹窗直接搜索 Steam 游戏</li>
-          <li>📋 <b>过滤可见</b>——被过滤的游戏可在状态浮窗查看与恢复</li>
-          <li>🖱️ <b>右键搜索</b>——选中游戏名右键一键搜 Steam</li>
-          <li>🎨 <b>色盲友好</b>——好评率徽章增加符号标识（✓/▲/✕）</li>
-          <li>⌨️ <b>快捷键</b>——Alt+Shift+G 强制刷新当前页评分</li>
-        </ul>
+        <h2>版本更新记录</h2>
+        <div id="changelogList"></div>
+        <p style="margin-top: 10px">
+          <a id="allReleasesLink" href="#" target="_blank" rel="noopener" style="color: #67c1f5">查看完整更新记录 ↗</a>
+        </p>
       </section>
 
       <footer class="welcome-footer">
@@ -114,6 +108,7 @@
     </main>
     <script src="../shared/msg.js"></script>
     <script src="../shared/settings-utils.js"></script>
+    <script src="changelog.js"></script>
     <script src="welcome.js"></script>
   </body>
 </html>

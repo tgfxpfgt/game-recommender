@@ -181,6 +181,14 @@ export function nameMatchesSearch(resultName, term, rawName) {
       const rawEn = coreTokensOf(rawName).filter((w) => /^[a-z]/.test(w));
       const rEn = coreTokensOf(resultName).filter((w) => /^[a-z]/.test(w));
       if (rawEn.length > 0 && rawEn.some((w) => rEn.includes(w))) return true;
+      // v14.6.1：数字对齐放行——结果名含与原始标题相同的序号（"生化危机4"
+      // → "Resident Evil 4"）是比"无数字"更强的同源信号，置于俗称序号例外
+      // 之前：带正确序号的候选不得被"结果须无数字"的旧例外拒绝（gamer520
+      // 123938 错配 Requiem 根因——schinese 索引空 → 去数字变体"生化危机"
+      // 命中无数字的最新作挤掉带 4 的正主）
+      /** @param {string} s @returns {Array<string>} */
+      const numsOf = (s) => String(s).match(/\d+/g) || [];
+      if (numsOf(rawName).some((n) => numsOf(resultName).includes(n))) return true;
       return /\d/.test(rawName) && !/\d/.test(resultName);
     }
     return true;
@@ -234,7 +242,14 @@ export function matchCandidateScore(resultName, term, rawName) {
   // 数字一致性（v6.4.19：数字集合有交集才加分——"生化危机9" vs "Resident
   // Evil 4" 都有数字但不同，不得加分；"赛博朋克2077" vs "Cyberpunk 2077" 加分）
   const nums = (s) => (String(s).match(/\d+/g) || []).map(Number);
-  if (nums(rawName).some((x) => nums(resultName).includes(x))) score += 1;
+  const numAligned = nums(rawName).some((x) => nums(resultName).includes(x));
+  if (numAligned) score += 1;
+  // v14.6.1：跨语言（中文标题 vs 英文候选）时数字对齐是唯一硬序号信号——
+  // 追加 +1（合计 2 分），确保带正确序号的候选（生化危机4 → Resident Evil 4）
+  // 排序稳定高于无数字例外候选（Requiem 1 分），不受 storesearch 顺序波动影响
+  if (numAligned && /[\u4e00-\u9fff]/.test(rawName) && !/[\u4e00-\u9fff]/.test(resultName)) {
+    score += 1;
+  }
   // v6.4.19：俗称序号例外加分——中文标题含数字（"生化危机9"）、英文候选
   // 无数字（官方名未加序号 "Resident Evil Requiem"）→ 最低 1 分可被采用
   // （storesearch 相关性排序保证候选同源；多个无数字候选按出现顺序取前）

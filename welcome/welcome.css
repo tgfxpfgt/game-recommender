@@ -70,6 +70,39 @@
 .changelog li {
   margin-bottom: 4px;
 }
+/* v14.6.1：更新记录页——当前版高亮块 + 近期版本折叠 */
+.changelog-current {
+  padding: 12px 14px;
+  border: 1px solid rgba(103, 193, 245, 0.25);
+  border-radius: 8px;
+  background: rgba(103, 193, 245, 0.06);
+  margin-bottom: 14px;
+}
+.changelog-current h3 {
+  margin: 0 0 8px;
+  font-size: 14px;
+}
+.changelog-current h3 small {
+  color: #8f98a0;
+  font-weight: normal;
+}
+.changelog-recent h3 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  color: #8f98a0;
+}
+.changelog-recent details {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+.changelog-recent summary {
+  cursor: pointer;
+  color: #67c1f5;
+  line-height: 1.8;
+}
+.changelog-recent details ul {
+  margin: 4px 0 8px;
+}
 .welcome-footer {
   margin-top: 28px;
   display: flex;

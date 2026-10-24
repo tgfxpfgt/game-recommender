@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T10:38:00.914Z",
+  "generatedAt": "2026-10-24T15:20:02.189Z",
   "version": "14.6.0",
   "nodes": [
     {
@@ -8,7 +8,7 @@
       "color": "#4a9eff",
       "desc": "Service Worker — 消息分发/检索管线/推荐引擎/存储",
       "files": 2,
-      "lines": 391
+      "lines": 405
     },
     {
       "dir": "content",

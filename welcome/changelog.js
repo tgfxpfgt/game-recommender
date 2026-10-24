@@ -1,0 +1,55 @@
+/**
+ * 游戏雷达 Game Radar - 版本更新记录数据 / Release Notes Data
+ *
+ * v14.6.1：更新模式（source=update）的欢迎页按本表动态渲染"版本更新记录"
+ * ——此前 updateSection 为 v7.4.0 硬编码，9 个大版本未更新（用户报告：
+ * 更新后打开的是陈年欢迎页）。发版流程新增一步：bump 版本时同步在
+ * versions 头部插入一条（3-6 条要点，与 README 更新日志同源精简）。
+ * Release-notes data for the update view; prepend one entry per release.
+ */
+'use strict';
+
+(function (global) {
+  global.__GR_CHANGELOG__ = {
+    // 完整记录（GitHub Releases）
+    releasesUrl: 'https://github.com/tgfxpfgt/game-recommender/releases',
+    // 最近版本（新版本在前；页面默认渲染最近 3 版）
+    versions: [
+      {
+        ver: '14.6.1',
+        date: '2026-10-24',
+        items: [
+          '🎯 <b>匹配修复</b>——数字序号对齐放行：中文俗称标题（如"生化危机4 重制版"）在 Steam 中文索引缺失时，不再错配到系列最新作，正确命中带同序号的正主',
+          '📖 <b>更新页改造</b>——扩展更新后打开的是真实"版本更新记录"页（本页），首次安装才显示功能导览'
+        ]
+      },
+      {
+        ver: '14.6.0',
+        date: '2026-10-24',
+        items: [
+          '📚 <b>全量目录离线索引</b>——已下架/老游戏恢复可匹配（在线搜索搜不到它们），目录命中免网络往返',
+          '🔎 <b>社区搜索英文兜底</b>——免 Key 秒级英文检索，接在英文重搜之后、Bing 之前',
+          '🛡️ 数据源双保险（社区每日镜像 + 官方接口），双失败自动降级不影响主流程'
+        ]
+      },
+      {
+        ver: '14.5.0',
+        date: '2026-10-23',
+        items: [
+          '⚡ <b>后台修复</b>——内存预热/批量好评率续跑/周报自 v7.0.4 起静默失效，本版首次真正生效',
+          '📦 游戏画像写合并（磁盘写 10→1）、详情页模块按需加载（列表页每页少 2 个请求）',
+          '🎚️ 批次大小设置接线修复（此前设置页配置不生效）'
+        ]
+      },
+      {
+        ver: '14.4.0',
+        date: '2026-10-11',
+        items: [
+          '🧪 测试巨文件重组（sim/e2e 拆分），运行提速一倍',
+          '🎨 19 套主题按需加载，SidePanel 实时跟随换肤',
+          '🔀 franchise 区分策略（中文命中英文词覆盖交叉验证）'
+        ]
+      }
+    ]
+  };
+})(typeof globalThis !== 'undefined' ? globalThis : this);
