@@ -10,6 +10,7 @@
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { getSettings } from '../core/settings.js';
+import { PERF_CONFIG } from '../core/constants.js'; // v14.6.2：超时单源
 import '../../shared/msg.js'; // v14.0.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
 
 // v14.0.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
@@ -19,7 +20,7 @@ export async function handleFetchImageDataUrl(message) {
   const url = String((message && message.url) || '');
   if (!/^https:\/\//i.test(url)) return { success: false, error: '仅接受 https 图片 URL' };
   try {
-    const resp = await fetchWithTimeout(url, {}, 15000);
+    const resp = await fetchWithTimeout(url, {}, PERF_CONFIG.fetchTimeoutImageFetchMs);
     if (!resp.ok) return { success: false, error: 'HTTP ' + resp.status };
     const type = (resp.headers && resp.headers.get('content-type')) || 'image/png';
     if (!type.startsWith('image/')) return { success: false, error: '非图片响应' };

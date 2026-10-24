@@ -221,7 +221,7 @@ export async function resumeRatingsBatch() {
 async function runRatingJob(job) {
   const keepAlive = setInterval(() => {
     chrome.runtime.getPlatformInfo().catch(() => {});
-  }, 10000);
+  }, PERF_CONFIG.ratingsKeepAliveIntervalMs);
   // v10.1.0：a-b 统计批量读一次（任务期共享）
   const statsMap = await getAppStats();
   try {
@@ -346,7 +346,7 @@ export async function handlePrefetchSteamRatings(message) {
     // Keep-alive during prefetch batches too (see handleGetSteamRatings)
     const keepAlive = setInterval(() => {
       chrome.runtime.getPlatformInfo().catch(() => {});
-    }, 10000);
+    }, PERF_CONFIG.ratingsKeepAliveIntervalMs);
     try {
       const batchSize = 4;
       for (let i = 0; i < needsPrefetch.length; i += batchSize) {
@@ -365,7 +365,9 @@ export async function handlePrefetchSteamRatings(message) {
         );
         // 预载同样限流降速 / same rate-limit slowdown as the main flow
         if (getSteamApiStatus().anomaly) {
-          await new Promise((r) => setTimeout(r, 3000));
+          // v14.6.2：修漂移——原字面量 3000 与注释"同主流程"不符（主流程
+          // anomalyWaitMs=5000）；统一走 PERF_CONFIG 单源
+          await new Promise((r) => setTimeout(r, PERF_CONFIG.anomalyWaitMs));
         }
         // v9.7.0：每批落盘（同主流程——SW 长循环被杀时损失限单批）
         await flushAllCaches();

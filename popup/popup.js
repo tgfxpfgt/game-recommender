@@ -15,6 +15,10 @@
  * weights and search live in their own classic-script modules.
  */
 
+// v14.6.2：UI 反馈延时具名单点（保存失败提示隐藏 / 按钮文案恢复）
+const SAVE_FAIL_HINT_MS = 3000;
+const BTN_TEXT_RESET_MS = 1500;
+
 document.addEventListener('DOMContentLoaded', async () => {
   // 显示扩展版本号（便于确认加载的是否为最新版本）
   const versionEl = document.getElementById('extVersion');
@@ -70,7 +74,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           saveFail.style.display = 'block';
           setTimeout(() => {
             saveFail.style.display = 'none';
-          }, 3000);
+          }, SAVE_FAIL_HINT_MS);
         }
       });
     return saveQueue;
@@ -227,7 +231,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     btn.textContent = '✅ 已刷新';
     setTimeout(() => {
       btn.textContent = '🔄 刷新';
-    }, 1500);
+    }, BTN_TEXT_RESET_MS);
   });
 
   // 强制刷新当前页（清除当前页 Steam 缓存后重载）

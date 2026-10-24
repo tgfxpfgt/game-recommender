@@ -423,6 +423,51 @@ test('B2：后台零动态 import（SW import() 禁令回归护栏）', () => {
   }
   expect(offenders, '后台存在动态 import()（SW 规范禁止，运行时必失败）:\n  ' + offenders.join('\n  ')).toEqual([]);
 });
+// v14.6.2：长延时/出站超时禁止数字字面量（铁律 13"写死值入单源"护栏——
+// B4 批次曾手动 grep 验收，无自动拦截致 5 处回流；现并入 integrity 扫描）。
+// 规则：≥1000ms 的 setTimeout/setInterval 第二参、fetchWithTimeout 的任意
+// 数字超时参，必须引用单源常量（background 走 PERF_CONFIG；内容侧/页面层
+// 走文件顶具名常量——大写命名定义行不被本规则匹配，即"有意单点"合法）。
+const HARDCODE_SCAN_DIRS = [
+  'background',
+  'content',
+  'shared',
+  'data',
+  'options',
+  'popup',
+  'dashboard',
+  'freegames',
+  'hub',
+  'welcome',
+  'sidepanel'
+];
+test('v14.6.2：长延时/超时零字面量（≥1000ms 须走单源常量）', () => {
+  const offenders = [];
+  for (const dir of HARDCODE_SCAN_DIRS) {
+    for (const file of collectJs(path.join(ROOT, dir), [])) {
+      const src = fs.readFileSync(file, 'utf-8');
+      const rel = path.relative(ROOT, file);
+      // 注释替换为等长空白（保偏移——index 与原文一致，跨行调用可匹配且
+      // 行号准确；块注释保留换行符结构）
+      const blanked = src
+        .replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+        .replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+      const lineOf = (idx) => src.slice(0, idx).split('\n').length;
+      // setTimeout/setInterval(…, ≥1000)——跨行匹配
+      for (const m of blanked.matchAll(/set(?:Timeout|Interval)\([^,]+,\s*(\d{4,})\s*\)/g)) {
+        offenders.push(`${rel}:${lineOf(m.index)} setTimeout 字面量 ${m[1]}ms`);
+      }
+      // fetchWithTimeout(…, 数字超时)——任意位数（默认参数之外的显式字面量）
+      for (const m of blanked.matchAll(/fetchWithTimeout\([^)]*,\s*(\d{3,})\s*\)/g)) {
+        offenders.push(`${rel}:${lineOf(m.index)} fetchWithTimeout 字面量 ${m[1]}ms`);
+      }
+    }
+  }
+  expect(
+    offenders,
+    '长延时/出站超时存在数字字面量（入 PERF_CONFIG 单源或文件顶具名常量）:\n  ' + offenders.join('\n  ')
+  ).toEqual([]);
+});
 test('B2：分层预热/批量续跑/周报静态接线（防再次退化为动态 import 静默失效）', () => {
   // 热层预热（启动即调）+ 温层预热（setTimeout 15s）+ 批量续跑 + 周报——
   // 全部须为 service-worker.js 的静态导入直接调用

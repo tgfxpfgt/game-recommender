@@ -24,6 +24,7 @@ import * as tracking from './tracking.js';
 import { createSteamActions } from './sidebar-actions.js'; // v14.5.0 B7：回调工厂
 
 const dbg = (...a) => debug.dbg(...a);
+const BTN_FAIL_FEEDBACK_MS = 1500; // 按钮失败文案恢复延时（v14.6.2：具名单点，两按钮共用）
 const esc = (text) => common.escapeHtml(text);
 
 // ============ 详情页专属子模块按需加载（v14.5.0 B3） ============
@@ -293,7 +294,7 @@ function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport)
           setTimeout(() => {
             refreshBtn.textContent = originalText;
             refreshBtn.disabled = false;
-          }, 1500);
+          }, BTN_FAIL_FEEDBACK_MS);
         }
       });
     }
@@ -314,7 +315,7 @@ function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport)
           setTimeout(() => {
             reportBtn.textContent = originalText;
             reportBtn.disabled = false;
-          }, 1500);
+          }, BTN_FAIL_FEEDBACK_MS);
         }
       });
     }

@@ -383,6 +383,9 @@
   }
 
   // ============ Save Status Indicator / 保存状态指示器 ============
+  // v14.6.2：状态文案清空延时具名单点（成功 2s / 失败 4s——失败留更久供阅读）
+  const SAVE_OK_CLEAR_MS = 2000;
+  const SAVE_ERR_CLEAR_MS = 4000;
   function showSaveStatus(state) {
     const status = document.getElementById('saveStatus');
     if (state === 'saving') {
@@ -394,14 +397,14 @@
       setTimeout(() => {
         status.textContent = '';
         status.className = 'save-status';
-      }, 2000);
+      }, SAVE_OK_CLEAR_MS);
     } else if (state === 'error') {
       status.textContent = '❌ 保存失败（见控制台）';
       status.className = 'save-status error';
       setTimeout(() => {
         status.textContent = '';
         status.className = 'save-status';
-      }, 4000);
+      }, SAVE_ERR_CLEAR_MS);
     }
   }
 

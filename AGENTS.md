@@ -69,8 +69,12 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     （推荐值等）必须传 `base:'gr-badge'`，否则污染守卫导致好评率徽章缺失（v10.6.0 事故）。
 13. **单源优先**：写互斥锁/防抖/Map+TTL 缓存/重试前先查 `core/mechanisms.js`（withLock /
     debounce / TtlCache / withRetry）；写死值入 `constants.js` 单源组（STORAGE_CAPS /
-    ENDPOINTS / SPY_SCALES）；新增注册表条目走 STORAGE_MODULES / module-manifest。
-    发现"改一处要同步 N 个文件"= 该做单源化，不要照抄第 N 份。
+    ENDPOINTS / SPY_SCALES / PERF_CONFIG）；新增注册表条目走 STORAGE_MODULES / module-manifest。
+    **长延时/出站超时零字面量（v14.6.2 起 test-integrity 自动拦截）**：≥1000ms 的
+    setTimeout/setInterval 与 fetchWithTimeout 的超时参必须走单源——background 入
+    PERF_CONFIG（超时组 fetchTimeout*Ms）；内容侧/页面层不可 import background
+    （分层），在文件顶提具名大写常量。发现"改一处要同步 N 个文件"= 该做单源化，
+    不要照抄第 N 份。
 
 ## 文档同步（默认启用）
 

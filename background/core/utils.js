@@ -9,6 +9,7 @@
  */
 
 import { recordOutbound, checkRateLimit } from './outbound-audit.js';
+import { PERF_CONFIG } from './constants.js'; // v14.4.1 B4/v14.6.2：性能常量单源
 
 // 请求目标校验：仅允许 http/https，且拒绝 localhost、环回、私有与保留地址。
 // 防止外部数据（下载站链接、用户配置）诱导扩展请求内网资源（SSRF 防护）。
@@ -125,7 +126,7 @@ export function isSafeFetchUrl(url) {
 // local LLM endpoints such as Ollama). Since v3.4.1 redirects are followed
 // manually with per-hop re-validation (default follow mode let a 302 to an
 // internal address bypass every SSRF check).
-const FETCH_DEFAULT_TIMEOUT = 15000; // 15s
+const FETCH_DEFAULT_TIMEOUT = PERF_CONFIG.fetchTimeoutDefaultMs; // v14.6.2：单源（constants PERF_CONFIG）
 const MAX_REDIRECTS = 5;
 // v14 F2：Steam 全局速率限制——多标签页共享同一 SW，各 tab 独立批次并发调用
 // Steam API 时总 QPS 可超出限制。在 fetchWithTimeout 层面统一加最小间隔，
@@ -133,7 +134,6 @@ const MAX_REDIRECTS = 5;
 // Global minimum interval for Steam API calls: multiple tabs share the same SW,
 // concurrent batches can exceed rate limits. Enforced at fetchWithTimeout level.
 let lastSteamCallAt = 0;
-import { PERF_CONFIG } from './constants.js';
 const STEAM_MIN_INTERVAL_MS = PERF_CONFIG.steamRateLimitMs;
 const steamHostPattern = /(?:^|\.)steampowered\.com$|(?:^|\.)steamstatic\.com$|(?:^|\.)steampowered\.com\.cn$/;
 

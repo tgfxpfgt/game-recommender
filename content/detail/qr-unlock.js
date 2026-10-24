@@ -14,6 +14,7 @@
 import * as debug from '../core/debug.js';
 
 const dbg = (...a) => debug.dbg(...a);
+const COPY_FEEDBACK_MS = 1500; // "已复制"文案恢复延时（v14.6.2：具名单点）
 
 /** @type {Promise<any>|null} */
 let decoderPromise = null;
@@ -158,7 +159,7 @@ function insertResult(el, url) {
         copyBtn.textContent = '✓ 已复制';
         setTimeout(() => {
           copyBtn.textContent = '复制';
-        }, 1500);
+        }, COPY_FEEDBACK_MS);
       });
     } catch {
       copyBtn.textContent = '复制失败';

@@ -12,6 +12,8 @@
  */
 
 // ============ 备份管理 / Backup Management ============
+// 状态文案清空延时（v14.6.2：具名单点）
+const BACKUP_STATUS_CLEAR_MS = 3000;
 // 加载备份列表并渲染 / Load and render the backup list
 async function loadBackups() {
   const container = document.getElementById('backupList');
@@ -73,7 +75,7 @@ async function createBackup() {
   }
   setTimeout(() => {
     statusEl.textContent = '';
-  }, 3000);
+  }, BACKUP_STATUS_CLEAR_MS);
 }
 
 // 恢复备份（后台会先自动备份当前状态作为安全网）

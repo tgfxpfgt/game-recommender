@@ -29,6 +29,8 @@ let renderTimer = null; // v14.5.0 B9：统计渲染合并窗口
 // 统计渲染合并窗口（B9）：列表流程"开始→逐波→收尾"连续 showStats，
 // 100ms 窗口内只渲染最后一次（DOM 重建 ×N → ×1）
 const SHOW_STATS_COALESCE_MS = 100;
+// 统计浮窗自动隐藏延时（v14.6.2：具名单点）
+const STATS_AUTO_HIDE_MS = 3000;
 
 // 格式化耗时 / Format elapsed time
 function formatElapsed() {
@@ -124,7 +126,7 @@ function renderStats() {
   // 从未被注册，setDebugRefreshHandler 已删）
   hideTimer = setTimeout(() => {
     hide();
-  }, 3000);
+  }, STATS_AUTO_HIDE_MS);
 }
 
 // 渲染诊断视图：经 GR.float 统一管理（chrome 标题栏，✕ 关闭后不再自动复活）。

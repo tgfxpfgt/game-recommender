@@ -18,6 +18,10 @@ import * as debug from '../core/debug.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
+// 预载下一页 fetch 的 abort 超时（v14.6.2：具名单点——内容侧不可 import
+// background PERF_CONFIG（分层）；防挂起拖垮页面，与消息侧超时独立）
+const PRELOAD_ABORT_MS = 15000;
+
 // ============ 页面类型检测（URL优先，最可靠） ============
 // 详情页URL特征：以 数字.html 结尾，或 /game/数字.html 形式
 // 注意：/game/数字/ 是分类页，不是详情页
@@ -249,7 +253,7 @@ function preloadNextPage() {
         return;
       }
       const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), 15000);
+      const timer = setTimeout(() => controller.abort(), PRELOAD_ABORT_MS);
       let response;
       try {
         response = await fetch(nextUrl, { credentials: 'omit', signal: controller.signal });

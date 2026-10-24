@@ -23,6 +23,10 @@ export const DEFAULTS = { enabled: false, cols: 5, iconW: 258, iconH: 0, gap: 18
 const CONTAINER_PAD = 36;
 // 列表项少于该值不做布局定制（详情页/内容过少页面无意义）
 export const MIN_ITEMS = 3;
+// AJAX 延迟渲染重试参数（v14.6.2：具名单点——内容侧不可 import background
+// PERF_CONFIG.layoutRetryIntervalMs（分层），同名语义在本文件单点声明）
+const LAYOUT_RETRY_INTERVAL_MS = 1000;
+const LAYOUT_RETRY_MAX = 10;
 
 export function clampInt(v, min, max, fallback) {
   const n = parseInt(v, 10);
@@ -167,9 +171,9 @@ export async function detectAndApply(all, host) {
   if (items.length >= MIN_ITEMS) {
     applied = applyLayout(cfg, items);
   } else {
-    // AJAX 延迟渲染重试（最多 10s；列表页主流程已有 4s 等待兜底）
-    for (let i = 0; i < 10 && !applied; i++) {
-      await new Promise((r) => setTimeout(r, 1000));
+    // AJAX 延迟渲染重试（间隔×次数 ≈ 10s 上限；列表页主流程已有 4s 等待兜底）
+    for (let i = 0; i < LAYOUT_RETRY_MAX && !applied; i++) {
+      await new Promise((r) => setTimeout(r, LAYOUT_RETRY_INTERVAL_MS));
       items = scan();
       if (items.length >= MIN_ITEMS) applied = applyLayout(cfg, items);
     }

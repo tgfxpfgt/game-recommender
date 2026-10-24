@@ -13,7 +13,7 @@
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { dataStore } from '../../data/data-store.js';
-import { DB_KEYS, ENDPOINTS } from '../core/constants.js';
+import { DB_KEYS, ENDPOINTS, PERF_CONFIG } from '../core/constants.js';
 import { Logger } from '../storage/logger.js';
 
 const TOP250_URL = ENDPOINTS.steam250Top250; // v10.7.0：端点单源
@@ -76,7 +76,11 @@ async function ensureLoaded() {
     }
     // 2. 在线抓取 top250（服务端渲染快照，无反爬；礼貌起见 24h 至多一次）
     try {
-      const resp = await fetchWithTimeout(TOP250_URL, { headers: { Accept: 'text/html' } }, 20000);
+      const resp = await fetchWithTimeout(
+        TOP250_URL,
+        { headers: { Accept: 'text/html' } },
+        PERF_CONFIG.fetchTimeoutSteam250Ms
+      );
       if (!resp.ok) throw new Error('HTTP ' + resp.status);
       const games = parseSteam250Html(await resp.text());
       // 数量下限哨兵（v10.4.4）：解析与校验分离——解析器保持纯函数可单测

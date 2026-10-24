@@ -56,6 +56,8 @@
   }
 
   // 显示操作状态
+  // v14.6.2：状态文案清空延时具名单点
+  const DATA_OP_CLEAR_MS = 4000;
   function showDataOpStatus(text, isError = false) {
     const el = document.getElementById('dataOpStatus');
     if (!el) return;
@@ -63,7 +65,7 @@
     el.className = 'data-op-status ' + (isError ? 'error' : 'ok');
     setTimeout(() => {
       el.textContent = '';
-    }, 4000);
+    }, DATA_OP_CLEAR_MS);
   }
 
   // ============ Data Management / 数据管理 ============

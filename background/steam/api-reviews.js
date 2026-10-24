@@ -1,6 +1,6 @@
 import { recordSteamCall, recordDomainCall } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
-import { ENDPOINTS, STORAGE_CAPS } from '../core/constants.js'; // v10.7.0：端点单源
+import { ENDPOINTS, STORAGE_CAPS, PERF_CONFIG } from '../core/constants.js'; // v10.7.0：端点单源；v14.6.2：超时单源
 import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
 import { Logger } from '../storage/logger.js';
 
@@ -219,7 +219,7 @@ export async function fetchLastUpdate(appId) {
     const resp = await fetchWithTimeout(
       `${ENDPOINTS.steamAppNews}?appid=${appId}&count=1&maxlength=0&format=json`,
       {},
-      4000
+      PERF_CONFIG.fetchTimeoutLastUpdateMs
     );
     // v14.0.0：api 域可达性上报（此前 api 域恒为 unknown）——只记 domain 不记
     // recordSteamCall：全局失败率会因大陆常态不可达而恒报警，误触发批量降速

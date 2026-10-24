@@ -1,7 +1,7 @@
 import { recordSteamCall, isCircuitOpen, recordDomainCall } from '../core/api-monitor.js';
 import { generateSearchVariants, extractNoiseCandidates } from '../core/title-parser.js';
 import { fetchWithTimeout } from '../core/utils.js';
-import { ENDPOINTS } from '../core/constants.js'; // v10.7.0：端点单源
+import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js'; // v10.7.0：端点单源；v14.6.2：超时单源
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 import { Logger } from '../storage/logger.js';
 import { fetchSteamAppDetails } from './api-details.js';
@@ -436,7 +436,7 @@ export async function searchCommunityApps(term, rawName, excludeAppId) {
     const resp = await fetchWithTimeout(
       ENDPOINTS.steamCommunitySearch + encodeURIComponent(String(term).trim()),
       {},
-      8000
+      PERF_CONFIG.fetchTimeoutCommunitySearchMs
     );
     // 404/空结果非失败（SearchApps 未命中返回 []）
     recordSteamCall(resp.ok || resp.status === 404, resp.status);

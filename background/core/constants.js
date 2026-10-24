@@ -62,7 +62,16 @@ export const PERF_CONFIG = {
   layoutRetryMax: 10, // xdgrid 布局最大重试次数
   appListIndexMaxAgeDays: 7, // v14.6：全量目录索引保鲜期（过期后首次匹配触发后台刷新）
   appListDumpTimeoutMs: 90000, // v14.6：目录 dump 下载超时（~20MB）
-  appListServiceMaxPages: 10 // v14.6：IStoreService 分页上限（5 万/页 × 10 ≥ 全量）
+  appListServiceMaxPages: 10, // v14.6：IStoreService 分页上限（5 万/页 × 10 ≥ 全量）
+  // v14.6.2：出站 fetch 超时单源组（原五处字面量散落各业务文件——
+  // 铁律 13"写死值入单源"；调参集中此处，语义见各消费点）
+  fetchTimeoutDefaultMs: 15000, // fetchWithTimeout 默认超时（utils.js 消费）
+  fetchTimeoutImageFetchMs: 15000, // 跨域图片代取（image-fetch，二维码解码）
+  fetchTimeoutBingMs: 15000, // Bing 检索兜底（ai-fallback，HTML 较重）
+  fetchTimeoutSteam250Ms: 20000, // Steam250 榜单页 HTML（整页抓取最重）
+  fetchTimeoutCommunitySearchMs: 8000, // 社区搜索兜底（SearchApps 轻量响应快）
+  fetchTimeoutLastUpdateMs: 4000, // "最近更新"徽章硬帽（v10.9.2：api 域不可达时不得拖爆搜索主预算）
+  ratingsKeepAliveIntervalMs: 10000 // 批量任务 SW 保活心跳（getPlatformInfo 触发）
 };
 
 export const STORAGE_CAPS = {

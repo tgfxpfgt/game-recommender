@@ -18,6 +18,9 @@ import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
 
 const dbg = (...a) => debug.dbg(...a);
+// 兜底：45 秒强制收尾（v14.6.2：具名单点——未返回的游戏保持空白不误标
+// "未找到"，后台已逐批落盘，刷新页面第一波即命中；收尾后迟到推送仍应用）
+const FORCE_FINISH_MS = 45000;
 
 // ============ 列表页 Steam 好评率（两波：缓存命中即时显示 + 后台推送更新） ============
 // Two-wave rating flow: cached hits render instantly; misses are fetched in
@@ -292,7 +295,7 @@ function scheduleFallbacks() {
   job.forceTimer = setTimeout(() => {
     if (!_state.ratingsJob || _state.ratingsJob.finished) return;
     finishRatings();
-  }, 45000);
+  }, FORCE_FINISH_MS);
 }
 
 /**

@@ -15,7 +15,7 @@
  * (hallucination guard). Successful matches cache 7d, failures 24h.
  */
 import { getSettings } from '../core/settings.js';
-import { ENDPOINTS } from '../core/constants.js';
+import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
 import { getLlmMatch, setLlmMatch, getWebMatch, setWebMatch } from '../storage/llm-cache.js';
@@ -72,7 +72,11 @@ export async function webSearchFallback(rawName, excludeAppId) {
     // cn.bing.com 为公网域名（fetchWithTimeout 的 SSRF host 校验放行）；
     // 搜索词经 encodeURIComponent 编码，无注入面
     const searchUrl = ENDPOINTS.bingSearch + encodeURIComponent(rawName + ' steam');
-    const resp = await fetchWithTimeout(searchUrl, { headers: { 'User-Agent': BING_UA } }, 15000);
+    const resp = await fetchWithTimeout(
+      searchUrl,
+      { headers: { 'User-Agent': BING_UA } },
+      PERF_CONFIG.fetchTimeoutBingMs
+    );
     const html = await resp.text();
     const appIds = parseBingSearchAppIds(html)
       .filter((id) => String(id) !== String(excludeAppId))
