@@ -41,7 +41,8 @@ export const DB_KEYS = {
   SITE_HEALTH: 'siteHealth', // 站点适配器健康（v10.0.0：改版告警聚合）
   APP_STATS: 'appStats', // AppID 维度行为统计（v10.1.0：下载 a/详情页打开 b，永不过期）
   STEAM250_RANK: 'steam250Rank', // Steam250 榜单快照（v10.4.4：排名/评分，24h 刷新）
-  FAVORITES: 'favorites' // 收藏/关注清单（v10.6.0：本地数据，与限免监控联动）
+  FAVORITES: 'favorites', // 收藏/关注清单（v10.6.0：本地数据，与限免监控联动）
+  APP_LIST_INDEX: 'appListIndex' // v14.6：Steam 全量目录离线索引（归一化名→appid，调研建议 1）
 };
 
 // v10.7.0 批次1：存储容量上限单源（原 14 处散落各存储文件顶部——调参需逐文件
@@ -58,7 +59,10 @@ export const PERF_CONFIG = {
   maxSearchRetries: 1, // 搜索失败重试次数
   detailAbortTimeoutMs: 15000, // 列表页内容脚本 abort 超时
   layoutRetryIntervalMs: 1000, // xdgrid 布局重试间隔
-  layoutRetryMax: 10 // xdgrid 布局最大重试次数
+  layoutRetryMax: 10, // xdgrid 布局最大重试次数
+  appListIndexMaxAgeDays: 7, // v14.6：全量目录索引保鲜期（过期后首次匹配触发后台刷新）
+  appListDumpTimeoutMs: 90000, // v14.6：目录 dump 下载超时（~20MB）
+  appListServiceMaxPages: 10 // v14.6：IStoreService 分页上限（5 万/页 × 10 ≥ 全量）
 };
 
 export const STORAGE_CAPS = {
@@ -109,7 +113,11 @@ export const ENDPOINTS = {
   gamerPower: 'https://www.gamerpower.com/api/giveaways',
   // v14.2.0：Bing 检索兜底端点收编（补充轮 P1-3——原字面量在 ai-fallback.js；
   // host_permissions 已为 cn.bing.com 声明，属正式出站依赖）
-  bingSearch: 'https://cn.bing.com/search?q='
+  bingSearch: 'https://cn.bing.com/search?q=',
+  // v14.6：标题检索目录层数据源（调研 docs/标题检索AppID-准确率与效率调研-2026-10.md）
+  steamAppListDump: 'https://raw.githubusercontent.com/jsnli/steamappidlist/main/data/games_appid.json', // 每日全量镜像（免 key）
+  steamStoreServiceList: 'https://api.steampowered.com/IStoreService/GetAppList/v1/', // 官方替代（需用户 key）
+  steamCommunitySearch: 'https://steamcommunity.com/actions/SearchApps/' // 社区搜索（免 key，仅英文）
 };
 
 // 默认设置 / Default settings

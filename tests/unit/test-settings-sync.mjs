@@ -37,16 +37,15 @@ const optionsLayer = [
 ]
   .map(read)
   .join('\n');
-const popupLayer = ['popup/popup.js', 'popup/popup-weights.js', 'popup/popup.html']
-  .map(read)
-  .join('\n'); // v14.3.0：B6 拆分后权重滑块在 popup-weights.js
+const popupLayer = ['popup/popup.js', 'popup/popup-weights.js', 'popup/popup.html'].map(read).join('\n'); // v14.3.0：B6 拆分后权重滑块在 popup-weights.js
 
 const hasWord = (src, k) => new RegExp('(?:^|[^\\w$])' + k + '(?:[^\\w$]|$)').test(src);
 
 // 历史遗留键：无设置页 UI 且**有意不补**（兼容保留/已无消费方）——
 // 新增豁免必须写明理由，防止豁免清单沦为绕过工具
 const OPTIONS_ALLOWLIST = {
-  steamApiKey: '历史遗留键：Steam 官方检索无需 key，无 UI 无消费方（保留数据兼容）',
+  steamApiKey:
+    '无 UI：v14.6 起供 IStoreService/GetAppList 全量目录备源消费（app-list-index.js，用户经 Steamworks 获取 key 后写入 storage；保留数据兼容）',
   vmFilterKeywords: '旧兼容字段：v6.4.19 起 filterRules 取代，UI 已移除',
   filterKeywords: '旧兼容字段：v6.4.8 起 filterRules 取代，UI 已移除',
   filterMatchMode: '旧兼容字段：filterRules 语义内建排除词，UI 已移除',

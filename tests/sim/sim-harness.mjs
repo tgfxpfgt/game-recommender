@@ -279,6 +279,11 @@ globalThis.chrome = {
   },
   tabs: { sendMessage: async () => ({}) }
 };
+
+// v14.6：fetch 桩——目录索引（app-list-index）未命中触发的后台刷新在此
+// 确定性 404 降级（否则 sim 内发起真实 20MB 网络拉取，写队列竞争干扰
+// 节 2/2b 批次时序）。目录层逻辑由 tests/unit/test-app-list-index 覆盖。
+globalThis.fetch = async () => ({ ok: false, status: 404, json: async () => ({}) });
 // 显式读取（v14 B9：替代原文件级 let msgListener 直接引用）
 export function getMsgListener() {
   return msgListener;

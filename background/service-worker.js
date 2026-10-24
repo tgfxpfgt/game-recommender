@@ -72,6 +72,7 @@ import { warmupDownloadUrls } from './storage/download-urls.js';
 import { warmupOutboundAudit } from './core/outbound-audit.js';
 import { warmupSiteAlertPersist } from './handlers/diag-status.js';
 import { handleGetStats } from './handlers/stats.js';
+import { ensureAppListIndex } from './steam/app-list-index.js'; // v14.6：目录索引温层加载
 
 // v9.1.0：SW 启动计时（性能基线——Perf 日志落盘 runtimeLog，可脚本分析）
 const BOOT_START = Date.now();
@@ -207,7 +208,8 @@ setTimeout(() => {
     warmupBehavior(),
     warmupDownloadUrls(),
     warmupOutboundAudit(),
-    warmupSiteAlertPersist()
+    warmupSiteAlertPersist(),
+    ensureAppListIndex() // v14.6：目录索引温层加载（仅读盘，无网络）
   ]);
 }, WARM_TIER_DELAY_MS);
 

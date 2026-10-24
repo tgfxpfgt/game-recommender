@@ -10,6 +10,7 @@
  */
 import {
   searchSteamAppId,
+  searchCommunityApps,
   fetchSteamAppDetails,
   fetchReviewSummary,
   fetchLastUpdate,
@@ -21,19 +22,11 @@ import {
   baseAppIdFromDetails,
   needsRatingRefetch
 } from './api.js';
-import {
-  isModuleValid,
-  getMergedData,
-  getSteamCacheEntry,
-  setSteamCacheEntry
-} from '../storage/steam-cache.js';
+import { isModuleValid, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
-import {
-  lookupAppIdByName,
-  recordNameIndex,
-  isRecentlySearchedNotFound
-} from '../storage/name-index.js';
+import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '../storage/name-index.js';
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
+import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
@@ -111,12 +104,26 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     // 该标题曾报错：错误 appid 作为黑名单排除（全流程复用，含 0 评测重搜）
     const corr = await lookupWrongReportCorrection(gameName);
     if (!foundAppId) {
-      searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
-      // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
-      if (!searchResult && options.rawTitle) {
-        const enSeg = (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
-        if (enSeg) {
-          searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
+      // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中免网络。
+      // 下架游戏 storesearch 搜不到（结构性盲区）；目录命中后评分走
+      // appreviews（不受商店在架状态影响），4.5/5.5 步 appdetails 仅在
+      // 0 评测/缺英文名时才触发 → 下架游戏可正常出徽章。
+      const dirHit = await matchAppListExact(gameName, corr ? corr.wrongAppId : null);
+      if (dirHit) {
+        searchResult = { appId: dirHit.appId, name: dirHit.name, englishName: dirHit.name };
+      } else {
+        searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
+        // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
+        if (!searchResult && options.rawTitle) {
+          const enSeg = (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
+          if (enSeg) {
+            searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
+            // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）——
+            // 英文 storesearch 未命中时的轻量补充，结果经同一相关性校验
+            if (!searchResult) {
+              searchResult = await searchCommunityApps(enSeg, options.rawTitle, corr ? corr.wrongAppId : null);
+            }
+          }
         }
       }
       if (!searchResult) {

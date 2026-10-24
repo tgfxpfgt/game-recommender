@@ -401,6 +401,49 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId, lang 
   return null;
 }
 
+// v14.6：社区搜索端点兜底（steamcommunity.com/actions/SearchApps/<term>）——
+// 免 key、极快（调研 docs/标题检索AppID-准确率与效率调研-2026-10.md 建议 3）。
+// **仅英文**（实测中文返回空数组），故只接入英文重搜阶段；结果经与
+// storesearch 同一的相关性校验（nameMatchesSearch）后返回单条最佳。
+// Community search fallback (research recommendation 3): keyless and fast,
+// English-only (verified — Chinese queries return an empty array). Results
+// pass the same relevance check as storesearch before being returned.
+/**
+ * @param {string} term
+ * @param {string} rawName
+ * @param {string|number|null} [excludeAppId]
+ * @returns {Promise<import('../core/types.js').SteamSearchResult|null>}
+ */
+export async function searchCommunityApps(term, rawName, excludeAppId) {
+  if (!term) return null;
+  if (isCircuitOpen('store')) return null; // 与 storesearch 同一 store 域熔断
+  try {
+    const resp = await fetchWithTimeout(
+      ENDPOINTS.steamCommunitySearch + encodeURIComponent(String(term).trim()),
+      {},
+      8000
+    );
+    // 404/空结果非失败（SearchApps 未命中返回 []）
+    recordSteamCall(resp.ok || resp.status === 404, resp.status);
+    recordDomainCall('store', resp.ok || resp.status === 404);
+    if (!resp.ok) return null;
+    const list = await resp.json();
+    if (!Array.isArray(list)) return null;
+    for (const item of list) {
+      if (!item || item.appid == null || typeof item.name !== 'string' || !item.name) continue;
+      if (excludeAppId != null && String(item.appid) === String(excludeAppId)) continue;
+      if (ADDON_NAME_PATTERN.test(item.name)) continue;
+      if (!nameMatchesSearch(item.name, term, rawName)) continue;
+      return { appId: String(item.appid), name: item.name, englishName: item.name };
+    }
+    return null;
+  } catch {
+    recordSteamCall(false, 0);
+    recordDomainCall('store', false);
+    return null;
+  }
+}
+
 // v4.1.1：版本后缀补搜——标题含"增强版/重制版"等版本词、但封面/直取 appId
 // 是旧版时（如 gamer520 40746 封面 271590 是 GTA5 老版，标题"侠盗猎车手V 增强版"
 // 应为 3240220），用旧版英文名 + 英文版本后缀补搜新版。

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-24T06:44:52.547Z",
+  "generatedAt": "2026-10-24T08:18:52.727Z",
   "version": "14.5.0",
   "nodes": [
     {
@@ -8,7 +8,7 @@
       "color": "#4a9eff",
       "desc": "Service Worker — 消息分发/检索管线/推荐引擎/存储",
       "files": 2,
-      "lines": 389
+      "lines": 391
     },
     {
       "dir": "content",
@@ -80,14 +80,14 @@
       "color": "#f39c12",
       "desc": "OPFS 持久化 — data-store/STORAGE_MODULES 注册表",
       "files": 3,
-      "lines": 655
+      "lines": 662
     }
   ],
   "stats": {
     "actionCount": 64,
-    "storageCount": 25,
+    "storageCount": 26,
     "testCount": 0,
-    "suiteCount": 45
+    "suiteCount": 46
   },
   "flows": [
     {

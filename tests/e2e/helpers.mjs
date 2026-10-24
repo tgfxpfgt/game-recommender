@@ -33,7 +33,7 @@ const FIXTURES_DIR = path.join(TESTS_DIR, 'fixtures', 'http');
 // CDN 抖动时页面图片资源报 net::ERR 打红 console-error 断言，MOCK 的离线
 // 确定性契约被破坏）；图片请求在 routeHandler 统一回 1×1 透明 GIF。
 export const MOCK_RE =
-  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\//;
+  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|steamcommunity\.com|api\.steampowered\.com)\//;
 
 // fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
 function fixtureKey(urlStr) {

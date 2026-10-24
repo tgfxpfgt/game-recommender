@@ -137,7 +137,14 @@ export const STORAGE_MODULES = {
     clearOnDataReset: true
   }, // v10.1.0（a/b 计数，不可重建）
   steam250Rank: { file: 'steam250-rank.json', format: 'json', name: 'Steam250 榜单', desc: 'Steam250 Rank' }, // v10.4.4
-  favorites: { file: 'favorites.json', format: 'json', name: '收藏清单', desc: 'Favorites', backup: true } // v10.6.0（用户精选，高价值不可重建→纳入默认备份）
+  favorites: { file: 'favorites.json', format: 'json', name: '收藏清单', desc: 'Favorites', backup: true }, // v10.6.0（用户精选，高价值不可重建→纳入默认备份）
+  appListIndex: {
+    file: 'app-list-index.json',
+    format: 'json',
+    name: 'Steam 全量目录',
+    desc: 'Steam App Catalog',
+    clearOnDataReset: true
+  } // v14.6（可重建的离线索引，~10MB——不进默认备份，过期自动重拉）
 };
 
 // 导出/导入与"清除学习数据"涉及的是 storageKey 语义（与模块键同值）

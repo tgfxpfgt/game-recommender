@@ -10,6 +10,7 @@
  */
 import {
   searchSteamAppId,
+  searchCommunityApps,
   fetchSteamFullDetailsByAppId,
   isDemoAppId,
   ensureRegistryEntry,
@@ -39,6 +40,7 @@ import { detailSteamCacheTtlMs } from '../core/constants.js';
 import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/17：规则匹配失败后的匹配兜底
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络故障期跳过负缓存
 import { isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js';
+import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 
 /**
  * 搜索游戏并获取完整 Steam 详情（详情页/浮窗使用）
@@ -131,21 +133,45 @@ export async function searchSteamGame(gameName, options = {}) {
       : '';
     // 版本级噪声词（命中名缺版本后缀属正常，不计入覆盖判据）
     const EDITION_WORDS = new Set([
-      'edition', 'enhanced', 'deluxe', 'upgrade', 'remastered', 'remaster',
-      'definitive', 'complete', 'goty', 'bundle', 'collection', 'demo', 'trial'
+      'edition',
+      'enhanced',
+      'deluxe',
+      'upgrade',
+      'remastered',
+      'remaster',
+      'definitive',
+      'complete',
+      'goty',
+      'bundle',
+      'collection',
+      'demo',
+      'trial'
     ]);
     /** @param {string} s */
-    const enWordsOf = (s) => new Set((String(s).toLowerCase().match(/[a-z][a-z0-9]{3,}/g) || []));
+    const enWordsOf = (s) =>
+      new Set(
+        String(s)
+          .toLowerCase()
+          .match(/[a-z][a-z0-9]{3,}/g) || []
+      );
     if (!appId) {
-      let searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
+      // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中作为检索结果
+      //（阶段 2 交叉验证照常运行防 franchise 误配）；目录未命中走在线检索。
+      /** @type {import('../core/types.js').SteamSearchResult|null} */
+      let searchResult = null;
+      const dirHit = await matchAppListExact(gameName, excludeAppId);
+      if (dirHit) {
+        searchResult = { appId: dirHit.appId, name: dirHit.name, englishName: dirHit.name };
+      } else {
+        searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
+      }
       // 阶段 2：内容词覆盖交叉验证
       if (searchResult && enSegment) {
         const rawWords = [...enWordsOf(enSegment)].filter((w) => !EDITION_WORDS.has(w));
         const coverOf = (name) => rawWords.filter((w) => enWordsOf(name).has(w)).length;
         const hitCover = coverOf(searchResult.name);
         // rawWords ≥ 2 护栏：单词段区分度不足，不触发
-        const needEn =
-          rawWords.length >= 2 && (hitCover === 0 || hitCover < rawWords.length);
+        const needEn = rawWords.length >= 2 && (hitCover === 0 || hitCover < rawWords.length);
         if (needEn) {
           Logger.info(
             'Steam',
@@ -166,6 +192,11 @@ export async function searchSteamGame(gameName, options = {}) {
       // 阶段 3：中文全空 → raw 标题英文段兜底
       if (!searchResult && enSegment) {
         searchResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
+        // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）——英文
+        // storesearch 未命中时的轻量补充，结果经同一相关性校验
+        if (!searchResult) {
+          searchResult = await searchCommunityApps(enSegment, options.rawTitle, excludeAppId);
+        }
       }
       if (!searchResult) {
         // v6.4.16：规则匹配失败 → 匹配兜底（防幻觉：均经官方数据校验后才采用）
@@ -206,7 +237,10 @@ export async function searchSteamGame(gameName, options = {}) {
     if (result.type === 'dlc' && result.fullgame) {
       const baseId = String(result.fullgame.appid || result.fullgame.appId || '');
       if (baseId && baseId !== String(appId)) {
-        Logger.info('Steam', `DLC 解析: ${result.name} (DLC ${appId}) → 本体 ${baseId} (${result.fullgame.name || ''})`);
+        Logger.info(
+          'Steam',
+          `DLC 解析: ${result.name} (DLC ${appId}) → 本体 ${baseId} (${result.fullgame.name || ''})`
+        );
         const baseResult = await fetchSteamFullDetailsByAppId(baseId);
         if (baseResult) {
           appId = baseId;
