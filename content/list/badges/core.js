@@ -223,7 +223,7 @@ export function prependBadge(item, rating, settings) {
     const b = rating.appDetailViews || 0;
     const hasDownload = a > 0;
     const hasViews = b > 0;
-    const anchorBadge = badges.length > 0 ? badges[badges.length - 1] : null;
+    const anchorBadge = badges.at(-1) ?? null; // v14.5.1：Array.prototype.at（Chrome 92+）
     const statBadge = createBadge(link, {
       text: `${a}-${b}`,
       color: hasDownload ? '#4caf50' : hasViews ? '#e67e22' : '#8f98a0',

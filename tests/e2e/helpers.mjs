@@ -28,9 +28,12 @@ export const RECORD = process.env.E2E_RECORD === '1';
 export const FAST = process.env.E2E_FAST === '1';
 const FIXTURES_DIR = path.join(TESTS_DIR, 'fixtures', 'http');
 // mock 后台检索 API（storesearch/appdetails/appreviews/steamspy）+ 限免源
-//（v9.3.0：Epic/GOG/GamerPower——限免链路离线可测）；图片等非 API 直通
+//（v9.3.0：Epic/GOG/GamerPower——限免链路离线可测）。
+// v14.5.1：图片域入 MOCK（原"图片直通"使 MOCK 依赖 Steam CDN 真实网络——
+// CDN 抖动时页面图片资源报 net::ERR 打红 console-error 断言，MOCK 的离线
+// 确定性契约被破坏）；图片请求在 routeHandler 统一回 1×1 透明 GIF。
 export const MOCK_RE =
-  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\//;
+  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\//;
 
 // fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
 function fixtureKey(urlStr) {
@@ -44,6 +47,17 @@ function fixtureKey(urlStr) {
 
 export async function routeHandler(route) {
   const req = route.request();
+  // v14.5.1：MOCK 模式图片请求统一回 1×1 透明 GIF（离线确定性——DOM 中
+  // <img> 元素本身即测试所需，字节内容无断言依赖；避免 CDN 抖动报
+  // net::ERR 打红 console-error 断言）
+  if (MOCK && req.resourceType() === 'image') {
+    await route.fulfill({
+      status: 200,
+      contentType: 'image/gif',
+      body: Buffer.from('R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7', 'base64')
+    });
+    return;
+  }
   const file = path.join(FIXTURES_DIR, fixtureKey(req.url()));
   if (MOCK) {
     // 回放：命中 fixture 原样返回；未命中 404（断言可见失败，不静默）

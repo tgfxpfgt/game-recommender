@@ -21,7 +21,7 @@
       if (o[k] === null || typeof o[k] !== 'object') o[k] = {};
       o = o[k];
     }
-    o[keys[keys.length - 1]] = value;
+    o[keys.at(-1)] = value; // v14.5.1：Array.prototype.at
     return obj;
   }
 
@@ -50,7 +50,7 @@
   // 独立打开 → 新开标签直达指定页面。page 取值：options|vista|dashboard|freegames
   // Go to the hub: switch the parent panel when embedded, else open a new tab.
   function goHub(page) {
-    const inHub = typeof location !== 'undefined' && location.search && location.search.indexOf('hub=1') !== -1;
+    const inHub = typeof location !== 'undefined' && !!location.search && location.search.includes('hub=1'); // v14.5.1：includes
     if (inHub && typeof window !== 'undefined' && window.parent !== window) {
       // v10.5.0 P3：定向扩展自身源（父级 hub 与本 iframe 同源），不再用 '*'
       window.parent.postMessage({ type: 'GR_HUB_SWITCH', page: page || 'options' }, location.origin);

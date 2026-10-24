@@ -192,7 +192,7 @@ export function create(zone, id, opts = {}) {
 
   const item = { zone, root, body, lastHeight: 0 };
   floats[id] = item;
-  if (zoneStack[zone].indexOf(item) === -1) zoneStack[zone].push(item);
+  if (!zoneStack[zone].includes(item)) zoneStack[zone].push(item); // v14.5.1：includes
 
   // 高度变化时自动重排同区浮窗（防重叠）/ auto re-stack on resize
   if (typeof ResizeObserver !== 'undefined') {

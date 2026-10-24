@@ -9,7 +9,7 @@
     "strict": true,
     "noImplicitAny": false,
     "skipLibCheck": true,
-    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["chrome"]
   },
   "include": ["background/**/*.js", "data/**/*.js", "lib/**/*.js", "**/*.d.ts"],

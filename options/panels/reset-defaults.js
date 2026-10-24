@@ -124,14 +124,16 @@
     const defaults = await ensureDefaults();
     const def = getPath(defaults, path);
     if (def === undefined) return;
-    const merged = JSON.parse(JSON.stringify(OPTS.currentSettings || {}));
+    // v14.5.1：structuredClone（Chrome 98+）——设置对象为纯数据，与 JSON
+    // 往返等价；def 中显式 undefined 属性的保留行为更精确
+    const merged = structuredClone(OPTS.currentSettings || {});
     const segs = path.split('.');
     let node = merged;
     for (let i = 0; i < segs.length - 1; i++) {
       if (!node[segs[i]] || typeof node[segs[i]] !== 'object') node[segs[i]] = {};
       node = node[segs[i]];
     }
-    node[segs[segs.length - 1]] = JSON.parse(JSON.stringify(def));
+    node[segs.at(-1)] = structuredClone(def);
     OPTS.currentSettings = merged;
     OPTS.renderSettings(merged);
     OPTS.scheduleAutoSave();

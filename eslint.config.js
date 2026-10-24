@@ -41,6 +41,11 @@ const baseGlobals = {
   TextEncoder: 'readonly',
   crypto: 'readonly',
   history: 'readonly', // v7.0.5：hub.js 使用（浏览器全局，此前漏声明致误报）
+  // 现代内建（v14.5.1：与 minimum_chrome_version 109 特性基线对齐——
+  // 手写窄表每引入新内建需同步在此登记，KNOWLEDGE §9 特性基线表为准）
+  structuredClone: 'readonly',
+  AbortSignal: 'readonly',
+  Buffer: 'readonly', // v14.5.1：e2e helpers 图片占位（node 环境）
   // 扩展 API / extension APIs
   chrome: 'readonly',
   // 内容脚本全局命名空间 / content-script namespaces
@@ -97,7 +102,7 @@ export default [
   {
     files: ['**/*.js'],
     languageOptions: {
-      ecmaVersion: 2022,
+      ecmaVersion: 'latest', // v14.5.1：与 tests 块对齐（新语法解析不再落后）
       sourceType: 'module',
       globals: baseGlobals
     },

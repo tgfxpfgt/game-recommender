@@ -41,14 +41,14 @@ orchestrator-list.js getSteamPositiveRate()  ← 列表页轻量查询
 
 ### 关键决策点
 
-| 决策 | 逻辑 | 位置 |
-|---|---|---|
-| Demo 自愈 | 缓存命中 Demo 且无评测 → 忽略缓存重搜 | orchestrator-shared.js |
-| appId 类型校验 | DLC → 解析 fullgame 本体；bundle → 返回 type 标记 | orchestrator-list.js |
-| 0 评测验证 | positiveRate=null → 重试计数 +1（上限 3）→ 冷却期不重复请求 | orchestrator-list.js |
-| 负缓存 | 搜索未命中 → name-index 记 null；网络故障期跳过（防固化） | orchestrator-detail.js |
-| 熔断 | 连续 5 次网络失败 → 60s 熔断；半开探测通过后闭合 | api-monitor.js |
-| 交叉验证 | 中文命中名 EN 词交集与 raw 英文段 = 0 → 英文重搜 l=english | orchestrator-detail.js v14.3.1 |
+| 决策           | 逻辑                                                        | 位置                           |
+| -------------- | ----------------------------------------------------------- | ------------------------------ |
+| Demo 自愈      | 缓存命中 Demo 且无评测 → 忽略缓存重搜                       | orchestrator-shared.js         |
+| appId 类型校验 | DLC → 解析 fullgame 本体；bundle → 返回 type 标记           | orchestrator-list.js           |
+| 0 评测验证     | positiveRate=null → 重试计数 +1（上限 3）→ 冷却期不重复请求 | orchestrator-list.js           |
+| 负缓存         | 搜索未命中 → name-index 记 null；网络故障期跳过（防固化）   | orchestrator-detail.js         |
+| 熔断           | 连续 5 次网络失败 → 60s 熔断；半开探测通过后闭合            | api-monitor.js                 |
+| 交叉验证       | 中文命中名 EN 词交集与 raw 英文段 = 0 → 英文重搜 l=english  | orchestrator-detail.js v14.3.1 |
 
 ---
 
@@ -143,16 +143,16 @@ chrome.storage.session
 
 ## 6. 单源表（改一处生效全局）
 
-| 表 | 位置 | 派生 |
-|---|---|---|
-| STORAGE_MODULES | data/storage-registry.js | MODULE_FILES / DATA_MODULES / 备份子集 / 清除范围 |
-| module-manifest | content/module-manifest.js | tracker 装载 / content-sim 文件表 / integrity 校验 |
-| fm-keys | shared/fm-keys.js | 浮窗模块键序（5 消费方派生） |
-| spy-scales | shared/spy-scales.js | SteamSpy 信号刻度（engine + content 共用） |
-| SITE_SCRIPT_FILES | background/core/site-scripts.js | manifest js 清单（integrity 深度相等断言） |
-| STORAGE_CAPS | background/core/constants.js | 各容量上限（favorites/tabGames/itadPriceCache 等） |
-| ENDPOINTS | background/core/constants.js | 出站端点 URL |
-| TTL_FIELDS | options 壳 | 缓存有效期控件映射 |
+| 表                | 位置                            | 派生                                               |
+| ----------------- | ------------------------------- | -------------------------------------------------- |
+| STORAGE_MODULES   | data/storage-registry.js        | MODULE_FILES / DATA_MODULES / 备份子集 / 清除范围  |
+| module-manifest   | content/module-manifest.js      | tracker 装载 / content-sim 文件表 / integrity 校验 |
+| fm-keys           | shared/fm-keys.js               | 浮窗模块键序（5 消费方派生）                       |
+| spy-scales        | shared/spy-scales.js            | SteamSpy 信号刻度（engine + content 共用）         |
+| SITE_SCRIPT_FILES | background/core/site-scripts.js | manifest js 清单（integrity 深度相等断言）         |
+| STORAGE_CAPS      | background/core/constants.js    | 各容量上限（favorites/tabGames/itadPriceCache 等） |
+| ENDPOINTS         | background/core/constants.js    | 出站端点 URL                                       |
+| TTL_FIELDS        | options 壳                      | 缓存有效期控件映射                                 |
 
 ---
 
@@ -214,13 +214,24 @@ flushAllCaches（storage/flush.js 聚合落盘）：
 
 ## 9. 性能基线（v14.5.0 第六轮实测）
 
-| 维度 | 现状 | 度量位置 |
-|---|---|---|
-| SW 冷启动 | 静态图 77 文件 / ~11.5k 行（MV3 SW 禁动态 import，无懒加载手段） | Perf 日志 `SW 模块图就绪 Xms`（timeOrigin→入口顶层 ≈ 消息可用时刻） |
-| OPFS 写 | 计数器模式（metricInc + session-persist 防抖）+ 5 模块 2s 防抖合并 | dashboard 运行指标卡（opfs.writeCount/writeBytes） |
-| 消息管道 | TRACK_EVENT_BATCH（500ms/10 条，10→1）+ GET_STEAM_RATINGS 批量（settings.ratingsBatchSize，B9 接线）+ click_download 即时 | metrics 消息计数器 |
-| 状态渲染 | showStats 100ms 合并（B9，列表流程 ×N→×1） | — |
-| 内容装载 | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求） | e2e-probe 模块网络加载 |
+| 维度      | 现状                                                                                                                      | 度量位置                                                            |
+| --------- | ------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------- |
+| SW 冷启动 | 静态图 77 文件 / ~11.5k 行（MV3 SW 禁动态 import，无懒加载手段）                                                          | Perf 日志 `SW 模块图就绪 Xms`（timeOrigin→入口顶层 ≈ 消息可用时刻） |
+| OPFS 写   | 计数器模式（metricInc + session-persist 防抖）+ 5 模块 2s 防抖合并                                                        | dashboard 运行指标卡（opfs.writeCount/writeBytes）                  |
+| 消息管道  | TRACK_EVENT_BATCH（500ms/10 条，10→1）+ GET_STEAM_RATINGS 批量（settings.ratingsBatchSize，B9 接线）+ click_download 即时 | metrics 消息计数器                                                  |
+| 状态渲染  | showStats 100ms 合并（B9，列表流程 ×N→×1）                                                                                | —                                                                   |
+| 内容装载  | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求）                        | e2e-probe 模块网络加载                                              |
+
+**JS 特性基线（minimum_chrome_version 109 决定白名单，v14.5.1 审计）**：
+✓ 可用——`structuredClone`(98)/`Object.hasOwn`(93)/`Array.prototype.at`(92)/
+`includes`(53)/`AbortSignal.timeout`(103)/`:has()` CSS(105)/`Promise.allSettled`(76)；
+✗ 排除——`Object.groupBy`(117)/`toSorted`(110)/`scheduler.yield`(129)/
+`Promise.withResolvers`(119)/`Array.fromAsync`(121)。
+**有意保留的"旧"写法**：fetchWithTimeout 手工 AbortController+clearTimeout
+（clearTimeout 保证响应体读取不受超时影响——AbortSignal.timeout 会在超时后
+中断慢速体读取，语义必需）；SW 内 setTimeout（分层预热按"SW 短命即跳过"
+设计，alarm 不适用）；列表徽章同步插入（波次分批已界定每帧工作量，rAF
+批处理会破坏 sim/E2E 的同步渲染契约）。
 
 ---
 

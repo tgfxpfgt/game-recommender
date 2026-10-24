@@ -144,7 +144,8 @@ export function applyRatingsResponse(ratings, mode) {
       badges.removeWorkingBadge(item); // v14 F1：移除"等待检索"占位
       badges.prependBadge(item, rating, job.settings);
       job.shown++;
-    } else if (mode !== 'first' && Object.prototype.hasOwnProperty.call(ratings, item.name)) {
+    } else if (mode !== 'first' && Object.hasOwn(ratings, item.name)) {
+      // v14.5.1：Object.hasOwn（Chrome 93+）
       // 最终波：仅对**波内包含**的名字判定"未找到"（波外名字继续等待后续波）
       // 'final': only names present in this wave resolve as "not found"
       job.processed.add(item.name);

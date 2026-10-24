@@ -66,7 +66,7 @@ export function metricsSnapshot() {
     histOut[name] = {
       count: sorted.length,
       min: sorted[0],
-      max: sorted[sorted.length - 1],
+      max: sorted.at(-1), // v14.5.1：Array.prototype.at
       avg: Math.round(sum / sorted.length),
       p95: sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * 0.95))]
     };

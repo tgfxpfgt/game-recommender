@@ -25,9 +25,10 @@ import { debounce } from './mechanisms.js';
 export function createSessionPersist(key, options = {}) {
   const { initial = null, debounceMs = 2000 } = options || {};
   // v10.0.0：initial 深拷贝——reset() 若只赋引用，首个状态变更会污染 initial
-  // 本体（对象型 initial 的 reset 失效）；这些载荷均为可 JSON 化纯数据
-  const cloneInitial = () =>
-    /** @type {T} */ (Array.isArray(initial) ? initial.slice() : JSON.parse(JSON.stringify(initial)));
+  // 本体（对象型 initial 的 reset 失效）；这些载荷均为可 JSON 化纯数据。
+  // v14.5.1：structuredClone（Chrome 98+，基线 109 内）——纯数据下与 JSON
+  // 往返等价，undefined 属性保留行为更精确。
+  const cloneInitial = () => /** @type {T} */ (Array.isArray(initial) ? initial.slice() : structuredClone(initial));
   let memory = cloneInitial();
   let loaded = false;
   // v10.7.0：防抖实现收敛至 core/mechanisms.js 工厂（原手写 timer 同构）
