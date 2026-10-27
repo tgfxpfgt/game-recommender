@@ -1,0 +1,256 @@
+{
+  "_comment": "错题库：appid 匹配错误的现场样例（离线回归源）。结构：rawTitle=下载站页原始标题；cleanTitle=cleanPageTitle 产物；url=来源页；expectedAppId=人工确认的正确 AppID；expectedName=官方名；recorded=逐词 storesearch 响应回放（term→{total,items}，items 为该词当时的真实返回顺序，缺词=当时返回空）。verify 测试用 recorded 重放 searchSteamAppId 并断言命中 expectedAppId——检索算法任何变更后跑一遍，命中变差即失败。",
+  "_howToRecord": "真实网络可达时：curl 'https://store.steampowered.com/api/storesearch/?term=<逐词>&l=schinese&cc=cn' 把每个 term 的响应存入 recorded；expected 由 Steam 商店页人工确认。storesearch 返回空时记 {\"total\":0,\"items\":[]}。",
+  "samples": [
+    {
+      "id": "xianyudanji-105165",
+      "url": "https://www.xianyudanji.gg/105165.html",
+      "rawTitle": "使命召唤®：黑色行动 7|官方中文|支持手柄|Call of Duty®: Black Ops 7|使命召唤22：黑色行动7-咸鱼单机",
+      "expectedAppId": "3606490",
+      "expectedName": "Call of Duty: Black Ops 7",
+      "note": "新作（BO7，appid 3606490）；schinese 索引对'使命召唤22/黑色行动7'等词当时返回 0 或噪声——错配形态：系列多作序号碰撞",
+      "recorded": {
+        "使命召唤®": {
+          "total": 0,
+          "items": []
+        },
+        "Call of Duty®": {
+          "total": 10,
+          "items": [
+            {
+              "id": 1938090,
+              "name": "Call of Duty®",
+              "type": "app"
+            },
+            {
+              "id": 2933620,
+              "name": "Call of Duty®: Black Ops 6",
+              "type": "app"
+            },
+            {
+              "id": 3606490,
+              "name": "Call of Duty®: Black Ops 7",
+              "type": "app"
+            },
+            {
+              "id": 3112100,
+              "name": "Call of Duty®: Warzone",
+              "type": "app"
+            }
+          ]
+        },
+        "Call of Duty": {
+          "total": 10,
+          "items": [
+            {
+              "id": 1938090,
+              "name": "Call of Duty®",
+              "type": "app"
+            },
+            {
+              "id": 2933620,
+              "name": "Call of Duty®: Black Ops 6",
+              "type": "app"
+            },
+            {
+              "id": 3606490,
+              "name": "Call of Duty®: Black Ops 7",
+              "type": "app"
+            }
+          ]
+        },
+        "Black Ops 7": {
+          "total": 3,
+          "items": [
+            {
+              "id": 3606490,
+              "name": "Call of Duty®: Black Ops 7",
+              "type": "app"
+            },
+            {
+              "id": 3707980,
+              "name": "Call of Duty®: Black Ops 7 - Vault Edition",
+              "type": "app"
+            }
+          ]
+        },
+        "黑色行动 7": {
+          "total": 0,
+          "items": []
+        }
+      },
+      "cleanTitle": "使命召唤®：黑色行动 7|官方中文|支持手柄|Call of Duty®: Black Ops 7|使命召唤22：黑色行动7"
+    },
+    {
+      "id": "xdgame-1697",
+      "url": "https://www.xdgame.com/game/1697.html",
+      "rawTitle": "人类/Humankind - XDGAME",
+      "expectedAppId": "1124300",
+      "expectedName": "HUMANKIND™",
+      "note": "Humankind（Amplitude，1124300）——错配形态：短通用词'人类'的目录精确匹配可能撞同名中文条目（如词典内其他含'人类'的条目）；以及 storesearch '人类' 噪声候选",
+      "recorded": {
+        "人类/Humankind": {
+          "total": 2,
+          "items": [
+            {
+              "id": 1124300,
+              "name": "HUMANKIND™",
+              "type": "app"
+            },
+            {
+              "id": 2109320,
+              "name": "HUMANKIND™ Deluxe Edition",
+              "type": "app"
+            }
+          ]
+        },
+        "Humankind": {
+          "total": 2,
+          "items": [
+            {
+              "id": 1124300,
+              "name": "HUMANKIND™",
+              "type": "app"
+            },
+            {
+              "id": 2109320,
+              "name": "HUMANKIND™ Deluxe Edition",
+              "type": "app"
+            }
+          ]
+        },
+        "人类": {
+          "total": 5,
+          "items": [
+            {
+              "id": 1124300,
+              "name": "HUMANKIND™ 人类",
+              "type": "app"
+            },
+            {
+              "id": 638970,
+              "name": "人类一败涂地：冬季",
+              "type": "app"
+            },
+            {
+              "id": 1245620,
+              "name": "人类衰退之后",
+              "type": "app"
+            },
+            {
+              "id": 1158290,
+              "name": "英国烟花",
+              "type": "app"
+            },
+            {
+              "id": 1051650,
+              "name": "人类拯救计划",
+              "type": "app"
+            }
+          ]
+        }
+      },
+      "cleanTitle": "人类/Humankind"
+    },
+    {
+      "id": "gamer520-123938",
+      "url": "https://www.gamer520.com/123938.html",
+      "rawTitle": "生化危机4 重制版|中字-国语|Build.22377325+超级MOD整合+逆命殊途DLC+全DLC+修改器-支持手柄|解压即撸|-Switch520",
+      "expectedAppId": "2050650",
+      "expectedName": "Resident Evil 4",
+      "note": "v14.6.1 数字对齐放行引入的错配（错配 Requiem 3764200）——v14.6.1 修复+本库锁定的首个样本",
+      "recorded": {
+        "生化危机4": {
+          "total": 0,
+          "items": []
+        },
+        "生化危机": {
+          "total": 10,
+          "items": [
+            {
+              "id": 1634040,
+              "name": "黎明杀机-生化危机",
+              "type": "app"
+            },
+            {
+              "id": 2050650,
+              "name": "Resident Evil 4",
+              "type": "app"
+            },
+            {
+              "id": 3764200,
+              "name": "Resident Evil Requiem",
+              "type": "app"
+            },
+            {
+              "id": 883710,
+              "name": "Resident Evil 2",
+              "type": "app"
+            },
+            {
+              "id": 418370,
+              "name": "Resident Evil 7 Biohazard",
+              "type": "app"
+            },
+            {
+              "id": 1196590,
+              "name": "Resident Evil Village",
+              "type": "app"
+            },
+            {
+              "id": 952060,
+              "name": "Resident Evil 3",
+              "type": "app"
+            },
+            {
+              "id": 221040,
+              "name": "Resident Evil 6",
+              "type": "app"
+            },
+            {
+              "id": 21690,
+              "name": "Resident Evil 5",
+              "type": "app"
+            }
+          ]
+        }
+      },
+      "cleanTitle": "生化危机4 重制版|中字-国语|Build.22377325+超级MOD整合+逆命殊途DLC+全DLC+修改器-支持手柄|解压即撸|"
+    },
+    {
+      "id": "gamer520-requiem-regression",
+      "url": "https://www.gamer520.com/（Requiem 正例回归锁定）",
+      "rawTitle": "生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器",
+      "expectedAppId": "3764200",
+      "expectedName": "Resident Evil Requiem",
+      "note": "正例锁定：'俗称序号例外'（官方名无序号）不得被数字对齐护栏破坏",
+      "recorded": {
+        "生化危机9 安魂曲": {
+          "total": 0,
+          "items": []
+        },
+        "生化危机9": {
+          "total": 3,
+          "items": [
+            {
+              "id": 3764200,
+              "name": "Resident Evil Requiem",
+              "type": "app"
+            },
+            {
+              "id": 2050650,
+              "name": "Resident Evil 4",
+              "type": "app"
+            },
+            {
+              "id": 883710,
+              "name": "Resident Evil 2",
+              "type": "app"
+            }
+          ]
+        }
+      },
+      "cleanTitle": "生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器"
+    }
+  ]
+}

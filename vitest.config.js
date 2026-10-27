@@ -75,6 +75,7 @@ export default defineConfig({
       'tests/unit/test-sidebar-actions.mjs',
       'tests/unit/test-content-messages.mjs',
       'tests/unit/test-app-list-index.mjs',
+      'tests/unit/test-mismatch-samples.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',

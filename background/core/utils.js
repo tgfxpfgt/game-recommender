@@ -143,10 +143,20 @@ const steamHostPattern = /(?:^|\.)steampowered\.com$|(?:^|\.)steamstatic\.com$|(
 // 内完成读-改-写（JS 单线程保证原子），各自领到不相邻的槽位后再等待。
 // Reservation-based slotting: read-modify-write happens synchronously (atomic
 // on the single-threaded event loop), so concurrent callers get distinct slots.
+// v14.6.2 修复（审查 A5 预约制 + 视界钳制）：预约制修并发失效（check-then-set
+// 在 await 后占槽，6 并发 5 个同毫秒放行），但裸预约链会在批量突发下积累
+// "槽位债务"（200 个快速调用排队 30s——E2E 详情页 SEARCH_STEAM 超时的真因）。
+// 视界钳制：突发只保留一个间隔的债务（标准令牌桶突发帽）——空闲后首调用
+// 立即放行，持续突发按 150ms 节奏，生产语义不变、E2E 不再债务化。
+// Reservation-based slotting with burst horizon cap: after idle, the first call
+// passes immediately; sustained bursts are paced at STEAM_MIN_INTERVAL_MS.
 async function steamRateLimit() {
-  const mySlot = Math.max(lastSteamCallAt + STEAM_MIN_INTERVAL_MS, Date.now());
-  lastSteamCallAt = mySlot;
-  const wait = mySlot - Date.now();
+  const now = Date.now();
+  const mySlot = Math.max(lastSteamCallAt + STEAM_MIN_INTERVAL_MS, now);
+  // 债务视界：槽位链超过"now + 间隔"即收敛（突发批量的第 N 个调用最多等
+  // 一个间隔，而非 N×间隔）
+  lastSteamCallAt = Math.min(mySlot, now + STEAM_MIN_INTERVAL_MS);
+  const wait = mySlot - now;
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
 }
 

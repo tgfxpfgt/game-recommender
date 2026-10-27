@@ -398,6 +398,30 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId, lang 
     }
   }
 
+  // v14.6.2（错题库 gamer520-123938）：主词去数字变体——parseGameTitle 主词
+  // 带系列序号（"生化危机4"）而 schinese 索引返回空时，去数字重试（"生化
+  // 危机"）——原去数字逻辑只作用于 rawName 长标题变体，主词自身从不重试。
+  // 结果经 nameMatchesSearch 校验：数字对齐放行（"Resident Evil 4" 同序号
+  // 正主）已由 seqNumsOf 护栏保证（"生化危机9" 不会错配 RE4/RE2）。
+  // v14.6.2 (mismatch-sample gamer520-123938): de-digit retry for the
+  // PRIMARY terms themselves — schinese index returns empty for numbered
+  // titles; results pass the aligned-number guarded relevance check.
+  /** @type {Array<[string, string]>} [去数字词, 原主词] */
+  const deDigitTerms = [];
+  for (const t of searchTerms) {
+    const d = String(t).replace(/\d+/g, ' ').replace(/\s+/g, ' ').trim();
+    if (d.length >= 2 && d !== t && !deDigitTerms.some(([dd]) => dd === d)) {
+      deDigitTerms.push([d, t]);
+    }
+  }
+  for (const [d, srcTerm] of deDigitTerms) {
+    const result = await searchSteamAppIdLight(d, rawName, excludeAppId, false, lang);
+    if (result) {
+      Logger.info('Steam', `主词去数字命中: "${srcTerm}" → "${d}" (appId ${result.appId})`);
+      return result;
+    }
+  }
+
   // 扩展组合搜索：删词变体 + 已生效的动态噪声词清洗
   // Extended search: word-drop variants + active learned-noise cleaning
   if (rawName) {
