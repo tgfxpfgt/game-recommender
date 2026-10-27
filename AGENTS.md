@@ -31,7 +31,10 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 - 站点专属功能（内嵌 Steam 卡/布局默认/详情解析）走 adapter 规则 `features` 字段声明，
   **勿在业务里写 siteKey/host 判断**（v10.7.0 收编三处；xdgrid.js 的 host 兜底判断是
   有意保留的规则加载失败保底，勿删）。运行指标用 core/metrics.js。
-- `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils 等 6 个）。
+- `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils/retrieval-vocab 等 7 个）。
+  retrieval-vocab.js = 检索规则词表单源（v14.6.3 R1：噪声序列/尾段词/版本对照/
+  附属词/版本词保序词条数据 + 编译 + 校验；**保序语义**——重叠词先长后短决定删除
+  范围；等价性由 golden 测试 + 错题库回放双重门禁）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
 - 存储模块新增 = `data/storage-registry.js` 的 STORAGE_MODULES 一行 + 业务文件：
   data-store 的 file/format 映射、DATA_MODULES、备份子集（backup 标记）、清除范围
@@ -69,7 +72,9 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     （推荐值等）必须传 `base:'gr-badge'`，否则污染守卫导致好评率徽章缺失（v10.6.0 事故）。
 13. **单源优先**：写互斥锁/防抖/Map+TTL 缓存/重试前先查 `core/mechanisms.js`（withLock /
     debounce / TtlCache / withRetry）；写死值入 `constants.js` 单源组（STORAGE_CAPS /
-    ENDPOINTS / SPY_SCALES / PERF_CONFIG）；新增注册表条目走 STORAGE_MODULES / module-manifest。
+    ENDPOINTS / SPY_SCALES / PERF_CONFIG）；检索规则词（噪声/版本/附属/尾段）入
+    `shared/retrieval-vocab.js`（v14.6.3 R1——勿在业务代码新增噪声正则字面量副本）；
+    新增注册表条目走 STORAGE_MODULES / module-manifest。
     **长延时/出站超时零字面量（v14.6.2 起 test-integrity 自动拦截）**：≥1000ms 的
     setTimeout/setInterval 与 fetchWithTimeout 的超时参必须走单源——background 入
     PERF_CONFIG（超时组 fetchTimeout*Ms）；内容侧/页面层不可 import background

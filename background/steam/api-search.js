@@ -5,13 +5,20 @@ import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js'; // v10.7.0：端�
 import { getActiveNoiseWords, recordNoiseCandidates } from '../storage/learned-noise.js';
 import { Logger } from '../storage/logger.js';
 import { fetchSteamAppDetails } from './api-details.js';
+import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
+
+// v14.6.3 R1：附属/Demo 关键词单源 = shared/retrieval-vocab.js（保序条目，
+// \b 边界形态由词表条目 kind 声明）——本模块只消费编译产物并保持导出名不变
+// （api-assemble/orchestrator-list/api-details/api-registry-heal 消费方零改动）。
+// R1: add-on/demo keywords live in the vocab; exports keep their names so all
+// consumers stay untouched.
+const __retrieval = getCompiledRetrievalRules();
 
 // 附属内容/非本体关键词（带 \b 边界，避免误伤 ghost/post/trials 等合法游戏名）
 // Add-on keywords with \b boundaries (never misjudge real names like Ghost/Trials)
-export const ADDON_NAME_PATTERN =
-  /\bdemo\b|试玩|\btrial\b|prologue|序章|序幕|\bsoundtrack\b|\bost\b|\bartbook\b|\bdlc\b|supporter pack|支持者包|fan pack|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包/i;
+export const ADDON_NAME_PATTERN = __retrieval.addonNamePattern;
 // Demo/试玩版（单独用于 isDemo 标识）/ Demo/trial edition (for the isDemo badge)
-export const DEMO_NAME_PATTERN = /\bdemo\b|试玩|\btrial\b/i;
+export const DEMO_NAME_PATTERN = __retrieval.demoNamePattern;
 
 // 标题与缓存名是否相关（v3.3.10）：提取双方 CJK/英文词集合（去停用词），
 // 任一语言共同词非空 → 相关；双方均为单语言且语言不同 → 跨语言信任；
@@ -51,7 +58,8 @@ export function namesRelated(title, cachedName) {
 // v6.4.17：英文词排除下载站噪声（Build 号/标签等，官方名几乎不会用）——
 // 否则 "Build.22898177" 的 build 使标题被判"混合语言"，跨语言信任失效，
 // 纯英文官方名（Resident Evil Requiem）被误拒。
-const NOISE_EN_WORDS = new Set(['build', 'plus', 'full', 'crack', 'repack', 'update']);
+// v14.6.3 R1：英文噪声词单源 = shared/retrieval-vocab.js（编译 Set）。
+const NOISE_EN_WORDS = __retrieval.noiseEnWords;
 // v14.6.2 修复（审查 A11）：导出单源——orchestrator-detail 的交叉验证 enWordsOf
 // 曾是第二套实现（不排噪声词，下载站 Build/crack 段被当内容词污染覆盖判据），
 // 现统一消费本函数（噪声词表 NOISE_EN_WORDS 单点维护）。
@@ -513,16 +521,8 @@ export async function searchCommunityApps(term, rawName, excludeAppId) {
 // appId is the legacy/base edition, search "<EN name> <EN suffix>" (e.g. GTA V
 // legacy cover 271590 → "Grand Theft Auto V Enhanced" → 3240220). The result
 // must carry the EN suffix and pass the name-relevance check.
-const VERSION_SUFFIX_PAIRS = [
-  ['增强版', 'Enhanced'],
-  ['重制版', 'Remastered'],
-  ['复刻版', 'Remake'],
-  ['豪华版', 'Deluxe'],
-  ['终极版', 'Ultimate'],
-  ['年度版', 'Game of the Year'],
-  ['典藏版', 'Collector'],
-  ['黄金版', 'Gold']
-];
+// v14.6.3 R1：版本后缀对照单源 = shared/retrieval-vocab.js（[cn, en] 对数组）。
+const VERSION_SUFFIX_PAIRS = __retrieval.versionSuffixes;
 
 export async function findVersionVariant(appId, title) {
   if (!title) return null;

@@ -14,6 +14,7 @@
  */
 import * as common from '../core/common.js';
 import * as sidebar from './sidebar.js';
+import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 
 // v14 B3：下载站资源浮窗与下载历史浮窗迁至 tracking.js——re-export 保持入口
 export { injectDownloadSitePanel, injectDownloadHistoryPanel } from './tracking.js';
@@ -59,10 +60,9 @@ export function detectGameName() {
     }
 
     // 策略2：按分隔符分段，移除纯噪声段（保留中英文名段）。
-    // 噪声词表来自共享权威源 shared/patterns.js（v3.3.9 单源化，v6.2.0
-    // 移除内联降级副本——权威源由 manifest 保证在内容脚本加载时已注入，
-    // 与 content-sim 的注入顺序一致）
-    const noisePattern = new RegExp(globalThis.__GR_PATTERNS__.noisePatternSource, 'gi');
+    // 噪声词表来自 shared/retrieval-vocab.js 编译产物（v14.6.3 R1 单源化；
+    // 旧经典注入噪声源已退役，见 shared/patterns.js 头注）。
+    const noisePattern = getCompiledRetrievalRules().noisePatternAll;
     let text = h1Clone.textContent.trim();
     const parts = text
       .split(/[|]+|\s+[-–—]\s+|[×•·]/)

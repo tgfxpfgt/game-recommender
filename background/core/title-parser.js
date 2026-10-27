@@ -9,22 +9,17 @@
  *
  * v3.4.1：由 background/steam/ 下沉至 core/ —— 纯函数工具被 storage 层
  * （name-index）与业务层共用，下沉后恢复 core→storage→业务层 单向依赖。
+ * v14.6.3：噪声词表单源下沉 shared/retrieval-vocab.js（R1 词表数据层）。
  */
+import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js';
 
-// 噪声词表（下载站标题常见修饰/版本词）。
-// **权威源：shared/patterns.js**（经典脚本，内容脚本共用）；本副本必须与之
-// 保持逐字一致——tests/test-security.mjs 有双源一致性断言防漂移。
-// Noise keywords in download-site titles. AUTHORITATIVE SOURCE: shared/patterns.js
-// (shared with content scripts); this copy must stay byte-identical — the
-// consistency assertion in tests/test-security.mjs guards against drift.
-const noisePattern =
-  /(中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|v[\d.]+|V[\d.]+|\d+\.\d+[\d.]*|Build[.\s]*\d+|update\s*\d+|DLC.*|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|\d+\s*GB|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520\.com|Switch520|520\.com|\s+The\s+Game\s*)/i;
-// v3.4.1：去掉全局标志 g——该正则会被 noisePattern.test()（learnNoise）复用，
-// 带 g 时 lastIndex 状态残留导致奇偶次调用结果交替（已实测复现）。
-// 但 replace() 需要 g 才能清掉**每一处**噪声（无 g 只替换第一处匹配，
-// 会导致 "重制版 抢先试玩" 之类仅清一个词），因此下方用克隆正则
-// noisePatternAll（带 g）专供 replace——test 与 replace 各用其版本，互不干扰。
-const noisePatternAll = new RegExp(noisePattern.source, 'gi');
+// 噪声词表（下载站标题常见修饰/版本词）：v14.6.3 R1 单源 = shared/retrieval-vocab.js
+// （保序词条数据），此处只消费编译产物——test 用（无 g，lastIndex 状态残留
+// 防护，v3.4.1 教训）与 replace 用（g，清掉每一处噪声）双版本由词表模块提供。
+// Noise vocab: single source = shared/retrieval-vocab.js (ordered entries);
+// this module only consumes the compiled patterns (no-g for .test, g for
+// .replace — both built from one source by the vocab module).
+const { noisePattern, noisePatternAll, junkCandidatePattern } = getCompiledRetrievalRules();
 // 判断整段是否仅由噪声词组成 / Is a segment pure noise?
 function isPureNoise(text) {
   const stripped = text.replace(noisePatternAll, '').replace(/[\s\|\-:：、]+/g, '');
@@ -116,9 +111,9 @@ export function parseGameTitle(rawName) {
     if (strippedFallback.length >= 2) addCandidate(fallback);
   }
 
-  const junkPattern =
-    /^(豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|修改器|加速器|作弊|全季票|季票|pc|vr|3d|hd|build[.\s]*\d+|\d+[\d.]*|v[\d.]+)$/i;
-  const filtered = candidates.filter((c) => !junkPattern.test(c.trim()));
+  // v14.6.3 R1：junk 单 token 过滤词表单源 = shared/retrieval-vocab.js
+  //（junkCandidatePattern，^锚定形态由词表模块编译）
+  const filtered = candidates.filter((c) => !junkCandidatePattern.test(c.trim()));
   const finalCandidates = filtered.length > 0 ? filtered : candidates;
 
   // 无任何有效候选时返回空数组 / Return [] when no valid candidates exist

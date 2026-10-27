@@ -42,6 +42,7 @@ import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/1
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络故障期跳过负缓存
 import { isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
+import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 
 /**
  * 搜索游戏并获取完整 Steam 详情（详情页/浮窗使用）
@@ -132,22 +133,9 @@ export async function searchSteamGame(gameName, options = {}) {
     const enSegment = options.rawTitle
       ? (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim()
       : '';
-    // 版本级噪声词（命中名缺版本后缀属正常，不计入覆盖判据）
-    const EDITION_WORDS = new Set([
-      'edition',
-      'enhanced',
-      'deluxe',
-      'upgrade',
-      'remastered',
-      'remaster',
-      'definitive',
-      'complete',
-      'goty',
-      'bundle',
-      'collection',
-      'demo',
-      'trial'
-    ]);
+    // 版本级噪声词（命中名缺版本后缀属正常，不计入覆盖判据）——
+    // v14.6.3 R1：单源 = shared/retrieval-vocab.js 编译产物
+    const EDITION_WORDS = getCompiledRetrievalRules().editionWords;
     /** @param {string} s */
     const enWordsOf = (s) =>
       // v14.6.2 修复（审查 A11）：单源化至 coreTokensOf（排下载站噪声词

@@ -40,9 +40,11 @@ function layerOf(relPath) {
 const ALLOWED = {
   // v14.2.0：core → shared 开放（shared 为最底层纯数据/纯工具层——fm-keys/
   // spy-scales 单源下沉；handlers/entry → shared 已先行，方向一致无环）
+  // v14.6.3 R1：biz → shared 开放（检索词表 retrieval-vocab 单源下沉，
+  // api-search/orchestrator-detail 直接消费编译产物，与 core→shared 同向无环）
   core: new Set(['core', 'data', 'lib', 'shared']),
   storage: new Set(['storage', 'core', 'data', 'lib']),
-  biz: new Set(['biz', 'storage', 'core', 'data', 'lib']),
+  biz: new Set(['biz', 'storage', 'core', 'data', 'lib', 'shared']),
   // v14.0.0：handlers/entry 允许 → shared（msg.js 统一错误归一，SW 侧经 global 消费）
   handlers: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry', 'shared']),
   entry: new Set(['core', 'storage', 'biz', 'data', 'lib', 'adapters', 'handlers', 'entry', 'shared']),
@@ -167,21 +169,27 @@ test('TDZ 后向引用', () => {
 
 const sharedPatterns = fs.readFileSync(path.join(ROOT, 'shared/patterns.js'), 'utf-8');
 const titleParserSrc = fs.readFileSync(path.join(ROOT, 'background/core/title-parser.js'), 'utf-8');
-// v5.1.0：提取正则支持跨行（prettier 会把长定义拆到多行）
-const sharedSource = ((sharedPatterns.match(/noisePatternSource\s*=\s*'([^']+)'/) || [])[1] || '').replace(
-  /\\\\/g,
-  '\\'
-);
-const parserSource = (titleParserSrc.match(/const noisePattern\s*=\s*\/([\s\S]*?)\/(?:gi|i);/) || [])[1] || '';
-test('双源正则一致（无漂移）', () => {
-  expect(sharedSource === parserSource).toEqual(true);
+// v14.6.3 R1：噪声词表单源 = shared/retrieval-vocab.js（编译产物消费）——
+// 旧 patterns.js noisePatternSource 双源断言随其退役而删除，改为断言：
+// 词表存在且 title-parser/detail-page 只消费编译产物（无本地副本可漂移）。
+// Since R1 the vocab module is the single source; assert consumers compile
+// from it and the classic-script copy is gone.
+const vocabSrc = fs.readFileSync(path.join(ROOT, 'shared/retrieval-vocab.js'), 'utf-8');
+test('检索词表为单源（patterns.js 经典副本已退役）', () => {
+  expect(vocabSrc.includes('noiseTitle')).toEqual(true);
+  expect(sharedPatterns.includes('noisePatternSource')).toEqual(false);
+  expect(titleParserSrc.includes('noisePatternSource')).toEqual(false);
 });
-test('权威源非空', () => {
-  expect(sharedSource.length > 50).toEqual(true);
+test('title-parser 消费编译词表（无本地噪声正则副本）', () => {
+  expect(titleParserSrc.includes('getCompiledRetrievalRules')).toEqual(true);
+  // 旧字面量形态（"const noisePattern = /(中文|..."）不得回归——等价性由
+  // test-retrieval-vocab 的 golden 断言守护
+  expect(titleParserSrc.includes('const noisePattern =')).toEqual(false);
 });
 const detailPageSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
-test('detail-page 引用权威源（无独立副本）', () => {
-  expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(true);
+test('detail-page 消费编译词表（无 noisePatternSource 引用）', () => {
+  expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(false);
+  expect(detailPageSrc.includes('getCompiledRetrievalRules')).toEqual(true);
 });
 test('detail-page 不含完整漂移副本', () => {
   expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true);

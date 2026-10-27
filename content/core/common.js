@@ -2,10 +2,13 @@
  * 游戏雷达 Game Radar - 内容脚本公共工具 / Content Common
  *
  * 命名空间 __GR__ 的初始化与通用工具（转义、站点、消息）。
- * 内容脚本各模块通过 globalThis.__GR__ 共享函数（经典脚本，非 module）。
+ * 内容脚本各模块通过 globalThis.__GR__ 共享函数（module-manifest ESM 装载，
+ * 经典脚本时代注释——v14.6.3 澄清：本文件是 ESM 模块）。
  * Namespace init + common utilities (escaping, site, messaging) shared across
- * content-script modules via globalThis.__GR__ (classic scripts, not modules).
+ * content-script modules via globalThis.__GR__ (ESM via module-manifest).
  */
+
+import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 
 // 当前站点域名 / Current site domain
 function getCurrentDomain() {
@@ -119,12 +122,15 @@ function trackDownloadSiteVisit(appId, gameName) {
 }
 
 // v5.0.0：页面标题清洗链（detail-page 与 tracker 此前逐字重复两份）——
-// 去尾部"|中文|下载"等噪声段，返回清洗后的标题（空则原样）
-// Page-title cleaning chain (was duplicated verbatim in detail-page/tracker).
+// 去尾部"|中文|下载"等噪声段，返回清洗后的标题（空则原样）。
+// v14.6.3 R1：尾段剥离词单源 = shared/retrieval-vocab.js 编译产物。
+// Page-title cleaning chain (was duplicated verbatim in detail-page/tracker);
+// tail-strip words come from the retrieval vocab since R1.
+const __retrieval = getCompiledRetrievalRules();
 function cleanPageTitle(title) {
   return (title || '')
     .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
-    .replace(/(下载|游戏下载|免费下载|破解版|汉化版|中文版|绿色版|免安装).*$/i, '')
+    .replace(__retrieval.titleTailStripPattern, '')
     .trim();
 }
 
