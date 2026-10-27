@@ -166,7 +166,9 @@ export function getDomainStatus() {
     out[d] = st.total === 0 ? 'unknown' : st.ok > 0 ? 'ok' : 'down';
     out[d + 'Circuit'] = circuitState(d); // v12 B1：per-domain 熔断态
   }
-  out.circuit = circuitState('store') === 'open' || circuitState('api') === 'open' ? 'open' : 'closed';
+  // v14.6.2 修复（审查 A6）：汇总遍历全部域——steamcommunity 第三域加后
+  // 汇总口径漏同步，其熔断打开时诊断仍报 closed
+  out.circuit = Object.keys(domainStats).some((d) => circuitState(d) === 'open') ? 'open' : 'closed';
   return out;
 }
 

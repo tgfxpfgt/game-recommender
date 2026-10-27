@@ -27,6 +27,7 @@ import { recordGameInRegistry } from '../storage/registry.js';
 import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '../storage/name-index.js';
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
+import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
@@ -42,6 +43,12 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
+  }
+  // v14.6.2 修复（审查 A3）：首波缓存命中同样校验纠正黑名单——封面直取的
+  // 错 appId 命中错误缓存时不再返回（该名进入 pending 走重搜纠正）
+  if (appId) {
+    const corr0 = await lookupWrongReportCorrection(gameName);
+    if (corr0 && String(appId) === String(corr0.wrongAppId)) return null;
   }
   if (!appId) return null;
 
@@ -63,10 +70,19 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
+  // v14.6.2 修复（审查 A3）：人工纠正知识库提前——封面直取/缓存命中路径
+  // 此前不校验 wrongAppId，用户报错纠正后列表页仍持续显示错徽章直至缓存
+  // 过期（detail 管线 v3.3.13 已覆盖，列表侧同语义补齐）
+  const corr = await lookupWrongReportCorrection(gameName);
+
   // 0. appId 优先（列表页封面图提取），否则名称索引
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
+  }
+  // 纠正黑名单命中（封面直取/索引粘性条目钉住的错 appId）→ 视为 miss 走重搜
+  if (appId && corr && String(appId) === String(corr.wrongAppId)) {
+    appId = null;
   }
 
   // 2. 若有 appId，检查 Steam 动态缓存（含 Demo 自愈；v3.3.7：rating 模块有效判定）
@@ -101,8 +117,8 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let foundName = gameName;
     /** @type {import('../core/types.js').SteamSearchResult|null} */
     let searchResult = null;
-    // 该标题曾报错：错误 appid 作为黑名单排除（全流程复用，含 0 评测重搜）
-    const corr = await lookupWrongReportCorrection(gameName);
+    // corr 已在函数开头查询（v14.6.2 审查 A3：提前覆盖缓存命中路径）；
+    // 此处沿用其 wrongAppId 作为搜索黑名单（v3.3.13 语义不变）
     if (!foundAppId) {
       // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中免网络。
       // 下架游戏 storesearch 搜不到（结构性盲区）；目录命中后评分走
@@ -128,8 +144,18 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       }
       if (!searchResult) {
         // 记录负缓存 / Record negative cache
-        Logger.warn('Steam', `列表页搜索未找到: ${gameName}`);
-        await recordNameIndex(gameName, null);
+        // v14.6.2 修复（审查 A2）：补网络故障守卫（detail 管线 v9.7.0 已有、
+        // 列表侧漏）——store 熔断打开时 searchSteamAppId 短路返回 null，与
+        // "确认未找到"不可区分，固化后 2h 内恢复也不重查
+        const apiStatus = getSteamApiStatus();
+        if (apiStatus.failed === 0) {
+          await recordNameIndex(gameName, null);
+        } else {
+          Logger.warn(
+            'Steam',
+            `列表页搜索未命中且窗口内 ${apiStatus.failed} 次 API 失败（疑似网络问题），跳过负缓存: "${gameName}"`
+          );
+        }
         return null;
       }
       foundAppId = searchResult.appId;

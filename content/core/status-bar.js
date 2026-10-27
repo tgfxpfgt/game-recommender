@@ -172,11 +172,15 @@ export function hide() {
 }
 
 // 重新显示最近统计（弹窗显式调用，忽略总开关）
+// v14.6.2 修复（审查 B2）：B9 渲染合并窗后 showStats 只调度 100ms 定时器——
+// 此处临时翻转 enabled 在渲染前就被还原，showStatusBar=false 的用户重显
+// 永远被 renderStats 的 enabled 守卫吞掉。弹窗显式请求无合并需求，直接
+// 同步渲染（临时翻转包裹同步调用，语义与 B9 前一致）。
 export function showLastStats() {
   if (!lastStats) return;
   const wasEnabled = enabled;
   enabled = true;
-  showStats(lastStats);
+  renderStats();
   enabled = wasEnabled;
 }
 

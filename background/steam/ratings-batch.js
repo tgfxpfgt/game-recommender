@@ -112,7 +112,6 @@ export async function handleGetSteamRatings(message, sender) {
 const JOB_SESSION_KEY = 'grRatingsBatchJob';
 const JOB_MAX_AGE_MS = 60 * 60 * 1000; // 超过 1h 的任务视为陈旧丢弃
 const RESUME_ALARM = 'ratingsBatchResume';
-/** @type {boolean} */ let resumeInFlight = false; // 续跑互斥（alarm 重复唤醒幂等）
 
 async function persistJob(job) {
   try {
@@ -188,11 +187,14 @@ export function startRatingJob(job) {
   return true;
 }
 
-// SW 冷启动/alarm 唤醒时续跑检查点任务（与按 tab 队列独立——续跑的是
-// 最后一次检查点的任务；其他 tab 未完成任务由内容侧 45s 强制收尾兜底）
-// Resume the checkpointed job after a SW cold start or alarm wake.
+// SW 冷启动/alarm 唤醒时续跑检查点任务。
+// v14.6.2 修复（审查 A4）：改经 startRatingJob 入该 tab 队列串行消化——
+// 原实现直接 runRatingJob 绕过 jobQueues，SW 重启后同 tab 新 job 与续跑
+// job 并发，两路推送交错破坏"同 tab 串行 + done 衔接"契约。alarm 重复
+// 唤醒的幂等性由 startRatingJob 入队 + 检查点覆盖式持久化自然保证。
+// Resume the checkpointed job after a SW cold start or alarm wake; the job
+// re-enters the per-tab queue so repeated alarm wakes stay serialized.
 export async function resumeRatingsBatch() {
-  if (resumeInFlight) return { resumed: false, reason: 'in-flight' };
   /** @type {{queue?: Array<Object>, startedAt?: number}|null} */
   let job = null;
   try {
@@ -206,12 +208,12 @@ export async function resumeRatingsBatch() {
     await clearPersistedJob();
     return { resumed: false, reason: 'stale' };
   }
-  resumeInFlight = true;
-  try {
-    await runRatingJob(job);
-  } finally {
-    resumeInFlight = false;
-  }
+  // v14.6.2 修复（审查 A4）：经 startRatingJob 重新入该 tab 队列——原实现
+  // 直接 runRatingJob 绕过 jobQueues，SW 重启后同 tab 新 job（用户翻页/刷新
+  // 触发）与续跑 job 并发，两路推送交错破坏"同 tab 串行 + done 衔接"契约
+  // （旧 job 先推 done:true 会截断新 job 的增量）。入队即返回（队列
+  // fire-and-forget 串行消化；persistJob 由队列首步负责）。
+  startRatingJob(job);
   return { resumed: true, remaining: job.queue.length };
 }
 

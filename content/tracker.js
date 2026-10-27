@@ -115,6 +115,11 @@
   // v14.5.0 B7：处理器在 core/messages.js（M.messages.createMessageRouter）。
   // 模块装载完成前的早到消息排队（保持通道），boot 后统一冲放——与原实现
   // "MODULES 就绪直处理 / 否则 bootPromise.then"语义等价。
+  // v14.6.2 修复：B8 竞态排查期间一段"[临时实验]"内联处理代码曾随重构提交——
+  // 它把 boot 前到达的**任何 action** 都当 STEAM_RATINGS_UPDATE 处理并谎报
+  // success（REFRESH_RECOMMENDATIONS/FORCE_REFRESH 等语义丢失），且本排队数组
+  // 从未入队（冲放机制死亡）。真因已在 messages.js 的 readyM() 同步快路径
+  // 修复，实验代码删除、还原排队语义。
   // Early messages queue (channel held) until the router is wired post-boot.
   /** @type {Function|null} */
   let route = null;
@@ -122,13 +127,8 @@
   const queued = [];
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (route) return route(message, sender, sendResponse);
-    // [临时实验] 排队消息改为同步内联处理（绕过 bootPromise 路由）
-    (async () => {
-      const { M } = await bootPromise;
-      M.list.applySteamRatingsUpdate(message.ratings, message.done === true);
-      sendResponse({ success: true });
-    })().catch(() => sendResponse({ success: false }));
-    return true;
+    queued.push([message, sender, sendResponse]);
+    return true; // 排队等待冲放 / queued until flush
   });
   bootPromise
     .then(({ M }) => {

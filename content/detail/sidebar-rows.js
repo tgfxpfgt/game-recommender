@@ -10,9 +10,18 @@
  * steamSidebar template.
  */
 
-/** @param {unknown} text */
+// v14.6.2 修复（审查 B5）：回退分支曾是恒等函数（shared/escape.js 未注入的
+// 异常场景下本文件所有注入点裸奔）——回退复刻 common.escapeHtmlLocal 的
+// 纯字符串转义实现（与注入版同语义）
 /** @param {string} text */
-const esc = (text) => (typeof globalThis.escapeHtml === 'function' ? globalThis.escapeHtml(text) : String(text ?? ''));
+const esc = (text) =>
+  typeof globalThis.escapeHtml === 'function'
+    ? globalThis.escapeHtml(text)
+    : String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
 
 // v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2）
 // ITAD：Key 未配置或查询失败 → 行隐藏；收藏：按钮切换 + 状态持久化
@@ -92,7 +101,7 @@ export async function fillSteam250Info(appId) {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, { timeout: 25000 });
     const info = resp && resp.info;
     const html = info
-      ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${info.rank ?? '-'}</b> · ${info.score ?? '-'} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` + // v10.9.1
+      ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${esc(String(info.rank ?? '-'))}</b> · ${esc(String(info.score ?? '-'))} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` + // v10.9.1；v14.6.2：rank/score 补 esc（审查 B4）
         `<a href="https://steam250.com/top250" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">Steam250 ↗</a>`
       : '';
     for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {

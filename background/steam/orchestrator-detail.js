@@ -17,7 +17,8 @@ import {
   ensureValidRegistryNames,
   needsRatingRefetch,
   isCompleteCacheData,
-  namesRelated
+  namesRelated,
+  coreTokensOf // v14.6.2 审查 A11：英文内容词单源（排噪声词）
 } from './api.js';
 import {
   isModuleValid,
@@ -149,11 +150,9 @@ export async function searchSteamGame(gameName, options = {}) {
     ]);
     /** @param {string} s */
     const enWordsOf = (s) =>
-      new Set(
-        String(s)
-          .toLowerCase()
-          .match(/[a-z][a-z0-9]{3,}/g) || []
-      );
+      // v14.6.2 修复（审查 A11）：单源化至 coreTokensOf（排下载站噪声词
+      // build/crack/repack 等）——原第二套实现把噪声段当内容词污染覆盖判据
+      new Set(coreTokensOf(s).filter((w) => /^[a-z]/.test(w)));
     if (!appId) {
       // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中作为检索结果
       //（阶段 2 交叉验证照常运行防 franchise 误配）；目录未命中走在线检索。

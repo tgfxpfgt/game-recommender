@@ -164,6 +164,7 @@ export async function matchAppListExact(title, excludeAppId = null) {
 export async function refreshAppListIndex(force = false) {
   if (refreshInFlight) return refreshInFlight;
   refreshInFlight = (async () => {
+    let refreshOk = false;
     try {
       if (!force && !isStale(meta) && indexMap) return true; // 保鲜期内跳过
       // v14.6.2 修复：失败退避跨 SW 重启——"每 SW 生命周期至多一次"在 SW 频繁
@@ -174,7 +175,12 @@ export async function refreshAppListIndex(force = false) {
         try {
           const backoff = await chrome.storage.session.get('appListRefreshFailAt');
           const failAt = backoff && backoff.appListRefreshFailAt;
-          if (failAt && Date.now() - failAt < APP_LIST_REFRESH_BACKOFF_MS) return false;
+          if (failAt && Date.now() - failAt < APP_LIST_REFRESH_BACKOFF_MS) {
+            // v14.6.2 修复（审查 A9-b）：退避命中同样置 attempted——与"本 SW
+            // 生命周期内至多主动刷新一次"注释语义一致，防每个 miss 再发 session IPC
+            refreshAttempted = true;
+            return false;
+          }
         } catch {
           /* session 不可读按无退避处理 */
         }
@@ -204,12 +210,6 @@ export async function refreshAppListIndex(force = false) {
       }
       if (!payload || payload.entries.length < 10000) {
         metricInc('appListIndex.refresh.fail');
-        // v14.6.2：记录失败时间戳（session 级退避——浏览器重启后允许再试）
-        try {
-          await chrome.storage.session.set({ appListRefreshFailAt: Date.now() });
-        } catch {
-          /* session 不可写忽略 */
-        }
         Logger.warn('AppListIndex', '目录刷新失败（双源均不可用或数据异常），回退纯在线管线');
         return false;
       }
@@ -225,14 +225,30 @@ export async function refreshAppListIndex(force = false) {
         entries.push([norm, appId, name]);
       }
       const record = { v: 1, updatedAt: Date.now(), source, entries };
-      await dataStore.writeModule(DB_KEYS.APP_LIST_INDEX, record);
+      // v14.6.2 修复（审查 A9-a）：写失败（~10MB 超出 storage.local 配额的降级
+      // 路径）不再 reject——内存索引照常生效，失败仅告警
+      try {
+        await dataStore.writeModule(DB_KEYS.APP_LIST_INDEX, record);
+      } catch (e) {
+        Logger.warn('AppListIndex', `目录写入失败（仅内存生效）: ${String(e).slice(0, 120)}`);
+      }
       indexMap = hydrate(entries);
       meta = { updatedAt: record.updatedAt, source };
       loaded = true;
       metricInc('appListIndex.refresh.ok');
       Logger.info('AppListIndex', `目录刷新完成: ${entries.length} 条（${source}，${Date.now() - t0}ms）`);
+      refreshOk = true;
       return true;
     } finally {
+      // v14.6.2 修复（审查 A9-a）：失败也记退避（session 级，防每次冷启动重拉
+      // 20MB）；成功路径不记（保鲜期自身即节流）
+      if (!refreshOk) {
+        try {
+          await chrome.storage.session.set({ appListRefreshFailAt: Date.now() });
+        } catch {
+          /* session 不可写忽略 */
+        }
+      }
       refreshInFlight = null;
     }
   })();

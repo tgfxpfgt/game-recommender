@@ -52,12 +52,18 @@ export function namesRelated(title, cachedName) {
 // 否则 "Build.22898177" 的 build 使标题被判"混合语言"，跨语言信任失效，
 // 纯英文官方名（Resident Evil Requiem）被误拒。
 const NOISE_EN_WORDS = new Set(['build', 'plus', 'full', 'crack', 'repack', 'update']);
+// v14.6.2 修复（审查 A11）：导出单源——orchestrator-detail 的交叉验证 enWordsOf
+// 曾是第二套实现（不排噪声词，下载站 Build/crack 段被当内容词污染覆盖判据），
+// 现统一消费本函数（噪声词表 NOISE_EN_WORDS 单点维护）。
+// Exported as the single source for "EN content words" (noise words filtered);
+// the cross-validation in orchestrator-detail now consumes this.
 function coreTokensOf(text) {
   const norm = String(text || '').toLowerCase();
   const cjk = norm.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
   const en = (norm.match(/[a-z][a-z0-9']{3,}/g) || []).filter((w) => !NOISE_EN_WORDS.has(w));
   return [...cjk, ...en];
 }
+export { coreTokensOf };
 
 // v6.4.17：跨语言数字冲突校验——双方数字集合非空且无交集 → 冲突。
 // 用于跨语言信任分支："生化危机9" vs "Resident Evil 4"（{9}∩{4}=∅ 冲突，
@@ -125,6 +131,22 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
   return recGames.slice(0, limit);
 }
 
+// v14.6.2（审查 A1 加固单源，nameMatchesSearch 数字对齐放行与
+// matchCandidateScore 加分共用）——序号语义数字提取：≤2 位数字（系列序号
+// "4"），或标题**唯一**数字（"赛博朋克2077" 的 2077 是名本体，虽撞
+// 19xx/20xx 年份形态仍参与对齐）；年份噪声（"英雄连2 2024版" 的 2024
+// 非唯一）排除。
+// Sequence-number extraction shared by the alignment pass and scoring:
+// ≤2-digit numbers, or the title's sole number (2077-type name-body),
+// excluding non-sole year-shaped noise.
+/** @param {string} s @returns {Array<string>} */
+function seqNumsOf(s) {
+  const all = String(s).match(/\d+/g) || [];
+  const seq = all.filter((n) => n.length <= 2);
+  if (seq.length === 0 && all.length === 1) seq.push(all[0]);
+  return seq;
+}
+
 /**
  * 名称相关性校验（v3.2.2）：防止下载站噪声词/删词变体匹配到无关游戏或续作。
  * 规范化后要求"结果名包含搜索词"；若原始标题中搜索词之后紧跟数字（如
@@ -185,10 +207,14 @@ export function nameMatchesSearch(resultName, term, rawName) {
       // → "Resident Evil 4"）是比"无数字"更强的同源信号，置于俗称序号例外
       // 之前：带正确序号的候选不得被"结果须无数字"的旧例外拒绝（gamer520
       // 123938 错配 Requiem 根因——schinese 索引空 → 去数字变体"生化危机"
-      // 命中无数字的最新作挤掉带 4 的正主）
-      /** @param {string} s @returns {Array<string>} */
-      const numsOf = (s) => String(s).match(/\d+/g) || [];
-      if (numsOf(rawName).some((n) => numsOf(resultName).includes(n))) return true;
+      // 命中无数字的最新作挤掉带 4 的正主）。
+      // v14.6.2 审查加固：数字是弱信号，裸放行曾被实测反例击穿（年份碰撞
+      // "英雄连2 2024版"→"F1 2024"）。护栏走 seqNumsOf（模块级单源，与
+      // matchCandidateScore 共用）：序号语义 = ≤2 位，或标题唯一数字（如
+      // "赛博朋克2077" 的 2077 是名本体，虽撞年份形态仍参与对齐）。残留
+      // 风险（纯单数字索引噪声，前提是该游戏 schinese 索引恰为空）由人工
+      // 纠正知识库与路线图批次 1"未找到重试"兜底。
+      if (seqNumsOf(rawName).some((n) => seqNumsOf(resultName).includes(n))) return true;
       return /\d/.test(rawName) && !/\d/.test(resultName);
     }
     return true;
@@ -241,8 +267,9 @@ export function matchCandidateScore(resultName, term, rawName) {
   else if (tn.length >= 2 && rn.includes(tn)) score += 1;
   // 数字一致性（v6.4.19：数字集合有交集才加分——"生化危机9" vs "Resident
   // Evil 4" 都有数字但不同，不得加分；"赛博朋克2077" vs "Cyberpunk 2077" 加分）
-  const nums = (s) => (String(s).match(/\d+/g) || []).map(Number);
-  const numAligned = nums(rawName).some((x) => nums(resultName).includes(x));
+  // v14.6.2 审查加固：与 nameMatchesSearch 数字对齐放行同护栏（seqNumsOf
+  // 模块级单源）——年份碰撞/大数不再加分，标题唯一数字（2077 类名本体）保留
+  const numAligned = seqNumsOf(rawName).some((x) => seqNumsOf(resultName).includes(x));
   if (numAligned) score += 1;
   // v14.6.1：跨语言（中文标题 vs 英文候选）时数字对齐是唯一硬序号信号——
   // 追加 +1（合计 2 分），确保带正确序号的候选（生化危机4 → Resident Evil 4）
@@ -341,15 +368,6 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
   }
   return null;
 }
-
-// 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）。
-// 静态候选全部失败时自动进入"扩展组合搜索"（删词变体 + 动态噪声词清洗），
-// 成功后把跳过的词作为候选噪声词自动学习（自适应检索，v3.1.2）。
-// v3.3.13：excludeAppId 为曾报错的错误 appid（人工纠正知识库黑名单），
-// 搜索结果中排除它——避免自动检索再次命中用户已报告的错误游戏。
-// Parallel CN/EN searches; one whole-pass retry on network flakiness. When all
-// static candidates fail, an extended combination search runs automatically;
-// skipped words are then learned. excludeAppId skips a user-reported-wrong app.
 
 // 并行获取中英文搜索结果（英文名用于注册表记录；网络失败整体重试一次防抖动）。
 // 静态候选全部失败时自动进入"扩展组合搜索"（删词变体 + 动态噪声词清洗），
@@ -506,9 +524,6 @@ export async function findVersionVariant(appId, title) {
   if (!namesRelated(title, result.name)) return null;
   return result;
 }
-
-// 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
-// Lightweight single CN search (cheap; results pass the name-relevance check)
 
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)

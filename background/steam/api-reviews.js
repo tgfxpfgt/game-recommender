@@ -1,4 +1,4 @@
-import { recordSteamCall, recordDomainCall } from '../core/api-monitor.js';
+import { recordSteamCall, recordDomainCall, isCircuitOpen } from '../core/api-monitor.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS, STORAGE_CAPS, PERF_CONFIG } from '../core/constants.js'; // v10.7.0：端点单源；v14.6.2：超时单源
 import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
@@ -212,6 +212,10 @@ export async function fetchLastUpdate(appId) {
   const key = String(appId);
   const cached = lastUpdateCache.peek(key);
   if (cached !== undefined) return cached;
+  // v14.6.2 修复（审查 A10）：api 域熔断短路——与 store 域搜索短路对称
+  //（此前熔断打开时仍逐个发出、各挂 4s；注意直接返回不写负缓存——熔断期
+  // 失败固化 24h 会把恢复后的查询一并挡掉）
+  if (isCircuitOpen('api')) return null;
   try {
     // v10.9.2：4s 硬帽——api.steampowered.com（GetNewsForApp）在大陆网络不可达，
     // 默认 15s 挂起会把整条 SEARCH_STEAM 拖过消息超时（"最近更新"仅为徽章角

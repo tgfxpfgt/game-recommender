@@ -162,7 +162,13 @@ async function fireBatch(names) {
     // 第一波：缓存命中即时显示徽章 / wave 1: cached hits render instantly
     _internal.applyRatingsResponse(ratings, 'first');
     const job = _state.ratingsJob;
-    if (!job || job.finished) return;
+    if (!job || job.finished) {
+      // v14.6.2 修复（审查 B3）：job 已收尾（FORCE_FINISH 45s 兜底后 done 衔接
+      // 的后续批）且本批无 pending（后台不会再推送重置 inflight）——提前返回
+      // 前必须重置 inflight，否则滚动/增量发现的新游戏永久停在"等待检索"
+      batchState.inflight = false;
+      return;
+    }
     if (pendingCount > 0) {
       // 后台正在拉取：等推送 done 衔接下一批（45s 兜底随批次重置）
       // v9.7.0：修正参数错位——第 3 参是数字 total，描述文本应传第 4 参 detail

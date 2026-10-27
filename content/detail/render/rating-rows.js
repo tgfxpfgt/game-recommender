@@ -22,6 +22,9 @@ export function renderRatingRows(data, spy) {
   const colorOf = (v) =>
     P2.ratingColorFor ? P2.ratingColorFor(v) : v >= 80 ? '#66c0f4' : v >= 60 ? '#a3cf06' : '#ff7b00';
   const fmt = (n) => (n === null || n === undefined ? 0 : Number(n).toLocaleString());
+  // v14.6.2 修复（审查 B4）：rate 数值归一化后入模板——异型缓存条目
+  //（positiveRate 为字符串）曾是注入点，与同文件 fmt() 的 Number 防线对齐
+  const num = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
   const row = (label, desc, rate, total, color) =>
     '<div class="gr-detail-rate-row">' +
     '<div class="gr-detail-rate-head">' +
@@ -35,12 +38,12 @@ export function renderRatingRows(data, spy) {
     '</span>' +
     '</div>' +
     '<div class="gr-detail-rate-bar"><div class="gr-detail-rate-fill" style="width:' +
-    Math.max(0, Math.min(100, rate)) +
+    Math.max(0, Math.min(100, num(rate))) +
     '%;background:' +
     color +
     '"></div></div>' +
     '<div class="gr-detail-rate-num">' +
-    rate +
+    num(rate) +
     '% · ' +
     fmt(total) +
     ' 条评测</div>' +
@@ -91,11 +94,15 @@ export function renderVerdictRow(data, spy, spyHeatLabel) {
   if (data.positiveRate !== null && data.positiveRate !== undefined) {
     s = Math.min((data.positiveRate / 100) * 0.7 + (data.chineseSupported ? 0.3 : 0), 1);
   }
+  // v14.6.2 修复（审查 B4）：外部数据字段（positiveRate/heat/playtime）一律
+  // esc 后入模板——异型缓存曾是注入点（同文件 row() 的 esc 防线对齐）
   const parts = [];
-  if (data.positiveRate !== null && data.positiveRate !== undefined) parts.push(`好评率 ${data.positiveRate}%`);
+  if (data.positiveRate !== null && data.positiveRate !== undefined) {
+    parts.push(`好评率 ${esc(String(data.positiveRate))}%`);
+  }
   parts.push(data.chineseSupported ? '中文支持' : '暂无中文');
   const heat = spyHeatLabel();
-  if (heat) parts.push(`热度 ${heat}`);
-  if (spy && spy.averagePlaytime) parts.push(`平均时长 ${spy.averagePlaytime}`);
+  if (heat) parts.push(`热度 ${esc(String(heat))}`);
+  if (spy && spy.averagePlaytime) parts.push(`平均时长 ${esc(String(spy.averagePlaytime))}`);
   return `<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#acb2b8;">综合推荐 <span class="gr-detail-blue">${Math.round(s * 100)}%</span><span style="color:#8f98a0;">（${parts.join(' · ')}）</span></div>`;
 }

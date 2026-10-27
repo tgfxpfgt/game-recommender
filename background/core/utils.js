@@ -137,10 +137,17 @@ let lastSteamCallAt = 0;
 const STEAM_MIN_INTERVAL_MS = PERF_CONFIG.steamRateLimitMs;
 const steamHostPattern = /(?:^|\.)steampowered\.com$|(?:^|\.)steamstatic\.com$|(?:^|\.)steampowered\.com\.cn$/;
 
+// v14.6.2 修复（审查 A5）：改预约制——原 check-then-set 在 await 之后才占槽，
+// 并发协程全部读到同一旧值同时放行（实测 6 并发 5 个同毫秒），v14 F2 的
+// "全局最小间隔"在多 tab 批量场景（其设计目标）基本失效。预约制在同步段
+// 内完成读-改-写（JS 单线程保证原子），各自领到不相邻的槽位后再等待。
+// Reservation-based slotting: read-modify-write happens synchronously (atomic
+// on the single-threaded event loop), so concurrent callers get distinct slots.
 async function steamRateLimit() {
-  const wait = lastSteamCallAt + STEAM_MIN_INTERVAL_MS - Date.now();
+  const mySlot = Math.max(lastSteamCallAt + STEAM_MIN_INTERVAL_MS, Date.now());
+  lastSteamCallAt = mySlot;
+  const wait = mySlot - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
-  lastSteamCallAt = Date.now();
 }
 
 // v3.4.1：每次出站请求均写入审计（含被拦截/限速/网络错误路径），
