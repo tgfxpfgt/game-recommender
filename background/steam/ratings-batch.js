@@ -244,74 +244,120 @@ async function runRatingJob(job) {
       /* 设置不可达回退 PERF_CONFIG */
     }
     let batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
-    let queue = job.queue;
+    const allNames = job.queue;
     let retried = job.retried === true;
+    // v14.7 批次 6：worker pool——N 并发消费名字队列。150ms 全局限速不变
+    //（steamRateLimit 按 slot 串行放行），网络等待跨名字重叠（60 游戏纯限速
+    // 9s → ~3s）。波次推送/检查点/异常降速语义与旧批循环一致。
+    // Worker pool: N concurrent consumers over the name queue; the 150ms rate
+    // limit still paces slots, waits overlap across names.
+    const concurrency = Math.max(1, Number(PERF_CONFIG.steamFetchConcurrency) || 3);
+    const totalNames = allNames.length;
+    let doneCount = 0;
     let consecutiveAnomaly = 0;
-    // v14.7 批次 5：条目级进度（自适应批大小会让"批 x/y"漂移，条目计数稳健；
-    // 重试轮不重复计数，done 钳到 total）
-    // Item-level progress (adaptive batch size makes batch indices drift).
-    const totalNames = queue.length;
-    let processedCount = 0;
+    /** @type {Map<string, any>} */
+    const pendingWave = new Map(); // 未推送结果（≥ batchSize 或收尾时成波推送）
+    const retryNames = []; // 网络失败/限流（null 或 failed 标记）
+    /** @type {{done: boolean, promise: Promise<void>}|null} */
+    let anomalyGate = null; // 共享暂停门（所有 worker 等同一窗口，防 N 个独立定时器）
+
+    // v14.7 批次 5：条目级进度（重试轮不重复计数，done 钳到 total）
     const progressPayload = () => ({
       progress: {
-        done: Math.min(processedCount, totalNames),
+        done: Math.min(doneCount, totalNames),
         total: totalNames,
         degraded: getSteamApiStatus().anomaly
       }
     });
-    while (queue.length > 0) {
-      // v10.7.0 批次5：批次耗时/数量指标（渲染与网络收益可量化）
-      const batchT0 = Date.now();
-      const batch = queue.slice(0, batchSize);
-      queue = queue.slice(batchSize);
+
+    // 成波推送 + 检查点（SW 被杀后从当前 pass 未完成处续跑——比旧实现多覆盖
+    // 在途项，耐久性更好）/ Flush a wave + checkpoint (also covers in-flight).
+    const flushWave = async (passNames, completedInPass, force) => {
+      if (pendingWave.size === 0) return;
+      if (!force && pendingWave.size < batchSize) return;
       const wave = {};
-      const retryBatch = [];
-      await Promise.all(
-        batch.map(async (name) => {
+      for (const [n, r] of pendingWave) wave[n] = r;
+      pendingWave.clear();
+      const batchT0 = Date.now();
+      // v9.7.0：每波落盘（原每 5 批）——SW 被杀时损失限单波
+      await flushAllCaches();
+      push({ ratings: wave, ...progressPayload() });
+      job.queue = passNames.filter((n) => !completedInPass.has(n));
+      job.retried = retried;
+      await persistJob(job);
+      metricObserve('batch.ms', Date.now() - batchT0);
+      // 限流降速：异常时收缩波次阈值，恢复后回基础批大小
+      batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
+    };
+
+    const runPool = async (passNames) => {
+      if (passNames.length === 0) return;
+      const completedInPass = new Set();
+      let cursor = 0;
+      // 异常降速：所有 worker 共享同一暂停窗口 / Shared anomaly pause gate.
+      const maybePause = async () => {
+        if (getSteamApiStatus().anomaly) {
+          if (!anomalyGate) {
+            consecutiveAnomaly++;
+            const wait = consecutiveAnomaly >= 2 ? PERF_CONFIG.anomalyConsecutivePauseMs : PERF_CONFIG.anomalyWaitMs;
+            /** @type {(v?: void) => void} */
+            let resolveGate = () => {};
+            const gate = {
+              done: false,
+              promise: new Promise((res) => {
+                resolveGate = res;
+              })
+            };
+            setTimeout(() => {
+              gate.done = true;
+              resolveGate();
+            }, wait);
+            anomalyGate = gate;
+          }
+          const gate = anomalyGate;
+          if (gate) await gate.promise;
+        } else {
+          consecutiveAnomaly = 0;
+          anomalyGate = null;
+        }
+      };
+      const worker = async () => {
+        while (cursor < passNames.length) {
+          const name = passNames[cursor++];
+          await maybePause();
+          /** @type {any} */
+          let r = null;
           try {
             const urlAppId = job.urlAppIds && job.urlAppIds[name] ? job.urlAppIds[name] : null;
             const img =
               (job.imageData && job.imageData[name]) ||
               (job.appIds && job.appIds[name] ? { appId: job.appIds[name] } : null);
-            const r = await getSteamPositiveRate(name, {
+            r = await getSteamPositiveRate(name, {
               ignoreNegativeCache: true,
               appId: urlAppId || (img ? img.appId : null),
               cover: img ? img.cover : null
             });
-            wave[name] = mergeAppStat(r, statsMap);
-            // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
-            if (!r || r.failed) retryBatch.push(name);
           } catch {
-            wave[name] = null;
-            retryBatch.push(name);
+            r = null;
           }
-        })
-      );
-      // v9.7.0：每批落盘（原每 5 批）——SW 被杀时损失限单批
-      await flushAllCaches();
-      processedCount += batch.length;
-      push({ ratings: wave, ...progressPayload() });
-      // 任务状态检查点（下一批次边界）→ SW 被杀后从这儿续跑
-      job.queue = queue;
-      job.retried = retried;
-      await persistJob(job);
-      metricObserve('batch.ms', Date.now() - batchT0);
-      metricInc('batch.items', batch.length);
-      // 限流降速：Steam API 异常状态时拉大批次间隔；连续异常暂停 30s 等窗口恢复
-      if (getSteamApiStatus().anomaly) {
-        consecutiveAnomaly++;
-        batchSize = PERF_CONFIG.ratingsBatchSizeAnomaly;
-        const wait = consecutiveAnomaly >= 2 ? PERF_CONFIG.anomalyConsecutivePauseMs : PERF_CONFIG.anomalyWaitMs;
-        if (queue.length > 0 || retryBatch.length > 0) await new Promise((r) => setTimeout(r, wait));
-      } else {
-        consecutiveAnomaly = 0;
-        batchSize = baseBatch; // v14.5.0 B9：恢复用户基础批大小
-      }
-      // 一轮结束后重试失败的条目（最多一轮，防无限循环）
-      if (queue.length === 0 && retryBatch.length > 0 && !retried) {
-        retried = true;
-        queue = retryBatch;
-      }
+          completedInPass.add(name);
+          doneCount++;
+          pendingWave.set(name, r ? mergeAppStat(r, statsMap) : null);
+          // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
+          if (!r || r.failed) retryNames.push(name);
+          metricInc('batch.items', 1);
+          await flushWave(passNames, completedInPass, false);
+        }
+      };
+      await Promise.all(Array.from({ length: Math.min(concurrency, passNames.length) }, worker));
+      await flushWave(passNames, completedInPass, true);
+    };
+
+    await runPool(allNames);
+    // 一轮结束后重试失败的条目（最多一轮，防无限循环）
+    if (retryNames.length > 0 && !retried) {
+      retried = true;
+      await runPool(retryNames);
     }
     // 全部完成：done 标记（内容脚本据此收尾并显示统计）+ 清任务
     job.queue = [];

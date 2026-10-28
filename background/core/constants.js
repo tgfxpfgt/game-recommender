@@ -53,6 +53,7 @@ export const PERF_CONFIG = {
   steamRateLimitMs: 150, // Steam 域请求最小间隔（fetchWithTimeout 限速器）
   ratingsBatchSize: 6, // 列表页好评率批量每批数量（异常时降至 anomalyBatchSize）
   ratingsBatchSizeAnomaly: 2, // API 异常时的批次大小
+  steamFetchConcurrency: 3, // v14.7 批次 6：批量检索 worker pool 并发数（限速 slot 不变，网络等待重叠）
   anomalyWaitMs: 5000, // API 异常时批次间隔
   anomalyConsecutivePauseMs: 30000, // 连续异常暂停时长
   searchRetryDelayMs: 3000, // 搜索重试间隔
