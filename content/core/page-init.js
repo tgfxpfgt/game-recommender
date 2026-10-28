@@ -38,9 +38,8 @@ export async function initPage(boot) {
   }
   M.floats.applyFloatTheme(effectiveTheme);
 
-  // 加载适配规则（用户导入的 storage.adapterRules 优先）并构建站点适配器
-  await builder.loadSiteRules();
-  builder.buildSiteAdapters(builder.getSITE_RULES());
+  // v14.7 批次 13（B 路）：tracker boot 已加载规则并构建适配器——此处重复
+  // 构建为纯开销（rules 有缓存守卫不重发消息，但 adapter 重建是实打实的）。
   // v3.3.9：列表页链接扫描上限可配置（默认 500）
   if (builder.setScanLimit) builder.setScanLimit(settings.maxScanLinks || 500);
 

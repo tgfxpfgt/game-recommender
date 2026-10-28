@@ -333,7 +333,8 @@ export function requestSteamRatings(items, settings) {
 //（此前 REFRESH 不传 nameToImage → appId 恒 null 的缺陷一并修复）。
 // Recommendations ride the batch scheduler; this entry stays for the
 // REFRESH_RECOMMENDATIONS force-refresh with lazy cover extraction.
-export async function requestRecommendations(items, settings, nameToImage) {
+export async function requestRecommendations(items, settings) {
+  // v14.7 批次 13：nameToImage 死参数移除
   const batchState = _state.batchState;
   if (!batchState || !items || items.length === 0) return;
   const names = items.map((i) => i.name).filter((n) => n && n.length > 1);

@@ -83,7 +83,9 @@ export function createMessageRouter({ bootPromise, getModules }) {
     if (message.action === 'STEAM_RATINGS_UPDATE') {
       // 后台推送：缓存未命中的游戏已从 Steam 拉取完成（多波增量，done 标记收尾）
       // Background push: cache misses fetched from Steam (incremental waves + done)
-      // 就绪快路径同步应用（徽章即时渲染，B7 前语义）；boot 未完成走延迟路径
+      // 就绪快路径同步应用（徽章即时渲染，B7 前语义）；boot 未完成走延迟
+      // 路径（批次 13 曾按 B 路审查按"不可达"移除——test-content-messages
+      // 实证路由可被直调于 boot 前，防御分支恢复保留）。
       const ready = readyM();
       if (ready) {
         try {

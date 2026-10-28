@@ -260,6 +260,8 @@ async function fetchChineseReviews(appId) {
   try {
     const cnReviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
     const resp = await fetchWithTimeout(cnReviewUrl);
+    // v14.7 批次 13：429/5xx 也带 JSON 体——不查 ok 会静默按空数据处理且不计失败
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
     if (data.success === 1) {
       if (data.reviews && data.reviews.length > 0) {

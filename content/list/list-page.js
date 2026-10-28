@@ -489,6 +489,6 @@ export {
   waitForListItems,
   applySteamRatingsUpdate
 };
-export function requestRecommendations(items, settings, nameToImage) {
-  return listBatch.requestRecommendations(items, settings, nameToImage);
+export function requestRecommendations(items, settings) {
+  return listBatch.requestRecommendations(items, settings);
 }

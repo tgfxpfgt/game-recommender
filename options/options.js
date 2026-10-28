@@ -40,11 +40,18 @@
   // 语义与直调完全一致（checked/value/parseInt），仅缩短保存映射与绑定表。
   // DOM read micro-helpers: identical semantics to the direct calls.
   /** @param {string} id */
-  const val = (id) => document.getElementById(id).value;
+  // v14.7 批次 13：存在性守卫——HTML 漏 id 时快速失败并点名（原实现
+  // 中途抛 TypeError 使 autoSave 沦为未处理 rejection 且状态条停留"保存中"）
+  const requireEl = (id) => {
+    const el = document.getElementById(id);
+    if (!el) throw new Error(`options: 缺少元素 #${id}（HTML 与 settings 键不同步）`);
+    return el;
+  };
+  const val = (id) => requireEl(id).value;
   /** @param {string} id */
-  const chk = (id) => document.getElementById(id).checked;
+  const chk = (id) => requireEl(id).checked;
   /** @param {string} id */
-  const intVal = (id) => parseInt(document.getElementById(id).value);
+  const intVal = (id) => parseInt(requireEl(id).value);
 
   // v6.4.6：切换到 Vista Aero 新菜单
   document.addEventListener('DOMContentLoaded', async () => {

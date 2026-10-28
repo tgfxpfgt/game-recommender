@@ -60,6 +60,21 @@ orchestrator-list.js getSteamPositiveRate()  ← 列表页轻量查询
 
 ---
 
+## 1.5 检索规则词表（R1/R2，v14.6.3/v14.7）
+
+- **单源**：`shared/retrieval-vocab.js`——保序词条数据（`w`=字面词转义 /
+  `re`=正则片段 / `b`= 边界）+ validateRetrievalVocab + 惰性编译单例。
+  消费端全部"用时取用"（title-parser noisePatternOf()/api-search 活绑定
+  ADDON_NAME_PATTERN）——词表热更经 invalidateRetrievalRulesCache 立即生效。
+- **保序语义**：重叠词先长后短决定删除范围（Switch520.com 先于 Switch520），
+  golden 测试（test-retrieval-vocab）逐字节钉死编译源与 R1 前字面量等价；
+  错题库（mismatch-samples 回放）是词表变更的验收门。
+- **R2 通道**：`retrievalVocabOverride`（STORAGE_MODULES，clearOnDataReset）
+  → 启动装载（steam/retrieval-override.js）→ applyVocabOverride 键级合并
+  （内置在前追加不重排）→ 校验失败保持内置（回退）。**显式非法整包拒绝**
+  （静默 no-op 会以 applied=true 掩盖损坏规则包）。内容侧滞后至下次扩展
+  更新（不拉取）。
+
 ## 2. 双波好评率推送（列表页）
 
 ```

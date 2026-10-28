@@ -99,10 +99,13 @@ export function digitSetsOverlap(a, b) {
 // 偏好关键词在 Steam 商店搜索 + 取价格概览，返回候选游戏列表
 // Tag-based Steam store recommendations (sunk from the stats handler).
 export async function fetchSteamTagRecommendations(tags, limit = 9) {
+  if (isCircuitOpen('store')) return []; // v14.7 批次 13：熔断短路（与其他 store 路径对齐）
   const recGames = [];
   for (const tag of tags.slice(0, 3)) {
     const searchUrl = `${ENDPOINTS.steamSearch}?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
     const resp = await fetchWithTimeout(searchUrl);
+    recordSteamCall(resp.ok); // v14.7 批次 13：补 store 域统计（此前此路径指标全盲）
+    recordDomainCall('store', resp.ok);
     const data = await resp.json();
 
     if (data.total > 0 && data.items) {

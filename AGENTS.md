@@ -121,6 +121,16 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 - 消息推送：内容侧推送类 action（STEAM_RATINGS_UPDATE 等）就绪快路径**同步**
   应用——微任务延迟会让批次收尾抢先终止 job，迟到推送被静默丢弃（B8 实证）。
 
+## 自愈优先纪律（第七轮起）
+
+- 系统能自愈的不留给用户手动操作：未找到徽章点击重试（RETRY_GAME_LOOKUP）、
+  详情页网络故障期 30s 自动重查、负缓存分级退避（15min→1h→2h）——但**一切
+  自动重试总量有界**（节流 + 单次 + 每游戏至多一次）。
+- 窄化 action 原则：列表页就地重试不经 SEARCH_STEAM（其 sender URL 会写入
+  URL 索引污染列表页）——RETRY_GAME_LOOKUP 直调 searchSteamGame。
+- gate 假红先隔离复跑再定性（FaceFusion 教训）：sim/E2E 间歇红 → 隔离 3 连绿
+  即环境抖动；重负载机用 GR_SIM_SIGNAL_TIMEOUT_MS/E2E_SW_WAIT_ROUNDS 提额。
+
 ## 发布流程
 
 触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。步骤（顺序固定）：

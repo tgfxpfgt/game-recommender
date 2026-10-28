@@ -53,6 +53,10 @@ if (!fast) {
   step('E2E 冒烟（MOCK 离线）', 'npm run e2e', { E2E_MOCK: '1' });
 }
 step('visual（视觉回归）', 'npm run visual');
+if (process.argv.includes('--bench')) {
+  // v14.7 批次 13：性能基准（可选步骤——性能批次的前后对比入口）
+  step('perf-bench（性能基准）', 'node scripts/perf-bench.mjs');
+}
 step('architecture（架构图自动更新）', 'node scripts/generate-architecture.mjs');
 step('release-smoke（发布打包冒烟）', 'npm run package');
 

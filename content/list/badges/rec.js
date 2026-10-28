@@ -92,7 +92,7 @@ export function prependRecBadge(item, recommendation, settings) {
     } else {
       targetEl.insertBefore(badge, targetEl.firstChild);
     }
-  } else if (!link.querySelector('.gr-rec-badge')) {
+  } else {
     link.insertBefore(badge, link.firstChild);
   }
 }

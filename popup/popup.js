@@ -104,7 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 关键词过滤（v6.4.19：纯规则列表——规则在设置中心编辑）
   document.getElementById('ppVmFilter').checked = settings.enableVmFilter || false;
 
-  // 权重（动态 6 项）
+  // 权重（动态 10 项，v14.7 批次 13 勘误——原注释 6 项过时）
   renderWeights(settings.weights || {});
 
   // LLM

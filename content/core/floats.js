@@ -176,7 +176,6 @@ export function create(zone, id, opts = {}) {
       document.addEventListener('mousemove', onMove);
       document.addEventListener('mouseup', onUp);
     });
-    void foldBtn;
     closeBtn.addEventListener('click', () => {
       remove(id);
       if (typeof opts.onClose === 'function') opts.onClose();
