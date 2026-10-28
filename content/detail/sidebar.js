@@ -116,6 +116,53 @@ export function createSteamFloat(gameName, settings) {
     panel.style.display = 'none';
   }
 
+  // v14.7 批次 9：网络故障期未命中 → 30s 后静默自动重查一次（穿透负缓存）；
+  // 正常未找到（not-found）不浪费请求。手动选择/报错/跳过后定时器作废。
+  // Delayed auto-retry after a network-failure miss (single shot, 30s).
+  const AUTO_RETRY_DELAY_MS = 30000; // 批次 9（内容侧具名单源）
+  /** @type {ReturnType<typeof setTimeout>|null} */
+  let autoRetryTimer = null;
+  /** @type {Set<string>} */
+  const autoRetriedGames = new Set(); // 每游戏至多一次（防风暴）
+  function cancelAutoRetry() {
+    if (autoRetryTimer) {
+      clearTimeout(autoRetryTimer);
+      autoRetryTimer = null;
+    }
+  }
+  function scheduleAutoRetry(name) {
+    if (autoRetriedGames.has(name)) return;
+    autoRetriedGames.add(name);
+    cancelAutoRetry();
+    autoRetryTimer = setTimeout(async () => {
+      autoRetryTimer = null;
+      if (candidates.isGameDismissed(name)) return; // 用户已跳过 → 不再打扰
+      dbg('Steam: 网络故障期未命中，自动重查:', name);
+      try {
+        const resp = await window.__GR_MSG__.sendMessage(
+          {
+            action: 'SEARCH_STEAM',
+            gameName: name,
+            rawTitle: document.title,
+            ignoreNegativeCache: true
+          },
+          null,
+          { timeout: 25000 }
+        );
+        if (resp && resp.data) {
+          renderAndShow(resp.data, resp.cachedAt || null, name);
+          status.showStats({
+            title: 'Steam 信息（自动重查命中）',
+            summary: `${resp.data.ratingDesc || '暂无评价'} ${resp.data.positiveRate != null ? resp.data.positiveRate + '%' : ''}`,
+            rows: [`AppID ${resp.data.appId} · ${resp.data.name}`, '网络恢复后已自动完成匹配']
+          });
+        }
+      } catch {
+        /* 重查失败保持候选浮窗现状 */
+      }
+    }, AUTO_RETRY_DELAY_MS);
+  }
+
   // v14.5.0 B7：报错重检索/手动刷新回调统一为 createSteamActions 工厂
   //（状态 steamData/reportIssue 经存取器互通——原两份同构闭包收敛单点）。
   // steamData 本地引用保留为工厂状态的只读镜像（renderAndShow 同步读用）。
@@ -225,6 +272,12 @@ export function createSteamFloat(gameName, settings) {
           dbg('Steam: 用户已跳过该游戏，本页不再自动弹候选浮窗');
           return;
         }
+        // v14.7 批次 9：网络故障/熔断期未命中 → 30s 后静默自动重查一次
+        //（正常未找到 not-found 不浪费请求）
+        const missReasonAuto = String((response && response.reason) || '');
+        if (/steam-api-unreachable|circuit/i.test(missReasonAuto)) {
+          scheduleAutoRetry(gameName);
+        }
         dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
         // v10.9.3：未命中原因透传 + 重试（穿透负缓存重新自动匹配）
         const missReason = (response && response.reason) || '';
@@ -233,6 +286,7 @@ export function createSteamFloat(gameName, settings) {
           gameName,
           hidePanel,
           (selectedData, selectedAppId) => {
+            cancelAutoRetry(); // v14.7 批次 9：手动选择后自动重查作废
             renderAndShow(selectedData, Date.now(), gameName);
             chrome.runtime
               .sendMessage({
