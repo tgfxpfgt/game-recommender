@@ -123,6 +123,10 @@ const RULES = {
     }
     return { ok: true };
   },
+  // v14.7 批次 3：未找到徽章点击 = 穿透负缓存单游戏重查。窄化 action 直调
+  // searchSteamGame——不经 handleSearchSteam 的 URL 索引记录（列表页 sender
+  // URL 是列表页而非详情页，写入会污染 URL→appId 缓存）。
+  RETRY_GAME_LOOKUP: nameRule('RETRY_GAME_LOOKUP.gameName'),
   REFRESH_STEAM_CACHE: nameRule('REFRESH_STEAM_CACHE.gameName'),
   GET_STEAM_BY_APPID: (m) => appIdRule(m && m.appId, 'GET_STEAM_BY_APPID.appId'),
   SAVE_MANUAL_MAPPING: (m) => {
@@ -373,6 +377,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'GET_SETTINGS',
   'GET_STEAM_BY_APPID',
   'GET_STEAM_RATINGS',
+  'RETRY_GAME_LOOKUP', // v14.7 批次 3：未找到徽章点击重试（窄化，不经 URL 索引记录）
   'LOG_PERF',
   'PREFETCH_STEAM_RATINGS',
   'RECORD_DOWNLOAD_URLS_BATCH',

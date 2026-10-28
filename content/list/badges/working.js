@@ -8,6 +8,8 @@
  * Working-status domain (B6): enqueue placeholder / removal / error badges.
  */
 
+import { getBadgeRetryHandler } from './badge-base.js'; // v14.7 批次 3：点击重试
+
 // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
 export function removeItemFromDom(item) {
   if (!item.element || !item.element.parentNode) return;
@@ -18,6 +20,8 @@ export function removeItemFromDom(item) {
 
 // v14 F1：工作状态徽章——入队时显示"⏳ 等待检索"，数据到达后替换为真实徽章
 // Working status badge: shown at enqueue time, replaced by real badges on data.
+// v14.7 批次 3：点击 = 就地重试（经 badge-base 注入的处理器；任务进行中由
+// 处理器自行忽略，收尾残留项点击重查）。
 export function showWorkingBadge(item, text) {
   const link = item.link;
   if (!link || link.querySelector('.gr-working-badge')) return;
@@ -26,6 +30,16 @@ export function showWorkingBadge(item, text) {
   badge.textContent = text || '⏳ 等待检索';
   badge.style.cssText =
     'padding:2px 6px;font-size:10px;background:rgba(255,255,255,0.08);color:#8f98a0;border:1px dashed #444;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;';
+  const retry = getBadgeRetryHandler();
+  if (retry) {
+    badge.style.cursor = 'pointer';
+    badge.title = '点击立即重查（穿透负缓存）';
+    badge.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      retry(item);
+    });
+  }
   const target = item.titleEl || link;
   target.insertBefore(badge, target.firstChild);
 }

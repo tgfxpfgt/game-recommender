@@ -10,10 +10,11 @@
  * file. working/rec/badge-base are sibling domains.
  */
 import { adjustedReputation, verdictFor, ratingTextInfo } from '../../core/steam-rating-logic.js'; // v10.7.0：评分口径单源
-import { createBadge, insertBadges } from './badge-base.js';
+import { createBadge, insertBadges, getBadgeRetryHandler } from './badge-base.js';
 
 export { removeItemFromDom, showWorkingBadge, removeWorkingBadge, showErrorBadge, highlightItem } from './working.js';
 export { prependRecBadge } from './rec.js';
+export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v14.7 批次 3
 
 // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
 // 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
@@ -43,8 +44,13 @@ export function prependBadge(item, rating, settings) {
         bg: 'rgba(102,102,102,0.08)',
         cls: 'gr-badge-notfound',
         title:
-          '未在 Steam 找到该游戏（搜索无匹配结果或查询失败）\n可按 Alt+Shift+G 强制刷新本页重试；负缓存 2h 后自动重查',
-        dashed: true
+          '未在 Steam 找到该游戏\n点击立即重查（穿透负缓存）· 负缓存 2h 后自动重查 · 或按 Alt+Shift+G 强制刷新本页',
+        dashed: true,
+        // v14.7 批次 3：点击 = 穿透负缓存单游戏重查（处理器由 list-page 注入）
+        onClick: () => {
+          const retry = getBadgeRetryHandler();
+          if (retry) retry(item);
+        }
       })
     );
   } else if (isTypeBadge) {

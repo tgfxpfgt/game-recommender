@@ -23,6 +23,7 @@ import {
   waitForSignal,
   makeItem,
   presets,
+  sentMessages,
   documentMock,
   DEFAULT_SETTINGS
 } from './sim-harness.mjs';
@@ -246,4 +247,50 @@ simTest('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async ()
   // 特别好评 → positive 三档配色（XDGame 绿 #2e8660）
   expect(scoreBadge.style.cssText.includes('#2e8660')).toEqual(true);
   presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
+});
+
+// ============ v14.7 批次 3：未找到徽章点击 = 穿透负缓存就地重查 ============
+simTest('8e. 未找到徽章点击重试（RETRY_GAME_LOOKUP → 就地重渲染）', async () => {
+  const GR = getGR();
+  const retrySettings = {
+    ...DEFAULT_SETTINGS,
+    badgeVisibility: { recent: true, all: true, update: true, rec: false }
+  };
+  presets['GET_SETTINGS'] = () => ({ settings: retrySettings });
+  const itemH = makeItem('游戏H', 8);
+  setQueryStubs((sel) => (sel === 'li.game-item' ? [itemH.li] : []));
+  presets['GET_STEAM_RATINGS'] = () => ({ ratings: {}, pending: 0 }); // 全未命中 → 走推送
+  presets['GET_RECOMMENDATIONS'] = () => ({ results: [] });
+  presets['RETRY_GAME_LOOKUP'] = () => ({
+    appId: '555',
+    positiveRate: 88,
+    ratingDesc: '特别好评',
+    totalReviews: 100,
+    recentPositiveRate: 85,
+    recentTotalReviews: 20,
+    type: 'game',
+    lastUpdate: '2026-08-01'
+  });
+  const adapterH = GR.builder.getAdapter();
+  const itemsH = GR.list.getListItemsSmart(adapterH);
+  GR.list.trackListView(adapterH, itemsH, retrySettings);
+  await waitForSignal(() => itemH.a.children.length > 0, '8e: 占位徽章');
+  if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
+  // 批次收尾（pending 0 → 立即 finishRatings）后再推 notfound 波——
+  // 推送早于 createRatingsJob 会被 applySteamRatingsUpdate 的空守卫丢弃
+  await waitForSignal(() => !!(GR.list._state.ratingsJob && GR.list._state.ratingsJob.finished), '8e: 批次收尾');
+  // 后台推送：游戏H 未找到 → notfound 徽章
+  GR.list.applySteamRatingsUpdate({ 游戏H: null }, false, null);
+  await waitForSignal(() => itemH.a.children.some((c) => c.className.includes('gr-badge-notfound')), '8e: 未找到徽章');
+  // 点击 → RETRY_GAME_LOOKUP → 就地重渲染为评分徽章（批次 5 的进度推送
+  // 波次不会重渲染它——processed 守卫，重查路径必须自渲染）
+  const nf = itemH.a.children.find((c) => c.className.includes('gr-badge-notfound'));
+  nf.click();
+  await waitForSignal(
+    () => !itemH.a.children.some((c) => c.className.includes('gr-badge-notfound')) && itemH.a.children.some(isAllBadge),
+    '8e: 重查后评分徽章'
+  );
+  expect(sentMessages.some((m) => m.action === 'RETRY_GAME_LOOKUP' && m.gameName === '游戏H')).toEqual(true);
+  const allBadge = itemH.a.children.find(isAllBadge);
+  expect(allBadge.textContent).toEqual('✓ 88%'); // v7.4.0：色盲友好 ✓ 前缀（≥80）
 });

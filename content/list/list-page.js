@@ -18,6 +18,49 @@ import * as debug from '../core/debug.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
+// ============ v14.7 批次 3：未找到/等待徽章点击就地重试 ============
+// 点击 = RETRY_GAME_LOOKUP（穿透负缓存单游戏重查，窄化 action 不经 URL
+// 索引记录——列表页 sender URL 写入会污染 URL→appId 缓存）。
+// Click-to-retry: pierce the negative cache for one game; the narrowed action
+// skips URL-index recording (a list-page sender URL would poison the mapping).
+const RETRY_THROTTLE_MS = 10000; // 10s/游戏节流（防连点打爆限速）
+const retryThrottle = new Map(); // name → 上次尝试时间戳
+
+async function retryItem(item) {
+  if (!item || !item.name) return;
+  // 批次进行中忽略点击（数据即将由推送到达；收尾残留项才需要手动重试）
+  const job = _state.ratingsJob;
+  if (job && !job.finished) return;
+  const now = Date.now();
+  const last = retryThrottle.get(item.name) || 0;
+  if (now - last < RETRY_THROTTLE_MS) return;
+  retryThrottle.set(item.name, now);
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({
+      action: 'RETRY_GAME_LOOKUP',
+      gameName: item.name
+    });
+    if (resp && resp.appId) {
+      badges.removeRatingBadges(item); // 未找到徽章共享组标记，重渲染前移除
+      badges.removeWorkingBadge(item);
+      const settings = (job && job.settings) || {};
+      badges.prependBadge(item, resp, settings);
+      // 排序/过滤联动：ratingMap/ratingsByName 补录（与新批次同语义）
+      if (job) {
+        job.processed.add(item.name);
+        job.ratingMap[item.name] = resp.positiveRate ?? null;
+        job.ratingsByName[item.name] = resp;
+      }
+      dbg('Steam好评率重查命中:', item.name, '→', resp.appId);
+    } else {
+      dbg('Steam好评率重查仍未找到:', item.name);
+    }
+  } catch (e) {
+    dbg('Steam好评率重查失败:', String(e));
+  }
+}
+badges.setBadgeRetryHandler(retryItem);
+
 // 预载下一页 fetch 的 abort 超时（v14.6.2：具名单点——内容侧不可 import
 // background PERF_CONFIG（分层）；防挂起拖垮页面，与消息侧超时独立）
 const PRELOAD_ABORT_MS = 15000;

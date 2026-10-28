@@ -418,8 +418,18 @@ export async function handleHealRegistryNames(message) {
 // GET_STEAM_RATINGS/PREFETCH 归口自此（实现在 steam/ratings-batch.js）
 import { handleGetSteamRatings, handlePrefetchSteamRatings } from '../steam/ratings-batch.js';
 
+// v14.7 批次 3：未找到徽章点击重试——穿透负缓存单游戏重查。窄化 action 直调
+// searchSteamGame（URL 索引只在 handleSearchSteam 记录，本路径不写——列表页
+// sender URL 是列表页，写入会污染 URL→appId 缓存）。 Throttling is on the
+// content side (10s/game).
+export async function handleRetryGameLookup(message) {
+  const result = await searchSteamGame(String(message.gameName || ''), { ignoreNegativeCache: true });
+  return result || null;
+}
+
 export const steamHandlers = {
   SEARCH_STEAM: handleSearchSteam,
+  RETRY_GAME_LOOKUP: handleRetryGameLookup, // v14.7 批次 3
   REFRESH_STEAM_CACHE: handleRefreshSteamCache,
   GET_STEAM_BY_APPID: handleGetSteamByAppId,
   SAVE_MANUAL_MAPPING: handleSaveManualMapping,
