@@ -44,7 +44,8 @@ const DUMP_APPS = [
 ];
 
 function dumpResponse(apps = DUMP_APPS) {
-  return { ok: true, status: 200, json: async () => apps };
+  // v14.7 批次 11：流式解析消费 text()——mock 提供文本形态
+  return { ok: true, status: 200, json: async () => apps, text: async () => JSON.stringify(apps) };
 }
 
 // 两套独立实例（?t= 隔离）：A 用于刷新写入，B 验证持久化跨实例读取
@@ -193,5 +194,36 @@ describe('刷新失败退避（v14.6.2）', () => {
     fetchCalls = [];
     expect(await modG.refreshAppListIndex(false)).toEqual(true); // 解除后成功
     expect(fetchCalls.filter((u) => u.includes(DUMP_URL)).length).toEqual(1);
+  });
+});
+
+// ============ v14.7 批次 11：受控空格变体命中 ============
+describe('目录空格变体匹配（批次 11）', () => {
+  test('"GTA5" 命中索引中的 "GTA 5"（去空格二级键，零误配）', async () => {
+    const modC = await import('../../background/steam/app-list-index.js?t=c');
+    storage._reset();
+    if (globalThis.chrome.storage.session._reset) globalThis.chrome.storage.session._reset();
+    fetchResponses = {
+      [DUMP_URL]: () =>
+        dumpResponse([
+          ...DUMP_APPS, // ≥10000 条阈值（模块异常数据防线）
+          { appid: 271590, name: 'Grand Theft Auto V' },
+          { appid: 3240220, name: 'Grand Theft Auto V Enhanced' }
+        ])
+    };
+    const ok = await modC.refreshAppListIndex(true);
+    expect(ok).toEqual(true);
+    // 空格不对称：查询名缺空格 / extra space 双向可命中
+    const hit1 = await modC.matchAppListExact('Grand Theft Auto V');
+    expect(hit1 && hit1.appId).toEqual('271590');
+    const hit2 = await modC.matchAppListExact('GrandTheftAutoV');
+    expect(hit2 && hit2.appId).toEqual('271590');
+    const hit3 = await modC.matchAppListExact('Grand  Theft   Auto V'); // 空白压缩后精确命中
+    expect(hit3 && hit3.appId).toEqual('271590');
+    const hit4 = await modC.matchAppListExact('Grand Theft Auto VEnhanced');
+    expect(hit4 && hit4.appId).toEqual('3240220');
+    // 无歧义 miss 不受影响
+    const miss = await modC.matchAppListExact('Grand Theft Auto VI');
+    expect(miss).toEqual(null);
   });
 });

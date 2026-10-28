@@ -47,6 +47,15 @@ export function normalizeTitle(title) {
 
 /** @type {Map<string, {appId: string, name: string}>|null} */
 let indexMap = null;
+// v14.7 批次 11：受控空格变体索引——"GTA5" vs "GTA 5" 归一化后空格不对称
+// 必 miss 的根治。secondary key = 归一化名去全部空格（确定性变换，零误配；
+// 编辑距离近邻因噪声风险高且错题库门禁下收益不明，不做）。构建时对**含
+// 空格**的归一化名建立（无空格名与主键相同，无需重复）。
+// Controlled space-variant index: secondary key = normalized name without
+// spaces (deterministic, zero false-positives). No edit-distance layer —
+// noise risk outweighs benefit under the mismatch-replay gate.
+/** @type {Map<string, {appId: string, name: string}>|null} */
+let deSpaceMap = null;
 let loaded = false; // 本 SW 生命周期内不再读盘（刷新可重建）
 /** @type {Promise<Map<string, {appId: string, name: string}>|null>|null} */
 let loadPromise = null;
@@ -56,6 +65,27 @@ let refreshAttempted = false; // 本 SW 生命周期内至多主动刷新一次�
 
 /** @type {{updatedAt: number, source: string}|null} */
 let meta = null;
+
+/** 归一化名 → 去空格 secondary key（含空格名才有区分价值）*/
+function deSpaceKey(normTitle) {
+  return normTitle.includes(' ') ? normTitle.replace(/\s+/g, '') : '';
+}
+
+/** 构建双索引（主键 + 去空格变体键）*/
+function buildMaps(entries) {
+  const map = new Map();
+  const deSpace = new Map();
+  for (const entry of entries) {
+    if (!Array.isArray(entry) || entry.length < 3) continue;
+    const [norm, appId, name] = entry;
+    if (!norm || !appId || !name) continue;
+    if (!map.has(norm)) map.set(norm, { appId, name });
+    const dsk = deSpaceKey(norm);
+    if (dsk && !deSpace.has(dsk)) deSpace.set(dsk, { appId, name });
+  }
+  deSpaceMap = deSpace;
+  return map;
+}
 
 /**
  * 确保索引已从存储加载（幂等；不触发网络——刷新只在匹配未命中时按需触发，
@@ -71,7 +101,7 @@ export async function ensureAppListIndex() {
       try {
         const stored = await dataStore.readModule(DB_KEYS.APP_LIST_INDEX);
         if (stored && Array.isArray(stored.entries) && stored.entries.length > 0) {
-          indexMap = hydrate(stored.entries);
+          indexMap = buildMaps(stored.entries);
           meta = { updatedAt: stored.updatedAt || 0, source: stored.source || '' };
           return indexMap;
         }
@@ -92,13 +122,24 @@ export async function ensureAppListIndex() {
  * @returns {Map<string, {appId: string, name: string}>}
  */
 function hydrate(entries) {
-  const map = new Map();
-  for (const entry of entries) {
-    if (!Array.isArray(entry) || entry.length < 3) continue;
-    const [norm, appId, name] = entry;
-    if (norm && appId && name && !map.has(norm)) map.set(norm, { appId, name });
-  }
-  return map;
+  return buildMaps(entries);
+}
+
+/**
+ * 双层查找（主键精确 → 去空格变体）/ Two-tier lookup: exact → space-variant.
+ * 注意：查询侧**无条件**探测去空格键——查询名本身可能不含空格（"GTA5"型），
+ * 与索引侧"含空格才建 secondary"的优化无关。
+ * The query side always probes the de-spaced key (the query itself may have
+ * no spaces); the index side only builds secondary keys for spaced names.
+ * @param {Map<string, {appId: string, name: string}>} map
+ * @param {string} normTitle
+ * @returns {{appId: string, name: string}|null}
+ */
+function lookupTiered(map, normTitle) {
+  const exact = map.get(normTitle);
+  if (exact) return exact;
+  if (!deSpaceMap) return null;
+  return deSpaceMap.get(normTitle.replace(/\s+/g, '')) || null;
 }
 
 /**
@@ -129,7 +170,7 @@ export async function matchAppListExact(title, excludeAppId = null) {
       metricInc('appListIndex.miss');
       return null;
     }
-    const fast = indexMap.get(normalizeTitle(title));
+    const fast = lookupTiered(indexMap, normalizeTitle(title));
     if (!fast || (excludeAppId != null && String(fast.appId) === String(excludeAppId))) {
       metricInc('appListIndex.miss');
       return null;
@@ -146,7 +187,7 @@ export async function matchAppListExact(title, excludeAppId = null) {
     metricInc('appListIndex.miss');
     return null;
   }
-  const hit = map.get(normalizeTitle(title));
+  const hit = lookupTiered(map, normalizeTitle(title));
   if (!hit || (excludeAppId != null && String(hit.appId) === String(excludeAppId))) {
     metricInc('appListIndex.miss');
     return null;
@@ -257,20 +298,65 @@ export async function refreshAppListIndex(force = false) {
 
 /**
  * 主源：jsnli 每日镜像（IStoreService 快照，[{appid, name}] 数组）。
+ * v14.7 批次 11：流式解析——20MB JSON.parse 一次阻塞事件循环 ~1-2s（刷新
+ * 期间消息处理 P99 失守）；改为顶层对象切分（深度计数+字符串转义感知），
+ * 每 PERF_CONFIG.appListStreamYieldEvery 条让出事件循环。对象级 JSON.parse
+ * 总耗时相近，但消息处理不再被长任务阻塞。
+ * Streamed parse: split top-level objects (depth counter, string-escape
+ * aware) and yield the event loop every N entries — no long task.
  * @returns {Promise<{entries: Array<{appId: string, name: string}>}>}
  */
 async function fetchDumpPayload() {
   const resp = await fetchWithTimeout(ENDPOINTS.steamAppListDump, {}, PERF_CONFIG.appListDumpTimeoutMs);
   if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const raw = await resp.json();
-  if (!Array.isArray(raw)) throw new Error('dump 格式异常（非数组）');
+  const raw = await resp.text();
+  const yieldEvery = PERF_CONFIG.appListStreamYieldEvery;
+  /** @type {Array<{appId: string, name: string}>} */
   const entries = [];
-  for (const item of raw) {
-    // 防御式解析：IStoreService 条目 {appid, name}——缺任一即跳过
-    if (!item || item.appid == null || typeof item.name !== 'string' || !item.name) continue;
-    entries.push({ appId: String(item.appid), name: item.name });
+  let depth = 0;
+  let inStr = false;
+  let esc = false;
+  let objStart = -1;
+  for (let i = 0; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inStr) {
+      if (esc) esc = false;
+      else if (ch === '\\') esc = true;
+      else if (ch === '"') inStr = false;
+      continue;
+    }
+    if (ch === '"') {
+      inStr = true;
+      continue;
+    }
+    if (ch === '{') {
+      if (depth === 0) objStart = i;
+      depth++;
+    } else if (ch === '}') {
+      depth--;
+      if (depth === 0 && objStart >= 0) {
+        /** @type {{appid?: number|string, name?: string}|null} */
+        let item = null;
+        try {
+          item = JSON.parse(raw.slice(objStart, i + 1));
+        } catch {
+          item = null; // 单条异常跳过（不拖垮整批）
+        }
+        objStart = -1;
+        // 防御式解析：IStoreService 条目 {appid, name}——缺任一即跳过
+        if (item && item.appid != null && typeof item.name === 'string' && item.name) {
+          entries.push({ appId: String(item.appid), name: item.name });
+        }
+        if (entries.length % yieldEvery === 0) {
+          // 让出事件循环（消息处理不被长任务阻塞）/ yield the event loop
+          await new Promise((r) => setTimeout(r, 0));
+        }
+      }
+    }
   }
-  if (entries.length < 10000) throw new Error(`dump 条目过少（${entries.length}），疑似异常数据`);
+  if (!Array.isArray(entries) || entries.length < 10000) {
+    throw new Error(`dump 条目过少（${entries.length}），疑似异常数据`);
+  }
   return { entries };
 }
 
