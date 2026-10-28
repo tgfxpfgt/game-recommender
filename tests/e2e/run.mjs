@@ -71,8 +71,11 @@ try {
   }
 
   // 等待扩展加载并获取扩展 id（service worker 就绪）
+  // v14.7 批次 2（C-P2）：等待轮数可配置（E2E_SW_WAIT_ROUNDS，默认 30 轮
+  // =15s 不变）——重负载机上 SW 冷启动慢，提额消除假红。
+  const swWaitRounds = Number(process.env.E2E_SW_WAIT_ROUNDS) || 30;
   let extId = null;
-  for (let i = 0; i < 30; i++) {
+  for (let i = 0; i < swWaitRounds; i++) {
     const workers = context.serviceWorkers();
     if (workers.length > 0) {
       extId = new URL(workers[0].url()).host;
@@ -95,8 +98,24 @@ try {
       ['persist', runPersist],
       ['custom-site', runCustomSite]
     ];
+    // v14.7 批次 2（C-P2）：节级超时（E2E_SECTION_TIMEOUT_MS，默认 120s）——
+    // 节挂起不再拖死整段 E2E（此前仅 Playwright 单操作 30s 兜底，节内自旋
+    // 等待可无限挂起）。
+    const sectionTimeoutMs = Number(process.env.E2E_SECTION_TIMEOUT_MS) || 120000;
     for (const [name, run] of pipeline) {
-      const ok = await run(state);
+      const runP = run(state);
+      runP.catch(() => {}); // 超时胜出后原 promise 拒绝不得成为 unhandled
+      const timerP = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(`节 ${name} 超时(${sectionTimeoutMs}ms)`)), sectionTimeoutMs)
+      );
+      timerP.catch(() => {}); // 同上：run 先完成时 timer 的 reject 无人消费
+      let ok = false;
+      try {
+        ok = await Promise.race([runP, timerP]);
+      } catch (e) {
+        state.check(`节 ${name}（超时防护）`, false, String((e && e.message) || e));
+        break;
+      }
       if (ok === false) {
         console.log(`  ⏹ 节 ${name} 触发断链（E2E_FAST 离线模式）——其后节跳过`);
         break;

@@ -415,7 +415,10 @@ export { loadModules };
 // 轮询等待条件替代固定延时，根治偶发
 // v14 B6：waitFor → waitForSignal——必须携带 desc，超时抛错并打印描述定位
 //（原返回 false 由调用方兜底转储的模式废弃：失败信息统一进超时错误）
-export async function waitForSignal(fn, desc, timeoutMs = 20000) {
+// v14.7 批次 2（C-P1）：默认预算可配置（GR_SIM_SIGNAL_TIMEOUT_MS，默认
+// 20000 不变）——FaceFusion 类重负载争核机上 gate 提额消除假红。
+const SIM_SIGNAL_TIMEOUT_MS = Number(process.env.GR_SIM_SIGNAL_TIMEOUT_MS) || 20000;
+export async function waitForSignal(fn, desc, timeoutMs = SIM_SIGNAL_TIMEOUT_MS) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {
     if (fn()) return true;

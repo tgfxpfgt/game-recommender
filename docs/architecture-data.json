@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-27T17:43:19.126Z",
+  "generatedAt": "2026-10-28T16:26:21.020Z",
   "version": "14.6.3",
   "nodes": [
     {
@@ -63,8 +63,8 @@
       "label": "Shared",
       "color": "#95a5a6",
       "desc": "跨侧共享 — msg/escape/settings-utils/fm-keys/spy-scales",
-      "files": 8,
-      "lines": 561
+      "files": 9,
+      "lines": 909
     },
     {
       "dir": "adapters",
@@ -87,7 +87,7 @@
     "actionCount": 64,
     "storageCount": 26,
     "testCount": 0,
-    "suiteCount": 47
+    "suiteCount": 48
   },
   "flows": [
     {
