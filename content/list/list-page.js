@@ -455,7 +455,7 @@ function applySteamRatingsUpdate(ratings, done, progress) {
   const prog = _state.ratingsProgress;
   const progJob = _state.ratingsJob;
   if (prog && prog.total > 0 && progJob) {
-    for (const item of progJob.processItems) {
+    for (const item of /** @type {any} */ (progJob.processItems)) {
       if (progJob.processed.has(item.name)) continue;
       const target = item.titleEl || item.link;
       const badge = target && target.querySelector('.gr-working-badge');

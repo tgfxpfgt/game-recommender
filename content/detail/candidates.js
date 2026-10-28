@@ -17,6 +17,7 @@ const esc = (text) => common.escapeHtml(text);
 // game on this page; cross-page reloads are covered by the 15-min first tier
 // of the graded negative cache.
 const dismissedGames = new Set();
+/** @param {string} gameName */
 export function isGameDismissed(gameName) {
   return dismissedGames.has(String(gameName || ''));
 }
@@ -115,6 +116,7 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
       // v12 B5：键盘导航——↑/↓ 移动高亮，Enter 选择，Esc 关闭
       let kbIndex = -1;
       const items = [...listEl.querySelectorAll('.gr-candidate-item')];
+      /** @param {number} i */
       const setKbActive = (i) => {
         kbIndex = (i + items.length) % items.length;
         items.forEach((it, idx) => {
@@ -123,6 +125,7 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
           it.style.borderColor = active ? '#66c0f4' : '#2a475e';
         });
       };
+      /** @param {KeyboardEvent} ev */
       const kbHandler = (ev) => {
         if (!document.body.contains(listEl)) {
           document.removeEventListener('keydown', kbHandler);
@@ -145,7 +148,7 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
       listEl.dataset.kbNav = '1';
 
       // 绑定事件（hover 高亮与点击用 addEventListener，规避页面 CSP）
-      listEl.querySelectorAll('.gr-candidate-item').forEach((item) => {
+      listEl.querySelectorAll('.gr-candidate-item').forEach((/** @type {any} */ item) => {
         item.addEventListener('mouseenter', () => {
           item.style.background = 'rgba(102,192,244,0.1)';
           item.style.borderColor = '#66c0f4';
@@ -216,9 +219,9 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
   let searchTimer = null;
   const input = panel.querySelector('#gr-manual-search-input');
   if (input) {
-    input.addEventListener('input', (e) => {
+    input.addEventListener('input', (/** @type {Event} */ e) => {
       if (searchTimer) clearTimeout(searchTimer);
-      const keyword = e.target.value.trim();
+      const keyword = String(/** @type {HTMLInputElement} */ (e.target)?.value || '').trim();
       if (keyword.length < 2) return;
       searchTimer = setTimeout(() => searchAndRender(keyword), 300);
     });

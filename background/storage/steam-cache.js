@@ -173,6 +173,7 @@ let steamCacheHotPromise = null;
 let steamCacheHotLoaded = false;
 
 /** 分模块文件并入内存（含 rating 行数统计）/ merge part files into memory. */
+/** @param {string[]} partNames */
 async function mergePartsIntoMemory(partNames) {
   const parts = await Promise.all(partNames.map((m) => dataStore.readModule(CACHE_PART_KEYS[m])));
   partNames.forEach((m, i) => {

@@ -120,7 +120,7 @@ export function createMessageRouter({ bootPromise, getModules }) {
           } else {
             const adapter = M.builder.getAdapter();
             if (M.list.isListPageByUrl() || adapter.isListPage()) {
-              M.list.getListItemsSmart(adapter).forEach((item) => {
+              M.list.getListItemsSmart(adapter).forEach((/** @type {any} */ item) => {
                 if (item.name) names.add(item.name);
                 const info = M.builder.extractSteamImageInfo(item.element);
                 if (info) appIds.add(info.appId);

@@ -212,6 +212,7 @@ export function create(zone, id, opts = {}) {
 }
 
 // 关闭单个浮窗 / Close a single float
+/** @param {string} id */
 export function remove(id) {
   const item = floats[id];
   if (!item) return;

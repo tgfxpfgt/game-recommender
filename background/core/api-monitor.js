@@ -39,6 +39,7 @@ export async function warmupApiMonitor() {
 // Record one Steam API call (status = HTTP code; 0 = network error)
 // v3.4.1：惰性清理——不再每次调用都全量 filter（批量检索时高频调用，
 // 此前每次 O(n) 扫描；现仅在超上限 64 条时压缩一次，读取时再惰性过期）
+/** @param {boolean} ok @param {number} [status] */
 export function recordSteamCall(ok, status = 0) {
   const now = Date.now();
   const calls = persist.peek();
@@ -109,6 +110,7 @@ const domainBreakers = {};
 // 其余并发调用者在探测期间视为仍熔断（此前全部放行 = 批次场景一次放行 N 个）。
 // Single probe token: only the first caller after expiry transitions to
 // half-open; concurrent callers stay blocked until the probe resolves.
+/** @param {string} domain @param {number} [now] */
 export function isCircuitOpen(domain, now = Date.now()) {
   const b = domainBreakers[domain];
   if (!b) return false;
@@ -127,6 +129,7 @@ export function isCircuitOpen(domain, now = Date.now()) {
   return !!b.openUntil && b.openUntil > now;
 }
 
+/** @param {string} domain */
 export function circuitState(domain) {
   const b = domainBreakers[domain];
   if (!b) return 'closed';
@@ -147,6 +150,7 @@ const domainStats = {
 };
 const DOMAIN_WINDOW = 8;
 
+/** @param {string} domain @param {boolean} ok */
 export function recordDomainCall(domain, ok) {
   const st = domainStats[domain];
   if (!st) return;

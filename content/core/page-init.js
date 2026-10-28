@@ -45,7 +45,7 @@ export async function initPage(boot) {
 
   const domain = common.getCurrentDomain();
   const trackedSites = settings.trackedSites || [];
-  const isTracked = trackedSites.length === 0 || trackedSites.some((s) => domain.includes(s));
+  const isTracked = trackedSites.length === 0 || trackedSites.some((/** @type {string} */ s) => domain.includes(s));
   const isSteamPage = domain.includes('store.steampowered.com');
 
   // 调试模式：开启时统一浮窗在统计显示 3 秒后切换为诊断视图

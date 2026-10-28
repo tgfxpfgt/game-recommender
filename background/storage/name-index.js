@@ -65,6 +65,7 @@ export async function isRecentlySearchedNotFound(gameName) {
 // 后可快速重查），连续 miss 指数退避 cap/2，cap 封顶（防请求风暴）。人工
 // 纠正/手动选择命中即清零（正缓存写入/条目删除自动覆盖 missCount）。
 // Graded backoff ladder: cap/8 → cap/2 → cap; a positive hit resets the count.
+/** @param {number|undefined} missCount */
 function negativeTtlFor(missCount) {
   const cap = nameNegativeCacheTtlMs();
   if (!missCount || missCount <= 1) return cap / 8;

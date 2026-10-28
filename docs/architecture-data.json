@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-10-28T16:26:21.020Z",
+  "generatedAt": "2026-10-28T18:53:29.490Z",
   "version": "14.6.3",
   "nodes": [
     {
@@ -8,7 +8,7 @@
       "color": "#4a9eff",
       "desc": "Service Worker — 消息分发/检索管线/推荐引擎/存储",
       "files": 2,
-      "lines": 405
+      "lines": 406
     },
     {
       "dir": "content",
@@ -24,7 +24,7 @@
       "color": "#e74c3c",
       "desc": "设置中心 — 全量配置/缓存管理/规则编辑",
       "files": 3,
-      "lines": 3968
+      "lines": 3975
     },
     {
       "dir": "dashboard",
@@ -64,7 +64,7 @@
       "color": "#95a5a6",
       "desc": "跨侧共享 — msg/escape/settings-utils/fm-keys/spy-scales",
       "files": 9,
-      "lines": 909
+      "lines": 989
     },
     {
       "dir": "adapters",
@@ -80,14 +80,14 @@
       "color": "#f39c12",
       "desc": "OPFS 持久化 — data-store/STORAGE_MODULES 注册表",
       "files": 3,
-      "lines": 662
+      "lines": 669
     }
   ],
   "stats": {
-    "actionCount": 64,
-    "storageCount": 26,
+    "actionCount": 65,
+    "storageCount": 27,
     "testCount": 0,
-    "suiteCount": 48
+    "suiteCount": 50
   },
   "flows": [
     {

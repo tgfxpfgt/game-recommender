@@ -36,7 +36,7 @@
 
 ## 边界规则
 
-1. _*新增检索逻辑先进 api-* 原子层_*（可单测），编排决策进 orchestrator-*；禁止把
+1. _*新增检索逻辑先进 api-* 原子层__（可单测），编排决策进 orchestrator-_；禁止把
    fetch 细节写进管线文件
 2. handlers/steam.js 出现 >20 行业务逻辑即为下沉信号
 3. 本域禁 import `../handlers/`、`../recommend/`、`../freegames/`（integrity 矩阵强制）

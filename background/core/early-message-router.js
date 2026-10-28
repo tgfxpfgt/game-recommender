@@ -37,7 +37,8 @@ export function attachEarlyMessageRouter(handler) {
 
 // 顶层注册（本模块是依赖图首个求值点）/ Top-level registration (first
 // evaluated module in the graph).
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+/** @param {any} message @param {any} sender @param {(resp: any) => void} sendResponse */
+function onMessage(message, sender, sendResponse) {
   if (realHandler) {
     realHandler(message, sender)
       .then(sendResponse)
@@ -50,4 +51,5 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 图就绪前到达：排队保活通道，attach 后冲放应答 / Queue until attach.
   earlyQueue.push([message, sender, sendResponse]);
   return true;
-});
+}
+chrome.runtime.onMessage.addListener(onMessage);

@@ -277,6 +277,7 @@ async function runRatingJob(job) {
 
     // 成波推送 + 检查点（SW 被杀后从当前 pass 未完成处续跑——比旧实现多覆盖
     // 在途项，耐久性更好）/ Flush a wave + checkpoint (also covers in-flight).
+    /** @param {string[]} passNames @param {Set<string>} completedInPass @param {boolean} force */
     const flushWave = async (passNames, completedInPass, force) => {
       if (pendingWave.size === 0) return;
       if (!force && pendingWave.size < batchSize) return;
@@ -295,6 +296,7 @@ async function runRatingJob(job) {
       batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
     };
 
+    /** @param {string[]} passNames */
     const runPool = async (passNames) => {
       if (passNames.length === 0) return;
       const completedInPass = new Set();
