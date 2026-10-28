@@ -201,7 +201,7 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
 // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
 Promise.allSettled([
-  loadSteamCacheToMemory(),
+  loadSteamCacheToMemory({ hotOnly: true }), // v14.7 批次 10：热层先行（meta+rating，列表页首波所需）
   warmupNameIndex(),
   warmupApiMonitor(),
   warmupMetrics(), // v10.7.0：运行指标
@@ -213,6 +213,7 @@ setWriteMetricsHook(trackOpfsWrite);
 const WARM_TIER_DELAY_MS = 15000;
 setTimeout(() => {
   Promise.allSettled([
+    loadSteamCacheToMemory(), // v14.7 批次 10：温层补载 detail/spy（惰性提升亦可——详情页首查自会全量）
     warmupRegistry(),
     warmupWrongReports(),
     warmupLearnedNoise(),

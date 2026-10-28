@@ -155,31 +155,66 @@ export function isSteamCacheValid(entry) {
   return false;
 }
 
-// 加载缓存到内存（首次）：读 4 个分模块文件合并；旧单文件存在时一次性
-// 拆分迁移（拆分后旧文件在 flush 成功时删除）。
+// 加载缓存到内存（首次）：读分模块文件合并；旧单文件存在时一次性拆分迁移。
 // v14.7 批次 8：装载 promise 记忆化——并发调用共享同一装载（app-list-index
 // 先例），消除双读；waitForSteamCacheWarmup 供首波 cacheOnly 门控。
-// Load with memoized promise (concurrent callers share one load).
+// v14.7 批次 10：预热分层——hotOnly 只载 meta+rating（列表页首波所需），
+// detail/spy 惰性（详情页首查或 SW 温层 15s 补载时全量装载）。写路径
+// （flush 跨模块 compaction/删除语义）保持全量装载前提，故运行时读写
+// 调用的无参形式仍为全量——冷热分层只作用于预热时机，不改持久化语义。
+// Tiered warmup: hotOnly loads just meta+rating; detail/spy load on demand
+// (first detail query or the 15s warm tier). Persistence semantics unchanged.
+const HOT_PARTS = ['meta', 'rating']; // 列表页首波所需 / hot tier (first wave)
+
 /** @type {Promise<void>|null} */
 let steamCacheLoadPromise = null;
-export async function loadSteamCacheToMemory() {
+/** @type {Promise<void>|null} */
+let steamCacheHotPromise = null;
+let steamCacheHotLoaded = false;
+
+/** 分模块文件并入内存（含 rating 行数统计）/ merge part files into memory. */
+async function mergePartsIntoMemory(partNames) {
+  const parts = await Promise.all(partNames.map((m) => dataStore.readModule(CACHE_PART_KEYS[m])));
+  partNames.forEach((m, i) => {
+    const part = parts[i];
+    if (!part || typeof part !== 'object') return;
+    if (m === 'rating') ratingLineCount = Object.keys(part).length; // v14 B7
+    for (const [key, mod] of Object.entries(part)) {
+      if (!mod || !mod.data) continue;
+      const entry = steamCacheMemory.get(String(key)) || { modules: {} };
+      entry.modules[m] = mod; // {data, ts}
+      steamCacheMemory.set(String(key), entry);
+    }
+  });
+}
+
+/** @param {{hotOnly?: boolean}} [opts] */
+export async function loadSteamCacheToMemory(opts = {}) {
+  const hotOnly = opts.hotOnly === true;
+  if (hotOnly) {
+    if (steamCacheHotLoaded || steamCacheMemoryLoaded) return;
+    if (!steamCacheHotPromise) {
+      steamCacheHotPromise = (async () => {
+        steamCacheMemory = new Map();
+        await mergePartsIntoMemory(HOT_PARTS);
+        steamCacheHotLoaded = true;
+      })();
+      try {
+        await steamCacheHotPromise;
+      } finally {
+        steamCacheHotPromise = null;
+      }
+    } else {
+      await steamCacheHotPromise;
+    }
+    return;
+  }
   if (steamCacheMemoryLoaded) return;
   if (steamCacheLoadPromise) return steamCacheLoadPromise;
   steamCacheLoadPromise = (async () => {
     steamCacheMemory = new Map();
     // 1. 分模块文件
-    const parts = await Promise.all(CACHE_PART_NAMES.map((m) => dataStore.readModule(CACHE_PART_KEYS[m])));
-    CACHE_PART_NAMES.forEach((m, i) => {
-      const part = parts[i];
-      if (!part || typeof part !== 'object') return;
-      if (m === 'rating') ratingLineCount = Object.keys(part).length; // v14 B7
-      for (const [key, mod] of Object.entries(part)) {
-        if (!mod || !mod.data) continue;
-        const entry = steamCacheMemory.get(String(key)) || { modules: {} };
-        entry.modules[m] = mod; // {data, ts}
-        steamCacheMemory.set(String(key), entry);
-      }
-    });
+    await mergePartsIntoMemory(CACHE_PART_NAMES);
     // 2. 旧单文件迁移（一次性）：存在非空旧文件 → 拆入内存并标记全模块重写
     try {
       const legacy = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
@@ -206,6 +241,7 @@ export async function loadSteamCacheToMemory() {
       /* 旧文件读取失败 → 按无旧数据处理 */
     }
     steamCacheMemoryLoaded = true;
+    steamCacheHotLoaded = true; // 全量 ⊇ 热层 / full implies hot
   })();
   try {
     await steamCacheLoadPromise;
@@ -216,10 +252,14 @@ export async function loadSteamCacheToMemory() {
 
 // v14.7 批次 8：预热竞态修复——首波 cacheOnly 前等待"预热完成或超时"，
 // 消除冷启动首屏空转等二波（SW 启动预热在途时，首波读缓存必然空转）。
-// Wait for warmup (or timeout) before the first cache-only wave.
+// v14.7 批次 10：首波只需热层（meta+rating）——等待 hotOnly 装载即可。
+// Wait for the HOT tier (first wave never needs detail/spy).
 export async function waitForSteamCacheWarmup(timeoutMs) {
-  if (steamCacheMemoryLoaded) return;
-  await Promise.race([loadSteamCacheToMemory().catch(() => {}), new Promise((r) => setTimeout(r, timeoutMs))]);
+  if (steamCacheHotLoaded || steamCacheMemoryLoaded) return;
+  await Promise.race([
+    loadSteamCacheToMemory({ hotOnly: true }).catch(() => {}),
+    new Promise((r) => setTimeout(r, timeoutMs))
+  ]);
 }
 
 // 迁移旧平铺结构（{data, timestamp, version}）→ 模块结构（ts = 原 timestamp）。
