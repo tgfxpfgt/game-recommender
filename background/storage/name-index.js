@@ -12,7 +12,7 @@ import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
-/** @type {Map<string, {appId: string|null, lastSearched: number}>} */
+/** @type {Map<string, {appId: string|null, lastSearched: number, missCount?: number}>} */
 let nameIndexMemory = new Map();
 let nameIndexMemoryLoaded = false;
 let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
@@ -49,18 +49,27 @@ export async function lookupAppIdByName(gameName) {
   return entry.appId || null;
 }
 
-// 检查某游戏名是否在负缓存期内 / Is a name within the negative-cache window?
+// 检查某游戏名是否在负缓存期内（v14.7 批次 4：分级退避——按该名连续 miss
+// 次数计 TTL，首次 miss 仅 cap/8 可快速重试）/ Is a name within its
+// graded negative-cache window?
 export async function isRecentlySearchedNotFound(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return false;
   await loadNameIndexToMemory();
   const entry = nameIndexMemory.get(name);
-  return (
-    !!entry &&
-    (entry.appId === null || entry.appId === undefined) &&
-    entry.lastSearched &&
-    Date.now() - entry.lastSearched < nameNegativeCacheTtlMs()
-  );
+  if (!entry || (entry.appId !== null && entry.appId !== undefined) || !entry.lastSearched) return false;
+  return Date.now() - entry.lastSearched < negativeTtlFor(entry.missCount);
+}
+
+// v14.7 批次 4：分级退避阶梯——首次 miss cap/8（默认 2h→15min，新游戏上架
+// 后可快速重查），连续 miss 指数退避 cap/2，cap 封顶（防请求风暴）。人工
+// 纠正/手动选择命中即清零（正缓存写入/条目删除自动覆盖 missCount）。
+// Graded backoff ladder: cap/8 → cap/2 → cap; a positive hit resets the count.
+function negativeTtlFor(missCount) {
+  const cap = nameNegativeCacheTtlMs();
+  if (!missCount || missCount <= 1) return cap / 8;
+  if (missCount === 2) return cap / 2;
+  return cap;
 }
 
 // 正缓存条目上限（v3.4.0：防无界增长——仅负缓存曾有清理，正缓存
@@ -88,12 +97,18 @@ export async function recordNameIndex(gameName, appId) {
   if (!name) return;
   await loadNameIndexToMemory();
   const timestamp = Date.now();
-  nameIndexMemory.set(name, { appId: appId || null, lastSearched: timestamp });
   if (appId) {
+    // 正缓存写入即清零退避计数 / A positive hit resets the backoff count.
+    nameIndexMemory.set(name, { appId, lastSearched: timestamp, missCount: 0 });
     const cleaned = cleanGameName(gameName).toLowerCase().trim();
     if (cleaned && cleaned !== name) {
-      nameIndexMemory.set(cleaned, { appId, lastSearched: timestamp });
+      nameIndexMemory.set(cleaned, { appId, lastSearched: timestamp, missCount: 0 });
     }
+  } else {
+    // 负缓存：连续 miss 计数递增（分级退避依据）/ Consecutive-miss counter.
+    const prev = nameIndexMemory.get(name);
+    const missCount = ((prev && prev.missCount) || 0) + 1;
+    nameIndexMemory.set(name, { appId: null, lastSearched: timestamp, missCount });
   }
   // v3.4.0：正缓存超限按 lastSearched LRU 裁剪（保留最近使用的条目）
   if (nameIndexMemory.size > NAME_INDEX_MAX_ENTRIES) {
@@ -141,7 +156,7 @@ function cleanupExpiredNegativeEntries() {
     if (
       (entry.appId === null || entry.appId === undefined) &&
       entry.lastSearched &&
-      now - entry.lastSearched >= nameNegativeCacheTtlMs()
+      now - entry.lastSearched >= negativeTtlFor(entry.missCount) // v14.7 批次 4：分级 TTL
     ) {
       nameIndexMemory.delete(key);
       removed++;

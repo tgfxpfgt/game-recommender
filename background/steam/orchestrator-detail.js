@@ -200,9 +200,11 @@ export async function searchSteamGame(gameName, options = {}) {
           // 记录负缓存 / Record negative cache
           // v9.7.0：网络故障期不做负缓存固化——searchSteamAppId 吞掉网络异常
           // 返回 null（与"确认未找到"不可区分），断网时会把故障固化为 2h 负
-          // 缓存。窗口内有失败记录即视为网络不可靠，跳过负缓存（本路径可重试）
+          // 缓存。v14.7 批次 4：部分成功窗口扩展——窗口内**有任一成功**
+          //（total > failed）即网络可用，miss 是真实未找到，允许负缓存；
+          // 仅纯失败窗口（failed>0 且无成功）跳过（可重试）。
           const apiStatus = getSteamApiStatus();
-          if (apiStatus.failed === 0) {
+          if (apiStatus.failed === 0 || apiStatus.total > apiStatus.failed) {
             await recordNameIndex(gameName, null);
           } else {
             Logger.warn(

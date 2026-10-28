@@ -219,6 +219,12 @@ export function createSteamFloat(gameName, settings) {
         });
       } else {
         debug.DEBUG.steamStatus = '❌ 未找到';
+        // v14.7 批次 3/4：本页已"跳过"的游戏不再自动弹候选浮窗（负缓存首档
+        // 15min 到期后下次访问自动重查）
+        if (candidates.isGameDismissed(gameName)) {
+          dbg('Steam: 用户已跳过该游戏，本页不再自动弹候选浮窗');
+          return;
+        }
         dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
         // v10.9.3：未命中原因透传 + 重试（穿透负缓存重新自动匹配）
         const missReason = (response && response.reason) || '';

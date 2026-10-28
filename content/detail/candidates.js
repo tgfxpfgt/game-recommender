@@ -11,6 +11,16 @@ import * as common from '../core/common.js';
 
 const esc = (text) => common.escapeHtml(text);
 
+// v14.7 批次 3/4：「跳过，稍后自动重试」的页面会话级已跳过集——同一游戏
+// 本页不再自动弹候选浮窗（跨页面由分级负缓存首档 15min 兜底）。
+// Page-session dismissed set: the float won't auto-pop again for the same
+// game on this page; cross-page reloads are covered by the 15-min first tier
+// of the graded negative cache.
+const dismissedGames = new Set();
+export function isGameDismissed(gameName) {
+  return dismissedGames.has(String(gameName || ''));
+}
+
 // 手动选择浮窗：自动搜索失败时显示候选游戏列表供用户选择
 // v10.9.3：reason（后台诊断：not-found / steam-api-unreachable / error:…）展示 +
 // 重试按钮（穿透负缓存重新自动匹配）——此前静默弹候选，用户无从判断失败原因
@@ -19,6 +29,7 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
   const retryBtn = onRetry
     ? `<div style="margin-bottom:10px;display:flex;gap:8px;">
         <button id="gr-manual-retry" class="gr-btn" style="flex:none;padding:6px 12px;">🔄 重试自动匹配</button>
+        <button id="gr-manual-skip" class="gr-btn" style="flex:none;padding:6px 12px;">⏭ 跳过，稍后自动重试</button>
         <span id="gr-manual-retry-status" style="font-size:11px;color:#8f98a0;align-self:center;"></span>
       </div>`
     : '';
@@ -184,6 +195,15 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         retryBtnEl.disabled = false;
         if (statusEl) statusEl.textContent = '❌ 仍未命中';
       }
+    });
+  }
+  // v14.7 批次 3/4：跳过（轻路径）——关浮窗 + 页面会话内不再自动弹出；
+  // 负缓存首档 15min 到期后下次访问自动重查（分级退避，非 2h）。
+  const skipBtnEl = panel.querySelector('#gr-manual-skip');
+  if (skipBtnEl) {
+    skipBtnEl.addEventListener('click', () => {
+      dismissedGames.add(String(gameName || ''));
+      if (typeof onClose === 'function') onClose();
     });
   }
 

@@ -1,4 +1,4 @@
-import { test, expect } from 'vitest';
+import { test, expect, vi } from 'vitest';
 /**
  * 游戏雷达 Game Radar - 测试：Steam 编排器集成 / Orchestrator Integration Tests
  *
@@ -167,3 +167,30 @@ test('自愈退避：首次尝试后窗口内不重复请求', () => {
   expect(healCallCount() === afterFirst).toEqual(true);
 });
 restoreHeal();
+
+// ============ v14.7 批次 4：负缓存分级退避（15min → 1h → 2h 封顶） ============
+test('负缓存分级退避：首次 miss 仅 cap/8（15min），连续 miss 指数退避至 cap 封顶', async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date('2026-10-29T00:00:00'));
+  nameIdx.resetNameIndex();
+  const T0 = Date.now();
+  await nameIdx.recordNameIndex('分级游戏X', null); // miss ×1 → TTL cap/8 = 15min
+  expect(await nameIdx.isRecentlySearchedNotFound('分级游戏X')).toEqual(true);
+  vi.setSystemTime(new Date(T0 + 16 * 60e3)); // 16min > 15min → 可重试
+  expect(await nameIdx.isRecentlySearchedNotFound('分级游戏X')).toEqual(false);
+  await nameIdx.recordNameIndex('分级游戏X', null); // miss ×2 → TTL cap/2 = 1h
+  vi.setSystemTime(new Date(T0 + 20 * 60e3)); // 距 2nd miss 仅 4min → 仍在负缓存
+  expect(await nameIdx.isRecentlySearchedNotFound('分级游戏X')).toEqual(true);
+  vi.setSystemTime(new Date(T0 + 61 * 60e3)); // 距 2nd miss 41min < 1h → 仍在
+  expect(await nameIdx.isRecentlySearchedNotFound('分级游戏X')).toEqual(true);
+  vi.setSystemTime(new Date(T0 + 80 * 60e3)); // 距 2nd miss 60min → 过期可重试
+  expect(await nameIdx.isRecentlySearchedNotFound('分级游戏X')).toEqual(false);
+  await nameIdx.recordNameIndex('分级游戏X', null); // miss ×3 → TTL cap = 2h
+  vi.setSystemTime(new Date(T0 + 100 * 60e3)); // 距 3rd miss 20min → 仍在
+  expect(await nameIdx.isRecentlySearchedNotFound('分级游戏X')).toEqual(true);
+  // 正缓存写入清零退避计数 / A positive hit resets the backoff count.
+  await nameIdx.recordNameIndex('分级游戏X', '12345');
+  expect(await nameIdx.lookupAppIdByName('分级游戏X')).toEqual('12345');
+  vi.useRealTimers();
+  nameIdx.resetNameIndex();
+});
