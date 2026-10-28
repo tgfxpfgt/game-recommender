@@ -32,6 +32,9 @@
 // 下载站适配规则（default 基础 + sites 各站，副作用导入：
 // 执行后规则可通过 globalThis.__GAME_RECOMMENDER_SITES__ 读取）
 // Download-site adapter rules (side-effect imports expose the rules globally)
+// v14.7 批次 7：早期消息路由必须**最先**求值（ESM 按 import 顺序执行模块体
+// ——本行在全部重依赖之前注册 onMessage，图就绪窗口到达的消息排队冲放）。
+import { attachEarlyMessageRouter } from './core/early-message-router.js';
 import '../adapters/default.js';
 import '../adapters/sites/xdgame.js';
 import '../adapters/sites/xianyudanji.js';
@@ -85,15 +88,10 @@ const BOOT_START = Date.now();
 const GRAPH_READY_MS = Math.round(performance.now());
 
 // ============ 消息监听 / Message Listener ============
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  handleMessage(message, sender)
-    .then(sendResponse)
-    .catch((err) => {
-      console.error('消息处理错误:', err);
-      sendResponse({ error: err.message });
-    });
-  return true; // 保持消息通道开放 / keep the message channel open
-});
+// v14.7 批次 7：onMessage 已由 early-message-router.js（依赖图首个求值模块）
+// 在图求值早期注册——此处仅接管：积压队列冲放 + 后续消息直通。
+// Registration happened early; this attaches the real handler and flushes.
+attachEarlyMessageRouter(async (message, sender) => handleMessage(message, sender));
 
 // ============ 初始化 / Initialization ============
 // v9.6.0：首次启动优先加载离线备份（settings 缺失且本地有备份时自动恢复）
