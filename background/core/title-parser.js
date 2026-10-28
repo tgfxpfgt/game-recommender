@@ -19,10 +19,19 @@ import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js';
 // Noise vocab: single source = shared/retrieval-vocab.js (ordered entries);
 // this module only consumes the compiled patterns (no-g for .test, g for
 // .replace — both built from one source by the vocab module).
-const { noisePattern, noisePatternAll, junkCandidatePattern } = getCompiledRetrievalRules();
+// v14.7 批次 12（R2 第一步）：消费侧"用时取用"——词表热更（规则包覆盖）
+// 经 invalidateRetrievalRulesCache 失效后，下一次解析即用新词。编译单例
+// 缓存命中，开销为一次函数调用。
+// Fetch compiled rules per use so a vocab hot-update takes effect on the
+// next parse (compiled singleton keeps this a cheap call).
+/** 局部别名：当前编译产物 / local alias for the current compiled rules */
+const retrievalRules = getCompiledRetrievalRules;
+const noisePatternOf = () => retrievalRules().noisePattern;
+const noisePatternAllOf = () => retrievalRules().noisePatternAll;
+const junkPatternOf = () => retrievalRules().junkCandidatePattern;
 // 判断整段是否仅由噪声词组成 / Is a segment pure noise?
 function isPureNoise(text) {
-  const stripped = text.replace(noisePatternAll, '').replace(/[\s\|\-:：、]+/g, '');
+  const stripped = text.replace(noisePatternAllOf(), '').replace(/[\s\|\-:：、]+/g, '');
   return stripped.length === 0;
 }
 
@@ -76,7 +85,7 @@ export function parseGameTitle(rawName) {
     if (/\bDLC\b|Build[.\s]*\d+|^V?\d+\.\d+/.test(part)) continue;
 
     // 1) 整段清洗后作为候选（保留主名，去掉噪声词）
-    const cleaned = part.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
+    const cleaned = part.replace(noisePatternAllOf(), ' ').replace(/\s+/g, ' ').trim();
     if (cleaned.length >= 2) addCandidate(cleaned);
 
     // 2) 英文子串作为补充候选（v3.3.8：去除尾随冒号等标点——贪婪匹配会把
@@ -85,7 +94,7 @@ export function parseGameTitle(rawName) {
     if (en)
       en.forEach((m) => {
         const cleanedEn = m
-          .replace(noisePatternAll, ' ')
+          .replace(noisePatternAllOf(), ' ')
           .replace(/\s+/g, ' ')
           .trim()
           .replace(/[:：\s\-]+$/g, '');
@@ -97,7 +106,7 @@ export function parseGameTitle(rawName) {
     const cn = part.match(/[\u4e00-\u9fff\u3400-\u4dbf][\u4e00-\u9fff\u3400-\u4dbf0-9\s:：!！]+/g);
     if (cn)
       cn.forEach((m) => {
-        const cleanedCn = m.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
+        const cleanedCn = m.replace(noisePatternAllOf(), ' ').replace(/\s+/g, ' ').trim();
         if (cleanedCn.length >= 2) addCandidate(cleanedCn);
       });
   }
@@ -106,14 +115,18 @@ export function parseGameTitle(rawName) {
     // 兜底：整名清理后仍须是有效名称（纯噪声/仅残留分隔符时不生成候选）
     // Fallback: the cleaned whole name must still be a valid title; pure-noise
     // or separator-only leftovers produce no candidates
-    const fallback = splitTitleSegments(rawName).join(' ').replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
+    const fallback = splitTitleSegments(rawName)
+      .join(' ')
+      .replace(noisePatternAllOf(), ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
     const strippedFallback = fallback.replace(/[\s\|\-:：、]+/g, '');
     if (strippedFallback.length >= 2) addCandidate(fallback);
   }
 
   // v14.6.3 R1：junk 单 token 过滤词表单源 = shared/retrieval-vocab.js
   //（junkCandidatePattern，^锚定形态由词表模块编译）
-  const filtered = candidates.filter((c) => !junkCandidatePattern.test(c.trim()));
+  const filtered = candidates.filter((c) => !junkPatternOf().test(c.trim()));
   const finalCandidates = filtered.length > 0 ? filtered : candidates;
 
   // 无任何有效候选时返回空数组 / Return [] when no valid candidates exist
@@ -163,7 +176,7 @@ export function generateSearchVariants(rawName, extraNoiseWords = []) {
   const variants = [];
   const seen = new Set();
   const add = (text) => {
-    const cleaned = text.replace(noisePatternAll, ' ').replace(/\s+/g, ' ').trim();
+    const cleaned = text.replace(noisePatternAllOf(), ' ').replace(/\s+/g, ' ').trim();
     const key = cleaned.toLowerCase();
     if (cleaned.length >= 2 && !seen.has(key)) {
       seen.add(key);
@@ -206,7 +219,7 @@ export function extractNoiseCandidates(rawName, successTerm) {
     for (const w of remainder.split(/\s+/)) {
       if (w.length < 2 || w.length > 10) continue;
       if (!/[\u4e00-\u9fff]/.test(w)) continue; // 主要学习中文修饰词 / CN modifiers
-      if (noisePattern.test(w)) continue; // 静态表已覆盖的不学
+      if (noisePatternOf().test(w)) continue; // 静态表已覆盖的不学
       if (!found.includes(w)) found.push(w);
     }
   }

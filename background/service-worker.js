@@ -62,6 +62,7 @@ import { flushAllCaches } from './storage/flush.js';
 // these modules were already in the handlers graph, so this adds no files —
 // it only fixes the calls that silently no-op'd.
 import { loadSteamCacheToMemory } from './storage/steam-cache.js';
+import { ensureRetrievalVocabOverride } from './steam/retrieval-override.js'; // v14.7 批次 12：R2 词表覆盖
 import { warmupNameIndex } from './storage/name-index.js';
 import { warmupApiMonitor } from './core/api-monitor.js';
 import { warmupTabGames } from './core/tab-game.js';
@@ -206,6 +207,7 @@ Promise.allSettled([
   warmupApiMonitor(),
   warmupMetrics(), // v10.7.0：运行指标
   warmupTabGames(), // v14.1.0：SidePanel tab 快照
+  ensureRetrievalVocabOverride(), // v14.7 批次 12：R2 词表覆盖装载（校验失败回退内置）
   resumeRatingsBatch()
 ]);
 // v10.8：OPFS 写指标接线（静态导入 + 顶层调用）

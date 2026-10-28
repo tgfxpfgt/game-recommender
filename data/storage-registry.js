@@ -144,7 +144,14 @@ export const STORAGE_MODULES = {
     name: 'Steam 全量目录',
     desc: 'Steam App Catalog',
     clearOnDataReset: true
-  } // v14.6（可重建的离线索引，~10MB——不进默认备份，过期自动重拉）
+  }, // v14.6（可重建的离线索引，~10MB——不进默认备份，过期自动重拉）
+  retrievalVocabOverride: {
+    file: 'retrieval-vocab-override.json',
+    format: 'json',
+    name: '检索词表覆盖',
+    desc: 'Retrieval Vocab Override',
+    clearOnDataReset: true
+  } // v14.7 批次 12（R2 第二步骨架）：规则包下发的词表覆盖（校验失败回退内置；不进备份）
 };
 
 // 导出/导入与"清除学习数据"涉及的是 storageKey 语义（与模块键同值）

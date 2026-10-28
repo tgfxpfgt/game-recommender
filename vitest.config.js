@@ -78,6 +78,7 @@ export default defineConfig({
       'tests/unit/test-mismatch-samples.mjs',
       'tests/unit/test-retrieval-vocab.mjs',
       'tests/unit/test-early-router.mjs',
+      'tests/unit/test-retrieval-override.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',

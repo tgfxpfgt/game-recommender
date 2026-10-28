@@ -260,12 +260,14 @@ function entrySource([kind, value]) {
 
 /**
  * 词表校验（结构/类型/去重/正则片段可编译）。返回错误消息数组，空 = 合法。
+ * v14.7 批次 12（R2）：参数化——内置词表与规则包覆盖数据共用同一校验。
  * Validate the vocab; returns error messages (empty = valid).
+ * @param {{version: number, noiseTitle: VocabEntry[], noiseEnWords: string[], junkCandidateWords: VocabEntry[], titleTailStripWords: string[], versionSuffixes: Array<[string, string]>, addonKeywords: VocabEntry[], demoKeywords: VocabEntry[], editionWords: string[]}} [target] - 缺省校验内置词表
  * @returns {string[]}
  */
-export function validateRetrievalVocab() {
+export function validateRetrievalVocab(target) {
   const errors = [];
-  const v = RETRIEVAL_VOCAB;
+  const v = target || RETRIEVAL_VOCAB;
   /** @param {unknown} x */
   const isStrArr = (x) => Array.isArray(x) && x.length > 0 && x.every((w) => typeof w === 'string' && w.length > 0);
   if (v.version !== 1) errors.push('version 必须为 1');
@@ -313,6 +315,9 @@ export function validateRetrievalVocab() {
   return errors;
 }
 
+/** @type {{version: number, noiseTitle: VocabEntry[], noiseEnWords: string[], junkCandidateWords: VocabEntry[], titleTailStripWords: string[], versionSuffixes: Array<[string, string]>, addonKeywords: VocabEntry[], demoKeywords: VocabEntry[], editionWords: string[]}} */
+let activeVocab = RETRIEVAL_VOCAB; // v14.7 批次 12：当前生效词表（内置或合并覆盖）
+
 /** @type {ReturnType<typeof compileRules>|null} */
 let compiledCache = null;
 
@@ -320,7 +325,7 @@ let compiledCache = null;
  * 实际编译（getCompiledRetrievalRules 的单例体）/ The compile body (singleton).
  */
 function compileRules() {
-  const v = RETRIEVAL_VOCAB;
+  const v = activeVocab; // v14.7 批次 12：编译当前生效词表（内置或合并覆盖）
   // 中文标题噪声：保序拼接——test 用（无 g，lastIndex 状态残留防护，v3.4.1
   // 教训）与 replace 用（g，清掉每一处噪声）双版本由同一 source 构造。
   const noiseSource = v.noiseTitle.map(entrySource).join('|');
@@ -344,10 +349,85 @@ function compileRules() {
 /**
  * 编译词表为各消费端正则/集合（模块级惰性单例——启动一次，之后零开销）。
  * 编译语义与 R1 前的字面量版本 1:1 等价（golden 测试 + 错题库门禁）。
+ * v14.7 批次 12（R2 第一步）：消费侧"用时取用"——本函数每次调用返回当前
+ * 缓存；词表热更（规则包覆盖）经 invalidateRetrievalRulesCache 失效后，
+ * 下一次调用自动以新词表重编译。
  * Compile the vocab into regexes/sets (lazy singleton; semantics identical to
- * the pre-R1 literals — golden tests + mismatch replay are the gates).
+ * the pre-R1 literals). Consumers fetch per-use; a vocab hot-update
+ * invalidates the cache and the next call recompiles.
  */
 export function getCompiledRetrievalRules() {
   if (!compiledCache) compiledCache = compileRules();
   return compiledCache;
+}
+
+/**
+ * 失效编译缓存（R2 热更入口：词表数据变更后调用，下一次消费即重编译）。
+ * 内置词表常量本身不可变——失效只影响"覆盖词表"场景（批次 12 第二步的
+ * 规则包下发）与测试隔离。
+ * Invalidate the compiled cache (R2 hot-update entry; the next consumer call
+ * recompiles from the current vocab data).
+ */
+export function invalidateRetrievalRulesCache() {
+  compiledCache = null;
+}
+
+/**
+ * v14.7 批次 12（R2 第二步骨架）：词表覆盖应用——规则包下发的词表数据与
+ * 内置**键级合并**（数组键 override 追加在后，内置在前；保序语义=追加不
+ * 重排），校验通过才生效并失效编译缓存，失败返回错误数组（调用方保持
+ * 内置词表 = 回退语义）。
+ * Apply a vocab override from a rule package: key-wise merge (override
+ * arrays append after the built-ins), validate, then invalidate — on
+ * validation failure the built-in vocab stays in effect (fallback).
+ * @param {{version?: number, noiseTitle?: VocabEntry[], noiseEnWords?: string[], junkCandidateWords?: VocabEntry[], titleTailStripWords?: string[], versionSuffixes?: Array<[string, string]>, addonKeywords?: VocabEntry[], demoKeywords?: VocabEntry[], editionWords?: string[]}} override
+ * @returns {string[]} 校验错误（空 = 已生效）
+ */
+export function applyVocabOverride(override) {
+  if (!override || typeof override !== 'object') return ['override 必须为对象'];
+  // 显式非法（键存在但形态错误）→ 拒绝整包：静默 no-op 会掩盖损坏的规则包
+  // （调用方"applied=true"的语义是"覆盖已生效"，no-op 成功是谎报）。
+  // A known key present but malformed rejects the WHOLE override — a silent
+  // no-op would mask a corrupt rule package behind applied=true.
+  for (const key of [
+    'noiseTitle',
+    'noiseEnWords',
+    'junkCandidateWords',
+    'titleTailStripWords',
+    'versionSuffixes',
+    'addonKeywords',
+    'demoKeywords',
+    'editionWords'
+  ]) {
+    const v = override[key];
+    if (v === undefined) continue;
+    if (!Array.isArray(v) || v.length === 0) return [`${key} 覆盖必须为非空数组`];
+  }
+  const merged = { ...RETRIEVAL_VOCAB };
+  for (const key of [
+    'noiseTitle',
+    'noiseEnWords',
+    'junkCandidateWords',
+    'titleTailStripWords',
+    'versionSuffixes',
+    'addonKeywords',
+    'demoKeywords',
+    'editionWords'
+  ]) {
+    const extra = override[key];
+    if (Array.isArray(extra) && extra.length > 0) {
+      merged[key] = [...merged[key], ...extra]; // 追加语义：内置在前，保序不重排
+    }
+  }
+  const errors = validateRetrievalVocab(merged);
+  if (errors.length > 0) return errors;
+  activeVocab = merged;
+  invalidateRetrievalRulesCache();
+  return [];
+}
+
+/** 当前生效词表重置为内置（回退/测试用）/ Reset to the built-in vocab. */
+export function resetVocabOverride() {
+  activeVocab = RETRIEVAL_VOCAB;
+  invalidateRetrievalRulesCache();
 }
