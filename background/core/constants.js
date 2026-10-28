@@ -54,6 +54,7 @@ export const PERF_CONFIG = {
   ratingsBatchSize: 6, // 列表页好评率批量每批数量（异常时降至 anomalyBatchSize）
   ratingsBatchSizeAnomaly: 2, // API 异常时的批次大小
   steamFetchConcurrency: 3, // v14.7 批次 6：批量检索 worker pool 并发数（限速 slot 不变，网络等待重叠）
+  steamWarmupWaitMs: 800, // v14.7 批次 8：首波 cacheOnly 预热门控上限（预热在途时最多等 800ms）
   anomalyWaitMs: 5000, // API 异常时批次间隔
   anomalyConsecutivePauseMs: 30000, // 连续异常暂停时长
   searchRetryDelayMs: 3000, // 搜索重试间隔

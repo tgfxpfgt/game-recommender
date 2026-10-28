@@ -156,50 +156,70 @@ export function isSteamCacheValid(entry) {
 }
 
 // 加载缓存到内存（首次）：读 4 个分模块文件合并；旧单文件存在时一次性
-// 拆分迁移（拆分后旧文件在 flush 成功时删除）
-// Load: merge the 4 per-module files; migrate the legacy single file once.
+// 拆分迁移（拆分后旧文件在 flush 成功时删除）。
+// v14.7 批次 8：装载 promise 记忆化——并发调用共享同一装载（app-list-index
+// 先例），消除双读；waitForSteamCacheWarmup 供首波 cacheOnly 门控。
+// Load with memoized promise (concurrent callers share one load).
+/** @type {Promise<void>|null} */
+let steamCacheLoadPromise = null;
 export async function loadSteamCacheToMemory() {
   if (steamCacheMemoryLoaded) return;
-  steamCacheMemory = new Map();
-  // 1. 分模块文件
-  const parts = await Promise.all(CACHE_PART_NAMES.map((m) => dataStore.readModule(CACHE_PART_KEYS[m])));
-  CACHE_PART_NAMES.forEach((m, i) => {
-    const part = parts[i];
-    if (!part || typeof part !== 'object') return;
-    if (m === 'rating') ratingLineCount = Object.keys(part).length; // v14 B7
-    for (const [key, mod] of Object.entries(part)) {
-      if (!mod || !mod.data) continue;
-      const entry = steamCacheMemory.get(String(key)) || { modules: {} };
-      entry.modules[m] = mod; // {data, ts}
-      steamCacheMemory.set(String(key), entry);
-    }
-  });
-  // 2. 旧单文件迁移（一次性）：存在非空旧文件 → 拆入内存并标记全模块重写
-  try {
-    const legacy = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
-    if (legacy && typeof legacy === 'object' && Object.keys(legacy).length > 0) {
-      for (const [key, entry] of Object.entries(legacy)) {
-        const migrated = migrateEntry(entry);
-        if (!migrated) continue;
-        const id = String(key);
-        const existing = steamCacheMemory.get(id) || { modules: {} };
-        // 旧模块让位于分模块文件中更新的同名字段（按 ts 比较）
-        for (const [m, mod] of Object.entries(migrated.modules)) {
-          const cur = existing.modules[m];
-          if (!cur || (mod.ts || 0) >= (cur.ts || 0)) existing.modules[m] = mod;
-        }
-        steamCacheMemory.set(id, existing);
+  if (steamCacheLoadPromise) return steamCacheLoadPromise;
+  steamCacheLoadPromise = (async () => {
+    steamCacheMemory = new Map();
+    // 1. 分模块文件
+    const parts = await Promise.all(CACHE_PART_NAMES.map((m) => dataStore.readModule(CACHE_PART_KEYS[m])));
+    CACHE_PART_NAMES.forEach((m, i) => {
+      const part = parts[i];
+      if (!part || typeof part !== 'object') return;
+      if (m === 'rating') ratingLineCount = Object.keys(part).length; // v14 B7
+      for (const [key, mod] of Object.entries(part)) {
+        if (!mod || !mod.data) continue;
+        const entry = steamCacheMemory.get(String(key)) || { modules: {} };
+        entry.modules[m] = mod; // {data, ts}
+        steamCacheMemory.set(String(key), entry);
       }
-      legacyMigrated = true;
-      steamCacheDirty = true;
-      ratingFullRewrite = true; // v14 B7：迁移条目需整体重写进新格式
-      CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m));
-      writer.scheduleWrite(); // 拆分结果尽快落盘（flush 成功后删除旧文件）
+    });
+    // 2. 旧单文件迁移（一次性）：存在非空旧文件 → 拆入内存并标记全模块重写
+    try {
+      const legacy = await dataStore.readModule(DB_KEYS.STEAM_CACHE);
+      if (legacy && typeof legacy === 'object' && Object.keys(legacy).length > 0) {
+        for (const [key, entry] of Object.entries(legacy)) {
+          const migrated = migrateEntry(entry);
+          if (!migrated) continue;
+          const id = String(key);
+          const existing = steamCacheMemory.get(id) || { modules: {} };
+          // 旧模块让位于分模块文件中更新的同名字段（按 ts 比较）
+          for (const [m, mod] of Object.entries(migrated.modules)) {
+            const cur = existing.modules[m];
+            if (!cur || (mod.ts || 0) >= (cur.ts || 0)) existing.modules[m] = mod;
+          }
+          steamCacheMemory.set(id, existing);
+        }
+        legacyMigrated = true;
+        steamCacheDirty = true;
+        ratingFullRewrite = true; // v14 B7：迁移条目需整体重写进新格式
+        CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m));
+        writer.scheduleWrite(); // 拆分结果尽快落盘（flush 成功后删除旧文件）
+      }
+    } catch {
+      /* 旧文件读取失败 → 按无旧数据处理 */
     }
-  } catch {
-    /* 旧文件读取失败 → 按无旧数据处理 */
+    steamCacheMemoryLoaded = true;
+  })();
+  try {
+    await steamCacheLoadPromise;
+  } finally {
+    steamCacheLoadPromise = null; // 失败允许下次重试 / failure allows retry
   }
-  steamCacheMemoryLoaded = true;
+}
+
+// v14.7 批次 8：预热竞态修复——首波 cacheOnly 前等待"预热完成或超时"，
+// 消除冷启动首屏空转等二波（SW 启动预热在途时，首波读缓存必然空转）。
+// Wait for warmup (or timeout) before the first cache-only wave.
+export async function waitForSteamCacheWarmup(timeoutMs) {
+  if (steamCacheMemoryLoaded) return;
+  await Promise.race([loadSteamCacheToMemory().catch(() => {}), new Promise((r) => setTimeout(r, timeoutMs))]);
 }
 
 // 迁移旧平铺结构（{data, timestamp, version}）→ 模块结构（ts = 原 timestamp）。

@@ -13,7 +13,7 @@ import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrat
 import { PERF_CONFIG } from '../core/constants.js';
 import { getSettings } from '../core/settings.js'; // v14.5.0 B9：用户批大小接线
 import { flushAllCaches } from '../storage/flush.js';
-import { getSteamCacheEntry, isModuleValid, getModuleData } from '../storage/steam-cache.js';
+import { getSteamCacheEntry, isModuleValid, getModuleData, waitForSteamCacheWarmup } from '../storage/steam-cache.js';
 import { getAppIdByUrl } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
@@ -42,6 +42,11 @@ export async function handleGetSteamRatings(message, sender) {
   const cacheOnly = message.cacheOnly === true; // 兜底重试：只查缓存，不触发后台拉取
   const ratings = {};
   const pending = [];
+
+  // v14.7 批次 8：首波预热竞态修复——SW 启动预热（steam 缓存装载）在途时
+  // 首波读缓存必然空转等二波；等待"预热完成或 800ms 超时"后再查。已预热时
+  // 零开销。Warmup gate: the first cache-only wave waits for warmup (capped).
+  await waitForSteamCacheWarmup(PERF_CONFIG.steamWarmupWaitMs).catch(() => {});
 
   // 阶段0（v7.0.2）：详情页网址索引第一候选——同 URL 已匹配过 appId 的
   // 直接按该 appId 查缓存（统一列表页/详情页匹配结果）
