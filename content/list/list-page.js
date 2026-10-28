@@ -388,11 +388,15 @@ function extractGameNamesFromDoc(doc) {
 }
 
 // v5.1.0：批次状态与调度经 _state / listBatch
-function applySteamRatingsUpdate(ratings, done) {
+// v14.7 批次 5：progress（{done,total,degraded}，条目级进度）入 _state——
+// fireBatch 状态行与等待徽章 title 消费。
+function applySteamRatingsUpdate(ratings, done, progress) {
   const batchState = _state.batchState;
   if (!_state.ratingsJob) return false;
+  if (progress) _state.ratingsProgress = progress;
   // 后台全部批次完成标记 / background completion marker
   if (ratings === null && done) {
+    _state.ratingsProgress = null; // v14.7 批次 5：收尾清进度
     if (!batchState) {
       if (!_state.ratingsJob.finished) finishRatings();
       return true;
@@ -404,6 +408,17 @@ function applySteamRatingsUpdate(ratings, done) {
     return true;
   }
   applyRatingsResponse(ratings || {}, 'final');
+  // v14.7 批次 5：等待徽章 title 同步条目进度（队列位置感知）
+  const prog = _state.ratingsProgress;
+  const progJob = _state.ratingsJob;
+  if (prog && prog.total > 0 && progJob) {
+    for (const item of progJob.processItems) {
+      if (progJob.processed.has(item.name)) continue;
+      const target = item.titleEl || item.link;
+      const badge = target && target.querySelector('.gr-working-badge');
+      if (badge) badge.title = `Steam 检索中 ${Math.min(prog.done, prog.total)}/${prog.total}`;
+    }
+  }
   // 所有已发现游戏已出结果 → 收尾（队列非空时 every 检查天然不通过，
   // 未请求名字对应 item 必未 processed，等 done 衔接下一批）
   // all discovered games resolved → finish (queued names' items are never

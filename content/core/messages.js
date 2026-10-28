@@ -87,14 +87,14 @@ export function createMessageRouter({ bootPromise, getModules }) {
       const ready = readyM();
       if (ready) {
         try {
-          ready.M.list.applySteamRatingsUpdate(message.ratings, message.done === true);
+          ready.M.list.applySteamRatingsUpdate(message.ratings, message.done === true, message.progress);
         } catch (e) {
           // v6.4.10：推送处理错误可见（此前静默吞错——偶发状态下徽章丢失难排查）
           console.warn('【游戏雷达】 好评率推送处理失败:', e);
         }
       } else {
         bootPromise
-          .then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true))
+          .then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true, message.progress))
           .catch((e) => {
             console.warn('【游戏雷达】 好评率推送处理失败:', e);
           });

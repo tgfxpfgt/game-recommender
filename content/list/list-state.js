@@ -44,10 +44,11 @@ const FORCE_FINISH_MS = 45000;
  * @property {any} forceTimer
  * @property {Array<any>|null} domOrder - v14.0.0：原始 DOM 顺序基线（本地排序"恢复原顺序"用）
  */
-/** @type {{ ratingsJob: RatingsJob|null, batchState: any }} */
-export const _state = { ratingsJob: null, batchState: null };
+/** @type {{ ratingsJob: RatingsJob|null, batchState: any, ratingsProgress: {done:number,total:number,degraded:boolean}|null }} */
+export const _state = { ratingsJob: null, batchState: null, ratingsProgress: null };
 
 function createRatingsJob(processItems, settings, uniqueNames) {
+  _state.ratingsProgress = null; // v14.7 批次 5：新任务清上一轮进度
   _state.ratingsJob = {
     processItems,
     settings,

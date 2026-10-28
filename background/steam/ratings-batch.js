@@ -247,6 +247,18 @@ async function runRatingJob(job) {
     let queue = job.queue;
     let retried = job.retried === true;
     let consecutiveAnomaly = 0;
+    // v14.7 批次 5：条目级进度（自适应批大小会让"批 x/y"漂移，条目计数稳健；
+    // 重试轮不重复计数，done 钳到 total）
+    // Item-level progress (adaptive batch size makes batch indices drift).
+    const totalNames = queue.length;
+    let processedCount = 0;
+    const progressPayload = () => ({
+      progress: {
+        done: Math.min(processedCount, totalNames),
+        total: totalNames,
+        degraded: getSteamApiStatus().anomaly
+      }
+    });
     while (queue.length > 0) {
       // v10.7.0 批次5：批次耗时/数量指标（渲染与网络收益可量化）
       const batchT0 = Date.now();
@@ -277,7 +289,8 @@ async function runRatingJob(job) {
       );
       // v9.7.0：每批落盘（原每 5 批）——SW 被杀时损失限单批
       await flushAllCaches();
-      push({ ratings: wave });
+      processedCount += batch.length;
+      push({ ratings: wave, ...progressPayload() });
       // 任务状态检查点（下一批次边界）→ SW 被杀后从这儿续跑
       job.queue = queue;
       job.retried = retried;
@@ -304,7 +317,7 @@ async function runRatingJob(job) {
     job.queue = [];
     await clearPersistedJob();
     teardownResumeAlarm();
-    push({ ratings: null, done: true });
+    push({ ratings: null, done: true, ...progressPayload() });
   } catch (e) {
     Logger.warn('Steam', '后台补拉好评率失败', String(e));
   } finally {
