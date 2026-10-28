@@ -47,15 +47,15 @@ orchestrator-list.js getSteamPositiveRate()  ← 列表页轻量查询
 
 ### 关键决策点
 
-| 决策           | 逻辑                                                        | 位置                           |
-| -------------- | ----------------------------------------------------------- | ------------------------------ |
-| Demo 自愈      | 缓存命中 Demo 且无评测 → 忽略缓存重搜                       | orchestrator-shared.js         |
-| appId 类型校验 | DLC → 解析 fullgame 本体；bundle → 返回 type 标记           | orchestrator-list.js           |
-| 0 评测验证     | positiveRate=null → 重试计数 +1（上限 3）→ 冷却期不重复请求 | orchestrator-list.js           |
-| 负缓存         | 搜索未命中 → name-index 记 null；网络故障期跳过（防固化）   | orchestrator-detail.js         |
-| 熔断           | 连续 5 次网络失败 → 60s 熔断；半开探测通过后闭合            | api-monitor.js                 |
-| 交叉验证       | 中文命中名 EN 词交集与 raw 英文段 = 0 → 英文重搜 l=english  | orchestrator-detail.js v14.3.1 |
-| 目录层降级     | dump/IStoreService 双失败 → 本 SW 生命周期回退纯在线管线    | app-list-index.js v14.6        |
+| 决策           | 逻辑                                                          | 位置                           |
+| -------------- | ------------------------------------------------------------- | ------------------------------ |
+| Demo 自愈      | 缓存命中 Demo 且无评测 → 忽略缓存重搜                         | orchestrator-shared.js         |
+| appId 类型校验 | DLC → 解析 fullgame 本体；bundle → 返回 type 标记             | orchestrator-list.js           |
+| 0 评测验证     | positiveRate=null → 重试计数 +1（上限 3）→ 冷却期不重复请求   | orchestrator-list.js           |
+| 负缓存         | 搜索未命中 → name-index 记 null；网络故障期跳过（防固化）     | orchestrator-detail.js         |
+| 熔断           | 连续 5 次网络失败 → 60s 熔断；半开探测通过后闭合              | api-monitor.js                 |
+| 交叉验证       | 中文命中名 EN 词交集与 raw 英文段 = 0 → 英文重搜 l=english    | orchestrator-detail.js v14.3.1 |
+| 目录层降级     | dump/IStoreService 双失败 → 本 SW 生命周期回退纯在线管线      | app-list-index.js v14.6        |
 | 目录刷新节流   | miss/过期触发后台刷新，每 SW 生命周期至多一次（防 miss 风暴） | app-list-index.js v14.6        |
 
 ---

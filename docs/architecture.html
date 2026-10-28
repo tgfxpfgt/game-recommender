@@ -1,329 +1,955 @@
 <!doctype html>
 <html lang="zh-CN">
-<head>
-  <meta charset="utf-8"/>
-  <title>游戏雷达 — 架构总览</title>
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font: 14px/1.6 'Segoe UI', 'Microsoft YaHei', sans-serif;
-      background: #0d1117; color: #e0e0e0; padding: 16px;
-      background-image: radial-gradient(circle at 20% 30%, rgba(74,158,255,.06) 0%, transparent 50%),
-                        radial-gradient(circle at 80% 70%, rgba(163,207,6,.05) 0%, transparent 50%);
-    }
-    h1 { text-align: center; color: #67c1f5; font-size: 22px; margin-bottom: 2px; }
-    .sub { text-align: center; color: #666; font-size: 13px; margin-bottom: 16px; }
-    .sub b { color: #aaa; }
-    /* 统计栏 */
-    .stats { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; margin-bottom: 20px; }
-    .stat {
-      background: linear-gradient(135deg, #16213e, #1a1a3e);
-      border: 1px solid #2a2a4a; border-radius: 10px;
-      padding: 8px 18px; text-align: center; min-width: 90px;
-      transition: transform .2s, border-color .2s;
-    }
-    .stat:hover { transform: translateY(-2px); border-color: var(--c, #67c1f5); }
-    .stat b { display: block; font-size: 22px; color: var(--c, #67c1f5); }
-    .stat small { color: #777; font-size: 11px; }
-    /* 架构图容器 */
-    .diagram-wrap {
-      max-width: 1200px; margin: 0 auto 24px;
-      background: #0f1620; border: 1px solid #1e2d45; border-radius: 14px;
-      padding: 12px; overflow: hidden;
-    }
-    .diagram-wrap svg { width: 100%; height: auto; display: block; }
-    /* SVG 动画 */
-    @keyframes dashFlow { to { stroke-dashoffset: -20; } }
-    @keyframes pulse { 0%,100% { opacity: .6; } 50% { opacity: 1; } }
-    @keyframes nodeGlow { 0%,100% { filter: drop-shadow(0 0 3px currentColor); } 50% { filter: drop-shadow(0 0 12px currentColor); } }
-    .flow-line { stroke-dasharray: 6 4; animation: dashFlow 1.2s linear infinite; }
-    .flow-line.slow { animation-duration: 2s; }
-    .node-rect { transition: filter .3s; }
-    .node-group:hover .node-rect { filter: brightness(1.3); stroke-width: 2; }
-    .node-label { pointer-events: none; user-select: none; }
-    /* 匹配管线动画 */
-    .pipeline { max-width: 1200px; margin: 0 auto 24px; background: #0f1620; border: 1px solid #1e2d45; border-radius: 14px; padding: 20px; }
-    .pipeline h2 { color: #67c1f5; font-size: 16px; margin-bottom: 16px; text-align: center; }
-    .pipe-steps { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 0; }
-    .pipe-step {
-      background: linear-gradient(135deg, #16213e, #1a2640);
-      border: 1px solid #2a4a6a; border-radius: 10px;
-      padding: 12px 16px; text-align: center; min-width: 130px;
-      position: relative; transition: transform .2s, border-color .3s;
-      animation: pulse 3s ease-in-out infinite;
-    }
-    .pipe-step:nth-child(odd) { animation-delay: .5s; }
-    .pipe-step:hover { transform: scale(1.05); border-color: #67c1f5; animation-play-state: paused; }
-    .pipe-step b { display: block; color: #67c1f5; font-size: 13px; }
-    .pipe-step small { color: #888; font-size: 11px; }
-    .pipe-arrow {
-      color: #2a4a6a; font-size: 20px; padding: 0 6px; flex-shrink: 0;
-      animation: dashFlow .8s linear infinite; display: inline-block;
-    }
-    .pipe-step.fail { border-color: #8e3a3a; }
-    .pipe-step.fail b { color: #ff8a7a; }
-    /* 模块卡 */
-    .modules { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; max-width: 1200px; margin: 0 auto 24px; }
-    .module {
-      background: linear-gradient(145deg, #16213e, #0f1620);
-      border: 1px solid #1e2d45; border-radius: 12px; padding: 14px;
-      border-left: 4px solid var(--c); transition: transform .2s, box-shadow .2s;
-    }
-    .module:hover { transform: translateY(-3px); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
-    .module h3 { color: var(--c); font-size: 15px; margin-bottom: 2px; display: flex; align-items: center; gap: 8px; }
-    .module .meta { color: #666; font-size: 11px; margin-bottom: 6px; }
-    .module p { font-size: 12px; color: #99a; }
-    /* 知识库链接 */
-    .knowledge {
-      max-width: 1200px; margin: 0 auto 20px;
-      background: #16213e; border-radius: 12px; padding: 16px;
-      display: flex; gap: 20px; flex-wrap: wrap;
-    }
-    .knowledge a { color: #67c1f5; text-decoration: none; font-size: 13px; }
-    .knowledge a:hover { text-decoration: underline; }
-    .knowledge span { color: #666; font-size: 12px; }
-    .footer { text-align: center; color: #444; font-size: 11px; margin-top: 20px; }
-  </style>
-</head>
-<body>
-  <h1>🎮 游戏雷达 Game Radar</h1>
-  <p class="sub">Chrome MV3 扩展 · 下载站 Steam 好评率徽章 + 行为推荐 + 限免监控 · <b id="ver">v—</b></p>
-  <div class="stats" id="stats"></div>
+  <head>
+    <meta charset="utf-8" />
+    <title>游戏雷达 — 架构总览</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        font:
+          14px/1.6 'Segoe UI',
+          'Microsoft YaHei',
+          sans-serif;
+        background: #0d1117;
+        color: #e0e0e0;
+        padding: 16px;
+        background-image:
+          radial-gradient(circle at 20% 30%, rgba(74, 158, 255, 0.06) 0%, transparent 50%),
+          radial-gradient(circle at 80% 70%, rgba(163, 207, 6, 0.05) 0%, transparent 50%);
+      }
+      h1 {
+        text-align: center;
+        color: #67c1f5;
+        font-size: 22px;
+        margin-bottom: 2px;
+      }
+      .sub {
+        text-align: center;
+        color: #666;
+        font-size: 13px;
+        margin-bottom: 16px;
+      }
+      .sub b {
+        color: #aaa;
+      }
+      /* 统计栏 */
+      .stats {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+      }
+      .stat {
+        background: linear-gradient(135deg, #16213e, #1a1a3e);
+        border: 1px solid #2a2a4a;
+        border-radius: 10px;
+        padding: 8px 18px;
+        text-align: center;
+        min-width: 90px;
+        transition:
+          transform 0.2s,
+          border-color 0.2s;
+      }
+      .stat:hover {
+        transform: translateY(-2px);
+        border-color: var(--c, #67c1f5);
+      }
+      .stat b {
+        display: block;
+        font-size: 22px;
+        color: var(--c, #67c1f5);
+      }
+      .stat small {
+        color: #777;
+        font-size: 11px;
+      }
+      /* 架构图容器 */
+      .diagram-wrap {
+        max-width: 1200px;
+        margin: 0 auto 24px;
+        background: #0f1620;
+        border: 1px solid #1e2d45;
+        border-radius: 14px;
+        padding: 12px;
+        overflow: hidden;
+      }
+      .diagram-wrap svg {
+        width: 100%;
+        height: auto;
+        display: block;
+      }
+      /* SVG 动画 */
+      @keyframes dashFlow {
+        to {
+          stroke-dashoffset: -20;
+        }
+      }
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 0.6;
+        }
+        50% {
+          opacity: 1;
+        }
+      }
+      @keyframes nodeGlow {
+        0%,
+        100% {
+          filter: drop-shadow(0 0 3px currentColor);
+        }
+        50% {
+          filter: drop-shadow(0 0 12px currentColor);
+        }
+      }
+      .flow-line {
+        stroke-dasharray: 6 4;
+        animation: dashFlow 1.2s linear infinite;
+      }
+      .flow-line.slow {
+        animation-duration: 2s;
+      }
+      .node-rect {
+        transition: filter 0.3s;
+      }
+      .node-group:hover .node-rect {
+        filter: brightness(1.3);
+        stroke-width: 2;
+      }
+      .node-label {
+        pointer-events: none;
+        user-select: none;
+      }
+      /* 匹配管线动画 */
+      .pipeline {
+        max-width: 1200px;
+        margin: 0 auto 24px;
+        background: #0f1620;
+        border: 1px solid #1e2d45;
+        border-radius: 14px;
+        padding: 20px;
+      }
+      .pipeline h2 {
+        color: #67c1f5;
+        font-size: 16px;
+        margin-bottom: 16px;
+        text-align: center;
+      }
+      .pipe-steps {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-wrap: wrap;
+        gap: 0;
+      }
+      .pipe-step {
+        background: linear-gradient(135deg, #16213e, #1a2640);
+        border: 1px solid #2a4a6a;
+        border-radius: 10px;
+        padding: 12px 16px;
+        text-align: center;
+        min-width: 130px;
+        position: relative;
+        transition:
+          transform 0.2s,
+          border-color 0.3s;
+        animation: pulse 3s ease-in-out infinite;
+      }
+      .pipe-step:nth-child(odd) {
+        animation-delay: 0.5s;
+      }
+      .pipe-step:hover {
+        transform: scale(1.05);
+        border-color: #67c1f5;
+        animation-play-state: paused;
+      }
+      .pipe-step b {
+        display: block;
+        color: #67c1f5;
+        font-size: 13px;
+      }
+      .pipe-step small {
+        color: #888;
+        font-size: 11px;
+      }
+      .pipe-arrow {
+        color: #2a4a6a;
+        font-size: 20px;
+        padding: 0 6px;
+        flex-shrink: 0;
+        animation: dashFlow 0.8s linear infinite;
+        display: inline-block;
+      }
+      .pipe-step.fail {
+        border-color: #8e3a3a;
+      }
+      .pipe-step.fail b {
+        color: #ff8a7a;
+      }
+      /* 模块卡 */
+      .modules {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+        gap: 12px;
+        max-width: 1200px;
+        margin: 0 auto 24px;
+      }
+      .module {
+        background: linear-gradient(145deg, #16213e, #0f1620);
+        border: 1px solid #1e2d45;
+        border-radius: 12px;
+        padding: 14px;
+        border-left: 4px solid var(--c);
+        transition:
+          transform 0.2s,
+          box-shadow 0.2s;
+      }
+      .module:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+      }
+      .module h3 {
+        color: var(--c);
+        font-size: 15px;
+        margin-bottom: 2px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .module .meta {
+        color: #666;
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+      .module p {
+        font-size: 12px;
+        color: #99a;
+      }
+      /* 知识库链接 */
+      .knowledge {
+        max-width: 1200px;
+        margin: 0 auto 20px;
+        background: #16213e;
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+      }
+      .knowledge a {
+        color: #67c1f5;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      .knowledge a:hover {
+        text-decoration: underline;
+      }
+      .knowledge span {
+        color: #666;
+        font-size: 12px;
+      }
+      .footer {
+        text-align: center;
+        color: #444;
+        font-size: 11px;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎮 游戏雷达 Game Radar</h1>
+    <p class="sub">Chrome MV3 扩展 · 下载站 Steam 好评率徽章 + 行为推荐 + 限免监控 · <b id="ver">v—</b></p>
+    <div class="stats" id="stats"></div>
 
-  <!-- ===== SVG 架构图 ===== -->
-  <div class="diagram-wrap">
-    <svg viewBox="0 0 1150 580" xmlns="http://www.w3.org/2000/svg" font-family="'Segoe UI','Microsoft YaHei',sans-serif">
-      <defs>
-        <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
-          <polygon points="0 0, 8 3, 0 6" fill="#2a4a6a"/>
-        </marker>
-        <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#0d1117"/><stop offset="100%" stop-color="#0f1620"/>
-        </linearGradient>
-      </defs>
-      <rect width="1150" height="580" fill="url(#bgGrad)" rx="10"/>
+    <!-- ===== SVG 架构图 ===== -->
+    <div class="diagram-wrap">
+      <svg
+        viewBox="0 0 1150 580"
+        xmlns="http://www.w3.org/2000/svg"
+        font-family="'Segoe UI','Microsoft YaHei',sans-serif"
+      >
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#2a4a6a" />
+          </marker>
+          <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#0d1117" />
+            <stop offset="100%" stop-color="#0f1620" />
+          </linearGradient>
+        </defs>
+        <rect width="1150" height="580" fill="url(#bgGrad)" rx="10" />
 
-      <!-- ===== 层标签 ===== -->
-      <text x="20" y="30" fill="#4a9eff" font-size="11" font-weight="bold" opacity=".7">UI 层</text>
-      <text x="20" y="180" fill="#a3cf06" font-size="11" font-weight="bold" opacity=".7">内容脚本层</text>
-      <text x="20" y="300" fill="#ff7b00" font-size="11" font-weight="bold" opacity=".7">Background 层（MV3 SW）</text>
-      <text x="20" y="480" fill="#f39c12" font-size="11" font-weight="bold" opacity=".7">数据层 / 外部 API</text>
+        <!-- ===== 层标签 ===== -->
+        <text x="20" y="30" fill="#4a9eff" font-size="11" font-weight="bold" opacity=".7">UI 层</text>
+        <text x="20" y="180" fill="#a3cf06" font-size="11" font-weight="bold" opacity=".7">内容脚本层</text>
+        <text x="20" y="300" fill="#ff7b00" font-size="11" font-weight="bold" opacity=".7">
+          Background 层（MV3 SW）
+        </text>
+        <text x="20" y="480" fill="#f39c12" font-size="11" font-weight="bold" opacity=".7">数据层 / 外部 API</text>
 
-      <!-- ===== UI 层 ===== -->
-      <g class="node-group" id="n-popup">
-        <rect class="node-rect" x="35" y="40" width="110" height="42" rx="8" fill="#16213e" stroke="#b48ce0" stroke-width="1.5" style="color:#b48ce0"/>
-        <text class="node-label" x="90" y="58" text-anchor="middle" fill="#b48ce0" font-size="12" font-weight="bold">Popup</text>
-        <text class="node-label" x="90" y="73" text-anchor="middle" fill="#777" font-size="10">快捷设置/搜索</text>
-      </g>
-      <g class="node-group" id="n-options">
-        <rect class="node-rect" x="160" y="40" width="110" height="42" rx="8" fill="#16213e" stroke="#e74c3c" stroke-width="1.5" style="color:#e74c3c"/>
-        <text class="node-label" x="215" y="58" text-anchor="middle" fill="#e74c3c" font-size="12" font-weight="bold">Options</text>
-        <text class="node-label" x="215" y="73" text-anchor="middle" fill="#777" font-size="10">设置中心/缓存</text>
-      </g>
-      <g class="node-group" id="n-dashboard">
-        <rect class="node-rect" x="285" y="40" width="110" height="42" rx="8" fill="#16213e" stroke="#ff7b00" stroke-width="1.5" style="color:#ff7b00"/>
-        <text class="node-label" x="340" y="58" text-anchor="middle" fill="#ff7b00" font-size="12" font-weight="bold">Dashboard</text>
-        <text class="node-label" x="340" y="73" text-anchor="middle" fill="#777" font-size="10">统计/洞察/备份</text>
-      </g>
-      <g class="node-group" id="n-sidepanel">
-        <rect class="node-rect" x="410" y="40" width="110" height="42" rx="8" fill="#16213e" stroke="#67c1f5" stroke-width="1.5" style="color:#67c1f5"/>
-        <text class="node-label" x="465" y="58" text-anchor="middle" fill="#67c1f5" font-size="12" font-weight="bold">SidePanel</text>
-        <text class="node-label" x="465" y="73" text-anchor="middle" fill="#777" font-size="10">当前页/收藏/限免</text>
-      </g>
-      <g class="node-group" id="n-freegames">
-        <rect class="node-rect" x="535" y="40" width="110" height="42" rx="8" fill="#16213e" stroke="#e67e22" stroke-width="1.5" style="color:#e67e22"/>
-        <text class="node-label" x="590" y="58" text-anchor="middle" fill="#e67e22" font-size="12" font-weight="bold">Free Games</text>
-        <text class="node-label" x="590" y="73" text-anchor="middle" fill="#777" font-size="10">限免监控页</text>
-      </g>
+        <!-- ===== UI 层 ===== -->
+        <g class="node-group" id="n-popup">
+          <rect
+            class="node-rect"
+            x="35"
+            y="40"
+            width="110"
+            height="42"
+            rx="8"
+            fill="#16213e"
+            stroke="#b48ce0"
+            stroke-width="1.5"
+            style="color: #b48ce0"
+          />
+          <text class="node-label" x="90" y="58" text-anchor="middle" fill="#b48ce0" font-size="12" font-weight="bold">
+            Popup
+          </text>
+          <text class="node-label" x="90" y="73" text-anchor="middle" fill="#777" font-size="10">快捷设置/搜索</text>
+        </g>
+        <g class="node-group" id="n-options">
+          <rect
+            class="node-rect"
+            x="160"
+            y="40"
+            width="110"
+            height="42"
+            rx="8"
+            fill="#16213e"
+            stroke="#e74c3c"
+            stroke-width="1.5"
+            style="color: #e74c3c"
+          />
+          <text class="node-label" x="215" y="58" text-anchor="middle" fill="#e74c3c" font-size="12" font-weight="bold">
+            Options
+          </text>
+          <text class="node-label" x="215" y="73" text-anchor="middle" fill="#777" font-size="10">设置中心/缓存</text>
+        </g>
+        <g class="node-group" id="n-dashboard">
+          <rect
+            class="node-rect"
+            x="285"
+            y="40"
+            width="110"
+            height="42"
+            rx="8"
+            fill="#16213e"
+            stroke="#ff7b00"
+            stroke-width="1.5"
+            style="color: #ff7b00"
+          />
+          <text class="node-label" x="340" y="58" text-anchor="middle" fill="#ff7b00" font-size="12" font-weight="bold">
+            Dashboard
+          </text>
+          <text class="node-label" x="340" y="73" text-anchor="middle" fill="#777" font-size="10">统计/洞察/备份</text>
+        </g>
+        <g class="node-group" id="n-sidepanel">
+          <rect
+            class="node-rect"
+            x="410"
+            y="40"
+            width="110"
+            height="42"
+            rx="8"
+            fill="#16213e"
+            stroke="#67c1f5"
+            stroke-width="1.5"
+            style="color: #67c1f5"
+          />
+          <text class="node-label" x="465" y="58" text-anchor="middle" fill="#67c1f5" font-size="12" font-weight="bold">
+            SidePanel
+          </text>
+          <text class="node-label" x="465" y="73" text-anchor="middle" fill="#777" font-size="10">
+            当前页/收藏/限免
+          </text>
+        </g>
+        <g class="node-group" id="n-freegames">
+          <rect
+            class="node-rect"
+            x="535"
+            y="40"
+            width="110"
+            height="42"
+            rx="8"
+            fill="#16213e"
+            stroke="#e67e22"
+            stroke-width="1.5"
+            style="color: #e67e22"
+          />
+          <text class="node-label" x="590" y="58" text-anchor="middle" fill="#e67e22" font-size="12" font-weight="bold">
+            Free Games
+          </text>
+          <text class="node-label" x="590" y="73" text-anchor="middle" fill="#777" font-size="10">限免监控页</text>
+        </g>
 
-      <!-- ===== 内容脚本层 ===== -->
-      <g class="node-group" id="n-tracker">
-        <rect class="node-rect" x="35" y="190" width="220" height="72" rx="8" fill="#0f2010" stroke="#a3cf06" stroke-width="1.5" style="color:#a3cf06"/>
-        <text class="node-label" x="145" y="210" text-anchor="middle" fill="#a3cf06" font-size="12" font-weight="bold">tracker.js（入口装载器）</text>
-        <text class="node-label" x="145" y="226" text-anchor="middle" fill="#888" font-size="10">module-manifest 动态 import</text>
-        <text class="node-label" x="145" y="242" text-anchor="middle" fill="#777" font-size="10">页面检测 → 站点适配 → 分发</text>
-        <line x1="145" y1="250" x2="145" y2="252" stroke="#a3cf06" stroke-width="1" opacity=".3"/>
-      </g>
-      <g class="node-group" id="n-list">
-        <rect class="node-rect" x="35" y="264" width="100" height="30" rx="6" fill="#0a180a" stroke="#a3cf06" stroke-width="1" opacity=".8"/>
-        <text class="node-label" x="85" y="284" text-anchor="middle" fill="#a3cf06" font-size="10">badges.js</text>
-      </g>
-      <g class="node-group" id="n-detail">
-        <rect class="node-rect" x="145" y="264" width="110" height="30" rx="6" fill="#0a180a" stroke="#a3cf06" stroke-width="1" opacity=".8"/>
-        <text class="node-label" x="200" y="284" text-anchor="middle" fill="#a3cf06" font-size="10">sidebar/candidates</text>
-      </g>
+        <!-- ===== 内容脚本层 ===== -->
+        <g class="node-group" id="n-tracker">
+          <rect
+            class="node-rect"
+            x="35"
+            y="190"
+            width="220"
+            height="72"
+            rx="8"
+            fill="#0f2010"
+            stroke="#a3cf06"
+            stroke-width="1.5"
+            style="color: #a3cf06"
+          />
+          <text
+            class="node-label"
+            x="145"
+            y="210"
+            text-anchor="middle"
+            fill="#a3cf06"
+            font-size="12"
+            font-weight="bold"
+          >
+            tracker.js（入口装载器）
+          </text>
+          <text class="node-label" x="145" y="226" text-anchor="middle" fill="#888" font-size="10">
+            module-manifest 动态 import
+          </text>
+          <text class="node-label" x="145" y="242" text-anchor="middle" fill="#777" font-size="10">
+            页面检测 → 站点适配 → 分发
+          </text>
+          <line x1="145" y1="250" x2="145" y2="252" stroke="#a3cf06" stroke-width="1" opacity=".3" />
+        </g>
+        <g class="node-group" id="n-list">
+          <rect
+            class="node-rect"
+            x="35"
+            y="264"
+            width="100"
+            height="30"
+            rx="6"
+            fill="#0a180a"
+            stroke="#a3cf06"
+            stroke-width="1"
+            opacity=".8"
+          />
+          <text class="node-label" x="85" y="284" text-anchor="middle" fill="#a3cf06" font-size="10">badges.js</text>
+        </g>
+        <g class="node-group" id="n-detail">
+          <rect
+            class="node-rect"
+            x="145"
+            y="264"
+            width="110"
+            height="30"
+            rx="6"
+            fill="#0a180a"
+            stroke="#a3cf06"
+            stroke-width="1"
+            opacity=".8"
+          />
+          <text class="node-label" x="200" y="284" text-anchor="middle" fill="#a3cf06" font-size="10">
+            sidebar/candidates
+          </text>
+        </g>
 
-      <!-- ===== Background 层 ===== -->
-      <g class="node-group" id="n-orchestrator">
-        <rect class="node-rect" x="35" y="310" width="170" height="80" rx="10" fill="#1a1008" stroke="#ff7b00" stroke-width="2" style="color:#ff7b00"/>
-        <text class="node-label" x="120" y="330" text-anchor="middle" fill="#ff7b00" font-size="13" font-weight="bold">⚙ Orchestrator</text>
-        <text class="node-label" x="120" y="346" text-anchor="middle" fill="#aa7744" font-size="10">匹配管线（detail/list/shared）</text>
-        <text class="node-label" x="120" y="360" text-anchor="middle" fill="#888" font-size="10">searchSteamGame / getSteamPositiveRate</text>
-        <text class="node-label" x="120" y="376" text-anchor="middle" fill="#67c1f5" font-size="10">✦ rawTitle 三阶段匹配 v14.3.1</text>
-      </g>
-      <g class="node-group" id="n-engine">
-        <rect class="node-rect" x="220" y="310" width="150" height="60" rx="10" fill="#1a1008" stroke="#ff7b00" stroke-width="1.5" style="color:#ff7b00"/>
-        <text class="node-label" x="295" y="332" text-anchor="middle" fill="#ff7b00" font-size="12" font-weight="bold">🧮 Engine</text>
-        <text class="node-label" x="295" y="348" text-anchor="middle" fill="#aa7744" font-size="10">推荐信号（signals 纯函数）</text>
-        <text class="node-label" x="295" y="362" text-anchor="middle" fill="#888" font-size="10">computeGameScore + LLM</text>
-      </g>
-      <g class="node-group" id="n-freegames-bg">
-        <rect class="node-rect" x="385" y="310" width="140" height="60" rx="10" fill="#1a1008" stroke="#e67e22" stroke-width="1.5" style="color:#e67e22"/>
-        <text class="node-label" x="455" y="332" text-anchor="middle" fill="#e67e22" font-size="12" font-weight="bold">🎁 FreeGames</text>
-        <text class="node-label" x="455" y="348" text-anchor="middle" fill="#aa7744" font-size="10">fetch / itad / notify 三域</text>
-        <text class="node-label" x="455" y="362" text-anchor="middle" fill="#888" font-size="10">Epic/GOG/Steam/GamerPower</text>
-      </g>
-      <g class="node-group" id="n-api-monitor">
-        <rect class="node-rect" x="540" y="310" width="130" height="60" rx="10" fill="#1a1008" stroke="#8e44ad" stroke-width="1.5" style="color:#8e44ad"/>
-        <text class="node-label" x="605" y="332" text-anchor="middle" fill="#8e44ad" font-size="12" font-weight="bold">📡 API Monitor</text>
-        <text class="node-label" x="605" y="348" text-anchor="middle" fill="#aa7744" font-size="10">熔断器/限流/域名统计</text>
-        <text class="node-label" x="605" y="362" text-anchor="middle" fill="#888" font-size="10">per-domain + 半开探测</text>
-      </g>
-      <g class="node-group" id="n-handlers">
-        <rect class="node-rect" x="685" y="310" width="140" height="60" rx="10" fill="#1a1008" stroke="#67c1f5" stroke-width="1.5" style="color:#67c1f5"/>
-        <text class="node-label" x="755" y="332" text-anchor="middle" fill="#67c1f5" font-size="12" font-weight="bold">📨 Handlers</text>
-        <text class="node-label" x="755" y="348" text-anchor="middle" fill="#aa7744" font-size="10">消息分发（domain 段绑定）</text>
-        <text class="node-label" x="755" y="362" text-anchor="middle" fill="#888" font-size="10">message-contract fail-closed</text>
-      </g>
-      <g class="node-group" id="n-ratings-batch">
-        <rect class="node-rect" x="840" y="310" width="140" height="60" rx="10" fill="#1a1008" stroke="#ff7b00" stroke-width="1.5" style="color:#ff7b00"/>
-        <text class="node-label" x="910" y="332" text-anchor="middle" fill="#ff7b00" font-size="12" font-weight="bold">📊 Ratings Batch</text>
-        <text class="node-label" x="910" y="348" text-anchor="middle" fill="#aa7744" font-size="10">列表页批量调度</text>
-        <text class="node-label" x="910" y="362" text-anchor="middle" fill="#888" font-size="10">双波推送 + 断点续跑</text>
-      </g>
+        <!-- ===== Background 层 ===== -->
+        <g class="node-group" id="n-orchestrator">
+          <rect
+            class="node-rect"
+            x="35"
+            y="310"
+            width="170"
+            height="80"
+            rx="10"
+            fill="#1a1008"
+            stroke="#ff7b00"
+            stroke-width="2"
+            style="color: #ff7b00"
+          />
+          <text
+            class="node-label"
+            x="120"
+            y="330"
+            text-anchor="middle"
+            fill="#ff7b00"
+            font-size="13"
+            font-weight="bold"
+          >
+            ⚙ Orchestrator
+          </text>
+          <text class="node-label" x="120" y="346" text-anchor="middle" fill="#aa7744" font-size="10">
+            匹配管线（detail/list/shared）
+          </text>
+          <text class="node-label" x="120" y="360" text-anchor="middle" fill="#888" font-size="10">
+            searchSteamGame / getSteamPositiveRate
+          </text>
+          <text class="node-label" x="120" y="376" text-anchor="middle" fill="#67c1f5" font-size="10">
+            ✦ rawTitle 三阶段匹配 v14.3.1
+          </text>
+        </g>
+        <g class="node-group" id="n-engine">
+          <rect
+            class="node-rect"
+            x="220"
+            y="310"
+            width="150"
+            height="60"
+            rx="10"
+            fill="#1a1008"
+            stroke="#ff7b00"
+            stroke-width="1.5"
+            style="color: #ff7b00"
+          />
+          <text
+            class="node-label"
+            x="295"
+            y="332"
+            text-anchor="middle"
+            fill="#ff7b00"
+            font-size="12"
+            font-weight="bold"
+          >
+            🧮 Engine
+          </text>
+          <text class="node-label" x="295" y="348" text-anchor="middle" fill="#aa7744" font-size="10">
+            推荐信号（signals 纯函数）
+          </text>
+          <text class="node-label" x="295" y="362" text-anchor="middle" fill="#888" font-size="10">
+            computeGameScore + LLM
+          </text>
+        </g>
+        <g class="node-group" id="n-freegames-bg">
+          <rect
+            class="node-rect"
+            x="385"
+            y="310"
+            width="140"
+            height="60"
+            rx="10"
+            fill="#1a1008"
+            stroke="#e67e22"
+            stroke-width="1.5"
+            style="color: #e67e22"
+          />
+          <text
+            class="node-label"
+            x="455"
+            y="332"
+            text-anchor="middle"
+            fill="#e67e22"
+            font-size="12"
+            font-weight="bold"
+          >
+            🎁 FreeGames
+          </text>
+          <text class="node-label" x="455" y="348" text-anchor="middle" fill="#aa7744" font-size="10">
+            fetch / itad / notify 三域
+          </text>
+          <text class="node-label" x="455" y="362" text-anchor="middle" fill="#888" font-size="10">
+            Epic/GOG/Steam/GamerPower
+          </text>
+        </g>
+        <g class="node-group" id="n-api-monitor">
+          <rect
+            class="node-rect"
+            x="540"
+            y="310"
+            width="130"
+            height="60"
+            rx="10"
+            fill="#1a1008"
+            stroke="#8e44ad"
+            stroke-width="1.5"
+            style="color: #8e44ad"
+          />
+          <text
+            class="node-label"
+            x="605"
+            y="332"
+            text-anchor="middle"
+            fill="#8e44ad"
+            font-size="12"
+            font-weight="bold"
+          >
+            📡 API Monitor
+          </text>
+          <text class="node-label" x="605" y="348" text-anchor="middle" fill="#aa7744" font-size="10">
+            熔断器/限流/域名统计
+          </text>
+          <text class="node-label" x="605" y="362" text-anchor="middle" fill="#888" font-size="10">
+            per-domain + 半开探测
+          </text>
+        </g>
+        <g class="node-group" id="n-handlers">
+          <rect
+            class="node-rect"
+            x="685"
+            y="310"
+            width="140"
+            height="60"
+            rx="10"
+            fill="#1a1008"
+            stroke="#67c1f5"
+            stroke-width="1.5"
+            style="color: #67c1f5"
+          />
+          <text
+            class="node-label"
+            x="755"
+            y="332"
+            text-anchor="middle"
+            fill="#67c1f5"
+            font-size="12"
+            font-weight="bold"
+          >
+            📨 Handlers
+          </text>
+          <text class="node-label" x="755" y="348" text-anchor="middle" fill="#aa7744" font-size="10">
+            消息分发（domain 段绑定）
+          </text>
+          <text class="node-label" x="755" y="362" text-anchor="middle" fill="#888" font-size="10">
+            message-contract fail-closed
+          </text>
+        </g>
+        <g class="node-group" id="n-ratings-batch">
+          <rect
+            class="node-rect"
+            x="840"
+            y="310"
+            width="140"
+            height="60"
+            rx="10"
+            fill="#1a1008"
+            stroke="#ff7b00"
+            stroke-width="1.5"
+            style="color: #ff7b00"
+          />
+          <text
+            class="node-label"
+            x="910"
+            y="332"
+            text-anchor="middle"
+            fill="#ff7b00"
+            font-size="12"
+            font-weight="bold"
+          >
+            📊 Ratings Batch
+          </text>
+          <text class="node-label" x="910" y="348" text-anchor="middle" fill="#aa7744" font-size="10">
+            列表页批量调度
+          </text>
+          <text class="node-label" x="910" y="362" text-anchor="middle" fill="#888" font-size="10">
+            双波推送 + 断点续跑
+          </text>
+        </g>
 
-      <!-- ===== 数据层 ===== -->
-      <g class="node-group" id="n-opfs">
-        <rect class="node-rect" x="35" y="490" width="220" height="72" rx="10" fill="#1a1a08" stroke="#f39c12" stroke-width="2" style="color:#f39c12"/>
-        <text class="node-label" x="145" y="510" text-anchor="middle" fill="#f39c12" font-size="13" font-weight="bold">💾 OPFS Data Layer</text>
-        <text class="node-label" x="145" y="526" text-anchor="middle" fill="#aa8844" font-size="10">data-store.js · STORAGE_MODULES 注册表</text>
-        <text class="node-label" x="145" y="542" text-anchor="middle" fill="#888" font-size="10">steamCache(4分) · registry · nameIndex · behaviorLog</text>
-        <text class="node-label" x="145" y="556" text-anchor="middle" fill="#888" font-size="10">favorites · freeGames · urlIndex · learnedNoise</text>
-      </g>
-      <g class="node-group" id="n-steam-api">
-        <rect class="node-rect" x="310" y="490" width="200" height="72" rx="10" fill="#0a1a2a" stroke="#4a9eff" stroke-width="2" style="color:#4a9eff"/>
-        <text class="node-label" x="410" y="510" text-anchor="middle" fill="#4a9eff" font-size="13" font-weight="bold">🌐 Steam API</text>
-        <text class="node-label" x="410" y="526" text-anchor="middle" fill="#5577aa" font-size="10">storesearch (l=schinese/english)</text>
-        <text class="node-label" x="410" y="542" text-anchor="middle" fill="#5577aa" font-size="10">appdetails · appreviews · SteamSpy</text>
-        <text class="node-label" x="410" y="558" text-anchor="middle" fill="#666" font-size="10">⚠ 新游戏 schinese 索引缺失 → 英文兜底</text>
-      </g>
-      <g class="node-group" id="n-external">
-        <rect class="node-rect" x="530" y="490" width="180" height="72" rx="10" fill="#0a1a2a" stroke="#2ecc71" stroke-width="2" style="color:#2ecc71"/>
-        <text class="node-label" x="620" y="510" text-anchor="middle" fill="#2ecc71" font-size="13" font-weight="bold">🌐 External APIs</text>
-        <text class="node-label" x="620" y="526" text-anchor="middle" fill="#55aa77" font-size="10">ITAD (价格/折扣) · Bing (搜索兜底)</text>
-        <text class="node-label" x="620" y="542" text-anchor="middle" fill="#55aa77" font-size="10">GamerPower · Epic · GOG</text>
-        <text class="node-label" x="620" y="558" text-anchor="middle" fill="#666" font-size="10">Ollama / OpenAI (LLM 兜底)</text>
-      </g>
+        <!-- ===== 数据层 ===== -->
+        <g class="node-group" id="n-opfs">
+          <rect
+            class="node-rect"
+            x="35"
+            y="490"
+            width="220"
+            height="72"
+            rx="10"
+            fill="#1a1a08"
+            stroke="#f39c12"
+            stroke-width="2"
+            style="color: #f39c12"
+          />
+          <text
+            class="node-label"
+            x="145"
+            y="510"
+            text-anchor="middle"
+            fill="#f39c12"
+            font-size="13"
+            font-weight="bold"
+          >
+            💾 OPFS Data Layer
+          </text>
+          <text class="node-label" x="145" y="526" text-anchor="middle" fill="#aa8844" font-size="10">
+            data-store.js · STORAGE_MODULES 注册表
+          </text>
+          <text class="node-label" x="145" y="542" text-anchor="middle" fill="#888" font-size="10">
+            steamCache(4分) · registry · nameIndex · behaviorLog
+          </text>
+          <text class="node-label" x="145" y="556" text-anchor="middle" fill="#888" font-size="10">
+            favorites · freeGames · urlIndex · learnedNoise
+          </text>
+        </g>
+        <g class="node-group" id="n-steam-api">
+          <rect
+            class="node-rect"
+            x="310"
+            y="490"
+            width="200"
+            height="72"
+            rx="10"
+            fill="#0a1a2a"
+            stroke="#4a9eff"
+            stroke-width="2"
+            style="color: #4a9eff"
+          />
+          <text
+            class="node-label"
+            x="410"
+            y="510"
+            text-anchor="middle"
+            fill="#4a9eff"
+            font-size="13"
+            font-weight="bold"
+          >
+            🌐 Steam API
+          </text>
+          <text class="node-label" x="410" y="526" text-anchor="middle" fill="#5577aa" font-size="10">
+            storesearch (l=schinese/english)
+          </text>
+          <text class="node-label" x="410" y="542" text-anchor="middle" fill="#5577aa" font-size="10">
+            appdetails · appreviews · SteamSpy
+          </text>
+          <text class="node-label" x="410" y="558" text-anchor="middle" fill="#666" font-size="10">
+            ⚠ 新游戏 schinese 索引缺失 → 英文兜底
+          </text>
+        </g>
+        <g class="node-group" id="n-external">
+          <rect
+            class="node-rect"
+            x="530"
+            y="490"
+            width="180"
+            height="72"
+            rx="10"
+            fill="#0a1a2a"
+            stroke="#2ecc71"
+            stroke-width="2"
+            style="color: #2ecc71"
+          />
+          <text
+            class="node-label"
+            x="620"
+            y="510"
+            text-anchor="middle"
+            fill="#2ecc71"
+            font-size="13"
+            font-weight="bold"
+          >
+            🌐 External APIs
+          </text>
+          <text class="node-label" x="620" y="526" text-anchor="middle" fill="#55aa77" font-size="10">
+            ITAD (价格/折扣) · Bing (搜索兜底)
+          </text>
+          <text class="node-label" x="620" y="542" text-anchor="middle" fill="#55aa77" font-size="10">
+            GamerPower · Epic · GOG
+          </text>
+          <text class="node-label" x="620" y="558" text-anchor="middle" fill="#666" font-size="10">
+            Ollama / OpenAI (LLM 兜底)
+          </text>
+        </g>
 
-      <!-- ===== 数据流动画线 ===== -->
-      <!-- UI → SW -->
-      <line class="flow-line" x1="90" y1="82" x2="90" y2="308" stroke="#b48ce0" stroke-width="1.5" marker-end="url(#arrowhead)" opacity=".5"/>
-      <line class="flow-line" x1="215" y1="82" x2="215" y2="308" stroke="#e74c3c" stroke-width="1.5" marker-end="url(#arrowhead)" opacity=".5"/>
-      <line class="flow-line" x1="340" y1="82" x2="340" y2="308" stroke="#ff7b00" stroke-width="1.5" marker-end="url(#arrowhead)" opacity=".5"/>
-      <line class="flow-line" x1="465" y1="82" x2="465" y2="308" stroke="#67c1f5" stroke-width="1.5" marker-end="url(#arrowhead)" opacity=".5"/>
-      <!-- content → SW -->
-      <line class="flow-line slow" x1="145" y1="262" x2="145" y2="308" stroke="#a3cf06" stroke-width="2" marker-end="url(#arrowhead)" opacity=".6"/>
-      <!-- SW → OPFS -->
-      <line class="flow-line slow" x1="145" y1="390" x2="145" y2="488" stroke="#f39c12" stroke-width="2" marker-end="url(#arrowhead)" opacity=".6"/>
-      <!-- SW → Steam API -->
-      <line class="flow-line" x1="410" y1="390" x2="410" y2="488" stroke="#4a9eff" stroke-width="2" marker-end="url(#arrowhead)" opacity=".6"/>
-      <!-- SW → External -->
-      <line class="flow-line slow" x1="620" y1="390" x2="620" y2="488" stroke="#2ecc71" stroke-width="1.5" marker-end="url(#arrowhead)" opacity=".5"/>
-      <!-- SW 内部连线（orchestrator → engine） -->
-      <line x1="205" y1="340" x2="218" y2="340" stroke="#ff7b00" stroke-width="1" opacity=".4"/>
+        <!-- ===== 数据流动画线 ===== -->
+        <!-- UI → SW -->
+        <line
+          class="flow-line"
+          x1="90"
+          y1="82"
+          x2="90"
+          y2="308"
+          stroke="#b48ce0"
+          stroke-width="1.5"
+          marker-end="url(#arrowhead)"
+          opacity=".5"
+        />
+        <line
+          class="flow-line"
+          x1="215"
+          y1="82"
+          x2="215"
+          y2="308"
+          stroke="#e74c3c"
+          stroke-width="1.5"
+          marker-end="url(#arrowhead)"
+          opacity=".5"
+        />
+        <line
+          class="flow-line"
+          x1="340"
+          y1="82"
+          x2="340"
+          y2="308"
+          stroke="#ff7b00"
+          stroke-width="1.5"
+          marker-end="url(#arrowhead)"
+          opacity=".5"
+        />
+        <line
+          class="flow-line"
+          x1="465"
+          y1="82"
+          x2="465"
+          y2="308"
+          stroke="#67c1f5"
+          stroke-width="1.5"
+          marker-end="url(#arrowhead)"
+          opacity=".5"
+        />
+        <!-- content → SW -->
+        <line
+          class="flow-line slow"
+          x1="145"
+          y1="262"
+          x2="145"
+          y2="308"
+          stroke="#a3cf06"
+          stroke-width="2"
+          marker-end="url(#arrowhead)"
+          opacity=".6"
+        />
+        <!-- SW → OPFS -->
+        <line
+          class="flow-line slow"
+          x1="145"
+          y1="390"
+          x2="145"
+          y2="488"
+          stroke="#f39c12"
+          stroke-width="2"
+          marker-end="url(#arrowhead)"
+          opacity=".6"
+        />
+        <!-- SW → Steam API -->
+        <line
+          class="flow-line"
+          x1="410"
+          y1="390"
+          x2="410"
+          y2="488"
+          stroke="#4a9eff"
+          stroke-width="2"
+          marker-end="url(#arrowhead)"
+          opacity=".6"
+        />
+        <!-- SW → External -->
+        <line
+          class="flow-line slow"
+          x1="620"
+          y1="390"
+          x2="620"
+          y2="488"
+          stroke="#2ecc71"
+          stroke-width="1.5"
+          marker-end="url(#arrowhead)"
+          opacity=".5"
+        />
+        <!-- SW 内部连线（orchestrator → engine） -->
+        <line x1="205" y1="340" x2="218" y2="340" stroke="#ff7b00" stroke-width="1" opacity=".4" />
 
-      <!-- 流量标签 -->
-      <text x="155" y="160" fill="#666" font-size="10" opacity=".8">chrome.runtime.sendMessage</text>
-      <text x="20" y="450" fill="#f39c12" font-size="9" opacity=".6">OPFS 读写</text>
-      <text x="365" y="450" fill="#4a9eff" font-size="9" opacity=".6">fetchWithTimeout + rate limit 150ms</text>
+        <!-- 流量标签 -->
+        <text x="155" y="160" fill="#666" font-size="10" opacity=".8">chrome.runtime.sendMessage</text>
+        <text x="20" y="450" fill="#f39c12" font-size="9" opacity=".6">OPFS 读写</text>
+        <text x="365" y="450" fill="#4a9eff" font-size="9" opacity=".6">fetchWithTimeout + rate limit 150ms</text>
 
-      <!-- 统计标签（右上角） -->
-      <g id="svg-stats" font-size="10" fill="#888"></g>
-    </svg>
-  </div>
-
-  <!-- ===== 匹配管线动画 ===== -->
-  <div class="pipeline">
-    <h2>🔍 匹配管线（searchSteamGame 三阶段）</h2>
-    <div class="pipe-steps">
-      <div class="pipe-step"><b>📄 页面标题</b><small>document.title</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step"><b>🧹 标题清洗</b><small>cleanPageTitle</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step"><b>🖼 图片 appId</b><small>封面图 URL 提取</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step"><b>📋 名称索引</b><small>本地字典零网络</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step"><b>💾 缓存命中</b><small>TTL + namesRelated</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step" style="border-color:#67c1f5"><b>🔍 中文检索</b><small>storesearch l=schinese</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step" style="border-color:#2ecc71"><b>🌐 英文兜底</b><small>l=english + 交叉验证</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step fail"><b>🔄 Bing/LLM</b><small>最终兜底</small></div>
-      <div class="pipe-arrow">→</div>
-      <div class="pipe-step" style="border-color:#a3cf06"><b>💾 三层缓存</b><small>cache+registry+index</small></div>
+        <!-- 统计标签（右上角） -->
+        <g id="svg-stats" font-size="10" fill="#888"></g>
+      </svg>
     </div>
-    <p style="text-align:center;color:#666;font-size:11px;margin-top:10px">
-      ★ v14.3.1 新增：rawTitle 透传 + EN 词交集交叉验证（解决 schinese 对新游戏返回空）
-    </p>
-  </div>
 
-  <!-- ===== 模块卡 ===== -->
-  <div class="modules" id="modules"></div>
+    <!-- ===== 匹配管线动画 ===== -->
+    <div class="pipeline">
+      <h2>🔍 匹配管线（searchSteamGame 三阶段）</h2>
+      <div class="pipe-steps">
+        <div class="pipe-step"><b>📄 页面标题</b><small>document.title</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><b>🧹 标题清洗</b><small>cleanPageTitle</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><b>🖼 图片 appId</b><small>封面图 URL 提取</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><b>📋 名称索引</b><small>本地字典零网络</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step"><b>💾 缓存命中</b><small>TTL + namesRelated</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" style="border-color: #67c1f5">
+          <b>🔍 中文检索</b><small>storesearch l=schinese</small>
+        </div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" style="border-color: #2ecc71"><b>🌐 英文兜底</b><small>l=english + 交叉验证</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step fail"><b>🔄 Bing/LLM</b><small>最终兜底</small></div>
+        <div class="pipe-arrow">→</div>
+        <div class="pipe-step" style="border-color: #a3cf06"><b>💾 三层缓存</b><small>cache+registry+index</small></div>
+      </div>
+      <p style="text-align: center; color: #666; font-size: 11px; margin-top: 10px">
+        ★ v14.3.1 新增：rawTitle 透传 + EN 词交集交叉验证（解决 schinese 对新游戏返回空）
+      </p>
+    </div>
 
-  <!-- ===== 数据流 ===== -->
-  <div class="pipeline">
-    <h2>📡 核心数据流</h2>
-    <div id="flows"></div>
-  </div>
+    <!-- ===== 模块卡 ===== -->
+    <div class="modules" id="modules"></div>
 
-  <div class="knowledge">
-    <span>📚 深入阅读：</span>
-    <a href="KNOWLEDGE.md">工作逻辑知识库</a> ·
-    <a href="../AGENTS.md">编码规则 AGENTS.md</a> ·
-    <a href="../docs/reports/重复实现清点-B8-2026-10-07.md">B8 清点报告</a>
-  </div>
+    <!-- ===== 数据流 ===== -->
+    <div class="pipeline">
+      <h2>📡 核心数据流</h2>
+      <div id="flows"></div>
+    </div>
 
-  <div class="footer">由 scripts/generate-architecture.mjs 自动生成 · 数据: architecture-data.json</div>
+    <div class="knowledge">
+      <span>📚 深入阅读：</span>
+      <a href="KNOWLEDGE.md">工作逻辑知识库</a> · <a href="../AGENTS.md">编码规则 AGENTS.md</a> ·
+      <a href="../docs/reports/重复实现清点-B8-2026-10-07.md">B8 清点报告</a>
+    </div>
 
-  <script>
-    fetch('architecture-data.json')
-      .then((r) => r.json())
-      .then((data) => {
-        document.getElementById('ver').textContent = 'v' + data.version;
-        const s = data.stats;
-        const totalLines = data.nodes.reduce((a, n) => a + n.lines, 0);
-        const totalFiles = data.nodes.reduce((a, n) => a + n.files, 0);
-        const statColors = ['#67c1f5', '#a3cf06', '#ff7b00', '#b48ce0', '#f39c12', '#e74c3c'];
-        document.getElementById('stats').innerHTML = [
-          [data.version, '版本'], [totalFiles, '文件'], [totalLines.toLocaleString(), '代码行'],
-          [s.actionCount, '消息 action'], [s.storageCount, '存储模块'], [s.suiteCount, '测试套件']
-        ].map(([v, l], i) => `<div class="stat" style="--c:${statColors[i % 6]}"><b>${v}</b><small>${l}</small></div>`).join('');
-        // SVG 统计角标
-        const svgStats = document.getElementById('svg-stats');
-        if (svgStats) {
-          svgStats.innerHTML = `<text x="1000" y="30" fill="#67c1f5" font-weight="bold">v${data.version}</text>
+    <div class="footer">由 scripts/generate-architecture.mjs 自动生成 · 数据: architecture-data.json</div>
+
+    <script>
+      fetch('architecture-data.json')
+        .then((r) => r.json())
+        .then((data) => {
+          document.getElementById('ver').textContent = 'v' + data.version;
+          const s = data.stats;
+          const totalLines = data.nodes.reduce((a, n) => a + n.lines, 0);
+          const totalFiles = data.nodes.reduce((a, n) => a + n.files, 0);
+          const statColors = ['#67c1f5', '#a3cf06', '#ff7b00', '#b48ce0', '#f39c12', '#e74c3c'];
+          document.getElementById('stats').innerHTML = [
+            [data.version, '版本'],
+            [totalFiles, '文件'],
+            [totalLines.toLocaleString(), '代码行'],
+            [s.actionCount, '消息 action'],
+            [s.storageCount, '存储模块'],
+            [s.suiteCount, '测试套件']
+          ]
+            .map(
+              ([v, l], i) => `<div class="stat" style="--c:${statColors[i % 6]}"><b>${v}</b><small>${l}</small></div>`
+            )
+            .join('');
+          // SVG 统计角标
+          const svgStats = document.getElementById('svg-stats');
+          if (svgStats) {
+            svgStats.innerHTML = `<text x="1000" y="30" fill="#67c1f5" font-weight="bold">v${data.version}</text>
             <text x="1000" y="46">action: ${s.actionCount}</text>
             <text x="1000" y="60">storage: ${s.storageCount}</text>
             <text x="1000" y="74">tests: ${s.suiteCount} suites</text>`;
-        }
-        // 模块卡
-        document.getElementById('modules').innerHTML = data.nodes
-          .map((n) => `<div class="module" style="--c:${n.color}">
-            <h3>${n.label}</h3><div class="meta">${n.files} 文件 · ${n.lines.toLocaleString()} 行</div><p>${n.desc}</p></div>`)
-          .join('');
-        // 数据流
-        document.getElementById('flows').innerHTML = data.flows
-          .map((f) => {
-            const node = data.nodes.find((n) => n.label === f.from);
-            const color = node ? node.color : '#888';
-            return `<div class="flow"><span class="dot" style="background:${color}"></span>
+          }
+          // 模块卡
+          document.getElementById('modules').innerHTML = data.nodes
+            .map(
+              (n) => `<div class="module" style="--c:${n.color}">
+            <h3>${n.label}</h3><div class="meta">${n.files} 文件 · ${n.lines.toLocaleString()} 行</div><p>${n.desc}</p></div>`
+            )
+            .join('');
+          // 数据流
+          document.getElementById('flows').innerHTML = data.flows
+            .map((f) => {
+              const node = data.nodes.find((n) => n.label === f.from);
+              const color = node ? node.color : '#888';
+              return `<div class="flow"><span class="dot" style="background:${color}"></span>
               <span class="from">${f.from}</span><span class="arrow">──→</span>
               <span class="to">${f.to}</span><span class="lbl">${f.label}</span></div>`;
-          }).join('');
-      })
-      .catch(() => { document.getElementById('ver').textContent = '（数据未生成——运行 node scripts/generate-architecture.mjs）'; });
-  </script>
-</body>
+            })
+            .join('');
+        })
+        .catch(() => {
+          document.getElementById('ver').textContent = '（数据未生成——运行 node scripts/generate-architecture.mjs）';
+        });
+    </script>
+  </body>
 </html>

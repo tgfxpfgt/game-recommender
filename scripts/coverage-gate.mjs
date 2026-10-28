@@ -69,10 +69,7 @@ try {
     .split('\n')
     .map((f) => f.trim())
     .filter(
-      (f) =>
-        /\.(js|mjs)$/.test(f) &&
-        COVERED_DIRS.some((d) => f.startsWith(d + '/')) &&
-        !COVERAGE_EXEMPT.includes(f)
+      (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
     )
     .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
 } catch {
@@ -83,11 +80,8 @@ try {
       .split('\n')
       .map((f) => f.trim())
       .filter(
-      (f) =>
-        /\.(js|mjs)$/.test(f) &&
-        COVERED_DIRS.some((d) => f.startsWith(d + '/')) &&
-        !COVERAGE_EXEMPT.includes(f)
-    )
+        (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
+      )
       .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
     console.log('⚠️ 无 origin/main 基线，回退对比 HEAD~1');
   } catch {

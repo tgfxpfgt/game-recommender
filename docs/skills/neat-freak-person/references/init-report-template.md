@@ -159,16 +159,16 @@
 
 **目录结构状态**：⚠️ 未分层（运行时文件散落在根目录）
 
-| 文件/目录 | 当前位置 | 建议位置 | 说明 |
-|-----------|----------|----------|------|
-| SKILL.md | 根目录 | `skill/` | Skill 核心文件，应放入 `skill/` 子目录 |
-| references/ | 根目录 | `skill/references/` | Skill 详细文档，应放入 `skill/` 子目录 |
-| tools/（如有） | 根目录 | `skill/tools/` | Skill 工具脚本，应放入 `skill/` 子目录 |
-| examples/（如有） | 根目录 | `skill/examples/` | Skill 使用示例，应放入 `skill/` 子目录 |
-| assets/（如有） | 根目录 | `skill/assets/` | Skill 静态资源，应放入 `skill/` 子目录 |
-| README.md | 根目录 | 根目录 ✅ | 开发与治理文件，位置正确 |
-| LICENSE | 根目录 | 根目录 ✅ | 开发与治理文件，位置正确 |
-| test-prompts.json | 根目录 | 根目录 ✅ | 开发测试文件，位置正确 |
+| 文件/目录         | 当前位置 | 建议位置            | 说明                                   |
+| ----------------- | -------- | ------------------- | -------------------------------------- |
+| SKILL.md          | 根目录   | `skill/`            | Skill 核心文件，应放入 `skill/` 子目录 |
+| references/       | 根目录   | `skill/references/` | Skill 详细文档，应放入 `skill/` 子目录 |
+| tools/（如有）    | 根目录   | `skill/tools/`      | Skill 工具脚本，应放入 `skill/` 子目录 |
+| examples/（如有） | 根目录   | `skill/examples/`   | Skill 使用示例，应放入 `skill/` 子目录 |
+| assets/（如有）   | 根目录   | `skill/assets/`     | Skill 静态资源，应放入 `skill/` 子目录 |
+| README.md         | 根目录   | 根目录 ✅           | 开发与治理文件，位置正确               |
+| LICENSE           | 根目录   | 根目录 ✅           | 开发与治理文件，位置正确               |
+| test-prompts.json | 根目录   | 根目录 ✅           | 开发测试文件，位置正确                 |
 
 **建议**：将 Skill 运行时文件迁移到 `skill/` 子目录，保持根目录只存放开发与治理文件。迁移后 `SKILL.md` 内部的 `references/` 相对链接无需修改。
 

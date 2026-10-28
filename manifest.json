@@ -5,14 +5,7 @@
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
-  "permissions": [
-    "storage",
-    "alarms",
-    "notifications",
-    "scripting",
-    "contextMenus",
-    "sidePanel"
-  ],
+  "permissions": ["storage", "alarms", "notifications", "scripting", "contextMenus", "sidePanel"],
   "side_panel": {
     "default_path": "sidepanel/sidepanel.html"
   },
@@ -51,10 +44,7 @@
     "http://localhost/*",
     "http://127.0.0.1/*"
   ],
-  "optional_host_permissions": [
-    "http://*/*",
-    "https://*/*"
-  ],
+  "optional_host_permissions": ["http://*/*", "https://*/*"],
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'self'"
   },
@@ -95,9 +85,7 @@
         "adapters/index.js",
         "content/tracker.js"
       ],
-      "css": [
-        "styles/content.css"
-      ],
+      "css": ["styles/content.css"],
       "run_at": "document_start"
     }
   ],
@@ -117,11 +105,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": [
-        "content/*.js",
-        "lib/*.js",
-        "shared/*.js"
-      ],
+      "resources": ["content/*.js", "lib/*.js", "shared/*.js"],
       "matches": [
         "http://*.xdgame.com/*",
         "https://*.xdgame.com/*",

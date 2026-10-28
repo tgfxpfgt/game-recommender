@@ -8,14 +8,14 @@
 
 ## 0. 执行摘要
 
-| 维度 | 结论 | 关键证据 |
-|---|---|---|
-| 代码质量 | **优** | lint 0 错误 0 警告；tsc 三份配置零错误；845 测试中 844 通过 |
-| 架构治理 | **优** | 4 张单源表零漂移；依赖分层矩阵零违规；无跨层 import |
-| 安全基线 | **良**（护栏不对称） | SSRF 侧 56 测试 + 静态断言齐备；XSS 转义侧 110 处 innerHTML 零自动化检查 |
-| 测试体系 | **良** | 845 用例 / 34 套件；但 1 个哨兵测试因环境限制产生 125/125 假阳性 |
-| 发布状态 | **⚠ 停滞** | v14 十批次已全部落地并推送 origin/main，但版本未 bump、无 tag、无 release |
-| 文档一致性 | **中** | README 更新日志止于 v13.0.0，v14 无任何记载 |
+| 维度       | 结论                 | 关键证据                                                                  |
+| ---------- | -------------------- | ------------------------------------------------------------------------- |
+| 代码质量   | **优**               | lint 0 错误 0 警告；tsc 三份配置零错误；845 测试中 844 通过               |
+| 架构治理   | **优**               | 4 张单源表零漂移；依赖分层矩阵零违规；无跨层 import                       |
+| 安全基线   | **良**（护栏不对称） | SSRF 侧 56 测试 + 静态断言齐备；XSS 转义侧 110 处 innerHTML 零自动化检查  |
+| 测试体系   | **良**               | 845 用例 / 34 套件；但 1 个哨兵测试因环境限制产生 125/125 假阳性          |
+| 发布状态   | **⚠ 停滞**           | v14 十批次已全部落地并推送 origin/main，但版本未 bump、无 tag、无 release |
+| 文档一致性 | **中**               | README 更新日志止于 v13.0.0，v14 无任何记载                               |
 
 **本次审查共发现：P0 级 1 项、P1 级 3 项、P2 级 4 项、观察项 2 项。**
 
@@ -25,19 +25,19 @@
 
 ### 1.1 规模
 
-| 目录 | 文件数 | 行数 | 说明 |
-|---|---:|---:|---|
-| background | 65 | 11,740 | MV3 Service Worker，分 core/storage/steam/recommend/sites/freegames/handlers |
-| content | 20 | 5,580 | 内容脚本，分 core/list/detail/adapters/tracking |
-| options | 8 | 2,420 | 设置页（v14 B2 已拆分） |
-| dashboard | 7 | 1,270 | 仪表盘（v14 B1 已拆分） |
-| popup | 1 | 472 | 弹出面板 |
-| data | 3 | 652 | OPFS 持久化底座 |
-| shared | 6 | 441 | 内容/扩展页共用 |
-| adapters | 8 | 365 | 站点规则 |
-| 其他（hub/freegames/lib） | 4 | 343 | — |
-| **生产代码合计** | **~122** | **~23,283** | — |
-| tests | 39 | 10,373 | 测试代码 / 生产代码 ≈ **1 : 2.24** |
+| 目录                      |   文件数 |        行数 | 说明                                                                         |
+| ------------------------- | -------: | ----------: | ---------------------------------------------------------------------------- |
+| background                |       65 |      11,740 | MV3 Service Worker，分 core/storage/steam/recommend/sites/freegames/handlers |
+| content                   |       20 |       5,580 | 内容脚本，分 core/list/detail/adapters/tracking                              |
+| options                   |        8 |       2,420 | 设置页（v14 B2 已拆分）                                                      |
+| dashboard                 |        7 |       1,270 | 仪表盘（v14 B1 已拆分）                                                      |
+| popup                     |        1 |         472 | 弹出面板                                                                     |
+| data                      |        3 |         652 | OPFS 持久化底座                                                              |
+| shared                    |        6 |         441 | 内容/扩展页共用                                                              |
+| adapters                  |        8 |         365 | 站点规则                                                                     |
+| 其他（hub/freegames/lib） |        4 |         343 | —                                                                            |
+| **生产代码合计**          | **~122** | **~23,283** | —                                                                            |
+| tests                     |       39 |      10,373 | 测试代码 / 生产代码 ≈ **1 : 2.24**                                           |
 
 最大文件 TOP 5（v14 拆分后）：`freegames/manager.js` 716、`content/detail/sidebar.js` 653、
 `options/panels/cache.js` 510、`content/list/xdgrid.js` 505、`background/steam/orchestrator.js` 497。
@@ -45,14 +45,14 @@
 
 ### 1.2 门禁实跑结果
 
-| 门禁 | 结果 | 备注 |
-|---|---|---|
-| `npm run lint` | ✅ 通过 | `--max-warnings 0`，零警告 |
-| `npm run typecheck` | ✅ 通过 | tsconfig × 3 全部零错误 |
-| `npm test` | ⚠️ **844/845 通过** | 唯一失败：`test-integrity > 语法错误数`（见 P1-1） |
-| `npm run coverage` | ⚠️ 未产出 | 因上述失败中断；清理步骤亦受环境限制 |
-| `npm run e2e` / `visual` | ⏸ 未执行 | 需 spawn 浏览器进程，当前环境受限 |
-| `npm run coverage:gate` | ⏸ 未执行 | 依赖 `execSync git`，当前环境受限 |
+| 门禁                     | 结果                | 备注                                               |
+| ------------------------ | ------------------- | -------------------------------------------------- |
+| `npm run lint`           | ✅ 通过             | `--max-warnings 0`，零警告                         |
+| `npm run typecheck`      | ✅ 通过             | tsconfig × 3 全部零错误                            |
+| `npm test`               | ⚠️ **844/845 通过** | 唯一失败：`test-integrity > 语法错误数`（见 P1-1） |
+| `npm run coverage`       | ⚠️ 未产出           | 因上述失败中断；清理步骤亦受环境限制               |
+| `npm run e2e` / `visual` | ⏸ 未执行            | 需 spawn 浏览器进程，当前环境受限                  |
+| `npm run coverage:gate`  | ⏸ 未执行            | 依赖 `execSync git`，当前环境受限                  |
 
 ---
 
@@ -74,6 +74,7 @@
 拖延越久，README changelog 越难补齐（需从 9 个 commit 反推 changelog）。
 
 **建议：** 按 AGENTS.md 发布清单顺序执行：
+
 1. `npm run gate`（需在有 spawn 权限的环境跑完 E2E/visual）
 2. bump `manifest.json` + `package.json` → `14.0.0`，补 README「更新日志」v14.0.0 条目
 3. `npm run package` → commit → `git tag v14.0.0` → push → `gh release create`（附 zip）
@@ -87,10 +88,15 @@
 
 ```js
 for (const f of jsFiles) {
-  try { execSync(`node --check "${f}"`, { stdio: 'pipe' }); }
-  catch { syntaxFail++; }   // ← spawn 失败与语法错误被同等计数
+  try {
+    execSync(`node --check "${f}"`, { stdio: 'pipe' });
+  } catch {
+    syntaxFail++;
+  } // ← spawn 失败与语法错误被同等计数
 }
-test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
+test('语法错误数', () => {
+  expect(syntaxFail).toEqual(0);
+});
 ```
 
 **本次实跑：** `expected 125 to deeply equal +0` —— 即**全部 125 个文件**都被判为语法错误。
@@ -112,9 +118,13 @@ test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
   ```js
   let envBlocked = 0;
   for (const f of jsFiles) {
-    try { execSync(`node --check "${f}"`, { stdio: 'pipe' }); }
-    catch (e) {
-      if (e.status === null) { envBlocked++; continue; }   // spawn 失败 ≠ 语法错误
+    try {
+      execSync(`node --check "${f}"`, { stdio: 'pipe' });
+    } catch (e) {
+      if (e.status === null) {
+        envBlocked++;
+        continue;
+      } // spawn 失败 ≠ 语法错误
       syntaxFail++;
       console.log('  ❌', path.relative(ROOT, f));
     }
@@ -122,7 +132,7 @@ test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
   test('语法错误数', () => {
     if (envBlocked === jsFiles.length) {
       console.warn('⚠ 环境禁止 spawn 子进程，语法检查已跳过（typecheck 仍覆盖）');
-      return;                                              // 全环境性失败 → 跳过而非误报
+      return; // 全环境性失败 → 跳过而非误报
     }
     expect(syntaxFail).toEqual(0);
   });
@@ -143,20 +153,21 @@ test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
 
 **但护栏层面存在缺口：** 「有没有漏转义」目前**完全依赖人工 review**，没有任何机器可执行的检查：
 
-| 安全域 | 自动化护栏 | 状态 |
-|---|---|---|
-| SSRF（出站 URL） | `test-security.mjs` 56 个测试（含 IPv4/IPv6 各类变体）+ `fetchWithTimeout` 强制 | ✅ 充分 |
-| sender 来源门禁 | 静态断言「sender 来源门已接线」「内容白名单不含特权 action」+ 运行时白名单比对 | ✅ 充分 |
-| 站点域名注入 | `isValidSiteDomain` 静态断言 + 三方域名一致性测试 | ✅ 充分 |
-| **XSS 转义** | **无** | ❌ **缺口** |
+| 安全域           | 自动化护栏                                                                      | 状态        |
+| ---------------- | ------------------------------------------------------------------------------- | ----------- |
+| SSRF（出站 URL） | `test-security.mjs` 56 个测试（含 IPv4/IPv6 各类变体）+ `fetchWithTimeout` 强制 | ✅ 充分     |
+| sender 来源门禁  | 静态断言「sender 来源门已接线」「内容白名单不含特权 action」+ 运行时白名单比对  | ✅ 充分     |
+| 站点域名注入     | `isValidSiteDomain` 静态断言 + 三方域名一致性测试                               | ✅ 充分     |
+| **XSS 转义**     | **无**                                                                          | ❌ **缺口** |
 
 对比之下会发现一个规律：**这个项目把"曾经出过事"的领域都补上了护栏，而"靠自觉还没出事"的领域是裸的。**
 110 处 innerHTML 分散在内容脚本里，任何一次新增渲染代码漏写 `esc()` 都不会被任何门禁拦住。
 
 **建议（低成本，可渐进）：**
+
 1. 在 `test-integrity.mjs` 加一条静态扫描：对 `content/`、`options/`、`dashboard/`、`popup/` 下
-   含 `innerHTML = \`` 的模板串，提取所有 `${...}` 插值，断言其经过 `esc(`/`escapeHtml(`/`escapeAttr(`
-   包裹；纯字面量、`textContent` 赋值、`innerHTML = ''` 清空等安全形态加入白名单。
+   含 `innerHTML = \`` 的模板串，提取所有 `${...}`插值，断言其经过`esc(`/`escapeHtml(`/`escapeAttr(`
+包裹；纯字面量、`textContent` 赋值、`innerHTML = ''` 清空等安全形态加入白名单。
 2. 先以「当前违规数 = 基线」落 `scripts/lint-baseline.json` 棘轮（与 B9 同思路：只降不升），
    再逐批清零——避免一次性大爆炸。
 
@@ -185,11 +196,11 @@ test('语法错误数', () => { expect(syntaxFail).toEqual(0); });
 v14 第四轮把 dashboard / options / detail-page 三个页面层文件拆得很干净，
 但 `background/freegames/manager.js` 未被触及，且内部混装 **3 个互不相关的职责域**：
 
-| 职责域 | 函数 | 行区间 |
-|---|---|---|
-| 限免抓取（Epic/GOG/Steam/GamerPower） | `fetchEpicFreeGames` / `fetchGogFreeGames` / `fetchSteamFreeGames` / `fetchGamerPowerFreeGames` / `fetchAllFreeGames` | 48–314 |
-| ITAD 价格查询与收藏调价 | `getItadLowest` / `checkItadFree` / `watchFavoritePrices` / `fetchFavoriteCurrentPrice` / `activeItadKey` | 373–557 |
-| 通知 / 角标 / 领取 | `notifyNewFreeGames` / `updateFreeGamesBadge` / `claimFreeGame` / `determineSteamFreeType` | 558–716 |
+| 职责域                                | 函数                                                                                                                  | 行区间  |
+| ------------------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------- |
+| 限免抓取（Epic/GOG/Steam/GamerPower） | `fetchEpicFreeGames` / `fetchGogFreeGames` / `fetchSteamFreeGames` / `fetchGamerPowerFreeGames` / `fetchAllFreeGames` | 48–314  |
+| ITAD 价格查询与收藏调价               | `getItadLowest` / `checkItadFree` / `watchFavoritePrices` / `fetchFavoriteCurrentPrice` / `activeItadKey`             | 373–557 |
+| 通知 / 角标 / 领取                    | `notifyNewFreeGames` / `updateFreeGamesBadge` / `claimFreeGame` / `determineSteamFreeType`                            | 558–716 |
 
 建议下一轮按此三域拆为 `freegames/fetch.js` / `freegames/itad.js` / `freegames/notify.js`。
 
@@ -230,12 +241,12 @@ v14 B3 拆分新增了 `sidebar.js` / `candidates.js` / `tracking.js` / `steam-r
 
 这一节记录**审查通过**的部分——它们代表项目最有价值的工程资产，也是后续不该退化的基线。
 
-| 单源表 | 位置 | 派生消费方 | 检查结果 |
-|---|---|---|---|
-| 存储模块注册表 | `data/storage-registry.js`（26 模块） | data-store MODULE_FILES / DATA_MODULES / BACKUP_CORE_KEYS / 清除范围 | ✅ 无第二份同构表 |
-| 内容模块装载 | `content/module-manifest.js` | tracker 装载 / content-sim 文件表 / integrity 存在性校验 | ✅ 无漂移 |
-| 通用机制 | `background/core/mechanisms.js` | withLock / debounce / TtlCache / withRetry | ✅ 无重复实现（见 P2-2 复用率观察） |
-| 容量·端点·刻度 | `background/core/constants.js` | STORAGE_CAPS / ENDPOINTS / SPY_SCALES | ✅ 死值已集中 |
+| 单源表         | 位置                                  | 派生消费方                                                           | 检查结果                            |
+| -------------- | ------------------------------------- | -------------------------------------------------------------------- | ----------------------------------- |
+| 存储模块注册表 | `data/storage-registry.js`（26 模块） | data-store MODULE_FILES / DATA_MODULES / BACKUP_CORE_KEYS / 清除范围 | ✅ 无第二份同构表                   |
+| 内容模块装载   | `content/module-manifest.js`          | tracker 装载 / content-sim 文件表 / integrity 存在性校验             | ✅ 无漂移                           |
+| 通用机制       | `background/core/mechanisms.js`       | withLock / debounce / TtlCache / withRetry                           | ✅ 无重复实现（见 P2-2 复用率观察） |
+| 容量·端点·刻度 | `background/core/constants.js`        | STORAGE_CAPS / ENDPOINTS / SPY_SCALES                                | ✅ 死值已集中                       |
 
 **依赖分层矩阵**（`test-integrity` 强制）：实测 `data/` → `background/`、`shared/` → `background|content`、
 `content/` → `background/` **全部零违规**。分层纪律保持良好。
@@ -248,15 +259,15 @@ adapters 三方清单一致、网站范围三方一致、WAR 覆盖全部注入�
 
 ## 4. 建议的下一步（按 ROI 排序）
 
-| # | 事项 | 级别 | 预估成本 | 收益 |
-|---|---|---|---|---|
-| 1 | 完成 v14.0.0 发布（bump + changelog + tag + release） | P0 | 中 | 让已落地的 9 批次（含 1 个真 bug 修复）真正交付 |
-| 2 | 修 `test-integrity` 语法检查的假阳性（方案 A） | P1 | 低（约 10 行） | 消除 125/125 误报炸弹 + 提速 |
-| 3 | 补 XSS 转义静态扫描（先落棘轮基线） | P1 | 中 | 把唯一「靠自觉」的铁律变成机器护栏 |
-| 4 | `gate.mjs` 补齐 coverage-gate / release-smoke | P1 | 低 | 本地全绿 = CI 绿灯，缩短反馈回路 |
-| 5 | `freegames/manager.js` 三域拆分 | P2 | 中 | 与已拆分三文件保持一致的代码组织标准 |
-| 6 | `module-manifest.js` 补边界说明 | P2 | 极低（1 行） | 消除新增模块时的歧义 |
-| 7 | 更新项目记忆快照至 v14 状态 | P2 | 低 | 避免下次会话从 v10.6 重新摸索 |
+| #   | 事项                                                  | 级别 | 预估成本       | 收益                                            |
+| --- | ----------------------------------------------------- | ---- | -------------- | ----------------------------------------------- |
+| 1   | 完成 v14.0.0 发布（bump + changelog + tag + release） | P0   | 中             | 让已落地的 9 批次（含 1 个真 bug 修复）真正交付 |
+| 2   | 修 `test-integrity` 语法检查的假阳性（方案 A）        | P1   | 低（约 10 行） | 消除 125/125 误报炸弹 + 提速                    |
+| 3   | 补 XSS 转义静态扫描（先落棘轮基线）                   | P1   | 中             | 把唯一「靠自觉」的铁律变成机器护栏              |
+| 4   | `gate.mjs` 补齐 coverage-gate / release-smoke         | P1   | 低             | 本地全绿 = CI 绿灯，缩短反馈回路                |
+| 5   | `freegames/manager.js` 三域拆分                       | P2   | 中             | 与已拆分三文件保持一致的代码组织标准            |
+| 6   | `module-manifest.js` 补边界说明                       | P2   | 极低（1 行）   | 消除新增模块时的歧义                            |
+| 7   | 更新项目记忆快照至 v14 状态                           | P2   | 低             | 避免下次会话从 v10.6 重新摸索                   |
 
 ---
 
@@ -273,4 +284,4 @@ E2E 真机冒烟、视觉回归、覆盖率采集、`coverage:gate`、npm audit 
 
 ---
 
-*报告结束 · 生成于 2026-10-05*
+_报告结束 · 生成于 2026-10-05_

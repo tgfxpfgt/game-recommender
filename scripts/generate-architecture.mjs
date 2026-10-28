@@ -15,7 +15,12 @@ const OUT = path.join(ROOT, 'docs', 'architecture-data.json');
 
 // 扫描目录 → 模块节点
 const MODULES = [
-  { dir: 'background', label: 'Background (MV3 SW)', color: '#4a9eff', desc: 'Service Worker — 消息分发/检索管线/推荐引擎/存储' },
+  {
+    dir: 'background',
+    label: 'Background (MV3 SW)',
+    color: '#4a9eff',
+    desc: 'Service Worker — 消息分发/检索管线/推荐引擎/存储'
+  },
   { dir: 'content', label: 'Content Scripts', color: '#a3cf06', desc: '内容脚本 — 徽章注入/浮窗/行为采集' },
   { dir: 'options', label: 'Options', color: '#e74c3c', desc: '设置中心 — 全量配置/缓存管理/规则编辑' },
   { dir: 'dashboard', label: 'Dashboard', color: '#ff7b00', desc: '数据分析 — 统计/洞察/诊断/备份' },
@@ -28,7 +33,8 @@ const MODULES = [
 ];
 
 function countLines(dir) {
-  let files = 0, lines = 0;
+  let files = 0,
+    lines = 0;
   try {
     const items = fs.readdirSync(path.join(ROOT, dir), { withFileTypes: true });
     for (const item of items) {
@@ -42,7 +48,9 @@ function countLines(dir) {
         lines += fs.readFileSync(full, 'utf-8').split('\n').length;
       }
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return { files, lines };
 }
 
@@ -50,7 +58,9 @@ function extractVersion() {
   try {
     const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf-8'));
     return manifest.version;
-  } catch { return '?'; }
+  } catch {
+    return '?';
+  }
 }
 
 const version = extractVersion();
@@ -64,21 +74,28 @@ let actionCount = 0;
 try {
   const contract = fs.readFileSync(path.join(ROOT, 'background/core/message-contract.js'), 'utf-8');
   actionCount = (contract.match(/^\s{2}[A-Z_]+:/gm) || []).length;
-} catch { /* ignore */ }
+} catch {
+  /* ignore */
+}
 
 // 存储模块数量
 let storageCount = 0;
 try {
   const registry = fs.readFileSync(path.join(ROOT, 'data/storage-registry.js'), 'utf-8');
   storageCount = (registry.match(/^\s{2}[A-Za-z_]+:\s*\{/gm) || []).length;
-} catch { /* ignore */ }
+} catch {
+  /* ignore */
+}
 
 // 测试统计
-const testCount = 0; let suiteCount = 0;
+const testCount = 0;
+let suiteCount = 0;
 try {
   const vitestCfg = fs.readFileSync(path.join(ROOT, 'vitest.config.js'), 'utf-8');
   suiteCount = (vitestCfg.match(/tests\/(?:unit|integration)\/test-/g) || []).length;
-} catch { /* ignore */ }
+} catch {
+  /* ignore */
+}
 
 const data = {
   generatedAt: new Date().toISOString(),
@@ -86,14 +103,29 @@ const data = {
   nodes,
   stats: { actionCount, storageCount, testCount, suiteCount },
   flows: [
-    { from: 'Content Scripts', to: 'Background (MV3 SW)', label: 'SEARCH_STEAM / TRACK_EVENT / GET_* (~60 actions)', color: '#a3cf06' },
+    {
+      from: 'Content Scripts',
+      to: 'Background (MV3 SW)',
+      label: 'SEARCH_STEAM / TRACK_EVENT / GET_* (~60 actions)',
+      color: '#a3cf06'
+    },
     { from: 'Background (MV3 SW)', to: 'Data Layer', label: 'OPFS read/write via data-store', color: '#f39c12' },
-    { from: 'Background (MV3 SW)', to: 'Steam API', label: 'storesearch / appdetails / appreviews / SteamSpy', color: '#4a9eff' },
+    {
+      from: 'Background (MV3 SW)',
+      to: 'Steam API',
+      label: 'storesearch / appdetails / appreviews / SteamSpy',
+      color: '#4a9eff'
+    },
     { from: 'Background (MV3 SW)', to: 'Free Games', label: '限免推送通知', color: '#e67e22' },
     { from: 'Options', to: 'Background (MV3 SW)', label: 'GET_SETTINGS / SAVE_SETTINGS', color: '#e74c3c' },
     { from: 'Dashboard', to: 'Background (MV3 SW)', label: 'GET_STATS / GET_RUNTIME_METRICS', color: '#ff7b00' },
     { from: 'SidePanel', to: 'Background (MV3 SW)', label: 'GET_TAB_GAME / GET_FAVORITES', color: '#67c1f5' },
-    { from: 'Popup', to: 'Background (MV3 SW)', label: 'GET_SETTINGS / SAVE_SETTINGS / GET_API_STATUS', color: '#b48ce0' }
+    {
+      from: 'Popup',
+      to: 'Background (MV3 SW)',
+      label: 'GET_SETTINGS / SAVE_SETTINGS / GET_API_STATUS',
+      color: '#b48ce0'
+    }
   ]
 };
 

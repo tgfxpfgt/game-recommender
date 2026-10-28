@@ -20,23 +20,23 @@ v14.2.0 深度扫描归档（`27381fc`，seal，0 findings）。
 
 ### 0.2 门禁实跑（本次）
 
-| 门禁 | 结果 |
-|---|---|
-| `npm run lint` | ✅ 零警告（`eslint . --max-warnings 0`，口径已从列目录改为全量） |
-| `npm run typecheck` | ✅ 三份配置零错误 |
-| `npm test` | ✅ **41 套件 / 887 用例全部通过，零失败** |
+| 门禁                | 结果                                                             |
+| ------------------- | ---------------------------------------------------------------- |
+| `npm run lint`      | ✅ 零警告（`eslint . --max-warnings 0`，口径已从列目录改为全量） |
+| `npm run typecheck` | ✅ 三份配置零错误                                                |
+| `npm test`          | ✅ **41 套件 / 887 用例全部通过，零失败**                        |
 
 **关键变化：首次出现「零失败」。** 前三轮的固定租户——`test-integrity > 语法错误数`
 （一直报 128/128 假阳性）——已被根治，不再是每次必读的噪音。
 
 ### 0.3 整体判定
 
-| 维度 | 判定 | 证据 |
-|---|---|---|
-| 修复执行力 | **优** | 我追踪的 22 项中 **21 项确认落地**（代码级核验，非采信 message） |
-| 门禁完整性 | **良** | 盲区关闭、棘轮程序化、gate 补全；覆盖率 5→12 目录 |
-| **护栏有效性** | **🔴 存 1 处伪护栏** | XSS 静态扫描对最常见写法漏报，实测 0/3 检出 |
-| 代码真实性 | **良** | 110→72 处插值面逐层抽查，**未发现真实可利用的 XSS** |
+| 维度           | 判定                 | 证据                                                             |
+| -------------- | -------------------- | ---------------------------------------------------------------- |
+| 修复执行力     | **优**               | 我追踪的 22 项中 **21 项确认落地**（代码级核验，非采信 message） |
+| 门禁完整性     | **良**               | 盲区关闭、棘轮程序化、gate 补全；覆盖率 5→12 目录                |
+| **护栏有效性** | **🔴 存 1 处伪护栏** | XSS 静态扫描对最常见写法漏报，实测 0/3 检出                      |
+| 代码真实性     | **良**               | 110→72 处插值面逐层抽查，**未发现真实可利用的 XSS**              |
 
 ---
 
@@ -44,30 +44,30 @@ v14.2.0 深度扫描归档（`27381fc`，seal，0 findings）。
 
 **核验方式：逐项读当前代码，不看 commit message。**
 
-| # | 发现 | 级别 | 核验结果 |
-|---|---|---|---|
-| 1 | v14 未 bump / 无 tag / README 无记载 | P0 | ✅ 已修 |
-| 2 | `test-integrity` spawn 假阳性 | P1 | ✅ **已修且优于建议**（见 1.1） |
-| 3 | XSS 转义无机器护栏 | P1 | ⚠️ **部分修——护栏可被绕过**（见第 2 节，本次核心发现） |
-| 4 | 本地 `gate` 比 CI 少 job | P1 | ✅ 已修（补 3 步） |
-| 5 | `freegames/manager.js` 未拆分 | P2 | ✅ 已修（741→**101 行** + fetch/itad/notify 三域） |
-| 6 | `mechanisms.js` 复用率偏低 | P2 | ✅ 已修（`debounced-store` 改用机制层） |
-| 7 | `module-manifest` 边界语义 | P2 | ✅ 已修（文件头补「只登记顶层装载单元」） |
-| 8 | `noImplicitAny` 债无程序消耗 | P2 | ✅ 已修（`lint-ratchet.mjs` + gate 步骤） |
-| 9 | 覆盖率白名单致 UI 逃逸 | P0 | ✅ 已修（4492 行盲区关闭，5→12 目录） |
-| 10 | `lint-baseline.json` 零读取 | P0 | ✅ 已修（棘轮真程序化） |
-| 11 | `vitest.config.js` include 靠人记 | P0 | ✅ 已修 + 加第 10 节清单自检 |
-| 12 | `SITE_SCRIPT_FILES` 两份副本 | P0 | ✅ 已修（**顺序敏感**单源断言） |
-| 13 | `debounced-store` 重复 debounce | P1 | ✅ 已修 |
-| 14 | `SPY_SCALES` 内容层字面量 | P1 | ✅ 已修（shared 下沉 + WAR 覆盖） |
-| 15 | `ENDPOINTS` 绕 `fetchWithTimeout` | P1 | ✅ 已修（裸 fetch 消除） |
-| 16 | 测试硬编码域名正则 | P2 | ✅ 已修（`test-integrity:302` 改用 `BUILTIN_DOMAINS`） |
-| 17 | `TtlCache` 复刻 + 未传 max | P2 | ✅ 已修（4 处 max + 容量入 STORAGE_CAPS） |
-| 18 | `reset-defaults.js` 196 行零测试 | P1 | ✅ 已修（新增 `test-reset-defaults.mjs`） |
-| 19 | `freegames` 逆势增长 | P1 | ✅ 已修（同 #5） |
-| 20 | `tab-game.js` 缺边界用例 | P2 | ✅ 已修（4→5 用例） |
-| 21 | `BUILTIN_DOMAINS` 导出未消费 | P2 | ✅ 已修（同 #16） |
-| 22 | SidePanel 主题 / WAR import 链等真缺陷 | — | ✅ 已修（`--gr-*` 体系 + WAR 补 `shared/*.js`） |
+| #   | 发现                                   | 级别 | 核验结果                                               |
+| --- | -------------------------------------- | ---- | ------------------------------------------------------ |
+| 1   | v14 未 bump / 无 tag / README 无记载   | P0   | ✅ 已修                                                |
+| 2   | `test-integrity` spawn 假阳性          | P1   | ✅ **已修且优于建议**（见 1.1）                        |
+| 3   | XSS 转义无机器护栏                     | P1   | ⚠️ **部分修——护栏可被绕过**（见第 2 节，本次核心发现） |
+| 4   | 本地 `gate` 比 CI 少 job               | P1   | ✅ 已修（补 3 步）                                     |
+| 5   | `freegames/manager.js` 未拆分          | P2   | ✅ 已修（741→**101 行** + fetch/itad/notify 三域）     |
+| 6   | `mechanisms.js` 复用率偏低             | P2   | ✅ 已修（`debounced-store` 改用机制层）                |
+| 7   | `module-manifest` 边界语义             | P2   | ✅ 已修（文件头补「只登记顶层装载单元」）              |
+| 8   | `noImplicitAny` 债无程序消耗           | P2   | ✅ 已修（`lint-ratchet.mjs` + gate 步骤）              |
+| 9   | 覆盖率白名单致 UI 逃逸                 | P0   | ✅ 已修（4492 行盲区关闭，5→12 目录）                  |
+| 10  | `lint-baseline.json` 零读取            | P0   | ✅ 已修（棘轮真程序化）                                |
+| 11  | `vitest.config.js` include 靠人记      | P0   | ✅ 已修 + 加第 10 节清单自检                           |
+| 12  | `SITE_SCRIPT_FILES` 两份副本           | P0   | ✅ 已修（**顺序敏感**单源断言）                        |
+| 13  | `debounced-store` 重复 debounce        | P1   | ✅ 已修                                                |
+| 14  | `SPY_SCALES` 内容层字面量              | P1   | ✅ 已修（shared 下沉 + WAR 覆盖）                      |
+| 15  | `ENDPOINTS` 绕 `fetchWithTimeout`      | P1   | ✅ 已修（裸 fetch 消除）                               |
+| 16  | 测试硬编码域名正则                     | P2   | ✅ 已修（`test-integrity:302` 改用 `BUILTIN_DOMAINS`） |
+| 17  | `TtlCache` 复刻 + 未传 max             | P2   | ✅ 已修（4 处 max + 容量入 STORAGE_CAPS）              |
+| 18  | `reset-defaults.js` 196 行零测试       | P1   | ✅ 已修（新增 `test-reset-defaults.mjs`）              |
+| 19  | `freegames` 逆势增长                   | P1   | ✅ 已修（同 #5）                                       |
+| 20  | `tab-game.js` 缺边界用例               | P2   | ✅ 已修（4→5 用例）                                    |
+| 21  | `BUILTIN_DOMAINS` 导出未消费           | P2   | ✅ 已修（同 #16）                                      |
+| 22  | SidePanel 主题 / WAR import 链等真缺陷 | —    | ✅ 已修（`--gr-*` 体系 + WAR 补 `shared/*.js`）        |
 
 **修复率：21/22 ≈ 95%**（唯一未彻底项是 #3）。
 附带的技术债**真实下降**：`noImplicitAny` 由 891/302/377 **降至 510/251/272**。
@@ -117,12 +117,12 @@ el.innerHTML = `<div class="c">${escapeHtml(data.name) + data.raw}</div>`;
 
 即：
 
-| 写法 | 是否危险 | 护栏能否发现 |
-|---|---|---|
-| `${raw}`（纯变量，最经典 XSS） | ❌ 危险 | ❌ **看不见** |
-| `${escapeHtml(a)} ${raw}`（转义+裸变量并列） | ❌ 危险 | ❌ **看不见** |
-| `${escapeHtml(a) + raw}`（转义拼接裸变量） | ❌ 危险 | ❌ **看不见** |
-| `${'静态' + raw}`（含字面量） | ❌ 危险 | ✅ 能发现 |
+| 写法                                         | 是否危险 | 护栏能否发现  |
+| -------------------------------------------- | -------- | ------------- |
+| `${raw}`（纯变量，最经典 XSS）               | ❌ 危险  | ❌ **看不见** |
+| `${escapeHtml(a)} ${raw}`（转义+裸变量并列） | ❌ 危险  | ❌ **看不见** |
+| `${escapeHtml(a) + raw}`（转义拼接裸变量）   | ❌ 危险  | ❌ **看不见** |
+| `${'静态' + raw}`（含字面量）                | ❌ 危险  | ✅ 能发现     |
 
 更隐蔽的是第二种：**在同一个插值里先写一个转义过的变量，后面跟的任何裸变量都不再被检查。**
 这种写法在日常开发中极为自然（`"名称：" + escapeHtml(name) + " " + desc`），
@@ -132,10 +132,10 @@ el.innerHTML = `<div class="c">${escapeHtml(data.name) + data.raw}</div>`;
 
 用**不跳过无引号表达式**的严格规则重扫同一批代码：
 
-| 规则 | 检出数 |
-|---|---:|
-| 现行护栏（跳过无引号） | **19**（棘轮基线） |
-| 严格规则（逐个插值验转义） | **72** |
+| 规则                       |             检出数 |
+| -------------------------- | -----------------: |
+| 现行护栏（跳过无引号）     | **19**（棘轮基线） |
+| 严格规则（逐个插值验转义） |             **72** |
 
 **53 处插值完全在护栏视野之外。**
 换句话说，当前 `xssUnescapedInterpolations: 19` 这个数字的语义是
@@ -146,15 +146,15 @@ el.innerHTML = `<div class="c">${escapeHtml(data.name) + data.raw}</div>`;
 
 必须说清楚——**目前代码里没有真实漏洞**。我对严格规则下多出的可疑项做了逐层溯源抽查：
 
-| 变量 | 位置 | 实际处理 | 判定 |
-|---|---|---|---|
-| `rows` | `status-bar.js:77` | `${escapeHtml(r.text)}` / `escapeHtml(String(r))` | ✅ 已转义 |
-| `reasonLine` | `candidates.js:25` | 内部 `${escapeHtml(reasonText)}` | ✅ 已转义 |
-| `detail` | `status-bar.js:64` | `${escapeHtml(detail)}` | ✅ 已转义 |
-| `shop` | `sidebar.js:100` | ` @ ${esc(info.shop)}` | ✅ 已转义 |
-| `progressHtml` | `status-bar.js:54` | 字面量 + `${pct}%`（Math.round 数字） | ✅ 受控 |
-| `timeStr` | `tracking.js:210` | `formatRelativeTime()` 内部生成 | ✅ 受控 |
-| `cfg.cols/iconW/gap` | `xdgrid.js:311` | 配置项数字 | ✅ 受控 |
+| 变量                 | 位置               | 实际处理                                          | 判定      |
+| -------------------- | ------------------ | ------------------------------------------------- | --------- |
+| `rows`               | `status-bar.js:77` | `${escapeHtml(r.text)}` / `escapeHtml(String(r))` | ✅ 已转义 |
+| `reasonLine`         | `candidates.js:25` | 内部 `${escapeHtml(reasonText)}`                  | ✅ 已转义 |
+| `detail`             | `status-bar.js:64` | `${escapeHtml(detail)}`                           | ✅ 已转义 |
+| `shop`               | `sidebar.js:100`   | ` @ ${esc(info.shop)}`                            | ✅ 已转义 |
+| `progressHtml`       | `status-bar.js:54` | 字面量 + `${pct}%`（Math.round 数字）             | ✅ 受控   |
+| `timeStr`            | `tracking.js:210`  | `formatRelativeTime()` 内部生成                   | ✅ 受控   |
+| `cfg.cols/iconW/gap` | `xdgrid.js:311`    | 配置项数字                                        | ✅ 受控   |
 
 **结论：现有代码转义纪律良好，真实风险为 0。**
 护栏的问题是「下次有人写 `${userInput}` 时拦不住」，而不是「现在已经漏了」。
@@ -207,11 +207,11 @@ el.innerHTML = `<div class="a">${escapeHtml(data.name)} ${data.desc}</div>`;
 
 ## 4. 建议（按性价比）
 
-| # | 事项 | 级别 | 成本 | 说明 |
-|---|---|---|---|---|
-| 1 | XSS 扫描改「白名单制」（默认可疑、明确放行） | **P1** | 低（~5 行） | 唯一遗留的真伪护栏项。改完检出数跳升属预期，**先落新基线再逐批清**，勿一次清零 |
-| 2 | 修正 `xssUnescapedInterpolations` 的语义描述 | P2 | 极低 | 现注释暗示「未转义总数」，实为「含引号的可疑插值数」；建议在 `xssScan.note` 写明口径，避免后人误读 |
-| 3 | `sidepanel`（171 行）保持既有双保险 | P2 | 低 | 已有 `test-sidepanel.mjs`，WAR / coverage include / XSS 扫描范围**均已含** sidepanel ✅，此项仅需回归确认 |
+| #   | 事项                                         | 级别   | 成本        | 说明                                                                                                      |
+| --- | -------------------------------------------- | ------ | ----------- | --------------------------------------------------------------------------------------------------------- |
+| 1   | XSS 扫描改「白名单制」（默认可疑、明确放行） | **P1** | 低（~5 行） | 唯一遗留的真伪护栏项。改完检出数跳升属预期，**先落新基线再逐批清**，勿一次清零                            |
+| 2   | 修正 `xssUnescapedInterpolations` 的语义描述 | P2     | 极低        | 现注释暗示「未转义总数」，实为「含引号的可疑插值数」；建议在 `xssScan.note` 写明口径，避免后人误读        |
+| 3   | `sidepanel`（171 行）保持既有双保险          | P2     | 低          | 已有 `test-sidepanel.mjs`，WAR / coverage include / XSS 扫描范围**均已含** sidepanel ✅，此项仅需回归确认 |
 
 **关于本轮的整体判断**：项目已从「写得出好代码」走到「改得快」这一步。
 上一轮我提的核心担忧是「护栏债务随交付同步累积」，本轮这项担忧**基本解除**——
@@ -236,4 +236,4 @@ v14.1.0→v14.2.0 全量 diff 审阅；XSS 扫描器**规则级实测**（构造
 
 ---
 
-*报告结束 · 生成于 2026-10-06 · 基线 v14.2.0（`54e5637`）*
+_报告结束 · 生成于 2026-10-06 · 基线 v14.2.0（`54e5637`）_

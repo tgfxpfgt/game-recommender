@@ -6,13 +6,13 @@
 
 ## 1. 实测证据（2026-10-11，真实站点 + 真实 Steam API）
 
-| 页面 | 路径 | 结果 |
-|---|---|---|
-| `xianyudanji.gg/pcdj`（列表页） | 列表批量检索 | **215 个徽章渲染**；日志尾窗 30 条全为"列表页搜索未找到"（含 极限竞速：地平线6 / 光与影：33号远征队 / 英雄传说：创之轨迹 等标题带英文段的在售游戏） |
-| `99778.html` 龙之信条2 | 封面 appId 直取 | `通过 appId 2054970 直接获取: Dragon's Dogma 2` ✓（搜索链被旁路——站点页面普遍嵌 Steam CDN 截图，appId 直取按设计主导） |
-| `103325.html` 极速俱乐部：无限3 | appId 直取 → Steam appdetails **超时** | 浮窗停在"查询失败: 操作超时（GET_STEAM_BY_APPID）"，**无标题搜索兜底**（观测缺口 P2-3） |
-| `103459.html` 永冻纪元 | 正文截图 appId 直取 | `appId 2254990 直接获取: 永冻纪元 - Permafrost` ✓ |
-| diagnose-matching D&D 用例 | 全搜索链（handleSearchSteam） | **错配复现**：`龙与地下城：无冬之夜2增强版` → 命中 `Demeo x Dungeons & Dragons: Battlemarked`（3124340）✗ 期望 `D&D Neverwinter Nights 2: Enhanced Edition`（2738630） |
+| 页面                            | 路径                                   | 结果                                                                                                                                                                   |
+| ------------------------------- | -------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `xianyudanji.gg/pcdj`（列表页） | 列表批量检索                           | **215 个徽章渲染**；日志尾窗 30 条全为"列表页搜索未找到"（含 极限竞速：地平线6 / 光与影：33号远征队 / 英雄传说：创之轨迹 等标题带英文段的在售游戏）                    |
+| `99778.html` 龙之信条2          | 封面 appId 直取                        | `通过 appId 2054970 直接获取: Dragon's Dogma 2` ✓（搜索链被旁路——站点页面普遍嵌 Steam CDN 截图，appId 直取按设计主导）                                                 |
+| `103325.html` 极速俱乐部：无限3 | appId 直取 → Steam appdetails **超时** | 浮窗停在"查询失败: 操作超时（GET_STEAM_BY_APPID）"，**无标题搜索兜底**（观测缺口 P2-3）                                                                                |
+| `103459.html` 永冻纪元          | 正文截图 appId 直取                    | `appId 2254990 直接获取: 永冻纪元 - Permafrost` ✓                                                                                                                      |
+| diagnose-matching D&D 用例      | 全搜索链（handleSearchSteam）          | **错配复现**：`龙与地下城：无冬之夜2增强版` → 命中 `Demeo x Dungeons & Dragons: Battlemarked`（3124340）✗ 期望 `D&D Neverwinter Nights 2: Enhanced Edition`（2738630） |
 
 ### 关键交叉验证数据（D&D 错配案例）
 
@@ -40,8 +40,19 @@ franchise 头词、缺失特征词（本例缺失 neverwinter / nights）。
 ```js
 // 版本级噪声词（中文命中名的英文名常缺省版本后缀，不计入覆盖判据）
 const EDITION_WORDS = new Set([
-  'edition', 'enhanced', 'deluxe', 'upgrade', 'remastered', 'remaster',
-  'definitive', 'complete', 'goty', 'bundle', 'collection', 'demo', 'trial'
+  'edition',
+  'enhanced',
+  'deluxe',
+  'upgrade',
+  'remastered',
+  'remaster',
+  'definitive',
+  'complete',
+  'goty',
+  'bundle',
+  'collection',
+  'demo',
+  'trial'
 ]);
 const rawWords = [...enWordsOf(enSegment)].filter((w) => !EDITION_WORDS.has(w));
 const coverOf = (name) => rawWords.filter((w) => enWordsOf(name).has(w)).length;
@@ -49,14 +60,16 @@ const coverOf = (name) => rawWords.filter((w) => enWordsOf(name).has(w)).length;
 // 触发英文重搜：零交集（现规则保留）或 内容词未全覆盖（franchise 兄弟篇信号）
 // rawWords.length >= 2 护栏：单词段（permafrost/drowse 类）区分度不足，不触发
 const hitCover = coverOf(searchResult.name);
-const needEn = searchResult && enSegment && rawWords.length >= 2 &&
-  (hitCover === 0 || hitCover < rawWords.length);
+const needEn = searchResult && enSegment && rawWords.length >= 2 && (hitCover === 0 || hitCover < rawWords.length);
 if (needEn) {
   const enResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
   // 单调改进护栏：仅当英文结果覆盖**严格更优**才替换——重搜失败/等覆盖时
   // 保留中文命中（与现"英文重搜未命中 → 保留中文结果"语义一致）
   if (enResult && coverOf(enResult.name) > hitCover) {
-    Logger.info('Steam', `交叉验证升级: "${searchResult.name}"(覆盖 ${hitCover}/${rawWords.length}) → 英文重搜 "${enResult.name}"`);
+    Logger.info(
+      'Steam',
+      `交叉验证升级: "${searchResult.name}"(覆盖 ${hitCover}/${rawWords.length}) → 英文重搜 "${enResult.name}"`
+    );
     searchResult = enResult;
   }
 }
@@ -66,6 +79,7 @@ D&D 案例走查：rawWords = {dungeons, dragons, neverwinter, nights}（enhance
 入噪声表）→ 命中覆盖 2/4 < 4 → 触发英文重搜 → 2738630 覆盖 4/4 > 2/4 → 替换 ✓。
 
 **护栏组合的防误伤论证**：
+
 - 单词段不触发（permafrost / drowse / invokyr 类小站游戏，中文命中即可信）；
 - 全覆盖不触发（绝大多数正常命中）；
 - 重搜失败保留中文命中（现状语义）；

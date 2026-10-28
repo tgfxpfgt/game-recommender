@@ -128,9 +128,13 @@ export async function watchFavoritePrices() {
     if (!Number.isFinite(current) || current <= 0) continue;
     if (current <= lowest.price * threshold) {
       const name = (favorites[appId] && favorites[appId].name) || 'AppID ' + appId;
-      notifyBase('💥 收藏折扣提醒', `${name} 现价 ${current.toFixed(2)}（历史最低 ${lowest.price.toFixed(2)} @ ${lowest.shop || 'ITAD'}）`, {
-        icon: chrome.runtime.getURL('icons/icon128.png')
-      });
+      notifyBase(
+        '💥 收藏折扣提醒',
+        `${name} 现价 ${current.toFixed(2)}（历史最低 ${lowest.price.toFixed(2)} @ ${lowest.shop || 'ITAD'}）`,
+        {
+          icon: chrome.runtime.getURL('icons/icon128.png')
+        }
+      );
       notified += 1;
     }
   }
@@ -160,9 +164,13 @@ export async function watchFavoritePrices() {
       /* ignore */
     }
     const name = (info && info.name) || 'AppID ' + appId;
-    notifyBase('🚀 收藏游戏发售提醒', `${name} ${daysTo <= 0 ? '今天' : daysTo + ' 天后'}发售（${info.releaseDate || ''}）`, {
-      icon: chrome.runtime.getURL('icons/icon128.png')
-    });
+    notifyBase(
+      '🚀 收藏游戏发售提醒',
+      `${name} ${daysTo <= 0 ? '今天' : daysTo + ' 天后'}发售（${info.releaseDate || ''}）`,
+      {
+        icon: chrome.runtime.getURL('icons/icon128.png')
+      }
+    );
     releaseNotified += 1;
   }
 

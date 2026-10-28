@@ -23,9 +23,7 @@ export const favoritesHandlers = {
     const key = String((msg && msg.key) || '').slice(0, 200);
     if (!key) return { ok: false, status: 0 };
     try {
-      const resp = await fetchWithTimeout(
-        `${ENDPOINTS.itadPrices}?key=${encodeURIComponent(key)}&appids=steam/730`
-      );
+      const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${encodeURIComponent(key)}&appids=steam/730`);
       return { ok: resp.ok, status: resp.status };
     } catch {
       return { ok: false, status: 0 };

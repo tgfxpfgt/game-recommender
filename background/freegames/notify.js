@@ -38,12 +38,16 @@ export async function getLastNotifyGames() {
 
 // v14.3.0（第五轮 B8）：通知构造单源——各处 chrome.notifications.create 的
 // 公共形状（type/iconUrl/异常吞没）收敛为 notifyBase 工厂。
-export function notifyBase(title, message, options = {}) { // v14.3.0：导出（itad 域消费）
+export function notifyBase(title, message, options = {}) {
+  // v14.3.0：导出（itad 域消费）
   try {
-    chrome.notifications.create(
-      options.id || undefined,
-      { type: 'basic', iconUrl: options.icon || 'icons/icon128.png', title, message, priority: options.priority ?? 0 }
-    );
+    chrome.notifications.create(options.id || undefined, {
+      type: 'basic',
+      iconUrl: options.icon || 'icons/icon128.png',
+      title,
+      message,
+      priority: options.priority ?? 0
+    });
   } catch (e) {
     Logger.debug('FreeGames', '通知创建失败:', String(e));
   }

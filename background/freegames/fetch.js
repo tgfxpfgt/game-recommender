@@ -38,7 +38,8 @@ async function fetchEpicFreeGames() {
       const end = new Date(promo.endDate).getTime();
       if (now < start || now > end) continue;
 
-      const img = el.keyImages?.find((/** @type {any} */ i) => i.type === 'OfferImageWide')?.url || el.keyImages?.[0]?.url || '';
+      const img =
+        el.keyImages?.find((/** @type {any} */ i) => i.type === 'OfferImageWide')?.url || el.keyImages?.[0]?.url || '';
       games.push({
         id: 'epic-' + el.id,
         platform: 'epic',

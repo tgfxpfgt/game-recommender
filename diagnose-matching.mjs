@@ -6,7 +6,10 @@ import { createStorageMock, installChromeStorageMock } from './tests/helpers/sto
 installChromeStorageMock(createStorageMock());
 globalThis.chrome = {
   runtime: { getURL: (p) => p },
-  storage: { local: { get: async () => ({}), set: async () => {} }, session: { get: async () => ({}), set: async () => {} } },
+  storage: {
+    local: { get: async () => ({}), set: async () => {} },
+    session: { get: async () => ({}), set: async () => {} }
+  },
   notifications: { create: async () => {} },
   action: { setBadgeText() {}, setBadgeBackgroundColor() {} }
 };
@@ -15,7 +18,11 @@ globalThis.window = globalThis;
 const TESTS = [
   { cn: '奇迹时代4', en: 'Age of Wonders 4 Premium Edition', appId: '1669000' },
   { cn: '战争机器：事变日', en: 'Gears of War: E-Day', appId: '3010850' },
-  { cn: '龙与地下城：无冬之夜2增强版', en: 'Dungeons & Dragons Neverwinter Nights 2: Enhanced Edition', appId: '2738630' },
+  {
+    cn: '龙与地下城：无冬之夜2增强版',
+    en: 'Dungeons & Dragons Neverwinter Nights 2: Enhanced Edition',
+    appId: '2738630'
+  },
   { cn: '艾尔登法环', en: 'Elden Ring', appId: '1245620' },
   { cn: '赛博朋克2077', en: 'Cyberpunk 2077', appId: '1091500' }
 ];
@@ -41,10 +48,13 @@ let pass = 0;
 for (let i = 0; i < TESTS.length; i++) {
   const t = TESTS[i];
   try {
-    const out = execSync(`node --input-type=module -e "
+    const out = execSync(
+      `node --input-type=module -e "
       process.argv[2] = '${i}';
       await import('./diagnose-matching.mjs');
-    "`, { encoding: 'utf-8', timeout: 60000, cwd: process.cwd() });
+    "`,
+      { encoding: 'utf-8', timeout: 60000, cwd: process.cwd() }
+    );
     console.log(out.trim());
     if (out.includes('✓')) pass++;
   } catch (e) {
