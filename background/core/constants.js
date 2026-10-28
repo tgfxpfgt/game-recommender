@@ -72,6 +72,7 @@ export const PERF_CONFIG = {
   fetchTimeoutSteam250Ms: 20000, // Steam250 榜单页 HTML（整页抓取最重）
   fetchTimeoutCommunitySearchMs: 8000, // 社区搜索兜底（SearchApps 轻量响应快）
   fetchTimeoutLastUpdateMs: 4000, // "最近更新"徽章硬帽（v10.9.2：api 域不可达时不得拖爆搜索主预算）
+  fetchTimeoutLlmMs: 30000, // LLM 兜底（ai-fallback，生成较慢；v14.7 批次 1 入单源）
   ratingsKeepAliveIntervalMs: 10000 // 批量任务 SW 保活心跳（getPlatformInfo 触发）
 };
 

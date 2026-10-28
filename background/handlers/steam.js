@@ -60,7 +60,17 @@ function noteResolvedGame(sender, data) {
 const inFlightSearches = new Map();
 
 export async function handleSearchSteam(message, sender) {
-  const dedupeKey = String(message.gameName || '');
+  // v14.7 批次 1（A-P3）：key 纳入语义参数——仅按 gameName 去重会让
+  // ignoreNegativeCache/rawTitle/appId 语义被首次请求合并（"穿透负缓存的重试"
+  // 吃到普通查询的 in-flight 结果 = 穿透失效；反之普通查询吃到穿透结果）。
+  // Dedupe key includes semantic params so a negative-cache-piercing retry
+  // never merges with a plain lookup of the same name (and vice versa).
+  const dedupeKey = [
+    String(message.gameName || ''),
+    message.ignoreNegativeCache ? 'pierce' : 'normal',
+    String(message.appId || ''),
+    String(message.rawTitle || '')
+  ].join('|');
   const inflight = inFlightSearches.get(dedupeKey);
   if (inflight) return inflight;
   const job = doHandleSearchSteam(message, sender).finally(() => inFlightSearches.delete(dedupeKey));

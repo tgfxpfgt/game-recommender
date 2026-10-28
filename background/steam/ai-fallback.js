@@ -22,7 +22,9 @@ import { getLlmMatch, setLlmMatch, getWebMatch, setWebMatch } from '../storage/l
 import { searchSteamAppId, namesRelated } from './api-search.js';
 import { fetchSteamAppDetails } from './api-details.js';
 
-const LLM_FETCH_TIMEOUT = 30000; // LLM 生成较慢 / LLM generation is slow
+// v14.7 批次 1（A-P2-3）：超时单源入 PERF_CONFIG——原具名常量逃过铁律 13
+// 扫描（test-integrity 只拦字面量，语义缝隙由本迁移堵住）。
+const LLM_FETCH_TIMEOUT = PERF_CONFIG.fetchTimeoutLlmMs; // LLM 生成较慢 / LLM generation is slow
 
 // ============ v6.4.17：搜索引擎兜底（Bing，免费无需配置） ============
 // 规则匹配失败时用 Bing 搜索"标题 steam"，从结果页提取 store.steampowered.com

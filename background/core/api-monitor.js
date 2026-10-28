@@ -105,14 +105,24 @@ export function getSteamApiStatus() {
 const CIRCUIT_THRESHOLD = 5;
 const CIRCUIT_OPEN_MS = 60000;
 const domainBreakers = {};
-
+// v14.7 批次 1（A-P3）：半开单探测令牌——到期时仅首个调用者转半开放行，
+// 其余并发调用者在探测期间视为仍熔断（此前全部放行 = 批次场景一次放行 N 个）。
+// Single probe token: only the first caller after expiry transitions to
+// half-open; concurrent callers stay blocked until the probe resolves.
 export function isCircuitOpen(domain, now = Date.now()) {
   const b = domainBreakers[domain];
   if (!b) return false;
+  // 探测进行中（openUntil 已清零但令牌未回收）：非探测调用者一律短路
+  if (b.probing && !b.openUntil) return true;
   if (b.openUntil && now >= b.openUntil) {
-    // 半开：放行探测请求；探测失败由 recordDomainCall 立即重开
-    b.openUntil = 0;
-    b.fails = CIRCUIT_THRESHOLD - 1;
+    if (!b.probing) {
+      // 首个调用者成为探测请求 / This caller becomes the probe.
+      b.probing = true;
+      b.openUntil = 0;
+      b.fails = CIRCUIT_THRESHOLD - 1;
+      return false;
+    }
+    return true; // 探测进行中：其余调用者仍短路 / Probe in flight: stay open
   }
   return !!b.openUntil && b.openUntil > now;
 }
@@ -120,6 +130,7 @@ export function isCircuitOpen(domain, now = Date.now()) {
 export function circuitState(domain) {
   const b = domainBreakers[domain];
   if (!b) return 'closed';
+  if (b.probing && !b.openUntil) return 'half-open';
   if (b.openUntil > Date.now()) return 'open';
   if (b.fails >= CIRCUIT_THRESHOLD - 1 && !b.openUntil) return 'half-open';
   return 'closed';
@@ -129,34 +140,40 @@ export function circuitState(domain) {
 // recordSteamCall 调用方按域名传入；失败判定沿用 HTTP 语义（404=空结果非失败）。
 // Per-domain reachability: rolling success over recent calls per domain.
 const domainStats = {
-  store: { ok: 0, total: 0 },
-  api: { ok: 0, total: 0 },
-  steamcommunity: { ok: 0, total: 0 } // v14.6.2：社区搜索兜底独立域——失败不打穿 store 熔断
+  store: { ok: 0, total: 0, recent: [] },
+  api: { ok: 0, total: 0, recent: [] },
+  // v14.6.2：社区搜索兜底独立域——失败不打穿 store 熔断
+  steamcommunity: { ok: 0, total: 0, recent: [] }
 };
 const DOMAIN_WINDOW = 8;
 
 export function recordDomainCall(domain, ok) {
   const st = domainStats[domain];
   if (!st) return;
-  st.total += 1;
-  if (ok) st.ok += 1;
-  if (st.total > DOMAIN_WINDOW) {
-    st.total = DOMAIN_WINDOW;
-    if (st.ok > DOMAIN_WINDOW) st.ok = DOMAIN_WINDOW;
-  }
+  // v14.7 批次 1（A-P3）：真滑动窗口——recent 环形保存最近 DOMAIN_WINDOW 次
+  // 结果，滑出窗口的成功同步递减 ok（原钳制实现在饱和后 ok 不衰减，
+  // getDomainStatus 恒报 'ok'，仅诊断失真）。
+  // True sliding window: successes leaving the window decrement ok.
+  st.recent.push(!!ok);
+  if (st.recent.length > DOMAIN_WINDOW) st.recent.shift();
+  st.total = st.recent.length;
+  st.ok = st.recent.filter(Boolean).length;
   // v12 B1：per-domain 熔断驱动（仅 recordDomainCall 的调用方知道自己在哪个域）
-  const b = domainBreakers[domain] || (domainBreakers[domain] = { fails: 0, openUntil: 0 });
+  const b = domainBreakers[domain] || (domainBreakers[domain] = { fails: 0, openUntil: 0, probing: false });
   if (ok) {
+    const wasProbing = b.probing;
+    b.probing = false; // 探测令牌回收（成功/失败都要清）
     const wasOpen = b.openUntil > 0;
     b.fails = 0;
     b.openUntil = 0;
-    if (wasOpen) {
+    if (wasOpen || wasProbing) {
       // v13 B1：熔断恢复事件（探测成功闭合）——诊断可见
       console.warn('[熔断] ' + domain + ' 域探测成功，自动闭合');
     }
     return;
   }
   b.fails += 1;
+  b.probing = false; // 探测失败：令牌回收并立即重开
   if (b.fails >= CIRCUIT_THRESHOLD) b.openUntil = Date.now() + CIRCUIT_OPEN_MS;
 }
 
@@ -176,6 +193,7 @@ export function resetDomainStatus() {
   for (const st of Object.values(domainStats)) {
     st.ok = 0;
     st.total = 0;
+    st.recent = [];
   }
   for (const k of Object.keys(domainBreakers)) delete domainBreakers[k];
 }

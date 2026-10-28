@@ -188,6 +188,17 @@ async function fireBatch(names) {
     }
   } catch (e) {
     dbg('Steam好评率检索失败: ' + String(e));
+    // v14.7 批次 1（B-P2）：发送失败（SW 冷启动超时等）不再让剩余队列项
+    // 无限⏳——就地转错误徽章；job 保留（未 finished 项不入 processed），
+    // 供批次 3 的"点击重试"消费。
+    // Send failure: mark remaining queue items errored instead of eternal ⏳;
+    // job stays for the click-to-retry entry (batch 3).
+    const failedJob = _state.ratingsJob;
+    if (failedJob && !failedJob.finished) {
+      for (const item of failedJob.processItems) {
+        if (!failedJob.processed.has(item.name)) badges.showErrorBadge(item);
+      }
+    }
     batchState.inflight = false;
     _internal.finishRatings();
   }

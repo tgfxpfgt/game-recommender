@@ -141,7 +141,10 @@ export async function searchSteamGame(gameName, options = {}) {
       // v14.6.2 修复（审查 A11）：单源化至 coreTokensOf（排下载站噪声词
       // build/crack/repack 等）——原第二套实现把噪声段当内容词污染覆盖判据
       new Set(coreTokensOf(s).filter((w) => /^[a-z]/.test(w)));
-    if (!appId) {
+    // v14.7 批次 1（A-P2-1）：步骤 4 搜索流提取为局部函数——直取/索引来源
+    // 的 appId 相关性护栏失败时可重入（下方护栏用）。
+    // Search flow extracted as a re-entrant helper for the relevance guard.
+    const searchAppIdFlow = async () => {
       // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中作为检索结果
       //（阶段 2 交叉验证照常运行防 franchise 误配）；目录未命中走在线检索。
       /** @type {import('../core/types.js').SteamSearchResult|null} */
@@ -192,7 +195,7 @@ export async function searchSteamGame(gameName, options = {}) {
         const fallback =
           (await webSearchFallback(gameName, excludeAppId)) || (await llmMatchGame(gameName, excludeAppId));
         if (fallback) {
-          appId = fallback.appId;
+          return fallback.appId;
         } else {
           // 记录负缓存 / Record negative cache
           // v9.7.0：网络故障期不做负缓存固化——searchSteamAppId 吞掉网络异常
@@ -209,31 +212,71 @@ export async function searchSteamGame(gameName, options = {}) {
           }
           return null;
         }
-      } else {
-        appId = searchResult.appId;
       }
-    }
+      return searchResult.appId;
+    };
 
-    // 5. 获取完整 Steam 详情 / Fetch full Steam details
-    let result = await fetchSteamFullDetailsByAppId(appId);
-    if (!result) return null;
-
-    // v14.3.2：DLC → 自动解析为本体 appId（与列表页 step 4.5 对齐）。
-    // fetchSteamFullDetailsByAppId 返回 appdetails 原始 type/fullgame 字段——
-    // DLC 命中时好评率/评测数据归属 DLC 而非本体，需替换后重取本体详情。
-    if (result.type === 'dlc' && result.fullgame) {
-      const baseId = String(result.fullgame.appid || result.fullgame.appId || '');
-      if (baseId && baseId !== String(appId)) {
-        Logger.info(
-          'Steam',
-          `DLC 解析: ${result.name} (DLC ${appId}) → 本体 ${baseId} (${result.fullgame.name || ''})`
-        );
-        const baseResult = await fetchSteamFullDetailsByAppId(baseId);
-        if (baseResult) {
-          appId = baseId;
-          result = baseResult;
+    // 详情获取 + DLC→本体解析（v14.3.2 逻辑抽取为局部函数——护栏重搜路径
+    // 复用；返回 {appId, detail}，appId 更新为本体 id）。fetchSteamFullDetails
+    // ByAppId 返回 appdetails 原始 type/fullgame 字段——DLC 命中时好评率/评测
+    // 数据归属 DLC 而非本体，需替换后重取本体详情。
+    /** @param {string|number} id */
+    const fetchDetailsResolveDlc = async (id) => {
+      let r = await fetchSteamFullDetailsByAppId(id);
+      if (!r) return null;
+      // finalId 保留调用方原始类型（number appId 写名称索引的类型契约，
+      // test-handlers 断言 lookupAppIdByName 返回 number）——仅 DLC 解析时
+      // 更新为 fullgame 原始值。
+      let finalId = id;
+      if (r.type === 'dlc' && r.fullgame) {
+        const baseId = r.fullgame.appid || r.fullgame.appId || '';
+        if (baseId && String(baseId) !== String(id)) {
+          Logger.info('Steam', `DLC 解析: ${r.name} (DLC ${id}) → 本体 ${baseId} (${r.fullgame.name || ''})`);
+          const baseResult = await fetchSteamFullDetailsByAppId(baseId);
+          if (baseResult) {
+            finalId = baseId;
+            r = baseResult;
+          }
+          // 本体获取失败 → 保留 DLC 数据（劣于无数据）
         }
-        // 本体获取失败 → 保留 DLC 数据（劣于无数据）
+      }
+      return { appId: finalId, detail: r };
+    };
+
+    // v14.7 批次 1（A-P2-1）：直取/名称索引来源的 appId 相关性护栏——
+    // 缓存命中路径已有同款校验（上方 namesRelated），fresh-fetch 路径此前
+    // 缺失：错误封面 appId 会被 fetch+缓存+索引三层钉死。搜索流/人工纠正
+    // 来源可信（appIdTrusted），直取与索引来源不相关 → 转标题重搜一次。
+    // Relevance guard for element-provided / name-index appIds (the cache-hit
+    // path already has it); search/correction origins are trusted.
+    /** @type {boolean} */
+    let appIdTrusted = false;
+    if (!appId) {
+      appId = await searchAppIdFlow();
+      if (!appId) return null;
+      appIdTrusted = true;
+    }
+    const first = await fetchDetailsResolveDlc(appId);
+    if (!first) return null;
+    appId = first.appId;
+    let result = first.detail;
+    if (!namesRelated(gameName, result.name)) {
+      if (appIdTrusted) {
+        // 搜索流/纠正来源自带相关性校验，仍不相关 = 罕见边界（如改名）——
+        // 保留结果（劣于反复重搜）；Trusted origins carry their own checks.
+        Logger.warn('Steam', `相关性护栏: 可信来源 appId ${appId} ("${result.name}") 与 "${gameName}" 不相关，保留`);
+      } else {
+        Logger.warn(
+          'Steam',
+          `相关性护栏: 直取/索引 appId ${appId} ("${result.name}") 与标题 "${gameName}" 不相关，转标题重搜`
+        );
+        appId = await searchAppIdFlow();
+        if (!appId) return null;
+        appIdTrusted = true;
+        const second = await fetchDetailsResolveDlc(appId);
+        if (!second) return null;
+        appId = second.appId;
+        result = second.detail;
       }
     }
 

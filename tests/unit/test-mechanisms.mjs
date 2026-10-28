@@ -126,4 +126,38 @@ describe('api-monitor 熔断器（v12 B1 per-domain）', () => {
     vi.useRealTimers();
     resetDomainStatus();
   });
+
+  // v14.7 批次 1（A-P3）：半开单探测令牌——并发场景仅放行 1 个探测
+  it('半开单探测：探测进行中其余并发调用者仍被短路', () => {
+    resetDomainStatus();
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date('2026-01-01T00:00:00'));
+    for (let i = 0; i < 5; i++) recordDomainCall('store', false);
+    expect(isCircuitOpen('store')).toEqual(true);
+    vi.setSystemTime(new Date('2026-01-01T00:01:01')); // 到期
+    expect(isCircuitOpen('store')).toEqual(false); // 首个调用者 = 探测请求
+    expect(circuitState('store')).toEqual('half-open');
+    // 探测未 resolve 期间（recordDomainCall 未调用），并发调用者全部短路
+    expect(isCircuitOpen('store')).toEqual(true);
+    expect(isCircuitOpen('store')).toEqual(true);
+    recordDomainCall('store', true); // 探测成功 → 闭合，令牌回收
+    expect(isCircuitOpen('store')).toEqual(false);
+    expect(circuitState('store')).toEqual('closed');
+    vi.useRealTimers();
+    resetDomainStatus();
+  });
+});
+
+// v14.7 批次 1（A-P3）：DOMAIN_WINDOW 真滑动窗口——滑出窗口的成功要衰减 ok，
+// 饱和后连续失败必须能报 'down'（原钳制实现恒报 'ok'）。
+describe('api-monitor DOMAIN_WINDOW 滑动窗口', () => {
+  it('8 成功饱和后连续 8 失败 → down（旧钳制会恒 ok）', async () => {
+    const monitor = await import('../../background/core/api-monitor.js');
+    monitor.resetDomainStatus();
+    for (let i = 0; i < 8; i++) monitor.recordDomainCall('store', true);
+    expect(monitor.getDomainStatus().store).toEqual('ok');
+    for (let i = 0; i < 8; i++) monitor.recordDomainCall('store', false);
+    expect(monitor.getDomainStatus().store).toEqual('down');
+    monitor.resetDomainStatus();
+  });
 });

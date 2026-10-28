@@ -552,6 +552,11 @@ export async function findVersionVariant(appId, title) {
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
 async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = false, lang = 'schinese') {
+  // v14.7 批次 1（A-P2-2）：与主搜索同样短路——主搜索途中熔断打开后，去数字
+  // +变体循环仍会串行发 ~10 个请求（慢网各挂 15s）拖死批次。
+  // Circuit short-circuit like the main search (variant loop must not keep
+  // firing into an open circuit).
+  if (isCircuitOpen('store')) return null;
   try {
     const data = await (
       await fetchWithTimeout(`${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=${lang}&cc=cn`)
