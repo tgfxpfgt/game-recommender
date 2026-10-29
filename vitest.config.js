@@ -81,6 +81,7 @@ export default defineConfig({
       'tests/unit/test-retrieval-override.mjs',
       'tests/unit/test-rulepack-vocab.mjs',
       'tests/unit/test-vocab-pack-gate.mjs',
+      'tests/unit/test-title-override.mjs',
       'tests/unit/test-logger-append.mjs',
       'tests/unit/test-image-fetch.mjs',
       'tests/unit/test-search-cache-debounce.mjs',

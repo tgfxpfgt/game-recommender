@@ -127,11 +127,47 @@ function trackDownloadSiteVisit(appId, gameName) {
 // Page-title cleaning chain (was duplicated verbatim in detail-page/tracker);
 // tail-strip words come from the retrieval vocab since R1.
 const __retrieval = getCompiledRetrievalRules();
+
+// v14.8 批次 4（L2 站特清洗覆盖，调研 §3.1）：adapter features 的
+// titleCleaningOverride = { stripPrefix?: string[], noiseWordsExtra?: string[] }
+// ——个别站标题结构特殊（如 3DM 的"【汉化组】"前缀段）。页面会话级单点：
+// page-init 启动时经 setTitleCleaningOverride 注入，cleanPageTitle 自动应用。
+// Site-level title-cleaning override from adapter features; injected once at
+// page init, applied inside cleanPageTitle.
+/** @type {{stripPrefix?: string[], noiseWordsExtra?: string[]}|null} */
+let titleCleaningOverride = null;
+
+/** @param {{stripPrefix?: string[], noiseWordsExtra?: string[]}|null} override */
+export function setTitleCleaningOverride(override) {
+  titleCleaningOverride = override || null;
+}
+
+/** 纯应用函数（单测直驱）/ Pure application for unit tests. */
+export function applyTitleCleaningOverride(title, override) {
+  let t = String(title || '');
+  if (!override || !t) return t;
+  for (const marker of override.stripPrefix || []) {
+    if (typeof marker !== 'string' || !marker) continue;
+    const esc = marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    // 前缀段：行首连续出现的标记段（含尾随分隔符）整段剥除
+    t = t.replace(new RegExp(`^(?:\\s*${esc}\\s*)+`, 'u'), '');
+  }
+  for (const word of override.noiseWordsExtra || []) {
+    if (typeof word !== 'string' || word.length < 2) continue;
+    const esc = word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    t = t.replace(new RegExp(esc, 'gu'), ' ');
+  }
+  return t.replace(/\s+/g, ' ').trim();
+}
+
 function cleanPageTitle(title) {
-  return (title || '')
-    .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
-    .replace(__retrieval.titleTailStripPattern, '')
-    .trim();
+  return applyTitleCleaningOverride(
+    (title || '')
+      .replace(/[\|\-–—_]\s*[^\|\-–—_]*$/, '')
+      .replace(__retrieval.titleTailStripPattern, '')
+      .trim(),
+    titleCleaningOverride
+  );
 }
 
 // v14.5.0 B7：chrome.storage.local 读写统一封装（此前 tracker 更新自检等
