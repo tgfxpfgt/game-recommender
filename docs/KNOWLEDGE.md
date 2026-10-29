@@ -242,6 +242,8 @@ flushAllCaches（storage/flush.js 聚合落盘）：
 | SW 冷启动 | 静态图 77 文件 / ~11.5k 行（MV3 SW 禁动态 import，无懒加载手段）                                                          | Perf 日志 `SW 模块图就绪 Xms`（timeOrigin→入口顶层 ≈ 消息可用时刻） |
 | OPFS 写   | 计数器模式（metricInc + session-persist 防抖）+ 5 模块 2s 防抖合并                                                        | dashboard 运行指标卡（opfs.writeCount/writeBytes）                  |
 | 消息管道  | TRACK_EVENT_BATCH（500ms/10 条，10→1）+ GET_STEAM_RATINGS 批量（settings.ratingsBatchSize，B9 接线）+ click_download 即时 | metrics 消息计数器                                                  |
+| 批量全链  | **v14.8 bench 基线**：60 游戏 50% 预缓存 = 首波 3ms / 批次完成 ~2.9s / storesearch 0 次（名称索引+目录覆盖）      | `npm run bench`（scripts/perf-bench.mjs，三段计时）                |
+| 目录匹配  | 会话累计 hit/变体/未中 三计数（空格变体命中率=校准依据）                                                              | dashboard 诊断卡 `目录匹配`（appListIndex.* 计数器）                |
 | 状态渲染  | showStats 100ms 合并（B9，列表流程 ×N→×1）                                                                                | —                                                                   |
 | 内容装载  | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求）                        | e2e-probe 模块网络加载                                              |
 
