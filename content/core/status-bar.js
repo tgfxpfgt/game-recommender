@@ -23,6 +23,7 @@ let lastStats = null;
 let startTime = 0; // 本次任务开始时间（计时器）/ task start time
 let enabled = true; // 总开关（showStatusBar）/ master switch
 let debugMode = false; // 调试模式（showDebugPanel）/ debug mode
+let debugViewActive = false; // v14.8 批次 8：诊断视图显示中（showStatus 互斥）
 /** @type {ReturnType<typeof setTimeout>|null} */
 let renderTimer = null; // v14.5.0 B9：统计渲染合并窗口
 
@@ -56,6 +57,9 @@ function ensureEl() {
 // 显示进行中状态（title, current/total 进度, detail）
 export function showStatus(title, current, total, detail) {
   if (!enabled) return;
+  // v14.8 批次 8：诊断互斥——诊断视图显示中不覆盖诊断 body（仅 debugMode
+  // 用户可见；批次进度在下一次非诊断渲染或诊断关闭后恢复）
+  if (debugViewActive) return;
   if (!startTime) startTime = Date.now();
   const el = ensureEl();
   const pct = total > 0 ? Math.round((current / total) * 100) : null;
@@ -150,6 +154,7 @@ export function showDebugView(html) {
     }
   });
   statusEl.innerHTML = html;
+  debugViewActive = true;
   if (hideTimer) clearTimeout(hideTimer); // 诊断视图常驻 / persistent
 }
 
