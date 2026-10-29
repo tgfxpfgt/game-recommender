@@ -131,8 +131,16 @@ const RULES = {
   GET_STEAM_BY_APPID: (m) => appIdRule(m && m.appId, 'GET_STEAM_BY_APPID.appId'),
   SAVE_MANUAL_MAPPING: (m) => {
     if (!isName(m && m.gameName)) return { error: 'SAVE_MANUAL_MAPPING.gameName 必填且不超过 200 字符' };
-    return appIdRule(m && m.appId, 'SAVE_MANUAL_MAPPING.appId');
+    const appId = appIdRule(m && m.appId, 'SAVE_MANUAL_MAPPING.appId');
+    if (!appId.ok) return appId;
+    // v14.8 批次 3：rawTitle 可选（错题样本采集现场）
+    if (m && m.rawTitle !== undefined && (typeof m.rawTitle !== 'string' || m.rawTitle.length > 300)) {
+      return { error: 'SAVE_MANUAL_MAPPING.rawTitle 可选且不超过 300 字符' };
+    }
+    return { ok: true };
   },
+  GET_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
+  CLEAR_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
   CLAIM_FREE_GAME: (m) =>
     isNonEmpty(m && m.gameId, 100) ? { ok: true } : { error: 'CLAIM_FREE_GAME.gameId 必填且不超过 100 字符' },
   // 数据破坏性操作：backupId 必填（v4.1.0：moduleKeys 可选校验并入）

@@ -43,7 +43,8 @@ export const DB_KEYS = {
   STEAM250_RANK: 'steam250Rank', // Steam250 榜单快照（v10.4.4：排名/评分，24h 刷新）
   FAVORITES: 'favorites', // 收藏/关注清单（v10.6.0：本地数据，与限免监控联动）
   APP_LIST_INDEX: 'appListIndex', // v14.6：Steam 全量目录离线索引（归一化名→appid，调研建议 1）
-  RETRIEVAL_VOCAB_OVERRIDE: 'retrievalVocabOverride' // v14.7 批次 12：R2 词表覆盖（规则包下发，校验失败回退内置）
+  RETRIEVAL_VOCAB_OVERRIDE: 'retrievalVocabOverride', // v14.7 批次 12：R2 词表覆盖（规则包下发，校验失败回退内置）
+  WRONG_REPORT_SAMPLES: 'wrongReportSamples' // v14.8 批次 3：错题样本采集（FIFO 20，回放门原料）
 };
 
 // v10.7.0 批次1：存储容量上限单源（原 14 处散落各存储文件顶部——调参需逐文件

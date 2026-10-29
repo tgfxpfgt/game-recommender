@@ -11,6 +11,7 @@ import {
   findVersionVariant
 } from '../steam/api.js';
 import { searchSteamGame } from '../steam/orchestrator.js';
+import { captureMismatchSample } from '../steam/mismatch-samples.js'; // v14.8 批次 3：错题采集
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v10.9.3：失败原因诊断
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
@@ -272,6 +273,11 @@ export async function handleSaveManualMapping(message) {
   // v3.3.13：手动选择 = 用户确认正确 appid → 记录为纠正知识（长期有效）
   await recordWrongReport(gameName, { correctAppId: appId, source: 'manual' });
   await flushWrongReports();
+  // v14.8 批次 3：错题现场自动采集（rawTitle 在场才采集；fire-and-forget
+  // 不阻塞确认应答）——采集→入册→回放门闭环的采集端
+  if (message.rawTitle) {
+    captureMismatchSample({ gameName, rawTitle: message.rawTitle, correctAppId: appId }).catch(() => {});
+  }
   Logger.info('Steam', `保存手动映射: "${gameName}" → appId ${appId}`);
   return { success: true };
 }

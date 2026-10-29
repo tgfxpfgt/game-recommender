@@ -14,6 +14,7 @@ import { getSteam250Info } from '../steam/steam250.js';
 import { getSiteHealth, recordSiteAlert } from '../storage/site-health.js';
 import { getFlushHealth } from '../storage/flush-health.js';
 import { Logger } from '../storage/logger.js';
+import { getWrongReportSamples, clearWrongReportSamples } from '../steam/mismatch-samples.js'; // v14.8 批次 3
 
 // --- Steam API 状态监测（v3.3.0）+ 分域名可达性（v11.0 B2）---
 export async function handleGetApiStatus() {
@@ -106,5 +107,7 @@ export const diagStatusHandlers = {
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_RUNTIME_METRICS: handleGetRuntimeMetrics,
   GET_OUTBOUND_AUDIT: handleGetOutboundAudit,
-  CLEAR_OUTBOUND_AUDIT: handleClearOutboundAudit
+  CLEAR_OUTBOUND_AUDIT: handleClearOutboundAudit,
+  GET_WRONG_REPORT_SAMPLES: (m) => getWrongReportSamples(),
+  CLEAR_WRONG_REPORT_SAMPLES: (m) => clearWrongReportSamples()
 };

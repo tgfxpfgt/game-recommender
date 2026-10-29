@@ -15,6 +15,10 @@
  * 共享状态：cachedAudit（本文件定义）。
  */
 
+// v14.8 批次 3：COPY_FEEDBACK_RESET_MS（内容/页面层不可 import background
+// PERF_CONFIG（分层）——文件顶具名单源，铁律 13）。
+const COPY_FEEDBACK_RESET_MS = 2000; // 复制反馈复位延时
+
 // ============ 出站请求审计 / Outbound Request Audit ============
 let cachedAudit = { entries: [], stats: null };
 
@@ -240,5 +244,41 @@ async function loadRuntimeMetrics() {
     msgEl.textContent = String(msgTotal);
   } catch {
     batchEl.textContent = opfsEl.textContent = msgEl.textContent = '—';
+  }
+}
+
+// v14.8 批次 3：错题样本卡（采集数 + 一键复制 fixtures 格式 JSON——人工审后
+// 并入 tests/fixtures/mismatch-samples.json 即进回放门）
+async function renderMismatchSamples() {
+  const el = document.getElementById('diagMismatchSamples');
+  const copyBtn = document.getElementById('copyMismatchBtn');
+  if (!el) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_WRONG_REPORT_SAMPLES' });
+    const samples = (resp && resp.samples) || [];
+    el.textContent = String(samples.length);
+    el.title =
+      samples.length > 0
+        ? samples
+            .map((s) => s.rawTitle)
+            .slice(0, 5)
+            .join('\n')
+        : '暂无采集样本';
+    if (copyBtn && !copyBtn.dataset.bound) {
+      copyBtn.dataset.bound = '1';
+      copyBtn.addEventListener('click', async () => {
+        const fresh = await window.__GR_MSG__.sendMessage({ action: 'GET_WRONG_REPORT_SAMPLES' });
+        const json = JSON.stringify({ samples: (fresh && fresh.samples) || [] }, null, 2);
+        try {
+          await navigator.clipboard.writeText(json);
+          copyBtn.textContent = '✅ 已复制';
+        } catch {
+          copyBtn.textContent = '❌ 复制失败';
+        }
+        setTimeout(() => (copyBtn.textContent = '复制 JSON'), COPY_FEEDBACK_RESET_MS);
+      });
+    }
+  } catch {
+    el.textContent = '—';
   }
 }

@@ -294,7 +294,9 @@ export function createSteamFloat(gameName, settings) {
                 // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
                 // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
                 gameName,
-                appId: selectedAppId
+                appId: selectedAppId,
+                // v14.8 批次 3：rawTitle 随行——错题样本采集现场（后台确认后采集）
+                rawTitle: document.title
               })
               .catch(() => {});
           },

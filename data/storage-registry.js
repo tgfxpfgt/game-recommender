@@ -145,6 +145,13 @@ export const STORAGE_MODULES = {
     desc: 'Steam App Catalog',
     clearOnDataReset: true
   }, // v14.6（可重建的离线索引，~10MB——不进默认备份，过期自动重拉）
+  wrongReportSamples: {
+    file: 'wrong-report-samples.json',
+    format: 'json',
+    name: '错题样本采集',
+    desc: 'Mismatch Samples',
+    clearOnDataReset: true
+  }, // v14.8 批次 3（FIFO 20 条——并入册后可清，不进备份）
   retrievalVocabOverride: {
     file: 'retrieval-vocab-override.json',
     format: 'json',
