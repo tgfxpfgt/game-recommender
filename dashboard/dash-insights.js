@@ -144,11 +144,18 @@ async function loadFavorites() {
           if (p.current != null && p.lowest != null && p.lowest > 0) {
             const off = Math.round((1 - p.current / p.lowest) * 100);
             // v14.8 批次 5（第九轮 B1）：现价 ≤ 史低 = 💥 史低标记（收藏折扣
-            // 阈值提醒的看板对应物；90 天趋势线无时序数据，不做——诚实降级）
+            // 阈值提醒的看板对应物；90 天趋势线无时序数据，不做——诚实降级）。
+            // v14.8 修复：史低徽章改 DOM API（textContent）——innerHTML 插值
+            // 变量曾触发 XSS 棘轮（+1，XSS 棘轮护栏实战首功）
             const isAllTimeLow = p.current <= p.lowest;
-            const lowBadge = isAllTimeLow ? ' <span style="color:#ff7b00;font-weight:bold;">💥 史低</span>' : '';
             const offTxt = off >= 5 && !isAllTimeLow ? ` · <span style="color:#a3cf06;">-${off}%</span>` : '';
-            span.innerHTML = `💰 ${Number(p.current).toFixed(2)}（最低 ${Number(p.lowest).toFixed(2)}${offTxt}）${lowBadge}`;
+            span.innerHTML = `💰 ${Number(p.current).toFixed(2)}（最低 ${Number(p.lowest).toFixed(2)}${offTxt}）`;
+            if (isAllTimeLow) {
+              const lowBadge = document.createElement('span');
+              lowBadge.style.cssText = 'color:#ff7b00;font-weight:bold;margin-left:4px;';
+              lowBadge.textContent = '💥 史低';
+              span.appendChild(lowBadge);
+            }
             span.title = isAllTimeLow
               ? `当前价即历史最低${p.shop ? '（' + String(p.shop) + '）' : ''}`
               : p.shop
