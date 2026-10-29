@@ -279,7 +279,16 @@
       if (!parsed2) return;
       const resp = await window.__GR_MSG__.sendMessage({ action: 'SAVE_ADAPTER_RULES', rules: parsed2 });
       if (resp && resp.ok) {
-        setRuleStatus(`✅ 导入成功：${parsed2.sites.length} 个站点规则已生效；刷新已打开的下载站页面后生效`, 'ok');
+        // v14.8 批次 1（R2）：词表覆盖段状态可见（生效/校验失败回退）
+        const vocabNote = resp.vocabApplied
+          ? '；词表覆盖已生效'
+          : resp.vocabErrors
+            ? '；⚠️ 词表覆盖校验失败已回退：' + resp.vocabErrors[0]
+            : '';
+        setRuleStatus(
+          `✅ 导入成功：${parsed2.sites.length} 个站点规则已生效${vocabNote}；刷新已打开的下载站页面后生效`,
+          'ok'
+        );
         await loadRules();
       } else {
         setRuleStatus('导入失败: ' + ((resp && resp.error) || '校验未通过'), 'error');

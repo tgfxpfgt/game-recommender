@@ -8,9 +8,22 @@
  */
 import { saveAdapterRules, deleteAdapterRules, getAllRules } from '../core/rules.js';
 import { syncSiteScripts } from '../core/site-scripts.js';
+import { dataStore } from '../../data/data-store.js';
+import { DB_KEYS } from '../core/constants.js';
+import { ensureRetrievalVocabOverride } from '../steam/retrieval-override.js';
 
 async function handleGetAdapterRules() {
-  return { rules: await getAllRules() };
+  const rules = await getAllRules();
+  // v14.8 批次 1（R2）：词表覆盖随规则包导出（仅覆盖增量，内置词表不随包）
+  try {
+    const override = await dataStore.readModule(DB_KEYS.RETRIEVAL_VOCAB_OVERRIDE);
+    if (override && typeof override === 'object' && rules.merged) {
+      rules.merged.retrievalVocab = override;
+    }
+  } catch {
+    /* 读取失败按无词表覆盖导出 */
+  }
+  return { rules };
 }
 
 async function handleSaveAdapterRules(message) {
@@ -18,6 +31,19 @@ async function handleSaveAdapterRules(message) {
   // v7.4.0：规则变化后同步自定义站点内容脚本注册（新增站点立即生效，
   // 无需等下一次 SW 启动）
   if (result.ok) syncSiteScripts().catch(() => {});
+  // v14.8 批次 1（R2）：规则包 v2 词表覆盖段——写入 override 存储 + 热更
+  // （applyVocabOverride 校验失败返回 errors，现值保持 = 回退语义）
+  if (result.ok && result.vocabSegment) {
+    try {
+      await dataStore.writeModule(DB_KEYS.RETRIEVAL_VOCAB_OVERRIDE, result.vocabSegment);
+      const applied = await ensureRetrievalVocabOverride();
+      result.vocabApplied = applied.applied;
+      if (applied.errors) result.vocabErrors = applied.errors;
+    } catch (e) {
+      result.vocabApplied = false;
+      result.vocabErrors = [String(e)];
+    }
+  }
   return result;
 }
 

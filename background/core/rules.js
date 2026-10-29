@@ -222,6 +222,10 @@ export function validateAdapterRules(rules) {
   if (rules.sites.length === 0) return { ok: false, error: 'sites 不能为空（至少保留一个站点规则）' };
   if (rules.sites.length > RULE_LIMITS.maxSites)
     return { ok: false, error: `sites 超过 ${RULE_LIMITS.maxSites} 个上限` };
+  // v14.8 批次 1（R2）：可选 retrievalVocab 段（规则包 v2）——形态浅校验，
+  // 键级合并/回退语义由 applyVocabOverride 在保存侧执行
+  if (rules.retrievalVocab !== undefined && !isPlainObject(rules.retrievalVocab))
+    return { ok: false, error: 'retrievalVocab 必须为对象（规则包 v2 词表覆盖段）' };
   const seen = new Set();
   for (const site of rules.sites) {
     const err = validateSiteRule(site, 0);
@@ -235,13 +239,22 @@ export function validateAdapterRules(rules) {
 // 保存用户导入的适配规则（校验通过后写入 storage，覆盖内置规则）
 // Save user-imported adapter rules (validated; overrides built-in rules)
 // v10.0.0：导入前做格式化升级（normalizeImportedRules）+ 返回逐站诊断
+// v14.8 批次 1（R2）：retrievalVocab 段**剥离**返回（词表单独存储于
+// retrievalVocabOverride——混入 ADAPTER_RULES 会让站点回退内置时连坐词表）
 export async function saveAdapterRules(rules) {
   const result = validateAdapterRules(rules);
   if (!result.ok) return result;
+  const vocabSegment = result.rules.retrievalVocab;
   const normalized = normalizeImportedRules(result.rules);
+  delete normalized.retrievalVocab;
   await dataStore.writeModule(DB_KEYS.ADAPTER_RULES, normalized);
   resetRulesCache();
-  return { ok: true, rules: normalized, diagnostics: diagnoseAdapterRules(normalized) };
+  return {
+    ok: true,
+    rules: normalized,
+    vocabSegment: vocabSegment || null,
+    diagnostics: diagnoseAdapterRules(normalized)
+  };
 }
 
 // ============ 规则包生态 / Rule-Pack Ecosystem (v10.0.0) ============
