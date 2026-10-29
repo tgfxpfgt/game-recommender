@@ -298,6 +298,8 @@ node --check options/options.js
 
 ### v14.7.0（第七轮 13 批次：自愈体系 + 性能与可见性 + R2 词表生态骨架）
 
+**安全扫描（Mimosa 深度扫描）**：0 findings · seal `sha256:7c7ff340ec5613240110287c4711a4d8f1788e4605f8de4425d622175728a4f5`（2026-10-30，第七轮 20 改动文件焦点）——v14.1.0→v14.6.3 断档说明：补扫仅覆盖当前 HEAD，历史版本不追溯
+
 **审查确认修复（批次 1）**
 
 - 元素直取 appId 相关性护栏（fresh-fetch 路径补 namesRelated——错配不再被缓存+索引三层钉死）；变体搜索熔断短路；LLM 超时入单源；熔断器半开改单探测令牌 + DOMAIN_WINDOW 真滑动窗口；fireBatch 失败兜底转错误徽章；in-flight 去重 key 纳入语义参数
