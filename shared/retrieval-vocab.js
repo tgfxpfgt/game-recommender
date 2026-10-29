@@ -373,6 +373,28 @@ export function invalidateRetrievalRulesCache() {
 }
 
 /**
+ * v14.8 批次 2（R2 回放门·SW 内可执行部分）：防护标题表——真实样本标题
+ * （错题库 rawTitle + 代表性官方名）。覆盖包新增的噪声词若命中其中任何
+ * 标题（子串）→ 拒绝该词：防止过度清洗把合法游戏名吃掉（全量回放门只在
+ * CI/vitest 可跑——SW 内无法拦截 fetch，此表是导入时的确定性防线）。
+ * 新增错题库样本时同步扩充本表。
+ * Protective titles: real sample titles. Newly added noise words that
+ * substring-match any of them are rejected at import time (the full replay
+ * gate only runs in CI; this is the deterministic in-SW line).
+ * @type {string[]}
+ */
+export const PROTECTIVE_TITLES = [
+  '使命召唤®：黑色行动 7|官方中文|支持手柄|Call of Duty®: Black Ops 7',
+  '人类/Humankind',
+  '生化危机4 重制版|Resident Evil 4 Remake|Build.22377325',
+  'Resident Evil Requiem',
+  'Elden Ring',
+  'Cyberpunk 2077',
+  'Grand Theft Auto V Enhanced',
+  'Hollow Knight: DLC 包'
+];
+
+/**
  * v14.7 批次 12（R2 第二步骨架）：词表覆盖应用——规则包下发的词表数据与
  * 内置**键级合并**（数组键 override 追加在后，内置在前；保序语义=追加不
  * 重排），校验通过才生效并失效编译缓存，失败返回错误数组（调用方保持
@@ -402,6 +424,20 @@ export function applyVocabOverride(override) {
     const v = override[key];
     if (v === undefined) continue;
     if (!Array.isArray(v) || v.length === 0) return [`${key} 覆盖必须为非空数组`];
+  }
+  // v14.8 批次 2：防护标题护栏——新增 'w' 噪声词命中防护标题（子串）→
+  // 拒绝该词（过度清洗合法标题的确定性防线；全量回放门在 CI 侧）
+  for (const key of ['noiseTitle', 'junkCandidateWords', 'titleTailStripWords']) {
+    const extra = override[key];
+    if (!Array.isArray(extra)) continue;
+    for (const entry of extra) {
+      if (!Array.isArray(entry) || entry[0] !== 'w') continue;
+      const word = entry[1];
+      const hitTitle = PROTECTIVE_TITLES.find((t) => t.includes(word));
+      if (hitTitle) {
+        return [`${key} 新增噪声词 "${word}" 命中防护标题（"${hitTitle.slice(0, 40)}…"）——拒绝（过度清洗风险）`];
+      }
+    }
   }
   const merged = { ...RETRIEVAL_VOCAB };
   for (const key of [
