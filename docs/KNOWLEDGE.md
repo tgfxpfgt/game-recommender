@@ -244,6 +244,15 @@ flushAllCaches（storage/flush.js 聚合落盘）：
 | 消息管道  | TRACK_EVENT_BATCH（500ms/10 条，10→1）+ GET_STEAM_RATINGS 批量（settings.ratingsBatchSize，B9 接线）+ click_download 即时 | metrics 消息计数器                                                  |
 | 批量全链  | **v14.8 bench 基线**：60 游戏 50% 预缓存 = 首波 3ms / 批次完成 ~2.9s / storesearch 0 次（名称索引+目录覆盖）      | `npm run bench`（scripts/perf-bench.mjs，三段计时）                |
 | 目录匹配  | 会话累计 hit/变体/未中 三计数（空格变体命中率=校准依据）                                                              | dashboard 诊断卡 `目录匹配`（appListIndex.* 计数器）                |
+
+**类型债棘轮复检（2026-10-30，第十轮 B3 决策）**：基线 510/251/272 → 实测
+504/249/267（第七/八轮清偿后低于基线）——**维持原基线不下调**：留 6/2/5 的
+缓冲带吸收未来偶发新增（棘轮语义=禁止上调，缓冲无害）。xssUnescaped
+Interpolations 白名单 72 项维持（含模板受控插值，逐一复核成本 > 风险）。
+
+**维护模式（2026-10-30 起，第十轮 B10）**：十轮路线图周期收官——转"用户
+反馈驱动 + 触发线驱动"节奏（P1/P2 反馈热修；新数据源/新站按需小轮；发版
+按大版本/5 小版本/3000 行触发线）。新功能需求另立路线图轮次。
 | 状态渲染  | showStats 100ms 合并（B9，列表流程 ×N→×1）                                                                                | —                                                                   |
 | 内容装载  | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求）                        | e2e-probe 模块网络加载                                              |
 
