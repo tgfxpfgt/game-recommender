@@ -60,7 +60,9 @@ function initBatchState(settings) {
     pendingDone: false, // 后台已推送 done / background done received
     forceTimer: null, // 强制收尾定时器 / force-finish timer
     observer: null, // MutationObserver（新增项发现）/ discovery observer
-    sentinelObserver: null // IntersectionObserver（滚动调度）/ scroll sentinel
+    sentinelObserver: null, // IntersectionObserver（滚动调度）/ scroll sentinel
+    knownUrls: null, // v14.8 批次 6：已见 url 集合（观察器/入队共用，懒建）
+    urlsSent: null // v14.8 批次 9：已发送的 URL 映射键（增量 payload）
   };
 }
 
@@ -79,9 +81,15 @@ function ensureNameToImage(name) {
 }
 
 // 追加 item 入队（url 去重；名字未请求过才入队）/ enqueue new items (url-dedup)
+// v14.8 批次 6：观察器防抖双档——任务进行中 200ms（首屏追新），收尾后
+// 500ms（长驻 SPA 降频）；已知 url 集合持久化在 batchState（免每扫描 O(N) 重建）
+const OBSERVER_DEBOUNCE_ACTIVE_MS = 200;
+const OBSERVER_DEBOUNCE_IDLE_MS = 500;
+
 function enqueueItems(items) {
   const batchState = _state.batchState;
-  const seen = new Set(batchState.processItems.map((i) => i.url));
+  const seen = batchState.knownUrls || new Set(batchState.processItems.map((i) => i.url));
+  batchState.knownUrls = seen;
   for (const item of items || []) {
     if (!item || !item.name || item.name.length < 2 || seen.has(item.url)) continue;
     if (batchState.processItems.length >= PROCESS_ITEMS_HARD_CAP) break;
@@ -143,11 +151,18 @@ async function fireBatch(names) {
     imageData[n] = ensureNameToImage(n) || null;
   });
   // v7.0.2：详情页网址映射（name → item.url）——后台 URL 索引第一候选，
-  // 统一列表页/详情页对同一网址的匹配结果
+  // 统一列表页/详情页对同一网址的匹配结果。
+  // v14.8 批次 9：增量 payload——只发**新增**映射（已发键在 urlsSent；
+  // 此前每批全量重发 = O(N²) payload 累计）
   const urls = {};
   batchState.processItems.forEach((it) => {
     if (it.name && it.url && urls[it.name] === undefined) urls[it.name] = it.url;
   });
+  if (!batchState.urlsSent) batchState.urlsSent = new Set();
+  for (const k of Object.keys(urls)) {
+    if (batchState.urlsSent.has(k)) delete urls[k];
+    else batchState.urlsSent.add(k);
+  }
   // 推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
   fetchRecommendationsForBatch(names, imageData);
   try {
@@ -275,10 +290,14 @@ function startListScan() {
       }
     }
     if (scanTimer) clearTimeout(scanTimer);
+    // v14.8 批次 6：双档防抖——任务进行中 200ms，收尾后 500ms（长驻 SPA 降频）
+    const debounceMs =
+      _state.ratingsJob && !_state.ratingsJob.finished ? OBSERVER_DEBOUNCE_ACTIVE_MS : OBSERVER_DEBOUNCE_IDLE_MS;
     scanTimer = setTimeout(() => {
       const nodes = pendingNodes;
       pendingNodes = [];
-      const known = new Set(batchState.processItems.map((i) => i.url));
+      const known = batchState.knownUrls || new Set(batchState.processItems.map((i) => i.url));
+      batchState.knownUrls = known; // 持久集合：免每扫描 O(N) 重建（enqueueItems 同源）
       const newItems = [];
       for (const node of nodes) {
         const found = builder.findItemsInContainer(node);
@@ -293,7 +312,7 @@ function startListScan() {
         enqueueItems(newItems);
         maybeFetchNextBatch();
       }
-    }, 200);
+    }, debounceMs);
   });
   batchState.observer.observe(document.body, { childList: true, subtree: true });
   const sentinel = document.createElement('div');
