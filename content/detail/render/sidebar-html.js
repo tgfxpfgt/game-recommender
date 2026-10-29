@@ -96,6 +96,7 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
           <span style="font-size:12px;font-weight:bold;color:#fff;">📊 SteamSpy</span>
           ${data.steamdbUrl ? `<a href="${common.escapeAttr(data.steamdbUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">SteamDB 查看 ↗</a>` : ''}
+          ${data.downloadSiteSearchUrl ? `<a href="${common.escapeAttr(data.downloadSiteSearchUrl)}" target="_blank" rel="noopener" style="font-size:11px;color:#67c1f5;text-decoration:none;">在下载站搜索 ↗</a>` : ''}
         </div>
         ${spyBody}
       </div>

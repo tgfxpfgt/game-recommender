@@ -171,7 +171,20 @@ export function createSteamFloat(gameName, settings) {
   const actions = createSteamActions({ panel, hidePanel, showPanel, renderSteamSidebar, renderAndShow });
 
   // 渲染数据并显示浮窗的通用函数
+  // v14.8 批次 5（第九轮 B6）：反向深链——Steam 页浮窗附"在下载站搜索"
+  // （trackedSites 首站 WordPress ?s= 约定；本页已是下载站时无意义 → 门控）
+  const reverseSiteDomain = (() => {
+    const sites = (settings && settings.trackedSites) || [];
+    const domain = window.location.hostname;
+    const onTracked = sites.length === 0 || sites.some((s) => domain.includes(s));
+    return onTracked ? null : sites[0] || null;
+  })();
+
   function renderAndShow(data, cachedAt, name) {
+    if (reverseSiteDomain) {
+      data.downloadSiteSearchUrl =
+        'https://' + reverseSiteDomain + '/?s=' + encodeURIComponent(name || data.name || '');
+    }
     steamData = data;
     actions.setSteamData(data);
     reportIssue = actions.makeReportIssue(name);
