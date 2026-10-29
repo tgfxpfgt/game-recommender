@@ -242,6 +242,15 @@ async function loadRuntimeMetrics() {
       .filter(([k]) => k.startsWith('msg.'))
       .reduce((acc, [, v]) => acc + (Number(v) || 0), 0); // v10.9：session 恢复异型防拼接
     msgEl.textContent = String(msgTotal);
+    // v14.8 批次 5：目录匹配指标（hit/变体命中/miss——校准数据来源）
+    const appListEl = document.getElementById('diagAppListIndex');
+    if (appListEl) {
+      const hit = Number(counters['appListIndex.hit']) || 0;
+      const fuzzy = Number(counters['appListIndex.fuzzy.hit']) || 0;
+      const miss = Number(counters['appListIndex.miss']) || 0;
+      appListEl.textContent = `${hit}/${fuzzy}/${miss}`;
+      appListEl.title = `目录精确命中 ${hit} · 空格变体命中 ${fuzzy} · 未中 ${miss}（会话累计）`;
+    }
   } catch {
     batchEl.textContent = opfsEl.textContent = msgEl.textContent = '—';
   }

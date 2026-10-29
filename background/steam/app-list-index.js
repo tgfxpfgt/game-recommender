@@ -133,13 +133,14 @@ function hydrate(entries) {
  * no spaces); the index side only builds secondary keys for spaced names.
  * @param {Map<string, {appId: string, name: string}>} map
  * @param {string} normTitle
- * @returns {{appId: string, name: string}|null}
+ * @returns {{entry: {appId: string, name: string}, tier: 'exact'|'variant'}|null}
  */
 function lookupTiered(map, normTitle) {
   const exact = map.get(normTitle);
-  if (exact) return exact;
+  if (exact) return { entry: exact, tier: 'exact' };
   if (!deSpaceMap) return null;
-  return deSpaceMap.get(normTitle.replace(/\s+/g, '')) || null;
+  const variant = deSpaceMap.get(normTitle.replace(/\s+/g, ''));
+  return variant ? { entry: variant, tier: 'variant' } : null;
 }
 
 /**
@@ -171,12 +172,13 @@ export async function matchAppListExact(title, excludeAppId = null) {
       return null;
     }
     const fast = lookupTiered(indexMap, normalizeTitle(title));
-    if (!fast || (excludeAppId != null && String(fast.appId) === String(excludeAppId))) {
+    if (!fast || (excludeAppId != null && String(fast.entry.appId) === String(excludeAppId))) {
       metricInc('appListIndex.miss');
       return null;
     }
-    metricInc('appListIndex.hit');
-    return { appId: fast.appId, name: fast.name };
+    // v14.8 批次 5：变体命中独立计数（校准数据来源）
+    metricInc(fast.tier === 'variant' ? 'appListIndex.fuzzy.hit' : 'appListIndex.hit');
+    return { appId: fast.entry.appId, name: fast.entry.name };
   }
   const map = await ensureAppListIndex();
   if (isStale(meta) && !refreshInFlight && !refreshAttempted) {
@@ -188,12 +190,12 @@ export async function matchAppListExact(title, excludeAppId = null) {
     return null;
   }
   const hit = lookupTiered(map, normalizeTitle(title));
-  if (!hit || (excludeAppId != null && String(hit.appId) === String(excludeAppId))) {
+  if (!hit || (excludeAppId != null && String(hit.entry.appId) === String(excludeAppId))) {
     metricInc('appListIndex.miss');
     return null;
   }
-  metricInc('appListIndex.hit');
-  return { appId: hit.appId, name: hit.name };
+  metricInc(hit.tier === 'variant' ? 'appListIndex.fuzzy.hit' : 'appListIndex.hit');
+  return { appId: hit.entry.appId, name: hit.entry.name };
 }
 
 /**
