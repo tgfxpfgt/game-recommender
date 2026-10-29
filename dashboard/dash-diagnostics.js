@@ -256,6 +256,24 @@ async function loadRuntimeMetrics() {
   }
 }
 
+// v14.8 批次 7（第九轮 B2）：限免错过统计卡（错过数/监控总数 + 近期错过明细 title）
+async function renderFreeGameMiss() {
+  const el = document.getElementById('diagFreeGameMiss');
+  if (!el) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FREEGAME_MISS_STATS' });
+    if (!resp) {
+      el.textContent = '—';
+      return;
+    }
+    el.textContent = `${resp.missedCount ?? 0}/${resp.monitoredTotal ?? 0}`;
+    const recent = (resp.missed || []).map((g) => `${g.name}（${g.platform}，${g.originalPrice || '?'}）`);
+    el.title = recent.length > 0 ? '近期错过：' + recent.join('\n') : '暂无错过记录';
+  } catch {
+    el.textContent = '—';
+  }
+}
+
 // v14.8 批次 3：错题样本卡（采集数 + 一键复制 fixtures 格式 JSON——人工审后
 // 并入 tests/fixtures/mismatch-samples.json 即进回放门）
 async function renderMismatchSamples() {

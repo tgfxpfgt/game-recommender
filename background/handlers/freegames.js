@@ -7,11 +7,12 @@
  * Moved from handlers.js (B10): free-games data/claim and ITAD lowest-price
  * query (dynamic import replaced with a static one — iron law #2).
  */
-import { getFreeGamesData, claimFreeGame, getItadLowest } from '../freegames/manager.js';
+import { getFreeGamesData, claimFreeGame, getItadLowest, getFreeGameMissStats } from '../freegames/manager.js';
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const freegamesHandlers = {
   GET_FREE_GAMES: async (msg) => getFreeGamesData(msg.force === true),
   CLAIM_FREE_GAME: async (msg) => claimFreeGame(msg.gameId),
-  GET_ITAD_LOWEST: async (msg) => ({ info: await getItadLowest(msg && msg.appId) })
+  GET_ITAD_LOWEST: async (msg) => ({ info: await getItadLowest(msg && msg.appId) }),
+  GET_FREEGAME_MISS_STATS: async () => getFreeGameMissStats() // v14.8 批次 7
 };

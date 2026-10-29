@@ -1,4 +1,4 @@
-/* global loadHealthCards loadApiDiagnostics loadBootTime loadRuntimeMetrics renderMismatchSamples loadFavorites bindGameSearch renderFeedback renderTagCloud activeTagFilter paginate renderPager safeDateText */
+/* global loadHealthCards loadApiDiagnostics loadBootTime loadRuntimeMetrics renderMismatchSamples renderFreeGameMiss loadFavorites bindGameSearch renderFeedback renderTagCloud activeTagFilter paginate renderPager safeDateText */
 /* eslint-disable no-unused-vars */
 /**
  * 游戏雷达 Game Radar - Dashboard 统计模块 / Dashboard Stats Module
@@ -134,6 +134,7 @@ async function loadStats() {
     document.getElementById('diagNegativeCache').textContent = response.negativeCacheCount ?? 0;
     loadHealthCards().catch(() => {}); // v10.0.0：站点/存储健康卡片（失败不影响主统计）
     renderMismatchSamples().catch(() => {}); // v14.8 批次 3：错题样本卡
+    renderFreeGameMiss().catch(() => {}); // v14.8 批次 7：限免错过统计
     loadFavorites().catch(() => {}); // v10.6.0 F2：收藏清单
     bindGameSearch(); // v10.6.0 F3：搜索框绑定
     // v6.3.2 B3：缓存命中率（hits+misses 计数）

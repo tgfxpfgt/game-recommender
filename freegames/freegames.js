@@ -69,6 +69,43 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 });
 
+// v14.8 批次 7（第九轮 B2）：当月限免月历——起点日（首次监控到）/截止日
+// （领取截止）标记，hover 显示游戏名。纯前端从已存 games 推导，零新请求。
+// Current-month calendar: first-seen and deadline day markers.
+function renderFreeGamesCalendar(games) {
+  const host = document.getElementById('freegamesCalendar');
+  if (!host) return;
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = now.getMonth();
+  const firstDow = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  /** @type {Record<number, string[]>} */
+  const marks = {};
+  const mark = (ts, label) => {
+    const d = new Date(ts);
+    if (d.getFullYear() !== year || d.getMonth() !== month) return;
+    (marks[d.getDate()] = marks[d.getDate()] || []).push(label);
+  };
+  for (const g of games) {
+    if (g.firstSeen) mark(g.firstSeen, '🆕 ' + g.name);
+    const end = Date.parse(g.endTime || '');
+    if (Number.isFinite(end)) mark(end, '⏰ 截止 ' + g.name);
+  }
+  const today = now.getDate();
+  let html = '<div class="cal-grid">';
+  html +=
+    '<div class="cal-dow">日</div><div class="cal-dow">一</div><div class="cal-dow">二</div><div class="cal-dow">三</div><div class="cal-dow">四</div><div class="cal-dow">五</div><div class="cal-dow">六</div>';
+  for (let i = 0; i < firstDow; i++) html += '<div class="cal-cell cal-empty"></div>';
+  for (let d = 1; d <= daysInMonth; d++) {
+    const labels = marks[d];
+    const cls = 'cal-cell' + (d === today ? ' cal-today' : '') + (labels ? ' cal-marked' : '');
+    html += `<div class="${cls}" title="${labels ? labels.map((s) => s.replace(/"/g, '')).join('\n') : ''}">${d}${labels ? '<div class="cal-dot"></div>' : ''}</div>`;
+  }
+  html += '</div>';
+  host.innerHTML = html;
+}
+
 // 加载限免游戏（force=true 强制刷新数据源）/ Load free games (force=true re-fetches sources)
 async function loadFreeGames(force = false) {
   const listEl = document.getElementById('gameList');
@@ -84,6 +121,7 @@ async function loadFreeGames(force = false) {
           '最后更新: ' + new Date(response.data.lastUpdate).toLocaleString('zh-CN');
       }
       renderGames();
+      renderFreeGamesCalendar(allGames); // v14.8 批次 7：当月月历
     } else {
       listEl.innerHTML = '<div class="empty">加载失败，请重试</div>';
     }

@@ -93,6 +93,36 @@ async function doRefreshFreeGames(force = false) {
   return result;
 }
 
+// v14.8 批次 7（第九轮 B2）：错过统计——监控开启期间已出现（firstSeen 在案）
+// 且已过期（endTime < now）但未领取（claimed=false）的限免。纯数据推导，
+// 零新存储；价值取 originalPrice 可数字解析项（Epic 文案价不可靠则不计）。
+// Missed stats: expired while monitored but never claimed. Pure derivation.
+export async function getFreeGameMissStats() {
+  const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
+  const games = (stored && stored.games) || [];
+  const now = Date.now();
+  const missed = games.filter((g) => {
+    const end = Date.parse(g.endTime || '');
+    return Number.isFinite(end) && end < now && g.claimed !== true;
+  });
+  let value = 0;
+  for (const g of missed) {
+    const n = parseFloat(String(g.originalPrice || '').replace(/[^0-9.]/g, ''));
+    if (Number.isFinite(n) && n > 0) value += n;
+  }
+  return {
+    missedCount: missed.length,
+    missedValue: Math.round(value * 100) / 100,
+    monitoredTotal: games.length,
+    missed: missed.slice(-10).map((g) => ({
+      name: g.name,
+      platform: g.platform,
+      endTime: g.endTime,
+      originalPrice: g.originalPrice || ''
+    }))
+  };
+}
+
 // 获取限免数据（供页面与消息使用）/ Get free-games data
 export async function getFreeGamesData(force = false) {
   const freeData = await refreshFreeGames(force);

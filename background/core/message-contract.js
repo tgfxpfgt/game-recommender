@@ -140,6 +140,7 @@ const RULES = {
     return { ok: true };
   },
   GET_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
+  GET_FREEGAME_MISS_STATS: (m) => ({ ok: true }), // v14.8 批次 7：限免错过统计（dashboard 扩展页专用）
   CLEAR_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
   CLAIM_FREE_GAME: (m) =>
     isNonEmpty(m && m.gameId, 100) ? { ok: true } : { error: 'CLAIM_FREE_GAME.gameId 必填且不超过 100 字符' },
