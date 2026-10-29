@@ -123,10 +123,20 @@
   // Early messages queue (channel held) until the router is wired post-boot.
   /** @type {Function|null} */
   let route = null;
+  let bootFailed = false; // v14.8 批次 7：boot 失败后新消息直接错误应答（不再无限排队）
   /** @type {Array<[any, any, Function]>} */
   const queued = [];
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (route) return route(message, sender, sendResponse);
+    // v14.8 批次 7：boot 已失败 → 错误应答（防静默悬空与队列无界增长）
+    if (bootFailed) {
+      try {
+        sendResponse({ error: 'boot-failed: 模块装载失败，页面功能不可用' });
+      } catch {
+        /* 应答失败忽略 */
+      }
+      return true;
+    }
     queued.push([message, sender, sendResponse]);
     return true; // 排队等待冲放 / queued until flush
   });
@@ -136,7 +146,20 @@
       route = r;
       queued.splice(0).forEach(([m, s, res]) => r(m, s, res));
     })
-    .catch(() => {});
+    .catch((e) => {
+      // v14.8 批次 7：boot 失败 → 排队消息逐条错误应答后清队（原实现静默
+      // 悬空——sendResponse 永不调用，页面功能瘫痪无诊断信号）
+      bootFailed = true;
+      const pending = queued.splice(0);
+      for (const [, , res] of pending) {
+        try {
+          res({ error: 'boot-failed: ' + String(e) });
+        } catch {
+          /* 应答失败忽略 */
+        }
+      }
+      console.error('【游戏雷达】 boot 失败，已应答 ' + pending.length + ' 条排队消息');
+    });
 
   // ============ Startup / 启动 ============
   // document_start 注入：boot（模块加载+预热）已在顶层并行执行，DOM 就绪立即
