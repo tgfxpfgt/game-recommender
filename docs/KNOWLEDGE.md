@@ -265,6 +265,9 @@ Interpolations 白名单 72 项维持（含模板受控插值，逐一复核成�
   golden+错题库锚定其行为；其余 TOP ≤497 全部达标。
 - **B6 单源终审**：service-worker.js 右键菜单 store 搜索 URL 为 UI 深链
   非 API 端点——记档保留；ENDPOINTS 消费无漂移（api-search 6 处全走单源）。
+- **B7 终版深度扫描**：0 findings · seal
+  `sha256:8b7977d8b0d177a64d5d44c23467f3829a6ab4491c4948bd74ce1faf1a6469bc`
+  （2026-10-30，第八/九/十轮 18 个改动文件焦点；依赖风险 0）。
 | 状态渲染  | showStats 100ms 合并（B9，列表流程 ×N→×1）                                                                                | —                                                                   |
 | 内容装载  | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求）                        | e2e-probe 模块网络加载                                              |
 
