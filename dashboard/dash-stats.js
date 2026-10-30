@@ -170,6 +170,7 @@ async function loadStats() {
 
     // 下载方式 / Download methods
     renderDownloadMethods(response.downloadMethods, response.recentLog); // v14.8 批次 11：recentLog 供按站聚合
+    renderDownloadSitesTop(response.recentLog); // v14.8 批次 11：按站 Top5 渲染
 
     // 游戏列表 / Game table
     cachedGameList = response.gameList || [];
@@ -183,7 +184,8 @@ async function loadStats() {
 }
 
 // 下载方式分布 / Download-method breakdown
-function renderDownloadMethods(methods) {
+// v14.8 批次 11（第九轮 B4）：第二参 recentLog 供按站 Top5 聚合
+function renderDownloadMethods(methods, recentLog) {
   const container = document.getElementById('downloadMethods');
   if (!methods || Object.keys(methods).length === 0) {
     container.innerHTML = '<span class="no-data">暂无下载记录</span>';

@@ -269,6 +269,61 @@
   OPTS.loadBackupsSelect = loadBackupsSelect;
   OPTS.exportData = exportData;
   OPTS.importData = importData;
+  // v14.8 批次 12（第九轮 B5）：过滤预设跨站导出/导入
+  // grFilterPresets:<host> 键集合 → JSON 信封 {v:1, presets:{host: presets[]}}；
+  // 导入按 host 合并（同名覆盖、新站追加），上限沿用面板的 10 条/host。
+  OPTS.exportFilterPresets = async function () {
+    try {
+      const all = await chrome.storage.local.get(null);
+      const presets = {};
+      for (const [k, v] of Object.entries(all)) {
+        if (k.startsWith('grFilterPresets:') && Array.isArray(v)) presets[k.slice('grFilterPresets:'.length)] = v;
+      }
+      const hosts = Object.keys(presets).length;
+      if (hosts === 0) {
+        showDataOpStatus('暂无过滤预设可导出', true);
+        return;
+      }
+      const blob = new Blob([JSON.stringify({ v: 1, presets }, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `game-recommender-filter-presets-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showDataOpStatus(`✅ 已导出 ${hosts} 个站点的过滤预设`);
+    } catch (e) {
+      showDataOpStatus('预设导出失败: ' + String(e), true);
+    }
+  };
+  OPTS.importFilterPresets = async function (e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const parsed = JSON.parse(await file.text());
+      const presets = parsed && parsed.presets;
+      if (!presets || typeof presets !== 'object') {
+        showDataOpStatus('预设文件格式异常（缺 presets 段）', true);
+        return;
+      }
+      const updates = {};
+      let hosts = 0;
+      for (const [host, list] of Object.entries(presets)) {
+        if (!Array.isArray(list) || list.length === 0) continue;
+        updates['grFilterPresets:' + host] = list.slice(0, 10);
+        hosts += 1;
+      }
+      if (hosts === 0) {
+        showDataOpStatus('预设文件无有效数据', true);
+        return;
+      }
+      await chrome.storage.local.set(updates);
+      showDataOpStatus(`✅ 已导入 ${hosts} 个站点的过滤预设（刷新对应下载站页面生效）`);
+    } catch (err) {
+      showDataOpStatus('预设导入失败: ' + String(err), true);
+    }
+  };
   OPTS.createDataBackup = createDataBackup;
   OPTS.restoreDataBackup = restoreDataBackup;
   OPTS.clearData = clearData;
@@ -283,6 +338,12 @@
   // 按钮与各自实现在同域集中；收集与保存仍在 options.js saveSettings。
   function bindDataManageEvents() {
     document.getElementById('exportData').addEventListener('click', OPTS.exportData);
+    // v14.8 批次 12（第九轮 B5）：过滤预设跨站导出/导入绑定
+    document.getElementById('exportPresets').addEventListener('click', OPTS.exportFilterPresets);
+    document.getElementById('importPresets').addEventListener('click', () => {
+      document.getElementById('importPresetsFile').click();
+    });
+    document.getElementById('importPresetsFile').addEventListener('change', OPTS.importFilterPresets);
     document.getElementById('importData').addEventListener('click', () => {
       document.getElementById('importFile').click();
     });
