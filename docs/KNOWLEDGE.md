@@ -253,6 +253,18 @@ Interpolations 白名单 72 项维持（含模板受控插值，逐一复核成�
 **维护模式（2026-10-30 起，第十轮 B10）**：十轮路线图周期收官——转"用户
 反馈驱动 + 触发线驱动"节奏（P1/P2 反馈热修；新数据源/新站按需小轮；发版
 按大版本/5 小版本/3000 行触发线）。新功能需求另立路线图轮次。
+
+**第十轮审计决策（2026-10-30）**：
+- **B1 测试预算**：GR_SIM_SIGNAL_TIMEOUT_MS 默认维持 20000（隔离跑 1.7s
+  vs 预算 20s=12 倍裕度）；重负载机用 env 提额 60000（实战多轮有效）。
+  --no-file-parallelism 实测无效（第八轮已回退）。
+- **B2 覆盖率盲区**：COVERAGE_EXEMPT 胶水豁免清单维持（classic DOM 绑定
+  文件 0% 覆盖是结构性的）；handlers.js 伪影维持记档。
+- **B5 TOP 文件**：api-search.js 602 行越线（>500）——**豁免记档**：匹配
+  管线高内聚（v14.3.0 拆分先例会切断 search/variant/light 的共享闭包），
+  golden+错题库锚定其行为；其余 TOP ≤497 全部达标。
+- **B6 单源终审**：service-worker.js 右键菜单 store 搜索 URL 为 UI 深链
+  非 API 端点——记档保留；ENDPOINTS 消费无漂移（api-search 6 处全走单源）。
 | 状态渲染  | showStats 100ms 合并（B9，列表流程 ×N→×1）                                                                                | —                                                                   |
 | 内容装载  | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求）                        | e2e-probe 模块网络加载                                              |
 
