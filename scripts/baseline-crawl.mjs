@@ -22,17 +22,22 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const SITES = [
   {
     key: 'xianyudanji',
-    firstPage: 'https://www.xianyudanji.gg/',
+    firstPage: 'https://www.xianyudanji.gg/pcdj', // v14.8 批次 16：游戏列表页第一页（用户指定基准）
     detail: /^\/\d+\.html$/,
     base: 'https://www.xianyudanji.gg'
   },
   {
     key: 'xdgame',
-    firstPage: 'https://www.xdgame.com/',
+    firstPage: 'https://www.xdgame.com/list/1/',
     detail: /^\/game\/\d+\.html$/,
     base: 'https://www.xdgame.com'
   },
-  { key: 'gamer520', firstPage: 'https://www.gamer520.com/', detail: /^\/\d+\.html$/, base: 'https://www.gamer520.com' }
+  {
+    key: 'gamer520',
+    firstPage: 'https://www.gamer520.com/pcplay',
+    detail: /^\/\d+\.html$/,
+    base: 'https://www.gamer520.com'
+  }
 ];
 
 /** HTML 实体解码（对齐 DOM textContent 语义——站点标题含 &#039; 等） */
