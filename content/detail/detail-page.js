@@ -85,7 +85,7 @@ export function detectGameName() {
     }
 
     // 策略3：清理后为空，回退到 textContent 中提取英文子串
-    const enMatch = h1Clone.textContent.match(/[A-Za-z][A-Za-z0-9\s'':&.!\-×x]{5,}/);
+    const enMatch = h1Clone.textContent.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9\s'':&.!\-×x]{5,}/);
     if (enMatch && enMatch[0].length > 3 && enMatch[0].length < 200) return enMatch[0].trim();
   }
   // 从 title 获取

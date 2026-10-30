@@ -242,8 +242,8 @@ flushAllCaches（storage/flush.js 聚合落盘）：
 | SW 冷启动 | 静态图 77 文件 / ~11.5k 行（MV3 SW 禁动态 import，无懒加载手段）                                                          | Perf 日志 `SW 模块图就绪 Xms`（timeOrigin→入口顶层 ≈ 消息可用时刻） |
 | OPFS 写   | 计数器模式（metricInc + session-persist 防抖）+ 5 模块 2s 防抖合并                                                        | dashboard 运行指标卡（opfs.writeCount/writeBytes）                  |
 | 消息管道  | TRACK_EVENT_BATCH（500ms/10 条，10→1）+ GET_STEAM_RATINGS 批量（settings.ratingsBatchSize，B9 接线）+ click_download 即时 | metrics 消息计数器                                                  |
-| 批量全链  | **v14.8 bench 基线**：60 游戏 50% 预缓存 = 首波 3ms / 批次完成 ~2.9s / storesearch 0 次（名称索引+目录覆盖）      | `npm run bench`（scripts/perf-bench.mjs，三段计时）                |
-| 目录匹配  | 会话累计 hit/变体/未中 三计数（空格变体命中率=校准依据）                                                              | dashboard 诊断卡 `目录匹配`（appListIndex.* 计数器）                |
+| 批量全链  | **v14.8 bench 基线**：60 游戏 50% 预缓存 = 首波 3ms / 批次完成 ~2.9s / storesearch 0 次（名称索引+目录覆盖）              | `npm run bench`（scripts/perf-bench.mjs，三段计时）                 |
+| 目录匹配  | 会话累计 hit/变体/未中 三计数（空格变体命中率=校准依据）                                                                  | dashboard 诊断卡 `目录匹配`（appListIndex.* 计数器）                |
 
 **类型债棘轮复检（2026-10-30，第十轮 B3 决策）**：基线 510/251/272 → 实测
 504/249/267（第七/八轮清偿后低于基线）——**维持原基线不下调**：留 6/2/5 的
@@ -255,6 +255,7 @@ Interpolations 白名单 72 项维持（含模板受控插值，逐一复核成�
 按大版本/5 小版本/3000 行触发线）。新功能需求另立路线图轮次。
 
 **第十轮审计决策（2026-10-30）**：
+
 - **B1 测试预算**：GR_SIM_SIGNAL_TIMEOUT_MS 默认维持 20000（隔离跑 1.7s
   vs 预算 20s=12 倍裕度）；重负载机用 env 提额 60000（实战多轮有效）。
   --no-file-parallelism 实测无效（第八轮已回退）。
@@ -268,8 +269,8 @@ Interpolations 白名单 72 项维持（含模板受控插值，逐一复核成�
 - **B7 终版深度扫描**：0 findings · seal
   `sha256:8b7977d8b0d177a64d5d44c23467f3829a6ab4491c4948bd74ce1faf1a6469bc`
   （2026-10-30，第八/九/十轮 18 个改动文件焦点；依赖风险 0）。
-| 状态渲染  | showStats 100ms 合并（B9，列表流程 ×N→×1）                                                                                | —                                                                   |
-| 内容装载  | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求）                        | e2e-probe 模块网络加载                                              |
+  | 状态渲染 | showStats 100ms 合并（B9，列表流程 ×N→×1） | — |
+  | 内容装载 | 12 核心 + 2 可选（setting 键门控）+ 详情页专属 sidebar-rows/inline-card 按需（B3，列表页 -2 请求） | e2e-probe 模块网络加载 |
 
 **JS 特性基线（minimum_chrome_version 109 决定白名单，v14.5.1 审计）**：
 ✓ 可用——`structuredClone`(98)/`Object.hasOwn`(93)/`Array.prototype.at`(92)/

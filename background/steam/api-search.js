@@ -350,7 +350,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
   // 混合标题（含 EN 段）：CJK 候选的早期退出需候选名覆盖 ≥2 个标题 EN 词
   // ——否则泛化 EN 词覆盖（Dead Space 2 的 dead+space=6）会压过 CJK 精准
   // 匹配（"死亡空间：重制版" 7 分）。纯 CJK 标题的 CJK 命中仍是决定性的。
-  const enSegment = (String(rawName).match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
+  const enSegment = (String(rawName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 &:.'\-]{5,}/) || [''])[0].trim();
   const mixedTitle = enSegment.length > 0;
   const enWords = mixedTitle ? coreTokensOf(enSegment).filter((w) => /^[a-z]/.test(w)) : [];
   const hasEnCoverage = (name) => enWords.filter((w) => coreTokensOf(name).includes(w)).length >= 2;

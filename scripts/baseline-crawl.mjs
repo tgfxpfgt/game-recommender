@@ -17,6 +17,14 @@ import { parseGameTitle } from '../background/core/title-parser.js';
 const UA =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36';
 const PER_SITE = Number(process.argv.find((a) => a.startsWith('--per-site='))?.split('=')[1]) || 10;
+// v14.8 批次 17：单页覆盖（--url/--site/--out——排查指定列表页用）
+const argUrl = process.argv
+  .find((a) => a.startsWith('--url='))
+  ?.split('=')
+  .slice(1)
+  .join('=');
+const argSite = process.argv.find((a) => a.startsWith('--site='))?.split('=')[1];
+const argOut = process.argv.find((a) => a.startsWith('--out='))?.split('=')[1];
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 const SITES = [
@@ -117,7 +125,11 @@ async function recordStoresearch(terms) {
 
 // ============ 主流程 ============
 const samples = [];
-for (const site of SITES) {
+// v14.8 批次 17：单页覆盖模式（--url 指定列表页；--out 指定输出 fixture）
+const siteList = argUrl
+  ? SITES.filter((s) => s.key === (argSite || 'xdgame')).map((s) => ({ ...s, firstPage: argUrl }))
+  : SITES;
+for (const site of siteList) {
   console.log(`\n===== ${site.key}：抓取首页 ${site.firstPage}`);
   let html = '';
   try {
@@ -161,7 +173,7 @@ for (const site of SITES) {
     console.log(`  [${site.key}] "${item.title.slice(0, 44)}" → appid ${ground}（${terms.length} 词）`);
     const recorded = await recordStoresearch(terms);
     // 英文重搜录制（管线阶段 2 交叉验证会发 l=english 请求——不录则回放失真）
-    const enSegment = (item.title.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
+    const enSegment = (item.title.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 &:.'\-]{5,}/) || [''])[0].trim();
     if (enSegment) {
       try {
         const resp = await fetch(
@@ -202,6 +214,8 @@ for (const site of SITES) {
 }
 
 mkdirSync(new URL('../tests/fixtures/', import.meta.url), { recursive: true });
-const out = new URL('../tests/fixtures/baseline-firstpage.json', import.meta.url);
+const out = argOut
+  ? new URL(`../tests/fixtures/${argOut}.json`, import.meta.url)
+  : new URL('../tests/fixtures/baseline-firstpage.json', import.meta.url);
 writeFileSync(out, JSON.stringify({ v: 1, generatedAt: new Date().toISOString(), samples }, null, 2));
 console.log(`\n✅ 基准写入 ${out.pathname.slice(1)}：${samples.length} 条样本`);

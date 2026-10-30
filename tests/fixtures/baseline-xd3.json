@@ -1,0 +1,2099 @@
+{
+  "v": 1,
+  "generatedAt": "2026-10-30T17:21:11.448Z",
+  "samples": [
+    {
+      "id": "xdgame-770810-0",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/2754.html",
+      "rawTitle": "可口的披萨，美味的披萨/Good Pizza, Great Pizza",
+      "expectedAppId": "770810",
+      "expectedName": "",
+      "note": "同系列 DLC 家族命中（DLC CN 名与站方拼写一致压过正主）——真机经 resolveDlcToBase 自愈；根修=跨词共识评分（批次 15 级）",
+      "recorded": {
+        "可口的披萨，美味的披萨/Good Pizza, Great Pizza": {
+          "total": 0,
+          "items": []
+        },
+        "Great Pizza": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "可口的比萨，美味的比萨 - 治愈系料理模拟",
+              "id": 770810,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 4200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/770810/capsule_231x87_schinese.jpg?t=1793216500",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Battlesloths 2025: The Great Pizza Wars",
+              "id": 459350,
+              "price": {
+                "currency": "CNY",
+                "initial": 3700,
+                "final": 3700
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/459350/capsule_231x87.jpg?t=1565368316",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Festive Set - Winter 2020",
+              "id": 1499790,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1499790/capsule_231x87.jpg?t=1704248751",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Winter Holidays Set - Winter 2021",
+              "id": 1863040,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1863040/capsule_231x87.jpg?t=1702606926",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2021 Set",
+              "id": 2177932,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177932/capsule_231x87.jpg?t=1704249780",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2020 Set",
+              "id": 2177931,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177931/capsule_231x87.jpg?t=1669102932",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Autumn 2021 Set",
+              "id": 2206780,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2206780/capsule_231x87.jpg?t=1669237326",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2019 Set",
+              "id": 2177930,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177930/capsule_231x87.jpg?t=1704249706",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2022 Premium Set",
+              "id": 2177933,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177933/capsule_231x87.jpg?t=1704248864",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2021 Garden Set",
+              "id": 2177980,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177980/capsule_231x87.jpg?t=1704249735",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Good Pizza": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Cozy Cooking Simulator",
+              "id": 770810,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 4200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/770810/capsule_231x87.jpg?t=1793216500",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Festive Set - Winter 2020",
+              "id": 1499790,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1499790/capsule_231x87.jpg?t=1704248751",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Winter Holidays Set - Winter 2021",
+              "id": 1863040,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1863040/capsule_231x87.jpg?t=1702606926",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2021 Set",
+              "id": 2177932,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177932/capsule_231x87.jpg?t=1704249780",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2020 Set",
+              "id": 2177931,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177931/capsule_231x87.jpg?t=1669102932",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Autumn 2021 Set",
+              "id": 2206780,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2206780/capsule_231x87.jpg?t=1669237326",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2019 Set",
+              "id": 2177930,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177930/capsule_231x87.jpg?t=1704249706",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2022 Premium Set",
+              "id": 2177933,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177933/capsule_231x87.jpg?t=1704248864",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Halloween 2021 Garden Set",
+              "id": 2177980,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2177980/capsule_231x87.jpg?t=1704249735",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good Pizza, Great Pizza - Autumn 2022 Special Discount!",
+              "id": 2206783,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2206783/capsule_231x87.jpg?t=1669237225",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "可口的披萨": {
+          "total": 8,
+          "items": [
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨 - 赛博披萨店套装",
+              "id": 2206770,
+              "price": {
+                "currency": "CNY",
+                "initial": 3500,
+                "final": 3500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2206770/capsule_231x87.jpg?t=1673032677",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-快乐助手-2022冬季优品",
+              "id": 2243635,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243635/capsule_231x87_schinese.jpg?t=1671613621",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨，美味的披萨 - 森林之友套装 - 地球日2021",
+              "id": 2392190,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2392190/capsule_231x87_schinese.jpg?t=1704249328",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-北极花园-2021菜园装饰 ",
+              "id": 2243634,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243634/capsule_231x87_schinese.jpg?t=1671613657",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨 - 金雪套装--2019冬季商店（白色）",
+              "id": 2243631,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243631/capsule_231x87_schinese.jpg?t=1671612948",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-平安喜乐套装-2021冬季商店",
+              "id": 2243633,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243633/capsule_231x87_schinese.jpg?t=1671612990",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-鲁道夫套装-2019冬季商店（红色）",
+              "id": 2243630,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243630/capsule_231x87_schinese.jpg?t=1671612828",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-精灵配料皮肤-2022冬季配料皮肤",
+              "id": 2243636,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243636/capsule_231x87_schinese.jpg?t=1671612777",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "美味的披萨": {
+          "total": 8,
+          "items": [
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨 - 赛博披萨店套装",
+              "id": 2206770,
+              "price": {
+                "currency": "CNY",
+                "initial": 3500,
+                "final": 3500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2206770/capsule_231x87.jpg?t=1673032677",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-快乐助手-2022冬季优品",
+              "id": 2243635,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243635/capsule_231x87_schinese.jpg?t=1671613621",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨，美味的披萨 - 森林之友套装 - 地球日2021",
+              "id": 2392190,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2392190/capsule_231x87_schinese.jpg?t=1704249328",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-北极花园-2021菜园装饰 ",
+              "id": 2243634,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243634/capsule_231x87_schinese.jpg?t=1671613657",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨 - 金雪套装--2019冬季商店（白色）",
+              "id": 2243631,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243631/capsule_231x87_schinese.jpg?t=1671612948",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-平安喜乐套装-2021冬季商店",
+              "id": 2243633,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243633/capsule_231x87_schinese.jpg?t=1671612990",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-鲁道夫套装-2019冬季商店（红色）",
+              "id": 2243630,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243630/capsule_231x87_schinese.jpg?t=1671612828",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "可口的披萨美味的披萨-精灵配料皮肤-2022冬季配料皮肤",
+              "id": 2243636,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2243636/capsule_231x87_schinese.jpg?t=1671612777",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      },
+      "skipVerify": true
+    },
+    {
+      "id": "xdgame-2482760-1",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17067.html",
+      "rawTitle": "狩猎模拟3/Hunting Simulator 3",
+      "expectedAppId": "2482760",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "狩猎模拟3/Hunting Simulator 3": {
+          "total": 0,
+          "items": []
+        },
+        "Hunting Simulator 3": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "Hunting Simulator 3",
+              "id": 2482760,
+              "price": {
+                "currency": "CNY",
+                "initial": 13700,
+                "final": 10960
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2482760/78e536b2d4459769aba45197fb53189ad042b573/capsule_231x87_alt_assets_1.jpg?t=1793285056",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 3 - Apex Predator Pack",
+              "id": 4693970,
+              "price": {
+                "currency": "CNY",
+                "initial": 5900,
+                "final": 5900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4693970/7d4c38de8369478db6fe3359ad97fd44b0a0124e/capsule_231x87.jpg?t=1793264424",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 3 - Classic American Hunter Pack",
+              "id": 4693960,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4693960/9e3e8660dd02d739eaa1a36cfd398853b802f7f8/capsule_231x87.jpg?t=1793269525",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "狩猎模拟3": {
+          "total": 0,
+          "items": []
+        },
+        "Hunting Simulator": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Hunting Simulator 3",
+              "id": 2482760,
+              "price": {
+                "currency": "CNY",
+                "initial": 13700,
+                "final": 10960
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2482760/78e536b2d4459769aba45197fb53189ad042b573/capsule_231x87_alt_assets_1.jpg?t=1793285056",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 2",
+              "id": 1135910,
+              "price": {
+                "currency": "CNY",
+                "initial": 7700,
+                "final": 7700
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1135910/capsule_231x87.jpg?t=1778174003",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 3 - Apex Predator Pack",
+              "id": 4693970,
+              "price": {
+                "currency": "CNY",
+                "initial": 5900,
+                "final": 5900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4693970/7d4c38de8369478db6fe3359ad97fd44b0a0124e/capsule_231x87.jpg?t=1793264424",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 2 Bear Hunter Pack",
+              "id": 1255260,
+              "price": {
+                "currency": "CNY",
+                "initial": 9000,
+                "final": 9000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1255260/capsule_231x87.jpg?t=1732875376",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "BULT: Hunting simulator",
+              "id": 3929200,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 4200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3929200/7a392cda6ce1ec7d3924e91e0f76b6de2d4a9418/capsule_231x87.jpg?t=1792140305",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 2: A Ranger's Life",
+              "id": 1491100,
+              "price": {
+                "currency": "CNY",
+                "initial": 10300,
+                "final": 10300
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1491100/capsule_231x87.jpg?t=1732875380",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 2 Beretta Weapon Pack",
+              "id": 1255270,
+              "price": {
+                "currency": "CNY",
+                "initial": 3700,
+                "final": 3700
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1255270/capsule_231x87.jpg?t=1732875379",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 3 - Classic American Hunter Pack",
+              "id": 4693960,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4693960/9e3e8660dd02d739eaa1a36cfd398853b802f7f8/capsule_231x87.jpg?t=1793269525",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "ANONYMOUS HUNTING SIMULATOR",
+              "id": 2665170,
+              "price": {
+                "currency": "CNY",
+                "initial": 600,
+                "final": 600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2665170/capsule_231x87.jpg?t=1717282735",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hunting Simulator 2 Beretta Model 486 by Marc Newson",
+              "id": 1255250,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1255250/capsule_231x87.jpg?t=1732875373",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-4753760-2",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17066.html",
+      "rawTitle": "你嫂子/Your Fiancée",
+      "expectedAppId": "4753760",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "你嫂子/Your Fiancée": {
+          "total": 0,
+          "items": []
+        },
+        "Your Fiancée": {
+          "total": 4,
+          "items": [
+            {
+              "type": "app",
+              "name": "Your Fiancée",
+              "id": 4753760,
+              "price": {
+                "currency": "CNY",
+                "initial": 1100,
+                "final": 1100
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4753760/5c548ab6299f9928b316c15d04ac6555e5213591/capsule_231x87.jpg?t=1792040039",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Your Fiancée Soundtrack",
+              "id": 4996750,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4996750/8ca235d312e12769e5865e9977964c99057177b1/capsule_231x87.jpg?t=1790699768",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Your Fiancée – AI Companion Expansion DLC",
+              "id": 5419890,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5419890/ff59711b1feef089a5f3c7fbb99c82bd6a7ea7ce/capsule_231x87.jpg?t=1791988405",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Your Fiancée - Mystery‌ DLC",
+              "id": 4996410,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4996410/dcecb6ac54a5f2d0ccd6a5873aaf7ac1ac5a176e/capsule_231x87.jpg?t=1790699769",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "你嫂子": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "你嫂子",
+              "id": 4753760,
+              "price": {
+                "currency": "CNY",
+                "initial": 1100,
+                "final": 1100
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4753760/5c548ab6299f9928b316c15d04ac6555e5213591/capsule_231x87.jpg?t=1792040039",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "《你嫂子》原声音轨",
+              "id": 4996750,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4996750/8ca235d312e12769e5865e9977964c99057177b1/capsule_231x87.jpg?t=1790699768",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "你嫂子-AI伴侣扩展包",
+              "id": 5419890,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5419890/ff59711b1feef089a5f3c7fbb99c82bd6a7ea7ce/capsule_231x87.jpg?t=1791988405",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-5335510-3",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/16916.html",
+      "rawTitle": "月球清洁工/Moon Sweepers",
+      "expectedAppId": "5335510",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "月球清洁工/Moon Sweepers": {
+          "total": 0,
+          "items": []
+        },
+        "Moon Sweepers": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "Moon Sweepers",
+              "id": 5335510,
+              "price": {
+                "currency": "CNY",
+                "initial": 3600,
+                "final": 3600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5335510/86fae70046ddca14dc1d44312c5eeb310081eb81/capsule_231x87.jpg?t=1792950881",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "月球清洁工": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-4098480-4",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17065.html",
+      "rawTitle": "末日快递/ConEX",
+      "expectedAppId": "4098480",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "末日快递/ConEX": {
+          "total": 0,
+          "items": []
+        },
+        "ConEX": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "ConEX",
+              "id": 4098480,
+              "price": {
+                "currency": "CNY",
+                "initial": 3000,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4098480/d721e5daefb3d547ac47bb3796c7ceabbab972b3/capsule_231x87.jpg?t=1793195384",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Odu：祖灵之联结",
+              "id": 3733610,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3733610/78a389e095720d5a41f7bd08e0b5f9e7ab7a449a/capsule_231x87.jpg?t=1792224240",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "末日快递": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-3447280-5",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17063.html",
+      "rawTitle": "奇幻世界管理器/Fantasy World Manager",
+      "expectedAppId": "3447280",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "奇幻世界管理器/Fantasy World Manager": {
+          "total": 0,
+          "items": []
+        },
+        "Fantasy World Manager": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "Fantasy World Manager",
+              "id": 3447280,
+              "price": {
+                "currency": "CNY",
+                "initial": 5900,
+                "final": 5310
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3447280/1b099b21185c4f04402c9ff55588ae8b0fab423d/capsule_231x87.jpg?t=1793216402",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "奇幻世界管理器": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-940230-6",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17062.html",
+      "rawTitle": "全球地缘政治模拟/Geoplanetical",
+      "expectedAppId": "940230",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "全球地缘政治模拟/Geoplanetical": {
+          "total": 0,
+          "items": []
+        },
+        "Geoplanetical": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "Geoplanetical",
+              "id": 940230,
+              "price": {
+                "currency": "CNY",
+                "initial": 13800,
+                "final": 12420
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/940230/6e3956627688798bce9bc42d06a2fc882eafc647/capsule_231x87.jpg?t=1793350485",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "全球地缘政治模拟": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-3705900-7",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17061.html",
+      "rawTitle": "总统模拟器/President Simulator",
+      "expectedAppId": "3705900",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "总统模拟器/President Simulator": {
+          "total": 0,
+          "items": []
+        },
+        "President Simulator": {
+          "total": 6,
+          "items": [
+            {
+              "type": "app",
+              "name": "President Simulator",
+              "id": 3705900,
+              "price": {
+                "currency": "CNY",
+                "initial": 4500,
+                "final": 3825
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3705900/a033f29b32d8d1976099fd3f9cb2c7e95c972b90/capsule_231x87.jpg?t=1793227051",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "MA 3 – President Simulator",
+              "id": 4896760,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4896760/e11cbb1fe44d82f246200ad9ff1a60f24b012701/capsule_231x87.jpg?t=1790826446",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "MA 2 – President Simulator",
+              "id": 4109480,
+              "price": {
+                "currency": "CNY",
+                "initial": 1999,
+                "final": 1999
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4109480/faed1ff386921bb63648875708aa731a6a5a44ee/capsule_231x87.jpg?t=1789714590",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Good President Simulator",
+              "id": 5354450,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5354450/856a2b041b56fbcf27a129855711b20088c52846/capsule_231x87.jpg?t=1792680687",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Good President Simulator Demo",
+              "id": 5491670,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5491670/fa4fa28976bc3d5183f68f63db37954914d4bb81/capsule_231x87.jpg?t=1792999613",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Presidential Dating Simulator",
+              "id": 1083490,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1083490/capsule_231x87.jpg?t=1730345997",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "总统模拟器": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-1167820-8",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17060.html",
+      "rawTitle": "机场安检：包过一下/Airport Contraband",
+      "expectedAppId": "1167820",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "机场安检": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "机场安检：包过一下",
+              "id": 1167820,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 6840
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1167820/2f664fa94cd9926b9bf6edb7fb375d1f18503b77/capsule_231x87_alt_assets_40.jpg?t=1793271576",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "机场安检模拟器",
+              "id": 3894850,
+              "price": {
+                "currency": "CNY",
+                "initial": 3200,
+                "final": 2080
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3894850/169ba8ce3da837bf188032c29716076487fcca03/capsule_231x87_schinese.jpg?t=1791447428",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Airport Contraband": {
+          "total": 6,
+          "items": [
+            {
+              "type": "app",
+              "name": "Airport Contraband",
+              "id": 1167820,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 6840
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1167820/2f664fa94cd9926b9bf6edb7fb375d1f18503b77/capsule_231x87_alt_assets_40.jpg?t=1793271576",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Airport Contraband: Prologue",
+              "id": 3199880,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3199880/ac0a0db0992915b76d56a58207a72071d688334b/capsule_231x87.jpg?t=1791992571",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Airport Contraband Demo",
+              "id": 4442880,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4442880/9954aa9d3c659ed18fa957a59767e53b039fabf7/capsule_231x87.jpg?t=1787844499",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Airport Contraband Police",
+              "id": 2604820,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2604820/capsule_231x87.jpg?t=1714133133",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Airport Police Contraband Simulator - Border Patrol",
+              "id": 4413470,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4413470/76f771030e4de0bdb2c983e61e59e9e2393bd35f/capsule_231x87.jpg?t=1784883841",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Airport Police Contraband Simulator - Border Patrol Demo",
+              "id": 4779690,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4779690/2aea55664cd20faf48ee32be9a65488cc7b5587b/capsule_231x87.jpg?t=1786546553",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "包过一下/Airport Contraband": {
+          "total": 0,
+          "items": []
+        },
+        "包过一下": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "机场安检：包过一下",
+              "id": 1167820,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 6840
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1167820/2f664fa94cd9926b9bf6edb7fb375d1f18503b77/capsule_231x87_alt_assets_40.jpg?t=1793271576",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-3219030-9",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17057.html",
+      "rawTitle": "动物园之星2-虚拟机版/Planet Zoo 2 HYPERVISOR",
+      "expectedAppId": "3219030",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "动物园之星2-虚拟机 /Planet Zoo 2 HYPERVISOR": {
+          "total": 0,
+          "items": []
+        },
+        "Planet Zoo 2 HYPERVISOR": {
+          "total": 0,
+          "items": []
+        },
+        "动物园之星2": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "《动物园之星 2》",
+              "id": 3219030,
+              "price": {
+                "currency": "CNY",
+                "initial": 20000,
+                "final": 20000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3219030/0930ff3701b5ff1cd8a1b88ebf497f9517f7b0bd/capsule_231x87_schinese.jpg?t=1793011606",
+              "metascore": "84",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《动物园之星 2》奖励内容包",
+              "id": 4515770,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4515770/325c858ad6177a1381d47b18c87b96923d2be2e9/capsule_231x87_schinese.jpg?t=1791900145",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《动物园之星 2》豪华版升级包",
+              "id": 4515760,
+              "price": {
+                "currency": "CNY",
+                "initial": 7800,
+                "final": 7800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4515760/bb0767cac9c9722b64e6e62c774b2855f98110a1/capsule_231x87_schinese.jpg?t=1791978911",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "虚拟机": {
+          "total": 0,
+          "items": []
+        },
+        "Planet Zoo HYPERVISOR": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-4078430-10",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17056.html",
+      "rawTitle": "星球大战：银河赛车手-虚拟机版/STAR WARS: Galactic Racer HYPERVISOR",
+      "expectedAppId": "4078430",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "星球大战": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™",
+              "id": 4078430,
+              "price": {
+                "currency": "CNY",
+                "initial": 22800,
+                "final": 22800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4078430/6522bdb94fb53b9f316809a4cf4522a1197ac2af/capsule_231x87_schinese.jpg?t=1791388584",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星球大战 零号连队™",
+              "id": 2075800,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2075800/56484e8832119b4b37b3fa3a6a5ec23209cd835c/capsule_231x87.jpg?t=1790340688",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "星球大战 绝地：幸存者™",
+              "id": 1774580,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 29800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1774580/capsule_231x87.jpg?t=1788257050",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《星球大战 绝地：陨落的武士团™》",
+              "id": 1172380,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1172380/capsule_231x87.jpg?t=1788256986",
+              "metascore": "81",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星球大战™：战机中队",
+              "id": 1222730,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1222730/capsule_231x87.jpg?t=1781890166",
+              "metascore": "79",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《The Sims™ 4 星球大战™：巴图之旅》扩充包",
+              "id": 1301021,
+              "price": {
+                "currency": "CNY",
+                "initial": 11800,
+                "final": 11800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1301021/capsule_231x87.jpg?t=1758316531",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™ 豪华升级",
+              "id": 4235250,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 7600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4235250/29952dd86473b9ca40c0230204670eae9074504a/capsule_231x87_schinese.jpg?t=1791277227",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《星球大战 绝地：幸存者™》豪华升级版",
+              "id": 2161370,
+              "price": {
+                "currency": "CNY",
+                "initial": 12000,
+                "final": 12000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2161370/capsule_231x87.jpg?t=1682654532",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《星球大战 零号连队™》豪华版升级",
+              "id": 3701350,
+              "price": {
+                "currency": "CNY",
+                "initial": 5000,
+                "final": 5000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3701350/fa3a44a2fdcba718d13f6359eb010fec6ddd2e0d/capsule_231x87.jpg?t=1787842898",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "地产大亨：星球大战™正邪交锋",
+              "id": 3936610,
+              "price": {
+                "currency": "CNY",
+                "initial": 12800,
+                "final": 12800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3936610/8a84eb62783043b2f8d0a5b45370af5cb4a73a24/capsule_231x87.jpg?t=1791561302",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Galactic Racer HYPERVISOR": {
+          "total": 0,
+          "items": []
+        },
+        "STAR WARS": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™",
+              "id": 4078430,
+              "price": {
+                "currency": "CNY",
+                "initial": 22800,
+                "final": 22800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4078430/6522bdb94fb53b9f316809a4cf4522a1197ac2af/capsule_231x87_schinese.jpg?t=1791388584",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星球大战 零号连队™",
+              "id": 2075800,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2075800/56484e8832119b4b37b3fa3a6a5ec23209cd835c/capsule_231x87.jpg?t=1790340688",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "STAR WARS™: The Old Republic™",
+              "id": 1286830,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1286830/capsule_231x87.jpg?t=1791993603",
+              "metascore": "85",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Star Wars Outlaws",
+              "id": 2842040,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 29800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2842040/9e887b6e39c690a305e509e598a125cbc6b2bd1c/capsule_231x87.jpg?t=1773407100",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《STAR WARS™ 前线™ II",
+              "id": 1237950,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1237950/capsule_231x87.jpg?t=1777393714",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "星球大战 绝地：幸存者™",
+              "id": 1774580,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 29800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1774580/capsule_231x87.jpg?t=1788257050",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "LEGO® Star Wars™: The Skywalker Saga",
+              "id": 920210,
+              "price": {
+                "currency": "CNY",
+                "initial": 24800,
+                "final": 24800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/920210/capsule_231x87.jpg?t=1747346983",
+              "metascore": "78",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《星球大战 绝地：陨落的武士团™》",
+              "id": 1172380,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1172380/capsule_231x87.jpg?t=1788256986",
+              "metascore": "81",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "LEGO® Star Wars™ - The Complete Saga",
+              "id": 32440,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 7600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/32440/capsule_231x87.jpg?t=1604517910",
+              "metascore": "77",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "STAR WARS™ Empire at War - Gold Pack",
+              "id": 32470,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 7600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/32470/capsule_231x87.jpg?t=1741729002",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "银河赛车手-虚拟机 /STAR WARS": {
+          "total": 0,
+          "items": []
+        },
+        "银河赛车手": {
+          "total": 4,
+          "items": [
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™",
+              "id": 4078430,
+              "price": {
+                "currency": "CNY",
+                "initial": 22800,
+                "final": 22800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4078430/6522bdb94fb53b9f316809a4cf4522a1197ac2af/capsule_231x87_schinese.jpg?t=1791388584",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™ 豪华升级",
+              "id": 4235250,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 7600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4235250/29952dd86473b9ca40c0230204670eae9074504a/capsule_231x87_schinese.jpg?t=1791277227",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™ 预购奖励",
+              "id": 4554450,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4554450/54d10f243c05064c7a6bfae323eb206a63acce21/capsule_231x87_schinese.jpg?t=1777559656",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星球大战：银河赛车手™ 数字艺术画册",
+              "id": 4554460,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4554460/0641cb8612e98624a3bb187b925e65f243e64343/capsule_231x87_schinese.jpg?t=1777571962",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "STAR WARS: Galactic Racer HYPERVISOR": {
+          "total": 0,
+          "items": []
+        }
+      },
+      "skipVerify": true
+    }
+  ]
+}

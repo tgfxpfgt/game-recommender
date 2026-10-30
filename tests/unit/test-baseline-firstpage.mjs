@@ -20,11 +20,21 @@ globalThis.window = globalThis.window || {};
 globalThis.location = globalThis.location || { href: 'http://test/', search: '', origin: 'http://test' };
 globalThis.chrome = globalThis.chrome || { runtime: { getManifest: () => ({ version: '0-test' }) } };
 
-const BASELINE_PATH = new URL('../fixtures/baseline-firstpage.json', import.meta.url);
-const baseline = JSON.parse(readFileSync(BASELINE_PATH, 'utf-8'));
+// 双基准：三站列表页第一页 + 用户指认的问题页（xdgame list_3——老游戏横截面）
+const baseline = ['baseline-firstpage.json', 'baseline-xd3.json'].flatMap((f) => {
+  try {
+    return JSON.parse(readFileSync(new URL(`../fixtures/${f}`, import.meta.url), 'utf-8')).samples;
+  } catch {
+    return [];
+  }
+});
 
 const { parseGameTitle } = await import('../../background/core/title-parser.js');
 const api = await import('../../background/steam/api-search.js');
+// v14.8 批次 17：熔断器隔离——api-monitor 模块单例跨测试文件持续生效，
+// 前序文件的失败累积会触发熔断使本套件全部短路返回 null（间歇性全 null
+// 的根因）。每用例前重置。
+const monitor = await import('../../background/core/api-monitor.js');
 
 function installReplay(sample) {
   const recorded = sample.recorded || {};
@@ -42,9 +52,10 @@ function installReplay(sample) {
 describe('三站第一页基准回放（批次 14）', () => {
   beforeEach(() => {
     storage._reset();
+    monitor.resetDomainStatus(); // 熔断/分域状态隔离（防前序文件失败连坐）
   });
 
-  for (const sample of baseline.samples) {
+  for (const sample of baseline) {
     if (sample.skipVerify) continue; // 搜索路径不可判定的样本（元素直取可达）
     test(`基准 ${sample.id} → ${sample.expectedAppId}`, async () => {
       const restore = installReplay(sample);
@@ -57,6 +68,20 @@ describe('三站第一页基准回放（批次 14）', () => {
           return;
         }
         const r = await api.searchSteamAppId(terms, sample.rawTitle, null);
+        if (process.env.GR_DEBUG_SEARCH) {
+          console.error(
+            '[DBG-T] ' +
+              sample.id +
+              ' terms=' +
+              JSON.stringify(terms) +
+              ' r=' +
+              JSON.stringify(r) +
+              ' circuit=' +
+              monitor.isCircuitOpen('store') +
+              ' state=' +
+              monitor.circuitState('store')
+          );
+        }
         expect(r, `${sample.id} 未命中（应为 ${sample.expectedAppId}）`).not.toEqual(null);
         expect(String(r.appId), `${sample.id} 错配`).toEqual(String(sample.expectedAppId));
       } finally {

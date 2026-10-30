@@ -131,7 +131,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
         searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
         // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
         if (!searchResult && options.rawTitle) {
-          const enSeg = (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
+          const enSeg = (options.rawTitle.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 ®™©:&.'\-]{5,}/) || [''])[0].trim();
           if (enSeg) {
             searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
             // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）——

@@ -90,7 +90,8 @@ export function parseGameTitle(rawName) {
 
     // 2) 英文子串作为补充候选（v3.3.8：去除尾随冒号等标点——贪婪匹配会把
     //    "Windrose: 风启之旅" 抽出 "Windrose:"，下载站搜不到）
-    const en = part.match(/[A-Za-z][A-Za-z0-9\s':&.!\-]+[A-Za-z0-9'.!]?/g);
+    // v14.8 批次 17：含拉丁扩展区（é/ñ/ü）——Bon Appétit 型标题不再截断
+    const en = part.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9\s':&.!\-]+[A-Za-zÀ-ɏ0-9'.!]?/g);
     if (en)
       en.forEach((m) => {
         const cleanedEn = m

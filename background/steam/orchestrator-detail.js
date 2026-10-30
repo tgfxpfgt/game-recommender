@@ -132,7 +132,7 @@ export async function searchSteamGame(gameName, options = {}) {
     //   单调改进护栏：仅当英文结果覆盖严格更优才替换。
     // 阶段 3：中文全空 → raw 标题英文段兜底。
     const enSegment = options.rawTitle
-      ? (options.rawTitle.match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim()
+      ? (options.rawTitle.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 ®™©:&.'\-]{5,}/) || [''])[0].trim()
       : '';
     // 版本级噪声词（命中名缺版本后缀属正常，不计入覆盖判据）——
     // v14.6.3 R1：单源 = shared/retrieval-vocab.js 编译产物
