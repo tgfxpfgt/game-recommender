@@ -182,6 +182,62 @@ export async function fetchReviewSummary(appId) {
       recordDomainCall('store', false); // v14.0.0：网络失败计入 store 域熔断
     }
   }
+  // v14.8 批次 18：appreviews 端点 302（Steam 侧变更——全参数形态 302 商店
+  // 首页，json=1 失效）→ **商店页 HTML 回退解析**：user_reviews_summary_row
+  // 三行（全部评测/最近评测/您语言）+ game_review_summary 描述文本，返回与
+  // 上方同构的数据（评价文本不可得 → reviews 空数组，UI 按无文本降级）。
+  // Store-page HTML fallback: the appreviews endpoint now redirects (Steam
+  // change); parse the summary rows from the store page instead.
+  try {
+    const pageResp = await fetchWithTimeout(`https://store.steampowered.com/app/${appId}/?l=schinese&cc=cn`);
+    if (pageResp.ok) {
+      const html = await pageResp.text();
+      const tips = [...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"/g)].map((m) =>
+        m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>')
+      );
+      const parseTip = (tip) => {
+        const count = Number(((tip.match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
+        const pct = Number((tip.match(/有\s*(\d+)%\s*为好评/) || [])[1]);
+        return {
+          count: Number.isFinite(count) ? count : null,
+          pct: Number.isFinite(pct) ? pct : null,
+          isRecent: tip.includes('过去 30 天'),
+          isCn: tip.includes('您语言')
+        };
+      };
+      const parsed = tips.map(parseTip).filter((r) => r.count != null && r.pct != null);
+      const allRow = parsed.find((r) => !r.isRecent && !r.isCn) || parsed[0] || null;
+      const recentRow = parsed.find((r) => r.isRecent) || null;
+      // v14.8 TS18047：解构到局部常量供 TS 收窄（allRow.count 判空后不再宽化）
+      const allCount = allRow && allRow.count != null ? allRow.count : 0;
+      const allPct = allRow && allRow.pct != null ? allRow.pct : 0;
+      if (allRow && allCount > 0) {
+        const positive = Math.round((allCount * allPct) / 100);
+        const recentTotal = recentRow && recentRow.count != null ? recentRow.count : 0;
+        const recentPct = recentRow && recentRow.pct != null ? recentRow.pct : 0;
+        const descMatch = html.match(/game_review_summary\s+(?:positive|mixed|negative)"[^>]*>([^<]+)</);
+        const desc = descMatch ? descMatch[1].trim() : null;
+        const score = allPct >= 95 ? 10 : allPct >= 80 ? 9 : allPct >= 70 ? 8 : allPct >= 40 ? 7 : allPct >= 20 ? 6 : 5;
+        recordSteamCall(true, 200);
+        recordDomainCall('store', true);
+        Logger.info('Steam', `好评率回退（商店页解析）: ${appId} → ${allPct}%（${desc}，${allCount} 篇）`);
+        return {
+          total: allCount,
+          positive,
+          negative: Math.max(0, allCount - positive),
+          score,
+          desc,
+          recent: {
+            total: recentTotal,
+            positive: recentRow ? Math.round((recentTotal * recentPct) / 100) : 0,
+            rate: recentRow ? recentPct : null
+          }
+        };
+      }
+    }
+  } catch {
+    /* 商店页回退失败 → 维持 null（UI 降级） */
+  }
   return null;
 }
 
