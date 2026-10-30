@@ -43,6 +43,7 @@ import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络�
 import { isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
+import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 15：未命中自动采集
 
 /**
  * 搜索游戏并获取完整 Steam 详情（详情页/浮窗使用）
@@ -205,6 +206,13 @@ export async function searchSteamGame(gameName, options = {}) {
           // 仅纯失败窗口（failed>0 且无成功）跳过（可重试）。
           const apiStatus = getSteamApiStatus();
           if (apiStatus.failed === 0 || apiStatus.total > apiStatus.failed) {
+            // v14.8 批次 15：未命中现场自动采集（错题库原料——rawTitle+逐词
+            // storesearch 快照；fire-and-forget 不阻塞主流程）
+            captureMismatchSample({
+              gameName,
+              rawTitle: options.rawTitle || gameName,
+              correctAppId: null
+            }).catch(() => {});
             await recordNameIndex(gameName, null);
           } else {
             Logger.warn(

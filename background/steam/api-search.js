@@ -280,6 +280,10 @@ export function matchCandidateScore(resultName, term, rawName) {
   // 搜索词包含关系
   if (rn === tn) score += 2;
   else if (tn.length >= 2 && rn.includes(tn)) score += 1;
+  // v14.8 批次 14（三站基准发现）：站点自命名整词包容——候选名包含完整
+  // CJK 搜索词（站方对该游戏的中文命名）+3：专属度高于泛化 EN 词覆盖
+  //（"死亡空间：重制版" vs 泛化 "Dead Space 2" 的判别器）
+  if (/[一-鿿]{2,}/.test(tn) && rn.includes(tn)) score += 3;
   // 数字一致性（v6.4.19：数字集合有交集才加分——"生化危机9" vs "Resident
   // Evil 4" 都有数字但不同，不得加分；"赛博朋克2077" vs "Cyberpunk 2077" 加分）
   // v14.6.2 审查加固：与 nameMatchesSearch 数字对齐放行同护栏（seqNumsOf
@@ -333,6 +337,23 @@ export function rankCandidatesByType(items) {
 // One search pass (throws on total network failure for outer retry; null = not
 // found). Results must pass the name-relevance check.
 async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = 'schinese') {
+  // v14.8 批次 14（三站基准回放发现）：原实现**按词序首中即返**——第一词的
+  // 低分错配候选（如"恶魔城"命中《夜族崛起》恶魔城传奇典藏包，1 分）会抢先
+  // 返回，正确候选（"Castlevania" 全词覆盖 10 分）永不被搜索。改**全词扫描
+  // 取全局最优**：高确信（≥6=两个英文词覆盖）提前退出控成本，否则扫完所有
+  // 词取最高分（跨词比较——与 orchestrator 交叉验证同向）。
+  // Scan ALL terms and return the global best candidate (confident hits
+  // ≥6 exit early to bound cost).
+  const CONFIDENT_SCORE = 6;
+  /** @type {{appId: string, name: string, englishName: string, score: number}|null} */
+  let globalBest = null;
+  // 混合标题（含 EN 段）：CJK 候选的早期退出需候选名覆盖 ≥2 个标题 EN 词
+  // ——否则泛化 EN 词覆盖（Dead Space 2 的 dead+space=6）会压过 CJK 精准
+  // 匹配（"死亡空间：重制版" 7 分）。纯 CJK 标题的 CJK 命中仍是决定性的。
+  const enSegment = (String(rawName).match(/[A-Za-z][A-Za-z0-9 &:.'\-]{5,}/) || [''])[0].trim();
+  const mixedTitle = enSegment.length > 0;
+  const enWords = mixedTitle ? coreTokensOf(enSegment).filter((w) => /^[a-z]/.test(w)) : [];
+  const hasEnCoverage = (name) => enWords.filter((w) => coreTokensOf(name).includes(w)).length >= 2;
   for (const term of searchTerms) {
     /** @type {{items: Array<{id: number, name: string, type?: string}>}|null} */
     let cnData = null;
@@ -374,12 +395,29 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
         .sort((a, b) => b.score - a.score);
       const best = related[0];
       if (!best || best.score < 1) continue;
-      return {
-        appId: best.item.id,
-        name: best.item.name,
-        englishName: best.item.name
-      };
+      if (best.score >= CONFIDENT_SCORE && (!mixedTitle || hasEnCoverage(best.item.name))) {
+        return {
+          appId: best.item.id,
+          name: best.item.name,
+          englishName: best.item.name
+        };
+      }
+      if (!globalBest || best.score > globalBest.score) {
+        globalBest = {
+          appId: best.item.id,
+          name: best.item.name,
+          englishName: best.item.name,
+          score: best.score
+        };
+      }
     }
+  }
+  if (globalBest) {
+    return {
+      appId: globalBest.appId,
+      name: globalBest.name,
+      englishName: globalBest.englishName
+    };
   }
   return null;
 }

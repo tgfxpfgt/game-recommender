@@ -1,0 +1,4205 @@
+{
+  "v": 1,
+  "generatedAt": "2026-10-30T15:31:23.904Z",
+  "samples": [
+    {
+      "id": "xianyudanji-3259780-0",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/104868.html",
+      "rawTitle": "最终幻想：共鸣|v1.0.1|官方中文|支持手柄|FINAL FANTASY RESONANCE",
+      "expectedAppId": "3259780",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "最终幻想": {
+          "total": 0,
+          "items": []
+        },
+        "FINAL FANTASY RESONANCE": {
+          "total": 4,
+          "items": [
+            {
+              "type": "app",
+              "name": "FINAL FANTASY RESONANCE",
+              "id": 3259780,
+              "price": {
+                "currency": "CNY",
+                "initial": 26800,
+                "final": 26800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3259780/6861c59eb09396b7370536d494c1c1f33f684f14/capsule_231x87.jpg?t=1793031418",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "FINAL FANTASY RESONANCE Digital Deluxe Upgrade",
+              "id": 4347910,
+              "price": {
+                "currency": "CNY",
+                "initial": 10000,
+                "final": 10000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4347910/62cad25d272ec3536cc43bbed089ca039843f55a/capsule_231x87.jpg?t=1792684958",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "FINAL FANTASY RESONANCE Original Soundtrack",
+              "id": 5343980,
+              "price": {
+                "currency": "CNY",
+                "initial": 8001,
+                "final": 8001
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5343980/d60b15427c102ef9e357609aa77f2430df8842d2/capsule_231x87.jpg?t=1793113378",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "《FINAL FANTASY RESONANCE》第一章抢先体验版",
+              "id": 4474710,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4474710/c7a2e48a9303fe81c4b5799c7242a7ba9c469fb9/capsule_231x87.jpg?t=1788447612",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "共鸣": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "共鸣：瘟疫传说传承",
+              "id": 2713000,
+              "price": {
+                "currency": "CNY",
+                "initial": 19900,
+                "final": 15920
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2713000/5b7fa71d9598e50b2e5c13378bfdfc52a2160415/capsule_231x87_schinese.jpg?t=1790254824",
+              "metascore": "84",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "共鸣 Demo",
+              "id": 3152640,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3152640/capsule_231x87_schinese.jpg?t=1723860616",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "叛逆神魂-原声音乐-【VOL1：共鸣】",
+              "id": 3594420,
+              "price": {
+                "currency": "CNY",
+                "initial": 990,
+                "final": 990
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3594420/1a0d202551a74d9fc5e663671e1fe4bde6a06f2c/capsule_231x87_schinese.jpg?t=1746711206",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Mio·共鸣 Demo",
+              "id": 4982820,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4982820/d7ffaa8dbc7ff2b39b37eb505d39dc2b825cb7ae/capsule_231x87.jpg?t=1788715268",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "共鸣",
+              "id": 3097330,
+              "price": {
+                "currency": "CNY",
+                "initial": 2600,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3097330/capsule_231x87_schinese.jpg?t=1726296035",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "溯灵：共鸣之地",
+              "id": 4829870,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4829870/0ecca092d1e345b1f5bf67d8c98463d9045cf702/capsule_231x87_schinese.jpg?t=1781828295",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Mio·共鸣",
+              "id": 4634360,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4634360/5ecd1894addaf33e2d5985fe486411baf1fff0a2/capsule_231x87_schinese.jpg?t=1788828113",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "共鸣：安可",
+              "id": 3097340,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3097340/capsule_231x87_schinese.jpg?t=1721486110",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "诡语共鸣",
+              "id": 2073150,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2073150/7d389e5a43599b61a45b217c0dac37e1c43539a3/capsule_231x87_schinese.jpg?t=1787068364",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "共鸣计划",
+              "id": 4810230,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4810230/c21298d8f2d085f719764fe5ac68ede73f50ecc2/capsule_231x87.jpg?t=1781345704",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "v1.0.1": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "VANDALISM101",
+              "id": 4904270,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4904270/68f0accc5fea00fa000b1a1080ecec4608f3a39c/capsule_231x87.jpg?t=1784108939",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "VANDALISM101 Demo",
+              "id": 4904330,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4904330/68f0accc5fea00fa000b1a1080ecec4608f3a39c/capsule_231x87.jpg?t=1784108906",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "RIDE 6 - 101 Starter Pack",
+              "id": 3970280,
+              "price": {
+                "currency": "CNY",
+                "initial": 5000,
+                "final": 5000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3970280/b7132c4e4e42f06d0b369f44b87ac7c5cc9c2fd2/capsule_231x87.jpg?t=1789659178",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "v . .": {
+          "total": 5,
+          "items": [
+            {
+              "type": "app",
+              "name": ".Forty-Five",
+              "id": 2691350,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2691350/capsule_231x87.jpg?t=1778013461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".V: Valor Runs Deep",
+              "id": 3714100,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3714100/9dcd54ec113af8834a92974c3a9e8dfc3cde08cf/capsule_231x87.jpg?t=1776763980",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".VXE Demo",
+              "id": 4599080,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4599080/4422a9e7acc60447dc1fdc34c6d8da1f3bae89f0/capsule_231x87.jpg?t=1785187468",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead",
+              "id": 4103720,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4103720/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1762571203",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead Demo",
+              "id": 4114850,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4114850/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1761348503",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-1285190-2",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/94037.html",
+      "rawTitle": "无主之地4|v1.11|豪华版|官方中文|支持手柄|Borderlands 4",
+      "expectedAppId": "1285190",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "无主之地4": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "4X-Galaxy 无主之地：银河",
+              "id": 922450,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/922450/capsule_231x87_schinese.jpg?t=1584328393",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Borderlands 4": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Borderlands 4",
+              "id": 1285190,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 29800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1285190/7f4b1a9cbe01d19fdcbf10ef5dce492098ef0ba8/capsule_231x87.jpg?t=1789422727",
+              "metascore": "81",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Loveless the Hacker",
+              "id": 4627500,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4627500/609c864029b505fc74b40b4bc7317ffc33153c6d/capsule_231x87.jpg?t=1789418488",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - C4SH the Rogue",
+              "id": 4627490,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4627490/2d144d7758791f67677f0ced4b452d8ec9378696/capsule_231x87.jpg?t=1789055915",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Story Pack 2: FL4K and the Last Resort",
+              "id": 3802460,
+              "price": {
+                "currency": "CNY",
+                "initial": 8000,
+                "final": 8000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3802460/af3f942f5d9ebc42ffa7013f258c4056358c1e55/capsule_231x87.jpg?t=1789055926",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Bounty Pack 4: Murders and Acquisitions",
+              "id": 4614350,
+              "price": {
+                "currency": "CNY",
+                "initial": 2900,
+                "final": 2900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4614350/eec6457f8e3653845cbdcd26c34023c150e3184c/capsule_231x87.jpg?t=1785427261",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4: Vault Hunter Pack",
+              "id": 3829680,
+              "price": {
+                "currency": "CNY",
+                "initial": 21000,
+                "final": 21000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3829680/9886d45de8b7e95245bfd0ba644f723e397ff701/capsule_231x87.jpg?t=1789419955",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Bounty Pack 5: Amara and the Vile Shadows",
+              "id": 4614370,
+              "price": {
+                "currency": "CNY",
+                "initial": 2900,
+                "final": 2900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4614370/72183155ddb09bfa04d84229c27c703d8ce8423b/capsule_231x87.jpg?t=1789055919",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Bounty Pack 3: A Zane to Kill For",
+              "id": 4598000,
+              "price": {
+                "currency": "CNY",
+                "initial": 2900,
+                "final": 2900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4598000/a5512b3ee7523adb4d83ad1abb2167ddd590d4ed/capsule_231x87.jpg?t=1783437476",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4: Ornate Order Pack",
+              "id": 3802370,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3802370/629f693e2142a4a8c4eacadab4aa7bbf896d9f26/capsule_231x87.jpg?t=1774906099",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4: Gilded Glory Pack",
+              "id": 2013850,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2013850/8634be5b0c68c9dda59841e8db2f9f1fb4032073/capsule_231x87.jpg?t=1761055847",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Borderlands": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Borderlands 4",
+              "id": 1285190,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 29800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1285190/7f4b1a9cbe01d19fdcbf10ef5dce492098ef0ba8/capsule_231x87.jpg?t=1789422727",
+              "metascore": "81",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands 2",
+              "id": 49520,
+              "price": {
+                "currency": "CNY",
+                "initial": 6400,
+                "final": 6400
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/49520/capsule_231x87.jpg?t=1793288352",
+              "metascore": "89",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands 3",
+              "id": 397540,
+              "price": {
+                "currency": "CNY",
+                "initial": 19900,
+                "final": 19900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/397540/capsule_231x87.jpg?t=1793288452",
+              "metascore": "81",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Loveless the Hacker",
+              "id": 4627500,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4627500/609c864029b505fc74b40b4bc7317ffc33153c6d/capsule_231x87.jpg?t=1789418488",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - Story Pack 2: FL4K and the Last Resort",
+              "id": 3802460,
+              "price": {
+                "currency": "CNY",
+                "initial": 8000,
+                "final": 8000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3802460/af3f942f5d9ebc42ffa7013f258c4056358c1e55/capsule_231x87.jpg?t=1789055926",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands®4 - C4SH the Rogue",
+              "id": 4627490,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4627490/2d144d7758791f67677f0ced4b452d8ec9378696/capsule_231x87.jpg?t=1789055915",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Borderlands: The Pre-Sequel",
+              "id": 261640,
+              "price": {
+                "currency": "CNY",
+                "initial": 12700,
+                "final": 12700
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/261640/capsule_231x87.jpg?t=1750081341",
+              "metascore": "75",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Tales from the Borderlands",
+              "id": 330830,
+              "price": {
+                "currency": "CNY",
+                "initial": 7000,
+                "final": 7000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/330830/capsule_231x87.jpg?t=1777932543",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands 2 VR",
+              "id": 991260,
+              "price": {
+                "currency": "CNY",
+                "initial": 17900,
+                "final": 17900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/991260/capsule_231x87.jpg?t=1728672807",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Borderlands 2: Commander Lilith & the Fight for Sanctuary",
+              "id": 872280,
+              "price": {
+                "currency": "CNY",
+                "initial": 9900,
+                "final": 9900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/872280/capsule_231x87.jpg?t=1562705341",
+              "metascore": "89",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-4231820-3",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/103907.html",
+      "rawTitle": "恶魔城：贝尔蒙特的诅咒|v1.1.3|豪华版|官方中文|支持手柄|Castlevania: Belmont's Curse",
+      "expectedAppId": "4231820",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "恶魔城": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "《夜族崛起》——恶魔城传奇典藏包",
+              "id": 2833600,
+              "price": {
+                "currency": "CNY",
+                "initial": 6000,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2833600/capsule_231x87.jpg?t=1729824218",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Belmont's Curse": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "Castlevania: Belmont's Curse",
+              "id": 4231820,
+              "price": {
+                "currency": "CNY",
+                "initial": 12800,
+                "final": 12800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4231820/2ce9921d044de1c749da39763f8c03edd5c91d78/capsule_231x87.jpg?t=1793067818",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Castlevania: Belmont's Curse Demo",
+              "id": 5000760,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5000760/b5599dc61de799f62e998db669540bcfc287de75/capsule_231x87.jpg?t=1790827319",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Castlevania": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Castlevania: Belmont's Curse",
+              "id": 4231820,
+              "price": {
+                "currency": "CNY",
+                "initial": 12800,
+                "final": 12800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4231820/2ce9921d044de1c749da39763f8c03edd5c91d78/capsule_231x87.jpg?t=1793067818",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Dead Cells: Return to Castlevania",
+              "id": 2101430,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 2940
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2101430/capsule_231x87.jpg?t=1757600495",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Castlevania Dominus Collection",
+              "id": 2369900,
+              "price": {
+                "currency": "CNY",
+                "initial": 9200,
+                "final": 9200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2369900/capsule_231x87.jpg?t=1745815495",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Castlevania Advance Collection",
+              "id": 1552550,
+              "price": {
+                "currency": "CNY",
+                "initial": 7000,
+                "final": 7000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1552550/capsule_231x87.jpg?t=1734547063",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Vampire Survivors: Ode to Castlevania",
+              "id": 3210350,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3210350/b6c157d27fc717ea69a108dfefc3819b8d43bbab/capsule_231x87.jpg?t=1731510096",
+              "metascore": "95",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Dead by Daylight - Castlevania Chapter",
+              "id": 3103150,
+              "price": {
+                "currency": "CNY",
+                "initial": 3278,
+                "final": 1639
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3103150/capsule_231x87.jpg?t=1740003609",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Castlevania Anniversary Collection",
+              "id": 1018010,
+              "price": {
+                "currency": "CNY",
+                "initial": 7000,
+                "final": 7000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1018010/capsule_231x87.jpg?t=1734546103",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Castlevania: Lords of Shadow 2",
+              "id": 239250,
+              "price": {
+                "currency": "CNY",
+                "initial": 11200,
+                "final": 11200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/239250/capsule_231x87.jpg?t=1737506536",
+              "metascore": "58",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《夜族崛起》——恶魔城传奇典藏包",
+              "id": 2833600,
+              "price": {
+                "currency": "CNY",
+                "initial": 6000,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2833600/capsule_231x87.jpg?t=1729824218",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Castlevania: Lords of Shadow – Ultimate Edition",
+              "id": 234080,
+              "price": {
+                "currency": "CNY",
+                "initial": 8800,
+                "final": 8800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/234080/capsule_231x87.jpg?t=1737486989",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "贝尔蒙特的诅咒": {
+          "total": 0,
+          "items": []
+        },
+        "v1.1.3": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "CUSTOM ORDER MAID 3D2&2.5+X1",
+              "id": 2461350,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2461350/capsule_231x87.jpg?t=1698637986",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "v . .": {
+          "total": 5,
+          "items": [
+            {
+              "type": "app",
+              "name": ".Forty-Five",
+              "id": 2691350,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2691350/capsule_231x87.jpg?t=1778013461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".V: Valor Runs Deep",
+              "id": 3714100,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3714100/9dcd54ec113af8834a92974c3a9e8dfc3cde08cf/capsule_231x87.jpg?t=1776763980",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".VXE Demo",
+              "id": 4599080,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4599080/4422a9e7acc60447dc1fdc34c6d8da1f3bae89f0/capsule_231x87.jpg?t=1785187468",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead",
+              "id": 4103720,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4103720/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1762571203",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead Demo",
+              "id": 4114850,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4114850/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1761348503",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-1693980-4",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/86282.html",
+      "rawTitle": "死亡空间：重制版|v20261008|豪华版|官方中文|支持手柄|Dead Space: Remake",
+      "expectedAppId": "1693980",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "死亡空间": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "死亡空间",
+              "id": 1693980,
+              "price": {
+                "currency": "CNY",
+                "initial": 24800,
+                "final": 24800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1693980/capsule_231x87.jpg?t=1777396576",
+              "metascore": "87",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《死亡空间》数字豪华版升级",
+              "id": 2164210,
+              "price": {
+                "currency": "CNY",
+                "initial": 5000,
+                "final": 5000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2164210/capsule_231x87.jpg?t=1675793659",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Dead Space": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "死亡空间",
+              "id": 1693980,
+              "price": {
+                "currency": "CNY",
+                "initial": 24800,
+                "final": 24800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1693980/capsule_231x87.jpg?t=1777396576",
+              "metascore": "87",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3",
+              "id": 1238060,
+              "price": {
+                "currency": "CNY",
+                "initial": 11800,
+                "final": 11800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1238060/capsule_231x87.jpg?t=1779987583",
+              "metascore": "78",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 2",
+              "id": 47780,
+              "price": {
+                "currency": "CNY",
+                "initial": 9800,
+                "final": 9800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/47780/capsule_231x87.jpg?t=1782255426",
+              "metascore": "87",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space (2008)",
+              "id": 17470,
+              "price": {
+                "currency": "CNY",
+                "initial": 9800,
+                "final": 9800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/17470/capsule_231x87.jpg?t=1777495169",
+              "metascore": "87",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3 觉醒",
+              "id": 1238070,
+              "price": {
+                "currency": "CNY",
+                "initial": 5800,
+                "final": 5800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1238070/capsule_231x87.jpg?t=1593440016",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3 见证真相组合包",
+              "id": 1303191,
+              "price": {
+                "currency": "CNY",
+                "initial": 2100,
+                "final": 2100
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1303191/capsule_231x87.jpg?t=1593055990",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3 塔瓦兰提斯生存包",
+              "id": 1303193,
+              "price": {
+                "currency": "CNY",
+                "initial": 8800,
+                "final": 8800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1303193/capsule_231x87.jpg?t=1593018986",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3 衰变装置",
+              "id": 1303197,
+              "price": {
+                "currency": "CNY",
+                "initial": 2100,
+                "final": 2100
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1303197/capsule_231x87.jpg?t=1593019274",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3 神射手组合包",
+              "id": 1303194,
+              "price": {
+                "currency": "CNY",
+                "initial": 2800,
+                "final": 2800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1303194/capsule_231x87.jpg?t=1593019001",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Dead Space™ 3 机器人加速器",
+              "id": 1303201,
+              "price": {
+                "currency": "CNY",
+                "initial": 2800,
+                "final": 2800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1303201/capsule_231x87.jpg?t=1593019366",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Remake": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Gothic 1 Remake",
+              "id": 1297900,
+              "price": {
+                "currency": "CNY",
+                "initial": 23800,
+                "final": 17850
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1297900/65bac0ffa9e365a6591c984c1dd6273ccf502665/capsule_231x87.jpg?t=1787564876",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "FINAL FANTASY VII REMAKE INTERGRADE",
+              "id": 1462040,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1462040/ec805ec87558eb40c712c7cca4eabc2e83cb57f7/capsule_231x87.jpg?t=1789446715",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "The Guild 1 Remake: Europa 1410",
+              "id": 2977260,
+              "price": {
+                "currency": "CNY",
+                "initial": 14800,
+                "final": 14800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2977260/ac85bb22b317feeb5f4d2b6f56ac80feeedc9c54/capsule_231x87.jpg?t=1789971895",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "零 ～红蝶～ REMAKE",
+              "id": 3920610,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 19370
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3920610/410cff8eff5f335dc84f1dede8ed58f18cdcb44d/capsule_231x87_schinese.jpg?t=1782174544",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Gothic 1 Remake Soundtrack",
+              "id": 2671240,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 3600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2671240/cff7ce202b6b448410a0f75d96ae7ed2d97c2733/capsule_231x87.jpg?t=1780678784",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "幻世录 重制版",
+              "id": 4030150,
+              "price": {
+                "currency": "CNY",
+                "initial": 9000,
+                "final": 9000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4030150/1132dde6919c63056d1c73ba7359687d48e6abad/capsule_231x87_schinese.jpg?t=1789633396",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "The 7th Guest Remake",
+              "id": 4491360,
+              "price": {
+                "currency": "CNY",
+                "initial": 10800,
+                "final": 5400
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4491360/d680f60c3062ad72ad9d0c145cbb1bc37de87704/capsule_231x87.jpg?t=1782214150",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "勇者斗恶龙I & II HD-2D Remake",
+              "id": 2893570,
+              "price": {
+                "currency": "CNY",
+                "initial": 34800,
+                "final": 34800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2893570/fa7d2a5d4d01573fe1c1f4a84b79ccebc1343acb/capsule_231x87_schinese.jpg?t=1773044632",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "三国志8  REMAKE",
+              "id": 2288150,
+              "price": {
+                "currency": "CNY",
+                "initial": 34900,
+                "final": 34900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2288150/capsule_231x87_schinese.jpg?t=1776671493",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Arizona Sunshine® VR Remake",
+              "id": 2897700,
+              "price": {
+                "currency": "CNY",
+                "initial": 10800,
+                "final": 10800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2897700/1dc4a6e90db2ca6ccf0a151576d2e0095dbef26d/capsule_231x87.jpg?t=1780946001",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "v20261008": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-1636440-5",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/101942.html",
+      "rawTitle": "寂静岭：陨落小镇|v1.6.155963|豪华版|官方中文|支持手柄|SILENT HILL: Townfall",
+      "expectedAppId": "1636440",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "寂静岭": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "黎明杀机-寂静岭",
+              "id": 1324970,
+              "price": {
+                "currency": "CNY",
+                "initial": 3278,
+                "final": 1639
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1324970/capsule_231x87.jpg?t=1681934376",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "SILENT HILL": {
+          "total": 7,
+          "items": [
+            {
+              "type": "app",
+              "name": "SILENT HILL: Townfall",
+              "id": 1636440,
+              "price": {
+                "currency": "CNY",
+                "initial": 31000,
+                "final": 31000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/f0dfc016ffde1f3001a60e106bc0c2063fefd695/capsule_231x87.jpg?t=1792553312",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "SILENT HILL 2",
+              "id": 2124490,
+              "price": {
+                "currency": "CNY",
+                "initial": 34800,
+                "final": 13920
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2124490/capsule_231x87.jpg?t=1744248682",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "黎明杀机-寂静岭",
+              "id": 1324970,
+              "price": {
+                "currency": "CNY",
+                "initial": 3278,
+                "final": 1639
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1324970/capsule_231x87.jpg?t=1681934376",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "SILENT HILL f",
+              "id": 2947440,
+              "price": {
+                "currency": "CNY",
+                "initial": 34800,
+                "final": 17400
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2947440/0059b56f4400fe95555b8145d5f8f05b160a54e5/capsule_231x87.jpg?t=1770169624",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "SILENT HILL f - Digital Deluxe Upgrade",
+              "id": 3516200,
+              "price": {
+                "currency": "CNY",
+                "initial": 8400,
+                "final": 8400
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3516200/060fc5f5d8f36b80b38baeeb82124dea24ebdb3e/capsule_231x87.jpg?t=1758772809",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "SILENT HILL f - 红蝶",
+              "id": 4733020,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4733020/479bc12c68c1272b99e1a5c802dbdfbfbfd85b3b/capsule_231x87.jpg?t=1782753496",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《零 ～红蝶～ REMAKE》×《SILENT HILL f》联动服装组合",
+              "id": 4423570,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4423570/42491df32107032ac42129b71988d81c827a8db6/capsule_231x87_schinese.jpg?t=1783981031",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Townfall": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "SILENT HILL: Townfall",
+              "id": 1636440,
+              "price": {
+                "currency": "CNY",
+                "initial": 31000,
+                "final": 31000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1636440/f0dfc016ffde1f3001a60e106bc0c2063fefd695/capsule_231x87.jpg?t=1792553312",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Townfall",
+              "id": 5331610,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5331610/28fa442db7dcc9622e1d344fdf1b50ea16a4477e/capsule_231x87.jpg?t=1793363208",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Town Fall Zombie",
+              "id": 1447730,
+              "price": {
+                "currency": "CNY",
+                "initial": 600,
+                "final": 600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1447730/capsule_231x87.jpg?t=1684043750",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "陨落小镇": {
+          "total": 0,
+          "items": []
+        },
+        "v1.6.155963": {
+          "total": 0,
+          "items": []
+        },
+        "v . .": {
+          "total": 5,
+          "items": [
+            {
+              "type": "app",
+              "name": ".Forty-Five",
+              "id": 2691350,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2691350/capsule_231x87.jpg?t=1778013461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".V: Valor Runs Deep",
+              "id": 3714100,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3714100/9dcd54ec113af8834a92974c3a9e8dfc3cde08cf/capsule_231x87.jpg?t=1776763980",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".VXE Demo",
+              "id": 4599080,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4599080/4422a9e7acc60447dc1fdc34c6d8da1f3bae89f0/capsule_231x87.jpg?t=1785187468",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead",
+              "id": 4103720,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4103720/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1762571203",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead Demo",
+              "id": 4114850,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4114850/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1761348503",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-645730-6",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/3923.html",
+      "rawTitle": "永恒的尽头：4K / 高清版|v1.0.0.4|官方中文|支持是吧|RESONANCE OF FATE/END OF ETERNITY 4K/HD EDITION|永恒终焉：4KHD版",
+      "expectedAppId": "645730",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "永恒的尽头": {
+          "total": 0,
+          "items": []
+        },
+        "RESONANCE OF FATE/END OF ETERNITY 4K/HD EDITION": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION",
+              "id": 645730,
+              "price": {
+                "currency": "CNY",
+                "initial": 10300,
+                "final": 10300
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/645730/capsule_231x87.jpg?t=1793328461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION - HIGH RESOLUTION TEXTURE PACK",
+              "id": 960720,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/960720/capsule_231x87.jpg?t=1542081437",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "END OF ETERNITY 4K": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION",
+              "id": 645730,
+              "price": {
+                "currency": "CNY",
+                "initial": 10300,
+                "final": 10300
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/645730/capsule_231x87.jpg?t=1793328461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION - HIGH RESOLUTION TEXTURE PACK",
+              "id": 960720,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/960720/capsule_231x87.jpg?t=1542081437",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "RESONANCE OF FATE": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION",
+              "id": 645730,
+              "price": {
+                "currency": "CNY",
+                "initial": 10300,
+                "final": 10300
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/645730/capsule_231x87.jpg?t=1793328461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ ENHANCED REMASTER",
+              "id": 4996080,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 4200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4996080/b645eafe34e874f8ff922db25fbcf918ab09ccb3/capsule_231x87.jpg?t=1793323101",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION - HIGH RESOLUTION TEXTURE PACK",
+              "id": 960720,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/960720/capsule_231x87.jpg?t=1542081437",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "HD EDITION": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "Harmonia Full HD Edition",
+              "id": 2699690,
+              "price": {
+                "currency": "CNY",
+                "initial": 5800,
+                "final": 5800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2699690/c455ef3fc8bca908fe6f6efe4063bc76a01af140/capsule_231x87.jpg?t=1789354550",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Bronze Age - HD Edition",
+              "id": 686900,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/686900/capsule_231x87.jpg?t=1762168903",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Leo’s Fortune - HD Edition",
+              "id": 355630,
+              "price": {
+                "currency": "CNY",
+                "initial": 2800,
+                "final": 2800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/355630/capsule_231x87.jpg?t=1778490510",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "RESONANCE OF FATE™/END OF ETERNITY™ 4K/HD EDITION",
+              "id": 645730,
+              "price": {
+                "currency": "CNY",
+                "initial": 10300,
+                "final": 10300
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/645730/capsule_231x87.jpg?t=1793328461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Damascus Gear Operation Osaka HD Edition",
+              "id": 707350,
+              "price": {
+                "currency": "CNY",
+                "initial": 7000,
+                "final": 7000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/707350/capsule_231x87.jpg?t=1671433131",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Heroes® of Might & Magic® III - HD Edition",
+              "id": 297000,
+              "price": {
+                "currency": "CNY",
+                "initial": 7500,
+                "final": 7500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/297000/capsule_231x87.jpg?t=1787846053",
+              "metascore": "65",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "ASSAULT GUNNERS HD EDITION",
+              "id": 751340,
+              "price": {
+                "currency": "CNY",
+                "initial": 3700,
+                "final": 1480
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/751340/capsule_231x87.jpg?t=1594636311",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "STARLITE: Defender of Justice Ultimate HD Edition",
+              "id": 2185240,
+              "price": {
+                "currency": "CNY",
+                "initial": 5800,
+                "final": 5800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2185240/f4fb5775eee495b53ecb45f3556a9f32c71c8baf/capsule_231x87.jpg?t=1790732930",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "STARLITE: Defender of Justice Ultimate HD Edition Demo",
+              "id": 2385880,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2385880/8f7f2651cc1d179bd57c8a6f2c9fe044eaa614c4/capsule_231x87.jpg?t=1790732909",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Imperivm RTC - HD Edition \"Great Battles of Rome\"",
+              "id": 752580,
+              "price": {
+                "currency": "CNY",
+                "initial": 2995,
+                "final": 2995
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/752580/capsule_231x87.jpg?t=1773301192",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "v1.0.0.4": {
+          "total": 0,
+          "items": []
+        },
+        "v . . .": {
+          "total": 5,
+          "items": [
+            {
+              "type": "app",
+              "name": ".Forty-Five",
+              "id": 2691350,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2691350/capsule_231x87.jpg?t=1778013461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".V: Valor Runs Deep",
+              "id": 3714100,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3714100/9dcd54ec113af8834a92974c3a9e8dfc3cde08cf/capsule_231x87.jpg?t=1776763980",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".VXE Demo",
+              "id": 4599080,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4599080/4422a9e7acc60447dc1fdc34c6d8da1f3bae89f0/capsule_231x87.jpg?t=1785187468",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead",
+              "id": 4103720,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4103720/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1762571203",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead Demo",
+              "id": 4114850,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4114850/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1761348503",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-1588550-7",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/88712.html",
+      "rawTitle": "孤山独影|v1.1.593|官方中文|支持手柄|Cairn",
+      "expectedAppId": "1588550",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "孤山独影": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "孤山独影",
+              "id": 1588550,
+              "price": {
+                "currency": "CNY",
+                "initial": 10800,
+                "final": 7560
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1588550/acbc2b10669d9f513a62410ac9feb64548fb3c63/capsule_231x87_alt_assets_0.jpg?t=1793289602",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Cairn": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "孤山独影",
+              "id": 1588550,
+              "price": {
+                "currency": "CNY",
+                "initial": 10800,
+                "final": 7560
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1588550/acbc2b10669d9f513a62410ac9feb64548fb3c63/capsule_231x87_alt_assets_0.jpg?t=1793289602",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Cairn - Deluxe Upgrade Pack",
+              "id": 4031100,
+              "price": {
+                "currency": "CNY",
+                "initial": 4600,
+                "final": 4600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4031100/d435bd7a6c33506c6eac328c49aac6285c9de769/capsule_231x87.jpg?t=1769705859",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Cairn - On the Trail: Deep Water",
+              "id": 4487450,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4487450/864ddb1d3fe5af79e76ba41439c93af160fae866/capsule_231x87.jpg?t=1793347791",
+              "metascore": "86",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Cairn: Mathair's Curse",
+              "id": 1302530,
+              "price": {
+                "currency": "CNY",
+                "initial": 7600,
+                "final": 7600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1302530/01a48cc8fd0a2a8d9da278b8fcb24ca864242ccd/capsule_231x87.jpg?t=1764273346",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Castle Cairn",
+              "id": 3844980,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3844980/fb83d1f6e7c9d08d4eb8220e6a63eb6743762197/capsule_231x87.jpg?t=1791486727",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Cairn. Stone Towers",
+              "id": 1598960,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1598960/d97585eddf9ef0c4940b2db56065ecc93cdfb610/capsule_231x87.jpg?t=1789484977",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Only the Mountain from Cairn Soundtrack",
+              "id": 3937220,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3937220/60e9d51da3a1b6b053513390387b861263e8404b/capsule_231x87.jpg?t=1756277304",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Cairn & Carat",
+              "id": 5353330,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5353330/206a6d14933dbea23ef52ed3d506fe4232353c8b/capsule_231x87.jpg?t=1793027534",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "A Cairn Tale",
+              "id": 2375640,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2375640/capsule_231x87.jpg?t=1713785219",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Cairn - Original Soundtrack",
+              "id": 4207340,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 3570
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4207340/b3ca928c7221b511d3d84e5ca30875834857f4e5/capsule_231x87.jpg?t=1769705899",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "v1.1.593": {
+          "total": 0,
+          "items": []
+        },
+        "v . .": {
+          "total": 5,
+          "items": [
+            {
+              "type": "app",
+              "name": ".Forty-Five",
+              "id": 2691350,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2691350/capsule_231x87.jpg?t=1778013461",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".V: Valor Runs Deep",
+              "id": 3714100,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3714100/9dcd54ec113af8834a92974c3a9e8dfc3cde08cf/capsule_231x87.jpg?t=1776763980",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": ".VXE Demo",
+              "id": 4599080,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4599080/4422a9e7acc60447dc1fdc34c6d8da1f3bae89f0/capsule_231x87.jpg?t=1785187468",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead",
+              "id": 4103720,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4103720/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1762571203",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "...Vincent: Mansion of The Dead Demo",
+              "id": 4114850,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4114850/065b7a1c89ba0731ddd8f647db77222b0e77aa2c/capsule_231x87.jpg?t=1761348503",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": true
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xianyudanji-2861210-8",
+      "site": "xianyudanji",
+      "pageUrl": "https://www.xianyudanji.gg/105867.html",
+      "rawTitle": "幻梦之境|汉化中文|支持手柄|HYPNOS",
+      "expectedAppId": "2861210",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "幻梦之境": {
+          "total": 0,
+          "items": []
+        },
+        "HYPNOS": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "HYPNOS",
+              "id": 2861210,
+              "price": {
+                "currency": "CNY",
+                "initial": 7666,
+                "final": 4522
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2861210/586e5241b0f8ce7142697dfa7ca2373382358257/capsule_231x87.jpg?t=1793289474",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "HYPNOS Demo",
+              "id": 4407050,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4407050/e8a08f0a1e2a90d2deb309bb91be7cd00a6ef3f0/capsule_231x87.jpg?t=1771866814",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "Hypnospace Outlaw",
+              "id": 844590,
+              "price": {
+                "currency": "CNY",
+                "initial": 5900,
+                "final": 5900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/844590/capsule_231x87.jpg?t=1755257643",
+              "metascore": "83",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hypnosis Knight-Princess",
+              "id": 3556730,
+              "price": {
+                "currency": "CNY",
+                "initial": 4900,
+                "final": 3920
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3556730/800d0e5805dff1df7ff03b2ba0c10610fd5cad61/capsule_231x87.jpg?t=1755921608",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hypnosis Card 2 Happy Life",
+              "id": 3085640,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3085640/capsule_231x87.jpg?t=1776397179",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hypnostasis",
+              "id": 3611760,
+              "price": {
+                "currency": "CNY",
+                "initial": 5800,
+                "final": 5800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3611760/7e5f2993e56e0b51140df35a44cc77f2badfca8b/capsule_231x87.jpg?t=1792102327",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hypnosis of Corruption",
+              "id": 3041810,
+              "price": {
+                "currency": "CNY",
+                "initial": 3900,
+                "final": 3120
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3041810/19f454c1addf846c1fde7a1ffc73c6821291904a/capsule_231x87.jpg?t=1749037176",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hypnosis App!",
+              "id": 3748230,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3748230/969236fca939b28f176a23e149c1d94b13582956/capsule_231x87.jpg?t=1793244463",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "FALLENMAGE Received: Hypnosis's Curse",
+              "id": 5001490,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5001490/0a6b15cb1b8a1878f4318a97584ca70dffd3a40b/capsule_231x87.jpg?t=1789461015",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Hypnosis Card",
+              "id": 2544990,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2544990/capsule_231x87.jpg?t=1776398453",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-5088440-9",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17128.html",
+      "rawTitle": "再拆亿包！/Rip It! Card Collector",
+      "expectedAppId": "5088440",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "再拆亿包！/Rip It! Card Collector": {
+          "total": 0,
+          "items": []
+        },
+        "Rip It! Card Collector": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "再拆亿包！",
+              "id": 5088440,
+              "price": {
+                "currency": "CNY",
+                "initial": 2500,
+                "final": 2250
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5088440/c9da3b682563facd0f880352cdb08f678bd6e648/capsule_231x87_alt_assets_1_schinese.jpg?t=1793372149",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "再拆亿包！": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "再拆亿包！",
+              "id": 5088440,
+              "price": {
+                "currency": "CNY",
+                "initial": 2500,
+                "final": 2250
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5088440/c9da3b682563facd0f880352cdb08f678bd6e648/capsule_231x87_alt_assets_1_schinese.jpg?t=1793372149",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Rip It": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "Rip It! Card Collector",
+              "id": 5088440,
+              "price": {
+                "currency": "CNY",
+                "initial": 2500,
+                "final": 2250
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5088440/b48f25a9e6e2bf036836e3b4e9249acf2dc0214d/capsule_231x87_alt_assets_1.jpg?t=1793372149",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Rip It Together",
+              "id": 5447550,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5447550/bc7c3e856208a9a56df79b539e661c9391501063/capsule_231x87.jpg?t=1792503088",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Stern Pinball Arcade: Ripley's Believe It Or Not!",
+              "id": 569240,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 2200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/569240/capsule_231x87.jpg?t=1482865906",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-2262240-10",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17127.html",
+      "rawTitle": "逻辑之王/LogiKing",
+      "expectedAppId": "2262240",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "逻辑之王/LogiKing": {
+          "total": 0,
+          "items": []
+        },
+        "LogiKing": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "LogiKing",
+              "id": 2262240,
+              "price": {
+                "currency": "CNY",
+                "initial": 5800,
+                "final": 1740
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2262240/capsule_231x87.jpg?t=1791499035",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "LogiKing LEVEL2",
+              "id": 2262260,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 2940
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2262260/capsule_231x87.jpg?t=1791499042",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "逻辑之王": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-3929570-11",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17126.html",
+      "rawTitle": "节度使战略：安史之乱/General Tactics: An Shi Rebellion",
+      "expectedAppId": "3929570",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "节度使战略": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "节度使战略：安史之乱",
+              "id": 3929570,
+              "price": {
+                "currency": "CNY",
+                "initial": 4500,
+                "final": 3960
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3929570/4e3229ffa2b08cb870f0ac4bbef2c0757c185354/capsule_231x87_schinese.jpg?t=1793088003",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "An Shi Rebellion": {
+          "total": 0,
+          "items": []
+        },
+        "General Tactics": {
+          "total": 0,
+          "items": []
+        },
+        "安史之乱/General Tactics": {
+          "total": 0,
+          "items": []
+        },
+        "安史之乱": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "节度使战略：安史之乱",
+              "id": 3929570,
+              "price": {
+                "currency": "CNY",
+                "initial": 4500,
+                "final": 3960
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3929570/4e3229ffa2b08cb870f0ac4bbef2c0757c185354/capsule_231x87_schinese.jpg?t=1793088003",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "General Tactics: An Shi Rebellion": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "General Tactics: An Shi Rebellion",
+              "id": 3929570,
+              "price": {
+                "currency": "CNY",
+                "initial": 4500,
+                "final": 3960
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3929570/fcd755472f5c1bd19567584be88a6d7b7d31b450/capsule_231x87.jpg?t=1793088003",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-5372700-12",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17125.html",
+      "rawTitle": "又一个垃圾清理模拟器/Not Another Garbage Simulator",
+      "expectedAppId": "5372700",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "又一个垃圾清理模拟器/Not Another Garbage Simulator": {
+          "total": 0,
+          "items": []
+        },
+        "Not Another Garbage Simulator": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "Not Another Garbage Simulator",
+              "id": 5372700,
+              "price": {
+                "currency": "CNY",
+                "initial": 5200,
+                "final": 5200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5372700/704628c1cab744d438b624effc80b15fb5ddb421/capsule_231x87.jpg?t=1793365171",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "又一个垃圾清理模拟器": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-5015190-13",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17124.html",
+      "rawTitle": "神奇的贝拉宝宝/Gorgeous Baby Bella",
+      "expectedAppId": "5015190",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "神奇的贝拉宝宝/Gorgeous Baby Bella": {
+          "total": 0,
+          "items": []
+        },
+        "Gorgeous Baby Bella": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "Gorgeous Baby Bella",
+              "id": 5015190,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 1650
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5015190/e1635d44aa0d595185f83ed420bed82cdebc35ae/capsule_231x87.jpg?t=1793304937",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Gorgeous Baby Bella Demo",
+              "id": 5017380,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5017380/e1635d44aa0d595185f83ed420bed82cdebc35ae/capsule_231x87.jpg?t=1786858204",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "神奇的贝拉宝宝": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "神奇的贝拉宝宝",
+              "id": 5015190,
+              "price": {
+                "currency": "CNY",
+                "initial": 2200,
+                "final": 1650
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5015190/e1635d44aa0d595185f83ed420bed82cdebc35ae/capsule_231x87.jpg?t=1793304937",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-4974620-14",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17123.html",
+      "rawTitle": "只要她忘记/As Long As She Forgot",
+      "expectedAppId": "4974620",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "只要她忘记/As Long As She Forgot": {
+          "total": 0,
+          "items": []
+        },
+        "As Long As She Forgot": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "As Long As She Forgot",
+              "id": 4974620,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 1350
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4974620/14b324e3345db65f687f577c8c096641bd30edd2/capsule_231x87.jpg?t=1793292084",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "只要她忘记": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-4538080-15",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17122.html",
+      "rawTitle": "王国有限公司/Kingdom Inc.",
+      "expectedAppId": "4538080",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "王国有限公司/Kingdom Inc.": {
+          "total": 0,
+          "items": []
+        },
+        "Kingdom Inc.": {
+          "total": 6,
+          "items": [
+            {
+              "type": "app",
+              "name": "Kingdom Inc.",
+              "id": 4538080,
+              "price": {
+                "currency": "CNY",
+                "initial": 3300,
+                "final": 2970
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4538080/b27678b6427532ef19434203fc4d91b67078ac28/capsule_231x87.jpg?t=1793293302",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Kingdom Inc. Demo",
+              "id": 4702410,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4702410/acb3fe0f49a3b7f24a644bd9f64fa0b7dc49302d/capsule_231x87.jpg?t=1778598214",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Incredible Dracula: The Ice Kingdom",
+              "id": 1175170,
+              "price": {
+                "currency": "CNY",
+                "initial": 2800,
+                "final": 1400
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1175170/capsule_231x87.jpg?t=1705474631",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Kingdom Incremental",
+              "id": 2364770,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 4200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2364770/capsule_231x87.jpg?t=1692936320",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Kingdom Contracts Tower Defense Incremental",
+              "id": 4467960,
+              "price": {
+                "currency": "CNY",
+                "initial": 1200,
+                "final": 1200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4467960/0a24564dc7d69b46e6be2bb982373a6ccb385c56/capsule_231x87.jpg?t=1789743909",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "VR Time Machine Travelling in ancient civilizations: Mayan Kingdom, Inca Empire, Indians, and Aztecs before conquest A.D.1000",
+              "id": 1399150,
+              "price": {
+                "currency": "CNY",
+                "initial": 3700,
+                "final": 3700
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1399150/capsule_231x87.jpg?t=1658807061",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "王国有限公司": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "xdgame-4261080-16",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17121.html",
+      "rawTitle": "远征公会/Expedition of the Guild",
+      "expectedAppId": "4261080",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "远征公会/Expedition of the Guild": {
+          "total": 0,
+          "items": []
+        },
+        "Expedition of the Guild": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "Expedition of the Guild",
+              "id": 4261080,
+              "price": {
+                "currency": "CNY",
+                "initial": 4300,
+                "final": 2838
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4261080/fa0de2fd69235295501c8475900a3b02c5efa7c2/capsule_231x87.jpg?t=1793365001",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Expedition of the Guild Demo",
+              "id": 4817140,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4817140/fa0de2fd69235295501c8475900a3b02c5efa7c2/capsule_231x87.jpg?t=1793333493",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "远征公会": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "远征公会",
+              "id": 4261080,
+              "price": {
+                "currency": "CNY",
+                "initial": 4300,
+                "final": 2838
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4261080/511bce4b5e1b9926107a2c4085beb6678d6fa622/capsule_231x87_schinese.jpg?t=1793365001",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "远征公会 试玩版",
+              "id": 4817140,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4817140/511bce4b5e1b9926107a2c4085beb6678d6fa622/capsule_231x87_schinese.jpg?t=1793333493",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "xdgame-4891550-17",
+      "site": "xdgame",
+      "pageUrl": "https://www.xdgame.com/game/17120.html",
+      "rawTitle": "九死一生/Fat Chance",
+      "expectedAppId": "4891550",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "九死一生/Fat Chance": {
+          "total": 0,
+          "items": []
+        },
+        "Fat Chance": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "Fat Chance",
+              "id": 4891550,
+              "price": {
+                "currency": "CNY",
+                "initial": 3500,
+                "final": 2975
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4891550/e99d36e57947aff05ec47152ea29858723d9c3d6/capsule_231x87.jpg?t=1793289030",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Fat Chance Demo",
+              "id": 5060230,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5060230/e99d36e57947aff05ec47152ea29858723d9c3d6/capsule_231x87.jpg?t=1792225378",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "九死一生": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "gamer520-3515610-18",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/98043.html",
+      "rawTitle": "艾尔登法环 黑夜君临|豪华中文|Build.22818764-见弃空洞者DLC+预购特典+全DLC+修改器|解压即撸|",
+      "expectedAppId": "3515610",
+      "expectedName": "",
+      "note": "站点胶囊图 appid 3515610 不在 storesearch 索引（搜索路径不可判定；元素直取路径可达）",
+      "recorded": {
+        "艾尔登法环 黑夜君临": {
+          "total": 2,
+          "items": [
+            {
+              "type": "app",
+              "name": "艾尔登法环 黑夜君临",
+              "id": 2622380,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2622380/8ebc4260af27bc55ba8b88982fd7eb7f970d43c9/capsule_231x87.jpg?t=1791488960",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "艾尔登法环 黑夜君临 见弃空洞者",
+              "id": 3531720,
+              "price": {
+                "currency": "CNY",
+                "initial": 7000,
+                "final": 7000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3531720/a6ab221829dc59c7014353dfde0004e2dfd48575/capsule_231x87.jpg?t=1765506462",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Build.22818764-": {
+          "total": 0,
+          "items": []
+        },
+        "Build. -": {
+          "total": 0,
+          "items": []
+        }
+      },
+      "skipVerify": true
+    },
+    {
+      "id": "gamer520-3816930-19",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/110436.html",
+      "rawTitle": "无尽猎杀|豪华中文|Build.26132619-暗潮灭绝-深渊猎魂+全DLC|解压即撸|",
+      "expectedAppId": "3816930",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "无尽猎杀": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "《无尽猎杀》",
+              "id": 3816930,
+              "price": {
+                "currency": "CNY",
+                "initial": 5200,
+                "final": 2600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3816930/b386675e20e9df4a585486ab7fd43141182938b3/capsule_231x87.jpg?t=1791969229",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "Build.26132619-": {
+          "total": 0,
+          "items": []
+        },
+        "Build. -": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "gamer520-2807960-20",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/102622.html",
+      "rawTitle": "战地风云™ 6 豪华战役版|中字-国语|V1.0.39Fix+全DLC+预购奖励|解压即撸|",
+      "expectedAppId": "2807960",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "战地风云™ 6 战役": {
+          "total": 0,
+          "items": []
+        },
+        "中字-国语": {
+          "total": 0,
+          "items": []
+        },
+        "战地风云": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "战地风云™ 6",
+              "id": 2807960,
+              "price": {
+                "currency": "CNY",
+                "initial": 19800,
+                "final": 19800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2807960/d7ae078e0a543a97ff5a5d72165999535b0b1cdc/capsule_231x87.jpg?t=1793314012",
+              "metascore": "82",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "战地风云™ 禁区冲突",
+              "id": 3028330,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3028330/f7ec6648f9de149b098b8b9674aa99a0b1c284c8/capsule_231x87.jpg?t=1792018418",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "第 5 战地风云 Pro——《战地风云™ 6》和禁区冲突",
+              "id": 4888270,
+              "price": {
+                "currency": "CNY",
+                "initial": 13800,
+                "final": 13800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4888270/d294038ba59a78738c44e9fbfb8951e9f308a06d/capsule_231x87.jpg?t=1791881955",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《战地风云 5》",
+              "id": 1238810,
+              "price": {
+                "currency": "CNY",
+                "initial": 22800,
+                "final": 22800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1238810/capsule_231x87.jpg?t=1772707365",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《战地风云™ 2042》",
+              "id": 1517290,
+              "price": {
+                "currency": "CNY",
+                "initial": 24800,
+                "final": 24800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1517290/capsule_231x87_schinese.jpg?t=1777324359",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "星际大战 战地风云™ ",
+              "id": 1237980,
+              "price": {
+                "currency": "CNY",
+                "initial": 11800,
+                "final": 11800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1237980/capsule_231x87.jpg?t=1777393769",
+              "metascore": "76",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《战地风云 5》新手包",
+              "id": 1264171,
+              "price": {
+                "currency": "CNY",
+                "initial": 2800,
+                "final": 2800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1264171/capsule_231x87.jpg?t=1598622414",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "终极捷径包——《战地风云™ 6》和禁区冲突",
+              "id": 4888690,
+              "price": {
+                "currency": "CNY",
+                "initial": 15800,
+                "final": 15800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4888690/b1159695b0e46c90fb73eff9401172b1e6d4c1fa/capsule_231x87.jpg?t=1791903717",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "《战地风云 5》高级新手包",
+              "id": 1264170,
+              "price": {
+                "currency": "CNY",
+                "initial": 15800,
+                "final": 15800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1264170/capsule_231x87.jpg?t=1598622377",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "战地风云 4™ Community Operations",
+              "id": 1272650,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1272650/capsule_231x87.jpg?t=1598622795",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "战役": {
+          "total": 10,
+          "items": [
+            {
+              "type": "app",
+              "name": "IL-2捍卫雄鹰：斯大林格勒战役",
+              "id": 307960,
+              "price": {
+                "currency": "CNY",
+                "initial": 16800,
+                "final": 16800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/307960/capsule_231x87.jpg?t=1787225156",
+              "metascore": "74",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "《光环 无限》(战役)",
+              "id": 1708091,
+              "price": {
+                "currency": "CNY",
+                "initial": 39900,
+                "final": 39900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1708091/capsule_231x87.jpg?t=1763578010",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "统一指挥2：阿登战役",
+              "id": 3456990,
+              "price": {
+                "currency": "CNY",
+                "initial": 4200,
+                "final": 4200
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3456990/99c4672a6b8ac9a070dd5706d960cd67ff2c2569/capsule_231x87_schinese.jpg?t=1765475889",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "统一指挥2：顿河战役",
+              "id": 1870350,
+              "price": {
+                "currency": "CNY",
+                "initial": 2900,
+                "final": 2900
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/1870350/capsule_231x87_schinese.jpg?t=1684428727",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "统一指挥2：柏林战役",
+              "id": 2711100,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2711100/32c6c98a4138fd554f4d241f40f5699ffc5b71c9/capsule_231x87_schinese.jpg?t=1756999443",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Frontline 1942: 第二次世界大战的战役",
+              "id": 2564660,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2564660/42acd00e95097e984791ea98d60d2c0e7b881893/capsule_231x87.jpg?t=1781158740",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": true
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "统一指挥2：库尔斯克战役",
+              "id": 2307940,
+              "price": {
+                "currency": "CNY",
+                "initial": 4800,
+                "final": 4800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2307940/capsule_231x87_schinese.jpg?t=1697734806",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": true,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "库里科沃原野大门。埃皮凡战役。",
+              "id": 2687540,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2687540/capsule_231x87_schinese.jpg?t=1701350788",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "神箭手塔防: 战役",
+              "id": 4971350,
+              "price": {
+                "currency": "CNY",
+                "initial": 600,
+                "final": 600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4971350/d66993c511ab7dc286f707e6c69da4f85eb806c5/capsule_231x87_schinese.jpg?t=1792560088",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "Steampunk Jigsaw Puzzles - 伟大战役",
+              "id": 2565090,
+              "price": {
+                "currency": "CNY",
+                "initial": 1500,
+                "final": 1500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/2565090/capsule_231x87_schinese.jpg?t=1696941854",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "中字": {
+          "total": 0,
+          "items": []
+        },
+        "V1.0.39Fix": {
+          "total": 0,
+          "items": []
+        },
+        "V . . Fix": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "gamer520-3014320-21",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/103203.html",
+      "rawTitle": "歧路旅人0|豪华中文|V1.0.3-故土新塑-无冕御灵+全DLC-模拟器整合版|解压即撸|",
+      "expectedAppId": "3014320",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "歧路旅人0": {
+          "total": 3,
+          "items": [
+            {
+              "type": "app",
+              "name": "歧路旅人0 OCTOPATH TRAVELER 0",
+              "id": 3014320,
+              "price": {
+                "currency": "CNY",
+                "initial": 29800,
+                "final": 29800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3014320/67b817b83633861c6330061838917bcc07be9852/capsule_231x87.jpg?t=1793265949",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "歧路旅人0 数字豪华版升级包 OCTOPATH TRAVELER 0 Digital Deluxe Upgrade",
+              "id": 3825480,
+              "price": {
+                "currency": "CNY",
+                "initial": 7500,
+                "final": 7500
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3825480/4cfeb1dfd2d811c5bbd000e13c2b0faca5c819f3/capsule_231x87.jpg?t=1764867818",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "歧路旅人0 序章体验版 OCTOPATH TRAVELER 0 Prologue Demo",
+              "id": 3014330,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3014330/e106b4288c61d7a6b9ea2e0dfd65a22d3b8b4755/capsule_231x87.jpg?t=1779854792",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "V1.0.3-": {
+          "total": 0,
+          "items": []
+        },
+        "V . . -": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "gamer520-4164790-22",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/119994.html",
+      "rawTitle": "生存日志|官方中文|Build.26294912-末日余烬-废土重生+全DLC|解压即撸|",
+      "expectedAppId": "4164790",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "生存日志": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "生存日志",
+              "id": 4164790,
+              "price": {
+                "currency": "CNY",
+                "initial": 4600,
+                "final": 4600
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4164790/5a5817a52ff2ef56806534ffbd73f3ff2ad947d2/capsule_231x87_schinese.jpg?t=1790679893",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "Build.26294912-": {
+          "total": 0,
+          "items": []
+        },
+        "Build. -": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "gamer520-3419520-23",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/105041.html",
+      "rawTitle": "检疫区 最后一站|豪华中文|V2.0.3.2615-黑雾临检-孤站法则+全DLC|解压即撸|",
+      "expectedAppId": "3419520",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "检疫区 最后一站": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "检疫区：最后一站",
+              "id": 3419520,
+              "price": {
+                "currency": "CNY",
+                "initial": 6800,
+                "final": 6800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3419520/d04dd64dc02a074f3f149a9acffdf38c130efa55/capsule_231x87_alt_assets_2.jpg?t=1792107989",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            }
+          ]
+        },
+        "V2.0.3.2615-": {
+          "total": 0,
+          "items": []
+        },
+        "V . . . -": {
+          "total": 0,
+          "items": []
+        }
+      }
+    },
+    {
+      "id": "gamer520-4115450-24",
+      "site": "gamer520",
+      "pageUrl": "https://www.gamer520.com/124938.html",
+      "rawTitle": "影之刃零|风灵月影|修改器|",
+      "expectedAppId": "4115450",
+      "expectedName": "",
+      "note": "三站第一页基准采集",
+      "recorded": {
+        "影之刃零": {
+          "total": 4,
+          "items": [
+            {
+              "type": "app",
+              "name": "影之刃零",
+              "id": 4115450,
+              "price": {
+                "currency": "CNY",
+                "initial": 26800,
+                "final": 26800
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/4115450/8c12e4e993e486396bae93f195f44501145d61c8/capsule_231x87_schinese.jpg?t=1793261976",
+              "metascore": "88",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "影之刃零数字豪华版升级包",
+              "id": 5041150,
+              "price": {
+                "currency": "CNY",
+                "initial": 6000,
+                "final": 6000
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/5041150/6907922e382608f6a8029f9074b7f7f809f074a6/capsule_231x87_schinese.jpg?t=1793238502",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false,
+              "controller_support": "full"
+            },
+            {
+              "type": "app",
+              "name": "明末影之刃零",
+              "id": 3853470,
+              "price": {
+                "currency": "CNY",
+                "initial": 1800,
+                "final": 270
+              },
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3853470/aee945591a41930dd8d6433da80e485f444ddf4f/capsule_231x87.jpg?t=1786684728",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            },
+            {
+              "type": "app",
+              "name": "《明末：渊虚之域》影之刃零",
+              "id": 3910040,
+              "tiny_image": "https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/3910040/aee945591a41930dd8d6433da80e485f444ddf4f/capsule_231x87.jpg?t=1775746095",
+              "metascore": "",
+              "platforms": {
+                "windows": true,
+                "mac": false,
+                "linux": false
+              },
+              "streamingvideo": false
+            }
+          ]
+        },
+        "风灵月影": {
+          "total": 0,
+          "items": []
+        }
+      }
+    }
+  ]
+}

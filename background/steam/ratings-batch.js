@@ -152,43 +152,41 @@ function teardownResumeAlarm() {
 
 // v10.3.0：按 tab 队列化——此前单一 jobRunning 守卫在多标签页并发时
 // **整只丢弃**后到任务（对应页面徽章永不渲染，E2E 间歇性 3b 失败根因）。
-// 跨 tab 并发（推送各自独立互不干扰）、同 tab 串行（内容侧 done 衔接语义）
-/** @type {Map<string, {running: boolean, pending: Array<Object>}>} */
-const jobQueues = new Map();
+// v14.8 批次 14（用户报告：多标签页同时打开时检测停在"待检测"）：跨 tab
+// 并发使限速窗口内失败率翻倍（两任务并行 = anomaly 级联 → 各自 30s 暂停
+// 循环 → 内容侧 45s 强制收尾时徽章停在"待检测"）。改**全局单任务链**：
+// 所有 tab 的任务进同一条 FIFO 串行消化（各自推送回自己的 tabId 不变）；
+// 后开标签的首波缓存命中仍即时返回（阶段 1 在任务外），只有未命中名等队。
+// Global single-flight job chain since v14.8 (multi-tab parallel jobs doubled
+// the failure rate inside the rate-limit window → anomaly cascade → stuck
+// badges); phase-1 cache hits still return instantly for later tabs.
+/** @type {{running: boolean, pending: Array<Object>}} */
+const jobQueue = { running: false, pending: [] };
 
-function queueKey(tabId) {
-  return tabId === null || tabId === undefined ? 'null' : String(tabId);
-}
-
-function runNextForTab(key) {
-  const q = jobQueues.get(key);
-  if (!q || q.running) return;
-  const job = q.pending.shift();
-  if (!job) return;
-  q.running = true;
+function runNextGlobal() {
+  const job = jobQueue.pending.shift();
+  if (!job) {
+    jobQueue.running = false;
+    return;
+  }
+  jobQueue.running = true;
   (async () => {
     try {
       await persistJob(job);
       setupResumeAlarm();
       await runRatingJob(job);
     } finally {
-      q.running = false;
-      runNextForTab(key);
+      jobQueue.running = false;
+      runNextGlobal();
     }
   })();
 }
 
-// 发起任务（fire-and-forget；同 tab 串行、跨 tab 并发，永不丢弃）
-// start a job (fire-and-forget; serialized per tab, concurrent across tabs)
+// 发起任务（fire-and-forget；全局 FIFO 串行，永不丢弃）
+// start a job (fire-and-forget; single global FIFO chain, never dropped)
 export function startRatingJob(job) {
-  const key = queueKey(job.tabId);
-  let q = jobQueues.get(key);
-  if (!q) {
-    q = { running: false, pending: [] };
-    jobQueues.set(key, q);
-  }
-  q.pending.push(job);
-  runNextForTab(key);
+  jobQueue.pending.push(job);
+  if (!jobQueue.running) runNextGlobal();
   return true;
 }
 

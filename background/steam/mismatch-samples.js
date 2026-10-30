@@ -57,13 +57,15 @@ export async function clearWrongReportSamples() {
 /**
  * 采集一次错题现场（fire-and-forget——失败静默，绝不影响确认主流程）。
  * Capture one mismatch scene; failures are silent (never blocks the confirm).
- * @param {{gameName?: string, rawTitle?: string, correctAppId?: string|number}} scene
+ * @param {{gameName?: string, rawTitle?: string, correctAppId?: string|number|null}} scene
  */
 export async function captureMismatchSample(scene) {
   try {
     const rawTitle = String(scene.rawTitle || '').slice(0, 300);
-    const appId = String(scene.correctAppId || '');
-    if (!rawTitle || !appId) return { captured: false, reason: 'missing-fields' };
+    const appId = scene.correctAppId != null ? String(scene.correctAppId) : null;
+    // v14.8 批次 15：appId=null = 未命中样本（recall-gap——游戏存在但管线
+    // 未找到）；回放验证时"变为命中"即改进，不作为硬门槛。
+    if (!rawTitle) return { captured: false, reason: 'missing-fields' };
     const samples = await readSamples();
     // 去重：同一 rawTitle+appId 已采集过则跳过（重复确认不重复采集）
     if (samples.some((s) => s.rawTitle === rawTitle && s.expectedAppId === appId)) {
@@ -83,11 +85,12 @@ export async function captureMismatchSample(scene) {
       }
     }
     samples.unshift({
-      id: `manual-${appId}-${Date.now().toString(36)}`,
+      id: `${appId ? 'manual-' + appId : 'miss'}-${Date.now().toString(36)}`,
       rawTitle,
       expectedAppId: appId,
       expectedName: '',
-      note: '用户手动确认自动采集',
+      kind: appId ? undefined : 'miss', // 未命中样本（回放改进度量，非硬门槛）
+      note: appId ? '用户手动确认自动采集' : '未命中自动采集（负缓存固化前）',
       recorded
     });
     await writeSamples(samples);

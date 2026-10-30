@@ -365,13 +365,14 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
 
   test('SEARCH_STEAM：网址索引命中 → 直接使用索引 appId（不触发标题搜索）', async () => {
     await urlIdx.setUrlAppId(TEST_URL, 3764200);
+    // v14.8 批次 15 注：未命中自动采集（fire-and-forget）的 storesearch 会
+    // 从前序用例异步落账——storesearch 计数断言不再可靠（URL 命中优先语义
+    // 由 appId 断言与'直取路径网址索引优先'用例共同保障）
     const resp = await handleMessage(
       { action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' },
       { tab: { url: TEST_URL } }
     );
     expect(resp.data && String(resp.data.appId)).toEqual('3764200');
-    // storesearch 未被调用（mock 返回空——若走了标题搜索则结果为 null）
-    expect(fetchMock._calls.some((u) => u.includes('/api/storesearch'))).toEqual(false);
   });
 
   test('GET_STEAM_RATINGS：urls 索引命中 → 缓存直取该 appId', async () => {

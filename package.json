@@ -12,6 +12,7 @@
     "test:sim": "vitest run tests/sim tests/integration",
     "e2e": "node tests/e2e-smoke.mjs",
     "bench": "node scripts/perf-bench.mjs",
+    "verify:match": "node scripts/verify-match.mjs",
     "lint": "eslint . --no-warn-ignored --max-warnings 0",
     "check": "npm run lint && npm run typecheck && npm test",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.content.json",
