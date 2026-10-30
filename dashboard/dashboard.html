@@ -191,6 +191,7 @@
       <section class="section">
         <h2>📊 Steam标签偏好（学习结果）</h2>
         <p class="section-desc">基于您下载过的游戏的Steam标签分析得出</p>
+        <div id="profileRadar" class="profile-radar"></div>
         <div id="tagCloud" class="tag-cloud">
           <span class="no-data">暂无数据</span>
         </div>
@@ -200,6 +201,10 @@
       <section class="section">
         <h2>📥 下载方式统计</h2>
         <div id="downloadMethods" class="method-grid">
+          <span class="no-data">暂无数据</span>
+        </div>
+        <div style="font-size: 11px; color: #8f98a0; margin-top: 10px">按站点 Top5（近期 30 条内）</div>
+        <div id="downloadSitesTop" class="method-grid">
           <span class="no-data">暂无数据</span>
         </div>
       </section>
@@ -334,6 +339,7 @@
     <script src="dash-stats.js"></script>
     <script src="dash-logs.js"></script>
     <script src="dash-diagnostics.js"></script>
+    <script src="dash-radar.js"></script>
     <script src="dash-backups.js"></script>
     <script src="dashboard.js"></script>
   </body>

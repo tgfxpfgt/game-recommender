@@ -1,4 +1,4 @@
-/* global loadHealthCards loadApiDiagnostics loadBootTime loadRuntimeMetrics renderMismatchSamples renderFreeGameMiss loadFavorites bindGameSearch renderFeedback renderTagCloud activeTagFilter paginate renderPager safeDateText */
+/* global loadHealthCards loadApiDiagnostics loadBootTime loadRuntimeMetrics renderMismatchSamples renderFreeGameMiss renderProfileRadar loadFavorites bindGameSearch renderFeedback renderTagCloud activeTagFilter paginate renderPager safeDateText */
 /* eslint-disable no-unused-vars */
 /**
  * 游戏雷达 Game Radar - Dashboard 统计模块 / Dashboard Stats Module
@@ -132,6 +132,7 @@ async function loadStats() {
     // v7.1.0：自助诊断（网址索引规模 / 名称负缓存条数）
     document.getElementById('diagUrlIndex').textContent = response.urlIndexSize ?? 0;
     document.getElementById('diagNegativeCache').textContent = response.negativeCacheCount ?? 0;
+    renderProfileRadar(response.gameList || []); // v14.8 批次 9（第九轮 B3）：画像雷达
     loadHealthCards().catch(() => {}); // v10.0.0：站点/存储健康卡片（失败不影响主统计）
     renderMismatchSamples().catch(() => {}); // v14.8 批次 3：错题样本卡
     renderFreeGameMiss().catch(() => {}); // v14.8 批次 7：限免错过统计
@@ -168,7 +169,7 @@ async function loadStats() {
     renderTagCloud(response.topKeywords);
 
     // 下载方式 / Download methods
-    renderDownloadMethods(response.downloadMethods);
+    renderDownloadMethods(response.downloadMethods, response.recentLog); // v14.8 批次 11：recentLog 供按站聚合
 
     // 游戏列表 / Game table
     cachedGameList = response.gameList || [];
@@ -207,6 +208,36 @@ function renderDownloadMethods(methods) {
         <div class="method-name">${methodNames[method] || escapeHtml(method)}</div>
       </div>
     `
+    )
+    .join('');
+}
+
+// v14.8 批次 11（第九轮 B4）：按站点 Top5——近期下载事件（最近 30 条内）
+// 按 url hostname 聚合（诚实口径：recentLog 仅 30 条，非全量历史）
+function renderDownloadSitesTop(recentLog) {
+  const container = document.getElementById('downloadSitesTop');
+  if (!container) return;
+  const bySite = {};
+  for (const e of recentLog || []) {
+    if (e.type !== 'click_download' || !e.url) continue;
+    try {
+      const host = new URL(e.url).hostname;
+      bySite[host] = (bySite[host] || 0) + 1;
+    } catch {
+      /* 异型 url 跳过 */
+    }
+  }
+  const top = Object.entries(bySite)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5);
+  if (top.length === 0) {
+    container.innerHTML = '<span class="no-data">近期无下载记录</span>';
+    return;
+  }
+  container.innerHTML = top
+    .map(
+      ([host, count]) =>
+        `<div class="method-item"><div class="method-count">${count}</div><div class="method-name">${escapeHtml(host)}</div></div>`
     )
     .join('');
 }
