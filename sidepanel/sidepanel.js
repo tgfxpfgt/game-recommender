@@ -88,6 +88,11 @@
         </div>
         <button id="spFavToggle" class="sp-btn${isFav ? ' is-fav' : ''}">${isFav ? '⭐ 已收藏（点击取消）' : '☆ 收藏此游戏'}</button>
       `;
+      document.getElementById('spOpenSettings').addEventListener('click', () => {
+        // v14.8 批次 13（第九轮 B8）：设置中心入口（settings-utils goHub 单点）
+        const utils = globalThis.__GR_SETTINGS_UTILS__;
+        if (utils && utils.goHub) utils.goHub('options');
+      });
       document.getElementById('spFavToggle').addEventListener('click', async () => {
         try {
           await send({ action: 'TOGGLE_FAVORITE', appId: String(g.appId), name: g.name || '' });
