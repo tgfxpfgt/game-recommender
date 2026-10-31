@@ -251,6 +251,37 @@
         }
       },
       "cleanTitle": "生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器"
+    },
+    {
+      "id": "xianyudanji-silenthill-crossover",
+      "site": "xianyudanji",
+      "rawTitle": "寂静岭：陨落小镇|v1.6.155963|豪华版|官方中文|支持手柄|SILENT HILL",
+      "cleanTitle": "寂静岭：陨落小镇",
+      "expectedAppId": null,
+      "expectedName": "",
+      "kind": "hard-miss",
+      "note": "跨词共识专项回归锁：storesearch term=寂静岭 仅返回 1324970 黎明杀机-寂静岭（外族前缀跨界条目，曾经 resolveDlcToBase 错配黎明杀机 381210）——isCrossoverEntry 拒绝后应保持 miss（got 非空即回归）；正主 1636440 经详情页信号回捞可达（v14.8.2 盲区自愈）",
+      "recordedTerms": ["寂静岭：陨落小镇", "寂静岭", "陨落小镇"],
+      "recorded": {
+        "寂静岭：陨落小镇": {
+          "total": 0,
+          "items": []
+        },
+        "寂静岭": {
+          "total": 1,
+          "items": [
+            {
+              "type": "app",
+              "name": "黎明杀机-寂静岭",
+              "id": 1324970
+            }
+          ]
+        },
+        "陨落小镇": {
+          "total": 0,
+          "items": []
+        }
+      }
     }
   ]
 }

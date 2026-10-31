@@ -76,3 +76,20 @@ export async function resolveDlcToBase(appId) {
   }
   return appId;
 }
+
+// v14.8.2（storesearch 新游戏盲区自愈）：站点详情页内嵌 Steam appid 信号提取——
+// 三站详情页均以 steam CDN 镜像路径嵌图（host 无关：store_item_assets/steam/
+// apps/NNN，基准采集 scripts/baseline-crawl.mjs 已 26 样本实证），按出现次数
+// 降序返回去重 appid（次数多者为页面主图信号）。纯函数，单测可钉。
+// v14.8.2 (new-game blind-spot self-heal): extract Steam appid signals embedded
+// in a download-site DETAIL page (host-agnostic CDN mirror path), ordered by
+// occurrence count. Pure & unit-testable.
+/** @param {string} html @returns {string[]} */
+export function extractSteamAppIdSignals(html) {
+  const counts = new Map();
+  for (const m of String(html || '').matchAll(/store_item_assets\/steam\/apps\/(\d+)/gi)) {
+    const id = m[1];
+    counts.set(id, (counts.get(id) || 0) + 1);
+  }
+  return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}

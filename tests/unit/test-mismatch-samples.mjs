@@ -66,6 +66,11 @@ describe('错题库回放（mismatch-samples）', () => {
         const covered = [...allTerms].some((t) => Object.prototype.hasOwnProperty.call(sample.recorded, t));
         expect(covered, `recorded 未覆盖 parseGameTitle 输出: ${sample.id}`).toEqual(true);
         const r = await api.searchSteamAppId(terms, sample.rawTitle, null);
+        // v14.8.2：hard-miss 样本 = 回归锁（期望 null；错配命中即失败）
+        if (sample.kind === 'hard-miss') {
+          expect(r, `${sample.id} 应保持 miss（跨词条目被拒后无候选）`).toEqual(null);
+          return;
+        }
         expect(r, `${sample.id} 应命中 ${sample.expectedAppId}`).not.toEqual(null);
         expect(String(r.appId)).toEqual(String(sample.expectedAppId));
       } finally {

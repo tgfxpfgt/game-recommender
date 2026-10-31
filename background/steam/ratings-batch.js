@@ -104,6 +104,8 @@ export async function handleGetSteamRatings(message, sender) {
       urlAppIds,
       imageData,
       appIds,
+      urls, // v14.8.2：name → 站点详情页 URL（盲区自愈详情页信号回捞）
+      probeBudget: { left: PERF_CONFIG.detailProbeBudget }, // v14.8.2：回捞预算（仅实际探测扣减）
       startedAt: Date.now()
     };
     startRatingJob(job);
@@ -405,7 +407,10 @@ async function runRatingJob(job) {
             r = await getSteamPositiveRate(name, {
               ignoreNegativeCache: true,
               appId: urlAppId || (img ? img.appId : null),
-              cover: img ? img.cover : null
+              cover: img ? img.cover : null,
+              // v14.8.2：盲区自愈——miss 时按任务预算回捞站点详情页 appid 信号
+              pageUrl: job.urls && job.urls[name] ? job.urls[name] : null,
+              probeBudget: job.probeBudget || null
             });
           } catch {
             r = null;

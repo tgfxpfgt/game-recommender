@@ -55,6 +55,7 @@ export default defineConfig({
       'tests/unit/test-migrate.mjs',
       'tests/unit/test-ui-pure.mjs',
       'tests/unit/test-ratings-resume.mjs',
+      'tests/unit/test-match-consensus.mjs',
       'tests/unit/test-health.mjs',
       'tests/unit/test-wiring.mjs',
       'tests/unit/test-settings-sync.mjs',

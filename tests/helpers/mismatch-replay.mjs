@@ -94,6 +94,12 @@ async function replayOne(sample) {
     // 未命中样本（expectedAppId null）= 改进度量非硬门槛——got 非 null 即
     // "现在找到了"（改进 ok），仍 null = 中性 ok
     if (sample.expectedAppId == null) {
+      // v14.8.2：hard-miss = 回归锁（错配命中即硬失败——如寂静岭跨界案例，
+      // isCrossoverEntry 回退后 got 会变 1324970）；普通 miss = 改进度量
+      //（got 非 null 即"现在找到了"）。
+      if (sample.kind === 'hard-miss') {
+        return { id: sample.id, ok: got === null, got, expected: 'hard-miss(回归锁)' };
+      }
       return { id: sample.id, ok: true, got, expected: 'miss(改进度量)' };
     }
     return { id: sample.id, ok: got === String(sample.expectedAppId), got, expected: String(sample.expectedAppId) };

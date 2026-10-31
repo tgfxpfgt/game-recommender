@@ -28,6 +28,9 @@ import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
+import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
+import { extractSteamAppIdSignals } from './orchestrator-shared.js'; // v14.8.2：盲区自愈
+import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
@@ -67,6 +70,51 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
  * options.ignoreNegativeCache：列表页批量场景跳过负缓存（用户主动浏览值得重试）。
  * Lightweight rating lookup for list pages (cache-first).
  */
+// v14.8.2（盲区自愈）：站点详情页信号回捞——抓取列表项详情页，提取内嵌
+// steam CDN appid 信号（按出现次数降序取前 3 个候选），逐个经 appdetails
+// 名称相关性校验（nameMatchesSearch 全语义：跨语言数字对齐/俗称序号例外；
+// 同语言候选加 cjkBigramDice 复核防无关放行）。任一通过 → 作为搜索结果；
+// 全部失败/网络异常 → null（维持 miss）。每名至多调用一次（worker 预算控制）。
+// Detail-signal probe: fetch the item's own detail page, extract the embedded
+// Steam appid signals, and validate each via appdetails name-relevance before
+// accepting; any failure keeps the item as a miss.
+/**
+ * @param {string} gameName
+ * @param {string} pageUrl
+ * @param {string|number|null} excludeAppId
+ * @returns {Promise<{appId: string, name: string, englishName: string}|null>}
+ */
+async function probeDetailSignal(gameName, pageUrl, excludeAppId) {
+  try {
+    const resp = await fetchWithTimeout(pageUrl);
+    if (!resp.ok) return null;
+    const html = await resp.text();
+    const ids = extractSteamAppIdSignals(html).slice(0, 3);
+    for (const appId of ids) {
+      if (excludeAppId && String(appId) === String(excludeAppId)) continue;
+      const details = await fetchSteamAppDetails(appId, 'schinese').catch(() => null);
+      if (!details || !details.name) continue;
+      const dtype = String(details.type || '').toLowerCase();
+      // 明确非游戏载体（原声带/视频/硬件/捆绑包）跳过；DLC 交给 4.5 步解析本体
+      if (dtype && ['music', 'video', 'hardware', 'bundle'].includes(dtype)) continue;
+      const name = String(details.name);
+      if (!nameMatchesSearch(name, gameName, gameName)) continue;
+      // 同语言候选 Dice 复核（防俗称序号例外放行无关同语言游戏——误标信号防线）
+      if (/[\u4e00-\u9fff]/.test(name)) {
+        const d = cjkBigramDice(gameName, name);
+        if (d !== -1 && d < 0.28) {
+          Logger.debug('Steam', `详情页信号候选 Dice 过低剔除: ${appId} (${name})`);
+          continue;
+        }
+      }
+      return { appId, name, englishName: name };
+    }
+  } catch {
+    /* 探测失败 = 维持 miss（负缓存语义不变） */
+  }
+  return null;
+}
+
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
@@ -140,6 +188,28 @@ export async function getSteamPositiveRate(gameName, options = {}) {
               searchResult = await searchCommunityApps(enSeg, options.rawTitle, corr ? corr.wrongAppId : null);
             }
           }
+        }
+      }
+      if (!searchResult && options.pageUrl) {
+        // v14.8.2（storesearch 新游戏盲区自愈，用户指定专项）：storesearch 对
+        // 新游戏结构性缺失（实测：泰坦之旅2/深海迷航2 全名与家族词检索均 0
+        // 结果/仅前作）→ **站点详情页信号回捞**：列表项详情页内嵌 steam CDN
+        // appid 信号（host 无关，三站 26 样本实证）→ 提取后经 appdetails
+        // 名称相关性校验（防站点胶囊图误标：潜行者2 3765020 实证信号错误），
+        // 通过则作为 searchResult 进入常规管线（DLC 解析/缓存/注册表全复用）。
+        // 有界：调用方按任务预算供给（probeBudget.left 仅实际探测扣减——命中
+        // 缓存的调用不占预算）；探测失败 = 维持 miss（负缓存语义不变）。残余
+        // 风险：站点信号错误且误标名无数字/无共同词时俗称序号例外可能放行——
+        // 由人工纠正知识库（wrongAppId 黑名单）兜底。
+        /** @type {{appId: string, name: string, englishName: string}|null} */
+        let probe = null;
+        if (!options.probeBudget || options.probeBudget.left > 0) {
+          if (options.probeBudget) options.probeBudget.left -= 1;
+          probe = await probeDetailSignal(gameName, options.pageUrl, corr ? corr.wrongAppId : null);
+        }
+        if (probe) {
+          Logger.info('Steam', `详情页信号回捞命中: "${gameName}" → ${probe.appId} (${probe.name})`);
+          searchResult = probe;
         }
       }
       if (!searchResult) {

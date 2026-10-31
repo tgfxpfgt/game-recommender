@@ -332,6 +332,61 @@ export function rankCandidatesByType(items) {
     .map((r) => r.item);
 }
 
+// v14.8.2（详情页信号回捞配套）：CJK 双字组 Dice 相似度——同语言候选的
+// 独立复核信号（短名/无 CJK 返回 -1 = 无法判定，调用方跳过）。仅作校验
+// 工具，不参与 matchCandidateScore 评分（383ce44 评分实验回退语义不变）。
+// CJK character-bigram Dice similarity: an independent validation signal for
+// same-language candidates (returns -1 = undecidable; NOT a scoring input).
+/** @param {string} a @param {string} b @returns {number} */
+export function cjkBigramDice(a, b) {
+  /** @param {string} s @returns {Set<string>} */
+  const bigrams = (s) => {
+    const cjk = (String(s).match(/[\u4e00-\u9fff]/g) || []).join('');
+    const out = new Set();
+    for (let i = 0; i < cjk.length - 1; i++) out.add(cjk.slice(i, i + 2));
+    return out;
+  };
+  const A = bigrams(a);
+  const B = bigrams(b);
+  if (A.size < 5 || B.size < 5) return -1;
+  let shared = 0;
+  for (const g of A) if (B.has(g)) shared++;
+  return (2 * shared) / (A.size + B.size);
+}
+
+// v14.8.2（跨词共识专项，实测 storesearch term=寂静岭 仅返回"黎明杀机-寂静岭"）：
+// **外族前缀跨界条目检测**——候选名包含搜索词，但搜索词之前还有一段外族 CJK
+// 品牌块（如"黎明杀机-寂静岭"之于标题"寂静岭：陨落小镇"；该 DLC 会经
+// resolveDlcToBase 解析成黎明杀机正主 = 错配链）。判外族：前缀块剥离站点
+// 修饰词（noiseTitle w 词条——豪华版/重制 等版本后缀不是外族内容）后仍 ≥2 字
+// 且不出现在标题规范化文本中。**仅前缀形状**：官方名副标题后缀（"上古卷轴5：
+// 天际"的天际）不受影响；不含搜索词的候选（永恒终焉 之于站名 永恒的尽头）
+// 不进入本检测。
+// v14.8.2 (cross-word consensus): crossover-entry shape — the candidate
+// contains the term but carries a FOREIGN CJK brand block BEFORE it ("DBD -
+// Silent Hill" for a Silent Hill title); such DLC entries resolve to the
+// foreign franchise's main game = the whole mismatch chain.
+/** @param {string} resultName @param {string} term @param {string} rawName @returns {boolean} */
+export function isCrossoverEntry(resultName, term, rawName) {
+  const rn = String(resultName || '');
+  const tn = String(term || '').trim();
+  if (!rn || tn.length < 2) return false;
+  const idx = rn.toLowerCase().indexOf(tn.toLowerCase());
+  if (idx <= 0) return false; // 搜索词不在候选名内，或就位于开头（无前缀）
+  const rawNorm = String(rawName || '')
+    .toLowerCase()
+    .replace(/[\s\-_:：|.'!！?？\[\]()（）×•·]/g, '');
+  const { noisePatternAll } = getCompiledRetrievalRules(); // 站点修饰词剥离（热更感知）
+  const before = rn.slice(0, idx);
+  for (const run of before.match(/[\u4e00-\u9fff]{2,}/g) || []) {
+    const rest = run.replace(noisePatternAll, ''); // 版本后缀（豪华版/重制 等）不是外族内容
+    for (const m of rest.match(/[\u4e00-\u9fff]{2,}/g) || []) {
+      if (!rawNorm.includes(m)) return true; // 外族品牌块
+    }
+  }
+  return false;
+}
+
 // 单次搜索实现（网络全挂时抛错供外层重试；无结果返回 null 表示"确实未找到"）
 // 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
 // One search pass (throws on total network failure for outer retry; null = not
@@ -347,6 +402,13 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
   const CONFIDENT_SCORE = 6;
   /** @type {{appId: string, name: string, englishName: string, score: number}|null} */
   let globalBest = null;
+  // v14.8.2：跨词共识收集——同一 appId 被多个搜索词各自命中为该词最优 →
+  // 每多一词 +2（封顶 +4）后参与终选（单词候选分数不变）。锚点护栏：置信
+  // 退出（≥6）语义不动，共识只影响"扫完全词后"的终选比较。
+  const CONSENSUS_BONUS_PER_TERM = 2;
+  const CONSENSUS_MAX_TERMS = 3; // 共识词数封顶（加成上限 = (3-1)*2 = 4）
+  /** @type {Map<string, {appId: string, name: string, score: number, terms: number}>} */
+  const termHits = new Map();
   // 混合标题（含 EN 段）：CJK 候选的早期退出需候选名覆盖 ≥2 个标题 EN 词
   // ——否则泛化 EN 词覆盖（Dead Space 2 的 dead+space=6）会压过 CJK 精准
   // 匹配（"死亡空间：重制版" 7 分）。纯 CJK 标题的 CJK 命中仍是决定性的。
@@ -389,12 +451,22 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
           (i) =>
             String(i.id) !== String(excludeAppId) &&
             !ADDON_NAME_PATTERN.test(i.name || '') &&
+            !isCrossoverEntry(i.name, term, rawName) && // v14.8.2：跨界条目不参选
             nameMatchesSearch(i.name, term, rawName)
         )
         .map((i) => ({ item: i, score: matchCandidateScore(i.name, term, rawName) }))
         .sort((a, b) => b.score - a.score);
       const best = related[0];
       if (!best || best.score < 1) continue;
+      // v14.8.2：共识收集（同一 appId 多词命中）
+      const hitKey = String(best.item.id);
+      const prevHit = termHits.get(hitKey);
+      if (prevHit) {
+        prevHit.terms += 1;
+        prevHit.score = Math.max(prevHit.score, best.score);
+      } else {
+        termHits.set(hitKey, { appId: best.item.id, name: best.item.name, score: best.score, terms: 1 });
+      }
       if (best.score >= CONFIDENT_SCORE && (!mixedTitle || hasEnCoverage(best.item.name))) {
         return {
           appId: best.item.id,
@@ -413,10 +485,20 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
     }
   }
   if (globalBest) {
+    // v14.8.2：终选带跨词共识加成——多词共同命中的候选优先于单词高分候选
+    let winner = { appId: globalBest.appId, name: globalBest.name, score: globalBest.score, terms: 1 };
+    let winnerTotal = winner.score;
+    for (const h of termHits.values()) {
+      const total = h.score + (Math.min(h.terms, CONSENSUS_MAX_TERMS) - 1) * CONSENSUS_BONUS_PER_TERM;
+      if (total > winnerTotal || (total === winnerTotal && h.terms > winner.terms)) {
+        winner = h;
+        winnerTotal = total;
+      }
+    }
     return {
-      appId: globalBest.appId,
-      name: globalBest.name,
-      englishName: globalBest.englishName
+      appId: winner.appId,
+      name: winner.name,
+      englishName: winner.name
     };
   }
   return null;
