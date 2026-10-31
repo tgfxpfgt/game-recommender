@@ -1,0 +1,1 @@
+{"status": 200, "contentType": "application/json", "body": "{\"success\": 1, \"query_summary\": {\"review_score_desc\": \"特别好评\", \"total_positive\": 112, \"total_reviews\": 128, \"total_negative\": 16, \"review_score\": 8}, \"reviews\": []}"}

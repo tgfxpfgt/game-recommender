@@ -38,6 +38,7 @@ export async function runListChecks(state) {
   await popup2.evaluate(async () => {
     const s = (await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' })).settings;
     s.showStatusBar = true;
+    s.showDebugPanel = true; // v14.8.1：诊断视图内含 DEBUG.logs（失败现场可读内容侧日志）
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: s });
   });
   await popup2.close();
@@ -64,17 +65,31 @@ export async function runListChecks(state) {
   }
   if (badgeCount === 0) {
     // v10.3.0：失败现场诊断——读取后台 runtimeLog（徽章流程卡点可见）
+    // v14.8.1：page.evaluate 跑在主世界（chrome.runtime undefined）→ 改经扩展页读
     try {
-      const diagLogs = await page2b.evaluate(async () => {
-        const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 60 });
+      const diagPage = await context.newPage();
+      await diagPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+      const diagLogs = await diagPage.evaluate(async () => {
+        const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
         return (resp && resp.logs) || [];
       });
+      await diagPage.close();
       console.log('  ⚠️ 3b 失败现场 runtimeLog:');
       for (const l of diagLogs.slice(-25))
         console.log(`    [${l.module}] ${l.level} ${String(l.message).slice(0, 130)}`);
     } catch (e) {
       console.log('  ⚠️ 诊断读取失败:', String(e).slice(0, 80));
     }
+    // v14.8.1：内容侧现场——状态浮窗统计文本 + 各类徽章计数（区分"没收到
+    // 推送"与"收到未渲染"；主世界读 DOM，无需 chrome API）
+    const contentState = await page2b
+      .evaluate(() => ({
+        statusBar: (document.getElementById('gr-status-bar') || {}).textContent || '(无浮窗)',
+        badgeGroups: document.querySelectorAll('.gr-rating-badge').length,
+        anyBadge: document.querySelectorAll('[class*="gr-badge"]').length
+      }))
+      .catch((e) => ({ err: String(e).slice(0, 80) }));
+    console.log('  ⚠️ 3b 内容侧现场:', JSON.stringify(contentState));
   }
   check('列表页好评率流程已启动（徽章渲染）', badgeCount > 0, `(徽章 ${badgeCount} 个)`);
   check('无 console error', errors2b.length === 0, `(${errors2b.slice(0, 3).join(' | ')})`);

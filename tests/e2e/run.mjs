@@ -66,6 +66,9 @@ state.context = context;
 
 try {
   // v7.3.0：录制/回放模式安装路由拦截（须在页面打开前）
+  // v14.8.1 实证：route() 对扩展 SW 发起的请求同样生效（ISteamNews 未命中
+  // 警告为证）——MOCK 离线确定性由 MOCK_RE 全覆盖保证（appreviews/商店页回退/
+  // Bing 已入拦截范围），无需 SW 级 CDP 补挂（双暂停会挂死请求，勿再加）。
   if (MOCK || RECORD) {
     await context.route(MOCK_RE, routeHandler);
   }

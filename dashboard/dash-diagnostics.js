@@ -267,7 +267,9 @@ async function renderFreeGameMiss() {
       return;
     }
     el.textContent = `${resp.missedCount ?? 0}/${resp.monitoredTotal ?? 0}`;
-    const recent = (resp.missed || []).map((g) => `${g.name}（${g.platform}，${g.originalPrice || '?'}）`);
+    /** @type {any[]} */
+    const missed = resp.missed || [];
+    const recent = missed.map((g) => `${g.name}（${g.platform}，${g.originalPrice || '?'}）`);
     el.title = recent.length > 0 ? '近期错过：' + recent.join('\n') : '暂无错过记录';
   } catch {
     el.textContent = '—';

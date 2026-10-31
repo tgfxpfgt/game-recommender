@@ -47,6 +47,7 @@
     if (!el) throw new Error(`options: 缺少元素 #${id}（HTML 与 settings 键不同步）`);
     return el;
   };
+  /** @param {string} id */
   const val = (id) => requireEl(id).value;
   /** @param {string} id */
   const chk = (id) => requireEl(id).checked;

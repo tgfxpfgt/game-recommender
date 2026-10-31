@@ -19,6 +19,7 @@ const RADAR_AXES = [
 const RADAR_COLORS = ['#66c0f4', '#a3cf06', '#ff7b00', '#b48ce0', '#e74c3c', '#2ecc71', '#f39c12', '#8f98a0'];
 
 /** 单游戏五维原始值（评分已 /100 归一）/ Raw axis values (rating pre-scaled). */
+/** @param {any} p */
 function radarValuesOf(p) {
   const views = Number(p.views) || 0;
   const downloads = Number(p.downloads) || 0;
@@ -37,6 +38,7 @@ function radarValuesOf(p) {
  * @param {Array<any>} profiles
  * @returns {string} SVG markup + 图例（空数据返回空串）
  */
+/** @param {any[]} profiles */
 function renderProfileRadarSvg(profiles) {
   const list = (profiles || [])
     .map(radarValuesOf)
@@ -87,6 +89,7 @@ function renderProfileRadarSvg(profiles) {
 }
 
 /** DOM 挂载（dash-stats 经典全局调用）/ DOM mount wrapper. */
+/** @param {any[]} profiles */
 function renderProfileRadar(profiles) {
   const host = document.getElementById('profileRadar');
   if (!host) return;

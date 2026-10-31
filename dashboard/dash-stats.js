@@ -185,6 +185,7 @@ async function loadStats() {
 
 // 下载方式分布 / Download-method breakdown
 // v14.8 批次 11（第九轮 B4）：第二参 recentLog 供按站 Top5 聚合
+/** @param {any} methods @param {any[]} recentLog */
 function renderDownloadMethods(methods, recentLog) {
   const container = document.getElementById('downloadMethods');
   if (!methods || Object.keys(methods).length === 0) {
@@ -216,6 +217,7 @@ function renderDownloadMethods(methods, recentLog) {
 
 // v14.8 批次 11（第九轮 B4）：按站点 Top5——近期下载事件（最近 30 条内）
 // 按 url hostname 聚合（诚实口径：recentLog 仅 30 条，非全量历史）
+/** @param {any[]} recentLog */
 function renderDownloadSitesTop(recentLog) {
   const container = document.getElementById('downloadSitesTop');
   if (!container) return;

@@ -296,6 +296,7 @@
       showDataOpStatus('预设导出失败: ' + String(e), true);
     }
   };
+  /** @param {{target?: {files?: File[]|null, value?: string}}} e */
   OPTS.importFilterPresets = async function (e) {
     const file = e.target.files && e.target.files[0];
     e.target.value = '';

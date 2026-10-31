@@ -32,11 +32,24 @@ const FIXTURES_DIR = path.join(TESTS_DIR, 'fixtures', 'http');
 // v14.5.1：图片域入 MOCK（原"图片直通"使 MOCK 依赖 Steam CDN 真实网络——
 // CDN 抖动时页面图片资源报 net::ERR 打红 console-error 断言，MOCK 的离线
 // 确定性契约被破坏）；图片请求在 routeHandler 统一回 1×1 透明 GIF。
+// v14.8.1：堵三处真网络泄漏（MOCK 确定性契约修复）——appreviews 与商店页
+// 回退（store.steampowered.com/app/）此前不在拦截范围（首组正则要求 /api/，
+// 长期靠真网络偶然成功；Steam appreviews 302 变更后偶然性死亡 → SW 大量
+// "API 失败" → anomaly 级联 → 网络故障期按设计不出徽章 → 3b/5a 必红）；
+// cn.bing.com（v14.2 Bing 兜底）漏拦使解析结果随真网络漂移。三者入 MOCK 后
+// 未命中 404=空结果非失败（HTTP 语义），检索 miss 全部走"未找到"徽章，
+// 批次流程恢复确定性。route() 对扩展 SW 发起的请求同样生效（ISteamNews
+// 未命中警告实证）；测试时必须显式 E2E_MOCK=1（gate 已带，裸 npm run e2e
+// 为真网络模式——MOCK 未装时全部请求走真实网络）。
+// v14.8.1: close three real-network leaks — appreviews + store-page fallback
+// (previously only /api/ was intercepted; accidental real-network success died
+// with Steam's appreviews 302 change → anomaly cascade → no badges) and
+// cn.bing.com (Bing fallback). Misses now render "未找到" badges deterministically.
 export const MOCK_RE =
-  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|steamcommunity\.com|api\.steampowered\.com)\//;
+  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|steamcommunity\.com|api\.steampowered\.com)\/|^https?:\/\/store\.steampowered\.com\/(appreviews|app)\/|^https?:\/\/cn\.bing\.com\//;
 
 // fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
-function fixtureKey(urlStr) {
+export function fixtureKey(urlStr) {
   const u = new URL(urlStr);
   const pairs = [...u.searchParams].sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const qs = new URLSearchParams(pairs).toString();

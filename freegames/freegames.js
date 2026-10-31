@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // v14.8 批次 7（第九轮 B2）：当月限免月历——起点日（首次监控到）/截止日
 // （领取截止）标记，hover 显示游戏名。纯前端从已存 games 推导，零新请求。
 // Current-month calendar: first-seen and deadline day markers.
+/** @param {any[]} games */
 function renderFreeGamesCalendar(games) {
   const host = document.getElementById('freegamesCalendar');
   if (!host) return;
@@ -82,6 +83,7 @@ function renderFreeGamesCalendar(games) {
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   /** @type {Record<number, string[]>} */
   const marks = {};
+  /** @param {number} ts @param {string} label */
   const mark = (ts, label) => {
     const d = new Date(ts);
     if (d.getFullYear() !== year || d.getMonth() !== month) return;

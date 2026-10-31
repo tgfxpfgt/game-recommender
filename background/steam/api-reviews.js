@@ -195,6 +195,7 @@ export async function fetchReviewSummary(appId) {
       const tips = [...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"/g)].map((m) =>
         m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>')
       );
+      /** @param {string} tip */
       const parseTip = (tip) => {
         const count = Number(((tip.match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
         const pct = Number((tip.match(/有\s*(\d+)%\s*为好评/) || [])[1]);

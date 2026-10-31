@@ -172,10 +172,13 @@ function runNextGlobal() {
   jobQueue.running = true;
   (async () => {
     try {
+      // v14.8.1：任务生命周期日志（E2E/线上排查"停在待检测"的关键观测点）
+      Logger.info('Steam', `评分任务开始: ${job.queue ? job.queue.length : '?'} 项 → tab=${job.tabId}`);
       await persistJob(job);
       setupResumeAlarm();
       await runRatingJob(job);
     } finally {
+      Logger.info('Steam', `评分任务结束: tab=${job.tabId}`);
       jobQueue.running = false;
       runNextGlobal();
     }
@@ -286,6 +289,8 @@ async function runRatingJob(job) {
       // v9.7.0：每波落盘（原每 5 批）——SW 被杀时损失限单波
       await flushAllCaches();
       push({ ratings: wave, ...progressPayload() });
+      // v14.8.1：波次推送日志（排查推送丢失——tab 关闭时 sendMessage 静默失败）
+      Logger.info('Steam', `评分波次推送: ${Object.keys(wave).length} 项 → tab=${job.tabId}`);
       job.queue = passNames.filter((n) => !completedInPass.has(n));
       job.retried = retried;
       await persistJob(job);
