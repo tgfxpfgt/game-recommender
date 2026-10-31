@@ -237,3 +237,134 @@ describe('详情页信号回捞（storesearch 盲区自愈）', () => {
     }
   });
 });
+
+// ============ v14.8.2：低/零评测回退解析（用户实测截图：低评测游戏大面积 AppID 裸徽章） ============
+const LOW_REVIEW_PAGE =
+  '<html><a class="user_reviews_summary_row" href="#app_reviews_hash" data-tooltip-html="需要更多用户评测来生成整体评价" itemprop="aggregateRating">' +
+  '<div class="subtitle column all"> 所有评测： </div><div class="summary column">' +
+  '<span class="game_review_summary not_enough_reviews" itemprop="description">1 篇用户评测</span>' +
+  '<meta itemprop="reviewCount" content="1"><meta itemprop="ratingValue" content="0"></div></a></html>';
+const ZERO_REVIEW_PAGE =
+  '<html><a class="user_reviews_summary_row" data-tooltip-html="无用户评测">' +
+  '<span class="game_review_summary">无用户评测</span><meta itemprop="reviewCount" content="0"></a></html>';
+const FULL_REVIEW_PAGE =
+  '<html><a class="user_reviews_summary_row" data-tooltip-html="128 篇用户评测 有 87% 为好评">' +
+  '<span class="game_review_summary positive">特别好评</span></a>' +
+  '<a class="user_reviews_summary_row" data-tooltip-html="过去 30 天 12 篇用户评测 有 75% 为好评">' +
+  '<span class="game_review_summary positive">特别好评</span></a></html>';
+
+describe('fetchReviewSummary 商店页回退三形态（v14.8.2）', () => {
+  /** @param {Record<string, string>} routes */
+  function installPages(routes) {
+    return installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      for (const [frag, body] of Object.entries(routes)) {
+        if (u.includes(frag)) {
+          return { ok: true, status: 200, redirected: false, url: u, json: async () => ({}), text: async () => body };
+        }
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+  }
+
+  test('完整形态（tooltip 计数+好评率）不变', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    const restore = installPages({ '/app/900001/': FULL_REVIEW_PAGE });
+    try {
+      const s = await reviews.fetchReviewSummary('900001');
+      expect(s && s.total).toEqual(128);
+      expect(s && s.positive).toEqual(111); // round(128*0.87)
+      expect(s && s.recent && s.recent.rate).toEqual(75);
+    } finally {
+      restore();
+    }
+  });
+
+  test('低评测形态（需要更多用户评测）→ positive null + 官方 desc', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    const restore = installPages({ '/app/900002/': LOW_REVIEW_PAGE });
+    try {
+      const s = await reviews.fetchReviewSummary('900002');
+      expect(s && s.total).toEqual(1);
+      expect(s && s.positive).toEqual(null);
+      expect(s && s.desc).toEqual('需要更多用户评测来生成整体评价');
+      expect(s && s.score).toEqual(0);
+    } finally {
+      restore();
+    }
+  });
+
+  test('无评测形态 → total 0 + 无用户评测 desc（历史 0 评测同构）', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    const restore = installPages({ '/app/900003/': ZERO_REVIEW_PAGE });
+    try {
+      const s = await reviews.fetchReviewSummary('900003');
+      expect(s && s.total).toEqual(0);
+      expect(s && s.positive).toEqual(0);
+      expect(s && s.desc).toEqual('无用户评测');
+    } finally {
+      restore();
+    }
+  });
+
+  test('管线终态：低评测 → 非 failed + positiveRate null（徽章按暂无整体评价渲染）', async () => {
+    const orch = await import('../../background/steam/orchestrator-list.js');
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('storesearch')) {
+        // 搜索命中 5187440（截图场景：AppID 徽章已在 = 搜索成功，失败在评分步）
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ total: 1, items: [{ type: 'game', id: 5187440, name: 'Grimhold' }] }),
+          text: async () => '{}'
+        };
+      }
+      if (u.includes('appreviews')) {
+        // 端点死亡信号：302 跟随落地商店首页 → 置 appreviewsDead 走回退
+        return {
+          ok: true,
+          status: 200,
+          redirected: true,
+          url: 'https://store.steampowered.com/',
+          json: async () => ({}),
+          text: async () => ''
+        };
+      }
+      if (u.includes('/app/5187440/')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({}),
+          text: async () => LOW_REVIEW_PAGE
+        };
+      }
+      if (u.includes('appdetails')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            5187440: { success: true, data: { steam_appid: 5187440, name: 'Grimhold', type: 'game' } }
+          }),
+          text: async () => '{}'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '{}' };
+    });
+    try {
+      const r = await orch.getSteamPositiveRate('格林普尔城/Grimhold', {
+        pageUrl: 'https://www.xdgame.com/game/low-review-page.html',
+        probeBudget: { left: 8 },
+        ignoreNegativeCache: true
+      });
+      expect(r && r.failed).toBeFalsy(); // 不再是"获取失败"重试态
+      expect(r && r.positiveRate).toEqual(null);
+      expect(r && String(r.appId)).toEqual('5187440');
+      expect(r && r.ratingDesc).toEqual('需要更多用户评测来生成整体评价');
+    } finally {
+      restore();
+    }
+  });
+});

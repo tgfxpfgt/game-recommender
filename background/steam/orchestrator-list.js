@@ -298,7 +298,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let recentTotal = 0;
     if (reviewSummary) {
       ratingDesc = reviewSummary.desc || null;
-      if (reviewSummary.total > 0) {
+      // v14.8.2：低评测形态 positive=null（Steam 未生成整体评价）→ 正确落入
+      // "暂无整体评价"语义（5.5 步 0 评测同路径），不得算出 NaN
+      if (reviewSummary.total > 0 && reviewSummary.positive != null) {
         positiveRate = Math.round((reviewSummary.positive / reviewSummary.total) * 100);
       }
       if (reviewSummary.recent) {
@@ -335,7 +337,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           if (rs2) {
             finalSummary = rs2; // v10.5.3：重搜后以新 appId 的统计为准
             ratingDesc = rs2.desc || null;
-            if (rs2.total > 0) positiveRate = Math.round((rs2.positive / rs2.total) * 100);
+            if (rs2.total > 0 && rs2.positive != null) positiveRate = Math.round((rs2.positive / rs2.total) * 100);
             if (rs2.recent) {
               recentRate = rs2.recent.rate;
               recentTotal = rs2.recent.total;

@@ -150,36 +150,52 @@ export function summarizeRecentReviews(reviews, cutoffSec = Date.now() / 1000 - 
   };
 }
 
+// v14.8.2：appreviews 端点死亡标记（本 SW 会话内）——首次观测到 302→商店首页
+// 后置位，后续 fetchReviewSummary 直接走商店页回退（SW 冷启动后重新探测一次）。
+// Session-wide dead-endpoint flag: set on the first observed redirect-to-home,
+// after which fetchReviewSummary goes straight to the store-page fallback.
+let appreviewsDead = false;
+
 export async function fetchReviewSummary(appId) {
   // 网络失败/限流时重试一次（列表页批量场景 Steam API 限流常见）。
   // v3.3.6：filter=recent&num_per_page=100——一次请求同时拿到全时段
   // query_summary 与最近 100 条评测（时间降序），近 30 天好评率由此统计。
   // One request serves both: the all-time query_summary and the 100 newest
   // reviews (time-descending) used to compute the 30-day rate.
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      const reviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=all&filter=recent&num_per_page=100&purchase_type=all`;
-      const response = await fetchWithTimeout(reviewUrl);
-      const data = await response.json();
-      // v9.7.0：同 api-details——传入 status，非 2xx 不计成功（限流可感知）
-      recordSteamCall(response.ok || response.status === 404, response.status); // v10.3.0：404=空结果非失败
-      recordDomainCall('store', response.ok || response.status === 404); // v11.0 B2
-      if (!response.ok) continue;
-      if (data.success === 1 && data.query_summary) {
-        const qs = data.query_summary;
-        const recent = summarizeRecentReviews(data.reviews);
-        return {
-          total: qs.total_reviews,
-          positive: qs.total_positive,
-          negative: qs.total_negative,
-          score: qs.review_score,
-          desc: qs.review_score_desc,
-          recent
-        };
+  // v14.8.2：端点死亡快路径——首次观测到 302 跟随落地商店首页后，本 SW 会话
+  // 内跳过 API 直接走商店页回退（省 2 次 302 跟随请求/项，60 项批量显著减负；
+  // SW 冷启动后重新探测一次，有界）。
+  if (!appreviewsDead) {
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const reviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=all&filter=recent&num_per_page=100&purchase_type=all`;
+        const response = await fetchWithTimeout(reviewUrl);
+        // v14.8.2：302 跟随落地商店首页 = 端点死亡信号（标记后本会话直接回退）
+        if (response.redirected && /store\.steampowered\.com\/?$/.test(response.url || '')) {
+          appreviewsDead = true;
+          break;
+        }
+        const data = await response.json();
+        // v9.7.0：同 api-details——传入 status，非 2xx 不计成功（限流可感知）
+        recordSteamCall(response.ok || response.status === 404, response.status); // v10.3.0：404=空结果非失败
+        recordDomainCall('store', response.ok || response.status === 404); // v11.0 B2
+        if (!response.ok) continue;
+        if (data.success === 1 && data.query_summary) {
+          const qs = data.query_summary;
+          const recent = summarizeRecentReviews(data.reviews);
+          return {
+            total: qs.total_reviews,
+            positive: qs.total_positive,
+            negative: qs.total_negative,
+            score: qs.review_score,
+            desc: qs.review_score_desc,
+            recent
+          };
+        }
+      } catch {
+        recordSteamCall(false, 0); // 重试一次 / retry once
+        recordDomainCall('store', false); // v14.0.0：网络失败计入 store 域熔断
       }
-    } catch {
-      recordSteamCall(false, 0); // 重试一次 / retry once
-      recordDomainCall('store', false); // v14.0.0：网络失败计入 store 域熔断
     }
   }
   // v14.8 批次 18：appreviews 端点 302（Steam 侧变更——全参数形态 302 商店
@@ -188,6 +204,14 @@ export async function fetchReviewSummary(appId) {
   // 上方同构的数据（评价文本不可得 → reviews 空数组，UI 按无文本降级）。
   // Store-page HTML fallback: the appreviews endpoint now redirects (Steam
   // change); parse the summary rows from the store page instead.
+  // v14.8.2（用户实测截图：低/新评测游戏大面积 #AppID 裸徽章）——解析升级
+  // **三形态**：①完整行（tooltip 带计数+好评率，≥10 评测）；②低评测行
+  // （tooltip "需要更多用户评测来生成整体评价"，计数在 game_review_summary
+  // span / meta reviewCount——Steam 自身不出百分比，positive 返回 null 交管
+  // 线按"暂无整体评价"语义渲染，不再落入"获取失败"重试循环）；③无评测行
+  // （tooltip "无用户评测"，total 0 = 历史 appreviews 0 评测同构）。
+  // Three row forms: full (count+pct from tooltip), insufficient (count from
+  // span/meta, Steam hides the pct → positive=null), zero (无用户评测).
   try {
     const pageResp = await fetchWithTimeout(`https://store.steampowered.com/app/${appId}/?l=schinese&cc=cn`);
     if (pageResp.ok) {
@@ -233,6 +257,47 @@ export async function fetchReviewSummary(appId) {
             positive: recentRow ? Math.round((recentTotal * recentPct) / 100) : 0,
             rate: recentRow ? recentPct : null
           }
+        };
+      }
+      // v14.8.2：低/零评测形态——tooltip 无 count+pct 时，从行内
+      // game_review_summary span / meta reviewCount 取计数
+      const rowBlocks = [
+        ...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)
+      ].map((m) => {
+        const tip = m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        const meta = Number((m[2].match(/itemprop="reviewCount" content="(\d+)"/) || [])[1]);
+        const span = Number(((m[2].match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
+        const count = Number.isFinite(meta) ? meta : Number.isFinite(span) ? span : null;
+        return { tip, count: Number.isFinite(count) ? count : null, isRecent: tip.includes('过去 30 天') };
+      });
+      const insufficient = rowBlocks.find(
+        (b) => !b.isRecent && b.count != null && b.count > 0 && b.tip.includes('需要更多用户评测')
+      );
+      const zeroRow = rowBlocks.find((b) => !b.isRecent && (b.tip.includes('无用户评测') || b.count === 0));
+      if (insufficient) {
+        recordSteamCall(true, 200);
+        recordDomainCall('store', true);
+        Logger.info('Steam', `好评率回退（低评测）: ${appId} → ${insufficient.count} 篇（Steam 未生成整体评价）`);
+        return {
+          total: insufficient.count,
+          positive: null, // Steam 未出百分比——管线按"暂无整体评价"渲染，不伪造
+          negative: null,
+          score: 0,
+          desc: '需要更多用户评测来生成整体评价',
+          recent: { total: 0, positive: 0, rate: null }
+        };
+      }
+      if (zeroRow) {
+        recordSteamCall(true, 200);
+        recordDomainCall('store', true);
+        Logger.info('Steam', `好评率回退（无评测）: ${appId} → 0 篇`);
+        return {
+          total: 0,
+          positive: 0,
+          negative: 0,
+          score: 0,
+          desc: '无用户评测',
+          recent: { total: 0, positive: 0, rate: null }
         };
       }
     }

@@ -67,3 +67,5 @@ tests/visual/diff/
 .diag-*.html
 .diag-*.txt
 .diag-store*.html
+comm-probe.html
+gh-probe.html

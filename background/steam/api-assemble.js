@@ -60,7 +60,7 @@ export function buildSteamResult(
     positiveReviews: reviewSummary ? reviewSummary.positive : null,
     negativeReviews: reviewSummary ? reviewSummary.negative : null,
     positiveRate:
-      reviewSummary && reviewSummary.total > 0
+      reviewSummary && reviewSummary.total > 0 && reviewSummary.positive != null
         ? Math.round((reviewSummary.positive / reviewSummary.total) * 100)
         : null,
     // 近 30 天评价（v3.3.6）：好评率 + 条数（0 条 → rate null）

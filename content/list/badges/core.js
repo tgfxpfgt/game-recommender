@@ -79,7 +79,11 @@ export function prependBadge(item, rating, settings) {
         cls: 'gr-rating-badge',
         title: rating.failed
           ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），稍后自动重试`
-          : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
+          : rating.ratingDesc
+            ? // v14.8.2：低/零评测回退终态——展示 Steam 官方语义（需要更多用户
+              // 评测来生成整体评价 / 无用户评测），不再是含糊的"暂无评测"
+              `Steam 已匹配 (AppID ${rating.appId})，${rating.ratingDesc}\n点击跳转 Steam 详情页`
+            : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
         clickable: true,
         appId: rating.appId
       })
