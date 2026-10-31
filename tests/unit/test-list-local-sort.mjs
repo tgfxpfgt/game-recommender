@@ -24,7 +24,7 @@ vi.mock('../../content/core/debug.js', () => ({
   dbg: vi.fn()
 }));
 
-import { applyLocalSort, finishRatings, _state } from '../../content/list/list-state.js';
+import { applyLocalSort, finishRatings, _state, formatQueueStatusText } from '../../content/list/list-state.js';
 
 // 最小父容器模拟：appendChild 从旧父摘除后追加到末尾（真实 DOM 语义）
 function makeParent() {
@@ -136,5 +136,51 @@ describe('applyLocalSort（本地排序 / 恢复原序）', () => {
     expect(applyLocalSort('none')).toBe(0);
     _state.ratingsJob = makeJob(makeParent(), [], {});
     expect(applyLocalSort('none')).toBe(0);
+  });
+});
+
+// ============ v14.8.1：等待徽章可见队列信息格式化（用户反馈改进） ============
+describe('formatQueueStatusText（等待徽章实时队列信息）', () => {
+  it('全局队列快照优先：running 任务进度 + 排队数', () => {
+    const qs = { running: true, pending: 2, current: { tabId: 1, total: 60, done: 12 }, degraded: false };
+    expect(formatQueueStatusText(null, qs)).toBe('⏳ 检索中 12/60 · 排队 2');
+  });
+
+  it('无全局快照时回落推送进度（done 钳到 total）', () => {
+    expect(formatQueueStatusText({ done: 70, total: 60, degraded: false }, null)).toBe('⏳ 检索中 60/60');
+  });
+
+  it('推送携带 position（链忙入队即时推送）→ 排队中·前方 N 项', () => {
+    expect(formatQueueStatusText({ done: 0, total: 4, degraded: false, position: 3 }, null)).toBe(
+      '⏳ 检索中 0/4 · 排队中·前方 3 项'
+    );
+  });
+
+  it('限流降速标记（qs 或 prog 任一携带即显示）', () => {
+    const qs = { running: true, pending: 0, current: { tabId: 1, total: 60, done: 5 }, degraded: true };
+    expect(formatQueueStatusText(null, qs)).toBe('⏳ 检索中 5/60 · 限流降速');
+    expect(
+      formatQueueStatusText(
+        { done: 1, total: 4, degraded: true },
+        { running: false, pending: 0, current: null, degraded: false }
+      )
+    ).toBe('⏳ 检索中 1/4 · 限流降速');
+  });
+
+  it('两者皆缺/空 → 回落静态"等待检索"', () => {
+    expect(formatQueueStatusText(null, null)).toBe('⏳ 等待检索');
+    expect(
+      formatQueueStatusText(
+        { done: 0, total: 0, degraded: false },
+        { running: false, pending: 0, current: null, degraded: false }
+      )
+    ).toBe('⏳ 等待检索');
+  });
+
+  it('degraded + 排队组合齐全', () => {
+    const qs = { running: true, pending: 1, current: { tabId: 2, total: 130, done: 0 }, degraded: true };
+    expect(formatQueueStatusText({ done: 0, total: 60, degraded: false, position: 0 }, qs)).toBe(
+      '⏳ 检索中 0/130 · 排队 1 · 限流降速'
+    );
   });
 });

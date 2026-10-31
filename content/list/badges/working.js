@@ -53,6 +53,16 @@ export function removeWorkingBadge(item) {
   if (badge) badge.remove();
 }
 
+// v14.8.1（用户反馈：等待检测一直卡在等待检测）：页宽更新等待徽章可见文本——
+// 显示当前队列信息（"⏳ 检索中 12/60 · 排队 1 · 限流降速"）。只更新等待占位
+// 徽章，错误徽章（gr-error-badge 同类名）不覆盖。
+// v14.8.1: update ALL waiting badges' visible text with live queue info;
+// error badges share the class and must not be overwritten.
+export function updateWorkingBadgesInfo(text) {
+  const badges = document.querySelectorAll('.gr-working-badge:not(.gr-error-badge)');
+  for (const b of badges) b.textContent = text;
+}
+
 // v14 F1：检索异常徽章——网络失败/超时时显示
 export function showErrorBadge(item, text) {
   removeWorkingBadge(item);

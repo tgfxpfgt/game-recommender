@@ -177,6 +177,7 @@ const RULES = {
     return { ok: true };
   },
   GET_STEAM_RATINGS: namesRule('GET_STEAM_RATINGS'),
+  GET_RATINGS_QUEUE_STATUS: () => ({ ok: true }), // v14.8.1：读侧零参
   PREFETCH_STEAM_RATINGS: namesRule('PREFETCH_STEAM_RATINGS'),
   CLEAR_CACHE_FOR_PAGE: (m) =>
     Array.isArray(m && m.names) && Array.isArray(m && m.appIds)
@@ -386,6 +387,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'GET_SETTINGS',
   'GET_STEAM_BY_APPID',
   'GET_STEAM_RATINGS',
+  'GET_RATINGS_QUEUE_STATUS', // v14.8.1：等待检测徽章实时队列信息（读侧零参）
   'RETRY_GAME_LOOKUP', // v14.7 批次 3：未找到徽章点击重试（窄化，不经 URL 索引记录）
   'LOG_PERF',
   'PREFETCH_STEAM_RATINGS',

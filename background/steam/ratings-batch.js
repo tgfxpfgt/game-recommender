@@ -163,6 +163,31 @@ function teardownResumeAlarm() {
 /** @type {{running: boolean, pending: Array<Object>}} */
 const jobQueue = { running: false, pending: [] };
 
+// v14.8.1（用户反馈：等待检测徽章看不到进展）：全局链运行态快照——当前任务
+// {tabId,total,done} 供 GET_RATINGS_QUEUE_STATUS 查询与等待徽章实时队列信息。
+// total 取任务起始长度（job.queue 会被批次边界收缩，不可作分母）。
+// Global-chain run snapshot since v14.8.1: the waiting badges show live queue
+// info ("检索中 N/M · 排队 X") from pushes + GET_RATINGS_QUEUE_STATUS polling.
+/** @type {{tabId: number|null, total: number, done: number}|null} */
+let currentRun = null;
+
+// v14.8.1：模块级推送器（runRatingJob 内的 push 与入队/开跑即时进度共用）
+function pushToTab(tabId, payload) {
+  if (tabId === null || tabId === undefined) return;
+  chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});
+}
+
+// v14.8.1：全局评分队列状态快照（等待徽章"当前队列信息"的数据源）
+// Queue status snapshot: source of truth for the waiting-badge queue info.
+export function getRatingsQueueStatus() {
+  return {
+    running: jobQueue.running,
+    pending: jobQueue.pending.length,
+    current: currentRun ? { ...currentRun } : null,
+    degraded: getSteamApiStatus().anomaly
+  };
+}
+
 function runNextGlobal() {
   const job = jobQueue.pending.shift();
   if (!job) {
@@ -170,6 +195,19 @@ function runNextGlobal() {
     return;
   }
   jobQueue.running = true;
+  // v14.8.1：任务开跑即时推送（此前首个波次可能数分钟后——限流降速期间
+  // 等待徽章一直静态"等待检索"，用户无从判断卡在哪）
+  const totalAtStart = Array.isArray(job.queue) ? job.queue.length : 0;
+  currentRun = { tabId: job.tabId ?? null, total: totalAtStart, done: 0 };
+  pushToTab(job.tabId, {
+    progress: {
+      done: 0,
+      total: totalAtStart,
+      degraded: getSteamApiStatus().anomaly,
+      queued: jobQueue.pending.length,
+      position: 0
+    }
+  });
   (async () => {
     try {
       // v14.8.1：任务生命周期日志（E2E/线上排查"停在待检测"的关键观测点）
@@ -179,6 +217,7 @@ function runNextGlobal() {
       await runRatingJob(job);
     } finally {
       Logger.info('Steam', `评分任务结束: tab=${job.tabId}`);
+      currentRun = null;
       jobQueue.running = false;
       runNextGlobal();
     }
@@ -187,9 +226,23 @@ function runNextGlobal() {
 
 // 发起任务（fire-and-forget；全局 FIFO 串行，永不丢弃）
 // start a job (fire-and-forget; single global FIFO chain, never dropped)
+// v14.8.1：链忙时即时推送排队位置（"排队中·前方 N 项"），不再静默等首波
 export function startRatingJob(job) {
   jobQueue.pending.push(job);
-  if (!jobQueue.running) runNextGlobal();
+  if (jobQueue.running) {
+    const position = jobQueue.pending.length - 1; // 前方任务数（不含自己）
+    pushToTab(job.tabId, {
+      progress: {
+        done: 0,
+        total: Array.isArray(job.queue) ? job.queue.length : 0,
+        degraded: getSteamApiStatus().anomaly,
+        queued: jobQueue.pending.length,
+        position
+      }
+    });
+  } else {
+    runNextGlobal();
+  }
   return true;
 }
 
@@ -234,9 +287,7 @@ async function runRatingJob(job) {
   const statsMap = await getAppStats();
   try {
     const push = (payload) => {
-      if (job.tabId !== null && job.tabId !== undefined) {
-        chrome.tabs.sendMessage(job.tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});
-      }
+      pushToTab(job.tabId, payload);
     };
     // v6.4.15：并发自适应（恢复时重算——限流状态可能已变化）
     // v14.5.0 B9：用户设置接线——settings.ratingsBatchSize（v10.7.0 起设置键
@@ -268,13 +319,18 @@ async function runRatingJob(job) {
     let anomalyGate = null; // 共享暂停门（所有 worker 等同一窗口，防 N 个独立定时器）
 
     // v14.7 批次 5：条目级进度（重试轮不重复计数，done 钳到 total）
-    const progressPayload = () => ({
-      progress: {
-        done: Math.min(doneCount, totalNames),
-        total: totalNames,
-        degraded: getSteamApiStatus().anomaly
-      }
-    });
+    // v14.8.1：progress 增 queued（全局链排队任务数）+ 同步 currentRun.done
+    const progressPayload = () => {
+      if (currentRun) currentRun.done = Math.min(doneCount, totalNames);
+      return {
+        progress: {
+          done: Math.min(doneCount, totalNames),
+          total: totalNames,
+          degraded: getSteamApiStatus().anomaly,
+          queued: jobQueue.pending.length
+        }
+      };
+    };
 
     // 成波推送 + 检查点（SW 被杀后从当前 pass 未完成处续跑——比旧实现多覆盖
     // 在途项，耐久性更好）/ Flush a wave + checkpoint (also covers in-flight).

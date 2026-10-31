@@ -10,7 +10,7 @@
  * full-page sync DOMParser no longer blocks rendering/interaction.
  */
 import * as listBatch from './list-batch.js';
-import { _state, applyRatingsResponse, finishRatings } from './list-state.js';
+import { _state, applyRatingsResponse, finishRatings, formatQueueStatusText } from './list-state.js';
 import * as builder from '../adapters/builder.js';
 import * as badges from './badges/core.js';
 import * as common from '../core/common.js';
@@ -433,6 +433,36 @@ function extractGameNamesFromDoc(doc) {
 // v5.1.0：批次状态与调度经 _state / listBatch
 // v14.7 批次 5：progress（{done,total,degraded}，条目级进度）入 _state——
 // fireBatch 状态行与等待徽章 title 消费。
+// v14.8.1：等待徽章队列信息轮询——推送只在波次/任务切换时到达，跨 tab 排队
+// 期间位置变化无推送；5s 轻量轮询全局队列快照（GET_RATINGS_QUEUE_STATUS）
+// 刷新可见文本。有界：无等待徽章或 10 分钟帽即停（自愈纪律：轮询总量有界）。
+const QUEUE_POLL_INTERVAL_MS = 5000;
+const QUEUE_POLL_MAX_MS = 600000;
+/** @type {ReturnType<typeof setTimeout>|null} */
+let queuePollTimer = null;
+/** @type {{running: boolean, pending: number, current: {tabId: number|null, total: number, done: number}|null, degraded: boolean}|null} */
+let lastQueueStatus = null;
+function ensureQueueInfoPolling() {
+  if (queuePollTimer) return;
+  const t0 = Date.now();
+  const tick = async () => {
+    queuePollTimer = null;
+    const waiting = document.querySelectorAll('.gr-working-badge:not(.gr-error-badge)').length;
+    if (waiting === 0 || Date.now() - t0 > QUEUE_POLL_MAX_MS) return;
+    try {
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_RATINGS_QUEUE_STATUS' });
+      if (resp && !resp.error) {
+        lastQueueStatus = resp;
+        badges.updateWorkingBadgesInfo(formatQueueStatusText(_state.ratingsProgress, lastQueueStatus));
+      }
+    } catch {
+      /* SW 重启窗口：本轮放弃，下一轮再试 */
+    }
+    queuePollTimer = setTimeout(tick, QUEUE_POLL_INTERVAL_MS);
+  };
+  queuePollTimer = setTimeout(tick, QUEUE_POLL_INTERVAL_MS);
+}
+
 function applySteamRatingsUpdate(ratings, done, progress) {
   const batchState = _state.batchState;
   if (!_state.ratingsJob) return false;
@@ -462,6 +492,11 @@ function applySteamRatingsUpdate(ratings, done, progress) {
       if (badge) badge.title = `Steam 检索中 ${Math.min(prog.done, prog.total)}/${prog.total}`;
     }
   }
+  // v14.8.1（用户反馈：等待检测一直卡在等待检测）：**可见文本**同步当前队列
+  // 信息（此前只有 title 悬停可见），并启动有界轮询保持新鲜（跨 tab 排队
+  // 期间无推送，位置变化靠 5s 轻量轮询；无等待徽章或 10 分钟帽即停）。
+  badges.updateWorkingBadgesInfo(formatQueueStatusText(prog, lastQueueStatus));
+  ensureQueueInfoPolling();
   // 所有已发现游戏已出结果 → 收尾（队列非空时 every 检查天然不通过，
   // 未请求名字对应 item 必未 processed，等 done 衔接下一批）
   // all discovered games resolved → finish (queued names' items are never
@@ -477,7 +512,7 @@ function applySteamRatingsUpdate(ratings, done, progress) {
 
 // v7.3.0：状态容器与评分状态机移至 list-state.js（打破 list-page ↔ list-batch
 // 循环依赖）——重新导出保持外部 API 兼容（GR.list._state/_internal 等）
-export { _state, _internal, ratingFilterPass, sortItemsByRating } from './list-state.js';
+export { _state, _internal, ratingFilterPass, sortItemsByRating, formatQueueStatusText } from './list-state.js';
 
 export {
   isDetailPageByUrl,

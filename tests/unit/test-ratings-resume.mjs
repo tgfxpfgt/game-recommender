@@ -152,3 +152,14 @@ describe('批量好评率任务可恢复化（v10.0.0）', () => {
     expect(ratingsPushes.length).toBeGreaterThanOrEqual(2);
   });
 });
+
+// ============ v14.8.1：全局队列状态快照（等待徽章实时队列信息数据源） ============
+describe('getRatingsQueueStatus（v14.8.1 等待检测队列信息）', () => {
+  test('空闲态形状：running=false / pending=0 / current=null / degraded 布尔', () => {
+    const s = ratingsBatch.getRatingsQueueStatus();
+    expect(s.running).toBe(false);
+    expect(s.pending).toBe(0);
+    expect(s.current).toBe(null);
+    expect(typeof s.degraded).toBe('boolean');
+  });
+});

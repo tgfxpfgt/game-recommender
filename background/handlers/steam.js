@@ -422,7 +422,7 @@ export async function handleHealRegistryNames(message) {
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 // GET_STEAM_RATINGS/PREFETCH 归口自此（实现在 steam/ratings-batch.js）
-import { handleGetSteamRatings, handlePrefetchSteamRatings } from '../steam/ratings-batch.js';
+import { handleGetSteamRatings, handlePrefetchSteamRatings, getRatingsQueueStatus } from '../steam/ratings-batch.js';
 
 // v14.7 批次 3：未找到徽章点击重试——穿透负缓存单游戏重查。窄化 action 直调
 // searchSteamGame（URL 索引只在 handleSearchSteam 记录，本路径不写——列表页
@@ -442,6 +442,8 @@ export const steamHandlers = {
   SEARCH_STEAM_CANDIDATES: handleSearchSteamCandidates,
   GET_STEAM_RATINGS: handleGetSteamRatings,
   PREFETCH_STEAM_RATINGS: handlePrefetchSteamRatings,
+  // v14.8.1：等待检测徽章实时队列信息（内容侧 5s 轮询消费）
+  GET_RATINGS_QUEUE_STATUS: () => getRatingsQueueStatus(),
   CLEAR_CACHE_FOR_PAGE: handleClearCacheForPage,
   CACHE_STEAM_PAGE: handleCacheSteamPage,
   REPORT_WRONG_APPID: handleReportWrongAppId,

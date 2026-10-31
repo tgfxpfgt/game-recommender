@@ -12,7 +12,14 @@
 import { adjustedReputation, verdictFor, ratingTextInfo } from '../../core/steam-rating-logic.js'; // v10.7.0：评分口径单源
 import { createBadge, insertBadges, getBadgeRetryHandler } from './badge-base.js';
 
-export { removeItemFromDom, showWorkingBadge, removeWorkingBadge, showErrorBadge, highlightItem } from './working.js';
+export {
+  removeItemFromDom,
+  showWorkingBadge,
+  removeWorkingBadge,
+  updateWorkingBadgesInfo, // v14.8.1：等待徽章可见队列信息
+  showErrorBadge,
+  highlightItem
+} from './working.js';
 export { prependRecBadge } from './rec.js';
 export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v14.7 批次 3
 

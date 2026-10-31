@@ -22,6 +22,29 @@ const dbg = (...a) => debug.dbg(...a);
 // "未找到"，后台已逐批落盘，刷新页面第一波即命中；收尾后迟到推送仍应用）
 const FORCE_FINISH_MS = 45000;
 
+// v14.8.1（用户反馈：等待检测一直卡在等待检测）：等待徽章可见队列信息格式化
+//（纯函数导出供单测）。prog = 推送携带的 {done,total,degraded,queued?,position?}；
+// qs = GET_RATINGS_QUEUE_STATUS 快照 {running,pending,current:{done,total},degraded}。
+// 全局态（qs）优先——跨 tab 排队时本 tab 推送无进度可显；两者皆缺回落"等待检索"。
+// Format the waiting badge's visible queue info (pure, unit-tested): pipeline
+// progress from the running job (global snapshot preferred) + queue depth.
+export function formatQueueStatusText(prog, qs) {
+  const parts = [];
+  const cur = qs && qs.current;
+  if (cur && cur.total > 0) {
+    parts.push(`检索中 ${Math.min(cur.done ?? 0, cur.total)}/${cur.total}`);
+  } else if (prog && prog.total > 0) {
+    parts.push(`检索中 ${Math.min(prog.done ?? 0, prog.total)}/${prog.total}`);
+  }
+  if (qs && typeof qs.pending === 'number' && qs.pending > 0) {
+    parts.push(`排队 ${qs.pending}`);
+  } else if (prog && typeof prog.position === 'number' && prog.position > 0) {
+    parts.push(`排队中·前方 ${prog.position} 项`);
+  }
+  if ((qs && qs.degraded) || (prog && prog.degraded)) parts.push('限流降速');
+  return parts.length > 0 ? `⏳ ${parts.join(' · ')}` : '⏳ 等待检索';
+}
+
 // ============ 列表页 Steam 好评率（两波：缓存命中即时显示 + 后台推送更新） ============
 // Two-wave rating flow: cached hits render instantly; misses are fetched in
 // the background and pushed back via STEAM_RATINGS_UPDATE.
