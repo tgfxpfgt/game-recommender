@@ -46,7 +46,7 @@ const FIXTURES_DIR = path.join(TESTS_DIR, 'fixtures', 'http');
 // with Steam's appreviews 302 change → anomaly cascade → no badges) and
 // cn.bing.com (Bing fallback). Misses now render "未找到" badges deterministically.
 export const MOCK_RE =
-  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|steamcommunity\.com|api\.steampowered\.com)\/|^https?:\/\/store\.steampowered\.com\/(appreviews|app)\/|^https?:\/\/cn\.bing\.com\//;
+  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com|steamspy\.com)\/api\/|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|gog\.com|gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|steamcommunity\.com|api\.steampowered\.com)\/|^https?:\/\/store\.steampowered\.com\/(appreviews|app)\/|^https?:\/\/cn\.bing\.com\/|^https?:\/\/api\.isthereanydeal\.com\//;
 
 // fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
 export function fixtureKey(urlStr) {

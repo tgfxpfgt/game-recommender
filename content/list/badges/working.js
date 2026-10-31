@@ -58,6 +58,7 @@ export function removeWorkingBadge(item) {
 // 徽章，错误徽章（gr-error-badge 同类名）不覆盖。
 // v14.8.1: update ALL waiting badges' visible text with live queue info;
 // error badges share the class and must not be overwritten.
+/** @param {string} text */
 export function updateWorkingBadgesInfo(text) {
   const badges = document.querySelectorAll('.gr-working-badge:not(.gr-error-badge)');
   for (const b of badges) b.textContent = text;

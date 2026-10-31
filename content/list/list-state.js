@@ -28,13 +28,20 @@ const FORCE_FINISH_MS = 45000;
 // 全局态（qs）优先——跨 tab 排队时本 tab 推送无进度可显；两者皆缺回落"等待检索"。
 // Format the waiting badge's visible queue info (pure, unit-tested): pipeline
 // progress from the running job (global snapshot preferred) + queue depth.
+/**
+ * @param {{done?: number, total?: number, degraded?: boolean, queued?: number, position?: number}|null} prog
+ * @param {{running?: boolean, pending?: number, current?: {done: number, total: number}|null, degraded?: boolean}|null} qs
+ * @returns {string}
+ */
 export function formatQueueStatusText(prog, qs) {
   const parts = [];
   const cur = qs && qs.current;
-  if (cur && cur.total > 0) {
-    parts.push(`检索中 ${Math.min(cur.done ?? 0, cur.total)}/${cur.total}`);
-  } else if (prog && prog.total > 0) {
-    parts.push(`检索中 ${Math.min(prog.done ?? 0, prog.total)}/${prog.total}`);
+  if (cur && typeof cur.total === 'number' && cur.total > 0) {
+    const curTotal = cur.total; // v14.8.1：局部常量——TS 收窄不穿模板串内重复属性读
+    parts.push(`检索中 ${Math.min(cur.done ?? 0, curTotal)}/${curTotal}`);
+  } else if (prog && typeof prog.total === 'number' && prog.total > 0) {
+    const progTotal = prog.total;
+    parts.push(`检索中 ${Math.min(prog.done ?? 0, progTotal)}/${progTotal}`);
   }
   if (qs && typeof qs.pending === 'number' && qs.pending > 0) {
     parts.push(`排队 ${qs.pending}`);

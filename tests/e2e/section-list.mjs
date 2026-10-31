@@ -39,6 +39,12 @@ export async function runListChecks(state) {
     const s = (await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' })).settings;
     s.showStatusBar = true;
     s.showDebugPanel = true; // v14.8.1：诊断视图内含 DEBUG.logs（失败现场可读内容侧日志）
+    // v14.8.1：关闭评分过滤/重排——前序 2b2 节保存的过滤器（阈值40+AND）会
+    // 持续到本节把有评分项全部移出 DOM（MOCK fixture 无近期评测 → AND 恒
+    // false）；本节断言徽章渲染而非过滤语义，显式关闭保持确定性。
+    s.enableRatingFilter = false;
+    s.enableRecentFilter = false;
+    s.enableSortByRating = false;
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: s });
   });
   await popup2.close();
@@ -119,7 +125,7 @@ export async function runListChecks(state) {
 
 // 5a. 滚动批次：130 项大列表 → 滚动底部触发 IO 哨兵 → 第二批徽章（v4.1.0）
 export async function runScrollBatch(state) {
-  const { context, check, FIXTURE_ROOT } = state;
+  const { context, check, extId, FIXTURE_ROOT } = state;
   console.log('5a. 滚动批次（按需扫描）');
   const page4 = await context.newPage();
   await page4.goto(`${FIXTURE_ROOT}?scroll=1`);
@@ -131,6 +137,31 @@ export async function runScrollBatch(state) {
     // v10.3.0：40→80（真实网络模式冗余）
     await new Promise((r) => setTimeout(r, 500));
     badgesAfter = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
+  }
+  if (badgesAfter <= badgesBefore) {
+    // v14.8.1：失败现场诊断（与 3b 同构——runtimeLog + 内容侧计数）
+    try {
+      const diagPage = await context.newPage();
+      await diagPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+      const diagLogs = await diagPage.evaluate(async () => {
+        const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
+        return (resp && resp.logs) || [];
+      });
+      await diagPage.close();
+      console.log('  ⚠️ 5a 失败现场 runtimeLog:');
+      for (const l of diagLogs.slice(-20))
+        console.log(`    [${l.module}] ${l.level} ${String(l.message).slice(0, 130)}`);
+    } catch (e) {
+      console.log('  ⚠️ 5a 诊断读取失败:', String(e).slice(0, 80));
+    }
+    const contentState = await page4
+      .evaluate(() => ({
+        statusBar: (document.getElementById('gr-status-bar') || {}).textContent || '(无浮窗)',
+        working: document.querySelectorAll('.gr-working-badge').length,
+        badges: document.querySelectorAll('.gr-rating-badge').length
+      }))
+      .catch((e) => ({ err: String(e).slice(0, 80) }));
+    console.log('  ⚠️ 5a 内容侧现场:', JSON.stringify(contentState));
   }
   check('滚动触发第二批徽章（按需扫描）', badgesAfter > badgesBefore, `(${badgesBefore} → ${badgesAfter})`);
   await page4.close();

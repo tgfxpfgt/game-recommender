@@ -172,6 +172,10 @@ const jobQueue = { running: false, pending: [] };
 let currentRun = null;
 
 // v14.8.1：模块级推送器（runRatingJob 内的 push 与入队/开跑即时进度共用）
+/**
+ * @param {number|null|undefined} tabId
+ * @param {{progress?: {done: number, total: number, degraded: boolean, queued?: number, position?: number}, ratings?: Record<string, any>, done?: boolean}} payload
+ */
 function pushToTab(tabId, payload) {
   if (tabId === null || tabId === undefined) return;
   chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});

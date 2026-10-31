@@ -8,7 +8,7 @@
   },
   "tsNoImplicitAnyErrors": {
     "main": 510,
-    "ui": 251,
+    "ui": 248,
     "content": 272
   },
   "xssUnescapedInterpolations": 72,
@@ -25,6 +25,7 @@
     "  暂缓——关键异步路径已有 await/回滚语义与测试覆盖；",
     "prefer-const 已是 error 级（baseRules）。",
     "数字测量于 commit f11707a（B10 后）；2026-10-05 下调至实测（510/251/272，v14 死代码清理减债），",
-    "  并由 scripts/lint-ratchet.mjs 程序化消费（gate 步骤，超基线即失败）"
+    "  并由 scripts/lint-ratchet.mjs 程序化消费（gate 步骤，超基线即失败）",
+    "2026-10-31 下调 ui 251→248：第九/十轮新增回调参数 8 处补类型（937aa4b/2b9d9da），实测 248 与基线提交 b7daa6f 的 worktree tsc 逐文件对比持平（此前 251 为记录期漂移）。"
   ]
 }
