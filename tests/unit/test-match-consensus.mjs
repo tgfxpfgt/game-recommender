@@ -368,3 +368,161 @@ describe('fetchReviewSummary 商店页回退三形态（v14.8.2）', () => {
     }
   });
 });
+
+// ============ v14.9.1：低/零评测徽章提示（新游/未发售/评测少 + 悬停发售日期） ============
+describe('isNewReleaseDate（新发售判定）', () => {
+  test('CN 日期串：90 天内 true / 超窗 false / 未来日期 false / 解析失败 false', async () => {
+    const { isNewReleaseDate } = await import('../../background/steam/orchestrator-shared.js');
+    const now = new Date();
+    const fmt = (d) => `${d.getFullYear()}年${d.getMonth() + 1}月${d.getDate()}日`;
+    const daysAgo = (n) => new Date(now.getTime() - n * 24 * 3600e3);
+    expect(isNewReleaseDate(fmt(daysAgo(10)))).toBe(true);
+    expect(isNewReleaseDate(fmt(daysAgo(200)))).toBe(false);
+    expect(isNewReleaseDate(fmt(new Date(now.getTime() + 30 * 24 * 3600e3)))).toBe(false); // 未来=未发售
+    expect(isNewReleaseDate('')).toBe(false);
+    expect(isNewReleaseDate('TBA')).toBe(false);
+  });
+});
+
+describe('管线携带发售日期/新发售标记', () => {
+  beforeEach(() => {
+    storage._reset(); // 前序测试写入了 5187440 的评分缓存/名称索引——不重置会走缓存命中路径绕过 5.5 提取
+  });
+
+  test('低评测 + 刚发售 → releaseDate/comingSoon/isNewRelease 随返回', async () => {
+    const orch = await import('../../background/steam/orchestrator-list.js');
+    const lowReviewNewGame = LOW_REVIEW_PAGE.replace('1 篇用户评测', '2 篇用户评测').replace(
+      'content="1"',
+      'content="2"'
+    );
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('storesearch')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ total: 1, items: [{ type: 'game', id: 900004, name: 'FreshCastle' }] }),
+          text: async () => '{}'
+        };
+      }
+      if (u.includes('appreviews')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: true,
+          url: 'https://store.steampowered.com/',
+          json: async () => ({}),
+          text: async () => ''
+        };
+      }
+      if (u.includes('/app/900004/')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({}),
+          text: async () => lowReviewNewGame
+        };
+      }
+      if (u.includes('appdetails')) {
+        const now = new Date();
+        const rel = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日`;
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            900004: {
+              success: true,
+              data: {
+                steam_appid: 900004,
+                name: 'FreshCastle',
+                type: 'game',
+                release_date: { coming_soon: false, date: rel }
+              }
+            }
+          }),
+          text: async () => '{}'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '{}' };
+    });
+    try {
+      const r = await orch.getSteamPositiveRate('新城堡/FreshCastle', {
+        pageUrl: 'https://www.xdgame.com/game/low-review-page.html',
+        probeBudget: { left: 8 },
+        ignoreNegativeCache: true
+      });
+      expect(r && r.isNewRelease).toBe(true);
+      expect(r && r.comingSoon).toBe(false);
+      expect(r && /年/.test(String(r.releaseDate))).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+
+  test('未发售（coming_soon）→ comingSoon true 且不标新游', async () => {
+    const orch = await import('../../background/steam/orchestrator-list.js');
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('storesearch')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({ total: 1, items: [{ type: 'game', id: 900005, name: 'FreshCastle' }] }),
+          text: async () => '{}'
+        };
+      }
+      if (u.includes('appreviews')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: true,
+          url: 'https://store.steampowered.com/',
+          json: async () => ({}),
+          text: async () => ''
+        };
+      }
+      if (u.includes('/app/900005/')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({}),
+          text: async () => ZERO_REVIEW_PAGE
+        };
+      }
+      if (u.includes('appdetails')) {
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            900005: {
+              success: true,
+              data: {
+                steam_appid: 900005,
+                name: 'Grimhold',
+                type: 'game',
+                release_date: { coming_soon: true, date: '2027年3月15日' }
+              }
+            }
+          }),
+          text: async () => '{}'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '{}' };
+    });
+    try {
+      const r = await orch.getSteamPositiveRate('新世界二/FreshWorld2', {
+        pageUrl: 'https://www.xdgame.com/game/low-review-page.html',
+        probeBudget: { left: 8 },
+        ignoreNegativeCache: true
+      });
+      expect(r && r.comingSoon).toBe(true);
+      expect(r && r.isNewRelease).toBe(false);
+    } finally {
+      restore();
+    }
+  });
+});

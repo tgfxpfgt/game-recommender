@@ -71,19 +71,27 @@ export function prependBadge(item, rating, settings) {
       })
     );
   } else if (rate === null || rate === undefined) {
+    // v14.9.1：低/零评测可见提示——让用户知晓为何只有 AppID（刚发售/未发售/
+    // 评测不足），发售日期进悬停
+    const relTag = rating.comingSoon
+      ? '未发售'
+      : rating.isNewRelease
+        ? '新游'
+        : rating.ratingDesc === '无用户评测'
+          ? '无评测'
+          : rating.ratingDesc
+            ? '评测少'
+            : '';
+    const relNote = rating.releaseDate ? `，发售于 ${rating.releaseDate}` : '';
     badges.push(
       createBadge(link, {
-        text: rating.appId ? `#${rating.appId}` : '暂无',
+        text: rating.appId ? (relTag ? `#${rating.appId}·${relTag}` : `#${rating.appId}`) : '暂无',
         color: '#8f98a0',
         bg: 'rgba(143,152,160,0.15)',
         cls: 'gr-rating-badge',
         title: rating.failed
           ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），稍后自动重试`
-          : rating.ratingDesc
-            ? // v14.8.2：低/零评测回退终态——展示 Steam 官方语义（需要更多用户
-              // 评测来生成整体评价 / 无用户评测），不再是含糊的"暂无评测"
-              `Steam 已匹配 (AppID ${rating.appId})，${rating.ratingDesc}\n点击跳转 Steam 详情页`
-            : `Steam 已匹配 (AppID ${rating.appId})，暂无评测\n点击跳转 Steam 详情页`,
+          : `Steam 已匹配 (AppID ${rating.appId})${relNote}，${rating.ratingDesc || '暂无评测'}\n点击跳转 Steam 详情页`,
         clickable: true,
         appId: rating.appId
       })

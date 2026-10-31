@@ -29,7 +29,7 @@ import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
-import { extractSteamAppIdSignals } from './orchestrator-shared.js'; // v14.8.2：盲区自愈
+import { extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
@@ -314,6 +314,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //     v3.3.2：officialEn 已有可靠英文名时仅请求 schinese（省 1 请求/0 评测游戏）
     let officialCn = foundName;
     let officialEn = searchResult ? searchResult.englishName || foundName : pickRegistryEnName(gameName, foundName);
+    // v14.9.1：发售日期/未发售标记（5.5 步顺带提取——徽章"新游/未发售"标签 +
+    // 悬停展示，让用户知晓为何只有 AppID：刚发售或评测不足）
+    let fetchedReleaseDate = '';
+    let fetchedComingSoon = false;
     if (positiveRate === null) {
       // 英文名缺失时才并行补英文（避免 validateSteamNames 误判重搜）
       const needsEn = !/[A-Za-z]{2,}/.test(officialEn);
@@ -322,6 +326,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
         needsEn ? fetchSteamAppDetails(foundAppId, 'english').catch(() => null) : Promise.resolve(null)
       ]);
       officialCn = (cnData && cnData.name) || officialCn;
+      if (cnData && cnData.release_date) {
+        fetchedReleaseDate = cnData.release_date.date || fetchedReleaseDate;
+        fetchedComingSoon = !!cnData.release_date.coming_soon;
+      }
       if (enData && enData.name) officialEn = enData.name;
       // 名称校验：Demo/试玩或附属内容 → 视为无效匹配，重搜本体
       const nameCheck = validateSteamNames(officialCn, officialEn);
@@ -377,6 +385,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       recentPositiveRate: recentRate,
       recentTotalReviews: recentTotal,
       lastUpdate: lastUpdate || existing.lastUpdate || null,
+      // v14.9.1：发售日期/未发售随缓存持久化（缓存命中路径徽章标签复用）
+      releaseDate: fetchedReleaseDate || existing.releaseDate || '',
+      comingSoon: fetchedComingSoon || !!existing.comingSoon,
       ratingRetriedAt: positiveRate === null ? Date.now() : existing.ratingRetriedAt
     };
     await setSteamCacheEntry(foundAppId, mergedData);
@@ -404,7 +415,10 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       recentPositiveRate: recentRate,
       recentTotalReviews: recentTotal,
       lastUpdate: lastUpdate || existing.lastUpdate || null,
-      releaseDate: existing.releaseDate || ''
+      // v14.9.1：发售日期/新发售标记随返回（徽章"新游/未发售"标签 + 悬停展示）
+      releaseDate: fetchedReleaseDate || existing.releaseDate || '',
+      comingSoon: fetchedComingSoon || !!existing.comingSoon,
+      isNewRelease: !fetchedComingSoon && isNewReleaseDate(fetchedReleaseDate || existing.releaseDate || '')
     };
   } catch (e) {
     Logger.warn('Steam', `获取好评率异常: ${gameName}`, String(e));

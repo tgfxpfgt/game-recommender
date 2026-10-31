@@ -27,6 +27,19 @@ export function isDemoCacheWithoutRating(cachedData) {
 // v5.0.0：缓存命中统一返回（幂等补写注册表 + 中英文名自愈 + 三段式字段构造），
 // getSteamRatingsFromCacheOnly 与 getSteamPositiveRate 两处重复收敛于此
 // Unified cache-hit result (registry backfill + name self-heal + 3-badge fields).
+// v14.9.1：新发售判定（徽章"新游"标签）——CN 日期串（2026年10月20日）提取
+// 年月日，90 天内视为新发售；解析失败/未来日期返回 false（未发售单独标记）。
+export const NEW_RELEASE_WINDOW_DAYS = 90;
+/** @param {string} dateStr @param {number} [withinDays] @returns {boolean} */
+export function isNewReleaseDate(dateStr, withinDays = NEW_RELEASE_WINDOW_DAYS) {
+  const m = String(dateStr || '').match(/(\d{4})\D{1,3}(\d{1,2})(?:\D{1,3}(\d{1,2}))?/);
+  if (!m) return false;
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3] || 1));
+  if (isNaN(d.getTime())) return false;
+  const now = Date.now();
+  return now >= d.getTime() - 24 * 3600e3 && now - d.getTime() <= withinDays * 24 * 3600e3;
+}
+
 export async function applyCacheHit(merged, appId, gameName) {
   await ensureRegistryEntry(
     merged.appId || appId,
@@ -44,6 +57,9 @@ export async function applyCacheHit(merged, appId, gameName) {
   // awaited up to 2 Steam API calls, breaking the zero-network wave-1 contract
   // and burning quota on every hit when Steam is unreachable or has no EN name.
   ensureValidRegistryNames(merged.appId || appId, merged.name, merged.englishName, gameName).catch(() => {});
+  // v14.9.1：发售日期/新发售标记随缓存返回（徽章"新游/未发售"标签 + 悬停展示）
+  const comingSoon = !!merged.comingSoon;
+  const releaseDate = merged.releaseDate || '';
   return {
     positiveRate: merged.positiveRate,
     ratingDesc: merged.ratingDesc || null,
@@ -59,7 +75,9 @@ export async function applyCacheHit(merged, appId, gameName) {
     recentPositiveRate: merged.recentPositiveRate ?? null,
     recentTotalReviews: merged.recentTotalReviews ?? 0,
     lastUpdate: merged.lastUpdate || null,
-    releaseDate: merged.releaseDate || ''
+    releaseDate,
+    comingSoon,
+    isNewRelease: !comingSoon && isNewReleaseDate(releaseDate)
   };
 }
 
