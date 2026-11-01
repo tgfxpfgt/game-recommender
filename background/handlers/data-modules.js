@@ -4,6 +4,7 @@ import { sanitizeImportedModule, IMPORT_MODULE_BYTES_LIMIT, IMPORT_TOTAL_BYTES_L
 import { createBackup, getBackupList, restoreBackup, deleteBackup } from '../storage/backups.js';
 import { Logger } from '../storage/logger.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
+import { stripSecrets } from '../core/sanitize.js'; // v14.11 B3：密钥剔除单源
 import { resetSteam250 } from '../steam/steam250.js'; // v10.4.4：榜单快照重置（storage 层不能反向 import steam，故在业务层调用）
 import '../../shared/msg.js'; // v14.0.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
 
@@ -66,10 +67,8 @@ export async function handleExportData(message) {
   // v3.4.0：密钥安全——导出/备份默认剔除 API 密钥（备份文件流转不再泄露
   // 凭据；导入/恢复后原密钥保留、提示重输）
   if (modules.settings) {
-    const s = { ...modules.settings };
-    if (s.llmConfig) s.llmConfig = { ...s.llmConfig, apiKey: '' };
-    if (s.steamApiKey) s.steamApiKey = '';
-    modules.settings = s;
+    // v14.11 B3：stripSecrets 单源——补剔 ITAD 密钥（itadApiKey/itadProfiles[].key）
+    modules.settings = stripSecrets(modules.settings);
   }
   // 适配规则无用户导入时导出内置规则
   if (moduleKeys.includes('adapterRules') && modules.adapterRules === undefined) {

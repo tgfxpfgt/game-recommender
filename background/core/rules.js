@@ -199,6 +199,15 @@ function validateSiteRule(site, depth) {
     if (allowed === 'string' && String(value).length > RULE_LIMITS.maxFieldLen) {
       return `站点 "${site.key}" 字段 ${field} 超长`;
     }
+    // v14.11 B4（报告 B/C P1-04）：URL 字段协议白名单——searchUrl/base 渲染进
+    // href（escapeAttr 不拦 javascript: 伪协议），恶意规则包可注入脚本链接。
+    // 仅放行 http(s)（对齐 LLM endpoint 校验口径）；validateSiteRules 为保存/
+    // 导入共用入口，存量已入库规则在下次导入/保存时同样受检。
+    if (allowed === 'string' && (field === 'searchUrl' || field === 'base') && value) {
+      if (!/^https?:\/\//i.test(String(value))) {
+        return `站点 "${site.key}" 字段 ${field} 仅允许 http(s) 协议`;
+      }
+    }
     if (allowed === 'array') {
       if (value.length > RULE_LIMITS.maxPatterns) {
         return `站点 "${site.key}" 字段 ${field} 条目超限`;

@@ -131,11 +131,24 @@ function renderDownloadSitePanel(panel, sites, gameName) {
           </div>
         `;
     } else {
+      // v14.11 B4（报告 B/C P1-04 渲染侧兜底）：href 仅接受 http(s)——存量
+      // 已入库恶意规则不受保存侧校验保护，渲染时 protocol 复核（escapeAttr
+      // 不拦 javascript: 伪协议）；非法则降级为纯文本不渲染链接
+      let searchHref = '';
+      try {
+        const u = new URL(site.searchUrl, location.href);
+        if (u.protocol === 'http:' || u.protocol === 'https:') searchHref = common.escapeAttr(u.href);
+      } catch {
+        /* 非法 URL → 无链接 */
+      }
+      const linkHtml = searchHref
+        ? `<a href="${searchHref}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#67c1f5;text-decoration:none;">去搜索 ↗</a>`
+        : '<span style="font-size:11px;color:#666;">（搜索链接不可用）</span>';
       html += `
           <div style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.15);border:1px solid #222;border-radius:3px;">
             <div class="gr-detail-flex-between">
               <span style="font-size:12px;color:#666;">${name}</span>
-              <a href="${common.escapeAttr(site.searchUrl)}" target="_blank" style="font-size:11px;color:#67c1f5;text-decoration:none;">去搜索 ↗</a>
+              ${linkHtml}
             </div>
             <div style="font-size:11px;color:#555;margin-top:3px;">未直接找到该游戏</div>
           </div>

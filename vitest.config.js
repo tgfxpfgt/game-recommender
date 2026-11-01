@@ -59,6 +59,8 @@ export default defineConfig({
       'tests/unit/test-health.mjs',
       'tests/unit/test-wiring.mjs',
       'tests/unit/test-settings-sync.mjs',
+      'tests/unit/test-sanitize.mjs',
+      'tests/unit/test-rules-guard.mjs',
       'tests/unit/test-steam250.mjs',
       'tests/unit/test-crypto-utils.mjs',
       'tests/unit/test-mechanisms.mjs',

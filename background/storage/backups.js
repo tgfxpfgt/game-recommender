@@ -11,6 +11,7 @@ import { DB_KEYS, DATA_MODULES, BACKUP_CORE_KEYS } from '../core/constants.js';
 import { LEGACY_BACKUP_KEYS } from '../../data/storage-registry.js'; // v10.7.1：遗留键显式备份
 import { getSettings } from '../core/settings.js';
 import { sanitizeImportedModule } from '../core/rules.js';
+import { stripSecrets } from '../core/sanitize.js'; // v14.11 B3：密钥剔除单源
 import { resetInMemoryCaches } from './reset.js';
 import { Logger } from './logger.js';
 
@@ -52,10 +53,8 @@ export async function createBackup(manual = false, /** @type {string[]|null} */ 
     }
     // v3.4.0：密钥安全——备份剔除 API 密钥（与导出一致，备份文件流转不泄露凭据）
     if (snapshot.settings) {
-      const s = { ...snapshot.settings };
-      if (s.llmConfig) s.llmConfig = { ...s.llmConfig, apiKey: '' };
-      if (s.steamApiKey) s.steamApiKey = '';
-      snapshot.settings = s;
+      // v14.11 B3：stripSecrets 单源——补剔 ITAD 密钥
+      snapshot.settings = stripSecrets(snapshot.settings);
     }
 
     const backup = {
