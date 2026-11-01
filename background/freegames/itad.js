@@ -127,6 +127,20 @@ export async function watchFavoritePrices() {
     const current = await fetchFavoriteCurrentPrice(appId, apiKey);
     if (!Number.isFinite(current) || current <= 0) continue;
     if (current <= lowest.price * threshold) {
+      // v14.11 B9（报告 C P1-06）：折扣通知防重标记——此前无防重（对照发售
+      // 提醒有 grReleaseNotified:），同一折扣每 48h 轮询周期重推骚扰
+      const discountMarkKey = 'grDiscountNotified:' + appId + ':' + lowest.price.toFixed(2);
+      const discountMarked = await new Promise((res) => {
+        try {
+          chrome.storage.local
+            .get(discountMarkKey)
+            .then((d) => res(!!(d && d[discountMarkKey])))
+            .catch(() => res(false));
+        } catch {
+          res(true);
+        }
+      });
+      if (discountMarked) continue;
       const name = (favorites[appId] && favorites[appId].name) || 'AppID ' + appId;
       notifyBase(
         '💥 收藏折扣提醒',
@@ -135,6 +149,11 @@ export async function watchFavoritePrices() {
           icon: chrome.runtime.getURL('icons/icon128.png')
         }
       );
+      try {
+        chrome.storage.local.set({ [discountMarkKey]: true }).catch(() => {});
+      } catch {
+        /* ignore */
+      }
       notified += 1;
     }
   }

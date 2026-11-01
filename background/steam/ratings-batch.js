@@ -272,6 +272,9 @@ export async function resumeRatingsBatch() {
   if (!job || !Array.isArray(job.queue)) return { resumed: false, reason: 'no-job' };
   if (!job.startedAt || Date.now() - job.startedAt > JOB_MAX_AGE_MS) {
     await clearPersistedJob();
+    // v14.11 B8（报告 C P1-05）：stale 分支同步拆除 resume alarm——此前只清
+    // 任务不拆 1min alarm，SW 之后无限每分钟唤醒（资源泄漏）
+    teardownResumeAlarm();
     return { resumed: false, reason: 'stale' };
   }
   // v14.6.2 修复（审查 A4）：经 startRatingJob 重新入该 tab 队列——原实现
