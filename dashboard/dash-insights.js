@@ -30,7 +30,7 @@ function renderTagCloud(keywords) {
       const level = weight >= 0.6 ? 'high' : weight >= 0.3 ? 'medium' : 'low';
       const size = Math.max(12, Math.min(20, 12 + weight * 10));
       // v11.0 B7：标签可点击 → 聚合过滤游戏表（与游戏表标签闭环）
-      return `<span class="tag-item ${level}" data-tag="${escapeHtml(kw.keyword)}" style="font-size:${size}px;cursor:pointer;${activeTagFilter === kw.keyword ? 'outline:2px solid #67c1f5;' : ''}" title="匹配度: ${Math.round(weight * 100)}% — 点击筛选该类游戏">
+      return `<span class="tag-item ${level}" data-tag="${escapeAttr(kw.keyword)}" style="font-size:${size}px;cursor:pointer;${activeTagFilter === kw.keyword ? 'outline:2px solid #67c1f5;' : ''}" title="匹配度: ${Math.round(weight * 100)}% — 点击筛选该类游戏">
       ${escapeHtml(kw.keyword)} <small>${Math.round(weight * 100)}%</small>
     </span>`;
     })

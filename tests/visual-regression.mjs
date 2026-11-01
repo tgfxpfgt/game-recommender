@@ -21,6 +21,16 @@ const BASELINE_DIR = path.join(ROOT, 'visual', 'baseline');
 const DIFF_DIR = path.join(ROOT, 'visual', 'diff');
 // 超过 0.5% 像素差异视为回归（抗字体抗锯齿/亚像素抖动）
 const MAX_DIFF_RATIO = 0.005;
+// v14.11 B11（报告 A W3）：单主题阈值放宽——ios17 用 system-ui 字体，抗锯齿
+// 随 Windows DPI/Chromium 渲染引擎更新**日级稳定漂移**（0.61% × 2 次复现实
+// 测），固定字体主题（steam/cyberpunk/morandi）不受影响维持 0.5%
+const DIFF_RATIO_OVERRIDES = { ios17: 0.01 };
+const thresholdFor = (base) => {
+  for (const [prefix, t] of Object.entries(DIFF_RATIO_OVERRIDES)) {
+    if (base.startsWith(prefix)) return t;
+  }
+  return MAX_DIFF_RATIO;
+};
 
 const UPDATE = process.argv.includes('--update');
 // v9.1.0：默认 bundled Chromium（Chrome for Testing）；E2E_CHANNEL=chrome 用系统 Chrome
@@ -158,7 +168,8 @@ try {
           let ratio = mismatched / (baseImg.width * baseImg.height);
           // v10.9：小差异重试——面板切换动画/字体渲染的时序抖动会产出 1-2% 的
           // 漂移（三次运行失败项漂移、幅度变动实证）；单次重拍仍超阈值才判失败
-          if (ratio > MAX_DIFF_RATIO) {
+          const maxDiff = thresholdFor(base);
+          if (ratio > maxDiff) {
             await page.waitForTimeout(600);
             const shot2 = await page.screenshot();
             const now2 = PNG.sync.read(shot2);
@@ -167,7 +178,7 @@ try {
               threshold: 0.15
             });
             const ratio2 = mismatched2 / (baseImg.width * baseImg.height);
-            if (ratio2 <= MAX_DIFF_RATIO) {
+            if (ratio2 <= maxDiff) {
               report(`${base} 首拍超阈、重拍一致（首拍差异 ${(ratio * 100).toFixed(2)}%，时序抖动）`, true);
               continue;
             }
