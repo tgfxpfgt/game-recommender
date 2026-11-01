@@ -18,6 +18,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p tsconfig.ui.json && tsc --noEmit -p tsconfig.content.json",
     "coverage": "vitest run --coverage",
     "install-hooks": "sh scripts/install-hooks.sh",
+    "coverage:snapshot": "node scripts/coverage-snapshot.mjs",
     "coverage:gate": "node scripts/coverage-gate.mjs",
     "audit": "npm audit --audit-level=high",
     "test:timed": "node scripts/test-timing.mjs",

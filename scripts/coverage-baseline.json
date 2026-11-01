@@ -1,0 +1,5 @@
+{
+  "updatedAt": "2026-11-01",
+  "linesPct": 39.86,
+  "note": "全局行覆盖率快照棘轮（unit-only）；下调需 --update 并在 note 说明原因"
+}

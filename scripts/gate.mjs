@@ -49,6 +49,11 @@ function step(name, cmd, env = {}) {
 step('check（lint + typecheck + vitest）', 'npm run check');
 step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
 step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
+// v14.11 B10（报告 B P1-01）：全局覆盖率快照棘轮——coverage:gate 只查新增
+// 文件（push 后 diff-filter=A 恒空 = 恒绿），存量改动无约束；快照补全局
+if (!fast) {
+  step('coverage:snapshot（全局覆盖率棘轮）', 'npm run coverage:snapshot');
+}
 if (!fast) {
   step('E2E 冒烟（MOCK 离线）', 'npm run e2e', { E2E_MOCK: '1' });
 }
