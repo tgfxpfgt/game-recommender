@@ -547,3 +547,41 @@ describe('clampNumericSettings（B-2 纵深防御）', () => {
     expect(clamped.unknownKey).toEqual(12345); // 未知键透传
   });
 });
+
+// ============ v14.11 B7：flush 快照式脏标记（报告 D P1-3 丢失窗口） ============
+test('flush 期间并发写入的模块保留脏标记（下次 flush 收走）', async () => {
+  storage._reset({});
+  const scMod = await import(new URL('../../background/storage/steam-cache.js', import.meta.url).href + '?t=flushsnap');
+  await scMod.setSteamCacheEntry('200', { appId: 200, name: '首批', positiveRate: 80 });
+  // 拦截 writeModule：首批写入落盘的"await 窗口"内并发更新同一模块
+  // 注意：data-store 必须与 steam-cache 的依赖图同实例（无 ?t=——query 会
+  // 实例分裂，拦截打在影子实例上）
+  const dsMod = await import(new URL('../../data/data-store.js', import.meta.url).href);
+  // rating 模块走追加式落盘（v14 B7 appendModuleEntries）——拦截两路写
+  const origAppend = dsMod.dataStore.appendModuleEntries.bind(dsMod.dataStore);
+  const origWrite = dsMod.dataStore.writeModule.bind(dsMod.dataStore);
+  let intercepted = false;
+  const poke = async () => {
+    if (intercepted) return;
+    intercepted = true;
+    // flush 在途——并发 setSteamCacheEntry（真实时序：评分批次并发写缓存）
+    await scMod.setSteamCacheEntry('201', { appId: 201, name: '并发写', positiveRate: 70 });
+  };
+  dsMod.dataStore.appendModuleEntries = async (key, entries) => {
+    const r = await origAppend(key, entries);
+    await poke();
+    return r;
+  };
+  dsMod.dataStore.writeModule = async (key, data) => {
+    const r = await origWrite(key, data);
+    await poke();
+    return r;
+  };
+  await scMod.flushSteamCache();
+  dsMod.dataStore.appendModuleEntries = origAppend;
+  dsMod.dataStore.writeModule = origWrite;
+  // 并发写入的模块必须保留脏标记：手动触发二次 flush 后落盘
+  await scMod.flushSteamCache();
+  const hit = await scMod.getSteamCacheEntry('201', 'rating');
+  expect(!!hit, '并发写条目应已落盘并可读回').toEqual(true);
+});

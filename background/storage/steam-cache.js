@@ -93,6 +93,10 @@ const CACHE_PART_KEYS = {
 };
 const CACHE_PART_NAMES = Object.keys(CACHE_PART_KEYS);
 const dirtyModules = new Set();
+// v14.11 B7：脏序号——任何脏标记新增即自增；flush 结束时对比入口快照，
+// 有新增则恢复 steamCacheDirty 并重排写（同模块并发重脏的 add 是 no-op，
+// 快照删除会吞掉标记，序号对比是唯一可靠信号）
+let dirtySeq = 0;
 let legacyMigrated = false; // 旧单文件已拆分（拆分完成后删除旧文件）
 // v14 B7：rating 模块追加式落盘——flush 只追加脏条目行（每行 {key, value}），
 // 行数超 2×活跃条目数或发生删除/清理/迁移时整体重写（compaction）
@@ -236,6 +240,7 @@ export async function loadSteamCacheToMemory(opts = {}) {
         steamCacheDirty = true;
         ratingFullRewrite = true; // v14 B7：迁移条目需整体重写进新格式
         CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m));
+        dirtySeq++; // v14.11 B7
         writer.scheduleWrite(); // 拆分结果尽快落盘（flush 成功后删除旧文件）
       }
     } catch {
@@ -354,6 +359,7 @@ export async function setSteamCacheEntry(cacheKey, data) {
   steamCacheMemory.set(cacheKey, { modules: nextModules });
   // v10.6.0 C1：记录脏模块（flush 只写脏模块文件）
   for (const key of Object.keys(nextModules)) dirtyModules.add(key);
+  dirtySeq++; // v14.11 B7
   // v14 B7：rating 脏条目单独记录（追加式落盘——只写本轮触碰的条目行）
   if (nextModules.rating && nextModules.rating.ts === now) {
     dirtyRatingEntries.set(cacheKey, nextModules.rating);
@@ -381,9 +387,17 @@ export async function flushSteamCache() {
   // v3.4.1：无未落盘修改时跳过（批量场景无脏数据时避免重复写盘）
   if (!steamCacheMemory || !steamCacheDirty || dirtyModules.size === 0) return;
   steamCacheDirty = false;
+  // v14.11 B7（报告 D P1-3）：快照式脏标记——此前入口置 false + 结束 clear()
+  // 的窗口内，并发的 setSteamCacheEntry 对**已在 dirtyModules 中的模块**更新
+  // （add 为 no-op，新数据不进本批 subset）后被 clear() 抹掉标记 → 数据滞留
+  // 内存、下次 flush 提前返回、SW 重启即丢。快照后只清除本批快照内的模块，
+  // 期间新增脏模块保留标记（下次 flush 收走）。
+  const flushing = new Set(dirtyModules);
+  const flushingRatingEntries = new Set(dirtyRatingEntries.keys());
+  const seqAtStart = dirtySeq;
   cleanupSteamCacheMemory(); // 写入前清理过期和超量条目 / Purge before persisting
   try {
-    for (const m of dirtyModules) {
+    for (const m of flushing) {
       const subset = {};
       for (const [id, entry] of steamCacheMemory) {
         const mod = entry.modules && entry.modules[m];
@@ -413,8 +427,19 @@ export async function flushSteamCache() {
       await dataStore.removeModule(DB_KEYS.STEAM_CACHE).catch(() => {});
       legacyMigrated = false;
     }
-    dirtyModules.clear();
-    dirtyRatingEntries.clear();
+    // v14.11 B7：只清除本批快照内的标记——期间新增的脏模块/脏条目保留
+    //（下次 flush 收走），堵"清空被并发新增撤销"的丢失窗口
+    for (const m of flushing) dirtyModules.delete(m);
+    for (const k of flushingRatingEntries) dirtyRatingEntries.delete(k);
+    // v14.11 B7：flush 期间发生过任何脏标记新增 → 立即再排一次写（收走窗口
+    // 期的并发更新；含同模块 add no-op 的形态）
+    if (dirtySeq !== seqAtStart) {
+      // 同模块并发重脏的 add 是 no-op、快照删除后不知哪个模块脏——保守重标
+      // 全部分片（子集重写自内存取值，数据正确只是 IO 略冗余）
+      CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m));
+      steamCacheDirty = true;
+      writer.scheduleWrite();
+    }
   } catch (e) {
     // v9.7.0：写失败回滚 dirty 并重新调度——此前 dirty 已清零，本批修改
     // 会随 SW 死亡静默丢失且永不重试（参照 logger.js flushLogBuffer 的回滚）
@@ -437,6 +462,7 @@ function cleanupSteamCacheMemory() {
     // rating 尤其如此：append 无法表达删除，不标记会复活僵尸条目）
     for (const m of Object.keys(entry.modules || {})) {
       dirtyModules.add(m);
+      dirtySeq++; // v14.11 B7
       if (m === 'rating') ratingFullRewrite = true;
     }
     steamCacheMemory.delete(key);
@@ -479,6 +505,7 @@ export async function deleteSteamCacheEntry(appId) {
   if (steamCacheMemory && steamCacheMemory.delete(String(appId))) {
     steamCacheDirty = true; // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
     CACHE_PART_NAMES.forEach((m) => dirtyModules.add(m)); // v10.6.0：条目从所有模块文件移除
+    dirtySeq++; // v14.11 B7
     ratingFullRewrite = true; // v14 B7：append 无法表达删除 → 整体重写
     dirtyRatingEntries.delete(String(appId));
   }
@@ -490,8 +517,10 @@ export function resetSteamCache() {
   steamCacheMemoryLoaded = false;
   steamCacheDirty = false;
   dirtyModules.clear();
+  dirtySeq++; // v14.11 B7
   legacyMigrated = false;
   ratingLineCount = 0;
   ratingFullRewrite = false;
   dirtyRatingEntries.clear();
+  dirtySeq++; // v14.11 B7
 }
