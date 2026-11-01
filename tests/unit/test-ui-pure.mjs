@@ -230,3 +230,44 @@ test('steamSidebar 标签链接使用 zh-cn 小写语言段（v10.9.4 回归）'
   expect(html.includes(encodeURIComponent('多人'))).toEqual(true); // 中文 slug 全量编码
   expect((html.match(/tags\/zh-cn\//g) || []).length).toEqual(2); // 每个标签一个链接
 });
+
+// ============ v14.10.1：详情浮窗低/零评测原因行（用户需求） ============
+const { renderRatingRows } = await import('../../content/detail/render/rating-rows.js');
+
+test('浮窗低评测行：positiveRate null → 灰色原因行（官方语义 + 评测数 + 发售日期）', () => {
+  const html = renderRatingRows(
+    {
+      positiveRate: null,
+      ratingDesc: '需要更多用户评测来生成整体评价',
+      totalReviews: 3,
+      releaseDate: '2026年10月20日'
+    },
+    null
+  );
+  expect(html).toContain('Steam 总体');
+  expect(html).toContain('需要更多用户评测来生成整体评价');
+  expect(html).toContain('共 3 条评测');
+  expect(html).toContain('发售于 2026年10月20日');
+  expect(html).not.toContain('% 好评');
+});
+
+test('浮窗无评测行：total 0 → 暂无用户评测', () => {
+  const html = renderRatingRows(
+    { positiveRate: null, ratingDesc: '无用户评测', totalReviews: 0, releaseDate: '2026年11月1日' },
+    null
+  );
+  expect(html).toContain('无用户评测');
+  expect(html).toContain('暂无用户评测');
+  expect(html).toContain('发售于 2026年11月1日');
+});
+
+test('浮窗无 desc 兜底：旧缓存无语义 → 暂无评测', () => {
+  const html = renderRatingRows({ positiveRate: null, totalReviews: 0 }, null);
+  expect(html).toContain('暂无评测');
+});
+
+test('浮窗正常评分行不受影响（不渲染灰色行）', () => {
+  const html = renderRatingRows({ positiveRate: 87, ratingDesc: '特别好评', totalReviews: 128 }, null);
+  expect(html).toContain('87%');
+  expect(html).not.toContain('不足 10 篇');
+});

@@ -49,6 +49,28 @@ export function renderRatingRows(data, spy) {
     ' 条评测</div>' +
     '</div>';
   let html = '';
+  // v14.10.1（用户需求：浮窗同样显示没有评价信息的原因）：positiveRate null
+  // 时不再整行消失——灰色"Steam 总体"行显示 Steam 官方语义原因
+  //（需要更多用户评测来生成整体评价 / 无用户评测）+ 评测数 + 发售日期
+  if (data.positiveRate === null || data.positiveRate === undefined) {
+    const total = num(data.totalReviews);
+    const reason = data.ratingDesc ? esc(String(data.ratingDesc)) : '暂无评测';
+    const rel = data.releaseDate ? ` · 发售于 ${esc(String(data.releaseDate))}` : '';
+    html +=
+      '<div class="gr-detail-rate-row">' +
+      '<div class="gr-detail-rate-head">' +
+      '<span class="gr-detail-rate-label">Steam 总体</span>' +
+      '<span class="gr-detail-rate-desc" style="color:#8f98a0">' +
+      reason +
+      '</span>' +
+      '</div>' +
+      '<div class="gr-detail-rate-bar"><div class="gr-detail-rate-fill" style="width:0;background:#555"></div></div>' +
+      '<div class="gr-detail-rate-num">' +
+      (total > 0 ? `共 ${fmt(total)} 条评测 · 不足 10 篇暂无整体评价` : '暂无用户评测') +
+      rel +
+      '</div>' +
+      '</div>';
+  }
   if (data.positiveRate !== null && data.positiveRate !== undefined) {
     html += row(
       'Steam 总体',
