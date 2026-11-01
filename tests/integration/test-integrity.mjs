@@ -561,3 +561,33 @@ test('manifest content_scripts js 清单 = SITE_SCRIPT_FILES（顺序敏感单�
   const manifestJs = (manifest.content_scripts || []).flatMap((cs) => cs.js || []);
   expect(JSON.stringify(manifestJs)).toEqual(JSON.stringify(siteScriptsMod.SITE_SCRIPT_FILES));
 });
+
+// v14.11 B5（报告 B/C/D 三报共振）：扩展页 HTML 重复 id 门禁——getElementById
+// 恒取首个，重复 id 即"后写控件永久死亡"（ruleList 双写曾致规则管理面板恒空
+// 24 天无人发现，HTML 层此前零自动化校验）。扫描全部页面目录的 *.html。
+test('P2：扩展页 HTML 重复 id 为零（重复 = 后写控件静默死亡）', () => {
+  const PAGE_DIRS = ['popup', 'options', 'dashboard', 'freegames', 'hub', 'welcome', 'sidepanel'];
+  const htmlFiles = [];
+  for (const dir of PAGE_DIRS) {
+    const dirPath = path.join(ROOT, dir);
+    if (!fs.existsSync(dirPath)) continue;
+    for (const f of fs.readdirSync(dirPath)) {
+      if (f.endsWith('.html')) htmlFiles.push(path.join(dir, f));
+    }
+  }
+  expect(htmlFiles.length, '页面 HTML 文件应存在').toBeGreaterThan(0);
+  const offenders = [];
+  for (const f of htmlFiles) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+    const seen = new Map();
+    for (const m of src.matchAll(/\sid="([^"]+)"/g)) {
+      const id = m[1];
+      if (seen.has(id)) offenders.push(`${f}: id="${id}" 重复（首见行 ${seen.get(id)}）`);
+      else seen.set(id, (src.slice(0, m.index).match(/\n/g) || []).length + 1);
+    }
+  }
+  expect(
+    offenders,
+    '以下 HTML 存在重复 id（getElementById 恒取首个 → 后写控件死亡）:\n  ' + offenders.join('\n  ')
+  ).toEqual([]);
+});

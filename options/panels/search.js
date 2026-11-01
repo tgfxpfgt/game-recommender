@@ -15,10 +15,14 @@
   // ============ 设置搜索（v11.0 B6：按行文本过滤；纯前端，不改保存逻辑） ============
   // Settings search: filter setting rows by text (front-end only).
   function bindSettingsSearch() {
-    const input = document.getElementById('settingsSearch');
-    if (!input) return;
-    input.addEventListener('input', () => {
-      const q = input.value.trim().toLowerCase();
+    // v14.11 B5：侧栏搜索（sidebarSearch）与面板头搜索（settingsSearch）双绑——
+    // 此前两处重复 id="settingsSearch"，面板头为死控件（getElementById 恒取首个）
+    const inputs = ['settingsSearch', 'sidebarSearch'].map((id) => document.getElementById(id)).filter(Boolean);
+    if (inputs.length === 0) return;
+    const onSearch = (ev) => {
+      const q = String((ev && ev.target && ev.target.value) || inputs[0].value || '')
+        .trim()
+        .toLowerCase();
       document.querySelectorAll('.settings-panel .setting-row').forEach((row) => {
         row.style.display = !q || (row.textContent || '').toLowerCase().includes(q) ? '' : 'none';
       });
@@ -26,13 +30,17 @@
         const visible = [...sec.querySelectorAll('.setting-row')].some((r) => r.style.display !== 'none');
         sec.style.display = visible || !q ? '' : 'none';
       });
-    });
+    };
+    // 双输入共用同一过滤回调（侧栏/面板头任一输入均生效）
+    inputs.forEach((input) => input.addEventListener('input', onSearch));
   }
 
   // ============ 关键词过滤规则编辑器（v6.4.8：多条 + 排除误报词） ============
   // Keyword filter-rule editor: multiple rules, each with false-positive excludes.
   function renderRules(rules) {
-    const box = document.getElementById('ruleList');
+    // v14.11 B5：id 改 keywordRuleList——原 ruleList 与规则管理面板重复，
+    // getElementById 恒取首个致规则管理面板恒空（报告 B/C/D 三报共振）
+    const box = document.getElementById('keywordRuleList');
     if (!box) return;
     box.innerHTML = '';
     (rules || []).forEach((rule, idx) => {
