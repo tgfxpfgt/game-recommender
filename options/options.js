@@ -251,6 +251,13 @@
     OPTS.currentSettings.ratingFilterMode = val('ratingFilterMode');
     OPTS.currentSettings.enableSortByRating = chk('sortByRatingEnabled');
 
+    // v14.11 B2（报告 D P0-1，24 天未修）：详情浮窗形态/位置 + 红标题阈值——
+    // 此前仅在事件绑定 forEach 出现、saveSettings 收集段从未读取（v6.4.11
+    // 同型事故复发），用户修改被旧值静默覆盖
+    OPTS.currentSettings.detailFloatExpanded = chk('detailFloatExpanded');
+    OPTS.currentSettings.detailFloatSide = val('detailFloatSide');
+    OPTS.currentSettings.redTitleRating = intVal('redTitleRating');
+
     // 徽章显示开关（v3.3.8；v10.5.3 新增 score 综合评分）
     /** @type {Object<string, string>} 设置键 → 控件 id（checked） */
     const badgeIds = {

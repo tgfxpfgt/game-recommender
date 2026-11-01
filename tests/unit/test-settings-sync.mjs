@@ -25,6 +25,7 @@ const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf-8');
 const optionsLayer = [
   'options/options.js',
   'options/panels/settings.js',
+  'options/panels/settings-bind.js', // v14.11 B2：主题面板收集器（customThemeCss 直写）
   'options/panels/cache.js',
   'options/panels/data-manage.js',
   'options/panels/rules.js',
@@ -59,6 +60,62 @@ test('DEFAULT_SETTINGS 顶层键全部同步设置层（options 层引用）', (
     '以下设置键未同步设置页（保存映射/渲染/HTML 任一即可），或应加入 OPTIONS_ALLOWLIST 并写明理由:\n  ' +
       missing.join('\n  ')
   ).toEqual([]);
+});
+
+// v14.11 B2（报告 D P0-1 根治）：写路径断言——每个 DEFAULT_SETTINGS 顶层键
+// 必须出现在 saveSettings 的**收集段**（写路径）。报告 D 的 P0-1（三键 24 天
+// 静默丢弃）正是"渲染/重置锚点齐全、唯保存断链"——读路径断言无法识别。
+// 实现方式：无构建体系下从 options.js 源码提取 saveSettings 函数体做静态
+// 包含检查（等价于人工逐键核对，机器化）。
+test('DEFAULT_SETTINGS 顶层键全部进入 saveSettings 写路径（防保存断链复发）', () => {
+  const optionsSrc = read('options/options.js');
+  const start = optionsSrc.indexOf('async function saveSettings()');
+  expect(start, 'options.js 应包含 saveSettings 函数').toBeGreaterThan(-1);
+  // 从函数起点向后找匹配的函数体边界（brace 计数，容忍字符串内的花括号——
+  // 该函数体无跨行模板串对象字面量误判风险时可简化，此处做保守计数）
+  let depth = 0;
+  let end = -1;
+  for (let i = optionsSrc.indexOf('{', start); i < optionsSrc.length; i++) {
+    const ch = optionsSrc[i];
+    if (ch === '{') depth++;
+    else if (ch === '}') {
+      depth--;
+      if (depth === 0) {
+        end = i;
+        break;
+      }
+    }
+  }
+  expect(end, 'saveSettings 函数体应可定位').toBeGreaterThan(start);
+  const body = optionsSrc.slice(start, end);
+  // 嵌套组键由表驱动收集（badgeIds/weightRows 等）——键名以字符串出现即可
+  // 面板直写豁免：面板收集器直接改 OPTS.currentSettings 再由 saveSettings
+  // 统一持久化（合法双段模式）——豁免须注明收集器位置，防沦为绕过工具
+  const WRITE_PATH_ALLOWLIST = {
+    customThemeCss: '面板直写：panels/settings-bind.js:98（主题面板）',
+    trackedSites: '面板直写：panels/sites.js:155（站点面板收集器）',
+    steamSiteSearch: '面板直写：panels/sites.js:156',
+    favoritePriceWatch: '面板直写：panels/favorites.js:121',
+    favoriteDiscountThreshold: '面板直写：panels/favorites.js:123',
+    weeklyDigestEnabled: '面板直写：panels/favorites.js:125',
+    dataSources: '面板直写：panels/sites.js:90',
+    steamApiModules: '面板直写：panels/sites.js:133'
+  };
+  const missing = Object.keys(DEFAULT_SETTINGS).filter(
+    (k) => !hasWord(body, k) && !OPTIONS_ALLOWLIST[k] && !WRITE_PATH_ALLOWLIST[k]
+  );
+  expect(
+    missing,
+    '以下设置键未进入 saveSettings 收集段（且不在面板直写豁免清单）——用户修改将被旧值静默覆盖（v6.4.11/D-P0-1 同型事故）:\n  ' +
+      missing.join('\n  ')
+  ).toEqual([]);
+  // 豁免防 stale：豁免键的收集器必须真实存在（含收集器位置注释复核）
+  for (const k of Object.keys(WRITE_PATH_ALLOWLIST)) {
+    expect(
+      new RegExp('currentSettings\\.' + k + '\\s*=').test(optionsLayer),
+      `WRITE_PATH_ALLOWLIST.${k} 的面板直写已不存在（currentSettings.${k} = 无命中），请清理豁免`
+    ).toBe(true);
+  }
 });
 
 test('豁免清单的键必须真实存在于 DEFAULT_SETTINGS（防 stale 豁免）', () => {
