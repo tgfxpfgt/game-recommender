@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Game Radar 扩展 · 代码审查与优化方案</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  :root {
+    --bg:#fafaf9; --ink:#141414; --ink2:#3a3833; --mut:#6f6c66; --faint:#9b988f;
+    --line:#e4e2dd; --accent:#0e6e5c; --hi:#a13a2d; --md:#9a6b1f; --lo:#8a8781;
+    --sans:"PingFang SC","Microsoft YaHei UI","Microsoft YaHei",-apple-system,"Segoe UI",sans-serif;
+    --mono:ui-monospace,"Cascadia Code",Consolas,"Courier New",monospace;
+  }
+  html { background:var(--bg); }
+  body { font-family:var(--sans); color:var(--ink); font-size:15px; -webkit-font-smoothing:antialiased; }
+  .page { max-width:1280px; margin:0 auto; padding:0 48px; }
+  a { color:var(--ink); text-decoration:none; border-bottom:1px solid #c9c6bf; }
+  a:hover { border-bottom-color:var(--ink); }
+
+  /* cover */
+  .cover { padding:108px 0 62px; border-bottom:1px solid var(--ink); }
+  .kicker { font-size:11.5px; letter-spacing:.22em; text-transform:uppercase; color:var(--accent); font-weight:600; }
+  .cover h1 { font-size:52px; line-height:1.18; letter-spacing:-.02em; margin-top:26px; font-weight:250; }
+  .cover h1 b { font-weight:600; }
+  .cover .sub { margin-top:18px; font-size:16px; color:var(--mut); max-width:70ch; line-height:1.7; }
+  .meta { display:flex; flex-wrap:wrap; gap:10px 40px; margin-top:44px; font-size:13px; color:var(--ink2); }
+  .meta span b { font-weight:600; }
+  .meta .k { color:var(--faint); font-size:11px; letter-spacing:.1em; text-transform:uppercase; display:block; margin-bottom:4px; }
+
+  /* layout */
+  .layout { display:grid; grid-template-columns:218px minmax(0,1fr); gap:64px; padding-top:8px; }
+  .toc { position:sticky; top:0; align-self:start; padding:44px 0; font-size:12.5px; }
+  .toc .t { font-size:10.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--faint); margin-bottom:14px; }
+  .toc a { display:block; padding:4.5px 0; color:var(--mut); border:none; }
+  .toc a:hover { color:var(--ink); }
+  .toc a i { font-style:normal; color:var(--faint); margin-right:9px; font-size:11px; }
+  main { padding:44px 0 0; min-width:0; }
+
+  section { padding:58px 0 6px; border-top:1px solid var(--line); margin-bottom:26px; }
+  .folio { font-size:11px; letter-spacing:.18em; color:var(--accent); font-weight:600; }
+  h2 { font-size:29px; font-weight:600; letter-spacing:-.015em; margin:12px 0 26px; }
+  h3 { font-size:16px; font-weight:600; margin:34px 0 12px; }
+  h3 .no { color:var(--faint); font-weight:400; margin-right:8px; font-size:13px; }
+  p { line-height:1.78; color:var(--ink2); margin:0 0 14px; max-width:76ch; }
+  .lede { font-size:16.5px; line-height:1.85; color:var(--ink); }
+  small, .sm { font-size:12.5px; color:var(--mut); }
+  ul.plain { margin:0 0 14px 0; list-style:none; }
+  ul.plain li { padding:7px 0 7px 18px; position:relative; line-height:1.65; color:var(--ink2); max-width:78ch; }
+  ul.plain li::before { content:""; position:absolute; left:2px; top:16px; width:5px; height:1px; background:var(--faint); }
+
+  /* metrics */
+  .metrics { display:flex; flex-wrap:wrap; border-top:1px solid var(--ink); border-bottom:1px solid var(--line); padding:20px 0; margin:26px 0 8px; }
+  .m { flex:1 1 150px; padding:2px 24px; border-left:1px solid var(--line); }
+  .m:first-child { border-left:none; padding-left:0; }
+  .m .n { font-size:33px; font-weight:250; letter-spacing:-.02em; color:var(--ink); }
+  .m .n b { font-weight:600; }
+  .m .l { font-size:11.5px; color:var(--mut); margin-top:5px; letter-spacing:.05em; }
+
+  /* tables */
+  table { width:100%; border-collapse:collapse; font-size:13px; margin:16px 0 10px; }
+  th { text-align:left; font-size:10.5px; letter-spacing:.1em; text-transform:uppercase; color:var(--mut); font-weight:600; padding:7px 14px 7px 0; border-bottom:1px solid var(--ink); white-space:nowrap; }
+  td { padding:9px 14px 9px 0; border-bottom:1px solid var(--line); vertical-align:top; line-height:1.6; color:var(--ink2); }
+  td.num { white-space:nowrap; }
+  .dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:7px; vertical-align:0; }
+  .d-hi { background:var(--hi); } .d-md { background:var(--md); } .d-lo { background:#b5b2a9; } .d-ok { background:var(--accent); }
+  .sev { font-weight:600; white-space:nowrap; font-size:12px; }
+  .sev.hi { color:var(--hi); } .sev.md { color:var(--md); } .sev.lo { color:var(--lo); } .sev.ok { color:var(--accent); }
+
+  /* code */
+  .p { font-family:var(--mono); font-size:11.5px; background:#f0efeb; padding:1px 6px; border-radius:3px; color:#44423c; word-break:break-all; }
+  pre.dg { font-family:var(--mono); font-size:11.5px; line-height:1.7; background:#f4f3ef; border:1px solid var(--line); padding:18px 22px; overflow-x:auto; color:#44423c; margin:16px 0 10px; }
+  code.inl { font-family:var(--mono); font-size:12px; background:#f0efeb; padding:1px 5px; border-radius:3px; }
+
+  /* note box (no colored left border, hairline only) */
+  .note { border:1px solid var(--line); padding:16px 20px; margin:18px 0; font-size:13.5px; line-height:1.7; color:var(--ink2); max-width:82ch; }
+  .note .tag { display:block; font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; font-weight:600; margin-bottom:7px; }
+  .note.warn .tag { color:var(--hi); } .note.ok .tag { color:var(--accent); }
+
+  /* findings detail */
+  .fd { border-top:1px solid var(--line); padding:16px 0; }
+  .fd .head { display:flex; align-items:baseline; gap:12px; flex-wrap:wrap; }
+  .fd .id { font-family:var(--mono); font-size:12px; color:var(--faint); }
+  .fd .ti { font-weight:600; font-size:14.5px; }
+  .fd .loc { font-family:var(--mono); font-size:11.5px; color:var(--mut); margin-top:5px; word-break:break-all; }
+  .fd p { font-size:13.5px; margin:8px 0 4px; }
+  .fd .fix { font-size:13px; color:var(--ink2); margin-top:4px; }
+  .fd .fix b { font-weight:600; color:var(--ink); }
+  .fd .eff { font-size:11.5px; color:var(--faint); font-family:var(--mono); }
+
+  /* roadmap steps */
+  .step { display:grid; grid-template-columns:52px 1fr; gap:20px; padding:24px 0; border-top:1px solid var(--line); }
+  .step .no { font-size:24px; font-weight:250; color:var(--accent); letter-spacing:-.02em; }
+  .step h4 { font-size:15.5px; font-weight:600; margin-bottom:8px; }
+  .step h4 span { font-weight:400; color:var(--faint); font-size:12.5px; margin-left:10px; }
+  .step p, .step li { font-size:13.5px; }
+  .step ul.plain li { padding:4px 0 4px 18px; font-size:13.5px; }
+
+  .colophon { margin-top:70px; border-top:1px solid var(--ink); padding:26px 0 90px; font-size:12.5px; color:var(--mut); line-height:1.9; }
+  .colophon b { color:var(--ink2); font-weight:600; }
+
+  @media (max-width:920px){
+    .page { padding:0 26px; }
+    .layout { grid-template-columns:1fr; gap:0; }
+    .toc { position:static; padding:30px 0; border-bottom:1px solid var(--line); }
+    .cover { padding-top:64px; } .cover h1 { font-size:36px; }
+    .m { padding:2px 14px; } .m .n { font-size:26px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+<header class="cover">
+  <div class="kicker">Code Review &amp; Optimization Plan</div>
+  <h1><b>Game Radar</b> 浏览器扩展<br>代码审查与优化方案</h1>
+  <p class="sub">针对 Chrome MV3 扩展 game-recommender（游戏好评率聚合）的四路并行静态审查：架构、安全、功能数据流、代码质量，附独立行号级复核与分阶段优化路线图。全部 21 项发现均带可跳转核对的 file:line 证据。</p>
+  <div class="meta">
+    <span><span class="k">审查对象</span><b>game-recommender</b> v14.9.1 · Chrome MV3 · 零构建</span>
+    <span><span class="k">审查时间</span>2026-10-31 → 11-01</span>
+    <span><span class="k">方式</span>四路并行静态审计 + 独立复核</span>
+    <span><span class="k">编排 / 模型</span>AutoClaw · <b>zai/zai_auto</b>（全链路）</span>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="toc">
+  <div class="t">Contents</div>
+  <a href="#s01"><i>01</i>执行摘要</a>
+  <a href="#s02"><i>02</i>审查范围与方法</a>
+  <a href="#s03"><i>03</i>架构评述</a>
+  <a href="#s04"><i>04</i>安全与隐私审计</a>
+  <a href="#s05"><i>05</i>功能与数据流</a>
+  <a href="#s06"><i>06</i>代码质量与 UX</a>
+  <a href="#s07"><i>07</i>问题清单总表</a>
+  <a href="#s08"><i>08</i>优化路线图</a>
+  <a href="#s09"><i>09</i>工具与模型标注</a>
+  <a href="#s10"><i>10</i>风险与未覆盖范围</a>
+  <a href="#s11"><i>11</i>复核记录</a>
+</nav>
+
+<main>
+
+<!-- 01 -->
+<section id="s01">
+  <div class="folio">01</div>
+  <h2>执行摘要</h2>
+  <p class="lede">总体判断：工程质量中上，明显高于同体量业余扩展的平均线——有单源注册表纪律、真实的 MV3 深坑修复履历、fail-closed 的消息门禁与出站 SSRF 加固；<b style="font-weight:600">未发现高危安全漏洞，无远程代码加载</b>。主要债务集中在三处：设置 UI「三页三套」复制式同步带来的 HTML id 卫生问题（已形成 1 个功能性 bug）、新增密钥字段未纳入密钥剔除清单（叠加设置页对用户的虚假安全声明）、两处长周期路径的小泄漏（alarm 不拆除、折扣通知重复推送）。</p>
+  <div class="metrics">
+    <div class="m"><div class="n">147</div><div class="l">已验证源文件（manifest 仅声明 12 个 JS）</div></div>
+    <div class="m"><div class="n"><b>21</b> 项</div><div class="l">问题入册：6 P1 · 7 P2 · 8 P3</div></div>
+    <div class="m"><div class="n">2 / 0</div><div class="l">中危安全项 / 高危安全项</div></div>
+    <div class="m"><div class="n">9 组</div><div class="l">正面确认（门禁·加固·有界·闭环）</div></div>
+    <div class="m"><div class="n">15/16</div><div class="l">复核抽核确认 / 部分确认，置信高</div></div>
+  </div>
+  <p>修复总量估计：P1 六项合计约 <b style="font-weight:600">2.5 小时</b>（多为 ≤45 分钟的定点修改）；P2 约 3–5 小时；结构性单源化约半天到一天；全部收尾约 2–3 个工作日。建议按第 08 节四阶段路线图执行，每阶段独立提交、可单独回滚。</p>
+</section>
+
+<!-- 02 -->
+<section id="s02">
+  <div class="folio">02</div>
+  <h2>审查范围与方法</h2>
+  <p>审查对象为附加文件夹 <span class="p">F:\data\browser extension\game-recommender</span> 全部源码。四个审查视角并行展开：<b style="font-weight:600">架构盘点</b>（文件全集、引用链、模块划分、MV3 合规）、<b style="font-weight:600">安全审计</b>（注入面、消息传递、权限、存储、出站请求）、<b style="font-weight:600">功能与数据流</b>（缓存策略、API 降级链、通知与告警、口径一致性）、<b style="font-weight:600">代码质量与 UX</b>（重复、错误处理、i18n、可访问性、宿主样式隔离）。四路回传后由独立复核代理对 16 项关键声明做行号级抽核（第 11 节）。</p>
+  <ul class="plain">
+    <li><b style="font-weight:600">证据规范</b>：每条发现必须给 file:line 与 ≤3 行源码摘录；行号经复核校准，偏差 ≤5 行。</li>
+    <li><b style="font-weight:600">只读约束</b>：审查全程未向目标目录写入任何文件。</li>
+    <li><b style="font-weight:600">环境限制</b>：本环境命令执行（exec）全局不可用 → 无法运行 lint/单测、无法加载扩展实测、无法截图；全部结论为静态审查。UI 现象类发现（P1-01、P1-04、P2-01）建议作者加载扩展后按验收路径确认。</li>
+    <li><b style="font-weight:600">检索限制</b>：Chrome Web Store 政策条文未能联网核实（检索无有效结果）→ 第 04 节的权限与远程代码结论来自直接代码核查，非政策条文比对。</li>
+  </ul>
+</section>
+
+<!-- 03 -->
+<section id="s03">
+  <div class="folio">03</div>
+  <h2>架构评述</h2>
+  <p>manifest 只声明 12 个内容脚本 + 1 个 service worker，但沿 import 链展开后实际约 <b style="font-weight:600">147 个已验证文件</b>，是一个四层架构的大型 MV3 扩展。分层统计（行数为约数）：</p>
+  <table>
+    <tr><th>层</th><th class="num">文件数</th><th>角色</th></tr>
+    <tr><td><span class="p">shared/</span></td><td class="num">7</td><td>经典脚本公共层：patterns / msg（统一消息+超时兜底）/ escape / settings-utils / crypto-utils / fm-keys / freegames-filter</td></tr>
+    <tr><td><span class="p">adapters/</span></td><td class="num">8</td><td>声明式站点规则（纯数据对象）+ builder 解释器；同一份规则被内容侧 DOM 解析与 SW 侧站内搜索双端消费</td></tr>
+    <tr><td><span class="p">content/</span></td><td class="num">22</td><td>装载器 tracker（经典脚本 + 运行时动态 import ESM，绕过 content_scripts 不支持 ESM 的限制）、core、list、detail、badges</td></tr>
+    <tr><td><span class="p">background/</span></td><td class="num">56</td><td>SW 入口 + handlers×14 + core×13 + storage×14 + steam×6 + recommend / sites / freegames</td></tr>
+    <tr><td>页面</td><td class="num">38</td><td>popup 6 / options 14 / sidepanel 2 / dashboard 10 / freegames 3 / welcome 4 / hub 3</td></tr>
+    <tr><td><span class="p">data/</span> + <span class="p">lib/</span></td><td class="num">4</td><td>根级 OPFS 存储层（ND-JSON/JSON 分型）+ vendored jsQR（Apache-2.0，懒加载）</td></tr>
+    <tr><td>样式与主题</td><td class="num">20+</td><td>content.css 516 行 + ui-theme + 19 个主题 CSS（逐一验证 2 个，其余按编号推断）</td></tr>
+  </table>
+  <p><span class="sm">注：147 为逐个 read 确认存在的文件数；另有约 18 个主题 CSS 未逐一打开（与 options.html 20 个主题选项吻合，推断可信）。</span></p>
+
+  <h3><span class="no">3.1</span>数据流总览</h3>
+  <pre class="dg">下载站 / Steam 页面 (document_start)
+  adapters 规则(纯数据) → builder → 列表/详情扫描
+    → GET_STEAM_RATINGS → SW ratings-batch（缓存命中即回）
+      未命中 → 全局 FIFO 任务链（session 检查点 + 1min resume alarm）
+        → 六级定位：纠正库 → URL/名称索引 → 全量目录(免网络)
+                    → storesearch → 英文/社区搜索 → 详情页信号回捞(预算 8)
+        → api-reviews（language=all, filter=recent, num_per_page=100）
+      结果 → steam-cache 四模块（OPFS，TTL + LRU 1200，2s 防抖落盘）
+           → STEAM_RATINGS_UPDATE 推回 tab → 徽章渲染
+限免：alarm 24h / SW 启动 → Epic/GOG/Steam/GamerPower 逐源容错
+    → ITAD 复核 → 聚合通知（固定 id）+ 角标
+出站请求统一经 fetchWithTimeout：协议/私网/重定向逐跳复检 + 每主机限速 + 审计</pre>
+
+  <h3><span class="no">3.2</span>架构亮点</h3>
+  <ul class="plain">
+    <li><b style="font-weight:600">单源注册表纪律</b>：五处历史上「散落多表手工同步」的痛点全部收敛为单源文件——<span class="p">content/module-manifest.js</span>（内容模块清单）、<span class="p">data/storage-registry.js</span>（存储模块）、<span class="p">background/core/message-contract.js</span>（消息契约 + sender 门禁白名单）、<span class="p">shared/fm-keys.js</span>、<span class="p">steam-rating-logic.js</span>。</li>
+    <li><b style="font-weight:600">演进式重构有履历</b>：大量「壳 + re-export」（recommend/engine、freegames/manager、steam/api barrel、badges/core）保持消费方 import 路径不变；注释精确到修复批次号（B2/B5/B6/B7/B10），可溯源。</li>
+    <li><b style="font-weight:600">MV3 深坑有修复档案</b>：SW 内动态 <code class="inl">import()</code> 被规范禁止导致 3 条链路静默失效的问题，v14.5.0 改「静态导入 + 延迟调用」修复（<span class="p">service-worker.js:18-29</span>）；SW 冷启动消息竞态用 early-message-router（最早注册 onMessage）+ 内容侧排队冲放双向解决（<span class="p">tracker.js:126-160</span>）；分层预热（热层启动即载 + 温层 15s，<span class="p">service-worker.js:186-210</span>）；alarm 幂等创建防冷启动重置周期（<span class="p">service-worker.js:212-222</span>）。</li>
+  </ul>
+
+  <h3><span class="no">3.3</span>架构弱项</h3>
+  <ul class="plain">
+    <li>扩展页面（popup/options/sidepanel 等）用经典脚本按序共享全局，靠 <code class="inl">/* global */</code> 注释约定（<span class="p">dashboard.js:1-2</span>）——零构建的固有脆弱点，与内容侧 ESM 双轨并行增加心智负担。</li>
+    <li><span class="p">data/</span> 与 <span class="p">lib/</span> 位于根级而非 background/ 下，「data 层不得 import background/*」仅靠注释约定（<span class="p">data-store.js:29</span>），无机制强制。</li>
+    <li>发现一处疑似死引用：<span class="p">settings-utils.js:52</span> goHub 的 page 取值含 <code class="inl">'vista'</code>（旧版菜单页），仓库中无对应文件（P3-04）。</li>
+  </ul>
+</section>
+
+<!-- 04 -->
+<section id="s04">
+  <div class="folio">04</div>
+  <h2>安全与隐私审计</h2>
+  <p>整体安全姿态好于同类社区扩展平均水平：核心攻击面（宿主页 → 扩展特权）被消息契约 fail-closed + sender 源门禁基本封死；出站请求统一加固。薄弱点集中在「新增字段未纳入既有清单」与「转义/协议校验职责层间推诿」两类系统性模式，共 2 项中危、无高危。</p>
+
+  <h3><span class="no">4.1</span>中危 · 两项（建议随下版本修复）</h3>
+
+  <div class="fd">
+    <div class="head"><span class="id">P1-02</span><span class="sev md"><span class="dot d-md"></span>中危 · 密钥泄露 + 虚假声明</span><span class="ti">ITAD API Key 随导出/备份明文落盘，而设置页明文承诺会剔除</span></div>
+    <div class="loc">background/handlers/data-modules.js:57-73（剔除块 68-73） · background/storage/backups.js:53-59 · options/options.html:1131-1133</div>
+    <p>导出与备份链路只剔除 <code class="inl">llmConfig.apiKey</code> 与 <code class="inl">steamApiKey</code>，未处理 v6.4.19 引入的 <code class="inl">itadProfiles[].key</code>（与旧 <code class="inl">itadApiKey</code>）；而导入侧 <span class="p">rules.js:379-383</span> 对 itadProfiles 强制置空并注释「ITAD 密钥配置不导入」——两侧不对称。更关键的是：设置页 ITAD Key 输入框下的提示文案明写「密钥仅存储于本机浏览器配置；导出/备份/导入自动剔除」，UI 承诺与代码行为直接矛盾，性质从潜在泄露升级为<b style="font-weight:600">对用户的虚假安全声明</b>。</p>
+    <div class="fix"><b>修复</b>：两处剔除逻辑补 itadProfiles（key 置空）与 itadApiKey，抽成单一 sanitize 函数供导出/备份共用；工作量约 30 分钟。回退方案（不推荐）：改 UI 文案如实披露。</div>
+  </div>
+
+  <div class="fd">
+    <div class="head"><span class="id">P1-03</span><span class="sev md"><span class="dot d-md"></span>中危 · 伪协议注入</span><span class="ti">恶意规则包可借 searchUrl 注入 javascript: 链接</span></div>
+    <div class="loc">background/core/rules.js:66（searchUrl:'string'）+ 188-212（通用校验，无协议白名单） · content/detail/tracking.js:138 · shared/escape.js:20-26</div>
+    <p>规则校验对 searchUrl 只做「字符串 ≤500」通用校验，无协议白名单——对比同文件对 llmConfig.endpoint 强制 <code class="inl">/^https?:\/\//i</code>（<span class="p">rules.js:396</span>）。后台把模板原样拼进响应的 searchUrl，内容侧浮窗以 <code class="inl">href="${common.escapeAttr(site.searchUrl)}"</code> 渲染「去搜索」链接；escapeAttr 只转义 <code class="inl">&amp; " &lt; &gt;</code>，不拦伪协议。点击即在宿主页执行任意 JS。前置条件是用户导入恶意规则包（社交工程），但导入 UX 的「格式校验通过」会给人安全暗示。</p>
+    <div class="fix"><b>修复</b>：保存侧对 searchUrl 强制 http(s) 前缀（复用 endpoint 校验模式），渲染侧按 URL 解析再校验协议兜底；约 45 分钟。</div>
+  </div>
+
+  <h3><span class="no">4.2</span>低危与提示项</h3>
+  <table>
+    <tr><th>级别</th><th>项</th><th>位置</th><th>说明</th></tr>
+    <tr><td><span class="sev lo"><span class="dot d-lo"></span>低</span></td><td>扩展指纹面</td><td class="num"><span class="p">manifest.json</span> web_accessible_resources</td><td>向 7 个游戏站 + steampowered.com 暴露 content/lib/shared 下 JS——ESM 动态 import 的必要代价；这些站点可借 fetch 探测扩展 ID。可在不破坏装载的前提下收紧为显式文件清单（P3-05）。</td></tr>
+    <tr><td><span class="sev lo"><span class="dot d-lo"></span>低</span></td><td>DOM 数据桥</td><td class="num"><span class="p">content/detail/sidebar.js</span></td><td><code class="inl">document.documentElement.dataset.grAppId = appId</code> 把 appId 与扩展存在性暴露给宿主页脚本（有意设计，建议文档标注）。</td></tr>
+    <tr><td><span class="sev lo"><span class="dot d-lo"></span>低</span></td><td>行为数据长留</td><td class="num"><span class="p">background/core/constants.js</span></td><td>a-b 统计 20000 条「永不过期」、URL→appId 索引 5000 条；纯本地无外传，但导出/备份文件会带走浏览足迹（叠加 P1-02）。建议提供保留说明与清理入口（P3-06）。</td></tr>
+    <tr><td><span class="sev lo"><span class="dot d-lo"></span>提示</td><td>权限面</td><td class="num"><span class="p">manifest.json:38</span></td><td>optional_host_permissions 为 http(s)://*/* 全站伞形声明——用户显式同意后才按需授予（见 4.3），非静默，属设计取舍提示而非漏洞。</td></tr>
+    <tr><td><span class="sev lo"><span class="dot d-lo"></span>提示</td><td>审计友好性</td><td class="num"><span class="p">background/core/utils.js:209-232</span></td><td>regexMatch/regexExecAll 故意用 <code class="inl">pattern[Symbol.match]</code> 计算属性调用以「规避静态扫描对 .match/.exec 方法名的误判」（注释自述）。功能纯良，但属变形写法，未来人工/AI 审计应知晓以免误判（P3-08）。</td></tr>
+  </table>
+
+  <h3><span class="no">4.3</span>通过项（正面确认，可直接复用为商店审核材料）</h3>
+  <table>
+    <tr><th><span class="sev ok"><span class="dot d-ok"></span>通过</span></th><th>结论</th><th>核验位置</th></tr>
+    <tr><td class="num">消息门禁</td><td>消息契约 fail-closed：未契约化 action 默认拒绝；非扩展 origin 仅放行 30+ 白名单读/埋点 action，SAVE_SETTINGS / IMPORT_DATA / RESTORE_BACKUP / CLEAR_DATA 等特权写全拒；无 onMessageExternal，manifest 无 externally_connectable；hub 的 window message 校验 origin。</td><td class="num"><span class="p">handlers.js:51-56</span><br><span class="p">message-contract.js:246-293</span></td></tr>
+    <tr><td class="num">无远程代码</td><td>未发现 eval / new Function / fetch 后注入 / 远程 script；jsQR 本地 vendored；动态 import 全部指向 chrome.runtime.getURL 打包内路径；extension_pages CSP <code class="inl">script-src 'self'</code>。</td><td class="num">抽查范围见第 11 节</td></tr>
+    <tr><td class="num">SSRF 加固</td><td>fetchWithTimeout：http/https 限定，私网/环回/CGNAT/链路本地/IPv6 全谱拦截，redirect:'manual' 逐跳复检（≤5 跳），每主机限速 + 出站审计；图片代理另加 https-only + content-type 白名单。</td><td class="num"><span class="p">utils.js:130-149, 185-207</span></td></tr>
+    <tr><td class="num">权限最小化</td><td>未申请 tabs（tab.url 全部经消息 sender.tab.url 获取）；scripting 权限实际服务于用户自配站点的动态内容脚本注册（域名白名单过滤 + 用户手势内按需 request origins）；localhost 权限服务于自配 LLM 端点。</td><td class="num"><span class="p">site-scripts.js</span><br><span class="p">panels/sites.js</span></td></tr>
+  </table>
+</section>
+
+<!-- 05 -->
+<section id="s05">
+  <div class="folio">05</div>
+  <h2>功能与数据流</h2>
+
+  <h3><span class="no">5.1</span>存储：有界，不失控</h3>
+  <p>「游戏缓存只增不减」不成立：steam-cache 按 meta / rating / detail / spy 四模块分文件（OPFS），各有 TTL + 双保险清理（全过期清除 + LRU 1200 条上限）+ rating 追加落盘带 compaction；其余存储均有 STORAGE_CAPS 单源上限。</p>
+  <table>
+    <tr><th>模块</th><th class="num">TTL</th><th class="num">上限</th><th>说明</th></tr>
+    <tr><td>steam-cache meta / rating / detail / spy</td><td class="num">30d / 7d / 72h / 7d（用户可调，0=永久）</td><td class="num">LRU 1200</td><td>清理在 flush 时触发；TTL 全设 0 时仍有 LRU 兜底</td></tr>
+    <tr><td>app-stats（跨站累计）</td><td class="num">永不过期</td><td class="num">20000</td><td>徽章文案自述；建议提供清理入口（P3-06）</td></tr>
+    <tr><td>url-index（URL→appId）</td><td class="num">—</td><td class="num">5000</td><td>负缓存 2h；熔断期有网络守卫，不固化「未找到」</td></tr>
+    <tr><td>behavior-log</td><td class="num">logRetentionDays</td><td class="num">500（可调 5000）</td><td>仅日志走保留期</td></tr>
+    <tr><td>限免库</td><td class="num">整体替换</td><td class="num">—</td><td>每次刷新全量替换、自然淘汰，无增长问题</td></tr>
+  </table>
+
+  <h3><span class="no">5.2</span>降级链与口径</h3>
+  <ul class="plain">
+    <li><b style="font-weight:600">六级定位降级</b>：错误纠正库 → URL/名称索引 → 全量目录（免网络）→ storesearch → 英文段/社区搜索 → 详情页信号回捞（预算 8）；某级失败自动降级，Metacritic 仅主机游戏且限额。</li>
+    <li><b style="font-weight:600"> reviews 端点 302 死亡回退</b>：回退商店页 HTML 三形态解析（<span class="p">api-reviews.js:~271-300</span>），强制 <code class="inl">l=schinese</code>，desc 由阈值映射反推——回退路径的分档文案可能与官方九档在边界有出入（P3-07 一并文档标注）。</li>
+    <li><b style="font-weight:600">好评率口径</b>：全时段好评率 = 官方 query_summary 的 positive/total 自算（全语言），与 Steam 商店页一致 ✓；<b style="font-weight:600">30 天好评率基于「最新 100 条评测」自算</b>（<span class="p">api-reviews.js:151, 118-137</span>），30 天内评测 &gt;100 条的热门游戏（如新 3A 首月）会偏离 Steam 真 30 天聚合，首月通常偏悲观——建议 UI tooltip 标注口径（P3-07）。</li>
+    <li><b style="font-weight:600">负缓存网络守卫</b>：Steam 熔断期间不把「网络失败」固化为「未找到」（<span class="p">orchestrator-list.js:284-300</span>），恢复后自动重查 ✓。</li>
+  </ul>
+
+  <h3><span class="no">5.3</span>通知与 alarms：两处 P1 级小 bug</h3>
+  <ul class="plain">
+    <li><b style="font-weight:600">P1-05 资源泄漏</b>：批量好评率任务变陈旧（&gt;1h，<span class="p">ratings-batch.js:117, 269-272</span>）时 stale 分支只清除任务、不拆除 1 分钟周期的 resume alarm → SW 被无限每分钟唤醒（电耗/性能），直到下次成功任务收尾。修复 ≤10 行。</li>
+    <li><b style="font-weight:600">P1-06 通知重复</b>：收藏折扣提醒无防重标记（<span class="p">itad.js:134-144</span>），而同函数内发售提醒有 <code class="inl">grReleaseNotified:+appId</code> 标记（:158）；favPriceCache TTL 24h &lt; 折扣轮询周期 48h，缓存必过期 → 同一持续折扣每 48h 重推。修复：仿发售提醒加标记。</li>
+    <li>限免链路本身健康：逐源 try/catch 静默降级（单源挂了只少一个源）、固定通知 id 聚合 + 仅推 fresh 新增 + 新增去重，不骚扰 ✓。</li>
+  </ul>
+
+  <h3><span class="no">5.4</span>站点适配器：重复度极低（正面）</h3>
+  <table>
+    <tr><th>站点</th><th class="num">行数</th><th>特征</th></tr>
+    <tr><td>xdgame</td><td class="num">77</td><td>规则最多的一等站点</td></tr>
+    <tr><td>xianyudanji</td><td class="num">53</td><td>fallbackLinks + 收窄 detailUrlPatterns</td></tr>
+    <tr><td>gamer520</td><td class="num">49</td><td>imageAppId（Steam CDN 封面直取）</td></tr>
+    <tr><td>3dmgame / ali213 / gamersky</td><td class="num">36/36/36</td><td>三胞胎，结构几乎相同；纯数据规则对象</td></tr>
+  </table>
+  <p>共用逻辑在 builder 与 search.js：改规则 = 改一处；用户还可经 ADAPTER_RULES 覆盖内置规则免改码。「新增下载站 = 一份规则 + 可选用户覆盖」是教科书式适配器模式。</p>
+
+  <h3><span class="no">5.5</span>列表页状态机：四态闭环（正面）</h3>
+  <p>⏳ 等待（带队列进度）/ 成功（三段式展示）/ 未找到（虚线样式、可点击穿透负缓存重查）/ 失败（显示 <code class="inl">#appId·新游|评测少</code>，悬停说明「网络/限流，稍后自动重试」）；45s 强制收尾（<span class="p">list-state.js:19</span>）且不把波外名字误标为「未找到」。</p>
+</section>
+
+<!-- 06 -->
+<section id="s06">
+  <div class="folio">06</div>
+  <h2>代码质量与 UX</h2>
+
+  <h3><span class="no">6.1</span>HTML id 卫生：一个功能性 bug</h3>
+  <div class="fd">
+    <div class="head"><span class="id">P1-01</span><span class="sev hi"><span class="dot d-hi"></span>P1 · 功能缺陷</span><span class="ti">ruleList 重复 id 双写 → 规则管理面板恒空</span></div>
+    <div class="loc">options/options.html:738（过滤面板）与 :1246（规则面板）；panels/search.js:35 与 panels/rules.js:62 均裸 getElementById('ruleList')</div>
+    <p>「关键词过滤规则」与「站点适配器规则」两个功能共用同一个容器 id，按 DOM 序两者都写进过滤面板的容器：规则管理面板的站点规则列表恒为空，且访问后会覆盖关键词规则 UI。<span class="sm">（复核确认：两处裸 getElementById 均命中过滤面板那个，跨面板错写成立。）</span></p>
+    <div class="fix"><b>修复</b>：过滤面板改 id <code class="inl">keywordRuleList</code> 并同步 search.js，或两处改用面板作用域 querySelector；约 30 分钟。</div>
+  </div>
+  <div class="fd">
+    <div class="head"><span class="id">P1-04</span><span class="sev hi"><span class="dot d-hi"></span>P1 · 结构错位</span><span class="ti">「限免监控」设置行嵌套事故</span></div>
+    <div class="loc">options/options.html:482-486（限免行）· 487-498（嵌套·收藏折扣监控）· 499-513（嵌套·折扣阈值）· 514-517（freeGamesEnabled 开关）</div>
+    <p>「收藏折扣监控」「折扣阈值」两行被包进「限免监控」行内部，开关被挤到子行之后、与标签视觉分离——典型合并错位，直接影响设置页可用性，并干扰设置搜索的行过滤。</p>
+    <div class="fix"><b>修复</b>：两行平铺移出嵌套；约 15 分钟。</div>
+  </div>
+  <div class="fd">
+    <div class="head"><span class="id">P2-01</span><span class="sev md"><span class="dot d-md"></span>P2 · 死控件</span><span class="ti">settingsSearch 重复 id</span></div>
+    <div class="loc">options/options.html:25（侧边栏）与 :59（panel-general 头部）；panels/search.js:18 只绑定第一个</div>
+    <p>设置搜索只绑到侧边栏输入框，面板头部的搜索框无任何事件监听。</p>
+    <div class="fix"><b>修复</b>：删除第二处或改 id 双绑；约 10 分钟。</div>
+  </div>
+
+  <h3><span class="no">6.2</span>错误处理：双层标准</h3>
+  <ul class="plain">
+    <li><b style="font-weight:600">做得对</b>：saveSettingsPatch 失败有 saveFailHint 可见反馈；forceRefreshBtn 有「⚠️ 页面不支持」分支（<span class="p">popup.js:238-254</span>）；串行保存队列防竞态；boot 失败逐条错误应答。</li>
+    <li><b style="font-weight:600">欠账</b>：refreshBtn 吞错后仍显示「✅ 已刷新」（<span class="p">popup.js:225-235</span>，P2-02）；popup 权重滑块保存无 try/catch（<span class="p">popup-weights.js:44-54</span>，P2-03）；统计加载失败静默显示 0（<span class="p">popup-status.js:88-99</span>，P2-04）。</li>
+  </ul>
+
+  <h3><span class="no">6.3</span>结构性重复：「三页三套」</h3>
+  <p>同一批设置在 popup 与 options 各维护一套 DOM + 绑定表 + 收集表：10 个权重键至少存在 3 份定义（popup-weights.js:16、options.js 映射表、options.html 十行 DOM），加一项要人肉同步 3+ 处；<span class="p">settings-utils.js:~215</span> createSaveQueue 注释声称「popup 保存链路复用」，实际 popup.js:47 内联了自己的队列——注释漂移 + 疑似生产死代码。options.js 的历史注释自述 v6.4.11 就因漏读字段栽过跟头：纯 DOM 表驱动最难防的恰是这类对齐错误。建议仿 module-manifest 的单源模式把设置键表 shared 化（P2-07，路线图阶段三）。</p>
+
+  <h3><span class="no">6.4</span>i18n、主题与可访问性</h3>
+  <ul class="plain">
+    <li><b style="font-weight:600">i18n</b>：manifest 用 __MSG_extName__/extDescription__ + zh_CN messages.json（两键对齐 ✓，无 en 目录）；页面与内容脚本全部硬编码中文，双语副标签暗示未兑现的国际化计划——建议二选一（P3-02）。另发现损坏键名 <code class="inl">EXT_VER_KEY = 'extLas…sion'</code>（含省略号字符 U+2026，<span class="p">tracker.js:187</span>，P2-06）。</li>
+    <li><b style="font-weight:600">主题</b>：popup.js:49 已走统一入口 applyPageTheme，options.js:88-89 仍直调 applyTheme + applyCustomTheme → 定时日夜主题在设置页自身不生效（P2-05）。</li>
+    <li><b style="font-weight:600">可访问性</b>：浮层折叠/关闭按钮为 span + click，不可键盘聚焦、无 aria（<span class="p">floats.js:90-100</span>）；.ctrl-label 未用 label for 关联滑块。正面：ui-theme.css:493-516 有完整 :focus-visible 与 prefers-reduced-motion 支持（P3-03）。</li>
+    <li><b style="font-weight:600">样式残留</b>：popup.css:55-90 与 ui-theme.css 各有一份几乎相同的 .gr-switch 定义；popup.css:128-147 浅色残留（深色主题下对比度约 3:1）；popup.html:44 引用未定义的 .hidden 类（P3-01）。</li>
+  </ul>
+
+  <h3><span class="no">6.5</span>宿主页面隔离：做得好（正面）</h3>
+  <p>content.css 全部 gr-* 前缀类，无裸标签选择器；!important 仅 6 处且均为覆盖宿主链接色所必需；未用 shadow DOM 但关键元素显式设色，风险中低可控。</p>
+</section>
+
+<!-- 07 -->
+<section id="s07">
+  <div class="folio">07</div>
+  <h2>问题清单总表</h2>
+  <p>21 项入册；级别口径：<b style="font-weight:600">P1</b> = 功能缺陷/安全，应随下版本修复；<b style="font-weight:600">P2</b> = 反馈缺失/一致性，近期修；<b style="font-weight:600">P3</b> = 择机。全部行号经独立复核校准。</p>
+  <table>
+    <tr><th class="num">ID</th><th>级别</th><th>位置</th><th>问题摘要</th><th>修复方向</th><th class="num">工作量</th></tr>
+    <tr><td class="num">P1-01</td><td><span class="sev hi"><span class="dot d-hi"></span>P1 功能</span></td><td class="num"><span class="p">options.html:738,1246</span></td><td>ruleList 重复 id 双写，规则面板恒空</td><td>改 id keywordRuleList + 同步 JS</td><td class="num">30min</td></tr>
+    <tr><td class="num">P1-02</td><td><span class="sev md"><span class="dot d-md"></span>P1 安全</span></td><td class="num"><span class="p">data-modules.js:57-73 · backups.js:53-59</span></td><td>导出/备份不剔 ITAD 密钥，UI 却承诺剔除</td><td>补剔除 + 抽公共 sanitize 函数</td><td class="num">30min</td></tr>
+    <tr><td class="num">P1-03</td><td><span class="sev md"><span class="dot d-md"></span>P1 安全</span></td><td class="num"><span class="p">rules.js:66,188-212 · tracking.js:138</span></td><td>恶意规则包 searchUrl 可注入 javascript: 链接</td><td>保存侧 http(s) 白名单 + 渲染侧协议兜底</td><td class="num">45min</td></tr>
+    <tr><td class="num">P1-04</td><td><span class="sev hi"><span class="dot d-hi"></span>P1 结构</span></td><td class="num"><span class="p">options.html:482-517</span></td><td>限免监控行嵌套两行、开关与标签分离</td><td>平铺嵌套行</td><td class="num">15min</td></tr>
+    <tr><td class="num">P1-05</td><td><span class="sev hi"><span class="dot d-hi"></span>P1 泄漏</span></td><td class="num"><span class="p">ratings-batch.js:117,259,269-272</span></td><td>陈旧任务后 1min resume alarm 永不拆除，SW 无限唤醒</td><td>stale 分支补 teardownResumeAlarm()</td><td class="num">10min</td></tr>
+    <tr><td class="num">P1-06</td><td><span class="sev hi"><span class="dot d-hi"></span>P1 骚扰</span></td><td class="num"><span class="p">itad.js:120,134-144</span></td><td>收藏折扣提醒无防重，同一折扣每 48h 重推</td><td>仿发售提醒加已通知标记</td><td class="num">15min</td></tr>
+    <tr><td class="num">P2-01</td><td><span class="sev md"><span class="dot d-md"></span>P2</span></td><td class="num"><span class="p">options.html:25,59</span></td><td>settingsSearch 重复 id，面板头搜索框死控件</td><td>去重或双绑</td><td class="num">10min</td></tr>
+    <tr><td class="num">P2-02</td><td><span class="sev md"><span class="dot d-md"></span>P2</span></td><td class="num"><span class="p">popup.js:225-235</span></td><td>refreshBtn 吞错后仍显示「✅ 已刷新」</td><td>失败显示「⚠️ 页面不支持」</td><td class="num">10min</td></tr>
+    <tr><td class="num">P2-03</td><td><span class="sev md"><span class="dot d-md"></span>P2</span></td><td class="num"><span class="p">popup-weights.js:44-54</span></td><td>权重保存无 try/catch，失败无提示</td><td>包裹 + 复用 saveFailHint</td><td class="num">15min</td></tr>
+    <tr><td class="num">P2-04</td><td><span class="sev md"><span class="dot d-md"></span>P2</span></td><td class="num"><span class="p">popup-status.js:88-99</span></td><td>统计加载失败静默显示 0</td><td>加降级文案/错误态</td><td class="num">15min</td></tr>
+    <tr><td class="num">P2-05</td><td><span class="sev md"><span class="dot d-md"></span>P2</span></td><td class="num"><span class="p">options.js:88-89</span></td><td>绕过 applyPageTheme，定时日夜主题在设置页不生效</td><td>对齐统一入口</td><td class="num">10min</td></tr>
+    <tr><td class="num">P2-06</td><td><span class="sev md"><span class="dot d-md"></span>P2</span></td><td class="num"><span class="p">tracker.js:187</span></td><td>EXT_VER_KEY 键名含省略号字符（U+2026）</td><td>改正常名（一次性重置已读版本提示，可接受）</td><td class="num">5min</td></tr>
+    <tr><td class="num">P2-07</td><td><span class="sev md"><span class="dot d-md"></span>P2 结构</span></td><td class="num"><span class="p">popup-weights/options/options.html + settings-utils.js:~215</span></td><td>同一批设置三页三套（DOM/绑定/收集三张表）+ saveQueue 注释漂移</td><td>设置键表 shared 单源化、popup 复用工厂</td><td class="num">2-4h</td></tr>
+    <tr><td class="num">P3-01</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">popup.css:55-90,128-147 · popup.html:44</span></td><td>重复 .gr-switch 块、浅色残留、.hidden 未定义</td><td>并入 ui-theme 变量体系</td><td class="num">20min</td></tr>
+    <tr><td class="num">P3-02</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">manifest.json:4-7 + 各页面</span></td><td>仅 manifest 两键走 i18n，双语副标签是「国际化错觉」</td><td>决策：单语言删英文副标签，或系统迁移 chrome.i18n</td><td class="num">决策 1h+</td></tr>
+    <tr><td class="num">P3-03</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">floats.js:90-100 等</span></td><td>浮层按钮 span 不可键盘达；label 未关联控件</td><td>换 button + aria-label + label for</td><td class="num">1h</td></tr>
+    <tr><td class="num">P3-04</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">settings-utils.js:52 · popup.js:35-43</span></td><td>死代码：goHub 'vista'、Object.assign 兜底、三级主题 fallback（含设置腐蚀风险路径）</td><td>删除（settings-utils 已随包加载）</td><td class="num">30min</td></tr>
+    <tr><td class="num">P3-05</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">manifest.json WAR · sidebar.js</span></td><td>WAR 通配含无需暴露的 lib/ndjson.js；grAppId 向宿主页暴露扩展存在</td><td>WAR 显式清单评估 + 文档标注</td><td class="num">1h</td></tr>
+    <tr><td class="num">P3-06</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">constants.js appStats/urlIndex</span></td><td>行为数据长留且随导出带走（叠加 P1-02）</td><td>设置页提供保留说明与清理入口</td><td class="num">1-2h</td></tr>
+    <tr><td class="num">P3-07</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">api-reviews.js:151,118-137</span></td><td>30 天好评率基于「最新 100 条」采样，热门游戏偏离官方聚合</td><td>UI tooltip/文档标注口径</td><td class="num">30min</td></tr>
+    <tr><td class="num">P3-08</td><td><span class="sev lo"><span class="dot d-lo"></span>P3</span></td><td class="num"><span class="p">utils.js:209-232</span></td><td>Symbol.match 计算属性规避静态扫描的变形写法（注释自述）</td><td>补说明注释或还原直写</td><td class="num">15min</td></tr>
+  </table>
+</section>
+
+<!-- 08 -->
+<section id="s08">
+  <div class="folio">08</div>
+  <h2>优化路线图</h2>
+  <p>四阶段推进，每阶段独立 commit——验收不过直接 revert 该阶段即回滚；所有发现附 file:line，修复后可逐条跳转复核。</p>
+
+  <div class="step"><div class="no">Ⅰ</div><div>
+    <h4>快赢：P1 清零<span>≈ 2.5 小时 · P1-01…06 + P2-01 / 02 / 05 / 06</span></h4>
+    <p>全是 ≤45 分钟的定点修改，无结构变动。修复后：</p>
+    <ul class="plain">
+      <li>规则管理面板出现站点规则列表；设置页无嵌套错行、搜索框全部可用</li>
+      <li>导出的 JSON 与备份文件中检索不到 ITAD 密钥字段值</li>
+      <li>导入含 <code class="inl">javascript:</code> searchUrl 的规则包被拒绝</li>
+      <li>DevTools → Service Worker 面板：陈旧批量任务后不再每分钟唤醒；同一折扣 48h 内只收到一次通知</li>
+    </ul>
+  </div></div>
+
+  <div class="step"><div class="no">Ⅱ</div><div>
+    <h4>错误反馈与样式清理<span>≈ 1 小时 · P2-03 / 04 + P3-01</span></h4>
+    <ul class="plain">
+      <li>权重保存、统计加载均有可见失败反馈；断网下逐个操作 popup 验证无「静默归零/假成功」</li>
+      <li>popup.css 去重并接入主题变量；深色主题下无浅色残留块</li>
+    </ul>
+  </div></div>
+
+  <div class="step"><div class="no">Ⅲ</div><div>
+    <h4>结构加固：单源化<span>≈ 0.5–1 天 · P2-07 + P3-04</span></h4>
+    <ul class="plain">
+      <li>权重/徽章/日志键表仿 module-manifest 模式 shared 单源化，popup/options 共用；popup 复用 createSaveQueue 并修正注释</li>
+      <li>导出/备份统一 sanitize 函数（P1-02 的根治形态）；新增 escapeUrl 工具并约定「模板函数只收已转义值」</li>
+      <li>清理 'vista' 死引用、Object.assign 兜底、三级主题 fallback</li>
+      <li>验收：新增一个权重键只需改 1–2 处；全仓 grep 不到第二份键表</li>
+    </ul>
+  </div></div>
+
+  <div class="step"><div class="no">Ⅳ</div><div>
+    <h4>产品化收尾<span>≈ 1 天 + 决策 · P3-02 / 03 / 05 / 06 / 07 / 08</span></h4>
+    <ul class="plain">
+      <li>i18n 决策（单语言或系统迁移）；浮层按钮键盘可达 + aria；30 天口径 tooltip</li>
+      <li>WAR 收紧评估、行为数据保留说明与清理入口、Symbol.match 写法注释</li>
+      <li>第 4.3 节通过项整理为商店审核答复材料（权限逐项用途说明已备好）</li>
+    </ul>
+  </div></div>
+</section>
+
+<!-- 09 -->
+<section id="s09">
+  <div class="folio">09</div>
+  <h2>工具与模型标注</h2>
+  <p>按用户要求，全程工具与模型使用如实标注如下。编排方式：主会话（zai/zai_auto）做量级判定、派单与综合，六个子代理（同为 zai/zai_auto）并行/串行执行实际代码审计，最后独立复核。</p>
+  <table>
+    <tr><th>环节</th><th>工具</th><th>模型</th><th>说明</th></tr>
+    <tr><td>目标确认与编排</td><td>get_goal · session_status · plan/brief 工作台</td><td class="num">zai/zai_auto</td><td>主会话；量级判定 L2（常规），四路并行 + 单复核</td></tr>
+    <tr><td>环境诊断</td><td>nodes · gateway(config.schema.lookup) · exec（尝试后确认不可用）</td><td class="num">—</td><td>发现本机 exec 全局不可用（审批路径含符号链接）；无配对节点</td></tr>
+    <tr><td>读取通路验证</td><td>sessions_spawn（探针子代理）</td><td class="num">zai/zai_auto</td><td>cwd 沙箱探针：相对/绝对路径 read 均成功 → 确立「代码经子代理读取」通路</td></tr>
+    <tr><td>代码审计 ×4</td><td>sessions_spawn 并行 + read（只读）</td><td class="num">zai/zai_auto ×4</td><td>架构盘点 / 安全审计 / 功能数据流 / 质量与 UX，各路独立产出证据</td></tr>
+    <tr><td>事实复核 ×1</td><td>sessions_spawn + read</td><td class="num">zai/zai_auto</td><td>16 项行号级抽核：15 确认 · 1 部分确认（第 11 节）</td></tr>
+    <tr><td>工作台与交付物</td><td>write · edit</td><td class="num">—</td><td>派单/回传/复核落盘 .cluster/4afe89fa/；本报告 HTML + Markdown</td></tr>
+    <tr><td>过程状态检查</td><td>subagents（按需，非轮询）</td><td class="num">—</td><td>两次用户中止后恢复现场</td></tr>
+  </table>
+  <div class="note warn">
+    <span class="tag">环境限制与降级（影响交付形态）</span>
+    ① exec 全局不可用 → 无 lint/单测/运行时验证/截图；docx 生成依赖脚本执行，故本报告以 HTML + Markdown 交付（无 docx 版）。② 制图链路（charts/seedream）同样依赖命令执行 → 数据流图以等宽文本图呈现于第 03/05 节。③ Chrome Web Store 政策联网核实失败 → 相关结论为代码核查而非条文比对。④ 两次用户中止导致任务重派，子代理累计 11 个（超 L2 常规编制，理由已记录于工作台 plan.md）。
+  </div>
+  <p><span class="sm">运行环境：OpenClaw 2026.6.8 (669b1dc) · host FFF2024 · Windows · 会话 agent:main:7cc64a23 · 模型标识 zai/zai_auto（AutoGLM）。</span></p>
+</section>
+
+<!-- 10 -->
+<section id="s10">
+  <div class="folio">10</div>
+  <h2>风险、假设与未覆盖范围</h2>
+  <h3><span class="no">10.1</span>假设</h3>
+  <ul class="plain">
+    <li>附加文件夹即审查对象全集（未要求审查其仓库历史、发布渠道或商店页面）。</li>
+    <li>「标注使用什么工具、模型做的」理解为：报告设专章（第 09 节）+ 全程可追溯记录（工作台），聊天回复同样标注。</li>
+  </ul>
+  <h3><span class="no">10.2</span>局限（使用本报告前必读）</h3>
+  <ul class="plain">
+    <li><b style="font-weight:600">静态审查 ≠ 运行验证</b>：UI 现象类发现（P1-01、P1-04、P2-01）与所有修复验收，需作者加载扩展实测确认。</li>
+    <li><b style="font-weight:600">eval/远程代码检查为抽检</b>：受「仅 read、无 grep」限制，检查覆盖第 11 节所列文件，非全量扫描。</li>
+    <li><b style="font-weight:600">未逐一打开的文件</b>（按四路缺口合并，风险按依赖关系评估为低）：content/list/{list-page 大部, badges/working}、background/storage/* 大部、steam/{orchestrator*, api-details, assemble}、handlers/{settings, stats, logs, cache-manager, adapter-rules, favorites, diag-status}、freegames/{fetch 后半, notify}、options/panels/{settings-render, settings, favorites, cache, data-manage, reset-defaults, sites}、dashboard/*、welcome/*、hub/*、styles/themes 其余 18 个、lib/vendor/qrcode-reader.js、shared/crypto-utils.js。</li>
+    <li><b style="font-weight:600">商店政策未核实</b>：宽 host_permissions（7 站 + Steam 系 + localhost + 可选全站）在审核时可能被要求逐项说明用途——用途均已查明（第 4.3 节），但审核尺度无法预判。</li>
+  </ul>
+  <h3><span class="no">10.3</span>交接与回滚</h3>
+  <ul class="plain">
+    <li>修复按第 08 节阶段推进，每阶段一个独立 commit（信息建议含对应 P 编号）。</li>
+    <li>任一阶段验收不过：revert 该阶段 commit 即回滚，不影响其他阶段。</li>
+    <li>每条发现的 file:line 可直接跳转核对；行号以本报告复核校准值为准（上游四路原始报告存于工作台 <span class="p">.cluster/4afe89fa/subagent_01..04.md</span>，复核记录 <span class="p">review.md</span>）。</li>
+  </ul>
+</section>
+
+<!-- 11 -->
+<section id="s11">
+  <div class="folio">11</div>
+  <h2>复核记录</h2>
+  <p>独立复核代理对四路报告的 16 项关键声明做行号级抽核，结论：<b style="font-weight:600">15 项完全确认，1 项部分确认（仅函数所在文件标注偏差，安全逻辑本身成立），总体置信高</b>。据此对原文做了 3 处轻微勘误（C2 命名空间调用写法、C5 options.html 实际路径、C13 isTrustedSender 本体位置），本报告已按勘误值引用。</p>
+  <table>
+    <tr><th class="num">C</th><th>声明（来源）</th><th class="num">结论</th><th>实际位置</th></tr>
+    <tr><td class="num">C1</td><td>导出/备份不剔 ITAD 密钥，导入侧剔除（02）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">data-modules.js:57-73 · backups.js:53-59 · rules.js:379-383</span></td></tr>
+    <tr><td class="num">C2</td><td>searchUrl 无协议校验 + escapeAttr 不拦伪协议（02）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">rules.js:66,188-212,396 · tracking.js:138 · escape.js:20-26</span></td></tr>
+    <tr><td class="num">C3</td><td>stale 分支不拆 resume alarm（03）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">ratings-batch.js:117,259,269-272</span></td></tr>
+    <tr><td class="num">C4</td><td>折扣提醒无防重、发售提醒有（03）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">itad.js:120,134-144,158</span></td></tr>
+    <tr><td class="num">C5</td><td>ruleList 双写 + 两处裸 getElementById（04）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">options.html:738,1246 · search.js:35 · rules.js:62</span></td></tr>
+    <tr><td class="num">C6</td><td>限免行嵌套两行 + 开关错位（04）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">options.html:482-517</span></td></tr>
+    <tr><td class="num">C7</td><td>settingsSearch 重复 id（04）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">options.html:25,59</span></td></tr>
+    <tr><td class="num">C8</td><td>EXT_VER_KEY 含省略号字符（04）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">tracker.js:187</span>（行号精确命中）</td></tr>
+    <tr><td class="num">C9</td><td>refreshBtn 假成功 vs forceRefresh 有失败分支（04）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">popup.js:225-235,238-254</span></td></tr>
+    <tr><td class="num">C10</td><td>SW import 修复注释 + manifest 单源 + 三胞胎 36 行（01）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">service-worker.js:18-29 · module-manifest.js · sites/*.js</span></td></tr>
+    <tr><td class="num">C11</td><td>无 tabs 权限、无 externally_connectable、eval 抽查干净（02）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">manifest.json:6</span> + 抽查清单</td></tr>
+    <tr><td class="num">C12</td><td>SSRF 加固全谱拦截 + 逐跳复检（02）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">utils.js:23-89,130-149,185-207</span></td></tr>
+    <tr><td class="num">C13</td><td>消息门禁 fail-closed + 特权写全拒（02）</td><td class="num"><span class="sev md">部分确认</span></td><td class="num"><span class="p">handlers.js:51-56 · message-contract.js:246-293</span>（isTrustedSender 本体在后者，勘误）</td></tr>
+    <tr><td class="num">C14</td><td>好评率参数与 30 天自算口径（03）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">api-reviews.js:151,118-137</span></td></tr>
+    <tr><td class="num">C15</td><td>data/lib 根级 + 仅 zh_CN（01）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">data-store.js · ndjson.js · _locales/</span></td></tr>
+    <tr><td class="num">C16</td><td>options 绕过 applyPageTheme（04）</td><td class="num"><span class="sev ok">确认</span></td><td class="num"><span class="p">options.js:88-89 · popup.js:49</span></td></tr>
+  </table>
+  <p><span class="sm">复核新增发现 5 条已并入正文：UI 虚假安全声明（升级 P1-02，4.1）、死控件功能后果（P2-01）、Symbol.match 变形写法（P3-08）、optional 全站授权提示（4.2）、阅读管线脱敏说明（不影响结论）。eval 抽查范围：background 10 文件 + content 3 文件 + options.html 全文 1803 行等，详见工作台 review.md。</span></p>
+</section>
+
+<footer class="colophon">
+  <b>Colophon</b><br>
+  本报告由 AutoClaw 编排生成：主会话与全部六个子代理（探针、架构、安全、功能、质量、复核）均运行 <b>zai/zai_auto</b>（AutoGLM）；平台 OpenClaw 2026.6.8 (669b1dc)，主机 FFF2024。审查时间 2026-10-31 21:26 → 11-01。<br>
+  审查对象：F:\data\browser extension\game-recommender（v14.9.1）。过程工作台：F:\data\AutoClaw\.cluster\4afe89fa\（plan / brief / subagent_01–04 原始回传 / review 复核记录）。<br>
+  证据规范：file:line + ≤3 行摘录，行号经独立复核校准；静态审查，未运行目标扩展。配套 Markdown 版与本文件同目录。
+</footer>
+
+</main>
+</div>
+</div>
+</body>
+</html>
