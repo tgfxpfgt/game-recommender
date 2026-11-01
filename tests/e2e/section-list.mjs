@@ -46,6 +46,15 @@ export async function runListChecks(state) {
     s.enableRecentFilter = false;
     s.enableSortByRating = false;
     await chrome.runtime.sendMessage({ action: 'SAVE_SETTINGS', settings: s });
+    // v14.11 B1：保存生效确认轮询——重负载下 SAVE→持久化链（flush 队列）可能
+    // 慢于下一个页面的打开，content 侧 GET_SETTINGS 读到旧值 → 状态浮窗不渲染
+    //（3b 竞态的根因；FaceFusion 把毫秒窗口放大到秒级）
+    for (let i = 0; i < 25; i++) {
+      const back = await chrome.runtime.sendMessage({ action: 'GET_SETTINGS' });
+      const cur = back && back.settings;
+      if (cur && cur.showStatusBar === true && cur.showDebugPanel === true && cur.enableRatingFilter === false) break;
+      await new Promise((r) => setTimeout(r, 200));
+    }
   });
   await popup2.close();
   const page2b = await context.newPage();
@@ -147,11 +156,16 @@ export async function runScrollBatch(state) {
     try {
       const diagPage = await context.newPage();
       await diagPage.goto(`chrome-extension://${extId}/popup/popup.html`);
-      const diagLogs = await diagPage.evaluate(async () => {
+      const diagData = await diagPage.evaluate(async () => {
         const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
-        return (resp && resp.logs) || [];
+        const logs = (resp && resp.logs) || [];
+        const qs = await chrome.runtime.sendMessage({ action: 'GET_RATINGS_QUEUE_STATUS' }).catch(() => null);
+        return { logs, qs, lifecycle: logs.filter((l) => /评分任务|评分波次/.test(l.message || '')) };
       });
       await diagPage.close();
+      console.log('  ⚠️ 5a 队列快照:', JSON.stringify(diagData.qs));
+      console.log('  ⚠️ 5a 生命周期:', JSON.stringify(diagData.lifecycle).slice(0, 800));
+      const diagLogs = diagData.logs;
       console.log('  ⚠️ 5a 失败现场 runtimeLog:');
       for (const l of diagLogs.slice(-20))
         console.log(`    [${l.module}] ${l.level} ${String(l.message).slice(0, 130)}`);

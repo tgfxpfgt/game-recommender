@@ -74,7 +74,22 @@ export async function handleSearchSteam(message, sender) {
   ].join('|');
   const inflight = inFlightSearches.get(dedupeKey);
   if (inflight) return inflight;
-  const job = doHandleSearchSteam(message, sender).finally(() => inFlightSearches.delete(dedupeKey));
+  // v14.11 B1：检索生命周期日志（E2E 详情节挂起定位观测点）
+  const t0 = Date.now();
+  Logger.info('Steam', `SEARCH_STEAM 开始: "${String(message.gameName || '').slice(0, 30)}"`);
+  const job = doHandleSearchSteam(message, sender)
+    .then((r) => {
+      Logger.info(
+        'Steam',
+        `SEARCH_STEAM 完成: ${Date.now() - t0}ms → ${r && r.data ? r.data.appId : r && r.reason ? r.reason : 'null'}`
+      );
+      return r;
+    })
+    .catch((e) => {
+      Logger.warn('Steam', `SEARCH_STEAM 异常: ${Date.now() - t0}ms ${String(e).slice(0, 80)}`);
+      throw e;
+    })
+    .finally(() => inFlightSearches.delete(dedupeKey));
   inFlightSearches.set(dedupeKey, job);
   return job;
 }

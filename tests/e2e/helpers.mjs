@@ -58,6 +58,22 @@ export function fixtureKey(urlStr) {
   return path.join(u.host, pathPart + qPart + '.json');
 }
 
+// v14.11 B1：fixture 进程内缓存——routeHandler 与 fixture HTTP 服务器共享
+// 同一条 Node 事件循环，此前每请求 fs.readFileSync（同步 IO）在重负载机
+// （FaceFusion 满 CPU）下把事件循环堵到请求排队超时 → SW fetch 抛错 →
+// recordSteamCall(false) 失败计数 → anomaly 级联 → 后续节整节饿死
+//（detail 300s 挂起/scroll 0→0 的轮换根因）。缓存后每 fixture 仅读盘一次。
+const fixtureCache = new Map();
+
+function readFixtureCached(file) {
+  let data = fixtureCache.get(file);
+  if (data === undefined) {
+    data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+    fixtureCache.set(file, data);
+  }
+  return data;
+}
+
 export async function routeHandler(route) {
   const req = route.request();
   // v14.5.1：MOCK 模式图片请求统一回 1×1 透明 GIF（离线确定性——DOM 中
@@ -75,7 +91,7 @@ export async function routeHandler(route) {
   if (MOCK) {
     // 回放：命中 fixture 原样返回；未命中 404（断言可见失败，不静默）
     try {
-      const data = JSON.parse(fs.readFileSync(file, 'utf-8'));
+      const data = readFixtureCached(file);
       await route.fulfill({
         status: data.status,
         contentType: data.contentType || 'application/json',
@@ -117,11 +133,16 @@ export async function routeHandler(route) {
 // 生成 fixture 页（模拟 xianyudanji 列表页/详情页结构）；用本地 http 托管
 // （file:// 不被内容脚本 <all_urls> 匹配）。详情页 h1 复刻 16598 标题场景。
 // v4.1.0：count 参数支持大列表（滚动批次场景，130 项 > 首屏批 60）
-export function makeListHtml(count = 3) {
-  const items = Array.from(
-    { length: count },
-    (_, i) => `<li class="game-item"><a class="tit" href="/${100 + i}.html">游戏${i + 1}</a></li>`
-  ).join('');
+export function makeListHtml(count = 3, opts = {}) {
+  // v14.11 B1：signals 模式——每条目内嵌 steam CDN 镜像图（appId 直取快路径），
+  // 滚动批次测试不再依赖 130 项全 miss 检索链（~700 请求 × 150ms 限速 > 等待窗，
+  // 结构性慢而非断言松——E2E_SCROLL_WAIT_ROUNDS 提额治标不治本）。
+  const items = Array.from({ length: count }, (_, i) => {
+    const img = opts.signals
+      ? `<img src="https://shared.akamai.steamstatic.com/store_item_assets/steam/apps/${900001 + i}/header.jpg" alt="">`
+      : '';
+    return `<li class="game-item"><a class="tit" href="/${100 + i}.html">${img}游戏${i + 1}</a></li>`;
+  }).join('');
   return `<!DOCTYPE html><html><head><meta charset="utf-8"><title>fixture</title></head>
 <body><h2 class="entry-title"><a href="/1.html">游戏A</a></h2>
 <ul id="game-list">${items}</ul></body></html>`;
@@ -147,7 +168,7 @@ export async function startFixtureServer() {
   const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     if (req.url.includes('16598')) return res.end(DETAIL_HTML);
-    if (req.url.includes('scroll=1')) return res.end(makeListHtml(130)); // v4.1.0 滚动批次
+    if (req.url.includes('scroll=1')) return res.end(makeListHtml(90, { signals: true })); // v4.1.0 滚动批次；v14.11 B1：90 项直取信号（原 130 全 miss 链结构性慢）
     res.end(LIST_HTML);
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -165,6 +186,38 @@ export async function startFixtureServer() {
 
 // v9.1.0：默认 bundled Chromium（E2E_CHANNEL 可覆盖；复用系统浏览器免下载）
 const channel = process.env.E2E_CHANNEL || 'chromium';
+// v14.11 B1：SW 响应门——重负载机（FaceFusion 满 CPU）下 SW 唤醒/调度可能被
+// 饿死数秒；前一节的批量作业（如滚动批 90 项）收尾期间 SW 持续高占用，下一节
+// 的 SEARCH_STEAM 在队列里错过内容侧 25s 超时（"正在查询 Steam"永久挂起）。
+// 各节开工前轮询至 SW 可在 2s 内应答（GET_API_STATUS 轻只读），最长等 60s。
+// SW-responsive gate: on loaded machines the SW may take seconds to even wake;
+// poll until it answers a cheap read within 2s before starting a new section.
+export async function waitSwResponsive(context, extId, timeoutMs = 60000) {
+  const t0 = Date.now();
+  let page = null;
+  try {
+    page = await context.newPage();
+    await page.goto(`chrome-extension://${extId}/popup/popup.html`);
+    while (Date.now() - t0 < timeoutMs) {
+      const ok = await Promise.race([
+        page
+          .evaluate(async () => {
+            const r = await chrome.runtime.sendMessage({ action: 'GET_API_STATUS' });
+            return !!r;
+          })
+          .catch(() => false),
+        new Promise((resolve) => setTimeout(() => resolve(false), 2000))
+      ]);
+      if (ok) return true;
+    }
+    return false;
+  } catch {
+    return false;
+  } finally {
+    if (page) await page.close().catch(() => {});
+  }
+}
+
 export function launchOpts() {
   return {
     channel,

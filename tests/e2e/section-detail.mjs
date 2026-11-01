@@ -31,6 +31,26 @@ export async function runDetail(state) {
   // 等浮窗渲染（真实 Steam 搜索 + 完整详情拉取需数秒）
   await page3.waitForSelector('#gr-report-issue-btn', { timeout: 20000 }).catch(() => {});
   const hasReportBtn = await page3.evaluate(() => !!document.querySelector('#gr-report-issue-btn'));
+  if (!hasReportBtn) {
+    // v14.11 B1：失败现场诊断（与 3b/5a 同构——runtimeLog 经扩展页读取）
+    try {
+      const { extId } = state;
+      const diagPage = await context.newPage();
+      await diagPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+      const diagLogs = await diagPage.evaluate(async () => {
+        const timeout = new Promise((resolve) => setTimeout(() => resolve(['(SW 3s 无响应——疑似事件循环阻塞)']), 3000));
+        const resp = await Promise.race([
+          chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 }).then((x) => (x && x.logs) || []),
+          timeout
+        ]);
+        return resp;
+      });
+      await diagPage.close();
+      console.log('  ⚠️ 4 失败现场 runtimeLog:', JSON.stringify(diagLogs.slice(-30)).slice(0, 1500));
+    } catch (e) {
+      console.log('  ⚠️ 4 诊断读取失败:', String(e).slice(0, 80));
+    }
+  }
   check('浮窗报错按钮存在', hasReportBtn);
   // v3.3.14：主内容区图（1213700）应优先于侧边推荐图（2001760）
   const shownText = await page3.evaluate(

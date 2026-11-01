@@ -19,6 +19,7 @@ import {
   launchOpts,
   routeHandler,
   startFixtureServer,
+  waitSwResponsive,
   EXTENSION_DIR,
   MOCK,
   RECORD,
@@ -106,6 +107,12 @@ try {
     // 等待可无限挂起）。
     const sectionTimeoutMs = Number(process.env.E2E_SECTION_TIMEOUT_MS) || 120000;
     for (const [name, run] of pipeline) {
+      // v14.11 B1：SW 响应门——重负载机下前一节批量作业收尾期间 SW 高占用，
+      // 下一节的搜索在队列里错过内容侧超时（detail"正在查询 Steam"挂起根因
+      // 之一）。开工前轮询至 SW 可应答（重负载下最多让出 60s）。
+      if (MOCK && extId && name !== 'install') {
+        await waitSwResponsive(context, extId).catch(() => {});
+      }
       const runP = run(state);
       runP.catch(() => {}); // 超时胜出后原 promise 拒绝不得成为 unhandled
       const timerP = new Promise((_, reject) =>
