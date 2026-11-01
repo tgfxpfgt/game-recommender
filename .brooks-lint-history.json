@@ -1,0 +1,10 @@
+[
+  {
+    "date": "2026-10-31",
+    "mode": "Health Dashboard",
+    "score": 93,
+    "findings": { "critical": 0, "warning": 3, "suggestion": 2 },
+    "scope": "game-recommender v14.9.1 (entire project, no PR diff)",
+    "breakdown": { "architecture": 95, "debt": 90, "test": 95 }
+  }
+]

@@ -133,8 +133,12 @@ export async function runScrollBatch(state) {
   const badgesBefore = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
   await page4.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
   let badgesAfter = badgesBefore;
-  for (let i = 0; i < 80 && badgesAfter <= badgesBefore; i++) {
-    // v10.3.0：40→80（真实网络模式冗余）
+  // v14.10.1：等待轮数可配置（E2E_SCROLL_WAIT_ROUNDS，默认 80 = 40s）——
+  // 130 项全 miss 链 ~700 请求经 150ms 限速单趟即超 40s（重负载机更甚），
+  // 第二批徽章出现在 1-2 波推送后；提额消除假红（与 GR_SIM_SIGNAL_TIMEOUT_MS
+  // /E2E_SECTION_TIMEOUT_MS 同一抗负载家族）。
+  const scrollWaitRounds = Number(process.env.E2E_SCROLL_WAIT_ROUNDS) || 80;
+  for (let i = 0; i < scrollWaitRounds && badgesAfter <= badgesBefore; i++) {
     await new Promise((r) => setTimeout(r, 500));
     badgesAfter = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
   }

@@ -417,7 +417,7 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
   const enWords = mixedTitle ? coreTokensOf(enSegment).filter((w) => /^[a-z]/.test(w)) : [];
   const hasEnCoverage = (name) => enWords.filter((w) => coreTokensOf(name).includes(w)).length >= 2;
   for (const term of searchTerms) {
-    /** @type {{items: Array<{id: number, name: string, type?: string}>}|null} */
+    /** @type {{total?: number, items: Array<{id: number, name: string, type?: string}>}|null} */
     let cnData = null;
     for (let attempt = 0; attempt < 2 && cnData === null; attempt++) {
       try {
@@ -427,6 +427,16 @@ async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = '
         // v9.7.0：传入 status 且非 2xx 不计成功（与 api-details/reviews 一致）
         recordSteamCall(resp.ok || resp.status === 404, resp.status); // v10.3.0：404=空结果非失败
         recordDomainCall('store', resp.ok || resp.status === 404); // v11.0 B2
+        if (resp.status === 404) {
+          // v14.10.1（E2E MOCK 回归 5a 根因）：404 = 索引确认无此词 → **终态
+          // 空结果**（此前 continue→重试→`!cnData` throw→外层 catch 记失败——
+          // 全 miss 场景（MOCK/离线）每项 2 次失败记录 → 失败率 >40% → anomaly
+          // 级联 → worker 共享暂停 30s → 批次拖过收尾窗口。404 终态化后 miss
+          // 零失败记录，真机语义不变（Steam 检索空词返回 200+空 items，404
+          // 仅网络层/离线路径出现）。
+          cnData = { total: 0, items: [] };
+          break;
+        }
         if (!resp.ok) continue;
         cnData = await resp.json();
       } catch {
@@ -684,9 +694,10 @@ async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = 
   // firing into an open circuit).
   if (isCircuitOpen('store')) return null;
   try {
-    const data = await (
-      await fetchWithTimeout(`${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=${lang}&cc=cn`)
-    ).json();
+    const resp = await fetchWithTimeout(`${ENDPOINTS.steamSearch}?term=${encodeURIComponent(term)}&l=${lang}&cc=cn`);
+    // v14.10.1：404=空结果非失败（终态空——不进入 catch 的失败记录路径）
+    if (resp.status === 404) return null;
+    const data = await resp.json();
     const items = (data && data.items) || [];
     if (items.length === 0) return null;
     // 名称相关性校验：变体词较短，要求结果包含变体词且与原始标题相关；

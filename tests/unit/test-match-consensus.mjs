@@ -526,3 +526,203 @@ describe('管线携带发售日期/新发售标记', () => {
     }
   });
 });
+
+// ============ v14.10.0：非 PC 平台识别 + Metacritic 评分源（用户需求） ============
+describe('detectPlatform（主机/模拟器条目识别）', () => {
+  test('机型段（NS2/PS5/Switch）→ console', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('塞尔达传说 王国之泪|NS2|汉化中文').kind).toEqual('console');
+    expect(detectPlatform('战神 诸神黄昏|PS5|官方中文').kind).toEqual('console');
+    expect(detectPlatform('某游戏|Switch|模拟器测试').kind).toEqual('console');
+  });
+
+  test('模拟器段 → emulator（优先于主机）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    const r = detectPlatform('宝可梦合集|Switch|模拟器整合|汉化');
+    expect(r.kind).toEqual('emulator');
+    expect(r.tag).toEqual('模拟器');
+  });
+
+  test('游戏名内含标记词不误判（PC装机模拟器 是 PC 游戏）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('PC装机模拟器|官方中文|PC Building Simulator').kind).toEqual('pc');
+    expect(detectPlatform('游戏开发模拟器|官方中文').kind).toEqual('pc');
+  });
+
+  test('纯 PC 条目 → pc', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('艾尔登法环|官方中文|支持手柄|ELDEN RING').kind).toEqual('pc');
+  });
+});
+
+describe('deriveMetacriticSlug（英文名推导）', () => {
+  test('标点剥除/空格转连字符/&→and', async () => {
+    const { deriveMetacriticSlug } = await import('../../background/steam/api-metacritic.js');
+    expect(deriveMetacriticSlug('The Legend of Zelda: Tears of the Kingdom')).toEqual(
+      'the-legend-of-zelda-tears-of-the-kingdom'
+    );
+    expect(deriveMetacriticSlug('Dungeons & Dragons')).toEqual('dungeons-and-dragons');
+    expect(deriveMetacriticSlug("Assassin's Creed Mirage")).toEqual('assassins-creed-mirage');
+  });
+});
+
+describe('fetchMetacriticScore（评分提取）', () => {
+  const MC_PAGE_96 =
+    '<html><script>window.__s = {"ratingValue":"96","something":1}</script><span class="c-siteReviewScore">96</span></html>';
+  test('嵌入 JSON ratingValue → 96', async () => {
+    const { fetchMetacriticScore } = await import('../../background/steam/api-metacritic.js');
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('metacritic.com/game/elden-ring/')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({}),
+          text: async () => MC_PAGE_96
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+    try {
+      expect(await fetchMetacriticScore('Elden Ring')).toEqual(96);
+    } finally {
+      restore();
+    }
+  });
+
+  test('页面存在但无分（新游戏）→ null 负缓存', async () => {
+    const { fetchMetacriticScore } = await import('../../background/steam/api-metacritic.js');
+    let calls = 0;
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('metacritic.com/game/')) {
+        calls += 1;
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({}),
+          text: async () => '<html>无 Metascore</html>'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+    try {
+      expect(await fetchMetacriticScore('Brand New Game No Score')).toEqual(null);
+      expect(await fetchMetacriticScore('Brand New Game No Score')).toEqual(null); // 负缓存
+      expect(calls).toEqual(1); // 第二次不重打
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('平台条目管线（不检索 Steam / MC 优先）', () => {
+  beforeEach(() => {
+    storage._reset();
+  });
+
+  test('模拟器条目 → platformOnly 徽章数据，零 Steam 请求', async () => {
+    const orch = await import('../../background/steam/orchestrator-list.js');
+    let steamCalls = 0;
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('storesearch') || u.includes('appdetails') || u.includes('appreviews')) {
+        steamCalls += 1;
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({ total: 0, items: [] }),
+          text: async () => '{}'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+    try {
+      const r = await orch.getSteamPositiveRate('宝可梦合集|Switch|模拟器整合|汉化中文', {
+        mcBudget: { left: 8 },
+        ignoreNegativeCache: true
+      });
+      expect(r && r.platformOnly).toBe(true);
+      expect(r && r.platformTag).toEqual('模拟器');
+      expect(steamCalls).toEqual(0); // 零 Steam 请求
+    } finally {
+      restore();
+    }
+  });
+
+  test('主机条目带 EN 段 → Metacritic 分随返回', async () => {
+    const orch = await import('../../background/steam/orchestrator-list.js');
+    const MC96 = '<html><script>window.__s = {"ratingValue":"96"}</script></html>';
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('metacritic.com/game/neon-abyss-2/')) {
+        return { ok: true, status: 200, redirected: false, url: u, json: async () => ({}), text: async () => MC96 };
+      }
+      if (u.includes('storesearch') || u.includes('appdetails') || u.includes('appreviews')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({ total: 0, items: [] }),
+          text: async () => '{}'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+    try {
+      const r = await orch.getSteamPositiveRate('霓虹深渊2|Neon Abyss 2|NS2|官方中文', {
+        mcBudget: { left: 8 },
+        ignoreNegativeCache: true
+      });
+      expect(r && r.mcScore).toEqual(96);
+      expect(r && r.platformTag).toEqual('主机');
+    } finally {
+      restore();
+    }
+  });
+
+  test('主机条目无 EN 段 → platformOnly 主机标签', async () => {
+    const orch = await import('../../background/steam/orchestrator-list.js');
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('storesearch') || u.includes('appdetails') || u.includes('appreviews')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({ total: 0, items: [] }),
+          text: async () => '{}'
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+    try {
+      const r = await orch.getSteamPositiveRate('塞尔达传说 王国之泪|NS2|汉化中文', {
+        mcBudget: { left: 8 },
+        ignoreNegativeCache: true
+      });
+      expect(r && r.platformOnly).toBe(true);
+      expect(r && r.platformTag).toEqual('主机');
+    } finally {
+      restore();
+    }
+  });
+});
+
+// ============ v14.10.1：多平台条目 PC 优先（Steam 有数据的双平台条目不进主机分支） ============
+describe('detectPlatform PC 优先（多平台条目）', () => {
+  test('PC|Xbox 双平台 → pc（走 Steam 管线）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('方舟2|PC|Xbox|官方中文').kind).toEqual('pc');
+    expect(detectPlatform('某游戏|Steam版|PS5').kind).toEqual('pc');
+    expect(detectPlatform('某游戏|电脑游戏|模拟器相关资讯').kind).toEqual('pc');
+  });
+});

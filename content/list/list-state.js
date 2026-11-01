@@ -148,6 +148,16 @@ export function applyRatingsResponse(ratings, mode) {
   job.processItems.forEach((item) => {
     if (job.processed.has(item.name)) return;
     const rating = ratings[item.name];
+    // v14.10.0：非 PC 平台条目（主机/模拟器标签 / Metacritic 分）——无 appId，
+    // 不进 Steam 分支与未找到逻辑，独立徽章即终态
+    if (rating && (rating.platformOnly || rating.mcScore != null)) {
+      job.processed.add(item.name);
+      changed = true;
+      badges.removeWorkingBadge(item);
+      badges.prependPlatformBadge(item, rating);
+      job.shown++;
+      return;
+    }
     if (rating && rating.appId) {
       job.processed.add(item.name);
       job.ratingMap[item.name] = rating.positiveRate ?? null; // v6.4.4 排序用

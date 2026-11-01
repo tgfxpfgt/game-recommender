@@ -30,6 +30,8 @@ import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
 import { extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
+import { detectPlatform } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别
+import { fetchMetacriticScore } from './api-metacritic.js'; // v14.10.0：主机条目评分源
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
@@ -117,6 +119,29 @@ async function probeDetailSignal(gameName, pageUrl, excludeAppId) {
 
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
+
+  // v14.10.0（用户需求：主机/模拟器条目 + 评分优先 Metacritic）：非 PC 平台
+  // 识别在**一切 Steam 检索之前**——模拟器 ROM 包检索必错配（标题含大量游戏
+  // 名片段），主机独占 Steam 无数据。模拟器 → 平台标签徽章（零网络）；主机 →
+  // Metacritic 优先（标题 EN 段推导 slug，预算有界），无 EN/无分 → 平台标签。
+  // 平台结果非 failed/非 miss——不进负缓存与重试语义（标签即终态）。
+  const plat = detectPlatform(gameName);
+  if (plat.kind !== 'pc') {
+    if (plat.kind === 'emulator') {
+      return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
+    }
+    const enSeg = (String(gameName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/) || [''])[0].trim();
+    /** @type {number|null} */
+    let mcScore = null;
+    if (enSeg && (!options.mcBudget || options.mcBudget.left > 0)) {
+      if (options.mcBudget) options.mcBudget.left -= 1;
+      mcScore = await fetchMetacriticScore(enSeg).catch(() => null);
+    }
+    if (mcScore != null) {
+      return { mcScore, mcName: enSeg, platformTag: plat.tag, appId: null, name: gameName };
+    }
+    return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
+  }
 
   // v14.6.2 修复（审查 A3）：人工纠正知识库提前——封面直取/缓存命中路径
   // 此前不校验 wrongAppId，用户报错纠正后列表页仍持续显示错徽章直至缓存

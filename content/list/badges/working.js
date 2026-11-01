@@ -83,3 +83,36 @@ export function highlightItem(item) {
   const el = item.element;
   el.classList.add('gr-highlighted');
 }
+
+// v14.10.0：非 PC 平台徽章——主机/模拟器标签（虚线灰）与 Metacritic 分
+//（色带同 MC 惯例：≥75 绿 / 50-74 黄 / <50 红）。组标记 gr-rating-badge
+//（防重复守卫/测试选择器三重身份——经 createBadge 传入）。
+// Non-PC platform badges: console/emulator tag (dashed gray) and the
+// Metacritic score badge (green/yellow/red bands).
+export function prependPlatformBadge(item, rating) {
+  const link = item.link;
+  if (!link || link.querySelector('.gr-rating-badge')) return;
+  const target = item.titleEl || link;
+  if (rating.mcScore != null) {
+    const score = rating.mcScore;
+    const color = score >= 75 ? '#66cc33' : score >= 50 ? '#ffcc33' : '#ff4444';
+    const badge = document.createElement('span');
+    badge.className = 'gr-rating-badge gr-mc-badge';
+    badge.textContent = `MC ${score}`;
+    badge.style.cssText = `padding:2px 6px;font-size:10px;color:#fff;background:${color};border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;`;
+    badge.title = `Metacritic 媒体评分 ${score}${rating.mcName ? `（${rating.mcName}）` : ''}${rating.platformTag ? ` · ${rating.platformTag}平台` : ''}`;
+    target.insertBefore(badge, target.firstChild);
+    return;
+  }
+  const tag = rating.platformTag || '主机';
+  const badge = document.createElement('span');
+  badge.className = 'gr-rating-badge gr-platform-badge';
+  badge.textContent = tag;
+  badge.style.cssText =
+    'padding:2px 6px;font-size:10px;background:rgba(143,152,160,0.12);color:#8f98a0;border:1px dashed #555;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;';
+  badge.title =
+    rating.platformTag === '模拟器'
+      ? '模拟器/ROM 整合条目——非 Steam 游戏，未检索评分'
+      : '主机平台游戏——评分优先 Metacritic（本条暂无可得评分）';
+  target.insertBefore(badge, target.firstChild);
+}

@@ -57,6 +57,7 @@ export const PERF_CONFIG = {
   ratingsBatchSizeAnomaly: 2, // API 异常时的批次大小
   steamFetchConcurrency: 3, // v14.7 批次 6：批量检索 worker pool 并发数（限速 slot 不变，网络等待重叠）
   detailProbeBudget: 8, // v14.8.2：每任务详情页信号回捞预算（miss 后取站点详情页 appid 信号，有界防 60 miss × 详情页抓取）
+  metacriticBudget: 8, // v14.10.0：每任务 Metacritic 查询预算（主机条目评分源，有界）
   steamWarmupWaitMs: 800, // v14.7 批次 8：首波 cacheOnly 预热门控上限（预热在途时最多等 800ms）
   anomalyWaitMs: 5000, // API 异常时批次间隔
   anomalyConsecutivePauseMs: 30000, // 连续异常暂停时长
@@ -134,7 +135,9 @@ export const ENDPOINTS = {
   // v14.6：标题检索目录层数据源（调研 docs/标题检索AppID-准确率与效率调研-2026-10.md）
   steamAppListDump: 'https://raw.githubusercontent.com/jsnli/steamappidlist/main/data/games_appid.json', // 每日全量镜像（免 key）
   steamStoreServiceList: 'https://api.steampowered.com/IStoreService/GetAppList/v1/', // 官方替代（需用户 key）
-  steamCommunitySearch: 'https://steamcommunity.com/actions/SearchApps/' // 社区搜索（免 key，仅英文）
+  steamCommunitySearch: 'https://steamcommunity.com/actions/SearchApps/', // 社区搜索（免 key，仅英文）
+  // v14.10.0：Metacritic（主机/模拟器条目评分源——用户指令"优先从 metacritic 获取"）
+  metacritic: 'https://www.metacritic.com'
 };
 
 // 默认设置 / Default settings

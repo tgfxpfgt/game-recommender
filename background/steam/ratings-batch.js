@@ -106,6 +106,7 @@ export async function handleGetSteamRatings(message, sender) {
       appIds,
       urls, // v14.8.2：name → 站点详情页 URL（盲区自愈详情页信号回捞）
       probeBudget: { left: PERF_CONFIG.detailProbeBudget }, // v14.8.2：回捞预算（仅实际探测扣减）
+      mcBudget: { left: PERF_CONFIG.metacriticBudget }, // v14.10.0：Metacritic 查询预算（主机条目）
       startedAt: Date.now()
     };
     startRatingJob(job);
@@ -410,7 +411,9 @@ async function runRatingJob(job) {
               cover: img ? img.cover : null,
               // v14.8.2：盲区自愈——miss 时按任务预算回捞站点详情页 appid 信号
               pageUrl: job.urls && job.urls[name] ? job.urls[name] : null,
-              probeBudget: job.probeBudget || null
+              probeBudget: job.probeBudget || null,
+              // v14.10.0：主机条目 Metacritic 查询预算
+              mcBudget: job.mcBudget || null
             });
           } catch {
             r = null;

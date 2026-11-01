@@ -18,7 +18,8 @@ export {
   removeWorkingBadge,
   updateWorkingBadgesInfo, // v14.8.1：等待徽章可见队列信息
   showErrorBadge,
-  highlightItem
+  highlightItem,
+  prependPlatformBadge // v14.10.0：非 PC 平台徽章（主机/模拟器标签 + Metacritic 分）
 } from './working.js';
 export { prependRecBadge } from './rec.js';
 export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v14.7 批次 3
