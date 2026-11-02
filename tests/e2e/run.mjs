@@ -132,6 +132,27 @@ try {
       }
     }
   }
+
+  // v14.11 B1：终局日志转储（管线后、关浏览器前——无论哪节失败都可复核）
+  if (extId) {
+    try {
+      const dumpPage = await context.newPage();
+      await dumpPage.goto(`chrome-extension://${extId}/popup/popup.html`);
+      const dump = await dumpPage.evaluate(async () => {
+        const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 500 });
+        const logs = (resp && resp.logs) || [];
+        return {
+          lifecycle: logs.filter((l) => /SEARCH_STEAM|评分任务|评分波次|flush|熔断/.test(l.message || '')),
+          tail: logs.slice(0, 30)
+        };
+      });
+      await dumpPage.close();
+      console.log('===== 终局转储：SEARCH_STEAM/任务/flush 生命周期 =====');
+      for (const l of dump.lifecycle) console.log(`  [${l.module}] ${l.level} ${String(l.message).slice(0, 150)}`);
+    } catch (e) {
+      console.log('  ⚠️ 终局转储失败:', String(e).slice(0, 80));
+    }
+  }
 } finally {
   // v3.4.1：中途异常也清理 profile/HTTP server，避免残留
   if (state.context) await state.context.close().catch(() => {});

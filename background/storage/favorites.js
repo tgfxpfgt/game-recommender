@@ -34,6 +34,13 @@ export async function getFavorites() {
 // 增删；对照 download-urls/history/app-stats 均已持锁，唯此遗漏）
 const withFavLock = withLock();
 
+/**
+ * 切换收藏状态（存在则移除，不存在则添加）
+ * @param {string|number} appId
+ * @param {string} name 游戏名（徽章/浮窗展示用）
+ * @param {string} [releaseDate] 发售日期（v12 B6 追踪用）
+ * @returns {Promise<{favorited: boolean, full?: boolean}>}
+ */
 export async function toggleFavorite(appId, name, releaseDate) {
   const key = String(appId || '').trim();
   if (!key) return { favorited: false };

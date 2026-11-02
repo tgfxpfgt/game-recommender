@@ -168,7 +168,10 @@ export async function startFixtureServer() {
   const server = http.createServer((req, res) => {
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     if (req.url.includes('16598')) return res.end(DETAIL_HTML);
-    if (req.url.includes('scroll=1')) return res.end(makeListHtml(90, { signals: true })); // v4.1.0 滚动批次；v14.11 B1：90 项直取信号（原 130 全 miss 链结构性慢）
+    if (req.url.includes('scroll=1'))
+      return res.end(
+        makeListHtml(process.env.E2E_SCROLL_ITEMS ? Number(process.env.E2E_SCROLL_ITEMS) : 90, { signals: true })
+      ); // v4.1.0 滚动批次；v14.11 B1：项数/信号可配
     res.end(LIST_HTML);
   });
   await new Promise((r) => server.listen(0, '127.0.0.1', r));
@@ -195,10 +198,12 @@ const channel = process.env.E2E_CHANNEL || 'chromium';
 export async function waitSwResponsive(context, extId, timeoutMs = 60000) {
   const t0 = Date.now();
   let page = null;
+  let attempts = 0;
   try {
     page = await context.newPage();
     await page.goto(`chrome-extension://${extId}/popup/popup.html`);
     while (Date.now() - t0 < timeoutMs) {
+      attempts++;
       const ok = await Promise.race([
         page
           .evaluate(async () => {
@@ -208,10 +213,16 @@ export async function waitSwResponsive(context, extId, timeoutMs = 60000) {
           .catch(() => false),
         new Promise((resolve) => setTimeout(() => resolve(false), 2000))
       ]);
-      if (ok) return true;
+      if (ok) {
+        if (attempts > 1)
+          console.log(`  ⚠️ SW 响应门: ${attempts} 次轮询后恢复（重负载让出 ${(Date.now() - t0) / 1000}s）`);
+        return true;
+      }
     }
+    console.log(`  ⚠️ SW 响应门: ${timeoutMs / 1000}s 内未恢复（SW 持续饥饿）——按原时序继续`);
     return false;
-  } catch {
+  } catch (e) {
+    console.log('  ⚠️ SW 响应门异常:', String(e).slice(0, 60));
     return false;
   } finally {
     if (page) await page.close().catch(() => {});

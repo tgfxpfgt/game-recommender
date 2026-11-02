@@ -130,11 +130,12 @@ export async function watchFavoritePrices() {
       // v14.11 B9（报告 C P1-06）：折扣通知防重标记——此前无防重（对照发售
       // 提醒有 grReleaseNotified:），同一折扣每 48h 轮询周期重推骚扰
       const discountMarkKey = 'grDiscountNotified:' + appId + ':' + lowest.price.toFixed(2);
+      /** @param {(v: boolean) => void} res */
       const discountMarked = await new Promise((res) => {
         try {
           chrome.storage.local
             .get(discountMarkKey)
-            .then((d) => res(!!(d && d[discountMarkKey])))
+            .then((/** @type {Record<string, boolean>} */ d) => res(!!(d && d[discountMarkKey])))
             .catch(() => res(false));
         } catch {
           res(true);

@@ -19,6 +19,7 @@
     // 此前两处重复 id="settingsSearch"，面板头为死控件（getElementById 恒取首个）
     const inputs = ['settingsSearch', 'sidebarSearch'].map((id) => document.getElementById(id)).filter(Boolean);
     if (inputs.length === 0) return;
+    /** @param {{target?: {value?: string}}} [ev] */
     const onSearch = (ev) => {
       const q = String((ev && ev.target && ev.target.value) || inputs[0].value || '')
         .trim()

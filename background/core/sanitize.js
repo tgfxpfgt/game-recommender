@@ -22,7 +22,9 @@ export function stripSecrets(settings) {
   // v14.11 B3：ITAD 密钥补剔（旧单键 + 多配置 profile 的 key；name/id 保留）
   if (s.itadApiKey !== undefined) s.itadApiKey = '';
   if (Array.isArray(s.itadProfiles)) {
-    s.itadProfiles = s.itadProfiles.map((p) => (p && typeof p === 'object' ? { ...p, key: '' } : p));
+    s.itadProfiles = s.itadProfiles.map((/** @type {Record<string, any>} */ p) =>
+      p && typeof p === 'object' ? { ...p, key: '' } : p
+    );
   }
   return s;
 }
