@@ -9,6 +9,7 @@
 'use strict';
 
 import { dataStore } from '../../data/data-store.js';
+import { evictOldestByTs } from '../core/mechanisms.js'; // v14.12 B4：LRU 裁剪单源
 import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 
 const LLM_SCORE_TTL = 7 * 86400e3; // 7 天 / 7 days
@@ -55,12 +56,7 @@ export async function setLlmScore(gameName, score) {
   const key = keyOf(gameName);
   if (!key) return;
   llmCacheMemory.set(key, { score, ts: Date.now() });
-  if (llmCacheMemory.size > MAX_ENTRIES) {
-    const entries = [...llmCacheMemory.entries()].sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
-    for (let i = 0; i < llmCacheMemory.size - MAX_ENTRIES; i++) {
-      llmCacheMemory.delete(entries[i][0]);
-    }
-  }
+  evictOldestByTs(llmCacheMemory, MAX_ENTRIES);
   try {
     await dataStore.writeModule(DB_KEYS.LLM_SCORE, Object.fromEntries(llmCacheMemory));
   } catch {
@@ -119,12 +115,7 @@ async function setMatchFallback(prefix, gameName, value) {
   const key = prefix + keyOf(gameName);
   if (!key) return;
   llmCacheMemory.set(key, { score: value, ts: Date.now() });
-  if (llmCacheMemory.size > MAX_ENTRIES) {
-    const entries = [...llmCacheMemory.entries()].sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
-    for (let i = 0; i < llmCacheMemory.size - MAX_ENTRIES; i++) {
-      llmCacheMemory.delete(entries[i][0]);
-    }
-  }
+  evictOldestByTs(llmCacheMemory, MAX_ENTRIES);
   try {
     await dataStore.writeModule(DB_KEYS.LLM_SCORE, Object.fromEntries(llmCacheMemory));
   } catch {

@@ -136,7 +136,7 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
           image: detail?.header_image || ENDPOINTS.steamCdnHeader(item.id),
           price: detail?.price_overview ? detail.price_overview.final_formatted : '免费',
           reviewSummary: '',
-          url: `https://store.steampowered.com/app/${item.id}/`,
+          url: `${ENDPOINTS.steamStoreApp}${item.id}/`,
           matchTags: [tag]
         });
       }

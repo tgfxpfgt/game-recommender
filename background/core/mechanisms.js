@@ -144,3 +144,24 @@ export async function withRetry(task, options = {}) {
   }
   throw lastErr;
 }
+
+// v14.12 B4（报告 B P2-04）：LRU 裁剪单源——llm-cache ×2 / search-cache 三份
+// 手写"全量排序 + 逐个删除"拷贝收敛于此（保守按 entry.ts 升序裁剪，兼容
+// ts 缺失的旧条目；返回裁剪条数）。
+/**
+ * 按 entry.ts 升序裁剪 Map 至 max 条（原位修改）。
+ * @template {{ts?: number}} V
+ * @param {Map<string, V>} map
+ * @param {number} max
+ * @returns {number} 裁剪条数
+ */
+export function evictOldestByTs(map, max) {
+  if (!max || map.size <= max) return 0;
+  const entries = [...map.entries()].sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
+  let evicted = 0;
+  for (let i = 0; i < map.size - max; i++) {
+    map.delete(entries[i][0]);
+    evicted++;
+  }
+  return evicted;
+}

@@ -591,3 +591,95 @@ test('P2：扩展页 HTML 重复 id 为零（重复 = 后写控件静默死亡�
     '以下 HTML 存在重复 id（getElementById 恒取首个 → 后写控件死亡）:\n  ' + offenders.join('\n  ')
   ).toEqual([]);
 });
+
+// v14.12 B5（报告 B P2-07）：reset/flush 对称性——resetInMemoryCaches 与
+// flushAllCaches 是同一事实集（内存缓存模块）的两侧，函数名单侧新增即
+// "一侧清了另一侧没落盘/没清"的漂移信号。
+test('P2：resetInMemoryCaches 与 flushAllCaches 模块函数对称（除白名单）', () => {
+  const resetSrc = fs.readFileSync(path.join(ROOT, 'background/storage/reset.js'), 'utf-8');
+  const flushSrc = fs.readFileSync(path.join(ROOT, 'background/storage/flush.js'), 'utf-8');
+  const resets = new Set((resetSrc.match(/reset[A-Z][a-zA-Z]*\(\)/g) || []).map((s) => s.slice(0, -2)));
+  const flushes = new Set((flushSrc.match(/flush[A-Z][a-zA-Z]*\(\)/g) || []).map((s) => s.slice(0, -2)));
+  resets.delete('resetInMemoryCaches');
+  flushes.delete('flushAllCaches');
+  // 白名单：reset 侧含非缓存模块的状态重置（规则/设置缓存），flush 侧无需对应
+  // 白名单：reset 侧含非缓存模块的状态重置（规则/设置缓存），flush 侧无需对应；
+  // resetDownloadUrlsMemory 走 createDebouncedStore 自调度落盘，无 flush 对应
+  const RESET_ONLY = new Set([
+    'resetRulesCache',
+    'resetSettingsCache',
+    'resetBehaviorState',
+    'resetOutboundAudit',
+    'resetDownloadUrlsMemory', // v14.12 B5：自调度防抖写
+    'resetBehaviorMemory', // v14.12 B5：行为日志经 dataStore 直写，无防抖 flush 对应
+    'resetSearchCache', // v14.12 B5：搜索缓存 schedulePersist 自调度（1s 写穿）
+    'resetLlmCache', // v14.12 B5：LLM 缓存直写 dataStore（写失败仅丢缓存）
+    'resetSiteHealth' // v14.12 B5：站点健康直写 dataStore
+  ]);
+  // flush 侧含非内存模块的落盘（profile 防抖合并），reset 侧无需对应
+  const FLUSH_ONLY = new Set(['flushProfiles', 'flushWrongReports']);
+  for (const f of flushes) {
+    const counterpart = 'reset' + f.slice(5);
+    expect(
+      resets.has(counterpart) || FLUSH_ONLY.has(f),
+      `flush.js 有 ${f} 但 reset.js 无 ${counterpart}（或加入 FLUSH_ONLY 白名单）`
+    ).toBe(true);
+  }
+  for (const r of resets) {
+    if (RESET_ONLY.has(r)) continue;
+    const counterpart = 'flush' + r.slice(5);
+    expect(
+      flushes.has(counterpart) || FLUSH_ONLY.has(r),
+      `reset.js 有 ${r} 但 flush.js 无 ${counterpart}（或加入 RESET_ONLY 白名单）`
+    ).toBe(true);
+  }
+});
+
+// v14.12 B9（报告 D §2.2）：DB_KEYS ⊆ STORAGE_MODULES 键集合——constants.js
+// 的 DB_KEYS 是手维护第二份键名清单，与注册表漂移即"幽灵存储模块"
+test('P2：DB_KEYS 全部在 STORAGE_MODULES 中（防手维护键表漂移）', async () => {
+  const { DB_KEYS } = await import('../../background/core/constants.js');
+  const { STORAGE_MODULES } = await import('../../data/storage-registry.js');
+  const registryKeys = new Set(Object.keys(STORAGE_MODULES));
+  // v14.12 B5：legacy 豁免——MANUAL_MAPPINGS 是 storage.local 旧版模块
+  //（无 OPFS 文件，LEGACY_BACKUP_KEYS 已显式备份配对），非注册表漂移
+  const DB_KEYS_ALLOWLIST = new Set(['manualMappings']);
+  const missing = Object.keys(DB_KEYS).filter(
+    (k) => !registryKeys.has(DB_KEYS[k]) && !DB_KEYS_ALLOWLIST.has(DB_KEYS[k])
+  );
+  expect(
+    missing,
+    'DB_KEYS 以下键不在 STORAGE_MODULES（注册表单源被绕过）:\n  ' +
+      missing.map((k) => `${k} → ${DB_KEYS[k]}`).join('\n  ')
+  ).toEqual([]);
+});
+
+// v14.12 B9（报告 D §2.2）：__GR_SETTINGS_UTILS__ 导出 vs 全仓调用点一致性
+//——调用不存在的导出（悬空 API，D-P0-4 applyPageTheme 型）即静默失效
+test('P2：settings-utils 调用点全部存在于导出集合（防悬空 API 复发）', () => {
+  const sutSrc = fs.readFileSync(path.join(ROOT, 'shared/settings-utils.js'), 'utf-8');
+  // settings-utils 是经典脚本（IIFE 挂 globalThis），导出面 = 挂载对象字面量的键
+  //（D-P0-4 型悬空 API 的正解是单源实现，本断言防"调用先于实现"复发）
+  const mount = sutSrc.match(/__GR_SETTINGS_UTILS__ = \{([\s\S]*?)\n  \};/);
+  expect(mount, 'settings-utils 挂载对象应可解析').toBeTruthy();
+  const exported = new Set(
+    [...(mount ? mount[1].matchAll(/([a-zA-Z]+)(?:\s*:|,|$)/gm) : [])].map((m) => m[1]).filter(Boolean)
+  );
+  const callers = [
+    'popup/popup.js',
+    'dashboard/dashboard.js',
+    'freegames/freegames.js',
+    'hub/hub.js',
+    'sidepanel/sidepanel.js',
+    'options/options.js'
+  ];
+  const offenders = [];
+  for (const f of callers) {
+    const src = fs.readFileSync(path.join(ROOT, f), 'utf-8');
+    for (const m of src.matchAll(/(?:__GR_SETTINGS_UTILS__|settingsUtils)\.([a-zA-Z]+)/g)) {
+      const fn = m[1];
+      if (!exported.has(fn)) offenders.push(`${f}: settings-utils.${fn} 不存在（悬空调用）`);
+    }
+  }
+  expect(offenders, '悬空 settings-utils 调用:\n  ' + offenders.join('\n  ')).toEqual([]);
+});

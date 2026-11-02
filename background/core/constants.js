@@ -313,15 +313,9 @@ export const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 
 // 缓存 TTL 配置（随设置动态更新，可在设置页自定义各类缓存有效期）
 // Cache TTL config, updated dynamically from settings
-let TTL_CONFIG = {
-  steamDynamic: { value: 7, unit: 'days' },
-  detailSteam: { value: 72, unit: 'hours' },
-  spySteam: { value: 7, unit: 'days' },
-  metaSteam: { value: 30, unit: 'days' },
-  registryConfirm: { value: 30, unit: 'days' },
-  downloadUrls: { value: 30, unit: 'days' },
-  negativeCache: { value: 2, unit: 'hours' }
-};
+// v14.12 B1（报告 B P2-02）：由 DEFAULT_SETTINGS.cacheTtls 派生——此前与
+// 上方字面量双份维护，新增一类 TTL 必须改两处（漏改即漂移）
+let TTL_CONFIG = structuredClone(DEFAULT_SETTINGS.cacheTtls);
 
 // 更新 TTL 配置（由 settings 模块调用）/ Update TTL config (called by settings)
 export function setTtlConfig(ttls) {

@@ -11,6 +11,7 @@
 'use strict';
 
 import { dataStore } from '../../data/data-store.js';
+import { evictOldestByTs } from '../core/mechanisms.js'; // v14.12 B4：LRU 裁剪单源
 import { DB_KEYS, STORAGE_CAPS } from '../core/constants.js';
 import { debounce } from '../core/mechanisms.js'; // v10.7.0：防抖工厂
 
@@ -61,12 +62,7 @@ export async function setSearchCache(gameName, appId, siteKeys, results) {
   await load();
   const key = cacheKey(gameName, appId);
   searchCacheMemory.set(key, { appId: appId || null, siteKeys: siteKeys || [], results, ts: Date.now() });
-  if (searchCacheMemory.size > MAX_ENTRIES) {
-    const entries = [...searchCacheMemory.entries()].sort((a, b) => (a[1].ts || 0) - (b[1].ts || 0));
-    for (let i = 0; i < searchCacheMemory.size - MAX_ENTRIES; i++) {
-      searchCacheMemory.delete(entries[i][0]);
-    }
-  }
+  evictOldestByTs(searchCacheMemory, MAX_ENTRIES);
   // v10.7.0 批次3：防抖写穿（1s）——纯缓存数据，每次搜索即时全量重写
   // （200 条 LRU）是写放大点；SW 被杀最多丢最后 1s 的缓存条目（可重建）
   schedulePersist();

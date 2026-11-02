@@ -85,8 +85,13 @@
       // v6.4.19：应用皮肤主题（body data-theme）+ v7.0.5：自定义主题 CSS
       const sut = globalThis.__GR_SETTINGS_UTILS__;
       if (sut) {
-        sut.applyTheme(OPTS.currentSettings.uiTheme);
-        sut.applyCustomTheme(OPTS.currentSettings.customThemeCss);
+        // v14.12 B10（报告 C P2-05）：对齐 applyPageTheme 统一入口——此前
+        // 绕过定时日夜主题解析（uiThemeNightStart/End 在设置页不生效）
+        if (sut.applyPageTheme) sut.applyPageTheme(OPTS.currentSettings);
+        else {
+          sut.applyTheme(OPTS.currentSettings.uiTheme);
+          sut.applyCustomTheme(OPTS.currentSettings.customThemeCss);
+        }
       }
       OPTS.renderSettings(OPTS.currentSettings);
       bindEvents();

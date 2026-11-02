@@ -17,7 +17,8 @@ import { buildUI } from './xdgrid-panel.js';
 const dbg = (...a) => debug.dbg(...a);
 
 // re-export（消费面兼容——test-wiring 等经 xdgrid.js 引用布局纯函数）
-export { computeContainerStyle, migrateLegacy, commonAncestor } from './xdgrid-layout.js';
+export { computeContainerStyle, migrateLegacy, commonAncestor, isXdgameFallback } from './xdgrid-layout.js';
+import { isXdgameFallback } from './xdgrid-layout.js'; // v14.12 B8：兜底判定单源
 
 // 初始化（所有已追踪下载站；每站独立配置；幂等）/ init (all tracked sites)
 // v10.4.0：settings.xdgridEnabled 为总开关（关闭 = 全站不激活）
@@ -26,7 +27,7 @@ export async function init(settings) {
   const host = common.getCurrentDomain();
   const all = await loadAllSettings();
   const features = await builder.getSiteFeatures();
-  const defaultEnabled = features.gridLayoutDefault === true || host.includes('xdgame.com'); // 兜底同上
+  const defaultEnabled = isXdgameFallback(host, features); // v14.12 B8：单源
   const cfg = normalizeCfg((all.sites && all.sites[host]) || { ...DEFAULTS, enabled: defaultEnabled });
   await detectAndApply(all, host);
   try {

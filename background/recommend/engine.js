@@ -14,10 +14,11 @@
 import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
 import { getSettings } from '../core/settings.js';
+import { PERF_CONFIG } from '../core/constants.js'; // v14.12 B2：LLM 超时单源
+import { callLlm } from '../core/llm-client.js'; // v14.12 B6：LLM 调用单源
 import { lookupAppIdByName } from '../storage/name-index.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 import { getSteamCacheEntry, getMergedData } from '../storage/steam-cache.js';
-import { fetchWithTimeout } from '../core/utils.js';
 import { getLlmScore, setLlmScore } from '../storage/llm-cache.js';
 import {
   calculateKeywordScore,
@@ -126,47 +127,22 @@ async function calculateWithLLM(gameInfo, settings) {
 
   const prompt = buildLLMPrompt(gameInfo, topKeywords);
 
-  let response;
   // LLM 生成较慢，使用更长的超时时间（30s）；端点为用户显式配置（可能本地 Ollama），允许私有地址
-  const LLM_FETCH_TIMEOUT = 30000;
-  if (llmConfig.provider === 'local') {
-    // Ollama 本地模型
-    response = await fetchWithTimeout(
-      llmConfig.endpoint,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        allowPrivateHosts: true,
-        body: JSON.stringify({
-          model: llmConfig.model,
+  const LLM_FETCH_TIMEOUT = PERF_CONFIG.fetchTimeoutLlmMs; // v14.12 B2：单源
+  // v14.12 B6：HTTP 调用/分支/文本提取收敛至 llm-client 单源，本函数只构造
+  // payload（评分输出限长 num_predict/max_tokens）与解析业务结果
+  const text = await callLlm(
+    llmConfig,
+    llmConfig.provider === 'local'
+      ? {
+          // v11.0 B8：Ollama 结构化输出——JSON 模式约束输出为合法 JSON
           prompt,
-          stream: false,
-          // v11.0 B8：Ollama 结构化输出——JSON 模式约束输出为合法 JSON，
-          // parseLLMResponse 的正则抽取从"尽力"变"可靠"
           format: 'json',
           // v10.5.2：num_predict 上限——评分输出只是一小段 JSON，无上限时模型
           // 可能长篇发挥，白白消耗 token/时间
-          // Cap generated tokens: the score is a tiny JSON blob.
           options: { temperature: llmConfig.temperature, num_predict: 100 }
-        })
-      },
-      LLM_FETCH_TIMEOUT
-    );
-    const data = await response.json();
-    return parseLLMResponse(data.response);
-  } else {
-    // OpenAI兼容接口
-    response = await fetchWithTimeout(
-      llmConfig.endpoint,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${llmConfig.apiKey}`
-        },
-        allowPrivateHosts: true,
-        body: JSON.stringify({
-          model: llmConfig.model,
+        }
+      : {
           messages: [
             {
               role: 'system',
@@ -175,16 +151,12 @@ async function calculateWithLLM(gameInfo, settings) {
             },
             { role: 'user', content: prompt }
           ],
-          temperature: llmConfig.temperature,
           // v10.5.2：max_tokens 上限（同 num_predict——限制输出长度降 token 消耗）
           max_tokens: 100
-        })
-      },
-      LLM_FETCH_TIMEOUT
-    );
-    const data = await response.json();
-    return parseLLMResponse(data.choices[0].message.content);
-  }
+        },
+    LLM_FETCH_TIMEOUT
+  );
+  return parseLLMResponse(text);
 }
 
 function buildLLMPrompt(gameInfo, userKeywords) {

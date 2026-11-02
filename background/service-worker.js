@@ -35,6 +35,7 @@
 // v14.7 批次 7：早期消息路由必须**最先**求值（ESM 按 import 顺序执行模块体
 // ——本行在全部重依赖之前注册 onMessage，图就绪窗口到达的消息排队冲放）。
 import { attachEarlyMessageRouter } from './core/early-message-router.js';
+import { ENDPOINTS } from './core/constants.js'; // v14.12 B3：store URL 单源
 import '../adapters/default.js';
 import '../adapters/sites/xdgame.js';
 import '../adapters/sites/xianyudanji.js';
@@ -148,7 +149,7 @@ chrome.notifications.onClicked.addListener((notificationId) => {
     .then((games) => {
       if (games.length === 0) return;
       const first = games[0];
-      const url = first.url || (first.steamId ? `https://store.steampowered.com/app/${first.steamId}` : '');
+      const url = first.url || (first.steamId ? `${ENDPOINTS.steamStoreApp}${first.steamId}` : '');
       if (url) chrome.tabs.create({ url });
       chrome.notifications.clear(notificationId);
     })

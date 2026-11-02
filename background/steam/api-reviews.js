@@ -213,7 +213,7 @@ export async function fetchReviewSummary(appId) {
   // Three row forms: full (count+pct from tooltip), insufficient (count from
   // span/meta, Steam hides the pct → positive=null), zero (无用户评测).
   try {
-    const pageResp = await fetchWithTimeout(`https://store.steampowered.com/app/${appId}/?l=schinese&cc=cn`);
+    const pageResp = await fetchWithTimeout(`${ENDPOINTS.steamStoreApp}${appId}/?l=schinese&cc=cn`);
     if (pageResp.ok) {
       const html = await pageResp.text();
       const tips = [...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"/g)].map((m) =>

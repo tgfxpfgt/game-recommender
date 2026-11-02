@@ -223,12 +223,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   // ============ 底部操作 / Footer actions ============
   // 刷新当前页推荐
   document.getElementById('refreshBtn').addEventListener('click', async () => {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab) {
-      chrome.tabs.sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' }).catch(() => {});
-    }
     const btn = document.getElementById('refreshBtn');
-    btn.textContent = '✅ 已刷新';
+    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
+    let ok = false;
+    if (tab) {
+      ok = await chrome.tabs
+        .sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' })
+        .then(() => true)
+        .catch(() => false);
+    }
+    // v14.12 B10（报告 C P2-02）：失败不再显示"✅ 已刷新"假成功
+    btn.textContent = ok ? '✅ 已刷新' : '⚠️ 页面不支持';
     setTimeout(() => {
       btn.textContent = '🔄 刷新';
     }, BTN_TEXT_RESET_MS);

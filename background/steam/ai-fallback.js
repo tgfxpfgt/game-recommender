@@ -17,6 +17,7 @@
 import { getSettings } from '../core/settings.js';
 import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js';
 import { fetchWithTimeout } from '../core/utils.js';
+import { callLlm } from '../core/llm-client.js'; // v14.12 B6：LLM 调用单源
 import { Logger } from '../storage/logger.js';
 import { getLlmMatch, setLlmMatch, getWebMatch, setWebMatch } from '../storage/llm-cache.js';
 import { searchSteamAppId, namesRelated } from './api-search.js';
@@ -172,53 +173,20 @@ async function askLlmForOfficialName(rawName, cfg) {
 
 标题：${rawName}`;
   try {
-    let text = '';
-    if (cfg.provider === 'local') {
-      // Ollama 本地模型（端点用户显式配置，允许私有地址）
-      const resp = await fetchWithTimeout(
-        cfg.endpoint,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          allowPrivateHosts: true,
-          body: JSON.stringify({
-            model: cfg.model,
-            prompt,
-            stream: false,
-            options: { temperature: cfg.temperature ?? 0 }
-          })
-        },
-        LLM_FETCH_TIMEOUT
-      );
-      const data = await resp.json();
-      text = String(data.response || '');
-    } else {
-      // OpenAI 兼容接口
-      const resp = await fetchWithTimeout(
-        cfg.endpoint,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(cfg.apiKey ? { Authorization: `Bearer ${cfg.apiKey}` } : {})
-          },
-          allowPrivateHosts: true,
-          body: JSON.stringify({
-            model: cfg.model,
+    // v14.12 B6：HTTP 调用收敛至 llm-client 单源（provider 分支/文本提取），
+    // 本函数只构造 payload 与解析业务结果
+    const text = await callLlm(
+      cfg,
+      cfg.provider === 'local'
+        ? { prompt }
+        : {
             messages: [
               { role: 'system', content: '你只输出 JSON。' },
               { role: 'user', content: prompt }
-            ],
-            temperature: cfg.temperature ?? 0
-          })
-        },
-        LLM_FETCH_TIMEOUT
-      );
-      const data = await resp.json();
-      text = String(
-        (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || ''
-      );
-    }
+            ]
+          },
+      LLM_FETCH_TIMEOUT
+    );
     return parseLlmMatchResponse(text);
   } catch {
     return null;

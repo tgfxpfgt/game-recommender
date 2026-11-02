@@ -40,13 +40,18 @@ function renderWeights(weights) {
       updateWeightSum();
     });
     slider.addEventListener('change', async (e) => {
-      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
-      const latest = resp && resp.settings ? resp.settings : {};
-      latest.weights = { ...(latest.weights || {}), [key]: Number(e.target.value) / 100 };
-      const utils = globalThis.__GR_SETTINGS_UTILS__ || {};
-      if (utils.applyPatch) utils.applyPatch(latest, { weights: latest.weights });
-      await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
-      updateWeightSum();
+      try {
+        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
+        const latest = resp && resp.settings ? resp.settings : {};
+        latest.weights = { ...(latest.weights || {}), [key]: Number(e.target.value) / 100 };
+        const utils = globalThis.__GR_SETTINGS_UTILS__ || {};
+        if (utils.applyPatch) utils.applyPatch(latest, { weights: latest.weights });
+        await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
+        updateWeightSum();
+      } catch (err) {
+        // v14.12 B10（报告 C P2-03）：保存失败不再静默
+        console.warn('权重保存失败:', err);
+      }
     });
   });
   updateWeightSum();

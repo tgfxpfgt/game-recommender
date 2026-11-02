@@ -1,4 +1,5 @@
 import { Logger } from '../storage/logger.js';
+import { ENDPOINTS } from '../core/constants.js'; // v14.12 B3：store URL 单源
 import {
   baseAppIdFromDetails,
   fetchSteamAppDetails,
@@ -48,7 +49,7 @@ export function buildSteamResult(
       gameData.type === 'demo' ||
       (enGameData && enGameData.type === 'demo') ||
       DEMO_NAME_PATTERN.test((enGameData && enGameData.name) + ' ' + gameData.name),
-    url: `https://store.steampowered.com/app/${appId}/`,
+    url: `${ENDPOINTS.steamStoreApp}${appId}/`,
     // v6.2.1：SteamDB 链接模板拼接（此前每次详情抓取 SteamDB 网页仅产出该
     // URL——官方 API 优先，移除冗余网页抓取）
     steamdbUrl: `https://steamdb.info/app/${appId}/`,

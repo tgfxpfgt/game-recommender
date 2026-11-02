@@ -113,7 +113,7 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
 
 export async function fetchStorePageHtml(appId) {
   try {
-    const storePageUrl = `https://store.steampowered.com/app/${appId}/?cc=cn&l=schinese`;
+    const storePageUrl = `${ENDPOINTS.steamStoreApp}${appId}/?cc=cn&l=schinese`;
     const resp = await fetchWithTimeout(storePageUrl, { headers: { 'Accept-Language': 'zh-CN,zh;q=0.9' } });
     return await resp.text();
   } catch (e) {

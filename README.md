@@ -303,6 +303,27 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.12.0（第十二轮：单源纪律加固 + 护栏真实化）
+
+**单源收编（报告 B P2 系列）**
+
+- TTL 配置由 DEFAULT_SETTINGS.cacheTtls 派生（此前同文件双份字面量，新增一类须改两处）
+- 推荐引擎 LLM 超时入 PERF_CONFIG 单源（原 30000 死值绕过单源，且暴露铁律 13 扫描盲区——后台文件具名常量赋值形态）
+- steamStoreApp 端点收编（background 5 处字面量改 ENDPOINTS 引用）
+- LRU 裁剪单源 evictOldestByTs（llm-cache ×2 / search-cache 三份手写排序拷贝收敛）
+
+**护栏真实性（报告 D §2.2/2.3 落地）**
+
+- **reset/flush 对称性断言**：resetInMemoryCaches 与 flushAllCaches 函数名单侧新增即漂移
+- **DB_KEYS ⊆ STORAGE_MODULES 断言**：手维护键表与注册表漂移即红（首跑即抓 MANUAL_MAPPINGS legacy 键，注记豁免）
+- **settings-utils 导出面 vs 调用点一致性断言**（悬空 API 防复发——D-P0-4 型）
+- CI 增 lint-ratchet job
+
+**体验修复（报告 C）**
+
+- popup 刷新按钮失败不再假成功"✅ 已刷新"；权重滑块保存失败不再静默；设置页主题对齐 applyPageTheme 统一入口（定时日夜主题在设置页生效）
+- xdgrid host 兜底判定两处粘贴收敛单源
+
 ### v14.11.0（第十一轮：门禁止血 + 数据丢失级修复——四份第三方审查报告落地）
 
 **安全与数据丢失（报告 B/C/D 实锤项全数修复）**

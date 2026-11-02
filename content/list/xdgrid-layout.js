@@ -153,9 +153,16 @@ export function applyLayout(cfg, items) {
 // 检测列表容器并应用（重试适配 AJAX 延迟渲染）/ detect + apply with retries
 // v10.7.0 批次4：默认启用改由 adapter 规则 features.gridLayoutDefault 声明
 //（内置 xdgame 规则声明为 true）——不再写死 host 判断；自定义站经规则即可启用
+// v14.12 B8（报告 B P2-06）：规则加载失败保底判定单源——xdgrid 与本文件
+// 两处粘贴收敛于此（AGENTS 记录的“有意保留的兜底”语义不变）
+/** @param {string} host @param {{gridLayoutDefault?: boolean}} [features] @returns {boolean} */
+export function isXdgameFallback(host, features) {
+  return (features && features.gridLayoutDefault === true) || String(host || '').includes('xdgame.com');
+}
+
 export async function detectAndApply(all, host) {
   const features = await builder.getSiteFeatures();
-  const defaultEnabled = features.gridLayoutDefault === true || host.includes('xdgame.com'); // host 判断兜底（规则加载失败时保底）
+  const defaultEnabled = features.gridLayoutDefault === true || isXdgameFallback(host); // v14.12 B8：单源
   const cfg = normalizeCfg((all.sites && all.sites[host]) || { ...DEFAULTS, enabled: defaultEnabled });
   if (!cfg.enabled) return null;
   const adapter = builder.getAdapter();
