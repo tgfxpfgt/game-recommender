@@ -25,6 +25,10 @@ const dbg = (...a) => debug.dbg(...a);
 // skips URL-index recording (a list-page sender URL would poison the mapping).
 const RETRY_THROTTLE_MS = 10000; // 10s/游戏节流（防连点打爆限速）
 const retryThrottle = new Map(); // name → 上次尝试时间戳
+// v14.13 B7（报告 B P3-04）：只 set 无 delete/cap → 慢泄漏（对照
+// api-registry-heal.js HEAL_BACKOFF_MAX=500 纪律）；超限全清（10s 节流窗口
+// 语义下全清无害——窗口过后首查必然放行）
+const RETRY_THROTTLE_CAP = 500;
 
 async function retryItem(item) {
   if (!item || !item.name) return;
@@ -34,6 +38,7 @@ async function retryItem(item) {
   const now = Date.now();
   const last = retryThrottle.get(item.name) || 0;
   if (now - last < RETRY_THROTTLE_MS) return;
+  if (retryThrottle.size >= RETRY_THROTTLE_CAP) retryThrottle.clear();
   retryThrottle.set(item.name, now);
   try {
     const resp = await window.__GR_MSG__.sendMessage({

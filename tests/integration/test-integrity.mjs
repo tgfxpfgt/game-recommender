@@ -28,6 +28,7 @@ function layerOf(relPath) {
   if (p.startsWith('../adapters/')) return 'adapters';
   if (p.startsWith('../shared/')) return 'shared'; // v14.0.0：SW 消费共享纯工具（msg.js 错误归一）
   if (p === 'service-worker.js') return 'entry';
+  if (p === 'warmup-coordinator.js') return 'entry'; // v14.13 B2：分层预热协调器（入口组成部分）
   if (p === 'handlers.js' || p.startsWith('handlers/')) return 'handlers'; // v5.0.0：handlers/ 子目录
   const first = p.split('/')[0];
   if (first === 'core') return 'core';
@@ -477,8 +478,10 @@ test('v14.6.2：长延时/超时零字面量（≥1000ms 须走单源常量）',
   ).toEqual([]);
 });
 test('B2：分层预热/批量续跑/周报静态接线（防再次退化为动态 import 静默失效）', () => {
-  // 热层预热（启动即调）+ 温层预热（setTimeout 15s）+ 批量续跑 + 周报——
-  // 全部须为 service-worker.js 的静态导入直接调用
+  // v14.13 B2：热/温层预热目标迁入 warmup-coordinator.js（入口组成部分，
+  // layerOf 登记 entry 层）——本断言改为双文件覆盖：协调器持有目标清单 +
+  // SW 调用 runHotTier/runWarmTier；批量续跑（alarm 链路）仍在 SW。
+  const coordSrc = fs.readFileSync(path.join(ROOT, 'background/warmup-coordinator.js'), 'utf-8');
   for (const fn of [
     'loadSteamCacheToMemory',
     'warmupNameIndex',
@@ -494,11 +497,14 @@ test('B2：分层预热/批量续跑/周报静态接线（防再次退化为动�
     'warmupDownloadUrls',
     'warmupOutboundAudit',
     'warmupSiteAlertPersist',
-    'handleGetStats'
+    'ensureAppListIndex',
+    'ensureRetrievalVocabOverride'
   ]) {
-    expect(swSrc8.includes(fn), `SW 缺少 ${fn} 静态接线`).toEqual(true);
+    expect(coordSrc.includes(fn), `warmup-coordinator 缺少 ${fn} 目标`).toEqual(true);
   }
-  expect(swSrc8.includes('WARM_TIER_DELAY_MS')).toEqual(true);
+  expect(swSrc8.includes('runHotTier') && swSrc8.includes('runWarmTier'), 'SW 缺少分层预热调用').toEqual(true);
+  expect(swSrc8.includes('resumeRatingsBatch'), 'SW 缺少批量续跑接线').toEqual(true);
+  expect(coordSrc.includes('WARM_TIER_DELAY_MS')).toEqual(true);
 });
 test('P2-D：每个 MESSAGE_HANDLERS action 都有契约规则（默认拒绝前提）', async () => {
   // v14 B10：MESSAGE_HANDLERS 改领域段聚合展开——源码正则无法提取键，改运行时

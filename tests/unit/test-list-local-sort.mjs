@@ -46,7 +46,9 @@ function makeParent() {
 }
 
 function makeItem(name, parent) {
-  const element = { name, parentNode: parent };
+  // v14.13 B5：真实 DOM 元素恒有 isConnected（脱文档容器内仍 true 恒假——
+  // 此处模拟挂载态）
+  const element = { name, parentNode: parent, isConnected: true };
   parent.children.push(element);
   return { name, element };
 }

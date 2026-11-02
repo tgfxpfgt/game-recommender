@@ -17,6 +17,11 @@ const esc = (text) => common.escapeHtml(text);
 // game on this page; cross-page reloads are covered by the 15-min first tier
 // of the graded negative cache.
 const dismissedGames = new Set();
+
+// v14.13 B6（报告 D P1-9）：上一任键盘监听器引用——searchAndRender 重入时
+// 直摘旧监听（此前每次搜索累积一个全局 keydown，↑/↓ 跳变/Enter 触发陈旧项）
+/** @type {((ev: KeyboardEvent) => void) | null} */
+let prevKbHandler = null;
 /** @param {string} gameName */
 export function isGameDismissed(gameName) {
   return dismissedGames.has(String(gameName || ''));
@@ -127,8 +132,13 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
       };
       /** @param {KeyboardEvent} ev */
       const kbHandler = (ev) => {
-        if (!document.body.contains(listEl)) {
+        // v14.13 B6（报告 D P1-9）：listEl 只改 innerHTML 不移除节点，自移除
+        // 条件永不成立 → 每次搜索累积一个全局监听器（↑/↓ 跳变/Enter 触发陈旧
+        // 项）。改为：面板节点脱文档或被替换（dataset 标记变化）即移除；并
+        // 在注册前先摘除上一个监听器（searchAndRender 重入防累积）。
+        if (!document.body.contains(listEl) || listEl.dataset.kbNav !== '1') {
           document.removeEventListener('keydown', kbHandler);
+          if (prevKbHandler === kbHandler) prevKbHandler = null;
           return;
         }
         if (ev.key === 'ArrowDown') {
@@ -142,8 +152,13 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
           items[kbIndex].click();
         } else if (ev.key === 'Escape') {
           document.removeEventListener('keydown', kbHandler);
+          if (prevKbHandler === kbHandler) prevKbHandler = null;
         }
       };
+      // v14.13 B6：注册前先摘除上一任监听器（模块级持有引用，直摘不波及
+      // 宿主页的其他 keydown 监听——Escape 合成事件会误伤页面自身处理器）
+      if (prevKbHandler) document.removeEventListener('keydown', prevKbHandler);
+      prevKbHandler = kbHandler;
       document.addEventListener('keydown', kbHandler);
       listEl.dataset.kbNav = '1';
 

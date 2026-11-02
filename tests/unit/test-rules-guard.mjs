@@ -6,6 +6,11 @@
  * http(s)，渲染侧（tracking.js）另有 protocol 复核兜底存量规则。
  */
 import { test, expect } from 'vitest';
+import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
+const storage = createStorageMock();
+installChromeStorageMock(storage);
+globalThis.window = globalThis.window || {};
+globalThis.location = globalThis.location || { href: 'http://test/', search: '', origin: 'http://test' };
 import { validateAdapterRules } from '../../background/core/rules.js';
 
 const pkg = (searchUrl, base) => ({
@@ -42,4 +47,27 @@ test('data: 协议同样被拒', () => {
   const r = validateAdapterRules(pkg('data:text/html,<script>1</script>', 'https://evil.example'));
   expect(r.ok).toBe(false);
   expect(r.error).toContain('仅允许 http(s) 协议');
+});
+
+// v14.13 B9（报告 D P2"多域名丢失"论断复核）：多域名规则 save→load 往返
+// 域名集合不变（渲染侧 checkbox 只取 domains[0] 是展示层事，规则数据不丢）
+test('多域名规则往返：saveAdapterRules 后 domains 集合不变', async () => {
+  storage._reset();
+  const rulesMod = await import('../../background/core/rules.js');
+  const multi = {
+    version: 1,
+    sites: [
+      {
+        key: 'gamer520',
+        name: 'Gamer520',
+        domains: ['gamer520.com', 'gamers520.com'],
+        searchUrl: 'https://www.gamer520.com/?s={q}',
+        base: 'https://www.gamer520.com'
+      }
+    ]
+  };
+  const r = await rulesMod.saveAdapterRules(multi);
+  expect(r.ok).toBe(true);
+  const saved = await (await import('../../data/data-store.js')).dataStore.readModule('adapterRules');
+  expect(saved.sites[0].domains).toEqual(['gamer520.com', 'gamers520.com']);
 });

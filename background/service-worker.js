@@ -36,6 +36,7 @@
 // ——本行在全部重依赖之前注册 onMessage，图就绪窗口到达的消息排队冲放）。
 import { attachEarlyMessageRouter } from './core/early-message-router.js';
 import { ENDPOINTS } from './core/constants.js'; // v14.12 B3：store URL 单源
+import { runHotTier, runWarmTier } from './warmup-coordinator.js'; // v14.13 B2：分层预热协调器
 import '../adapters/default.js';
 import '../adapters/sites/xdgame.js';
 import '../adapters/sites/xianyudanji.js';
@@ -49,7 +50,8 @@ import '../adapters/index.js';
 // Data store layer (OPFS per-module files; falls back to storage.local)
 import { initStorage, getSettings } from './core/settings.js';
 import { setWriteMetricsHook } from '../data/data-store.js'; // v10.8：写指标钩子（静态——铁律 2）
-import { trackOpfsWrite, warmupMetrics } from './core/metrics.js';
+import { trackOpfsWrite } from './core/metrics.js'; // v14.13 B2：写指标采样随钩子消费点保留
+import { resumeRatingsBatch } from './steam/ratings-batch.js'; // v14.13 B2：alarm 续跑链路依赖（非预热）
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
 import { refreshFreeGames, getLastNotifyGames, watchFavoritePrices } from './freegames/manager.js';
@@ -62,22 +64,7 @@ import { flushAllCaches } from './storage/flush.js';
 // Warm-up/resume targets now statically imported (dynamic imports never ran);
 // these modules were already in the handlers graph, so this adds no files —
 // it only fixes the calls that silently no-op'd.
-import { loadSteamCacheToMemory } from './storage/steam-cache.js';
-import { ensureRetrievalVocabOverride } from './steam/retrieval-override.js'; // v14.7 批次 12：R2 词表覆盖
-import { warmupNameIndex } from './storage/name-index.js';
-import { warmupApiMonitor } from './core/api-monitor.js';
-import { warmupTabGames } from './core/tab-game.js';
-import { resumeRatingsBatch } from './steam/ratings-batch.js';
-import { warmupRegistry } from './storage/registry.js';
-import { warmupWrongReports } from './storage/wrong-reports.js';
-import { warmupLearnedNoise } from './storage/learned-noise.js';
-import { warmupUrlIndex } from './storage/url-index.js';
-import { warmupBehavior } from './storage/behavior.js';
-import { warmupDownloadUrls } from './storage/download-urls.js';
-import { warmupOutboundAudit } from './core/outbound-audit.js';
-import { warmupSiteAlertPersist } from './handlers/diag-status.js';
 import { handleGetStats } from './handlers/stats.js';
-import { ensureAppListIndex } from './steam/app-list-index.js'; // v14.6：目录索引温层加载
 
 // v9.1.0：SW 启动计时（性能基线——Perf 日志落盘 runtimeLog，可脚本分析）
 const BOOT_START = Date.now();
@@ -202,32 +189,12 @@ chrome.commands.onCommand.addListener((command, tab) => {
 // original design, which silently never ran due to the SW import() ban).
 // v10.0.0：诊断状态从 storage.session 读回（限流检测/出站审计/告警限频
 // 跨 SW 冷启动连续）；批量好评率任务从最后批次边界续跑
-Promise.allSettled([
-  loadSteamCacheToMemory({ hotOnly: true }), // v14.7 批次 10：热层先行（meta+rating，列表页首波所需）
-  warmupNameIndex(),
-  warmupApiMonitor(),
-  warmupMetrics(), // v10.7.0：运行指标
-  warmupTabGames(), // v14.1.0：SidePanel tab 快照
-  ensureRetrievalVocabOverride(), // v14.7 批次 12：R2 词表覆盖装载（校验失败回退内置）
-  resumeRatingsBatch()
-]);
+// v14.13 B2（报告 A W2）：分层预热收敛至 warmup-coordinator（热/温层目标
+// 单源数组——新增温层模块只改协调器一处；语义不变：热层即调/温层 15s）
+runHotTier();
+runWarmTier();
 // v10.8：OPFS 写指标接线（静态导入 + 顶层调用）
 setWriteMetricsHook(trackOpfsWrite);
-const WARM_TIER_DELAY_MS = 15000;
-setTimeout(() => {
-  Promise.allSettled([
-    loadSteamCacheToMemory(), // v14.7 批次 10：温层补载 detail/spy（惰性提升亦可——详情页首查自会全量）
-    warmupRegistry(),
-    warmupWrongReports(),
-    warmupLearnedNoise(),
-    warmupUrlIndex(),
-    warmupBehavior(),
-    warmupDownloadUrls(),
-    warmupOutboundAudit(),
-    warmupSiteAlertPersist(),
-    ensureAppListIndex() // v14.6：目录索引温层加载（仅读盘，无网络）
-  ]);
-}, WARM_TIER_DELAY_MS);
 
 // 定时器幂等创建：MV3 SW 每次冷启动都会重跑顶层代码，`alarms.create`
 // 对同名 alarm 是替换（重新起算周期）——重复创建会让 24h 任务永远不触发。

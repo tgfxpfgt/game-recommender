@@ -261,7 +261,9 @@ export function finishRatings() {
 // any later sorting; falls back to extraction order where the DOM API is absent.
 function captureDomOrder(job) {
   if (!job || job.domOrder) return;
-  const live = job.processItems.filter((it) => it.element && it.element.parentNode);
+  // v14.13 B5（报告 D P1-7）：isConnected 判定——removeItemFromDom 移除的是
+  // 祖先栅格容器，item.element 仍挂于脱文档容器上（parentNode 真值误判）
+  const live = job.processItems.filter((it) => it.element && it.element.isConnected);
   if (typeof (live[0] && live[0].element && live[0].element.compareDocumentPosition) === 'function') {
     // 4 = Node.DOCUMENT_POSITION_FOLLOWING（eslint no-undef 下避免直接引用 Node）
     live.sort((a, b) => (a.element.compareDocumentPosition(b.element) & 4 ? -1 : 1));
@@ -294,7 +296,7 @@ function restoreDomOrder(job) {
 function restoreFilteredGames(job) {
   if (!job || job.filteredNames.length === 0) return;
   const names = new Set(job.filteredNames);
-  const live = job.processItems.find((i) => i.element && i.element.parentNode);
+  const live = job.processItems.find((i) => i.element && i.element.isConnected);
   const container = live && live.element.parentNode;
   if (!container) return;
   let restored = 0;
