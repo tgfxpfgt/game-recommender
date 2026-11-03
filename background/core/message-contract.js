@@ -53,32 +53,36 @@ function optStr(v, maxLen = 100) {
 function optNumRange(v, min, max) {
   return v === undefined || v === null || (typeof v === 'number' && v >= min && v <= max);
 }
-/** @param {any} v @param {string} label @returns {{ok: boolean}|{error: string}} */
+/** @param {any} v @param {string} label @returns {{ok: boolean, error: string}} */
 function appIdRule(v, label) {
-  return APP_ID_RE.test(String(v == null ? '' : v)) ? { ok: true } : { error: `${label} 必须是 1-10 位数字` };
+  return APP_ID_RE.test(String(v == null ? '' : v))
+    ? { ok: true, error: '' }
+    : { ok: false, error: `${label} 必须是 1-10 位数字` };
 }
 /** @param {string} label @returns {(m: any) => {ok: boolean, error?: string}} */
 function nameRule(label) {
-  return (m) => (isName(m && m.gameName) ? { ok: true } : { error: `${label} 必填且不超过 200 字符` });
+  return (m) =>
+    isName(m && m.gameName) ? { ok: true, error: '' } : { ok: false, error: `${label} 必填且不超过 200 字符` };
 }
 /** @param {string} label @returns {(m: any) => {ok: boolean, error?: string}} */
 function idRule(label) {
-  return (m) => (isNonEmpty(m && m.backupId, 100) ? { ok: true } : { error: `${label} 必填且不超过 100 字符` });
+  return (m) =>
+    isNonEmpty(m && m.backupId, 100) ? { ok: true, error: '' } : { ok: false, error: `${label} 必填且不超过 100 字符` };
 }
 function limitRule(label, min, max) {
   return (m) => {
     const v = m && m.limit;
-    if (v === undefined || v === null) return { ok: true };
+    if (v === undefined || v === null) return { ok: true, error: '' };
     return typeof v === 'number' && v >= min && v <= max
-      ? { ok: true }
-      : { error: `${label} 必须是 ${min}-${max} 数字` };
+      ? { ok: true, error: '' }
+      : { ok: false, error: `${label} 必须是 ${min}-${max} 数字` };
   };
 }
 function moduleKeysRule(label) {
   return (m) => {
     const mk = m && m.moduleKeys;
-    if (mk === undefined || mk === null) return { ok: true };
-    return isStrArray(mk, 100) ? { ok: true } : { error: `${label}.moduleKeys 必须是字符串数组` };
+    if (mk === undefined || mk === null) return { ok: true, error: '' };
+    return isStrArray(mk, 100) ? { ok: true, error: '' } : { ok: false, error: `${label}.moduleKeys 必须是字符串数组` };
   };
 }
 // 必填字符串数组（允许空）/ required string array (empty allowed)
@@ -89,15 +93,15 @@ function namesRule(label) {
 // TRACK_EVENT 单条校验（单发与批量共用）/ one-event validator (shared)
 const trackEventRule = (m) => {
   const data = m && m.data;
-  if (!isPlainObject(data)) return { error: 'TRACK_EVENT.data 必须是对象' };
-  if (!TRACK_TYPES.has(data.type)) return { error: 'TRACK_EVENT.data.type 不在白名单' };
+  if (!isPlainObject(data)) return { ok: false, error: 'TRACK_EVENT.data 必须是对象' };
+  if (!TRACK_TYPES.has(data.type)) return { ok: false, error: 'TRACK_EVENT.data.type 不在白名单' };
   if (NAME_REQUIRED_TYPES.has(data.type) && !isName(data.gameName)) {
-    return { error: `TRACK_EVENT.data.gameName 必填（type=${data.type}）且不超过 200 字符` };
+    return { ok: false, error: `TRACK_EVENT.data.gameName 必填（type=${data.type}）且不超过 200 字符` };
   }
   if (data.keywords !== undefined && !Array.isArray(data.keywords)) {
-    return { error: 'TRACK_EVENT.data.keywords 必须是数组' };
+    return { ok: false, error: 'TRACK_EVENT.data.keywords 必须是数组' };
   }
-  return { ok: true };
+  return { ok: true, error: '' };
 };
 
 // action → 校验规则（返回 {ok:true} 或 {error}）/ rule table
@@ -109,13 +113,13 @@ const RULES = {
   TRACK_EVENT_BATCH: (m) => {
     const events = m && m.events;
     if (!Array.isArray(events) || events.length === 0 || events.length > 100) {
-      return { error: 'TRACK_EVENT_BATCH.events 必须是 1-100 条的数组' };
+      return { ok: false, error: 'TRACK_EVENT_BATCH.events 必须是 1-100 条的数组' };
     }
     for (const e of events) {
       const r = trackEventRule({ data: e });
       if (!r.ok) return r;
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   // v14.3.1：rawTitle 可选——原始页面标题（未清洗），供扩展搜索提取英文变体
   //（新游戏 schinese storesearch 返回空时，英文变体是唯一有效检索路径）
@@ -123,13 +127,13 @@ const RULES = {
     const base = nameRule('SEARCH_STEAM.gameName')(m);
     if (!base.ok) return base;
     if (m && m.rawTitle !== undefined && (typeof m.rawTitle !== 'string' || m.rawTitle.length > 300)) {
-      return { error: 'SEARCH_STEAM.rawTitle 可选且不超过 300 字符' };
+      return { ok: false, error: 'SEARCH_STEAM.rawTitle 可选且不超过 300 字符' };
     }
     // v14.3.2：appId 可选（元素直取提示——数字字符串）
     if (m && m.appId !== undefined && !/^\d{1,10}$/.test(String(m.appId))) {
-      return { error: 'SEARCH_STEAM.appId 可选且必须为数字字符串' };
+      return { ok: false, error: 'SEARCH_STEAM.appId 可选且必须为数字字符串' };
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   // v14.7 批次 3：未找到徽章点击 = 穿透负缓存单游戏重查。窄化 action 直调
   // searchSteamGame——不经 handleSearchSteam 的 URL 索引记录（列表页 sender
@@ -138,14 +142,14 @@ const RULES = {
   REFRESH_STEAM_CACHE: nameRule('REFRESH_STEAM_CACHE.gameName'),
   GET_STEAM_BY_APPID: (m) => appIdRule(m && m.appId, 'GET_STEAM_BY_APPID.appId'),
   SAVE_MANUAL_MAPPING: (m) => {
-    if (!isName(m && m.gameName)) return { error: 'SAVE_MANUAL_MAPPING.gameName 必填且不超过 200 字符' };
+    if (!isName(m && m.gameName)) return { ok: false, error: 'SAVE_MANUAL_MAPPING.gameName 必填且不超过 200 字符' };
     const appId = appIdRule(m && m.appId, 'SAVE_MANUAL_MAPPING.appId');
     if (!appId.ok) return appId;
     // v14.8 批次 3：rawTitle 可选（错题样本采集现场）
     if (m && m.rawTitle !== undefined && (typeof m.rawTitle !== 'string' || m.rawTitle.length > 300)) {
-      return { error: 'SAVE_MANUAL_MAPPING.rawTitle 可选且不超过 300 字符' };
+      return { ok: false, error: 'SAVE_MANUAL_MAPPING.rawTitle 可选且不超过 300 字符' };
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   GET_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
   GET_FREEGAME_MISS_STATS: (m) => ({ ok: true }), // v14.8 批次 7：限免错过统计（dashboard 扩展页专用）
@@ -162,27 +166,27 @@ const RULES = {
   // 设置透传：必须是纯对象（避免数组/null 入库）
   SAVE_SETTINGS: (m) => {
     const s = m && m.settings;
-    if (!isPlainObject(s)) return { error: 'SAVE_SETTINGS.settings 必须是对象' };
+    if (!isPlainObject(s)) return { ok: false, error: 'SAVE_SETTINGS.settings 必须是对象' };
     // v10.5.0 P2-B：weights 组每个值必须是有限数值（防字符串/NaN 权重产 NaN 分）
     // Every weights value must be a finite number (guards against NaN scores).
     if (s.weights !== undefined && s.weights !== null) {
-      if (!isPlainObject(s.weights)) return { error: 'SAVE_SETTINGS.settings.weights 必须是对象' };
+      if (!isPlainObject(s.weights)) return { ok: false, error: 'SAVE_SETTINGS.settings.weights 必须是对象' };
       for (const [k, v] of Object.entries(s.weights)) {
         if (typeof v !== 'number' || !Number.isFinite(v)) {
-          return { error: `SAVE_SETTINGS.settings.weights.${k} 必须是有限数值` };
+          return { ok: false, error: `SAVE_SETTINGS.settings.weights.${k} 必须是有限数值` };
         }
       }
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   // ---- v4.1.0 第二批（读字段但此前零校验 + 有崩溃风险）----
   GET_RECOMMENDATIONS: (m) => {
     const games = m && m.games;
-    if (!Array.isArray(games)) return { error: 'GET_RECOMMENDATIONS.games 必须是数组' };
+    if (!Array.isArray(games)) return { ok: false, error: 'GET_RECOMMENDATIONS.games 必须是数组' };
     if (games.some((g) => !g || typeof g.name !== 'string' || g.name.length < 1 || g.name.length > 200)) {
-      return { error: 'GET_RECOMMENDATIONS.games[].name 必填字符串且不超过 200 字符' };
+      return { ok: false, error: 'GET_RECOMMENDATIONS.games[].name 必填字符串且不超过 200 字符' };
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   GET_STEAM_RATINGS: namesRule('GET_STEAM_RATINGS'),
   GET_RATINGS_QUEUE_STATUS: () => ({ ok: true }), // v14.8.1：读侧零参
@@ -207,16 +211,16 @@ const RULES = {
   RECORD_DOWNLOAD_URLS_BATCH: (m) => {
     const data = m && m.data;
     if (!isPlainObject(data) || !Array.isArray(data.entries)) {
-      return { error: 'RECORD_DOWNLOAD_URLS_BATCH.data.entries 必须是数组' };
+      return { ok: false, error: 'RECORD_DOWNLOAD_URLS_BATCH.data.entries 必须是数组' };
     }
     if (
       data.entries.some(
         (e) => !e || !APP_ID_RE.test(String(e.appId == null ? '' : e.appId)) || typeof e.url !== 'string'
       )
     ) {
-      return { error: 'RECORD_DOWNLOAD_URLS_BATCH.data.entries[].appId 数字且 url 必填' };
+      return { ok: false, error: 'RECORD_DOWNLOAD_URLS_BATCH.data.entries[].appId 数字且 url 必填' };
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   GET_DOWNLOAD_HISTORY: (m) =>
     optStr(m && m.gameName, 200) ? { ok: true } : { error: 'GET_DOWNLOAD_HISTORY.gameName 可选字符串（≤200）' },
@@ -249,12 +253,12 @@ const RULES = {
   // v10.4.4：二维码跨域取图（url 必须为 https 图片地址——后台另有 SSRF/大小/类型三重校验）
   GET_STEAM250_RANK: (m) => (m && m.appId ? { ok: true } : { error: 'GET_STEAM250_RANK.appId 必填' }),
   TOGGLE_FAVORITE: (m) => {
-    if (!m || !m.appId) return { error: 'TOGGLE_FAVORITE.appId 必填' };
+    if (!m || !m.appId) return { ok: false, error: 'TOGGLE_FAVORITE.appId 必填' };
     if (typeof m.appId !== 'string' || !/^\d{2,10}$/.test(m.appId))
-      return { error: 'TOGGLE_FAVORITE.appId 必须为数字字符串' };
+      return { ok: false, error: 'TOGGLE_FAVORITE.appId 必须为数字字符串' };
     if (m.name !== undefined && (typeof m.name !== 'string' || m.name.length > 200))
-      return { error: 'TOGGLE_FAVORITE.name 超长' };
-    return { ok: true };
+      return { ok: false, error: 'TOGGLE_FAVORITE.name 超长' };
+    return { ok: true, error: '' };
   },
   GET_FAVORITES: () => ({ ok: true }),
   // v14.1.0：dashboard 收藏价格列（复用 ITAD TTL 缓存，无参读类）
@@ -304,7 +308,9 @@ const RULES = {
   CACHE_STEAM_PAGE: (m) => {
     const a = appIdRule(m && m.appId, 'CACHE_STEAM_PAGE.appId');
     if (!a.ok) return a;
-    return optStr(m && m.gameName, 200) ? { ok: true } : { error: 'CACHE_STEAM_PAGE.gameName 可选字符串（≤200）' };
+    return optStr(m && m.gameName, 200)
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'CACHE_STEAM_PAGE.gameName 可选字符串（≤200）' };
   },
   TRACK_DOWNLOAD_SITE_VISIT: (m) => {
     const data = m && m.data;
@@ -314,7 +320,7 @@ const RULES = {
       typeof data.url !== 'string' ||
       !data.url
     ) {
-      return { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.appId 数字且 url 必填' };
+      return { ok: false, error: 'TRACK_DOWNLOAD_SITE_VISIT.data.appId 数字且 url 必填' };
     }
     return optStr(data.domain, 100)
       ? { ok: true }
@@ -325,11 +331,11 @@ const RULES = {
   REPORT_WRONG_APPID: (m) => {
     // v10.9：'' 视同缺省（detail-page 无 appId 场景发空串而非省略字段）
     const appIdOk = m.appId === undefined || m.appId === null || m.appId === '' || APP_ID_RE.test(String(m.appId));
-    if (!appIdOk) return { error: 'REPORT_WRONG_APPID.appId 可选 1-10 位数字' };
-    if (!optStr(m && m.gameName, 200)) return { error: 'REPORT_WRONG_APPID.gameName 可选字符串（≤200）' };
+    if (!appIdOk) return { ok: false, error: 'REPORT_WRONG_APPID.appId 可选 1-10 位数字' };
+    if (!optStr(m && m.gameName, 200)) return { ok: false, error: 'REPORT_WRONG_APPID.gameName 可选字符串（≤200）' };
     const appIdAbsent = m.appId == null || m.appId === '';
-    if (appIdAbsent && !m.gameName) return { error: 'REPORT_WRONG_APPID 至少提供 appId 或 gameName 之一' };
-    return { ok: true };
+    if (appIdAbsent && !m.gameName) return { ok: false, error: 'REPORT_WRONG_APPID 至少提供 appId 或 gameName 之一' };
+    return { ok: true, error: '' };
   },
   // ---- v6.3.0 第四批：读类 action 全量收尾（契约化 100%）----
   // 无参读类：显式声明已契约
@@ -348,19 +354,20 @@ const RULES = {
       : { error: 'GET_TRENDS.granularity 可选 day|week' },
   // v9.3.0：站点规则失效告警（限频在 handler 侧）
   SITE_ADAPTER_ALERT: (m) => {
-    if (typeof m.siteKey !== 'string' || m.siteKey.length > 64) return { error: 'SITE_ADAPTER_ALERT.siteKey 非法' };
-    if (typeof m.host !== 'string' || m.host.length > 255) return { error: 'SITE_ADAPTER_ALERT.host 非法' };
-    return { ok: true };
+    if (typeof m.siteKey !== 'string' || m.siteKey.length > 64)
+      return { ok: false, error: 'SITE_ADAPTER_ALERT.siteKey 非法' };
+    if (typeof m.host !== 'string' || m.host.length > 255) return { ok: false, error: 'SITE_ADAPTER_ALERT.host 非法' };
+    return { ok: true, error: '' };
   },
   // v10.5.0 P2-D：补齐两处遗漏，使默认拒绝安全
   LOG_PERF: (m) => {
-    if (!optStr(m && m.source, 64)) return { error: 'LOG_PERF.source 可选字符串（≤64）' };
-    if (!optStr(m && m.metric, 64)) return { error: 'LOG_PERF.metric 可选字符串（≤64）' };
+    if (!optStr(m && m.source, 64)) return { ok: false, error: 'LOG_PERF.source 可选字符串（≤64）' };
+    if (!optStr(m && m.metric, 64)) return { ok: false, error: 'LOG_PERF.metric 可选字符串（≤64）' };
     const d = m && m.durationMs;
     if (d !== undefined && d !== null && (typeof d !== 'number' || !Number.isFinite(d) || d < 0)) {
-      return { error: 'LOG_PERF.durationMs 可选非负数值' };
+      return { ok: false, error: 'LOG_PERF.durationMs 可选非负数值' };
     }
-    return { ok: true };
+    return { ok: true, error: '' };
   },
   OPEN_HUB: () => ({ ok: true })
 };
