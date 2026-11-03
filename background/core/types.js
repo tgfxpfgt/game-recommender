@@ -189,7 +189,8 @@
  * @typedef {Object} SteamSearchResult
  * @property {string|number} appId
  * @property {string} name
- * @property {string} englishName
+ * @property {string|null} [englishName] - v14.13 B1：phaseSearch 直取路径为
+ *   null（调用方 5.5 步按 pickRegistryEnName 补齐）
  * @property {boolean} [aiFallback] - v6.4.16：经 AI/LLM 兜底匹配的结果标记
  */
 

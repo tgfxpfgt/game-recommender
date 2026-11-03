@@ -117,6 +117,106 @@ async function probeDetailSignal(gameName, pageUrl, excludeAppId) {
   return null;
 }
 
+// v14.13 B1（报告 A W1 + B P3-02）：四阶段拆分（同文件步函数，对外签名
+// 不变，锚点门硬验收）。Phase 1——非 PC 平台预检（模拟器/主机/Metacritic）。
+/**
+ * @param {string} gameName
+ * @param {Object} options
+ * @returns {Promise<Object|null>} 平台终态结果（null = PC 条目继续后续阶段）
+ */
+async function phasePlatform(gameName, options) {
+  const plat = detectPlatform(gameName);
+  if (plat.kind === 'pc') return null;
+  if (plat.kind === 'emulator') {
+    return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
+  }
+  const enSeg = (String(gameName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/) || [''])[0].trim();
+  /** @type {number|null} */
+  let mcScore = null;
+  if (enSeg && (!options.mcBudget || options.mcBudget.left > 0)) {
+    if (options.mcBudget) options.mcBudget.left -= 1;
+    mcScore = await fetchMetacriticScore(enSeg).catch(() => null);
+  }
+  if (mcScore != null) {
+    return { mcScore, mcName: enSeg, platformTag: plat.tag, appId: null, name: gameName };
+  }
+  return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
+}
+
+// Phase 2——appId 解析：目录索引 → 标题检索 → EN 段兜底 → 社区搜索 →
+// 详情页信号回捞 → 负缓存记录（含网络故障守卫，v14.6.2 A2 语义内聚于此）。
+/**
+ * @param {string} gameName
+ * @param {Object} options
+ * @param {{correctAppId: string, wrongAppId: string|null}|null} corr
+ * @param {string|number|null} usableAppId 已知 appId（缓存过期/Demo 重搜场景跳过搜索）
+ * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean}|null>}
+ *   null = 确认未找到（负缓存已按守卫语义处理）；englishName 在 usableAppId
+ *   直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）
+ */
+async function phaseSearch(gameName, options, corr, usableAppId) {
+  let foundAppId = usableAppId;
+  let foundName = gameName;
+  /** @type {import('../core/types.js').SteamSearchResult|null} */
+  let searchResult = null;
+  if (!foundAppId) {
+    // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中免网络。
+    const dirHit = await matchAppListExact(gameName, corr ? corr.wrongAppId : null);
+    if (dirHit) {
+      searchResult = { appId: dirHit.appId, name: dirHit.name, englishName: dirHit.name };
+    } else {
+      searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
+      // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
+      if (!searchResult && options.rawTitle) {
+        const enSeg = (options.rawTitle.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 ®™©:&.'\-]{5,}/) || [''])[0].trim();
+        if (enSeg) {
+          searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
+          // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）
+          if (!searchResult) {
+            searchResult = await searchCommunityApps(enSeg, options.rawTitle, corr ? corr.wrongAppId : null);
+          }
+        }
+      }
+    }
+    if (!searchResult && options.pageUrl) {
+      // v14.8.2（storesearch 新游戏盲区自愈）：站点详情页信号回捞（详见
+      // 上面各注释——预算/校验/黑名单语义不变）
+      /** @type {{appId: string, name: string, englishName: string}|null} */
+      let probe = null;
+      if (!options.probeBudget || options.probeBudget.left > 0) {
+        if (options.probeBudget) options.probeBudget.left -= 1;
+        probe = await probeDetailSignal(gameName, options.pageUrl, (corr && corr.wrongAppId) || null);
+      }
+      if (probe) {
+        Logger.info('Steam', `详情页信号回捞命中: "${gameName}" → ${probe.appId} (${probe.name})`);
+        searchResult = probe;
+      }
+    }
+    if (!searchResult) {
+      // 记录负缓存（v14.6.2 A2 网络故障守卫内聚）
+      const apiStatus = getSteamApiStatus();
+      if (apiStatus.failed === 0) {
+        await recordNameIndex(gameName, null);
+      } else {
+        Logger.warn(
+          'Steam',
+          `列表页搜索未命中且窗口内 ${apiStatus.failed} 次 API 失败（疑似网络问题），跳过负缓存: "${gameName}"`
+        );
+      }
+      return null;
+    }
+    foundAppId = searchResult.appId; // v14.13 B1：Phase2 摘取时补回（appId/name 赋值）
+    foundName = searchResult.name;
+  }
+  // searched=false = 已知 appId 路径（englishName 由调用方 5.5 步补齐）
+  return {
+    appId: foundAppId,
+    name: foundName,
+    englishName: searchResult ? searchResult.englishName || searchResult.name : null,
+    searched: !!searchResult
+  };
+}
+
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
@@ -125,23 +225,8 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   // 名片段），主机独占 Steam 无数据。模拟器 → 平台标签徽章（零网络）；主机 →
   // Metacritic 优先（标题 EN 段推导 slug，预算有界），无 EN/无分 → 平台标签。
   // 平台结果非 failed/非 miss——不进负缓存与重试语义（标签即终态）。
-  const plat = detectPlatform(gameName);
-  if (plat.kind !== 'pc') {
-    if (plat.kind === 'emulator') {
-      return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
-    }
-    const enSeg = (String(gameName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/) || [''])[0].trim();
-    /** @type {number|null} */
-    let mcScore = null;
-    if (enSeg && (!options.mcBudget || options.mcBudget.left > 0)) {
-      if (options.mcBudget) options.mcBudget.left -= 1;
-      mcScore = await fetchMetacriticScore(enSeg).catch(() => null);
-    }
-    if (mcScore != null) {
-      return { mcScore, mcName: enSeg, platformTag: plat.tag, appId: null, name: gameName };
-    }
-    return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
-  }
+  const platResult = await phasePlatform(gameName, options);
+  if (platResult) return platResult;
 
   // v14.6.2 修复（审查 A3）：人工纠正知识库提前——封面直取/缓存命中路径
   // 此前不校验 wrongAppId，用户报错纠正后列表页仍持续显示错徽章直至缓存
@@ -183,78 +268,19 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   }
 
   try {
-    // 4. 搜索 appId（若已有 appId 但缓存过期，跳过搜索直接获取评价；
-    //    v3.3.13：排除曾报错的错误 appid）
+    // 4. 搜索 appId（v14.13 B1：Phase 2 步函数——目录/检索/EN 兜底/回捞/
+    //    负缓存记录内聚；若已有 appId 但缓存过期，跳过搜索直接获取评价）
     /** @type {string|number|null} */
     let foundAppId = usableAppId;
     let foundName = gameName;
     /** @type {import('../core/types.js').SteamSearchResult|null} */
     let searchResult = null;
-    // corr 已在函数开头查询（v14.6.2 审查 A3：提前覆盖缓存命中路径）；
-    // 此处沿用其 wrongAppId 作为搜索黑名单（v3.3.13 语义不变）
     if (!foundAppId) {
-      // v14.6：全量目录离线索引（调研建议 1）——归一化精确命中免网络。
-      // 下架游戏 storesearch 搜不到（结构性盲区）；目录命中后评分走
-      // appreviews（不受商店在架状态影响），4.5/5.5 步 appdetails 仅在
-      // 0 评测/缺英文名时才触发 → 下架游戏可正常出徽章。
-      const dirHit = await matchAppListExact(gameName, corr ? corr.wrongAppId : null);
-      if (dirHit) {
-        searchResult = { appId: dirHit.appId, name: dirHit.name, englishName: dirHit.name };
-      } else {
-        searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
-        // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
-        if (!searchResult && options.rawTitle) {
-          const enSeg = (options.rawTitle.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 ®™©:&.'\-]{5,}/) || [''])[0].trim();
-          if (enSeg) {
-            searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
-            // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）——
-            // 英文 storesearch 未命中时的轻量补充，结果经同一相关性校验
-            if (!searchResult) {
-              searchResult = await searchCommunityApps(enSeg, options.rawTitle, corr ? corr.wrongAppId : null);
-            }
-          }
-        }
-      }
-      if (!searchResult && options.pageUrl) {
-        // v14.8.2（storesearch 新游戏盲区自愈，用户指定专项）：storesearch 对
-        // 新游戏结构性缺失（实测：泰坦之旅2/深海迷航2 全名与家族词检索均 0
-        // 结果/仅前作）→ **站点详情页信号回捞**：列表项详情页内嵌 steam CDN
-        // appid 信号（host 无关，三站 26 样本实证）→ 提取后经 appdetails
-        // 名称相关性校验（防站点胶囊图误标：潜行者2 3765020 实证信号错误），
-        // 通过则作为 searchResult 进入常规管线（DLC 解析/缓存/注册表全复用）。
-        // 有界：调用方按任务预算供给（probeBudget.left 仅实际探测扣减——命中
-        // 缓存的调用不占预算）；探测失败 = 维持 miss（负缓存语义不变）。残余
-        // 风险：站点信号错误且误标名无数字/无共同词时俗称序号例外可能放行——
-        // 由人工纠正知识库（wrongAppId 黑名单）兜底。
-        /** @type {{appId: string, name: string, englishName: string}|null} */
-        let probe = null;
-        if (!options.probeBudget || options.probeBudget.left > 0) {
-          if (options.probeBudget) options.probeBudget.left -= 1;
-          probe = await probeDetailSignal(gameName, options.pageUrl, corr ? corr.wrongAppId : null);
-        }
-        if (probe) {
-          Logger.info('Steam', `详情页信号回捞命中: "${gameName}" → ${probe.appId} (${probe.name})`);
-          searchResult = probe;
-        }
-      }
-      if (!searchResult) {
-        // 记录负缓存 / Record negative cache
-        // v14.6.2 修复（审查 A2）：补网络故障守卫（detail 管线 v9.7.0 已有、
-        // 列表侧漏）——store 熔断打开时 searchSteamAppId 短路返回 null，与
-        // "确认未找到"不可区分，固化后 2h 内恢复也不重查
-        const apiStatus = getSteamApiStatus();
-        if (apiStatus.failed === 0) {
-          await recordNameIndex(gameName, null);
-        } else {
-          Logger.warn(
-            'Steam',
-            `列表页搜索未命中且窗口内 ${apiStatus.failed} 次 API 失败（疑似网络问题），跳过负缓存: "${gameName}"`
-          );
-        }
-        return null;
-      }
-      foundAppId = searchResult.appId;
-      foundName = searchResult.name;
+      const hit = await phaseSearch(gameName, options, corr, usableAppId);
+      if (!hit) return null;
+      foundAppId = hit.appId;
+      foundName = hit.name;
+      searchResult = hit.searched ? { appId: hit.appId, name: hit.name, englishName: hit.englishName } : null;
     }
 
     // 4.5 appId 校验（v3.2.6，v3.3.2 按需化）：DLC 等非游戏本体 → 自动解析为
