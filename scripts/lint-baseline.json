@@ -39,5 +39,10 @@
     "  并由 scripts/lint-ratchet.mjs 程序化消费（gate 步骤，超基线即失败）",
     "2026-10-31 下调 ui 251→248：第九/十轮新增回调参数 8 处补类型（937aa4b/2b9d9da），实测 248 与基线提交 b7daa6f 的 worktree tsc 逐文件对比持平（此前 251 为记录期漂移）。",
     "2026-11-03 下调 main 510→495（v14.13 B8：message-contract 校验助手五函数补类型；剩余债集中于规则表 (m)=> 形态，后续表驱动重构时清偿）"
-  ]
+  ],
+  "tsImplicitAnyFamily": {
+    "main": 675,
+    "ui": 347,
+    "content": 356
+  }
 }

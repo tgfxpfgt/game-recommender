@@ -69,6 +69,7 @@ function idRule(label) {
   return (m) =>
     isNonEmpty(m && m.backupId, 100) ? { ok: true, error: '' } : { ok: false, error: `${label} 必填且不超过 100 字符` };
 }
+/** @param {string} label @param {number} min @param {number} max @returns {(m: any) => {ok: boolean, error?: string}} */
 function limitRule(label, min, max) {
   return (m) => {
     const v = m && m.limit;
@@ -87,7 +88,10 @@ function moduleKeysRule(label) {
 }
 // 必填字符串数组（允许空）/ required string array (empty allowed)
 function namesRule(label) {
-  return (m) => (isStrArray(m && m.names, 200) ? { ok: true } : { error: `${label}.names 必须是字符串数组（可空）` });
+  return (m) =>
+    isStrArray(m && m.names, 200)
+      ? { ok: true, error: '' }
+      : { ok: false, error: `${label}.names 必须是字符串数组（可空）` };
 }
 
 // TRACK_EVENT 单条校验（单发与批量共用）/ one-event validator (shared)
@@ -105,6 +109,10 @@ const trackEventRule = (m) => {
 };
 
 // action → 校验规则（返回 {ok:true} 或 {error}）/ rule table
+// v14.14（重构研究报告 §3.1 序 4）：表级类型——(m) 参数经上下文获得 any，
+// 48 处表内箭头函数 TS7006 一次清零；返回值消费方（handlers）自行判
+// .ok/.error，表体无需逐键 JSDoc
+/** @type {Record<string, (m: any) => {ok: boolean, error?: string}>} */
 const RULES = {
   // 最高频：内容脚本每页加载即发，此前零校验直接入库
   TRACK_EVENT: trackEventRule,
@@ -155,7 +163,9 @@ const RULES = {
   GET_FREEGAME_MISS_STATS: (m) => ({ ok: true }), // v14.8 批次 7：限免错过统计（dashboard 扩展页专用）
   CLEAR_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
   CLAIM_FREE_GAME: (m) =>
-    isNonEmpty(m && m.gameId, 100) ? { ok: true } : { error: 'CLAIM_FREE_GAME.gameId 必填且不超过 100 字符' },
+    isNonEmpty(m && m.gameId, 100)
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'CLAIM_FREE_GAME.gameId 必填且不超过 100 字符' },
   // 数据破坏性操作：backupId 必填（v4.1.0：moduleKeys 可选校验并入）
   RESTORE_BACKUP: (m) => {
     const id = idRule('RESTORE_BACKUP.backupId')(m); // 注意：idRule 返回规则函数，需立即调用
@@ -193,16 +203,17 @@ const RULES = {
   PREFETCH_STEAM_RATINGS: namesRule('PREFETCH_STEAM_RATINGS'),
   CLEAR_CACHE_FOR_PAGE: (m) =>
     Array.isArray(m && m.names) && Array.isArray(m && m.appIds)
-      ? { ok: true }
-      : { error: 'CLEAR_CACHE_FOR_PAGE.names/appIds 必须是数组（可空）' },
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'CLEAR_CACHE_FOR_PAGE.names/appIds 必须是数组（可空）' },
   GET_GAME_CACHE_LIST: (m) =>
     optStr(m && m.keyword, 100) &&
     optStr(m && m.tag, 100) &&
     optStr(m && m.siteKey, 100) &&
     optStr(m && m.typeFilter, 100) &&
     optNumRange(m && m.minRating, 0, 100)
-      ? { ok: true }
+      ? { ok: true, error: '' }
       : {
+          ok: false,
           error:
             'GET_GAME_CACHE_LIST 过滤字段类型不合法（keyword/tag/siteKey/typeFilter ≤100 字符串，minRating 0-100 数字）'
         },
@@ -223,20 +234,24 @@ const RULES = {
     return { ok: true, error: '' };
   },
   GET_DOWNLOAD_HISTORY: (m) =>
-    optStr(m && m.gameName, 200) ? { ok: true } : { error: 'GET_DOWNLOAD_HISTORY.gameName 可选字符串（≤200）' },
+    optStr(m && m.gameName, 200)
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'GET_DOWNLOAD_HISTORY.gameName 可选字符串（≤200）' },
   GET_RUNTIME_LOGS: limitRule('GET_RUNTIME_LOGS.limit', 1, 500),
   GET_OUTBOUND_AUDIT: limitRule('GET_OUTBOUND_AUDIT.limit', 1, 500),
   HEAL_REGISTRY_NAMES: limitRule('HEAL_REGISTRY_NAMES.limit', 1, 50),
   GET_FREE_GAMES: (m) => {
     const f = m && m.force;
-    return f === undefined || typeof f === 'boolean' ? { ok: true } : { error: 'GET_FREE_GAMES.force 可选布尔' };
+    return f === undefined || typeof f === 'boolean'
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'GET_FREE_GAMES.force 可选布尔' };
   },
   EXPORT_DATA: moduleKeysRule('EXPORT_DATA'),
   IMPORT_DATA: (m) => {
     // v10.9.1：补 data 对象校验（此前大载荷 fail-open——handler 虽兜底，契约应前置）
     const base = moduleKeysRule('IMPORT_DATA')(m);
     if (!base.ok) return base;
-    return m && isPlainObject(m.data) ? { ok: true } : { error: 'IMPORT_DATA.data 必须是对象' };
+    return m && isPlainObject(m.data) ? { ok: true, error: '' } : { ok: false, error: 'IMPORT_DATA.data 必须是对象' };
   },
   CREATE_BACKUP: moduleKeysRule('CREATE_BACKUP'),
   // ---- v6.2.0 第三批：写/破坏性 action 全量入参校验 ----
@@ -251,7 +266,8 @@ const RULES = {
   // v10.0.0：健康读类（无参）
   GET_SITE_HEALTH: () => ({ ok: true }),
   // v10.4.4：二维码跨域取图（url 必须为 https 图片地址——后台另有 SSRF/大小/类型三重校验）
-  GET_STEAM250_RANK: (m) => (m && m.appId ? { ok: true } : { error: 'GET_STEAM250_RANK.appId 必填' }),
+  GET_STEAM250_RANK: (m) =>
+    m && m.appId ? { ok: true, error: '' } : { ok: false, error: 'GET_STEAM250_RANK.appId 必填' },
   TOGGLE_FAVORITE: (m) => {
     if (!m || !m.appId) return { ok: false, error: 'TOGGLE_FAVORITE.appId 必填' };
     if (typeof m.appId !== 'string' || !/^\d{2,10}$/.test(m.appId))
@@ -266,13 +282,15 @@ const RULES = {
   // v14.2.0：ITAD Key 连通性测试（key 必填 ≤200 字符）
   TEST_ITAD_KEY: (m) =>
     m && typeof m.key === 'string' && m.key.length > 0 && m.key.length <= 200
-      ? { ok: true }
-      : { error: 'TEST_ITAD_KEY.key 必填（≤200 字符）' },
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'TEST_ITAD_KEY.key 必填（≤200 字符）' },
   // v14.1.0：设置页"每项恢复默认"微按钮的默认值快照（只取值不落盘）
   GET_DEFAULT_SETTINGS: () => ({ ok: true }),
   // v14.1.0：SidePanel 当前页游戏联动（tabId 语义 = chrome.tabs.id 非负整数）
   GET_TAB_GAME: (m) =>
-    m && Number.isInteger(m.tabId) && m.tabId >= 0 ? { ok: true } : { error: 'GET_TAB_GAME.tabId 必填（非负整数）' },
+    m && Number.isInteger(m.tabId) && m.tabId >= 0
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'GET_TAB_GAME.tabId 必填（非负整数）' },
   // v10.9：xdgrid 过滤滑块窄化持久化（内容侧只发这两个键，替代被 sender 门
   // 拒绝的全量 SAVE_SETTINGS——特权写不对 web 源开放）
   SAVE_RATING_FILTER_CFG: (m) =>
@@ -282,13 +300,13 @@ const RULES = {
     Number.isFinite(m.minRating) &&
     m.minRating >= 0 &&
     m.minRating <= 100
-      ? { ok: true }
-      : { error: 'SAVE_RATING_FILTER_CFG 需 {enabled:boolean, minRating:0-100}' },
-  GET_ITAD_LOWEST: (m) => (m && m.appId ? { ok: true } : { error: 'GET_ITAD_LOWEST.appId 必填' }),
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'SAVE_RATING_FILTER_CFG 需 {enabled:boolean, minRating:0-100}' },
+  GET_ITAD_LOWEST: (m) => (m && m.appId ? { ok: true, error: '' } : { ok: false, error: 'GET_ITAD_LOWEST.appId 必填' }),
   SEARCH_CACHED_GAMES: (m) =>
     m && typeof m.query === 'string' && m.query.trim().length >= 2 && m.query.length <= 100
-      ? { ok: true }
-      : { error: 'SEARCH_CACHED_GAMES.query 必填（2-100 字符）' },
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'SEARCH_CACHED_GAMES.query 必填（2-100 字符）' },
   // v10.7.1 P1 修复：原正则字符类排除 '/'，一切带路径的图片 URL（即全部真实
   // 二维码图）被契约层拒绝——跨域解码自 v10.5.4 起实际失效。放宽为"排除空白/
   // 引号/尖括号"（路径允许型），与 handler 的 https 前缀校验对齐。maxKb 为
@@ -298,8 +316,8 @@ const RULES = {
     typeof m.url === 'string' &&
     /^https:\/\/[^\s"'<>]+$/.test(m.url) &&
     (m.maxKb === undefined || (typeof m.maxKb === 'number' && m.maxKb > 0 && m.maxKb <= 30720))
-      ? { ok: true }
-      : { error: 'FETCH_IMAGE_DATA_URL.url 必须为 https 源（maxKb 可选 1-30720）' },
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'FETCH_IMAGE_DATA_URL.url 必须为 https 源（maxKb 可选 1-30720）' },
   GET_STORAGE_HEALTH: () => ({ ok: true }),
   GET_RUNTIME_METRICS: () => ({ ok: true }), // v10.7.0：运行指标快照
   // 缓存条目级操作：appId 必填
@@ -323,11 +341,11 @@ const RULES = {
       return { ok: false, error: 'TRACK_DOWNLOAD_SITE_VISIT.data.appId 数字且 url 必填' };
     }
     return optStr(data.domain, 100)
-      ? { ok: true }
-      : { error: 'TRACK_DOWNLOAD_SITE_VISIT.data.domain 可选字符串（≤100）' };
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'TRACK_DOWNLOAD_SITE_VISIT.data.domain 可选字符串（≤100）' };
   },
   SAVE_ADAPTER_RULES: (m) =>
-    isPlainObject(m && m.rules) ? { ok: true } : { error: 'SAVE_ADAPTER_RULES.rules 必须是对象' },
+    isPlainObject(m && m.rules) ? { ok: true, error: '' } : { ok: false, error: 'SAVE_ADAPTER_RULES.rules 必须是对象' },
   REPORT_WRONG_APPID: (m) => {
     // v10.9：'' 视同缺省（detail-page 无 appId 场景发空串而非省略字段）
     const appIdOk = m.appId === undefined || m.appId === null || m.appId === '' || APP_ID_RE.test(String(m.appId));
@@ -350,8 +368,8 @@ const RULES = {
   // 趋势聚合：granularity 可选 day|week
   GET_TRENDS: (m) =>
     m.granularity === undefined || m.granularity === 'day' || m.granularity === 'week'
-      ? { ok: true }
-      : { error: 'GET_TRENDS.granularity 可选 day|week' },
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'GET_TRENDS.granularity 可选 day|week' },
   // v9.3.0：站点规则失效告警（限频在 handler 侧）
   SITE_ADAPTER_ALERT: (m) => {
     if (typeof m.siteKey !== 'string' || m.siteKey.length > 64)
@@ -379,7 +397,7 @@ export function validateMessage(action, msg) {
   const rule = RULES[action];
   if (!rule) return { ok: false, error: `未契约化的 action（需在 message-contract.js RULES 登记）: ${action}` };
   const r = rule(msg);
-  return r.ok ? { ok: true } : { ok: false, error: r.error };
+  return r.ok ? { ok: true, error: '' } : { ok: false, error: r.error };
 }
 
 /**

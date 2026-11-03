@@ -47,12 +47,17 @@ class DataStore {
     this.dir = /** @type {FileSystemDirectoryHandle} */ (/** @type {unknown} */ (null));
     this._initPromise = null;
     // v3.4.1：模块级写串行队列（并发追加/写入同一文件时不互相覆盖）
+    /** @type {{[k: string]: Promise<void>}} */
     this._writeQueues = {};
   }
 
   // v3.4.1：按模块串行化写入任务（后一个等待前一个完成，防 read-size+write 竞态）
   // Serialize writes per module (later tasks wait for earlier ones; kills the
   // read-size-then-write race between concurrent appends)
+  /**
+   * @param {string} moduleKey
+   * @param {() => Promise<void>} task
+   */
   _serialize(moduleKey, task) {
     const prev = this._writeQueues[moduleKey] || Promise.resolve();
     const run = prev.then(() => task());
@@ -126,6 +131,11 @@ class DataStore {
   // Direct truncating write: move()-based atomic replace turned out to be a
   // silent no-op on existing targets in Chromium; corruption is handled by the
   // read-side backup-and-reset recovery.
+  /**
+   * @param {FileSystemFileHandle} fileHandle
+   * @param {Object|Array<any>} value
+   * @param {string} format
+   */
   async _writeHandle(fileHandle, value, format) {
     let text;
     if (format === 'ndjson') text = NDJSON.encode(value);
@@ -150,6 +160,10 @@ class DataStore {
   //（防止每次读取都崩溃/静默丢数据；备份供人工/工具恢复）
   // Corrupt file recovery: back the raw bytes up as <name>.corrupt-<ts>, reset
   // the module to its empty default (avoids crash-looping on every read)
+  /**
+   * @param {FileSystemFileHandle} fileHandle
+   * @param {File} file
+   */
   async _backupCorruptFile(fileHandle, file) {
     if (!this.dir) return;
     try {
@@ -163,12 +177,20 @@ class DataStore {
     }
   }
 
+  /**
+   * @param {FileSystemFileHandle} fileHandle
+   */
   async _resetFile(fileHandle) {
     const writable = await fileHandle.createWritable();
     await writable.write('');
     await writable.close();
   }
 
+  /**
+   * @param {FileSystemFileHandle} fileHandle
+   * @param {string} format
+   * @param {string} moduleKey
+   */
   async _readHandle(fileHandle, format, moduleKey) {
     const file = await fileHandle.getFile();
     if (file.size === 0) return format === 'ndjson' ? [] : format === 'ndjson-map' ? {} : null;
@@ -207,6 +229,9 @@ class DataStore {
   // v14 B7：ndjson-map 文本解析（旧 JSON 全量对象与行格式自适应）
   // 单行 JSON：旧行为 JSON.stringify 无尾换行——无 {key,value} 包装 = 旧全量对象
   // 多行：ndjson 行格式（逐行 {key, value}，损坏行跳过，后行覆盖先行 = 最新胜出）
+  /**
+   * @param {string} text
+   */
   _parseMapText(text) {
     const t = String(text || '').trim();
     if (t.startsWith('{')) {
@@ -224,6 +249,7 @@ class DataStore {
         /* 多行 ndjson 或坏行 → 走行解码 */
       }
     }
+    /** @type {Record<string, any>} */
     const map = {};
     for (const line of NDJSON.decode(text)) {
       const entry = /** @type {{key?: string, value?: Object}} */ (line);
@@ -234,6 +260,7 @@ class DataStore {
 
   // 读取模块：OPFS 优先，文件不存在时回退 storage.local（旧数据）
   // Read a module: OPFS first; falls back to storage.local when the file is absent
+  /** @param {any} moduleKey */
   async readModule(moduleKey) {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
@@ -262,6 +289,7 @@ class DataStore {
 
   // 救援：目标文件缺失时尝试 <name>.tmp 中的有效数据（v6.4.14）
   // Rescue: when the target file is missing, try valid data in <name>.tmp
+  /** @param {any} cfg */
   async _readTmpRescue(cfg) {
     if (!this.opfsAvailable) return undefined;
     try {
@@ -290,6 +318,7 @@ class DataStore {
 
   // 写入模块：OPFS 优先，失败降级 storage.local
   // Write a module: OPFS first, falls back to storage.local on failure
+  /** @param {any} moduleKey @param {any} value */
   async writeModule(moduleKey, value) {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
@@ -319,6 +348,7 @@ class DataStore {
 
   // 追加单条（仅 ND-JSON 模块）：文件尾部追加一行，无需重写整个文件
   // Append one entry (ND-JSON modules only): appends a line without rewriting
+  /** @param {any} moduleKey @param {any} entry */
   async appendModule(moduleKey, entry) {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
@@ -357,11 +387,14 @@ class DataStore {
   // 读端逐行合并（后行覆盖先行 = 最新胜出）；降级路径读-改-写同语义
   // Append {key, value} lines (ndjson-map modules only): appends only dirty
   // keys; fallback does a read-modify-write with identical merge semantics.
+  /** @param {string} moduleKey @param {Array<{key: string, value: any}>} entries */
   async appendModuleEntries(moduleKey, entries) {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
     if (!cfg || cfg.format !== 'ndjson-map' || !entries || entries.length === 0) return;
-    const text = entries.map((e) => JSON.stringify({ key: e.key, value: e.value })).join('\n');
+    const text = entries
+      .map((/** @type {{key: string, value: any}} */ e) => JSON.stringify({ key: e.key, value: e.value }))
+      .join('\n');
     return this._serialize(moduleKey, async () => {
       if (this.opfsAvailable) {
         try {
@@ -398,6 +431,7 @@ class DataStore {
 
   // 删除模块（OPFS 文件 + storage.local 键）
   // Remove a module (OPFS file + storage.local key)
+  /** @param {any} moduleKey */
   async removeModule(moduleKey) {
     // v9.7.0：补 await init()——此前 init 前调用时 opfsAvailable 仍是构造器
     // 默认 false，OPFS 文件不会被删除

@@ -30,6 +30,10 @@ jobs:
         run: npm run lint
       - name: 运行类型检查 / Run TypeScript check
         run: npm run typecheck
+      # v14.14（报告 D P0-2）：类型债棘轮入 CI——本地 gate 的 --no-verify 绕过
+      # 不再放行隐式 any 上调（D 报告时点棘轮只存在于本地 gate）
+      - name: 类型债棘轮 / Type-debt ratchet
+        run: node scripts/lint-ratchet.mjs
       # v7.3.0：vitest 分片并行（test/test-2 各跑一半套件，CI 墙钟减半）
       - name: 运行测试套件 1/2 / Run test shard 1/2
         run: npx vitest run --shard=1/2

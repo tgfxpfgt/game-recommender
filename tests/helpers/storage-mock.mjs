@@ -15,10 +15,14 @@ export function createStorageMock(initial = {}) {
   const writes = []; // 写入追踪（测试断言用）/ write trace
   const api = {
     get: async (keys) => {
-      if (keys === null || keys === undefined) return Object.fromEntries(data);
+      // v14.14（报告 D P1-10）：返回结构化克隆——真实 chrome.storage 与
+      // 调用方不共享引用；此前返回内部引用使测试可就地改值而不 set 便
+      // "通过"，掩盖"忘记持久化"类缺陷
+      const clone = (v) => (v === undefined ? v : JSON.parse(JSON.stringify(v)));
+      if (keys === null || keys === undefined) return clone(Object.fromEntries(data));
       const keyList = Array.isArray(keys) ? keys : [keys];
       const out = {};
-      for (const k of keyList) if (data.has(k)) out[k] = data.get(k);
+      for (const k of keyList) if (data.has(k)) out[k] = clone(data.get(k));
       return out;
     },
     set: async (items) => {
