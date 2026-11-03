@@ -116,11 +116,23 @@ function renderDownloadSitePanel(panel, sites, gameName) {
     const name = esc(siteNames[site.key] || site.key);
     const siteKeyAttr = common.escapeAttr(site.key);
     if (site.found && site.detailUrl) {
+      // v14.13.1：detailUrl 与 searchUrl 同风险（规则包数据渲染进 href）——
+      // protocol 复核兜底，非法降级为无链接
+      let detailHref = '';
+      try {
+        const du = new URL(site.detailUrl, location.href);
+        if (du.protocol === 'http:' || du.protocol === 'https:') detailHref = common.escapeAttr(du.href);
+      } catch {
+        /* 非法 URL → 无链接 */
+      }
+      const detailLinkHtml = detailHref
+        ? `<a href="${detailHref}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>`
+        : `<span style="font-size:11px;color:#666;">（链接不可用）</span>`;
       html += `
           <div data-site-key="${siteKeyAttr}" style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
               <span style="font-size:12px;font-weight:bold;color:#67c1f5;">${name}</span>
-              <a href="${common.escapeAttr(site.detailUrl)}" target="_blank" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>
+              ${detailLinkHtml}
             </div>
             <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#acb2b8;">
               ${site.updateDate ? `<div>📅 更新: ${esc(site.updateDate)}</div>` : ''}
