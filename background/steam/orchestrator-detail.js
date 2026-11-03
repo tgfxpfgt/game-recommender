@@ -95,7 +95,7 @@ export async function searchSteamGame(gameName, options = {}) {
   if (appId) {
     // v14.14.0（重构序 6b）：命中判定/Demo 自愈/注册表补写提取为 tryCacheServed
     const hit = await tryCacheServed(gameName, appId);
-    if (hit.served) return hit.merged;
+    if (hit.served && hit.merged) return hit.merged;
     appId = hit.appId ?? null;
   } else if (!options.ignoreNegativeCache && (await isRecentlySearchedNotFound(gameName))) {
     // 3. 无 appId 时，检查负缓存（v10.9.2：ignoreNegativeCache 可穿透——详情页
@@ -274,7 +274,7 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
 // 数据归属 DLC 而非本体，需替换后重取本体详情。
 /**
  * @param {string|number} id
- * @returns {Promise<{appId: string|number, detail: Record<string, any>}|null>}
+ * @returns {Promise<{appId: string|number, detail: Object}|null>}
  */
 async function fetchDetailsResolveDlc(id) {
   let r = await fetchSteamFullDetailsByAppId(id);
@@ -306,7 +306,7 @@ async function fetchDetailsResolveDlc(id) {
  * 为 Demo → 返回 served:false + appId:null 触发重搜完整版。
  * @param {string} gameName
  * @param {string|number} appId
- * @returns {Promise<{served: boolean, merged?: Record<string, any>, appId?: string|number|null}>}
+ * @returns {Promise<{served: boolean, merged?: Object, appId?: string|number|null}>}
  */
 async function tryCacheServed(gameName, appId) {
   const cached = await getSteamCacheEntry(appId, 'detail');

@@ -303,6 +303,21 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.14.0（重构执行序：类型债棘轮全家族 + 三处长函数拆分）
+
+**类型债与测试保真（研究报告 §3.1/§3.3）**
+
+- **类型债棘轮全家族化**：计数从单码 TS7006 扩为隐式 any 全家族 12 码（TS7005/7006/7011/7015/7017/7018/7019/7022/7023/7031/7034/7053）——堵"写 `x: any` 让计数下降而债务未还"的形态绕过；基线 main 675/ui 347/content 356 只降不升，CI 接入棘轮 job
+- **storage mock 结构化克隆**：get 返回深克隆对齐真实 chrome.storage 语义（防"就地改值未 set"假绿）；typescript ^7.0.2 → 7.0.2 精确锁版（caret 漂移致基线浮动 ±3）
+- **message-contract 表级 @type + 返回形状统一**：61 处规则返回统一 {ok, error} 双键（TS 字面量窄化收口）；data-store.js 全量补 JSDoc（22 处隐式 any 清零）
+
+**长函数拆分（行为不变，锚点全绿）**
+
+- **xdgrid-panel buildUI ~390 行** → createFab/createPanel/buildLayoutTab/buildFilterTab/bindTabsAndFab/bindLayoutReset 六段装配
+- **searchSteamGame ~272 行** → tryCacheServed（缓存命中判定+Demo 自愈）/ searchAppIdFlow（目录→三阶段匹配→Bing/LLM 兜底→负缓存）/ fetchDetailsResolveDlc / writeSearchCaches 四模块函数——orchestrator 锚点 13/13 + 匹配管线四门 88/88 全绿
+- **createSteamFloat ~263 行** → createFloatShell/createAutoRetry/handleLookupMiss 三工厂提取——sim 全家 20/20 全绿
+- 类型债基线下调：main 675→610 / content 356→348（零新增隐式 any）
+
 ### v14.13.0（第十三轮：结构优化 + 债清减——三轮收官）
 
 **结构优化（报告 A W1/W2 + B P3）**
