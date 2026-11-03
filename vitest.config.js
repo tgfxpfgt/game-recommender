@@ -79,6 +79,7 @@ export default defineConfig({
       'tests/unit/test-content-messages.mjs',
       'tests/unit/test-app-list-index.mjs',
       'tests/unit/test-mismatch-samples.mjs',
+      'tests/unit/test-userscript-pure.mjs',
       'tests/unit/test-retrieval-vocab.mjs',
       'tests/unit/test-early-router.mjs',
       'tests/unit/test-retrieval-override.mjs',

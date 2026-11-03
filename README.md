@@ -111,6 +111,27 @@
 | `alarms`     | 定时刷新限免游戏与自动备份                                          |
 | `<all_urls>` | 内容脚本注入与跨域请求（下载站/Steam/限免 API/用户自定义 LLM 端点） |
 
+### 油猴脚本版（userscript/game-radar.user.js）
+
+不装扩展时的轻量形态——扩展核心功能移植为单文件 Tampermonkey 脚本（v14.14.0 口径）：
+
+1. 浏览器安装 [Tampermonkey](https://www.tampermonkey.net/)
+2. Tampermonkey 面板 → 添加新脚本 → 粘贴 `userscript/game-radar.user.js` 全文 → 保存
+   （或拖入安装；脚本头部 `@match` 限定 XDGame / 咸鱼单机 / Gamer520 新旧域名，其他站零注入）
+
+**包含**：列表页好评率徽章（总体 + 近 30 天 + 红标题阈值 + 等待队列显示 + 未找到点击重查）、
+低/零评测 `#AppID·新游/未发售/无评测/评测少` 可见提示、详情页 Steam 信息浮窗（无评价原因行 +
+发售日期 + 手动选择候选键盘导航 + 网络故障 30s 自动重查）、智能匹配管线（storesearch 全词扫描
+
+- 跨词共识 + 社区英文兜底 + 英文段重搜 + DLC→本体解析 + 封面 appId 直取）、负缓存分级退避
+  （15min→1h→2h）、分域熔断 + 150ms 限速、好评率过滤与红标题阈值（油猴菜单可调）、人工纠正
+  映射（候选选择即记忆，优先于一切索引）。
+
+**与扩展的差异**：无扩展页（弹窗/设置页/仪表盘/限免监控/SidePanel）、无推荐值/行为统计/二维码/
+限免/Steam250/ITAD 行、目录离线索引与 Bing/LLM 兜底与 Metacritic 平台徽章未移植、缓存存于
+Tampermonkey 存储（有界 800 条评分）。数据端点与解析语义（含商店页回退三形态、404=空结果）
+与扩展 v14.14.0 一致；评分缓存不共享（扩展 chrome.storage 与油猴 GM 存储相互独立）。
+
 ## 项目结构
 
 ```
@@ -302,6 +323,13 @@ node --check options/options.js
 Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
+
+### v14.14.1（油猴脚本版重制——扩展核心功能移植为单文件 userscript）
+
+- **userscript/game-radar.user.js（~1880 行）**：根据扩展现状重制油猴脚本——列表好评率徽章（总体/近30天/红标题/等待队列/未找到点击重查）、低评测 `#AppID·新游/未发售` 提示、详情 Steam 浮窗（无评价原因行/手动选择键盘导航/30s 自动重查）、匹配管线（storesearch 全词扫描+跨词共识+社区英文兜底+EN 段重搜+DLC 解析）、负缓存分级退避/分域熔断/限速——词表与纯函数自 retrieval-vocab/api-search 逐字移植（错题库锚点测试 14 例沙箱装载全绿）
+- **GM 适配层**：chrome.storage→GM_*（TTL 信封+有界压缩）、SW fetch→GM_xmlhttpRequest（跨域直连+限速槽+分域熔断）；商店页三形态评分回退解析直连（appreviews 302 死亡语义对齐）
+- 差异记录：扩展页/推荐值/行为统计/二维码/限免/Steam250/ITAD/目录离线索引/Bing·LLM 兜底/Metacritic 未移植（README「与扩展的差异」全列）
+- eslint baseGlobals 增补 GM_* 全局；vitest include 注册 test-userscript-pure
 
 ### v14.14.0（重构执行序：类型债棘轮全家族 + 三处长函数拆分）
 

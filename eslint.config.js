@@ -74,6 +74,13 @@ const baseGlobals = {
   atob: 'readonly', // v10.6.0：crypto-utils 信封 base64 解码
   Image: 'readonly', // v10.4.4：内容脚本构造图片对象（跨域二维码 dataURL 解码）
   prompt: 'readonly', // v10.6.0 F5：加密备份导入口令输入（options 页）
+  // 油猴脚本 GM API（v14.14.1：userscript/game-radar.user.js）
+  GM_getValue: 'readonly',
+  GM_setValue: 'readonly',
+  GM_deleteValue: 'readonly',
+  GM_listValues: 'readonly',
+  GM_registerMenuCommand: 'readonly',
+  GM_xmlhttpRequest: 'readonly',
   TextDecoder: 'readonly' // v10.6.0：crypto-utils 明文解码
 };
 
