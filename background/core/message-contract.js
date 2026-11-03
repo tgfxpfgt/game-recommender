@@ -30,30 +30,38 @@ const NAME_REQUIRED_TYPES = new Set([
   'dislike_game'
 ]);
 
+/** @param {any} v @returns {boolean} */
 function isName(v) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= 200;
 }
+/** @param {any} v @param {number} [max=100] @returns {boolean} */
 function isNonEmpty(v, max = 100) {
   return typeof v === 'string' && v.trim().length > 0 && v.length <= max;
 }
 // 字符串数组（可空；元素 ≤maxLen）/ string array (may be empty; items ≤maxLen)
+/** @param {any} v @param {number} [maxLen=200] @returns {boolean} */
 function isStrArray(v, maxLen = 200) {
   return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.length <= maxLen);
 }
 // 可选字符串（undefined/null 放行）/ optional string (undefined/null pass)
+/** @param {any} v @param {number} [maxLen] @returns {boolean} */
 function optStr(v, maxLen) {
   return v === undefined || v === null || (typeof v === 'string' && v.length <= maxLen);
 }
 // 可选数字区间 / optional number in [min, max]
+/** @param {any} v @param {number} min @param {number} max @returns {boolean} */
 function optNumRange(v, min, max) {
   return v === undefined || v === null || (typeof v === 'number' && v >= min && v <= max);
 }
+/** @param {any} v @param {string} label @returns {{ok: boolean}|{error: string}} */
 function appIdRule(v, label) {
   return APP_ID_RE.test(String(v == null ? '' : v)) ? { ok: true } : { error: `${label} 必须是 1-10 位数字` };
 }
+/** @param {string} label @returns {(m: any) => {ok: boolean}|{error: string}} */
 function nameRule(label) {
   return (m) => (isName(m && m.gameName) ? { ok: true } : { error: `${label} 必填且不超过 200 字符` });
 }
+/** @param {string} label @returns {(m: any) => {ok: boolean}|{error: string}} */
 function idRule(label) {
   return (m) => (isNonEmpty(m && m.backupId, 100) ? { ok: true } : { error: `${label} 必填且不超过 100 字符` });
 }

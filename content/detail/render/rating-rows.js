@@ -81,9 +81,11 @@ export function renderRatingRows(data, spy) {
     );
   }
   if (data.recentPositiveRate !== null && data.recentPositiveRate !== undefined) {
+    // v14.13 B10（报告 C P3-07 口径文档化）：30 天率基于最新 100 条评测自算
+    //（appreviews filter=recent），热门游戏与官方 30 天聚合略有偏差
     html += row(
       '🕒 最近 30 天',
-      data.recentPositiveRate + '% 好评',
+      data.recentPositiveRate + '% 好评（近 100 条评测口径）',
       data.recentPositiveRate,
       data.recentTotalReviews || 0,
       colorOf(data.recentPositiveRate)
