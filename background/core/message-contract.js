@@ -44,8 +44,8 @@ function isStrArray(v, maxLen = 200) {
   return Array.isArray(v) && v.every((x) => typeof x === 'string' && x.length <= maxLen);
 }
 // 可选字符串（undefined/null 放行）/ optional string (undefined/null pass)
-/** @param {any} v @param {number} [maxLen] @returns {boolean} */
-function optStr(v, maxLen) {
+/** @param {any} v @param {number} [maxLen=100] @returns {boolean} */
+function optStr(v, maxLen = 100) {
   return v === undefined || v === null || (typeof v === 'string' && v.length <= maxLen);
 }
 // 可选数字区间 / optional number in [min, max]
@@ -57,11 +57,11 @@ function optNumRange(v, min, max) {
 function appIdRule(v, label) {
   return APP_ID_RE.test(String(v == null ? '' : v)) ? { ok: true } : { error: `${label} 必须是 1-10 位数字` };
 }
-/** @param {string} label @returns {(m: any) => {ok: boolean}|{error: string}} */
+/** @param {string} label @returns {(m: any) => {ok: boolean, error?: string}} */
 function nameRule(label) {
   return (m) => (isName(m && m.gameName) ? { ok: true } : { error: `${label} 必填且不超过 200 字符` });
 }
-/** @param {string} label @returns {(m: any) => {ok: boolean}|{error: string}} */
+/** @param {string} label @returns {(m: any) => {ok: boolean, error?: string}} */
 function idRule(label) {
   return (m) => (isNonEmpty(m && m.backupId, 100) ? { ok: true } : { error: `${label} 必填且不超过 100 字符` });
 }
