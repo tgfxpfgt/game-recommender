@@ -303,6 +303,20 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.13.0（第十三轮：结构优化 + 债清减——三轮收官）
+
+**结构优化（报告 A W1/W2 + B P3）**
+
+- **getSteamPositiveRate 四阶段拆分**：平台预检（phasePlatform）与 appId 解析（phaseSearch：目录/检索/EN 兜底/信号回捞/负缓存记录内聚）独立步函数，对外签名不变——硬验收 = 错题库全套锚点绿（294/294）
+- **分层预热协调器 warmup-coordinator**：热/温层 15+7 预热目标单源数组，SW 顶层 import 34→22，后续新增温层模块只改一处；siteAlert 载入下沉 session-persist（消除 background 底层反向 import handlers）
+- **交互修复**：候选面板键盘监听累积（每次搜索累积一个全局 keydown 致 ↑/↓ 跳变）——上一任监听器直摘；**过滤恢复修复**：isConnected 判定统一（被过滤项移除祖先容器后 parentNode 误判，调低阈值不再"不重挂"）
+
+**债清减与文档**
+
+- 类型债下调：main 510→495（message-contract 校验助手八函数补类型 + 返回形状统一 {ok, error} 双键）
+- 多域名规则往返测试（报告 D"多域名丢失"论断复核：数据层不变，证伪）
+- retryThrottle 有界化（cap 500）；浮窗 30 天行标注"近 100 条评测口径"；CONTRIBUTING 补视觉基线维护条目
+
 ### v14.12.0（第十二轮：单源纪律加固 + 护栏真实化）
 
 **单源收编（报告 B P2 系列）**
