@@ -7,6 +7,8 @@
  * DEFAULTS 经导入消费），装配壳在 xdgrid.js。
  * The floating gear + two-tab panel (layout/filter): DOM construction and
  * bindings only; the layout engine lives in xdgrid-layout.js.
+ * v14.14.0（重构序 6a）：buildUI 拆五段（createFab/createPanel/buildLayoutTab/
+ * buildFilterTab/bindTabsAndFab/bindLayoutReset）；buildUI 只做装配，行为不变。
  */
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';
@@ -14,17 +16,18 @@ import * as listState from './list-state.js';
 import { upsertPreset, clampPct } from './filter-presets.js';
 import { applyLayout, normalizeCfg, saveAllSettings, DEFAULTS } from './xdgrid-layout.js';
 
+/** @param {...any} a */
 const dbg = (...a) => debug.dbg(...a);
 
 const PANEL_ID = 'gr-xdgrid-panel';
 const BTN_ID = 'gr-xdgrid-fab';
 
+/** 站点布局配置 / Per-site layout config. @typedef {{enabled: boolean, cols: number, iconW: number, iconH: number, gap: number}} XdgridCfg */
+
 let uiBuilt = false;
 
-export function buildUI(all, host, cfg) {
-  if (uiBuilt || document.getElementById(BTN_ID)) return;
-  uiBuilt = true;
-
+/** 创建悬浮齿轮按钮 / Create the floating gear button. */
+function createFab() {
   const fab = document.createElement('div');
   fab.id = BTN_ID;
   fab.title = '列表布局设置（游戏雷达）';
@@ -51,7 +54,11 @@ export function buildUI(all, host, cfg) {
     'font-family:sans-serif'
   ].join(';');
   document.body.appendChild(fab);
+  return fab;
+}
 
+/** 创建面板容器（innerHTML 插值 cfg）/ Create the panel container. @param {XdgridCfg} cfg */
+function createPanel(cfg) {
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
   panel.style.cssText = [
@@ -144,7 +151,19 @@ export function buildUI(all, host, cfg) {
       </div>
     `;
   document.body.appendChild(panel);
+  return panel;
+}
 
+// ============ 布局标签页 / Layout tab ============
+
+/**
+ * 布局标签页绑定 / Layout-tab bindings.
+ * @param {{all: {sites: Record<string, any>}, host: string, cfg: XdgridCfg, panel: HTMLElement}} ctx
+ * @returns {{$: (name: string) => any, update: () => void}}
+ */
+function buildLayoutTab(ctx) {
+  const { all, host, cfg, panel } = ctx;
+  /** @param {string} name @returns {any} 调用方直接取 .value/.checked */
   const $ = (name) => panel.querySelector(`[data-xg="${name}"]`);
 
   const syncHint = () => {
@@ -182,6 +201,18 @@ export function buildUI(all, host, cfg) {
   $('close').addEventListener('click', () => {
     panel.style.display = 'none';
   });
+  syncHint();
+  return { $, update };
+}
+
+/**
+ * 开合与双标签切换绑定 / Fab toggle + tab switch bindings.
+ * @param {{fab: HTMLElement, panel: HTMLElement, refreshFilterControls: () => Promise<void>}} ctx
+ */
+function bindTabsAndFab(ctx) {
+  const { fab, panel, refreshFilterControls } = ctx;
+  /** @param {string} name @returns {any} 调用方直接取 .style */
+  const $ = (name) => panel.querySelector(`[data-xg="${name}"]`);
   fab.addEventListener('click', () => {
     const opening = panel.style.display === 'none';
     panel.style.display = opening ? 'block' : 'none';
@@ -192,7 +223,7 @@ export function buildUI(all, host, cfg) {
   const paneF = $('paneFilter');
   const tabL = $('tabLayout');
   const tabF = $('tabFilter');
-  const switchTab = (showLayout) => {
+  const switchTab = (/** @type {boolean} */ showLayout) => {
     paneL.style.display = showLayout ? '' : 'none';
     paneF.style.display = showLayout ? 'none' : '';
     tabL.style.background = showLayout ? '#eaf3ff' : '#f5f5f5';
@@ -202,8 +233,17 @@ export function buildUI(all, host, cfg) {
   };
   tabL.addEventListener('click', () => switchTab(true));
   tabF.addEventListener('click', () => switchTab(false));
+}
 
-  // ============ 过滤标签页（自 filter-fab 合并，v10.6.0） ============
+// ============ 过滤标签页（自 filter-fab 合并，v10.6.0） ============
+
+/**
+ * 过滤标签页绑定 / Filter-tab bindings.
+ * @param {{panel: HTMLElement}} ctx
+ * @returns {{refreshFilterControls: () => Promise<void>}}
+ */
+function buildFilterTab(ctx) {
+  const { panel } = ctx;
   const rf = {
     enabled: panel.querySelector('[data-rf="enabled"]'),
     slider: panel.querySelector('[data-rf="slider"]'),
@@ -251,7 +291,7 @@ export function buildUI(all, host, cfg) {
   // v12 B8：本地排序按钮（复用 list-state 信号与数据，纯 DOM 重排）
   // v13 B7：排序模式持久化（grListSort:<host>，刷新后保持）
   const sortKey = 'grListSort:' + location.hostname;
-  const applySort = async (mode, persist = true) => {
+  const applySort = async (/** @type {string} */ mode, /** @type {boolean} */ persist = true) => {
     const sortHint = panel.querySelector('[data-rf="sortHint"]');
     const sortState = await listState.applyLocalSort(mode);
     if (sortHint) {
@@ -364,7 +404,7 @@ export function buildUI(all, host, cfg) {
         const reach = panel.querySelector('[data-rf="reach"]');
         if (!reach || !resp || !resp.domains) return;
         const dm = resp.domains;
-        const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+        const lamp = (/** @type {string} */ v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
         reach.textContent = 'Steam 可达性：商店 ' + lamp(dm.store) + ' / API ' + lamp(dm.api);
         if (dm.store === 'down' || dm.storeCircuit === 'open') {
           reach.style.color = '#e67e22';
@@ -382,7 +422,7 @@ export function buildUI(all, host, cfg) {
     chrome.storage.local
       .get(sortKey)
       .then(async (d) => {
-        const saved = d && d[sortKey];
+        const saved = /** @type {string} */ (d && d[sortKey]);
         if (!saved || saved === 'none') return;
         const idle = await listState.waitForBatchIdle(60000);
         if (!idle) return; // 超时放弃（数据未就绪时强排无意义）
@@ -397,6 +437,17 @@ export function buildUI(all, host, cfg) {
     rf.rateVal.textContent = String(Math.min(100, Math.max(0, parseInt(rf.slider.value, 10) || 0)));
   });
   rf.slider.addEventListener('change', applyFilterChange);
+  return { refreshFilterControls };
+}
+
+// ============ 恢复默认（布局域）/ Layout reset ============
+
+/**
+ * 恢复默认绑定（需要布局标签页返回的 $/update）/ Layout reset binding.
+ * @param {{cfg: XdgridCfg, $: (name: string) => any, update: () => void}} ctx
+ */
+function bindLayoutReset(ctx) {
+  const { cfg, $, update } = ctx;
   $('reset').addEventListener('click', () => {
     cfg.enabled = DEFAULTS.enabled;
     cfg.cols = DEFAULTS.cols;
@@ -410,5 +461,23 @@ export function buildUI(all, host, cfg) {
     $('gap').value = cfg.gap;
     update();
   });
-  syncHint();
+}
+
+// ============ 装配入口 / Assembly entry ============
+
+/**
+ * 装配入口 / Assembly entry.
+ * @param {{sites: Record<string, any>}} all
+ * @param {string} host
+ * @param {XdgridCfg} cfg
+ */
+export function buildUI(all, host, cfg) {
+  if (uiBuilt || document.getElementById(BTN_ID)) return;
+  uiBuilt = true;
+  const fab = createFab();
+  const panel = createPanel(cfg);
+  const layoutApi = buildLayoutTab({ all, host, cfg, panel });
+  const { refreshFilterControls } = buildFilterTab({ panel });
+  bindTabsAndFab({ fab, panel, refreshFilterControls });
+  bindLayoutReset({ cfg, $: layoutApi.$, update: layoutApi.update });
 }

@@ -78,10 +78,14 @@ let floatModules = null; // v12 B4：浮窗模块显隐设置（注入时随 set
 let inlineRenderSeq = 0; // v14.5.0 B3：内嵌卡渲染令牌（按需加载窗口内重渲染防旧卡回挂）
 
 // 由 detail-page.js 入口（injectSteamButton）委托调用——tracker 调用面不变。
-export function createSteamFloat(gameName, settings) {
-  dbg('注入Steam浮窗...');
-  floatModules = (settings && settings.floatModules) || null;
 
+/**
+ * 浮窗外壳（v14.14.0 提取，重构序 6c）：创建 + 初始隐藏动画 + 占位文案 +
+ * 显隐助手（floatModules 显隐设置随 settings 注入模块级变量，语义同前）。
+ * @param {{[k: string]: any}} settings
+ */
+function createFloatShell(settings) {
+  floatModules = (settings && settings.floatModules) || null;
   const panel = float.create(
     settings && settings.detailFloatSide === 'right' ? float.ZONE.TOP_RIGHT : float.ZONE.TOP_LEFT,
     'gr-steam-float',
@@ -101,21 +105,28 @@ export function createSteamFloat(gameName, settings) {
         正在查询 Steam 信息...
       </div>
     `;
-
-  /** @type {SteamLookupData|null} */
-  let steamData = null;
-
   function showPanel() {
     panel.style.opacity = '1';
     panel.style.transform = 'translateX(0)';
     panel.style.pointerEvents = 'auto';
   }
-
   function hidePanel() {
     // 折叠内容区（chrome 标题栏保留）/ fold the body (header stays)
     panel.style.display = 'none';
   }
+  return { panel, showPanel, hidePanel };
+}
 
+// ============ 网络故障期自动重查（v14.14.0 提取，v14.7 批次 9 语义）/ Auto retry ============
+
+/**
+ * 自动重查控制器：网络故障期未命中 → 30s 后静默自动重查一次（穿透负缓存）；
+ * 正常未找到（not-found）不浪费请求。手动选择/报错/跳过后定时器作废，
+ * 每游戏至多一次（防风暴）。
+ * @param {{renderAndShow: (data: Object, cachedAt: number|null, name: string) => void}} io
+ */
+function createAutoRetry(io) {
+  const { renderAndShow } = io;
   // v14.7 批次 9：网络故障期未命中 → 30s 后静默自动重查一次（穿透负缓存）；
   // 正常未找到（not-found）不浪费请求。手动选择/报错/跳过后定时器作废。
   // Delayed auto-retry after a network-failure miss (single shot, 30s).
@@ -162,6 +173,82 @@ export function createSteamFloat(gameName, settings) {
       }
     }, AUTO_RETRY_DELAY_MS);
   }
+  return { cancelAutoRetry, scheduleAutoRetry };
+}
+
+// ============ 未命中处理（v14.14.0 提取）/ Lookup-miss handling ============
+
+/**
+ * 未命中处理：已跳过检查 → 网络故障/熔断期自动重查 → 手动选择浮窗
+ *（未命中原因透传 + 穿透负缓存重试）。
+ * @param {HTMLElement} panel
+ * @param {string} gameName
+ * @param {{reason?: string, [k: string]: any}|null} response
+ * @param {{hidePanel: () => void, showPanel: () => void, renderAndShow: Function, cancelAutoRetry: () => void, scheduleAutoRetry: (name: string) => void}} io
+ */
+function handleLookupMiss(panel, gameName, response, io) {
+  const { hidePanel, showPanel, renderAndShow, cancelAutoRetry, scheduleAutoRetry } = io;
+  debug.DEBUG.steamStatus = '❌ 未找到';
+  // v14.7 批次 3/4：本页已"跳过"的游戏不再自动弹候选浮窗（负缓存首档
+  // 15min 到期后下次访问自动重查）
+  if (candidates.isGameDismissed(gameName)) {
+    dbg('Steam: 用户已跳过该游戏，本页不再自动弹候选浮窗');
+    return;
+  }
+  // v14.7 批次 9：网络故障/熔断期未命中 → 30s 后静默自动重查一次
+  //（正常未找到 not-found 不浪费请求）
+  const missReasonAuto = String((response && response.reason) || '');
+  if (/steam-api-unreachable|circuit/i.test(missReasonAuto)) {
+    scheduleAutoRetry(gameName);
+  }
+  dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
+  // v10.9.3：未命中原因透传 + 重试（穿透负缓存重新自动匹配）
+  const missReason = (response && response.reason) || '';
+  candidates.renderManualSelectPanel(
+    panel,
+    gameName,
+    hidePanel,
+    (selectedData, selectedAppId) => {
+      cancelAutoRetry(); // v14.7 批次 9：手动选择后自动重查作废
+      renderAndShow(selectedData, Date.now(), gameName);
+      chrome.runtime
+        .sendMessage({
+          action: 'SAVE_MANUAL_MAPPING',
+          // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
+          // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
+          gameName,
+          appId: selectedAppId,
+          // v14.8 批次 3：rawTitle 随行——错题样本采集现场（后台确认后采集）
+          rawTitle: document.title
+        })
+        .catch(() => {});
+    },
+    missReason,
+    async () => {
+      const retryResp = await window.__GR_MSG__
+        .sendMessage({ action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true }, null, {
+          timeout: 25000
+        })
+        .catch(() => null);
+      if (retryResp && retryResp.data) {
+        renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), gameName);
+        return true;
+      }
+      return false;
+    }
+  );
+  showPanel();
+}
+
+export function createSteamFloat(gameName, settings) {
+  dbg('注入Steam浮窗...');
+  const { panel, showPanel, hidePanel } = createFloatShell(settings);
+
+  /** @type {SteamLookupData|null} */
+  let steamData = null;
+
+  // v14.14.0（重构序 6c）：自动重查控制器提取为 createAutoRetry 工厂
+  const { cancelAutoRetry, scheduleAutoRetry } = createAutoRetry({ renderAndShow });
 
   // v14.5.0 B7：报错重检索/手动刷新回调统一为 createSteamActions 工厂
   //（状态 steamData/reportIssue 经存取器互通——原两份同构闭包收敛单点）。
@@ -278,58 +365,15 @@ export function createSteamFloat(gameName, settings) {
           ]
         });
       } else {
-        debug.DEBUG.steamStatus = '❌ 未找到';
-        // v14.7 批次 3/4：本页已"跳过"的游戏不再自动弹候选浮窗（负缓存首档
-        // 15min 到期后下次访问自动重查）
-        if (candidates.isGameDismissed(gameName)) {
-          dbg('Steam: 用户已跳过该游戏，本页不再自动弹候选浮窗');
-          return;
-        }
-        // v14.7 批次 9：网络故障/熔断期未命中 → 30s 后静默自动重查一次
-        //（正常未找到 not-found 不浪费请求）
-        const missReasonAuto = String((response && response.reason) || '');
-        if (/steam-api-unreachable|circuit/i.test(missReasonAuto)) {
-          scheduleAutoRetry(gameName);
-        }
-        dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
-        // v10.9.3：未命中原因透传 + 重试（穿透负缓存重新自动匹配）
-        const missReason = (response && response.reason) || '';
-        candidates.renderManualSelectPanel(
-          panel,
-          gameName,
+        // v14.14.0（重构序 6c）：未命中处理（跳过检查/自动重查/手动选择浮窗）
+        // 提取为 handleLookupMiss
+        handleLookupMiss(panel, gameName, response, {
           hidePanel,
-          (selectedData, selectedAppId) => {
-            cancelAutoRetry(); // v14.7 批次 9：手动选择后自动重查作废
-            renderAndShow(selectedData, Date.now(), gameName);
-            chrome.runtime
-              .sendMessage({
-                action: 'SAVE_MANUAL_MAPPING',
-                // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
-                // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
-                gameName,
-                appId: selectedAppId,
-                // v14.8 批次 3：rawTitle 随行——错题样本采集现场（后台确认后采集）
-                rawTitle: document.title
-              })
-              .catch(() => {});
-          },
-          missReason,
-          async () => {
-            const retryResp = await window.__GR_MSG__
-              .sendMessage(
-                { action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true },
-                null,
-                { timeout: 25000 }
-              )
-              .catch(() => null);
-            if (retryResp && retryResp.data) {
-              renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), gameName);
-              return true;
-            }
-            return false;
-          }
-        );
-        showPanel();
+          showPanel,
+          renderAndShow,
+          cancelAutoRetry,
+          scheduleAutoRetry
+        });
       }
     } catch (e) {
       debug.DEBUG.steamStatus = '❌ ' + String(e);
