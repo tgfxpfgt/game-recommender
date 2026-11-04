@@ -18,6 +18,24 @@ const esc = (text) => common.escapeHtml(text);
 // of the graded negative cache.
 const dismissedGames = new Set();
 
+/**
+ * 手动绑定 AppID 输入解析（v14.15.0 N3）：接受两种形态——纯数字（1-10 位，
+ * 与契约 APP_ID_RE 同口径）或 Steam 商店 URL（store.steampowered.com/app/数字，
+ * 用户从浏览器地址栏整段粘贴）。其余形态返回 null（候选面板提示格式错误）。
+ * Parse a manual-bind input: bare digits (1-10, same shape as contract
+ * APP_ID_RE) or a Steam store URL; anything else → null (format hint).
+ * @param {string} input
+ * @returns {string|null} appId 数字串或 null
+ */
+export function parseManualAppIdInput(input) {
+  const text = String(input || '').trim();
+  if (!text) return null;
+  const urlMatch = text.match(/store\.steampowered\.com\/app\/(\d{1,10})(?!\d)/i);
+  if (urlMatch) return urlMatch[1];
+  if (/^\d{1,10}$/.test(text)) return text;
+  return null;
+}
+
 // v14.13 B6（报告 D P1-9）：上一任键盘监听器引用——searchAndRender 重入时
 // 直摘旧监听（此前每次搜索累积一个全局 keydown，↑/↓ 跳变/Enter 触发陈旧项）
 /** @type {((ev: KeyboardEvent) => void) | null} */
@@ -53,6 +71,11 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         <div style="margin-bottom:10px;">
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
+        </div>
+        <div style="margin-bottom:10px;display:flex;gap:8px;">
+          <input type="text" id="gr-manual-appid" placeholder="或直接绑定 AppID（纯数字 / 商店链接）"
+            style="flex:1;min-width:0;padding:6px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:12px;outline:none;font-family:inherit;">
+          <button id="gr-manual-bind" class="gr-btn" style="flex:none;padding:6px 12px;">🔗 绑定</button>
         </div>
         <div style="margin-bottom:10px;display:flex;gap:12px;">
           <a href="${common.escapeAttr('https://store.steampowered.com/search/?term=' + encodeURIComponent(gameName))}" target="_blank" rel="noopener" style="font-size:11px;color:#67c1f5;text-decoration:none;">🔎 在 Steam 网页搜索 ↗</a>
@@ -230,7 +253,6 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
 
   // 搜索框事件（300ms 防抖）
   /** @type {ReturnType<typeof setTimeout>|null} */
-  /** @type {ReturnType<typeof setTimeout>|null} */
   let searchTimer = null;
   const input = panel.querySelector('#gr-manual-search-input');
   if (input) {
@@ -239,6 +261,57 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
       const keyword = String(/** @type {HTMLInputElement} */ (e.target)?.value || '').trim();
       if (keyword.length < 2) return;
       searchTimer = setTimeout(() => searchAndRender(keyword), 300);
+    });
+  }
+
+  // v14.15.0 N3：手动绑定 AppID——storesearch 搜不到已下架游戏（v14.6 调研
+  // 实证），用户从 Steam 网页地址栏复制链接/纯数字即可绑定。写入纠正映射
+  //（与候选选择同语义：优先于一切索引），绑定前 appdetails 确认条目存在。
+  // Manual-bind by AppID: storefront search cannot find delisted games, so the
+  // user pastes a bare id / store link; the binding goes through the same
+  // correction-mapping semantics (after an appdetails existence check).
+  const bindInput = panel.querySelector('#gr-manual-appid');
+  const bindBtn = panel.querySelector('#gr-manual-bind');
+  if (bindBtn && bindInput) {
+    const listEl0 = panel.querySelector('#gr-candidates-list');
+    bindBtn.addEventListener('click', async () => {
+      const appId = parseManualAppIdInput(bindInput.value);
+      if (!appId) {
+        bindInput.value = '';
+        bindInput.placeholder = '❌ 格式：1-10 位数字或 store.steampowered.com/app/数字 链接';
+        return;
+      }
+      bindBtn.disabled = true;
+      if (listEl0) {
+        listEl0.innerHTML =
+          '<div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">⏳ 正在确认 AppID ' +
+          esc(appId) +
+          ' ...</div>';
+      }
+      try {
+        const resp = await window.__GR_MSG__.sendMessage({
+          action: 'GET_STEAM_BY_APPID',
+          appId: parseInt(appId, 10),
+          manual: true // 手动绑定跳过名称相关性校验（与候选选择同语义）
+        });
+        if (resp && resp.data) {
+          onSelect(resp.data, parseInt(appId, 10));
+          return;
+        }
+        if (listEl0) {
+          listEl0.innerHTML =
+            '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">未找到该 AppID 的 Steam 条目，请核对</div>';
+        }
+      } catch (e) {
+        if (listEl0) {
+          listEl0.innerHTML =
+            '<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">绑定失败: ' +
+            esc(window.__GR_MSG__.toUserMessage(e)) +
+            '</div>';
+        }
+      } finally {
+        bindBtn.disabled = false;
+      }
     });
   }
 }

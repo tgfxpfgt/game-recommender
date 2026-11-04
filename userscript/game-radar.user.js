@@ -1411,7 +1411,11 @@
       '<button id="gr-us-retry" style="flex:1;padding:6px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;">🔄 重试自动匹配</button>' +
       '<button id="gr-us-skip" style="flex:1;padding:6px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;">⏭ 跳过</button>' +
       '</div>' +
-      '<input id="gr-us-cand-input" type="text" placeholder="输入游戏名搜索..." style="width:100%;box-sizing:border-box;padding:8px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;margin-bottom:10px;">' +
+      '<input id="gr-us-cand-input" type="text" placeholder="输入游戏名搜索..." style="width:100%;box-sizing:border-box;padding:8px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;margin-bottom:8px;">' +
+      '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
+      '<input id="gr-us-bind-input" type="text" placeholder="或直接绑定 AppID（纯数字 / 商店链接）" style="flex:1;min-width:0;padding:6px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;">' +
+      '<button id="gr-us-bind-btn" style="flex:none;padding:6px 12px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;">🔗 绑定</button>' +
+      '</div>' +
       '<div id="gr-us-cand-list" style="max-height:300px;overflow-y:auto;"></div>';
 
     const listEl = body.querySelector('#gr-us-cand-list');
@@ -1516,6 +1520,40 @@
       if (keyword.length < 2) return;
       searchTimer = setTimeout(() => searchAndRender(keyword), 300);
     });
+
+    // v14.15.0 N3：手动绑定 AppID（storesearch 搜不到已下架游戏的用户兜底；
+    // 与扩展同语义：纠正映射优先于一切索引，绑定前 appdetails 确认存在）
+    const bindInput = body.querySelector('#gr-us-bind-input');
+    const bindBtn = body.querySelector('#gr-us-bind-btn');
+    if (bindBtn && bindInput) {
+      bindBtn.addEventListener('click', async () => {
+        const text = String(bindInput.value || '').trim();
+        let appId = null;
+        const urlMatch = text.match(/store\.steampowered\.com\/app\/(\d{1,10})(?!\d)/i);
+        if (urlMatch) appId = urlMatch[1];
+        else if (/^\d{1,10}$/.test(text)) appId = text;
+        if (!appId) {
+          bindInput.value = '';
+          bindInput.placeholder = '❌ 格式：1-10 位数字或 store.steampowered.com/app/数字 链接';
+          return;
+        }
+        bindBtn.disabled = true;
+        listEl.innerHTML =
+          '<div style="padding:20px;text-align:center;color:#8f98a0;">⏳ 正在确认 AppID ' + esc(appId) + ' ...</div>';
+        const details = await fetchAppDetails(appId);
+        if (!details) {
+          listEl.innerHTML =
+            '<div style="padding:20px;text-align:center;color:#e74c3c;">未找到该 AppID 的 Steam 条目，请核对</div>';
+          bindBtn.disabled = false;
+          return;
+        }
+        saveCorrection(gameName, appId, null);
+        deleteNameIndexEntry(gameName);
+        recordNameIndex(gameName, appId);
+        const data = await rateGame(appId, { name: details.name || '' });
+        if (data) renderFloat(data);
+      });
+    }
     searchAndRender(gameName);
   }
 
