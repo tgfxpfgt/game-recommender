@@ -89,24 +89,77 @@ export function coverImageFor(appId, fallback) {
 
 // --- 应用详情 ---
 
-// 获取应用详情（language: schinese/english 等，name 随语言） / Fetch app details
-export async function fetchSteamAppDetails(appId, language = 'schinese') {
-  const detailUrl = `${ENDPOINTS.steamAppDetails}?appids=${appId}&l=${language}`;
+// v14.15.0（功能报告 O1）：appdetails 进程内去重（in-flight 共享 + 10s 短 TTL）
+// ——直取路径 Phase 0 resolveDlcToBase 与组装器 fetchSteamFullDetailsByAppId 对
+// 同 appId+lang 各发一次**相同 URL** 的 appdetails（缓存全 miss 时 2 次网络往返）；
+// 去重后合并为 1 次。语义不变：短窗内的同 URL 请求本就该是同一份数据；失败结果
+// 不入去重表（后续重试立即生效）；容量守卫防无界（淘汰最旧）。
+// In-process dedup for identical appdetails URLs (in-flight sharing + short TTL):
+// the element-path Phase-0 DLC resolve and the full assembler double-fetched the
+// same URL on cache miss; failures are not cached (retry immediately re-fetches).
+const APPDETAILS_DEDUP_TTL_MS = 10000;
+const APPDETAILS_DEDUP_CAP = 100;
+/** @type {Map<string, {promise: Promise<Object|null>, ts: number}>} */
+const appDetailsInFlight = new Map();
+
+/** 测试重置钩子 / test-only reset */
+export function resetAppDetailsDedupForTest() {
+  appDetailsInFlight.clear();
+}
+
+/** @param {string} url */
+async function fetchAppDetailsRaw(url) {
   try {
-    const response = await fetchWithTimeout(detailUrl);
+    const response = await fetchWithTimeout(url);
     const detailData = await response.json();
     // v9.7.0：传入 HTTP status（429/503 计入限流统计）——且非 2xx 响应
     // （如带 JSON 体的 429）不再被记为成功，failRate/anomaly 不再失真
     recordSteamCall(response.ok || response.status === 404, response.status); // v10.3.0：404=空结果非失败
     recordDomainCall('store', response.ok || response.status === 404); // v11.0 B2
     if (!response.ok) return null;
-    if (!detailData[appId] || !detailData[appId].success) return null;
-    return detailData[appId].data;
+    const parsed = detailData;
+    return parsed;
   } catch {
     recordSteamCall(false, 0);
     recordDomainCall('store', false); // v14.0.0：网络失败计入 store 域熔断
     return null;
   }
+}
+
+/**
+ * 获取应用详情（language: schinese/english 等，name 随语言）/ Fetch app details.
+ * v14.15.0：同 URL 短窗去重（O1）。
+ */
+export async function fetchSteamAppDetails(appId, language = 'schinese') {
+  const detailUrl = `${ENDPOINTS.steamAppDetails}?appids=${appId}&l=${language}`;
+  const now = Date.now();
+  const hit = appDetailsInFlight.get(detailUrl);
+  if (hit && now - hit.ts < APPDETAILS_DEDUP_TTL_MS) return hit.promise;
+  // 容量守卫：超限淘汰最旧（evictOldestByTs 语义，无第三方依赖）
+  if (appDetailsInFlight.size >= APPDETAILS_DEDUP_CAP) {
+    let oldestKey = null;
+    let oldestTs = Infinity;
+    for (const [k, v] of appDetailsInFlight) {
+      if (v.ts < oldestTs) {
+        oldestTs = v.ts;
+        oldestKey = k;
+      }
+    }
+    if (oldestKey) appDetailsInFlight.delete(oldestKey);
+  }
+  const promise = (async () => {
+    const raw = await fetchAppDetailsRaw(detailUrl);
+    if (raw === null) {
+      appDetailsInFlight.delete(detailUrl); // 失败不入去重表（重试立即生效）
+      return null;
+    }
+    const entry = raw[String(appId)];
+    if (!entry || !entry.success) return null;
+    return entry.data;
+  })();
+  appDetailsInFlight.set(detailUrl, { promise, ts: now });
+  promise.catch(() => {}); // 防未处理拒绝（调用方各自 await）
+  return promise;
 }
 
 // --- 商店页面 HTML ---

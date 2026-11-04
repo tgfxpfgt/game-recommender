@@ -862,3 +862,53 @@ describe('社区搜索兜底独立熔断域（v14.6.2）', () => {
     }
   });
 });
+
+// ============ v14.15.0 O1：appdetails 进程内去重 ============
+describe('v14.15.0 O1：appdetails 同 URL 短窗去重（直取路径双往返合并）', () => {
+  test('同 appId+lang 并发调用只发一次网络（in-flight 共享）', async () => {
+    detailsMod.resetAppDetailsDedupForTest();
+    monitor.resetApiMonitor();
+    const fetchMock = createFetchMock({
+      'appids=1091500&l=schinese': { 1091500: { success: true, data: { type: 'game', name: 'Cyberpunk 2077' } } }
+    });
+    const restore = installFetchMock(fetchMock);
+    try {
+      const [a, b] = await Promise.all([
+        detailsMod.fetchSteamAppDetails('1091500', 'schinese'),
+        detailsMod.fetchSteamAppDetails('1091500', 'schinese')
+      ]);
+      expect(a && a.name).toEqual('Cyberpunk 2077');
+      expect(b && b.name).toEqual('Cyberpunk 2077');
+      const appdetailsCalls = fetchMock._calls.filter((u) => u.indexOf('appdetails') >= 0);
+      expect(appdetailsCalls.length).toEqual(1); // 2 调用 1 请求
+    } finally {
+      monitor.resetApiMonitor();
+      restore();
+    }
+  });
+
+  test('失败结果不入去重表（重试立即重新拉取）', async () => {
+    detailsMod.resetAppDetailsDedupForTest();
+    monitor.resetApiMonitor();
+    let calls = 0;
+    const fetchMock = createFetchMock({});
+    const prev = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+      if (String(url).indexOf('appdetails') >= 0) {
+        calls += 1;
+        return { ok: false, status: 503, json: async () => ({}) };
+      }
+      return { ok: false, status: 404, json: async () => ({}) };
+    };
+    try {
+      const first = await detailsMod.fetchSteamAppDetails('999001', 'schinese');
+      const second = await detailsMod.fetchSteamAppDetails('999001', 'schinese');
+      expect(first).toEqual(null);
+      expect(second).toEqual(null);
+      expect(calls).toEqual(2); // 失败不缓存——两次都真实发请求
+    } finally {
+      globalThis.fetch = prev;
+      monitor.resetApiMonitor();
+    }
+  });
+});
