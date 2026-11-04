@@ -140,14 +140,19 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 **版本号纪律（用户指令，2026-10-31 起）**：每次功能/修复批次合并即 bump
 manifest+package 版本号（patch/minor）并同步 README 更新日志 + welcome
 changelog——版本号必须能区分"内容是否更新"；完整发版（tag/release）仍按
-下方触发线。
+下方触发线。**v14.15.0 起四处同步由 `npm run release:smoke` 机器门禁**
+（manifest/package/README/welcome/油猴 @version ≤ manifest；CI release-smoke
+job 同源调用——漂移即红）。
 
 触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。步骤（顺序固定）：
 
 1. `npm run gate`（全量门禁一条命令）
-2. bump manifest+package+README changelog → `npm run package`
+2. bump manifest+package+README changelog → `npm run package` → `npm run release:smoke`
 3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + Mimosa seal）
 4. 深度扫描（security_scan，focusFiles=改动文件）→ seal 补入 release notes
+5. 油猴脚本更新（v14.15.0 N8）：@updateURL/@downloadURL 指向 raw.githubusercontent
+   （Tampermonkey 自动探测，jsDelivr 备源为用户侧手动替换）——发版时油猴 @version
+   仅在功能口径同步后递增（≠扩展 patch 联动，语义 = 移植基线版本）
    半自动脚本 scripts/release.mjs 存在但落后于当前流程（visual/双 E2E/zip 附件）——
    以本清单为准，或先更新脚本再用。
 

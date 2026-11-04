@@ -689,3 +689,60 @@ test('P2：settings-utils 调用点全部存在于导出集合（防悬空 API �
   }
   expect(offenders, '悬空 settings-utils 调用:\n  ' + offenders.join('\n  ')).toEqual([]);
 });
+
+// v14.15.0（功能报告 O9）：E2E MOCK_RE 覆盖审计——生产源码中的出站 URL 字面量
+// 必须被 MOCK_RE 拦截或在豁免表（纯链接非 fetch）。历史三漏（v14.8.0 教训④：
+// appreviews/商店页回退/Bing）+ 本次实测第四漏（steam250.com/top250）证明人工
+// 维护不可靠：新端点忘加 MOCK_RE = E2E 假绿（回放结果随真网络漂移）。
+// Outbound-URL literals in production source must be intercepted by MOCK_RE or
+// be on the href-only exemption list; a new endpoint without MOCK_RE = false-green E2E.
+test('P2：出站 URL 字面量 ⊆ MOCK_RE 拦截域 ∪ 豁免表（E2E 离线确定性契约）', async () => {
+  const { MOCK_RE } = await import('../e2e/helpers.mjs');
+  // 豁免表两级：①纯链接主机（从不 fetch）②纯链接 URL 前缀（store 域内
+  // 有 fetch 有链接两类路径——/search /news /tags 仅作深链，/app /api 会被
+  // fetch 故不在前缀表）。新增出站 fetch 域不得入豁免——须加 MOCK_RE + fixtures。
+  const HREF_ONLY_HOSTS = new Set([
+    'github.com', // issue 反馈链接/仓库外链
+    'steamdb.info', // 浮窗 steamdb 外链
+    'store.epicgames.com', // 限免深链
+    'isthereanydeal.com', // 裸域跳转（实际 fetch 走 api.isthereanydeal.com，已拦截）
+    'www.gamer520.com', // 站内搜索深链（searchUrl 模板）
+    'www.gamers520.com',
+    'www.xdgame.com',
+    'www.xianyudanji.gg',
+    'localhost' // 测试/开发
+  ]);
+  const HREF_ONLY_PREFIXES = [
+    'https://store.steampowered.com/search', // 候选面板"在 Steam 网页搜索"链接
+    'https://store.steampowered.com/news/', // 浮窗更新徽章深链
+    'https://store.steampowered.com/tags/' // 浮窗标签点击深链
+  ];
+  const dirs = ['background', 'content', 'shared', 'adapters', 'data'];
+  const urlRe = /https?:\/\/[a-zA-Z0-9.-]+(?:\/[a-zA-Z0-9._/-]*)?/g;
+  const offenders = [];
+  for (const dir of dirs) {
+    for (const file of collectJs(path.join(ROOT, dir), [])) {
+      const src = fs.readFileSync(file, 'utf-8');
+      for (const m of src.matchAll(urlRe)) {
+        const url = m[0].replace(/\/$/, '');
+        let host;
+        try {
+          host = new URL(url).hostname;
+        } catch {
+          continue; // 非法形态（如注释中被截断）忽略
+        }
+        if (HREF_ONLY_HOSTS.has(host)) continue;
+        if (HREF_ONLY_PREFIXES.some((p) => url === p || url.startsWith(p))) continue;
+        // 尾斜杠基常量形态（ENDPOINTS 基址 + fetch 时拼路径）放行：MOCK_RE
+        // 按带斜杠路径匹配，基址字面量本身不带尾路径
+        if (MOCK_RE.test(url) || MOCK_RE.test(url + '/')) continue;
+        offenders.push(`${path.relative(ROOT, file)}: ${url}（host=${host} 不在 MOCK_RE 且未豁免）`);
+      }
+    }
+  }
+  expect(
+    offenders,
+    '出站 URL 未被 E2E MOCK 覆盖（新端点须同步 MOCK_RE + fixtures，否则 E2E 假绿随真网络漂移）:\n  ' +
+      offenders.join('\n  ')
+  ).toEqual([]);
+});

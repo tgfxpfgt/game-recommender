@@ -25,6 +25,9 @@
 // @run-at       document-idle
 // @noframes
 // @license      MIT
+// @supportURL   https://github.com/tgfxpfgt/game-recommender/issues
+// @updateURL    https://raw.githubusercontent.com/tgfxpfgt/game-recommender/main/userscript/game-radar.user.js
+// @downloadURL  https://raw.githubusercontent.com/tgfxpfgt/game-recommender/main/userscript/game-radar.user.js
 // ==/UserScript==
 
 /**

@@ -101,6 +101,10 @@ jobs:
             echo "❌ zip 泄漏 node_modules/tests"; exit 1
           fi
           echo "✅ 发布产物校验通过：$ZIP"
+      # v14.15.0（功能报告 O4）：版本号纪律四处同步机器门禁（manifest/package/
+      # README/welcome/油猴——v14.6.3 曾漏 README 条目，人工核对到头了）
+      - name: 版本一致性门禁 / Version consistency gate
+        run: node scripts/release-smoke.mjs
 
   perf:
     # v7.3.0：测试性能预算门禁——全量 vitest 超过 90s（CI 冷机阈值，本地 ~15s）拒绝

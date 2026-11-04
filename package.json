@@ -24,6 +24,7 @@
     "test:timed": "node scripts/test-timing.mjs",
     "visual": "node tests/visual-regression.mjs",
     "package": "node scripts/package.mjs",
+    "release:smoke": "node scripts/release-smoke.mjs",
     "test:changed": "vitest run --changed",
     "gate": "node scripts/gate.mjs",
     "gate:fast": "node scripts/gate.mjs --fast"
