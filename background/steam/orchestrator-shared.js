@@ -77,7 +77,10 @@ export async function applyCacheHit(merged, appId, gameName) {
     lastUpdate: merged.lastUpdate || null,
     releaseDate,
     comingSoon,
-    isNewRelease: !comingSoon && isNewReleaseDate(releaseDate)
+    isNewRelease: !comingSoon && isNewReleaseDate(releaseDate),
+    // v14.15.0 N1：走势历史随缓存返回（浮窗 sparkline 数据源；旧缓存无此字段
+    // → 空数组降级隐藏）
+    ratingHistory: Array.isArray(merged.ratingHistory) ? merged.ratingHistory : []
   };
 }
 
@@ -110,4 +113,30 @@ export function extractSteamAppIdSignals(html) {
     counts.set(id, (counts.get(id) || 0) + 1);
   }
   return [...counts.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);
+}
+
+// ============ v14.15.0 N1：好评率走势历史（数据积累型，零新增请求） ============
+// 评分缓存每次成功重取（positiveRate 非空）追加一点 {t, r}，30 点上限淘汰最旧；
+// 浮窗 ≥2 点渲染 SVG 迷你图（render/rating-rows.js buildSparklineSvg）。
+// Rating history accumulation: one point per successful refetch, capped at 30.
+export const RATING_HISTORY_CAP = 30;
+
+/**
+ * 追加走势点到缓存数据（原地写 data.ratingHistory；非有限数值不入点）。
+ * @param {{ratingHistory?: Array<{t: number, r: number}>} | null} data
+ * @param {number|null} positiveRate
+ * @returns {Array<{t: number, r: number}>} 更新后的 history（data 为空返回 []）
+ */
+export function appendRatingHistory(data, positiveRate) {
+  if (!data) return []; // 无缓存数据载体（防御：调用方 bug 而非正常路径）
+  if (positiveRate === null || positiveRate === undefined || positiveRate === '') {
+    return data.ratingHistory || [];
+  }
+  const rate = Number(positiveRate);
+  if (!Number.isFinite(rate)) return (data && data.ratingHistory) || [];
+  const history = Array.isArray(data && data.ratingHistory) ? data.ratingHistory.slice() : [];
+  history.push({ t: Date.now(), r: Math.max(0, Math.min(100, Math.round(rate))) });
+  while (history.length > RATING_HISTORY_CAP) history.shift(); // 淘汰最旧
+  if (data) data.ratingHistory = history;
+  return history;
 }

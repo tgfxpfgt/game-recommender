@@ -103,7 +103,66 @@ export function renderRatingRows(data, spy) {
   if (spy && spy.positiveRate !== null && spy.positiveRate !== undefined) {
     html += row('📊 SteamSpy', spy.positiveRate + '% 好评', spy.positiveRate, spy.reviewCount || 0, '#67c1f5');
   }
+  // v14.15.0 N1：好评率走势迷你图——history ≥2 点才渲染（数据积累型，缓存
+  // 每次成功重取追加一点；evictOldestByTs 30 点上限）。
+  // Trend sparkline: rendered only with ≥2 accumulated history points.
+  const history = Array.isArray(data.ratingHistory) ? data.ratingHistory : [];
+  if (history.length >= 2) {
+    html += buildSparklineSvg(history);
+  }
   return html;
+}
+
+/**
+ * 走势 SVG 生成（v14.15.0 N1 纯函数）：60×22 viewBox polyline，x 均分、
+ * y 按历史 min-max 归一（全同值时居中）；点数 2-30。
+ * @param {Array<{t: number, r: number}>} history - 时间升序点列（r=好评率 0-100）
+ * @returns {string} SVG HTML（空历史返回 ''）
+ */
+export function buildSparklineSvg(history) {
+  const pts = (Array.isArray(history) ? history : [])
+    .filter((p) => p && Number.isFinite(Number(p.r)))
+    .map((p) => ({ t: Number(p.t) || 0, r: Number(p.r) }));
+  if (pts.length < 2) return '';
+  const W = 60;
+  const H = 22;
+  const rates = pts.map((p) => p.r);
+  const min = Math.min(...rates);
+  const max = Math.max(...rates);
+  const span = max - min || 1; // 全同值 → 居中
+  const coords = pts.map((p, i) => {
+    const x = pts.length === 1 ? W / 2 : (i / (pts.length - 1)) * W;
+    const y = H - 2 - ((p.r - min) / span) * (H - 4);
+    return x.toFixed(1) + ',' + y.toFixed(1);
+  });
+  const last = rates[rates.length - 1];
+  return (
+    '<div class="gr-detail-rate-row"><div class="gr-detail-rate-head">' +
+    '<span class="gr-detail-rate-label">📈 走势</span>' +
+    '<span class="gr-detail-rate-desc" style="color:#8f98a0">' +
+    '近 ' +
+    pts.length +
+    ' 次记录 ' +
+    min +
+    '-' +
+    max +
+    '%</span></div>' +
+    '<svg width="' +
+    W +
+    '" height="' +
+    H +
+    '" viewBox="0 0 ' +
+    W +
+    ' ' +
+    H +
+    '" style="width:100%;height:22px;" ' +
+    'aria-hidden="true"><polyline points="' +
+    coords.join(' ') +
+    '" fill="none" stroke="#66c0f4" stroke-width="1.5" ' +
+    'points-data-last="' +
+    last +
+    '"/></svg></div>'
+  );
 }
 
 /**

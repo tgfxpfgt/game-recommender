@@ -45,7 +45,7 @@ import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
 import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/17：规则匹配失败后的匹配兜底
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络故障期跳过负缓存
-import { isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js';
+import { appendRatingHistory, isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js'; // v14.15.0 N1：走势历史
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 15：未命中自动采集
@@ -361,6 +361,7 @@ async function writeSearchCaches(appId, result, gameName) {
     const oldCount = (oldRating && oldRating.ratingFailCount) || 0;
     result.ratingFailCount = result.positiveRate == null ? oldCount + 1 : 0;
   }
+  appendRatingHistory(result, result.positiveRate); // v14.15.0 N1：走势点（成功重取才入点）
   await setSteamCacheEntry(appId, result);
   await recordGameInRegistry(appId, {
     cnName: result.name,

@@ -912,3 +912,59 @@ describe('v14.15.0 O1：appdetails 同 URL 短窗去重（直取路径双往返�
     }
   });
 });
+
+// ============ v14.15.0 N1：好评率走势历史 ============
+const n1Shared = await import(new URL('../../background/steam/orchestrator-shared.js', import.meta.url).href + '?t=n1');
+const n1Rows = await import(new URL('../../content/detail/render/rating-rows.js', import.meta.url).href + '?t=n1');
+describe('v14.15.0 N1：appendRatingHistory 追加点与 30 点上限', () => {
+  test('有效好评率追加点（钳制 0-100 取整）；非有限数值不入点', async () => {
+    const d1 = {};
+    n1Shared.appendRatingHistory(d1, 88.4);
+    n1Shared.appendRatingHistory(d1, 91);
+    n1Shared.appendRatingHistory(d1, null);
+    n1Shared.appendRatingHistory(d1, Number.NaN);
+    expect(d1.ratingHistory.length).toEqual(2);
+    expect(d1.ratingHistory[0].r).toEqual(88);
+    expect(d1.ratingHistory[1].r).toEqual(91);
+    const d2 = null;
+    expect(n1Shared.appendRatingHistory(d2, 50)).toEqual([]);
+  });
+
+  test('30 点上限淘汰最旧（shift）', async () => {
+    const d = {};
+    for (let i = 0; i < 35; i++) n1Shared.appendRatingHistory(d, 50 + (i % 10));
+    expect(d.ratingHistory.length).toEqual(n1Shared.RATING_HISTORY_CAP);
+    expect(d.ratingHistory[0].r).toEqual(55); // 前五个被淘汰（i=5 起）
+  });
+});
+
+// ============ v14.15.0 N1：buildSparklineSvg 渲染纯函数 ============
+describe('v14.15.0 N1：buildSparklineSvg（浮窗走势 SVG）', () => {
+  const rows = n1Rows;
+
+  test('<2 点返回空串；坐标归一 + 全同值居中 + polyline 输出', async () => {
+    expect(rows.buildSparklineSvg([])).toEqual('');
+    expect(rows.buildSparklineSvg([{ t: 1, r: 50 }])).toEqual('');
+    const svg = rows.buildSparklineSvg([
+      { t: 1, r: 40 },
+      { t: 2, r: 80 }
+    ]);
+    expect(svg.indexOf('<svg') >= 0).toEqual(true);
+    expect(svg.indexOf('polyline') >= 0).toEqual(true);
+    // 全同值：span=1 → y 居中（两点 y 相同）
+    const flat = rows.buildSparklineSvg([
+      { t: 1, r: 70 },
+      { t: 2, r: 70 }
+    ]);
+    expect(flat.indexOf('近 2 次记录 70-70%') >= 0).toEqual(true);
+  });
+
+  test('非有限 r 点被过滤；缓存入口（applyCacheHit）携带 ratingHistory', async () => {
+    const svg = rows.buildSparklineSvg([
+      { t: 1, r: 'x' },
+      { t: 2, r: 60 },
+      { t: 3, r: 70 }
+    ]);
+    expect(svg.indexOf('近 2 次记录 60-70%') >= 0).toEqual(true);
+  });
+});

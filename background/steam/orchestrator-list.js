@@ -29,7 +29,7 @@ import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
-import { extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
+import { appendRatingHistory, extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
 import { detectPlatform } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别
 import { fetchMetacriticScore } from './api-metacritic.js'; // v14.10.0：主机条目评分源
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
@@ -441,6 +441,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       comingSoon: fetchedComingSoon || !!existing.comingSoon,
       ratingRetriedAt: positiveRate === null ? Date.now() : existing.ratingRetriedAt
     };
+    appendRatingHistory(mergedData, positiveRate); // v14.15.0 N1：走势点
     await setSteamCacheEntry(foundAppId, mergedData);
 
     // 7. 同步更新游戏注册表和名称索引：官方中英文名 + 封面图 + 标题变体 + type

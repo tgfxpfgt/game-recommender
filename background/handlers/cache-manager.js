@@ -18,6 +18,7 @@ import {
 } from '../storage/cleanup.js';
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
+import { appendRatingHistory } from '../steam/orchestrator-shared.js'; // v14.15.0 N1：走势历史
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, deleteNameIndexEntries } from '../storage/name-index.js';
 import { flushRegistry, deleteGameRegistryEntry, getGameRegistry, recordGameInRegistry } from '../storage/registry.js';
@@ -314,6 +315,7 @@ export async function handleRefreshGameCacheEntry(message) {
     const result = await fetchSteamFullDetailsByAppId(appId);
     if (!result) return { success: false, error: '获取 Steam 信息失败' };
 
+    appendRatingHistory(result, result.positiveRate); // v14.15.0 N1：走势点
     await setSteamCacheEntry(appId, result);
     await recordGameInRegistry(appId, {
       cnName: result.name,
