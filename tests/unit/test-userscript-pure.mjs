@@ -13,6 +13,7 @@ import vm from 'node:vm';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
+import { RETRIEVAL_VOCAB } from '../../shared/retrieval-vocab.js';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const SRC = readFileSync(path.join(ROOT, 'userscript/game-radar.user.js'), 'utf-8');
@@ -159,5 +160,72 @@ describe('油猴脚本：纯函数与扩展口径一致', () => {
     const bad = gr.pure.matchCandidateScore('植物大战僵尸', '死亡空间2', '死亡空间2 Dead Space 2');
     expect(good).toBeGreaterThan(bad);
     expect(bad).toEqual(0);
+  });
+});
+
+describe('油猴脚本：词表快照与扩展单源同步（防漂移门禁）', () => {
+  // 油猴无法 import shared 模块（经典 IIFE 快照内联）——本组断言把快照钉在
+  // shared/retrieval-vocab.js 单源上：扩展侧改词表而油猴未跟 → 此处即红。
+  // The userscript inlines a vocab snapshot (classic IIFE); these assertions
+  // pin the snapshot to the shared single source so drift turns the gate red.
+  const v = loadScript().vocab; // 沙箱装载后的运行时快照（无源码转义歧义）
+
+  /** 扩展侧词集合 → 油猴侧是否全覆盖 */
+  const missingFrom = (extWords, usSet) => extWords.filter((w) => !usSet.has(w));
+  const normRe = (s) => String(s).replace(/\\+(.)/g, '$1');
+  const usNoiseRe = new Set(v.noiseRe.map(normRe));
+
+  it('noiseTitle w 词条全覆盖（扩展 → 油猴）', () => {
+    const usWords = new Set(v.noiseWords.split('|'));
+    expect(
+      missingFrom(
+        RETRIEVAL_VOCAB.noiseTitle.filter(([kind]) => kind === 'w').map(([, w]) => w),
+        usWords
+      )
+    ).toEqual([]);
+  });
+  it('noiseTitle re 词条全覆盖（归一后比对）', () => {
+    expect(
+      missingFrom(
+        RETRIEVAL_VOCAB.noiseTitle.filter(([kind]) => kind === 're').map(([, w]) => normRe(w)),
+        usNoiseRe
+      )
+    ).toEqual([]);
+  });
+  it('尾段剥离词全覆盖', () => {
+    expect(missingFrom(RETRIEVAL_VOCAB.titleTailStripWords, new Set(v.tailStrip.split('|')))).toEqual([]);
+  });
+  it('editionWords 全覆盖', () => {
+    expect(missingFrom(RETRIEVAL_VOCAB.editionWords, new Set(v.editionWords.split('|')))).toEqual([]);
+  });
+  it('junkCandidate 词条全覆盖', () => {
+    expect(
+      missingFrom(
+        RETRIEVAL_VOCAB.junkCandidateWords.map(([, w]) => w),
+        new Set(v.junkCandidate.split('|'))
+      )
+    ).toEqual([]);
+  });
+  it('addon/demo 词条全覆盖（候选排除模式）', () => {
+    expect(
+      missingFrom(
+        RETRIEVAL_VOCAB.addonKeywords.map(([, w]) => w),
+        new Set(v.addonPattern.split('|'))
+      )
+    ).toEqual([]);
+    expect(
+      missingFrom(
+        RETRIEVAL_VOCAB.demoKeywords.map(([, w]) => w),
+        new Set(v.demoPattern.split('|'))
+      )
+    ).toEqual([]);
+  });
+  it('英文噪声词全覆盖', () => {
+    expect(missingFrom(RETRIEVAL_VOCAB.noiseEnWords, new Set(v.enNoiseWords.split('|')))).toEqual([]);
+  });
+  it('版本对照表全对齐（中 → EN）', () => {
+    const usPairs = new Set(v.versionPairs.map(([cn, en]) => cn + '→' + en));
+    const missing = RETRIEVAL_VOCAB.versionSuffixes.filter(([cn, en]) => !usPairs.has(cn + '→' + en));
+    expect(missing).toEqual([]);
   });
 });

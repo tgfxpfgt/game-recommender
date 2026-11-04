@@ -36,6 +36,10 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   附属词/版本词保序词条数据 + 编译 + 校验；**保序语义**——重叠词先长后短决定删除
   范围；等价性由 golden 测试 + 错题库回放双重门禁）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
+- `userscript/game-radar.user.js`（v14.14.1）：油猴单文件版（扩展核心移植，
+  GM_* 适配层直调管线）——**词表/纯函数是扩展快照**，改 shared/retrieval-vocab.js
+  或 api-search 纯函数后须同步该文件（test-userscript-pure 的防漂移门禁会红）；
+  版本号 = 移植基线（@version 对齐功能口径的扩展版），不随扩展 patch 递增。
 - 存储模块新增 = `data/storage-registry.js` 的 STORAGE_MODULES 一行 + 业务文件：
   data-store 的 file/format 映射、DATA_MODULES、备份子集（backup 标记）、清除范围
   （clearOnDataReset 标记）全部由该表派生——**勿再手改 MODULE_FILES / DATA_MODULES /

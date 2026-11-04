@@ -1863,7 +1863,7 @@
     boot();
   }
 
-  // 调试面（控制台：window.__GR_US__ 暴露纯函数与存储，便于诊断）
+  // 调试面（控制台：window.__GR_US__ 暴露纯函数/词表快照与存储，便于诊断）
   global.__GR_US__ = {
     version: SCRIPT_VERSION,
     pure: {
@@ -1877,6 +1877,7 @@
       isEnEdition,
       isNewReleaseDate
     },
+    vocab: VOCAB,
     store: gmStore,
     settings: () => settings
   };
