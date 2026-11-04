@@ -335,6 +335,68 @@
   OPTS.bindDataManageEvents = bindDataManageEvents;
   OPTS.bindAutoBackupEvents = bindAutoBackupEvents;
 
+  // ============ v14.15.0 N5：纠正映射独立导出/导入 ============
+  // 用户手动确认的映射（+报错黑名单）一键迁移；JSON 信封 + 导入逐条校验合并。
+  // One-click migration for manually confirmed corrections (+ the report
+  // blacklist); JSON envelope, import validates and merge-upserts per entry.
+  OPTS.exportMappings = async function () {
+    try {
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_WRONG_REPORTS_EXPORT' });
+      if (!resp || !resp.success) {
+        showDataOpStatus('导出失败', true);
+        return;
+      }
+      const payload = JSON.stringify(
+        {
+          grEnvelope: 1,
+          kind: 'manualMappings',
+          version: 1,
+          exportedAt: new Date().toISOString(),
+          entries: resp.entries
+        },
+        null,
+        2
+      );
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `game-recommender-mappings-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showDataOpStatus(`✅ 已导出 ${Object.keys(resp.entries || {}).length} 条纠正映射`);
+    } catch (e) {
+      showDataOpStatus('导出失败: ' + String(e), true);
+    }
+  };
+  OPTS.importMappings = async function (e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    try {
+      const payload = JSON.parse(await file.text());
+      if (
+        !payload ||
+        payload.grEnvelope !== 1 ||
+        payload.kind !== 'manualMappings' ||
+        typeof payload.entries !== 'object'
+      ) {
+        throw new Error('不是有效的纠正映射导出文件（grEnvelope/kind 不符）');
+      }
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'IMPORT_WRONG_REPORTS', entries: payload.entries });
+      if (resp && resp.success) {
+        showDataOpStatus(`✅ 已导入 ${resp.imported} 条，拒绝 ${resp.rejected} 条（格式非法）`);
+      } else {
+        showDataOpStatus('导入失败: ' + (resp ? resp.error : '未知错误'), true);
+      }
+    } catch (err) {
+      showDataOpStatus('导入失败: ' + String(err), true);
+    } finally {
+      e.target.value = ''; // 允许重复选择同一文件
+    }
+  };
+
+  // ============ 数据管理/自动备份按钮绑定（v14 B2 自 options.js 迁入） ============
+
   // ============ 数据管理/自动备份按钮绑定（v14 B2 自 options.js 迁入） ============
   // 按钮与各自实现在同域集中；收集与保存仍在 options.js saveSettings。
   function bindDataManageEvents() {
@@ -356,6 +418,21 @@
     document.getElementById('restoreBackupBtn').addEventListener('click', OPTS.restoreDataBackup);
     document.getElementById('moduleCheckAll').addEventListener('click', OPTS.moduleCheckAll);
     document.getElementById('moduleCheckNone').addEventListener('click', OPTS.moduleCheckNone);
+    // v14.15.0 N5：纠正映射导出/导入绑定
+    document.getElementById('exportMappings').addEventListener('click', OPTS.exportMappings);
+    document.getElementById('importMappings').addEventListener('click', () => {
+      let fileInput = document.getElementById('importMappingsFile');
+      if (!fileInput) {
+        fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'application/json,.json';
+        fileInput.id = 'importMappingsFile';
+        fileInput.style.display = 'none';
+        document.body.appendChild(fileInput);
+        fileInput.addEventListener('change', OPTS.importMappings);
+      }
+      fileInput.click();
+    });
   }
 
   // v6.4.11：自动备份配置（变更即自动保存）

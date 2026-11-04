@@ -108,3 +108,66 @@ export function resetWrongReports() {
 export function getWrongReportsMemory() {
   return wrongReportsMemory;
 }
+
+// ============ v14.15.0 N5：纠正映射独立导出/导入 ============
+
+/**
+ * 导出全部纠正映射（含 report-only 条目——wrongAppId 黑名单同样是用户劳动
+ * 成果）。返回 {gameName: entry} 纯对象（JSON 信封友好）。
+ * Export all corrections incl. report-only entries (the wrongAppId blacklist
+ * is user work too); plain-object form for a JSON envelope.
+ */
+export function exportAllCorrections() {
+  return Object.fromEntries(wrongReportsMemory);
+}
+
+/**
+ * 导入纠正映射（逐条校验 + 合并 upsert：已存在的条目按字段合并——导入值
+ * 优先、保留本地 reportedAt 更早者；count 取大者）。
+ * Import with per-entry validation + merge-upsert.
+ * @param {Record<string, {wrongAppId?: string|null, correctAppId?: string|null, count?: number, reportedAt?: number, correctedAt?: number|null}>} entries
+ * @returns {{imported: number, rejected: number}}
+ */
+export function importCorrections(entries) {
+  if (!entries || typeof entries !== 'object' || Array.isArray(entries)) {
+    return { imported: 0, rejected: 0 };
+  }
+  const appIdRe = /^\d{1,10}$/;
+  let imported = 0;
+  let rejected = 0;
+  const now = Date.now();
+  for (const [rawName, raw] of Object.entries(entries)) {
+    const name = String(rawName || '').trim();
+    if (!name || name.length > 200 || !raw || typeof raw !== 'object') {
+      rejected += 1;
+      continue;
+    }
+    const correct = raw.correctAppId == null ? null : String(raw.correctAppId);
+    const wrong = raw.wrongAppId == null ? null : String(raw.wrongAppId);
+    if (correct !== null && !appIdRe.test(correct)) {
+      rejected += 1;
+      continue;
+    }
+    if (wrong !== null && !appIdRe.test(wrong)) {
+      rejected += 1;
+      continue;
+    }
+    if (correct === null && wrong === null) {
+      rejected += 1; // 双空条目无语义
+      continue;
+    }
+    const existing = wrongReportsMemory.get(name);
+    const merged = {
+      wrongAppId: wrong !== null ? wrong : existing ? existing.wrongAppId : null,
+      correctAppId: correct !== null ? correct : existing ? existing.correctAppId : null,
+      count: Math.max(Number(raw.count) || 0, existing ? existing.count || 0 : 0),
+      reportedAt: existing && existing.reportedAt ? existing.reportedAt : Number(raw.reportedAt) || now,
+      correctedAt: correct !== null ? now : existing ? existing.correctedAt : null
+    };
+    wrongReportsMemory.set(name, merged);
+    wrongReportsDirty = true;
+    imported += 1;
+  }
+  if (imported > 0) scheduleWrite();
+  return { imported, rejected };
+}

@@ -1631,6 +1631,22 @@
                   <button id="importPresets" class="gr-btn data-gr-btn">
                     <span class="gr-btn-icon">🧩</span><span>导入过滤预设</span>
                   </button>
+                  <!-- v14.15.0 N5：纠正映射独立导出/导入（用户手动确认的劳动成果，
+                       不随缓存清理删除、独立于全量备份；导入逐条校验+合并 upsert） -->
+                  <button
+                    id="exportMappings"
+                    class="gr-btn data-gr-btn"
+                    title="导出人工纠正映射（含报错黑名单）为 JSON 文件"
+                  >
+                    <span class="gr-btn-icon">🧠</span><span>导出纠正映射</span>
+                  </button>
+                  <button
+                    id="importMappings"
+                    class="gr-btn data-gr-btn"
+                    title="从 JSON 文件导入纠正映射（逐条校验+合并，不覆盖本地更新条目）"
+                  >
+                    <span class="gr-btn-icon">🧠</span><span>导入纠正映射</span>
+                  </button>
                   <input type="file" id="importPresetsFile" accept=".json" class="hidden-file" />
                 </div>
                 <input type="file" id="importFile" accept=".json" class="hidden-file" />

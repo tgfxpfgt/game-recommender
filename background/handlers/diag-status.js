@@ -15,6 +15,7 @@ import { getSiteHealth, recordSiteAlert } from '../storage/site-health.js';
 import { getFlushHealth } from '../storage/flush-health.js';
 import { Logger } from '../storage/logger.js';
 import { getWrongReportSamples, clearWrongReportSamples } from '../steam/mismatch-samples.js'; // v14.8 批次 3
+import { exportAllCorrections, importCorrections, flushWrongReports } from '../storage/wrong-reports.js'; // v14.15.0 N5：纠正映射导出/导入
 
 // --- Steam API 状态监测（v3.3.0）+ 分域名可达性（v11.0 B2）---
 export async function handleGetApiStatus() {
@@ -109,5 +110,16 @@ export const diagStatusHandlers = {
   GET_OUTBOUND_AUDIT: handleGetOutboundAudit,
   CLEAR_OUTBOUND_AUDIT: handleClearOutboundAudit,
   GET_WRONG_REPORT_SAMPLES: (m) => getWrongReportSamples(),
-  CLEAR_WRONG_REPORT_SAMPLES: (m) => clearWrongReportSamples()
+  CLEAR_WRONG_REPORT_SAMPLES: (m) => clearWrongReportSamples(),
+  // v14.15.0 N5：纠正映射独立导出/导入（用户劳动成果可迁移；导入逐条校验+合并）
+  GET_WRONG_REPORTS_EXPORT: async () => {
+    const entries = exportAllCorrections();
+    await flushWrongReports();
+    return { success: true, entries };
+  },
+  IMPORT_WRONG_REPORTS: async (m) => {
+    const r = importCorrections(m && m.entries);
+    await flushWrongReports();
+    return { success: true, imported: r.imported, rejected: r.rejected };
+  }
 };

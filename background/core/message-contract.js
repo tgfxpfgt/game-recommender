@@ -162,6 +162,12 @@ const RULES = {
   GET_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
   GET_FREEGAME_MISS_STATS: (m) => ({ ok: true }), // v14.8 批次 7：限免错过统计（dashboard 扩展页专用）
   CLEAR_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
+  // v14.15.0 N5：纠正映射独立导出/导入（扩展页专用 action——内容侧白名单不收）
+  GET_WRONG_REPORTS_EXPORT: (m) => ({ ok: true }),
+  IMPORT_WRONG_REPORTS: (m) =>
+    m && typeof m.entries === 'object' && m.entries !== null && !Array.isArray(m.entries)
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'IMPORT_WRONG_REPORTS.entries 必须是对象' },
   CLAIM_FREE_GAME: (m) =>
     isNonEmpty(m && m.gameId, 100)
       ? { ok: true, error: '' }
