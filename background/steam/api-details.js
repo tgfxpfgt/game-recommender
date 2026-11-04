@@ -137,6 +137,7 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
   if (hit && now - hit.ts < APPDETAILS_DEDUP_TTL_MS) return hit.promise;
   // 容量守卫：超限淘汰最旧（evictOldestByTs 语义，无第三方依赖）
   if (appDetailsInFlight.size >= APPDETAILS_DEDUP_CAP) {
+    /** @type {string|null} */
     let oldestKey = null;
     let oldestTs = Infinity;
     for (const [k, v] of appDetailsInFlight) {

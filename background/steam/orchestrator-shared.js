@@ -123,20 +123,20 @@ export const RATING_HISTORY_CAP = 30;
 
 /**
  * 追加走势点到缓存数据（原地写 data.ratingHistory；非有限数值不入点）。
- * @param {{ratingHistory?: Array<{t: number, r: number}>} | null} data
- * @param {number|null} positiveRate
+ * @param {Record<string, any>} data - 缓存数据对象（原地写 ratingHistory）
+ * @param {number|string|null} positiveRate
  * @returns {Array<{t: number, r: number}>} 更新后的 history（data 为空返回 []）
  */
 export function appendRatingHistory(data, positiveRate) {
-  if (!data) return []; // 无缓存数据载体（防御：调用方 bug 而非正常路径）
+  if (!data || typeof data !== 'object') return []; // 防御：调用方 bug 而非正常路径
   if (positiveRate === null || positiveRate === undefined || positiveRate === '') {
-    return data.ratingHistory || [];
+    return Array.isArray(data.ratingHistory) ? data.ratingHistory : [];
   }
   const rate = Number(positiveRate);
-  if (!Number.isFinite(rate)) return (data && data.ratingHistory) || [];
-  const history = Array.isArray(data && data.ratingHistory) ? data.ratingHistory.slice() : [];
+  if (!Number.isFinite(rate)) return Array.isArray(data.ratingHistory) ? data.ratingHistory : [];
+  const history = Array.isArray(data.ratingHistory) ? data.ratingHistory.slice() : [];
   history.push({ t: Date.now(), r: Math.max(0, Math.min(100, Math.round(rate))) });
   while (history.length > RATING_HISTORY_CAP) history.shift(); // 淘汰最旧
-  if (data) data.ratingHistory = history;
+  data.ratingHistory = history;
   return history;
 }

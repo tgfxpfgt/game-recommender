@@ -1647,6 +1647,15 @@
                   >
                     <span class="gr-btn-icon">🧠</span><span>导入纠正映射</span>
                   </button>
+                  <!-- v14.15.0 O7：一键诊断包（设置脱敏+指标+API状态+审计+日志），
+                       报障 issue 一来一回闭环 -->
+                  <button
+                    id="exportDiagnostics"
+                    class="gr-btn data-gr-btn"
+                    title="导出诊断包（设置已自动脱敏：密钥/Token 剔除）——报障时附上此文件"
+                  >
+                    <span class="gr-btn-icon">🩺</span><span>导出诊断包</span>
+                  </button>
                   <input type="file" id="importPresetsFile" accept=".json" class="hidden-file" />
                 </div>
                 <input type="file" id="importFile" accept=".json" class="hidden-file" />

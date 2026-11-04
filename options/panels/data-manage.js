@@ -395,6 +395,30 @@
     }
   };
 
+  // ============ v14.15.0 O7：一键诊断包 ============
+  // 后台聚合（stripSecrets 服务端侧执行——ui 层不 import background 分层约束）
+  // 设置脱敏 + 运行指标 + API 状态（含失败归因环形缓冲）+ 出站审计 + 日志。
+  OPTS.exportDiagnostics = async function () {
+    try {
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_DIAGNOSTIC_BUNDLE' });
+      if (!resp || !resp.success || !resp.bundle) {
+        showDataOpStatus('诊断包获取失败', true);
+        return;
+      }
+      const payload = JSON.stringify(resp.bundle, null, 2);
+      const blob = new Blob([payload], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `game-recommender-diagnostics-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showDataOpStatus('✅ 诊断包已导出（设置已脱敏——密钥/Token 不在文件中）');
+    } catch (e) {
+      showDataOpStatus('诊断包导出失败: ' + String(e), true);
+    }
+  };
+
   // ============ 数据管理/自动备份按钮绑定（v14 B2 自 options.js 迁入） ============
 
   // ============ 数据管理/自动备份按钮绑定（v14 B2 自 options.js 迁入） ============
@@ -433,6 +457,8 @@
       }
       fileInput.click();
     });
+    // v14.15.0 O7：一键诊断包导出绑定
+    document.getElementById('exportDiagnostics').addEventListener('click', OPTS.exportDiagnostics);
   }
 
   // v6.4.11：自动备份配置（变更即自动保存）

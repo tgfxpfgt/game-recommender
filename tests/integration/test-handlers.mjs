@@ -928,11 +928,16 @@ describe('v10.9.2：负缓存穿透（ignoreNegativeCache 全链）', () => {
 // ============ v10.9.3：SEARCH_STEAM 未命中原因诊断 ============
 describe('v10.9.3：未命中原因（reason 字段）', () => {
   let resetApiMonitor;
+  let resetAppDetailsDedup;
   beforeAll(async () => {
     ({ resetApiMonitor } = await import('../../background/core/api-monitor.js'));
+    // v14.15.0 O1：appdetails 去重表是模块级短 TTL 缓存——跨用例残留会让
+    // 上一用例的 mock 响应泄漏进本用例（断网/未命中语义被 10s 窗内旧命中顶掉）
+    ({ resetAppDetailsDedupForTest: resetAppDetailsDedup } = await import('../../background/steam/api-details.js'));
   });
   beforeEach(() => {
     resetApiMonitor(); // 滑动窗口跨用例残留会让 reason 判定漂移
+    resetAppDetailsDedup(); // 同理：去重表跨用例残留（O1）
   });
   test('网络异常 → reason = steam-api-unreachable', async () => {
     storage._reset();

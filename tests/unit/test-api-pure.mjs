@@ -891,7 +891,6 @@ describe('v14.15.0 O1：appdetails 同 URL 短窗去重（直取路径双往返�
     detailsMod.resetAppDetailsDedupForTest();
     monitor.resetApiMonitor();
     let calls = 0;
-    const fetchMock = createFetchMock({});
     const prev = globalThis.fetch;
     globalThis.fetch = async (url) => {
       if (String(url).indexOf('appdetails') >= 0) {
