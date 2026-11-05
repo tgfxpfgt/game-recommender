@@ -38,8 +38,16 @@ const NAMED_APPS = [
   { appid: 578080, name: 'PUBG: BATTLEGROUNDS' }
 ];
 const FILLER_COUNT = 10050;
+// v14.16.0 O2：模糊层用例条目——副标题差异（精确 miss / 模糊 hit）+ 长度比
+// 守卫反例（同名前缀但长度悬殊）+ 相关性护栏反例（Dice 够但语义无关）
+const FUZZY_APPS = [
+  { appid: 111111, name: '死亡空间2' }, // 查询 '死亡空间2 重制版' → 模糊命中正主
+  { appid: 222222, name: '死亡空间3' }, // 干扰项（Dice 也高——靠覆盖/护栏分胜负）
+  { appid: 333333, name: 'The Witcher 3: Wild Hunt - Complete Edition' } // 长度比守卫反例对
+];
 const DUMP_APPS = [
   ...NAMED_APPS,
+  ...FUZZY_APPS,
   ...Array.from({ length: FILLER_COUNT }, (_, i) => ({ appid: 900000 + i, name: `Filler Game ${i}` }))
 ];
 
@@ -86,6 +94,30 @@ describe('目录刷新与匹配', () => {
     expect(hit2 && hit2.appId).toEqual('578080');
     // 未命中
     expect(await modA.matchAppListExact('不存在的游戏 XYZ')).toEqual(null);
+  });
+
+  // v14.16.0 O2：受控模糊层（双层落空 → Dice≥0.65 + 相关性/长度护栏）
+  describe('O2 受控模糊匹配层', () => {
+    test('副标题差异样本：精确 miss → 模糊命中正主', async () => {
+      fetchResponses = { [DUMP_URL]: () => dumpResponse() };
+      await modA.refreshAppListIndex(true);
+      const hit = await modA.matchAppListExact('死亡空间2 重制版');
+      expect(hit && hit.appId).toEqual('111111');
+    });
+
+    test('相关性护栏：Dice 达标但 nameMatchesSearch 拒绝 → 落空', async () => {
+      // '完全无关的查询词' 与任何条目 Dice 不足 / 相关性拒绝 → null
+      expect(await modA.matchAppListExact('完全无关的查询词汇')).toEqual(null);
+    });
+
+    test('长度比守卫：长短名悬殊候选排除', async () => {
+      // 查询短名 'The Witcher 3'：完整版条目长度比 > 2 → 排除（不得模糊命中）
+      expect(await modA.matchAppListExact('The Witcher 3')).toEqual(null);
+    });
+
+    test('短查询名（<3 归一化字符）跳过模糊层', async () => {
+      expect(await modA.matchAppListExact('死亡')).toEqual(null);
+    });
   });
 
   test('excludeAppId 黑名单排除', async () => {

@@ -23,6 +23,7 @@ import { getSettings } from '../core/settings.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { metricInc } from '../core/metrics.js';
 import { Logger } from '../storage/logger.js';
+import { coreTokensOf } from './api-search.js'; // v14.16.0 O2：查询噪声剥离（重制/版等词不入覆盖判据）
 
 // v14.6.2：刷新失败退避窗口（PERF_CONFIG 单源别名——本文件多处消费）
 const APP_LIST_REFRESH_BACKOFF_MS = PERF_CONFIG.appListRefreshBackoffMs;
@@ -56,6 +57,8 @@ let indexMap = null;
 // noise risk outweighs benefit under the mismatch-replay gate.
 /** @type {Map<string, {appId: string, name: string}>|null} */
 let deSpaceMap = null;
+/** @type {Map<string, Array<{appId: string, name: string, norm: string}>>|null} */
+let fuzzyBuckets = null; // v14.16.0 O2：模糊层候选桶（前 2 字符）
 let loaded = false; // 本 SW 生命周期内不再读盘（刷新可重建）
 /** @type {Promise<Map<string, {appId: string, name: string}>|null>|null} */
 let loadPromise = null;
@@ -71,10 +74,11 @@ function deSpaceKey(normTitle) {
   return normTitle.includes(' ') ? normTitle.replace(/\s+/g, '') : '';
 }
 
-/** 构建双索引（主键 + 去空格变体键）*/
+/** 构建索引（主键 + 去空格变体键 + v14.16.0 O2 模糊桶）*/
 function buildMaps(entries) {
   const map = new Map();
   const deSpace = new Map();
+  const fuzzy = new Map(); // 归一化名前 2 字符 → 条目数组（O2 模糊层候选生成）
   for (const entry of entries) {
     if (!Array.isArray(entry) || entry.length < 3) continue;
     const [norm, appId, name] = entry;
@@ -82,8 +86,15 @@ function buildMaps(entries) {
     if (!map.has(norm)) map.set(norm, { appId, name });
     const dsk = deSpaceKey(norm);
     if (dsk && !deSpace.has(dsk)) deSpace.set(dsk, { appId, name });
+    const bucketKey = norm.slice(0, 2);
+    if (bucketKey) {
+      const arr = fuzzy.get(bucketKey);
+      if (arr) arr.push({ appId, name, norm });
+      else fuzzy.set(bucketKey, [{ appId, name, norm }]);
+    }
   }
   deSpaceMap = deSpace;
+  fuzzyBuckets = fuzzy;
   return map;
 }
 
@@ -143,6 +154,113 @@ function lookupTiered(map, normTitle) {
   return variant ? { entry: variant, tier: 'variant' } : null;
 }
 
+// ============ v14.16.0 O2：受控模糊匹配层（v14.6.0 遗留立项） ============
+// 精确/去空格变体双层落空的补齐：下架游戏 storesearch 无路可走（The Culling
+// 实证），目录是唯一覆盖源；副标题差异样本"精确 miss 而模糊明显 hit"。
+// 受控护栏三件：①字符 bigram Dice ≥0.65（社区校准值，本地实现——共享版
+// cjkBigramDice 要求 CJK bigram ≥5 且对短名返回 -1，不适用目录短名）
+// ②查询核心 token 全覆盖（coreTokensOf 噪声剥离后逐 token 须出现在候选
+// 去空格名中——查询的实词候选都得有，副标题多词不影响）③长度比守卫
+//（0.5-2，防长短名悬殊误配）。候选经前 2 字符桶生成（免全扫）。
+const FUZZY_MIN_DICE = 0.65;
+const FUZZY_BUCKET_SCAN_CAP = 400;
+
+/**
+ * 独立词形态的续作序号提取（数字 1-4 位 / 罗马数字 1-6 字母，罗马转数值）。
+ * 'Grand Theft Auto VI' → {6}；'死亡空间2' → {2}（'2' 独立 token）；无 → 空集。
+ * @param {string} normTitle
+ * @returns {Set<number>}
+ */
+function seqTokensOf(normTitle) {
+  const romanVal = (r) => {
+    const map = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
+    let total = 0;
+    for (let i = 0; i < r.length; i++) {
+      const cur = map[r[i]];
+      const next = map[r[i + 1]];
+      total += next > cur ? -cur : cur;
+    }
+    return total;
+  };
+  const out = new Set();
+  for (const w of String(normTitle).split(/\s+/)) {
+    if (/^[0-9]{1,4}$/.test(w)) out.add(Number(w));
+    else if (/^[ivxlcdm]{1,6}$/i.test(w)) out.add(romanVal(w.toLowerCase()));
+  }
+  return out;
+}
+
+/** 字符 bigram Dice（去空格小写全串；无最小集要求，阈值天然把关短串） */
+function charBigramDice(a, b) {
+  const grams = (s) => {
+    const t = String(s).replace(/\s+/g, '');
+    const out = new Set();
+    for (let i = 0; i < t.length - 1; i++) out.add(t.slice(i, i + 2));
+    return out;
+  };
+  const A = grams(a);
+  const B = grams(b);
+  if (A.size === 0 || B.size === 0) return 0;
+  let shared = 0;
+  for (const g of A) if (B.has(g)) shared++;
+  return (2 * shared) / (A.size + B.size);
+}
+
+/**
+ * 受控模糊匹配（lookupTiered 双层落空后调用；命中计入 fuzzy.hit 指标——
+ * 与 variant 层共用"非精确层命中"语义）。
+ * @param {string} normTitle
+ * @param {string} rawTitle
+ * @param {string|number|null} excludeAppId
+ * @returns {{appId: string, name: string}|null}
+ */
+function matchAppListFuzzy(normTitle, rawTitle, excludeAppId) {
+  if (!fuzzyBuckets || normTitle.length < 3) return null;
+  const bucket = fuzzyBuckets.get(normTitle.slice(0, 2));
+  if (!bucket || bucket.length === 0) return null;
+  const excl = excludeAppId == null ? '' : String(excludeAppId);
+  const queryDeSpaced = normTitle.replace(/\s+/g, '');
+  const querySeq = seqTokensOf(normTitle);
+  let best = null;
+  let bestDice = 0;
+  const scan = bucket.length > FUZZY_BUCKET_SCAN_CAP ? bucket.slice(0, FUZZY_BUCKET_SCAN_CAP) : bucket;
+  for (const cand of scan) {
+    if (cand.appId === excl) continue;
+    const lr = cand.norm.length / normTitle.length;
+    if (lr < 0.5 || lr > 2) continue; // 长度比守卫
+    const candDeSpaced = cand.norm.replace(/\s+/g, '');
+    // 覆盖护栏（方向：候选实词 ⊆ 查询）——副标题场景查询比候选长（多出的
+    // 实词是版本/平台描述），候选的每个核心词查询都必须有；反向不成立
+    //（查询多出的'重制版'等正是被剥的噪声/版本词）
+    let covered = true;
+    for (const w of coreTokensOf(cand.name)) {
+      if (queryDeSpaced.indexOf(w) < 0) {
+        covered = false;
+        break;
+      }
+    }
+    if (!covered) continue;
+    // 续作序号守卫：双方独立词形态的序号集合必须相等（VI=6≠V=5 续作拒；
+    // '死亡空间2 重制版'与'死亡空间2'同为 {2} 放行；查询有序号而候选无
+    // → 拒——版本号查询不得配无号本体）。
+    const candSeq = seqTokensOf(cand.norm);
+    if (querySeq.size !== candSeq.size) continue;
+    for (const v of querySeq) {
+      if (!candSeq.has(v)) {
+        covered = false;
+        break;
+      }
+    }
+    if (!covered) continue;
+    const dice = charBigramDice(queryDeSpaced, candDeSpaced);
+    if (dice >= FUZZY_MIN_DICE && dice > bestDice) {
+      best = { appId: cand.appId, name: cand.name };
+      bestDice = dice;
+    }
+  }
+  return best;
+}
+
 /**
  * 目录是否已过期（超过 PERF_CONFIG.appListIndexMaxAgeDays）。
  * @param {{updatedAt: number}|null} m
@@ -171,8 +289,15 @@ export async function matchAppListExact(title, excludeAppId = null) {
       metricInc('appListIndex.miss');
       return null;
     }
-    const fast = lookupTiered(indexMap, normalizeTitle(title));
+    const norm = normalizeTitle(title);
+    const fast = lookupTiered(indexMap, norm);
     if (!fast || (excludeAppId != null && String(fast.entry.appId) === String(excludeAppId))) {
+      // v14.16.0 O2：双层落空 → 受控模糊层
+      const fz = matchAppListFuzzy(norm, title, excludeAppId);
+      if (fz) {
+        metricInc('appListIndex.fuzzy.hit');
+        return fz;
+      }
       metricInc('appListIndex.miss');
       return null;
     }
@@ -189,8 +314,14 @@ export async function matchAppListExact(title, excludeAppId = null) {
     metricInc('appListIndex.miss');
     return null;
   }
-  const hit = lookupTiered(map, normalizeTitle(title));
+  const norm2 = normalizeTitle(title);
+  const hit = lookupTiered(map, norm2);
   if (!hit || (excludeAppId != null && String(hit.entry.appId) === String(excludeAppId))) {
+    const fz2 = matchAppListFuzzy(norm2, title, excludeAppId);
+    if (fz2) {
+      metricInc('appListIndex.fuzzy.hit');
+      return fz2;
+    }
     metricInc('appListIndex.miss');
     return null;
   }
