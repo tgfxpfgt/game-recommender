@@ -82,6 +82,7 @@ export default defineConfig({
       'tests/unit/test-userscript-pure.mjs',
       'tests/unit/test-candidates-bind.mjs',
       'tests/unit/test-mappings-io.mjs',
+      'tests/unit/test-ical.mjs',
       'tests/unit/test-retrieval-vocab.mjs',
       'tests/unit/test-early-router.mjs',
       'tests/unit/test-retrieval-override.mjs',

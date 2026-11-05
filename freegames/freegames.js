@@ -48,6 +48,25 @@ document.addEventListener('DOMContentLoaded', () => {
     loadFreeGames(true);
   });
 
+  // v14.16.0 N7：导出 .ics 日历——进行中的限免生成 VEVENT（截止前 24h 提醒窗），
+  // 系统日历订阅后到期自动提醒；零网络（数据来自已加载的限免缓存）。
+  // Export .ics: in-progress giveaways become VEVENTs with a 24h reminder window.
+  document.getElementById('icalBtn').addEventListener('click', () => {
+    const ical = globalThis.__GR_ICAL__;
+    if (!ical || !Array.isArray(allGames) || allGames.length === 0) {
+      alert('暂无限免数据可导出');
+      return;
+    }
+    const text = ical.buildIcal(allGames, new Date());
+    const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `game-radar-freegames-${new Date().toISOString().slice(0, 10)}.ics`;
+    a.click();
+    URL.revokeObjectURL(url);
+  });
+
   // 平台筛选 / Platform filter
   document.querySelectorAll('.filter-btn').forEach((btn) => {
     btn.addEventListener('click', () => {

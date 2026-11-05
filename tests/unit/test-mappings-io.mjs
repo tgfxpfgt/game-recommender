@@ -72,3 +72,27 @@ describe('N5 纠正映射导入校验与合并（importCorrections）', () => {
     expect(getWrongReportsMemory().get('游戏C').correctAppId).toEqual('3333333');
   });
 });
+
+// ============ v14.15.0 O3：负缓存剩余时间（分级退避动态化） ============
+const o3NameIndex = await import(new URL('../../background/storage/name-index.js', import.meta.url).href + '?t=o3');
+describe('O3：negativeCacheRemainingMs（badge/候选面板动态等待提示）', () => {
+  const { recordNameIndex, negativeCacheRemainingMs } = o3NameIndex;
+
+  test('首档 miss → 剩余 ∈ (0, cap/8]；正缓存条目 → 0', async () => {
+    await recordNameIndex('O3游戏甲', null); // miss 1 次
+    const ms = await negativeCacheRemainingMs('O3游戏甲');
+    expect(ms).toBeGreaterThan(0);
+    expect(ms).toBeLessThanOrEqual((2 * 3600e3) / 8); // cap/8 = 15min
+    await recordNameIndex('O3游戏甲', 292030); // 转正缓存
+    expect(await negativeCacheRemainingMs('O3游戏甲')).toEqual(0);
+  });
+
+  test('连续 miss 退避到 cap/2；未知名 → 0', async () => {
+    await recordNameIndex('O3游戏乙', null);
+    await recordNameIndex('O3游戏乙', null); // missCount 2
+    const ms = await negativeCacheRemainingMs('O3游戏乙');
+    expect(ms).toBeGreaterThan((2 * 3600e3) / 8); // 严格大于首档
+    expect(ms).toBeLessThanOrEqual((2 * 3600e3) / 2);
+    expect(await negativeCacheRemainingMs('O3从没搜过')).toEqual(0);
+  });
+});

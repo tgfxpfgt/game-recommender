@@ -52,7 +52,7 @@ export function prependBadge(item, rating, settings) {
         bg: 'rgba(102,102,102,0.08)',
         cls: 'gr-badge-notfound',
         title:
-          '未在 Steam 找到该游戏\n点击立即重查（穿透负缓存）· 负缓存 2h 后自动重查 · 或按 Alt+Shift+G 强制刷新本页',
+          '未在 Steam 找到该游戏\n点击立即重查（穿透负缓存）· 负缓存分级退避 15min→1h→2h 后自动重查 · 或按 Alt+Shift+G 强制刷新本页',
         dashed: true,
         // v14.7 批次 3：点击 = 穿透负缓存单游戏重查（处理器由 list-page 注入）
         onClick: () => {

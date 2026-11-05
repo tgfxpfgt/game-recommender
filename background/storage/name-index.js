@@ -73,6 +73,21 @@ function negativeTtlFor(missCount) {
   return cap;
 }
 
+// v14.15.0（功能报告 O3）：负缓存剩余毫秒（未在负缓存期返回 0）——徽章/候选
+// 面板展示"X 分钟后自动重查"用（此前静态"2h"文案与 15min→1h→2h 阶梯不符，
+// 首档 miss 的用户看到的期望是错的）。
+// Remaining negative-cache ms (0 when not cached); powers the dynamic
+// "auto-retry in X min" hint (the old static "2h" copy lied on tier 1).
+export async function negativeCacheRemainingMs(gameName) {
+  const name = (gameName || '').toLowerCase().trim();
+  if (!name) return 0;
+  await loadNameIndexToMemory();
+  const entry = nameIndexMemory.get(name);
+  if (!entry || (entry.appId !== null && entry.appId !== undefined) || !entry.lastSearched) return 0;
+  const remaining = negativeTtlFor(entry.missCount) - (Date.now() - entry.lastSearched);
+  return remaining > 0 ? remaining : 0;
+}
+
 // 正缓存条目上限（v3.4.0：防无界增长——仅负缓存曾有清理，正缓存
 // 名称→appId 映射永不删除会随浏览无限膨胀；超出后按 lastSearched LRU 裁剪）
 // Positive-entry cap (v3.4.0: only negative entries were purged before; the

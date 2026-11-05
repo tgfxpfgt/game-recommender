@@ -1088,33 +1088,42 @@
     const isNotFound = !rating || !rating.appId;
     const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
     const rate = rating ? rating.positiveRate : null;
+    // v14.16.0 O5：同项多徽章 DocumentFragment 单次插入（每项 2-3 次独立 DOM
+    // 写 → 1 次；扩展侧 insertBadges 单点同语义）。
+    const pendingBadges = [];
+    const flushBadges = () => {
+      if (!pendingBadges.length) return;
+      const frag = document.createDocumentFragment();
+      for (const b of pendingBadges) frag.appendChild(b);
+      link.parentNode.insertBefore(frag, link);
+    };
 
     if (isNotFound) {
-      link.parentNode.insertBefore(
+      pendingBadges.push(
         createBadge(link, {
           text: '未找到',
           color: '#666',
           bg: 'rgba(102,102,102,.08)',
           cls: 'gr-badge-notfound gr-rating-badge',
-          title: '未在 Steam 找到该游戏\n负缓存 2h 后自动重查\n点击立即重查（穿透负缓存）',
+          title: '未在 Steam 找到该游戏\n负缓存分级退避 15min→1h→2h 后自动重查\n点击立即重查（穿透负缓存）',
           dashed: true,
           onClick: () => retryItem(item)
-        }),
-        link
+        })
       );
+      flushBadges();
       return;
     }
     if (isTypeBadge) {
-      link.parentNode.insertBefore(
+      pendingBadges.push(
         createBadge(link, {
           text: rating.type,
           color: '#b48ce0',
           bg: 'rgba(180,140,224,.12)',
           cls: 'gr-badge-type gr-rating-badge',
           title: 'Steam 条目类型: ' + rating.type + '（合集/非单个游戏本体）'
-        }),
-        link
+        })
       );
+      flushBadges();
       return;
     }
     if (rate === null || rate === undefined) {
@@ -1129,7 +1138,7 @@
               ? '评测少'
               : '';
       const relNote = rating.releaseDate ? '，发售于 ' + rating.releaseDate : '';
-      link.parentNode.insertBefore(
+      pendingBadges.push(
         createBadge(link, {
           text: relTag ? '#' + rating.appId + '·' + relTag : '#' + rating.appId,
           color: '#8f98a0',
@@ -1145,13 +1154,13 @@
             '\n点击跳转 Steam 详情页',
           clickable: true,
           appId: rating.appId
-        }),
-        link
+        })
       );
+      flushBadges();
       return;
     }
     if (showAll) {
-      link.parentNode.insertBefore(
+      pendingBadges.push(
         createBadge(link, {
           text: rate + '%',
           color: rate >= 70 ? '#a1cd44' : rate >= 40 ? '#b9a064' : '#bd545d',
@@ -1168,24 +1177,23 @@
             '\n点击跳转 Steam 详情页',
           clickable: true,
           appId: rating.appId
-        }),
-        link
+        })
       );
     }
     if (showRecent) {
       const rr = rating.recentPositiveRate;
       const rt = rating.recentTotalReviews || 0;
-      link.parentNode.insertBefore(
+      pendingBadges.push(
         createBadge(link, {
           text: rr === null || rr === undefined ? '—' : rr + '%',
           color: '#66c0f4',
           bg: 'rgba(102,192,244,.1)',
           cls: 'gr-badge-recent',
           title: rr === null || rr === undefined ? '近 30 天无评测' : '近 30 天好评率 ' + rr + '%（' + rt + ' 篇）'
-        }),
-        link
+        })
       );
     }
+    flushBadges();
     // 红标题（总+近30天 均 > 阈值；红优先于绿——扩展 badges/core.js 同语义）
     const redThreshold = Number(settings && settings.redTitleRating) || 0;
     if (
@@ -1716,6 +1724,10 @@
   // §9 列表页扫描 + 顺序批处理（list-page/list-batch 语义简化：
   // 单队列串行 + 就绪即上徽章 + 等待徽章显示队列位置）
   // ==================================================================
+  // v14.16.0 O10：增量扫描标记——观察器每轮 rescan 此前全页重扫所有链接
+  //（fallbackLinks 全页 a[href] ×20 轮上限）；WeakSet 已处理标记让重扫只碰
+  // 新增节点（GC 友好，节点移除自动出表）。
+  const processedLinks = new WeakSet();
   function extractListItems(rule) {
     const path = location.pathname + location.search;
     const isList = rule.listPagePatterns.length === 0 ? true : matchesAny(rule.listPagePatterns, path);
@@ -1725,12 +1737,14 @@
     const items = [];
     const pushItem = (link, titleEl) => {
       if (!link || items.length >= MAX_SCAN_LINKS) return;
+      if (processedLinks.has(link)) return; // O10：已入队链接零成本跳过
       const href = link.href || link.getAttribute('href') || '';
       if (!href || seen.has(href)) return;
       const rawName = String(titleEl ? titleEl.textContent : link.textContent || '').trim();
       if (rawName.length < li.minLen || rawName.length > li.maxLen) return;
       if (link.querySelector('.gr-rating-badge') || link.querySelector('.gr-working-badge')) return; // 防重复
       seen.add(href);
+      processedLinks.add(link);
       items.push({ link, element: link.closest(li.containers.join(',')) || link, titleEl, gameName: rawName, href });
     };
     for (const containerSel of li.containers) {

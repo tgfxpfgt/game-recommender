@@ -16,6 +16,7 @@ import { getSteamApiStatus } from '../core/api-monitor.js'; // v10.9.3：失败�
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntry } from '../storage/name-index.js';
+import { negativeCacheRemainingMs } from '../storage/name-index.js'; // v14.15.0 O3：负缓存剩余
 import { flushRegistry, recordGameInRegistry } from '../storage/registry.js';
 import {
   flushSteamCache,
@@ -138,12 +139,18 @@ async function doHandleSearchSteam(message, sender) {
   } catch (e) {
     reason = 'error: ' + String((e && /** @type {Error} */ (e).message) || e).slice(0, 120);
   }
+  // v14.15.0 O3：负缓存剩余时间随响应下发（候选面板展示真实自动重查等待）
+  let negativeCacheMs = 0;
+  if (!steamResult) {
+    negativeCacheMs = await negativeCacheRemainingMs(message.gameName);
+  }
   if (!steamResult && !reason) {
     const api = getSteamApiStatus();
+    const negNote = negativeCacheMs > 0 ? `，负缓存 ${Math.ceil(negativeCacheMs / 60000)} 分钟后自动重查` : '';
     reason =
       api.failed > 0
         ? `steam-api-unreachable（窗口内 ${api.failed} 次 Steam 接口失败——请检查网络/加速器后点重试）`
-        : 'not-found（Steam 商店检索无匹配）';
+        : 'not-found（Steam 商店检索无匹配' + negNote + '）';
     Logger.warn('Steam', `未命中原因: ${reason} — "${message.gameName}"`);
   }
   if (steamResult) {
@@ -160,7 +167,7 @@ async function doHandleSearchSteam(message, sender) {
   // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"（模块化：取最近模块时间）
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   noteResolvedGame(sender, steamResult); // v14.1.0：SidePanel 联动
-  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null, reason };
+  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null, reason, negativeCacheMs };
 }
 
 export async function handleRefreshSteamCache(message) {
