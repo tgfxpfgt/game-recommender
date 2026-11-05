@@ -324,6 +324,22 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.15.0（功能建议报告第一轮：P1 七项全落地）
+
+**基建与门禁**
+
+- **版本一致性门禁（O4 执行期修正）**：`npm run release:smoke` 五断言——manifest/package/README/welcome/油猴版本四处同步机器化（v14.6.3 曾漏 README 条目）；CI release-smoke job 同源调用。原建议"CI 接入 E2E"撤销——复核发现 ci.yml 早有 e2e job（调研 grep 窗口过窄漏看，报告已标注）
+- **MOCK_RE 覆盖审计（O9）**：integrity 新断言"出站 URL 字面量 ⊆ MOCK_RE ∪ 豁免表"——**落地即抓 4 个真实泄漏**：steam250.com/top250、www.gamerpower.com（www 形态）、steamspy.com/api.php（api.php≠/api/ 形态）、www.gog.com（www 形态），E2E 此前对这四域走真网络
+- **油猴自动更新链（N8）**：@updateURL/@downloadURL 接入 Tampermonkey 更新探测
+
+**功能与性能**
+
+- **AppID 手动绑定（N3）**：候选面板直接粘贴纯数字/商店链接绑定（storesearch 搜不到已下架游戏——The Culling 实证的唯一用户兜底），纠正映射语义优先于一切索引；扩展+油猴同 UI
+- **纠正映射导出/导入（N5）**：用户劳动成果一键迁移（grEnvelope 信封对齐过滤预设先例）；导入逐条校验+合并 upsert（导入值优先/count 取大/reportedAt 保留更早）
+- **好评率走势迷你图（N1）**：评分缓存成功重取追加点（30 点上限），浮窗 SVG sparkline——口碑崩坏/回升可视化，零新增请求
+- **一键诊断包（O7）**：设置（stripSecrets 脱敏）+运行指标+API 状态（含失败归因）+出站审计+日志一 JSON 下载，报障 issue 一来一回闭环
+- **appdetails 去重（O1）**：直取路径 Phase 0 与组装器同 URL 双往返合并（in-flight+10s 短 TTL，失败不入表）
+
 ### v14.14.1（油猴脚本版重制——扩展核心功能移植为单文件 userscript）
 
 - **userscript/game-radar.user.js（~1880 行）**：根据扩展现状重制油猴脚本——列表好评率徽章（总体/近30天/红标题/等待队列/未找到点击重查）、低评测 `#AppID·新游/未发售` 提示、详情 Steam 浮窗（无评价原因行/手动选择键盘导航/30s 自动重查）、匹配管线（storesearch 全词扫描+跨词共识+社区英文兜底+EN 段重搜+DLC 解析）、负缓存分级退避/分域熔断/限速——词表与纯函数自 retrieval-vocab/api-search 逐字移植（错题库锚点测试 14 例沙箱装载全绿）
