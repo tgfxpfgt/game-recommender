@@ -16,7 +16,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { Logger } from '../storage/logger.js';
-import { applyVocabOverride } from '../../shared/retrieval-vocab.js';
+import { applyVocabOverride, resetVocabOverride } from '../../shared/retrieval-vocab.js';
 import { reloadRetrievalRules } from './api-search.js';
 
 /**
@@ -40,4 +40,14 @@ export async function ensureRetrievalVocabOverride() {
     Logger.warn('RetrievalVocab', `词表覆盖读取失败（保持内置词表）: ${String(e).slice(0, 120)}`);
     return { applied: false, errors: [String(e)] };
   }
+}
+
+/**
+ * 回滚词表覆盖到内置词表（v14.16.0 O6 导入回放门用：清内存覆盖态 + 热更
+ * 回内置编译产物；存储由调用方决定是否清除）。
+ * Roll the vocab back to built-ins (import-gate rollback path).
+ */
+export function rollbackRetrievalVocab() {
+  resetVocabOverride();
+  reloadRetrievalRules();
 }
