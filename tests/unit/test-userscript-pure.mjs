@@ -229,3 +229,62 @@ describe('油猴脚本：词表快照与扩展单源同步（防漂移门禁）'
     expect(missing).toEqual([]);
   });
 });
+
+// ============ v14.16.0 O8：油猴-扩展纯函数双侧 golden 对齐 ============
+// 油猴管线的行为正确性 = 扩展快照的正确性——错题库 5 标题为公共输入集，
+// 断言双侧四纯函数同输入同输出（扩展侧改函数而油猴快照未跟 → 门禁红）。
+// Cross-side golden: extension modules vs userscript sandbox on the same
+// mismatch-anchor inputs; drift turns the gate red.
+const o8ExtParse = (await import('../../background/core/title-parser.js')).parseGameTitle;
+const o8ExtApi = await import('../../background/steam/api-search.js');
+describe('O8 双侧 golden 对齐（扩展 vs 油猴快照）', () => {
+  const extParse = o8ExtParse;
+  const extApi = o8ExtApi;
+  const gr2 = loadScript();
+  const us = gr2.pure;
+
+  const TITLES = [
+    '使命召唤®：黑色行动 7|官方中文|支持手柄|Call of Duty®: Black Ops 7|使命召唤22：黑色行动7',
+    '人类/Humankind',
+    '生化危机4 重制版|中字-国语|Build.22377325+超级MOD整合+逆命殊途DLC+全DLC',
+    '生化危机9 安魂曲|中字-国语|Build.22898177+预购特典+全DLC+修改器',
+    '寂静岭：陨落小镇',
+    '死亡空间2 重制版|Dead Space 2 Remastered'
+  ];
+  const NAMES = ['Call of Duty: Black Ops 7', 'HUMANKIND™', 'Resident Evil 4', 'Requiem', 'Dead Space 2'];
+
+  it('parseGameTitle：双侧首候选一致（核心词主导；完整候选集存在既知分段细节偏差——记录不伪装）', () => {
+    // 完整候选集双侧不等（噪声编译/分段细节差异，搜索词集合略宽窄）——
+    // 收敛点=首候选（管线主搜索词）必须一致；完整集对齐留后续专项。
+    for (const t of TITLES) {
+      const ext = extParse(t);
+      const usArr = us.parseGameTitle(t);
+      expect(usArr[0]).toEqual(ext[0]);
+    }
+  });
+
+  it('coreTokensOf 双侧输出深度相等', () => {
+    for (const t of [...TITLES, ...NAMES]) {
+      expect(us.coreTokensOf(t)).toEqual(extApi.coreTokensOf(t));
+    }
+  });
+
+  it('nameMatchesSearch / matchCandidateScore 双侧同判（20 组合抽样）', () => {
+    for (const name of NAMES) {
+      for (const t of TITLES.slice(0, 4)) {
+        const terms = extParse(t);
+        for (const term of terms.slice(0, 2)) {
+          const ctx = { term, rawName: t };
+          expect(
+            us.nameMatchesSearch(name, ctx.term, ctx.rawName),
+            `nameMatchesSearch 漂移: ${name} vs ${ctx.term}`
+          ).toEqual(extApi.nameMatchesSearch(name, ctx.term, ctx.rawName));
+          expect(
+            us.matchCandidateScore(name, ctx.term, ctx.rawName),
+            `matchCandidateScore 漂移: ${name} vs ${ctx.term}`
+          ).toEqual(extApi.matchCandidateScore(name, ctx.term, ctx.rawName));
+        }
+      }
+    }
+  });
+});

@@ -305,24 +305,14 @@
   const addonNameRe = new RegExp('(?:' + VOCAB.addonPattern + ')', 'i');
   const demoNameRe = new RegExp('(?:' + VOCAB.demoPattern + ')', 'i');
 
-  // 核心词提取（api-search.js coreTokensOf 逐字）：小写 + 噪声剥离 + 分词
+  // 核心词提取（api-search.js coreTokensOf——v14.16.0 O8 逐字对齐扩展）：
+  // CJK 连串 + EN 词（≥4 字符，排噪声集）；扩展口径无差别
+  const noiseEnSet = new Set(VOCAB.enNoiseWords.split('|'));
   function coreTokensOf(text) {
-    const s = String(text || '')
-      .toLowerCase()
-      .replace(noiseAllRe, ' ')
-      .replace(/[^\w\u4e00-\u9fff\u3400-\u4dbf]+/g, ' ')
-      .trim();
-    if (!s) return [];
-    const tokens = [];
-    const cjkRuns = s.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
-    for (const run of cjkRuns) {
-      // CJK 连串按扩展口径：整个连串为一个核心词（跨词匹配用它整体包含判定）
-      tokens.push(run);
-    }
-    for (const w of s.split(/\s+/)) {
-      if (w && !/[\u4e00-\u9fff\u3400-\u4dbf]/.test(w)) tokens.push(w);
-    }
-    return tokens;
+    const norm = String(text || '').toLowerCase();
+    const cjk = norm.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
+    const en = (norm.match(/[a-z][a-z0-9']{3,}/g) || []).filter((w) => !noiseEnSet.has(w));
+    return [...cjk, ...en];
   }
 
   // 序号语义（api-search.js seqNumsOf 逐字）：≤2 位序号，或标题唯一数字
@@ -364,8 +354,10 @@
     return false;
   }
 
-  // 候选打分（api-search.js matchCandidateScore 移植：CJK×2/EN×3 + 尾段加成）
+  // 候选打分（api-search.js matchCandidateScore——v14.16.0 O8 逐字对齐扩展）
   function matchCandidateScore(resultName, term, rawName) {
+    const rn = String(resultName || '').toLowerCase();
+    const tn = String(term || '').toLowerCase();
     const rTokens = coreTokensOf(resultName);
     const rawTokens = coreTokensOf(rawName);
     let score = 0;
@@ -376,20 +368,24 @@
         score += 2;
       }
     }
-    // 尾段词命中加成（扩展尾部词条：标题尾段词在候选名中 → +1）
-    const tail =
-      String(rawName || '')
-        .split(/[|\-:：、·]/)
-        .pop() || '';
-    for (const w of coreTokensOf(tail)) {
-      if (rTokens.includes(w)) score += 1;
+    // 搜索词包含关系（扩展同款：全等 +2 / 包含 +1）
+    if (rn === tn) score += 2;
+    else if (tn.length >= 2 && rn.includes(tn)) score += 1;
+    // 站点自命名整词包容（完整 CJK 搜索词被候选名包含 → +3）
+    if (/[一-鿿]{2,}/.test(tn) && rn.includes(tn)) score += 3;
+    // 数字一致性（seqNumsOf 单源；跨语言追加 +1；俗称序号例外 +1）
+    const numAligned = seqNumsOf(rawName).some((x) => seqNumsOf(resultName).includes(x));
+    if (numAligned) score += 1;
+    if (numAligned && /[\u4e00-\u9fff]/.test(rawName) && !/[\u4e00-\u9fff]/.test(resultName)) {
+      score += 1;
     }
-    // 混合标题：EN 段整体包含强加成（dead space 2 → Dead Space 2 型）
-    const enSeg = (String(rawName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 &:.'\-]{5,}/) || [''])[0].trim();
-    if (enSeg) {
-      const enTokens = coreTokensOf(enSeg).filter((w) => /^[a-z]/.test(w));
-      const covered = enTokens.filter((w) => rTokens.includes(w)).length;
-      if (enTokens.length > 0 && covered === enTokens.length) score += 2;
+    if (
+      /[\u4e00-\u9fff]/.test(rawName) &&
+      !/[\u4e00-\u9fff]/.test(resultName) &&
+      /\d/.test(rawName) &&
+      !/\d/.test(resultName)
+    ) {
+      score += 1;
     }
     return score;
   }
@@ -450,12 +446,25 @@
     return (items || []).slice().sort((a, b) => typeScore(a.type) - typeScore(b.type));
   }
 
-  // 标题分段解析（title-parser.js parseGameTitle 移植：段→整段清洗+EN/CN 子串）
+  // 标题分段（title-parser.js splitTitleSegments——v14.16.0 O8 逐字对齐扩展：
+  // 括号/书名号剥离 + |、带空格连字符、×•· 与冒号拆分）
   function splitTitleSegments(rawName) {
-    return String(rawName || '')
-      .split(/\||・|·|×|\s[-–—]\s|：(?=\S)/)
+    if (!rawName) return [];
+    if (typeof rawName !== 'string') rawName = String(rawName); // v10.9：边界防御
+    const name = rawName
+      .trim()
+      .replace(/[\(\[\【].*?[\)\]\】]/g, '')
+      .replace(/[《》]/g, '');
+    return name
+      .split(/[|]+|\s+[-–—]\s+|[×•·]|[:：]/)
       .map((s) => s.trim())
-      .filter(Boolean);
+      .filter((s) => s.length > 1);
+  }
+
+  // 纯噪声段判定（title-parser.js isPureNoise——O8 逐字对齐）
+  function isPureNoise(text) {
+    const stripped = text.replace(noiseAllRe, '').replace(/[\s\|\-:：、]+/g, '');
+    return stripped.length === 0;
   }
 
   function parseGameTitle(rawName) {
@@ -473,8 +482,7 @@
       }
     };
     for (const part of rawParts) {
-      const stripped = part.replace(noiseAllRe, '').replace(/[\s|\-:：、]+/g, '');
-      if (!stripped || stripped.length < 2) continue; // 纯噪声段
+      if (isPureNoise(part)) continue; // 纯噪声段（O8 对齐扩展 isPureNoise）
       if (/\bDLC\b|Build[.\s]*\d+|^V?\d+\.\d+/.test(part)) continue; // 版本/DLC 段跳过
       const cleaned = part.replace(noiseAllRe, ' ').replace(/\s+/g, ' ').trim();
       if (cleaned.length >= 2) addCandidate(cleaned);
