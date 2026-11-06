@@ -192,6 +192,9 @@ export const DEFAULT_SETTINGS = {
   // v10.7.0 批次4：注意——yystv/fitgirl/rutracker 等非注入站是**有意保留**的：
   // 它们是用户自定义规则站（动态注册脚本）的追踪门控种子，删除会使这些站
   // 的自定义规则失效（tracker 早退）
+  // v14.16.0 N9：内置站禁用清单（隐私最小化/性能——关闭站零功能分发；
+  // 静态注入是 MV3 沉没成本，功能收口在 tracker initPage 前）
+  disabledSites: [],
   trackedSites: [
     '3dmgame.com',
     'ali213.net',

@@ -139,9 +139,48 @@
     });
   }
 
+  // ============ v14.16.0 N9：内置站独立开关（隐私最小化） ============
+  // 关闭站 = 零功能分发（tracker initPage 前收口；静态注入为 MV3 沉没成本）。
+  const BUILTIN_SITE_TOGGLES = [
+    ['xdgame.com', 'XDGame'],
+    ['xianyudanji.gg', '咸鱼单机'],
+    ['gamer520.com', 'Gamer520'],
+    ['3dmgame.com', '3DM'],
+    ['ali213.net', '游侠网'],
+    ['gamersky.com', '游民星空']
+  ];
+  function renderBuiltinSiteToggles() {
+    const box = document.getElementById('builtinSiteList');
+    if (!box) return;
+    const disabled = OPTS.currentSettings.disabledSites || [];
+    box.innerHTML = BUILTIN_SITE_TOGGLES.map(
+      ([domain, name]) => `
+      <div class="setting-row">
+        <div class="setting-label">
+          <span class="label-text">${name}</span>
+          <span class="label-desc">${domain}（关闭后不注入不查评分）</span>
+        </div>
+        <label class="switch">
+          <input type="checkbox" data-builtin-site="${domain}" ${disabled.includes(domain) ? '' : 'checked'}>
+          <span class="slider"></span>
+        </label>
+      </div>`
+    ).join('');
+    box.querySelectorAll('[data-builtin-site]').forEach((cb) => {
+      cb.addEventListener('change', () => {
+        const set = new Set(OPTS.currentSettings.disabledSites || []);
+        if (cb.checked) set.delete(cb.dataset.builtinSite);
+        else set.add(cb.dataset.builtinSite);
+        OPTS.currentSettings.disabledSites = [...set];
+        OPTS.scheduleAutoSave();
+      });
+    });
+  }
+
   function bindDataSourceToggles() {
     renderDataSources();
     renderSteamApiModules();
+    renderBuiltinSiteToggles();
   }
 
   // ============ 站点收集保存映射 / Tracked-Sites Save Mapping ============

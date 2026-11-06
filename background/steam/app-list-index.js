@@ -221,6 +221,7 @@ function matchAppListFuzzy(normTitle, rawTitle, excludeAppId) {
   const excl = excludeAppId == null ? '' : String(excludeAppId);
   const queryDeSpaced = normTitle.replace(/\s+/g, '');
   const querySeq = seqTokensOf(normTitle);
+  /** @type {{appId: string, name: string}|null} */
   let best = null;
   let bestDice = 0;
   const scan = bucket.length > FUZZY_BUCKET_SCAN_CAP ? bucket.slice(0, FUZZY_BUCKET_SCAN_CAP) : bucket;

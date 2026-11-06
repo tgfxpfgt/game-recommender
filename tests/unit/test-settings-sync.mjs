@@ -99,7 +99,8 @@ test('DEFAULT_SETTINGS 顶层键全部进入 saveSettings 写路径（防保存�
     favoriteDiscountThreshold: '面板直写：panels/favorites.js:123',
     weeklyDigestEnabled: '面板直写：panels/favorites.js:125',
     dataSources: '面板直写：panels/sites.js:90',
-    steamApiModules: '面板直写：panels/sites.js:133'
+    steamApiModules: '面板直写：panels/sites.js:133',
+    disabledSites: '面板直写：panels/sites.js（N9 内置站开关 change 直写 currentSettings）'
   };
   const missing = Object.keys(DEFAULT_SETTINGS).filter(
     (k) => !hasWord(body, k) && !OPTIONS_ALLOWLIST[k] && !WRITE_PATH_ALLOWLIST[k]

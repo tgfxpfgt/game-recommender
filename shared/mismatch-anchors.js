@@ -65,19 +65,21 @@
      * @returns {{passed: number, failed: Array<{id: string, why: string}>}}
      */
     replay(fns) {
-      const results = { passed: 0, failed: [] };
+      /** @type {Array<{id: string, why: string}>} */
+      const failed = [];
+      const results = { passed: 0, failed };
       for (const a of this.anchors) {
         try {
           const terms = fns.parseGameTitle(a.cleanTitle);
           if (a.kind === 'hard-miss') {
             // 核心词未毒化：产出词中存在含 '寂静岭' 的词
             const ok = terms.some((t) => t.indexOf('寂静岭') >= 0);
-            if (!ok) results.failed.push({ id: a.id, why: '核心词被词表毒化（产出无 寂静岭 词）' });
+            if (!ok) failed.push({ id: a.id, why: '核心词被词表毒化（产出无 寂静岭 词）' });
             else results.passed += 1;
             continue;
           }
           if (!terms || terms.length === 0) {
-            results.failed.push({ id: a.id, why: 'parseGameTitle 产出为空（核心词被毒化）' });
+            failed.push({ id: a.id, why: 'parseGameTitle 产出为空（核心词被毒化）' });
             continue;
           }
           let best = 0;
@@ -87,19 +89,18 @@
             if (score > best) best = score;
             if (fns.nameMatchesSearch(a.expectedName, term, a.rawTitle || a.cleanTitle)) bestTermOk = true;
           }
-          if (best <= 0) results.failed.push({ id: expectedAppIdNote(a), why: '正主名评分归零（词表劣化）' });
-          else if (!bestTermOk)
-            results.failed.push({ id: expectedAppIdNote(a), why: '正主名相关性校验不通过（噪声词误吞）' });
+          if (best <= 0) failed.push({ id: expectedAppIdNote(a), why: '正主名评分归零（词表劣化）' });
+          else if (!bestTermOk) failed.push({ id: expectedAppIdNote(a), why: '正主名相关性校验不通过（噪声词误吞）' });
           else results.passed += 1;
         } catch (e) {
-          results.failed.push({ id: a.id, why: '回放异常: ' + String(e) });
+          failed.push({ id: a.id, why: '回放异常: ' + String(e) });
         }
       }
       return results;
     }
   };
 
-  /** @param {{expectedAppId: string|null}} a */
+  /** @param {{id: string, expectedAppId: string|null}} a */
   function expectedAppIdNote(a) {
     return a.id + '（' + (a.expectedAppId || '-') + '）';
   }

@@ -10,7 +10,8 @@ import { saveAdapterRules, deleteAdapterRules, getAllRules } from '../core/rules
 import { syncSiteScripts } from '../core/site-scripts.js';
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
-import { ensureRetrievalVocabOverride, rollbackRetrievalVocab } from '../steam/retrieval-override.js';
+import { reloadRetrievalRules } from '../steam/api-search.js'; // v14.16.0 O6：回放门热更
+import { applyVocabOverride, resetVocabOverride } from '../../shared/retrieval-vocab.js'; // v14.16.0 O6：内存态先行/回滚
 import { parseGameTitle } from '../core/title-parser.js';
 import { nameMatchesSearch, matchCandidateScore } from '../steam/api-search.js';
 import '../../shared/mismatch-anchors.js'; // v14.16.0 O6：错题库锚点（IIFE 副作用挂载 globalThis）
@@ -39,18 +40,20 @@ async function handleSaveAdapterRules(message) {
   // （applyVocabOverride 校验失败返回 errors，现值保持 = 回退语义）
   if (result.ok && result.vocabSegment) {
     try {
-      // v14.16.0 O6：导入门两步——①内存态热更（applyVocabOverride 的
-      // PROTECTIVE_TITLES 双防线 + 结构校验先行）②用热更后的编译产物离线
-      // 回放错题库 5 锚点（纯函数零网络），不达标回滚内存态并整包拒绝
-      //（'applied=true 但匹配劣化'不再可能静默通过）；达标才落盘。
-      const applied = await ensureRetrievalVocabOverride();
-      if (applied.applied === false) {
+      // v14.16.0 O6：导入门三步——①新词表**内存态先行**（不落盘）+ 结构校验
+      //（PROTECTIVE_TITLES 双防线在此生效）②热更编译产物后离线回放错题库 5
+      // 锚点（纯函数零网络）③不达标回滚内置词表整包拒绝；达标才落盘+热更。
+      // （首版缺陷：ensure 读的是旧存储覆盖、replay 跑在旧词表上——修为
+      // applyVocabOverride(segment) 直接内存生效。）
+      const applyErrors = applyVocabOverride(result.vocabSegment);
+      if (applyErrors.length > 0) {
         result.vocabApplied = false;
-        result.vocabErrors = applied.errors || ['词表覆盖应用失败'];
+        result.vocabErrors = applyErrors;
         return result;
       }
       const anchors = globalThis.__GR_MISMATCH_ANCHORS__;
       if (!anchors || typeof anchors.replay !== 'function') {
+        resetVocabOverride();
         result.vocabApplied = false;
         result.vocabErrors = ['错题库锚点未加载（回放门不可用）——整包拒绝'];
         Logger.warn('AdapterRules', result.vocabErrors[0]);
@@ -58,16 +61,18 @@ async function handleSaveAdapterRules(message) {
       }
       const replay = anchors.replay({ parseGameTitle, nameMatchesSearch, matchCandidateScore });
       if (replay.failed.length > 0) {
-        rollbackRetrievalVocab(); // 回滚内存态到内置词表（O6 导入门回滚路径）
+        resetVocabOverride(); // 回滚内置词表（编译产物随 reset 热更）
+        reloadRetrievalRules();
         result.vocabApplied = false;
         result.vocabErrors = replay.failed.map((f) => f.id + ': ' + f.why);
         Logger.warn('AdapterRules', '词表回放门拒绝（回滚内置词表）: ' + result.vocabErrors.join(' | '));
         return result;
       }
       await dataStore.writeModule(DB_KEYS.RETRIEVAL_VOCAB_OVERRIDE, result.vocabSegment);
+      reloadRetrievalRules();
       result.vocabApplied = true;
-      if (applied.errors) result.vocabErrors = applied.errors;
     } catch (e) {
+      resetVocabOverride();
       result.vocabApplied = false;
       result.vocabErrors = [String(e)];
     }

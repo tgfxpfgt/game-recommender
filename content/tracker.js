@@ -168,7 +168,17 @@
   // v14.5.0 B7：页面检测与功能分发在 core/page-init.js（M.pageInit.initPage）。
   const startInit = () => {
     bootPromise
-      .then((boot) => boot.M.pageInit.initPage(boot))
+      .then((boot) => {
+        // v14.16.0 N9：内置站独立开关——用户关闭的站点零功能（boot 已完成的
+        // 模块装载是静态注入的沉没成本，功能分发在此收口；隐私最小化诉求）
+        const disabled = (boot.settings && boot.settings.disabledSites) || [];
+        const host = location.hostname.replace(/^www\./, '');
+        if (disabled.some((d) => host === d || host.endsWith('.' + d))) {
+          console.debug('[游戏雷达] 站点已禁用（disabledSites）——跳过功能分发:', host);
+          return;
+        }
+        return boot.M.pageInit.initPage(boot);
+      })
       .catch((e) => console.warn('【游戏雷达】 初始化失败:', e));
   };
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
