@@ -70,7 +70,8 @@ if (!existsSync(zipPath)) {
   console.log(`ℹ️ 未找到 ${path.basename(zipPath)}——跳过 zip 校验（发版流程 npm run package 后重跑本脚本）`);
 } else {
   const { execSync } = await import('node:child_process');
-  const list = execSync(`unzip -l "${zipPath}"`, { encoding: 'utf-8' });
+  const raw = execSync(`unzip -l "${zipPath}"`, { encoding: 'utf-8' });
+  const list = raw.split('\\').join('/'); // Windows 打包 zip 路径为反斜杠——归一后断言（CI Linux 正斜杠同过）
   if (!list.includes('manifest.json')) errors.push('zip 缺 manifest.json');
   if (!list.includes('background/service-worker.js')) errors.push('zip 缺 service-worker');
   if (/node_modules\/|\stests\//.test(list)) errors.push('zip 泄漏 node_modules/tests');
