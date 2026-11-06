@@ -16,6 +16,7 @@ import { getFlushHealth } from '../storage/flush-health.js';
 import { Logger } from '../storage/logger.js';
 import { getWrongReportSamples, clearWrongReportSamples } from '../steam/mismatch-samples.js'; // v14.8 批次 3
 import { exportAllCorrections, importCorrections, flushWrongReports } from '../storage/wrong-reports.js'; // v14.15.0 N5：纠正映射导出/导入
+import { getSeriesEntries } from '../steam/series.js'; // v14.16.0 N10：系列聚合
 
 // --- Steam API 状态监测（v3.3.0）+ 分域名可达性（v11.0 B2）---
 export async function handleGetApiStatus() {
@@ -104,6 +105,7 @@ export const diagStatusHandlers = {
   LOG_PERF: handleLogPerf,
   SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
   GET_STEAM250_RANK: handleGetSteam250Rank,
+  GET_SERIES_ENTRIES: (m) => getSeriesEntries(m && m.gameName, m && m.excludeAppId), // v14.16.0 N10
   GET_SITE_HEALTH: handleGetSiteHealth,
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_RUNTIME_METRICS: handleGetRuntimeMetrics,

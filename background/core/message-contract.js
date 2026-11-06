@@ -274,6 +274,11 @@ const RULES = {
   // v10.4.4：二维码跨域取图（url 必须为 https 图片地址——后台另有 SSRF/大小/类型三重校验）
   GET_STEAM250_RANK: (m) =>
     m && m.appId ? { ok: true, error: '' } : { ok: false, error: 'GET_STEAM250_RANK.appId 必填' },
+  // v14.16.0 N10：浮窗系列作品行（扩展页/内容侧共用读取；excludeAppId 可选）
+  GET_SERIES_ENTRIES: (m) =>
+    m && typeof m.gameName === 'string' && m.gameName.trim().length >= 2 && m.gameName.length <= 200
+      ? { ok: true, error: '' }
+      : { ok: false, error: 'GET_SERIES_ENTRIES.gameName 必填（2-200 字符）' },
   TOGGLE_FAVORITE: (m) => {
     if (!m || !m.appId) return { ok: false, error: 'TOGGLE_FAVORITE.appId 必填' };
     if (typeof m.appId !== 'string' || !/^\d{2,10}$/.test(m.appId))
@@ -442,6 +447,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'TOGGLE_FAVORITE',
   'GET_FAVORITES',
   'GET_STEAM250_RANK',
+  'GET_SERIES_ENTRIES', // v14.16.0 N10：浮窗系列作品行（读侧）
   'GET_ITAD_LOWEST', // v10.9：补白名单——缺项使 ITAD 最低价行自 v10.6.0 真机恒隐藏（forbidden-sender）
   'GET_API_STATUS', // v13 B8：xdgrid 过滤面板可达性点灯（integrity 守卫抓出的漏登记）
   'FETCH_IMAGE_DATA_URL', // v10.9：补白名单——v10.7.1 只放宽了正则未补门禁，跨域二维码仍被拒

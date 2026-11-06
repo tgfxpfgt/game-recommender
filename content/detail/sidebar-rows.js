@@ -118,3 +118,38 @@ export async function fillSteam250Info(appId) {
     /* 查询失败静默（行保持隐藏） */
   }
 }
+
+// v14.16.0 N10：系列作品行填充（名称索引本地聚合，零网络）——前作/续作/
+// 衍生条目直达 Steam 页；无命中整行隐藏。GET_SERIES_ENTRIES（读侧白名单）。
+/** @param {string} appId @param {string} name */
+export async function fillSeriesInfo(appId, name) {
+  if (!name) return;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage(
+      { action: 'GET_SERIES_ENTRIES', gameName: name, excludeAppId: appId },
+      null,
+      { timeout: 15000 }
+    );
+    const entries = (resp && resp.entries) || [];
+    const html =
+      entries.length > 0
+        ? '🎮 系列作品：' +
+          entries
+            .map(
+              (e) =>
+                `<a href="https://store.steampowered.com/app/${esc(String(e.appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">${esc(e.name)}</a>`
+            )
+            .join(' · ')
+        : '';
+    const el = document.getElementById('gr-series-row');
+    if (!el) return;
+    if (html) {
+      el.innerHTML = html;
+      el.style.display = '';
+    } else {
+      el.style.display = 'none';
+    }
+  } catch {
+    /* 查询失败静默（行保持隐藏） */
+  }
+}

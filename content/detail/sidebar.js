@@ -302,6 +302,7 @@ export function createSteamFloat(gameName, settings) {
       .then((rows) => {
         rows.fillSteam250Info(appIdStr);
         rows.fillItadAndFavorites(appIdStr, name, releaseDate);
+        rows.fillSeriesInfo(appIdStr, name); // v14.16.0 N10：系列作品行
       })
       .catch((e) => dbg('浮窗行填充模块加载失败: ' + String(e)));
 

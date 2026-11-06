@@ -155,7 +155,8 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
 // ≤2-digit numbers, or the title's sole number (2077-type name-body),
 // excluding non-sole year-shaped noise.
 /** @param {string} s @returns {Array<string>} */
-function seqNumsOf(s) {
+export function seqNumsOf(s) {
+  // v14.16.0 N10：导出单源（name-index 系列聚合复用）
   const all = String(s).match(/\d+/g) || [];
   const seq = all.filter((n) => n.length <= 2);
   if (seq.length === 0 && all.length === 1) seq.push(all[0]);

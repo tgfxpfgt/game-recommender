@@ -108,6 +108,15 @@ export async function getNegativeCacheCount() {
   return count;
 }
 
+// v14.16.0 N10：内存条目全量快照（steam 层 series.js 聚合消费；storage 层
+// 不 import biz——分层矩阵）。返回 {name: {appId, lastSearched, missCount}}。
+export async function getNameIndexSnapshot() {
+  await loadNameIndexToMemory();
+  const out = {};
+  for (const [name, entry] of nameIndexMemory) out[name] = entry;
+  return out;
+}
+
 export async function recordNameIndex(gameName, appId) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return;
