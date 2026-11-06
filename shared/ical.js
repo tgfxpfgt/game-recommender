@@ -9,9 +9,9 @@
  */
 'use strict';
 
-(function (global) {
+(function (/** @type {any} */ global) {
   /** @param {number} n @returns {string} 两位补零 */
-  const pad2 = (n) => String(n).padStart(2, '0');
+  const pad2 = (/** @type {number} */ n) => String(n).padStart(2, '0');
 
   /** @param {Date} d @returns {string} UTC 基本格式（Z 后缀） */
   function toIcsUtc(d) {
@@ -28,6 +28,7 @@
   }
 
   /** RFC 5545 TEXT 转义（反斜杠/分号/逗号/换行） */
+  /** @param {unknown} s */
   function escText(s) {
     return String(s === null || s === undefined ? '' : s)
       .replace(/\\/g, '\\\\')

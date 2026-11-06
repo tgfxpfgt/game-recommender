@@ -12,7 +12,7 @@
  */
 'use strict';
 
-(function (global) {
+(function (/** @type {any} */ global) {
   // 预期语义：
   //  - kind 'miss'（4 条）：parseGameTitle(cleanTitle) 产出非空搜索词，且对
   //    正主名存在某搜索词使 nameMatchesSearch 通过 + matchCandidateScore>0。
@@ -73,7 +73,7 @@
           const terms = fns.parseGameTitle(a.cleanTitle);
           if (a.kind === 'hard-miss') {
             // 核心词未毒化：产出词中存在含 '寂静岭' 的词
-            const ok = terms.some((t) => t.indexOf('寂静岭') >= 0);
+            const ok = terms.some((/** @type {string} */ t) => t.indexOf('寂静岭') >= 0);
             if (!ok) failed.push({ id: a.id, why: '核心词被词表毒化（产出无 寂静岭 词）' });
             else results.passed += 1;
             continue;

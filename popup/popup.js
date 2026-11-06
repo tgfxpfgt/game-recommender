@@ -45,7 +45,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (listEl && items.length > 0) {
       listEl.innerHTML = items
         .map(
-          (n) =>
+          (/** @type {{title?: string, message?: string, ts: number}} */ n) =>
             '<div class="notif-item"><div class="notif-title">' +
             (n.title || '').replace(/</g, '&lt;') +
             '</div><div class="notif-msg">' +
@@ -68,11 +68,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   // Load settings / 加载设置（后台未就绪时给出降级处理）
+  /** @type {any} */
   let settings;
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
     settings = response?.settings;
-  } catch (e) {
+  } catch (/** @type {any} */ e) {
     console.warn('【游戏雷达】 加载设置失败:', e);
   }
   if (!settings) {
@@ -83,7 +84,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     return;
   }
 
-  const utils = globalThis.__GR_SETTINGS_UTILS__ || { applyPatch: (o, p) => Object.assign(o, p) };
+  const utils =
+    globalThis.__GR_SETTINGS_UTILS__ ||
+    /** @type {{applyPatch: (o: any, p: any) => any}} */ ({
+      applyPatch: (/** @type {any} */ o, /** @type {any} */ p) => Object.assign(o, p)
+    });
 
   // v6.4.19：应用皮肤主题 + v7.0.5：自定义主题 CSS
   // v10.7.0 批次5：统一入口（皮肤定时解析 + 自定义 CSS 一次完成）
@@ -99,6 +104,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   // 覆盖前次修改（"保存了但部分丢失"）；失败可见（状态栏提示 + console）。
   // Serial save queue prevents concurrent GET→SAVE overwrites; failures visible.
   let saveQueue = Promise.resolve();
+  /** @param {Record<string, any>} patch */
   function saveSettingsPatch(patch) {
     saveQueue = saveQueue
       .then(async () => {
@@ -196,9 +202,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   function bindSettingControl(type, id, key, parse, valId) {
     const el = document.getElementById(id);
     if (!el) return;
+    /** @param {any} e */
     const save = (e) => saveSettingsPatch({ [key]: type === 'toggle' ? e.target.checked : parse(e.target.value) });
     if (type === 'toggle') {
-      el.addEventListener('change', async (e) => {
+      el.addEventListener('change', async (/** @type {any} */ e) => {
         await save(e);
         if (id === 'ppRatingFilter') {
           document.getElementById('ppRatingControl').style.display = e.target.checked ? 'flex' : 'none';
@@ -212,7 +219,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     if (type === 'slider') {
       // 滑块：input 实时更新显示，change 保存
-      el.addEventListener('input', (e) => {
+      el.addEventListener('input', (/** @type {any} */ e) => {
         document.getElementById(valId).textContent = `${e.target.value}%`;
       });
     }
