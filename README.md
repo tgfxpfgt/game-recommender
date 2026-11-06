@@ -326,6 +326,8 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ### v14.17.0（用户反馈双修：民间移植识别增强 + 多标签页排队治理）
 
+**发版记录（v14.17.0 tag+release）**：release 附 zip + 深度扫描 seal sha256:47e5cd0d...3df678d（9 中危=油猴 renderFloat 结构性提示，全部插值经 esc() 转义，appId 来源数值约束——核实记录见 docs/reports/功能建议报告 执行批注）。
+
 **平台识别（问题一：主机/模拟器条目被当 PC 检索）**
 
 - **词表扩充（shared/platform-detect.js）**：模拟器产品名整段标记（yuzu/ryujinx/eden/sudachi/citron/dolphin/pcsx2/rpcs3/ppsspp/cemu 等 18 个——民间移植标题常以模拟器名作独立段）；主机数字版 ROM 格式段（NSP/XCI/NSZ/NRO/WBFS/RVZ/VPK/CHD → console 语义，评分仍试 Metacritic）
