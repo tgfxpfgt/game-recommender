@@ -80,7 +80,12 @@ export async function applyCacheHit(merged, appId, gameName) {
     isNewRelease: !comingSoon && isNewReleaseDate(releaseDate),
     // v14.15.0 N1：走势历史随缓存返回（浮窗 sparkline 数据源；旧缓存无此字段
     // → 空数组降级隐藏）
-    ratingHistory: Array.isArray(merged.ratingHistory) ? merged.ratingHistory : []
+    ratingHistory: Array.isArray(merged.ratingHistory) ? merged.ratingHistory : [],
+    // v14.16.0 N2：平台兼容信号随缓存返回（徽章🍎/linux 🐧 渲染源）
+    platforms:
+      merged.platforms && typeof merged.platforms === 'object'
+        ? { mac: !!merged.platforms.mac, linux: !!merged.platforms.linux }
+        : null
   };
 }
 

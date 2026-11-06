@@ -83,6 +83,12 @@ export function buildSteamResult(
     developers: gameData.developers || [],
     description: gameData.short_description || '',
     headerImage: gameData.header_image || '',
+    // v14.16.0 N2：平台兼容信号（appdetails basic 同响应内零额外请求）——
+    // mac/linux 用户此前零信号；windows 恒真不展示（噪声控制）
+    platforms: {
+      mac: !!(gameData.platforms && gameData.platforms.mac),
+      linux: !!(gameData.platforms && gameData.platforms.linux)
+    },
     steamspy: steamspyInfo
   };
 }

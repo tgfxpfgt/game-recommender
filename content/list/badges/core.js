@@ -269,6 +269,19 @@ export function prependBadge(item, rating, settings) {
     } else {
       statParent.insertBefore(statBadge, statParent.firstChild);
     }
+    // v14.16.0 N2：平台兼容徽章（mac/linux 任一即渲染；windows 恒真不展示）
+    if (rating.platforms && (rating.platforms.mac || rating.platforms.linux)) {
+      badges.push(
+        createBadge(link, {
+          text: (rating.platforms.mac ? '🍎' : '') + (rating.platforms.linux ? '🐧' : ''),
+          color: '#8f98a0',
+          bg: 'rgba(143,152,160,0.12)',
+          cls: 'gr-badge-platforms',
+          title:
+            '平台兼容：' + (rating.platforms.mac ? 'macOS ' : '') + (rating.platforms.linux ? 'Linux/Steam Deck' : '')
+        })
+      );
+    }
     // 绿标题：a=0 且 b>0（只看不下）→ 标题变绿提示（红标题优先，content.css）
     if (!hasDownload && b > 0 && !isRedTitle) {
       const titleEl =
