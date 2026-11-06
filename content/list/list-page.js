@@ -66,6 +66,70 @@ async function retryItem(item) {
 }
 badges.setBadgeRetryHandler(retryItem);
 
+// ============ v14.16.0 N4：批量重试失败项（自愈优先纪律的批量形态） ============
+// 网络恢复后逐个点击失败徽章（20 次）太痛苦——浮条一键串行重试，总量有界
+//（≤ RETRY_BATCH_CAP 项/次 + 单飞行守卫 + 既有节流管道复用）。
+const RETRY_BATCH_CAP = 20;
+let retryBatchRunning = false;
+
+/** 收集待重试目标（纯函数可测）：未找到/失败固化徽章所在 item，cap 截断 */
+function collectRetryTargets(cap) {
+  const job = _state.ratingsJob;
+  if (!job) return [];
+  const out = [];
+  for (const item of job.processItems || []) {
+    if (out.length >= cap) break;
+    const link = item.link;
+    if (!link || !item.name) continue;
+    if (!link.querySelector('.gr-badge-notfound')) continue; // 只收未找到项
+    const last = retryThrottle.get(item.name) || 0;
+    if (Date.now() - last < RETRY_THROTTLE_MS) continue; // 节流中的跳过
+    out.push(item);
+  }
+  return out;
+}
+
+/** 批量重试浮条（失败 ≥2 时出现；完成后按剩余量续显或隐藏） */
+function ensureRetryBatchChip(count) {
+  let chip = document.getElementById('gr-retry-batch-chip');
+  if (count < 2) {
+    if (chip) chip.remove();
+    return;
+  }
+  if (!chip) {
+    chip = document.createElement('button');
+    chip.id = 'gr-retry-batch-chip';
+    chip.style.cssText =
+      'position:fixed;right:16px;bottom:64px;z-index:2147483600;padding:6px 14px;border:none;' +
+      'border-radius:16px;background:rgba(50,54,60,.9);color:#c7d5e0;font-size:12px;cursor:pointer;' +
+      'box-shadow:0 2px 10px rgba(0,0,0,.35);font-family:sans-serif;';
+    document.body.appendChild(chip);
+    chip.addEventListener('click', runRetryBatch);
+  }
+  chip.textContent = '🔄 重试 ' + count + ' 个未找到项';
+}
+
+async function runRetryBatch() {
+  if (retryBatchRunning) return;
+  const targets = collectRetryTargets(RETRY_BATCH_CAP);
+  if (targets.length === 0) {
+    ensureRetryBatchChip(0);
+    return;
+  }
+  retryBatchRunning = true;
+  const chip = document.getElementById('gr-retry-batch-chip');
+  try {
+    for (let i = 0; i < targets.length; i++) {
+      if (chip) chip.textContent = '🔄 重试中 ' + (i + 1) + '/' + targets.length + '…';
+      await retryItem(targets[i]); // 复用单项目标管道（节流/渲染/推送全同）
+    }
+  } finally {
+    retryBatchRunning = false;
+    const left = collectRetryTargets(RETRY_BATCH_CAP).length;
+    ensureRetryBatchChip(left);
+  }
+}
+
 // 预载下一页 fetch 的 abort 超时（v14.6.2：具名单点——内容侧不可 import
 // background PERF_CONFIG（分层）；防挂起拖垮页面，与消息侧超时独立）
 const PRELOAD_ABORT_MS = 15000;
@@ -510,6 +574,7 @@ function applySteamRatingsUpdate(ratings, done, progress) {
   if (job && !job.finished && job.processItems.every((i) => job.processed.has(i.name))) {
     if (!batchState || batchState.queue.length === 0) {
       finishRatings();
+      ensureRetryBatchChip(collectRetryTargets(RETRY_BATCH_CAP).length); // N4
     }
   }
   return true;
@@ -518,6 +583,8 @@ function applySteamRatingsUpdate(ratings, done, progress) {
 // v7.3.0：状态容器与评分状态机移至 list-state.js（打破 list-page ↔ list-batch
 // 循环依赖）——重新导出保持外部 API 兼容（GR.list._state/_internal 等）
 export { _state, _internal, ratingFilterPass, sortItemsByRating, formatQueueStatusText } from './list-state.js';
+// v14.16.0 N4：测试导出（纯收集函数 + 帽常量）
+export { collectRetryTargets, RETRY_BATCH_CAP };
 
 export {
   isDetailPageByUrl,
