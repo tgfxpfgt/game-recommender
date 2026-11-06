@@ -61,6 +61,13 @@ export const PERF_CONFIG = {
   steamWarmupWaitMs: 800, // v14.7 批次 8：首波 cacheOnly 预热门控上限（预热在途时最多等 800ms）
   anomalyWaitMs: 5000, // API 异常时批次间隔
   anomalyConsecutivePauseMs: 30000, // 连续异常暂停时长
+  // v14.17.0（用户报告：多标签页排队后一直卡住）：异常降速暂停**任务级总额**——
+  // 旧实现每波可各暂停 5s/30s，60 项 × 异常级联可把单任务拖到 15 分钟级，
+  // 全局单任务链（v14.8）下后开标签页全部陪等。总额耗尽后裸跑完剩余项。
+  anomalyPauseTotalCapMs: 90000,
+  // v14.17.0：单任务**硬截止**——超过后丢弃剩余项并推送 done 终态（内容侧
+  // 立即收尾、队列衔接下一 tab；丢项由刷新重查自愈）。全局链排队等待有界。
+  ratingsJobMaxRuntimeMs: 300000,
   searchRetryDelayMs: 3000, // 搜索重试间隔
   maxSearchRetries: 1, // 搜索失败重试次数
   detailAbortTimeoutMs: 15000, // 列表页内容脚本 abort 超时

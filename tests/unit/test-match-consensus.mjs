@@ -726,3 +726,70 @@ describe('detectPlatform PC 优先（多平台条目）', () => {
     expect(detectPlatform('某游戏|电脑游戏|模拟器相关资讯').kind).toEqual('pc');
   });
 });
+
+// ============ v14.17.0：民间移植/模拟器整合识别增强（用户报告：组合段未识别当 PC 检索） ============
+describe('detectPlatform v14.17.0（民间移植组合段/模拟器名/ROM 格式）', () => {
+  test('组合段"Switch模拟器整合版"整体一段 → emulator', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('塞尔达传说 王国之泪 Switch模拟器整合版').kind).toEqual('emulator');
+    expect(detectPlatform('宝可梦|Switch模拟器').kind).toEqual('emulator');
+  });
+
+  test('模拟器产品名段（Yuzu/Ryujinx/Eden/独立段或组合段）→ emulator', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('塞尔达传说|Yuzu|整合包').kind).toEqual('emulator');
+    expect(detectPlatform('马力欧奇迹 Yuzu整合版').kind).toEqual('emulator');
+    expect(detectPlatform('宝可梦 朱紫 Ryujinx模拟器').kind).toEqual('emulator');
+    expect(detectPlatform('某游戏|Eden模拟器').kind).toEqual('emulator');
+  });
+
+  test('组合段含"模拟器"+短机型前缀（ns模拟器/ps4模拟器）→ emulator', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('宝可梦 NS模拟器整合').kind).toEqual('emulator');
+    expect(detectPlatform('战神 PS4模拟器整合版').kind).toEqual('emulator');
+  });
+
+  test('主机数字版 ROM 格式段（NSP/XCI/WBFS/RVZ）→ console（评分仍试 Metacritic）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('塞尔达传说|NSP|中文').kind).toEqual('console');
+    expect(detectPlatform('马里奥惊奇 XCI整合包').kind).toEqual('console');
+    expect(detectPlatform('某游戏|WBFS').kind).toEqual('console');
+    expect(detectPlatform('某游戏|RVZ|汉化').kind).toEqual('console');
+  });
+
+  test('迭代后缀剥离：Switch中文版/NS整合版/主机游戏移植版 → console', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('某游戏|Switch中文版').kind).toEqual('console');
+    expect(detectPlatform('某游戏|NS整合版').kind).toEqual('console');
+    expect(detectPlatform('宝可梦 主机游戏移植版').kind).toEqual('console');
+    expect(detectPlatform('某游戏|NSP整合包').kind).toEqual('console');
+  });
+
+  test('护栏不回归：游戏名内含标记词/机型子串的 PC 游戏不误判', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('PC装机模拟器|官方中文').kind).toEqual('pc');
+    expect(detectPlatform('游戏开发模拟器|官方中文').kind).toEqual('pc');
+    expect(detectPlatform('Switchball|官方中文').kind).toEqual('pc'); // 机型子串不命中
+    expect(detectPlatform('某游戏|Steam|Switch').kind).toEqual('pc');
+  });
+});
+
+describe('trimPlatformTokens（EN 段尾平台词剥离——Metacritic slug 推导前）', () => {
+  test('尾部平台/模拟器/格式词逐个剥离', async () => {
+    const { trimPlatformTokens } = await import('../../shared/platform-detect.js');
+    expect(trimPlatformTokens('Elden Ring Switch')).toEqual('Elden Ring');
+    expect(trimPlatformTokens('The Legend of Zelda TotK NSP')).toEqual('The Legend of Zelda TotK');
+    expect(trimPlatformTokens('Mario Kart 8 Deluxe Yuzu')).toEqual('Mario Kart 8 Deluxe');
+    expect(trimPlatformTokens('Hollow Knight Xbox')).toEqual('Hollow Knight');
+  });
+
+  test('无平台词不变；全剥光保底返回原文', async () => {
+    const { trimPlatformTokens } = await import('../../shared/platform-detect.js');
+    // 词拼接会丢标点（slug 推导侧自行剥标点，语义等价——冒号有无不改变 slug）
+    expect(trimPlatformTokens('The Legend of Zelda: Tears of the Kingdom')).toEqual(
+      'The Legend of Zelda Tears of the Kingdom'
+    );
+    expect(trimPlatformTokens('NSP')).toEqual('NSP');
+    expect(trimPlatformTokens('')).toEqual('');
+  });
+});

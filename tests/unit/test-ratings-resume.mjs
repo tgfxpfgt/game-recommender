@@ -83,8 +83,12 @@ describe('批量好评率任务可恢复化（v10.0.0）', () => {
     });
     const resp = await ratingsBatch.resumeRatingsBatch();
     expect(resp.resumed).toEqual(true);
-    // 轮询等待任务完成（session 任务被清除 = done）
-    for (let i = 0; i < 50 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
+    // 轮询等待任务完成（v14.17.0：全局链空闲信号，防检查点未写入的空转竞态）
+    for (let i = 0; i < 50; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     expect(sessionGet(JOB_KEY)).toEqual(undefined);
     // 推送包含第一波评分与 done 收尾
     const ratingsPush = pushed.find((p) => p.msg.ratings && p.msg.ratings['艾尔登法环']);
@@ -145,7 +149,14 @@ describe('批量好评率任务可恢复化（v10.0.0）', () => {
       startedAt: Date.now()
     });
     expect(started2).toEqual(true);
-    for (let i = 0; i < 80 && sessionGet(JOB_KEY); i++) await new Promise((r) => setTimeout(r, 50));
+    // v14.17.0：轮询改全局链空闲信号（running=false 且 pending=0）——仅轮询
+    // session 清除会碰到"检查点尚未写入"的空转竞态（开跑推送移入任务体后
+    // persistJob 前多一个 await hop，轮询首查必空）
+    for (let i = 0; i < 80; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!s.running && s.pending === 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
     expect(sessionGet(JOB_KEY)).toEqual(undefined); // 全部任务 done 后检查点清除
     // 两次任务的评分推送都到达
     const ratingsPushes = pushed.filter((p) => p.msg.ratings && p.msg.ratings['艾尔登法环']);
@@ -161,5 +172,94 @@ describe('getRatingsQueueStatus（v14.8.1 等待检测队列信息）', () => {
     expect(s.pending).toBe(0);
     expect(s.current).toBe(null);
     expect(typeof s.degraded).toBe('boolean');
+  });
+});
+
+// ============ v14.17.0：任务时长治理（硬截止 + 死 tab 中止——多标签页排队卡死修复） ============
+// v14.17.0: job runtime governance. A preset/past deadlineAt drops remaining
+// names and pushes done immediately; a dead tab (push fails) skips/aborts its
+// job instead of grinding the global chain for minutes while later tabs wait.
+describe('v14.17.0 任务治理：硬截止 + 死 tab 中止', () => {
+  /** 等待全局链空闲（前序用例可能仍在收尾）/ wait for the global chain to idle */
+  async function waitForIdle() {
+    for (let i = 0; i < 50; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!s.running && s.pending === 0) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  test('硬截止（deadlineAt 已过）：丢项立即 done 收尾并清检查点', async () => {
+    await waitForIdle();
+    storage._reset();
+    pushed.length = 0;
+    const started = ratingsBatch.startRatingJob({
+      tabId: 9,
+      queue: ['艾尔登法环', '游戏X', '游戏Y'],
+      retried: false,
+      urlAppIds: {},
+      imageData: {},
+      appIds: {},
+      startedAt: Date.now(),
+      // 预置已过期的硬截止（runNextGlobal 对已预置的 deadlineAt 继承不重置）
+      deadlineAt: Date.now() - 1
+    });
+    expect(started).toEqual(true);
+    // v14.17.0：全局链空闲信号轮询（防"检查点尚未写入"的空转竞态）
+    for (let i = 0; i < 50; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(sessionGet(JOB_KEY)).toEqual(undefined);
+    // worker 循环未跑（截止已过）→ 无评分波次；但必有 done 终态推送（内容侧立即收尾）
+    expect(pushed.find((p) => p.msg.ratings && p.msg.ratings['艾尔登法环'])).toEqual(undefined);
+    const donePush = pushed.find((p) => p.msg.done);
+    expect(!!donePush).toEqual(true);
+    expect(donePush && donePush.tabId).toEqual(9);
+  });
+
+  test('死 tab 中止（推送失败）：任务跳过/排队任务出队，链复位空闲', async () => {
+    await waitForIdle();
+    storage._reset();
+    pushed.length = 0;
+    const prevSend = globalThis.chrome.tabs.sendMessage;
+    // 模拟 tab 已关闭：sendMessage 全部拒绝（无接收端）
+    globalThis.chrome.tabs.sendMessage = async () => {
+      throw new Error('Could not establish connection. Receiving end does not exist.');
+    };
+    try {
+      ratingsBatch.startRatingJob({
+        tabId: 10,
+        queue: ['艾尔登法环'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      // 同步紧随的第二个任务走排队分支——排队位置推送失败应被就地出队
+      ratingsBatch.startRatingJob({
+        tabId: 10,
+        queue: ['游戏X'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      for (let i = 0; i < 50; i++) {
+        const s = ratingsBatch.getRatingsQueueStatus();
+        if (!s.running && s.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      const s = ratingsBatch.getRatingsQueueStatus();
+      expect(s.running).toBe(false);
+      expect(s.pending).toBe(0);
+      expect(sessionGet(JOB_KEY)).toEqual(undefined);
+      expect(pushed.length).toEqual(0); // 全部推送失败——无评分/进度写入
+    } finally {
+      globalThis.chrome.tabs.sendMessage = prevSend;
+    }
   });
 });

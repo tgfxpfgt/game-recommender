@@ -175,13 +175,21 @@ const jobQueue = { running: false, pending: [] };
 let currentRun = null;
 
 // v14.8.1：模块级推送器（runRatingJob 内的 push 与入队/开跑即时进度共用）
+// v14.17.0：返回推送是否成功——tab 已关闭/导航中（无接收端）时调用方据此
+// 中止该任务，不再为死 tab 白跑数分钟（多标签页全局链下后开 tab 全部陪等）。
 /**
  * @param {number|null|undefined} tabId
- * @param {{progress?: {done: number, total: number, degraded: boolean, queued?: number, position?: number}, ratings?: Record<string, any>, done?: boolean}} payload
+ * @param {{progress?: {done: number, total: number, degraded: boolean, queued?: number, position?: number}, ratings?: Record<string, any>|null, done?: boolean}} payload
+ * @returns {Promise<boolean>}
  */
-function pushToTab(tabId, payload) {
-  if (tabId === null || tabId === undefined) return;
-  chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload }).catch(() => {});
+async function pushToTab(tabId, payload) {
+  if (tabId === null || tabId === undefined) return false;
+  try {
+    await chrome.tabs.sendMessage(tabId, { action: 'STEAM_RATINGS_UPDATE', ...payload });
+    return true;
+  } catch {
+    return false; // 无接收端（tab 关闭/页面导航中）
+  }
 }
 
 // v14.8.1：全局评分队列状态快照（等待徽章"当前队列信息"的数据源）
@@ -206,22 +214,39 @@ function runNextGlobal() {
   // 等待徽章一直静态"等待检索"，用户无从判断卡在哪）
   const totalAtStart = Array.isArray(job.queue) ? job.queue.length : 0;
   currentRun = { tabId: job.tabId ?? null, total: totalAtStart, done: 0 };
-  pushToTab(job.tabId, {
-    progress: {
-      done: 0,
-      total: totalAtStart,
-      degraded: getSteamApiStatus().anomaly,
-      queued: jobQueue.pending.length,
-      position: 0
-    }
-  });
+  // v14.17.0：任务硬截止预置（续跑任务继承原值——"总时长有界"语义不随 SW
+  // 重启重置）；测试可预置过去时刻注入截止路径
+  if (!job.deadlineAt) job.deadlineAt = Date.now() + PERF_CONFIG.ratingsJobMaxRuntimeMs;
   (async () => {
     try {
+      // v14.17.0：开跑推送移入任务体并检测死 tab——tab 已关闭/无接收端时直接
+      // 跳过该任务（此前整只任务照跑数分钟，后开 tab 在全局链上全部陪等）
+      const started = await pushToTab(job.tabId, {
+        progress: {
+          done: 0,
+          total: totalAtStart,
+          degraded: getSteamApiStatus().anomaly,
+          queued: jobQueue.pending.length,
+          position: 0
+        }
+      });
+      if (!started) {
+        Logger.info('Steam', `评分任务跳过（tab 无接收端，疑似已关闭/导航中）: tab=${job.tabId}`);
+        job.queue = [];
+        await clearPersistedJob();
+        teardownResumeAlarm();
+        return;
+      }
       // v14.8.1：任务生命周期日志（E2E/线上排查"停在待检测"的关键观测点）
       Logger.info('Steam', `评分任务开始: ${job.queue ? job.queue.length : '?'} 项 → tab=${job.tabId}`);
       await persistJob(job);
       setupResumeAlarm();
       await runRatingJob(job);
+    } catch (e) {
+      // v14.17.0：链路异常兜底——任务体自吞异常，此为最后防线；必须给内容侧
+      // done 终态（否则该 tab 等 45s 强制收尾，徽章停留"排队"视觉）
+      Logger.warn('Steam', '评分任务链路异常', String(e));
+      pushToTab(job.tabId, { ratings: null, done: true });
     } finally {
       Logger.info('Steam', `评分任务结束: tab=${job.tabId}`);
       currentRun = null;
@@ -238,6 +263,8 @@ export function startRatingJob(job) {
   jobQueue.pending.push(job);
   if (jobQueue.running) {
     const position = jobQueue.pending.length - 1; // 前方任务数（不含自己）
+    // v14.17.0：排队位置推送失败（tab 已关/无接收端）→ 就地出队——死 tab 任务
+    // 不再占全局链一位陪跑，后开 tab 的等待直接缩短一个任务位
     pushToTab(job.tabId, {
       progress: {
         done: 0,
@@ -246,6 +273,11 @@ export function startRatingJob(job) {
         queued: jobQueue.pending.length,
         position
       }
+    }).then((ok) => {
+      if (ok) return;
+      const idx = jobQueue.pending.indexOf(job);
+      if (idx !== -1) jobQueue.pending.splice(idx, 1);
+      Logger.info('Steam', `排队任务剔除（tab 无接收端）: tab=${job.tabId}`);
     });
   } else {
     runNextGlobal();
@@ -295,9 +327,19 @@ async function runRatingJob(job) {
   }, PERF_CONFIG.ratingsKeepAliveIntervalMs);
   // v10.1.0：a-b 统计批量读一次（任务期共享）
   const statsMap = await getAppStats();
+  // v14.17.0：任务硬截止（runNextGlobal 预置，续跑继承）+ 异常降速暂停总额 +
+  // 死 tab 标记——三者共同保证"全局单任务链"的单任务时长有界（多标签页排队
+  // 等待有界），并有界自愈（丢项刷新重查 / 死 tab 直接让位）。
+  const deadlineAt = job.deadlineAt || Date.now() + PERF_CONFIG.ratingsJobMaxRuntimeMs;
+  job.deadlineAt = deadlineAt;
+  let totalPauseMs = 0;
+  let tabDead = false;
   try {
-    const push = (payload) => {
-      pushToTab(job.tabId, payload);
+    // v14.17.0：推送改感知成功——失败置 tabDead（无接收端 = tab 关闭/导航中）
+    const push = async (payload) => {
+      const ok = await pushToTab(job.tabId, payload);
+      if (!ok) tabDead = true;
+      return ok;
     };
     // v6.4.15：并发自适应（恢复时重算——限流状态可能已变化）
     // v14.5.0 B9：用户设置接线——settings.ratingsBatchSize（v10.7.0 起设置键
@@ -346,7 +388,7 @@ async function runRatingJob(job) {
     // 在途项，耐久性更好）/ Flush a wave + checkpoint (also covers in-flight).
     /** @param {string[]} passNames @param {Set<string>} completedInPass @param {boolean} force */
     const flushWave = async (passNames, completedInPass, force) => {
-      if (pendingWave.size === 0) return;
+      if (pendingWave.size === 0 || tabDead) return;
       if (!force && pendingWave.size < batchSize) return;
       const wave = {};
       for (const [n, r] of pendingWave) wave[n] = r;
@@ -354,7 +396,8 @@ async function runRatingJob(job) {
       const batchT0 = Date.now();
       // v9.7.0：每波落盘（原每 5 批）——SW 被杀时损失限单波
       await flushAllCaches();
-      push({ ratings: wave, ...progressPayload() });
+      // v14.17.0：推送感知成功（死 tab → tabDead → worker 循环与后续波次中止）
+      await push({ ratings: wave, ...progressPayload() });
       // v14.8.1：波次推送日志（排查推送丢失——tab 关闭时 sendMessage 静默失败）
       Logger.info('Steam', `评分波次推送: ${Object.keys(wave).length} 项 → tab=${job.tabId}`);
       job.queue = passNames.filter((n) => !completedInPass.has(n));
@@ -373,9 +416,13 @@ async function runRatingJob(job) {
       // 异常降速：所有 worker 共享同一暂停窗口 / Shared anomaly pause gate.
       const maybePause = async () => {
         if (getSteamApiStatus().anomaly) {
+          // v14.17.0：暂停总额预算——耗尽后不再暂停（裸跑剩余项，防 30s×N 波次
+          // 级联把单任务拖到 15 分钟级）；本次暂停也不得跨越任务硬截止
+          if (totalPauseMs >= PERF_CONFIG.anomalyPauseTotalCapMs) return;
+          const wait = consecutiveAnomaly >= 2 ? PERF_CONFIG.anomalyConsecutivePauseMs : PERF_CONFIG.anomalyWaitMs;
+          if (Date.now() + wait >= deadlineAt) return;
           if (!anomalyGate) {
             consecutiveAnomaly++;
-            const wait = consecutiveAnomaly >= 2 ? PERF_CONFIG.anomalyConsecutivePauseMs : PERF_CONFIG.anomalyWaitMs;
             /** @type {(v?: void) => void} */
             let resolveGate = () => {};
             const gate = {
@@ -391,14 +438,19 @@ async function runRatingJob(job) {
             anomalyGate = gate;
           }
           const gate = anomalyGate;
-          if (gate) await gate.promise;
+          if (gate) {
+            const pauseT0 = Date.now();
+            await gate.promise;
+            totalPauseMs += Date.now() - pauseT0;
+          }
         } else {
           consecutiveAnomaly = 0;
           anomalyGate = null;
         }
       };
       const worker = async () => {
-        while (cursor < passNames.length) {
+        // v14.17.0：worker 循环三重守卫——队列空 / 死 tab / 任务硬截止
+        while (cursor < passNames.length && !tabDead && Date.now() < deadlineAt) {
           const name = passNames[cursor++];
           await maybePause();
           /** @type {any} */
@@ -436,17 +488,30 @@ async function runRatingJob(job) {
 
     await runPool(allNames);
     // 一轮结束后重试失败的条目（最多一轮，防无限循环）
-    if (retryNames.length > 0 && !retried) {
+    // v14.17.0：死 tab / 已过硬截止时跳过重试轮（丢项走刷新重查自愈，不再拖链）
+    if (retryNames.length > 0 && !retried && !tabDead && Date.now() < deadlineAt) {
       retried = true;
       await runPool(retryNames);
     }
     // 全部完成：done 标记（内容脚本据此收尾并显示统计）+ 清任务
     job.queue = [];
+    if (tabDead) {
+      // v14.17.0：死 tab 中止——无接收端，done 推送无意义；清检查点与续跑
+      // alarm（防 SW 下次唤醒空转续跑），finally 复位全局链衔接下一任务
+      Logger.info('Steam', `评分任务中止（tab 无接收端）: tab=${job.tabId}`);
+      await clearPersistedJob();
+      teardownResumeAlarm();
+      return;
+    }
     await clearPersistedJob();
     teardownResumeAlarm();
+    // v14.17.0：截止丢项也照常推 done——内容侧立即收尾并给出"未返回·点击重查"
+    // 徽章（不再等到 45s 强制收尾，多标签页排队视觉即"卡住"的主因之一）
     push({ ratings: null, done: true, ...progressPayload() });
   } catch (e) {
     Logger.warn('Steam', '后台补拉好评率失败', String(e));
+    // v14.17.0：任务体异常同样推 done 终态（tab 已死时推送自然失败即弃）
+    pushToTab(job.tabId, { ratings: null, done: true });
   } finally {
     clearInterval(keepAlive);
   }

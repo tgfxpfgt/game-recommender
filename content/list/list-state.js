@@ -210,6 +210,18 @@ export function finishRatings() {
   clearTimeout(_state.ratingsJob.forceTimer);
   const job = _state.ratingsJob;
   const unresolved = job.processItems.filter((i) => !job.processed.has(i.name)).length;
+  // v14.17.0（用户报告：排队等待后一直卡住）：未返回项的 ⏳ 占位徽章转
+  // "未返回·点击重查"错误徽章——此前占位永远停留在队列文案（跨 tab 排队时
+  // 队列信息轮询持续重绘，视觉即"卡住"）。转错误徽章后：① 轮询因无等待徽章
+  // （.gr-working-badge:not(.gr-error-badge)）自然停止；② 提供就地重试入口
+  //（自愈纪律：单次点击重查，有界）；③ 迟到推送仍会替换为真实徽章。
+  // Unresolved ⏳ placeholders become retryable error badges at finish: the
+  // queue-info polling stops naturally (no non-error working badges left),
+  // and late pushes still replace them with real badges.
+  for (const item of job.processItems) {
+    if (job.processed.has(item.name)) continue;
+    if (item.element && item.element.isConnected) badges.showErrorBadge(item, '⚠️ 未返回·点击重查');
+  }
   // 批量写入下载站网址缓存（fire-and-forget）
   const siteKey = builder.getAdapterKey();
   if (siteKey && job.urlEntries.length > 0) {
@@ -232,7 +244,7 @@ export function finishRatings() {
   );
   status.showStats({
     title: 'Steam 好评率获取完成',
-    summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（刷新页面可重试）` : ''}`,
+    summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（点击条目旁徽章可重查）` : ''}`,
     rows: [
       `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
       job.notFoundNames.length > 0

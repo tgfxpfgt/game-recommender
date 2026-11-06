@@ -30,7 +30,7 @@ import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
 import { appendRatingHistory, extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
-import { detectPlatform } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别
+import { detectPlatform, trimPlatformTokens } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段平台词剥离
 import { fetchMetacriticScore } from './api-metacritic.js'; // v14.10.0：主机条目评分源
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
@@ -130,7 +130,10 @@ async function phasePlatform(gameName, options) {
   if (plat.kind === 'emulator') {
     return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
   }
-  const enSeg = (String(gameName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/) || [''])[0].trim();
+  const enSeg = trimPlatformTokens((String(gameName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/) || [''])[0].trim());
+  // v14.17.0：EN 段先剥尾部平台/模拟器/格式词再推导 slug——"The Legend of
+  // Zelda TotK NSP/Ryujinx"类"英文名+平台标记"标题不剥离则 slug 必 404。
+  // 全剥光时 trimPlatformTokens 返回原文，deriveMetacriticSlug 自身有短 slug 守卫。
   /** @type {number|null} */
   let mcScore = null;
   if (enSeg && (!options.mcBudget || options.mcBudget.left > 0)) {
