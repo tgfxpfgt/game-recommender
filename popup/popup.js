@@ -26,6 +26,47 @@ document.addEventListener('DOMContentLoaded', async () => {
     versionEl.textContent = 'v' + chrome.runtime.getManifest().version;
   }
 
+  // ============ v14.16.0 N6：站内通知中心（popup 段） ============
+  // 打开 popup 即渲染最近通知 + 未读角标，展开即读（markRead 清零）。
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_NOTIFICATIONS' });
+    const items = (resp && resp.items) || [];
+    const unread = (resp && resp.unread) || 0;
+    const listEl = document.getElementById('notifList');
+    const badgeEl = document.getElementById('notifUnreadBadge');
+    if (badgeEl) {
+      if (unread > 0) {
+        badgeEl.textContent = String(unread);
+        badgeEl.style.display = '';
+      } else {
+        badgeEl.style.display = 'none';
+      }
+    }
+    if (listEl && items.length > 0) {
+      listEl.innerHTML = items
+        .map(
+          (n) =>
+            '<div class="notif-item"><div class="notif-title">' +
+            (n.title || '').replace(/</g, '&lt;') +
+            '</div><div class="notif-msg">' +
+            (n.message || '').replace(/</g, '&lt;') +
+            '</div><div class="notif-ts">' +
+            new Date(n.ts).toLocaleString('zh-CN') +
+            '</div></div>'
+        )
+        .join('');
+      const markBtn = document.getElementById('notifMarkRead');
+      if (markBtn) {
+        markBtn.addEventListener('click', async () => {
+          await window.__GR_MSG__.sendMessage({ action: 'MARK_NOTIFICATIONS_READ' }).catch(() => {});
+          if (badgeEl) badgeEl.style.display = 'none';
+        });
+      }
+    }
+  } catch {
+    /* 通知中心加载失败静默（非核心路径） */
+  }
+
   // Load settings / 加载设置（后台未就绪时给出降级处理）
   let settings;
   try {

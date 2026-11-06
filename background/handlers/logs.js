@@ -11,6 +11,7 @@ import { metricsSnapshot } from '../core/metrics.js';
 import { getSteamApiStatus, getDomainStatus } from '../core/api-monitor.js';
 import { getOutboundAudit } from '../core/outbound-audit.js';
 import { getFlushHealth } from '../storage/flush-health.js';
+import { getNotifications, markNotificationsRead } from '../storage/notifications.js'; // v14.16.0 N6
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const logsHandlers = {
@@ -20,6 +21,8 @@ export const logsHandlers = {
     return { success: true };
   },
   EXPORT_LOGS: async () => ({ logs: await getRuntimeLogs() }),
+  GET_NOTIFICATIONS: async () => ({ success: true, ...(await getNotifications()) }),
+  MARK_NOTIFICATIONS_READ: async () => markNotificationsRead(),
   // v14.15.0 O7：一键诊断包——设置（stripSecrets 脱敏）+ 运行指标 + API 状态
   //（含 failAttribution 环形缓冲）+ 出站审计 + flush 健康 + 最近日志，一 JSON
   // 下载；issue 一来一回闭环（v10.9.2"用户侧环境不可远程推断"教训的收集端）。

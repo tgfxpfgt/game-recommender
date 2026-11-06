@@ -13,6 +13,7 @@ import { getFavorites } from '../storage/favorites.js';
 import { Logger } from '../storage/logger.js';
 import { checkItadFree } from './itad.js';
 import { determineSteamFreeType } from './fetch.js';
+import { recordNotification } from '../storage/notifications.js'; // v14.16.0 N6：通知中心落库
 
 // v7.4.0：最近一次限免通知内容（SW 点击通知时读取）
 // v9.7.0：同步持久化到 chrome.storage.session——通知存活数分钟～数小时而
@@ -40,6 +41,8 @@ export async function getLastNotifyGames() {
 // 公共形状（type/iconUrl/异常吞没）收敛为 notifyBase 工厂。
 export function notifyBase(title, message, options = {}) {
   // v14.3.0：导出（itad 域消费）
+  // v14.16.0 N6：站内通知中心落库（环形 50）——system 通知即焚的追溯面
+  recordNotification(title, message).catch(() => {});
   try {
     chrome.notifications.create(options.id || undefined, {
       type: 'basic',

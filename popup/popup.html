@@ -56,6 +56,21 @@
         </div>
       </section>
 
+      <!-- ===== v14.16.0 N6：站内通知中心（环形 50 条可追溯；系统通知照旧） ===== -->
+      <details class="popup-section">
+        <summary class="section-summary">
+          <span class="section-icon">🔔</span>
+          <span>通知中心</span>
+          <span id="notifUnreadBadge" class="notif-unread-badge" style="display: none"></span>
+        </summary>
+        <div class="section-body">
+          <div id="notifList" class="notif-list">
+            <div class="notif-empty">暂无通知</div>
+          </div>
+          <button id="notifMarkRead" class="gr-btn" style="margin-top: 6px; font-size: 12px">全部已读</button>
+        </div>
+      </details>
+
       <!-- ===== 全量快捷设置（与设置页同键同名，v6.4.11 覆盖全部选项） ===== -->
       <!-- Full quick settings: same keys/labels as the settings page -->
       <div class="settings-area">

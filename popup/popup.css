@@ -566,3 +566,50 @@ button.gr-btn-free {
   font-weight: 400;
   margin-left: 6px;
 }
+
+/* ===== v14.16.0 N6：站内通知中心 / Notification Center ===== */
+.notif-unread-badge {
+  margin-left: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: #e74c3c;
+  color: #fff;
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+  display: inline-block;
+}
+.notif-list {
+  max-height: 220px;
+  overflow-y: auto;
+}
+.notif-item {
+  padding: 6px 8px;
+  border-bottom: 1px dashed rgba(127, 127, 127, 0.25);
+}
+.notif-item:last-child {
+  border-bottom: none;
+}
+.notif-title {
+  font-size: 12px;
+  font-weight: bold;
+  color: var(--gr-text, #333);
+}
+.notif-msg {
+  font-size: 11px;
+  color: var(--gr-text-2, #666);
+  margin: 2px 0;
+  word-break: break-all;
+}
+.notif-ts {
+  font-size: 10px;
+  color: #999;
+}
+.notif-empty {
+  padding: 10px;
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+}

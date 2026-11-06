@@ -332,6 +332,8 @@ const RULES = {
   GET_STORAGE_HEALTH: () => ({ ok: true }),
   GET_RUNTIME_METRICS: () => ({ ok: true }), // v10.7.0：运行指标快照
   GET_DIAGNOSTIC_BUNDLE: () => ({ ok: true }), // v14.15.0 O7：一键诊断包（扩展页专用）
+  GET_NOTIFICATIONS: () => ({ ok: true }), // v14.16.0 N6：站内通知中心（扩展页专用）
+  MARK_NOTIFICATIONS_READ: () => ({ ok: true }), // v14.16.0 N6：全部已读（扩展页专用）
   // 缓存条目级操作：appId 必填
   DELETE_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'DELETE_GAME_CACHE_ENTRY.appId'),
   REFRESH_GAME_CACHE_ENTRY: (m) => appIdRule(m && m.appId, 'REFRESH_GAME_CACHE_ENTRY.appId'),
