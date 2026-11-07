@@ -71,6 +71,14 @@
       minLen: 2,
       maxLen: 200,
       fallbackLinks: true
-    }
+    },
+    // v14.18.0（两站真实页面实证）：分类页平台提示——/game/10/ = "模拟器整合"
+    // 分类（页面标题"Switch游戏整合,Yuzu模拟器整合"，含 /game/10/index_*.html
+    // 翻页），39 条的分类标签"模拟器整合"均在标题**外**，标题为中文名/别名/
+    // 英文名（如"塞尔达传说：王国之泪/The Legend of Zelda..."），标题级识别
+    // 必然落空被当 PC 检索。URL 命中即随批次注入提示词。
+    // Category-page platform hints: /game/10/ is the emulator-bundle category
+    // whose labels live outside the titles (cn/alias/en name only).
+    listPlatformHints: [{ urlPattern: '/game/10/', hint: '模拟器整合' }]
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

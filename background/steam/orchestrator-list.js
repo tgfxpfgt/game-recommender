@@ -125,7 +125,13 @@ async function probeDetailSignal(gameName, pageUrl, excludeAppId) {
  * @returns {Promise<Object|null>} 平台终态结果（null = PC 条目继续后续阶段）
  */
 async function phasePlatform(gameName, options) {
-  const plat = detectPlatform(gameName);
+  // v14.18.0（两站真实页面实证）：分类页平台提示——咸鱼单机"模拟器版"/
+  // XDGAME"模拟器整合"分类页的条目标题**不含**任何平台标记（标签在标题外
+  // 的独立元素），标题级识别必然落空。内容侧经规则 listPlatformHints 声明
+  // （URL 模式 → 提示词）随批次注入，此处拼接为附加段参与识别（PC 守卫
+  // 仍优先——标题带 steam/pc 段的双平台条目不被提示词带偏）。
+  const hint = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
+  const plat = detectPlatform(hint ? `${gameName}|${hint}` : gameName);
   if (plat.kind === 'pc') return null;
   if (plat.kind === 'emulator') {
     return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };

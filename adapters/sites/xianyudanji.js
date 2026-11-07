@@ -46,6 +46,16 @@
       minLen: 2,
       maxLen: 100,
       fallbackLinks: true
-    }
+    },
+    // v14.18.0（两站真实页面实证）：分类页平台提示——"模拟器版"分类页
+    // （/pcdj/mnqzh，mnqzh=模拟器整合拼音，含 page/N 翻页）的条目标签
+    // "模拟器版"在标题**外**的独立元素，标题不含任何平台标记（如
+    // "宝可梦传说：阿尔宙斯|v1.1.1|官方中文|支持手柄|Pokemon Legends:
+    // Arceus"），标题级识别必然落空被当 PC 检索。URL 命中即随批次注入
+    // 提示词（后台 phasePlatform 与标题拼接参与识别，PC 守卫仍优先）。
+    // Category-page platform hints: the "模拟器版" label lives outside the
+    // title on this category's cards, so title-level detection never fires;
+    // matching pages inject the hint into the ratings batch.
+    listPlatformHints: [{ urlPattern: '/pcdj/mnqzh', hint: '模拟器版' }]
   };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

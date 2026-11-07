@@ -165,8 +165,18 @@ async function fireBatch(names) {
   }
   // 推荐请求并入批次（按名回填，滚动批次自动获得推荐徽章/高亮）
   fetchRecommendationsForBatch(names, imageData);
+  // v14.18.0：分类页平台提示（规则 listPlatformHints URL 模式命中即携带——
+  // 咸鱼单机"模拟器版"/XDGAME"模拟器整合"分类页的标签在标题外，标题级
+  // 平台识别落空；后台 phasePlatform 与标题拼接参与识别）
+  const platformHint = await builder.getListPlatformHint().catch(() => '');
   try {
-    const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_RATINGS', names, imageData, urls });
+    const response = await window.__GR_MSG__.sendMessage({
+      action: 'GET_STEAM_RATINGS',
+      names,
+      imageData,
+      urls,
+      platformHint
+    });
     // v10.5.0 P2-D：后台拒绝（契约/sender/异常）不再静默降级为空，显式告警便于定位
     // Surface backend rejections instead of silently showing "no data".
     if (response && response.error) {

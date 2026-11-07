@@ -103,6 +103,8 @@ const EMULATOR_MARKERS = [
   'rom',
   'roms',
   // 模拟器产品名（小写整段；eden 仅整段——子串会误伤 sweden 类词）
+  // v14.18.0：追加 retroarch/kemulator/kawaks（咸鱼单机模拟器版分类页真实
+  // 标题："GBA经典游戏整合包-RetroArch模拟器"等三站内整合包）
   'yuzu',
   'ryujinx',
   'sudachi',
@@ -120,7 +122,10 @@ const EMULATOR_MARKERS = [
   'xemu',
   'mame',
   'winlator',
-  'eggns'
+  'eggns',
+  'retroarch',
+  'kemulator',
+  'kawaks'
 ];
 
 // v14.10.1：显式 PC 标记——站点同时标 PC 与主机时 PC 优先（Steam 有该游戏，
@@ -156,6 +161,10 @@ const EMULATOR_NAME_SUBSTR = [
   'mame',
   'winlator',
   'eggns',
+  // v14.18.0：咸鱼单机整合包标题实证（RetroArch/KEmulator/Kawaks）
+  'retroarch',
+  'kemulator',
+  'kawaks',
   'emulator'
 ];
 
@@ -206,10 +215,13 @@ function hasPcGuard(seg) {
 /**
  * "含'模拟器'组合段"的伴随佐证：同段出现模拟器名子串或短机型前缀——
  * 排除《游戏开发模拟器》《PC装机模拟器》类游戏名（无佐证即不命中）。
+ * v14.18.0：追加"整合"（语序变体"整合模拟器版"——咸鱼单机真实标题实证，
+ * 与"模拟器整合"同义，仅词序相反）。
  * @param {string} seg @returns {boolean}
  */
 function hasEmulatorCorroboration(seg) {
   if (EMULATOR_NAME_SUBSTR.some((w) => seg.includes(w))) return true;
+  if (seg.includes('整合')) return true;
   return SHORT_BRAND_PREFIX_RE.test(seg);
 }
 

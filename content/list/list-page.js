@@ -397,12 +397,15 @@ function preloadNextPage() {
 
       dbg(`预载：提取到 ${gameNames.length} 个游戏名，开始预热 Steam 缓存`);
 
+      // v14.18.0：分类页平台提示（预载下一页是同分类翻页，提示词同源）
+      const platformHint = await builder.getListPlatformHint().catch(() => '');
       chrome.runtime
         .sendMessage({
           action: 'PREFETCH_STEAM_RATINGS',
           names: gameNames,
           appIds,
-          covers
+          covers,
+          platformHint
         })
         .then(() => {
           dbg(`✅ 预载完成：已预热 ${gameNames.length} 个游戏的 Steam 缓存`);

@@ -262,4 +262,35 @@ describe('v14.17.0 任务治理：硬截止 + 死 tab 中止', () => {
       globalThis.chrome.tabs.sendMessage = prevSend;
     }
   });
+
+  test('v14.18.0：分类页平台提示——无标记标题经 platformHint 命中模拟器分支', async () => {
+    await waitForIdle();
+    storage._reset();
+    pushed.length = 0;
+    // 咸鱼单机 /pcdj/mnqzh 真实标题（"模拟器版"标签在标题外）——无提示词时
+    // 标题级识别落空当 PC；携带 platformHint 后零网络直达 platformOnly 终态
+    const name = '宝可梦传说：阿尔宙斯|v1.1.1|官方中文|支持手柄|Pokemon Legends: Arceus';
+    const started = ratingsBatch.startRatingJob({
+      tabId: 11,
+      queue: [name],
+      retried: false,
+      urlAppIds: {},
+      imageData: {},
+      appIds: {},
+      startedAt: Date.now(),
+      platformHint: '模拟器版'
+    });
+    expect(started).toEqual(true);
+    for (let i = 0; i < 50; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    const platPush = pushed.find((p) => p.msg.ratings && p.msg.ratings[name]);
+    expect(platPush && platPush.tabId).toEqual(11);
+    const r = platPush && platPush.msg.ratings[name];
+    expect(r && r.platformOnly).toBe(true);
+    expect(r && r.platformTag).toEqual('模拟器');
+    expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
+  });
 });

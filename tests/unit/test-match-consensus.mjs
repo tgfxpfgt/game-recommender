@@ -774,6 +774,39 @@ describe('detectPlatform v14.17.0（民间移植组合段/模拟器名/ROM 格�
   });
 });
 
+// ============ v14.18.0：两站真实页面标题回归（咸鱼单机/XDGAME 实证抓取） ============
+describe('detectPlatform v14.18.0（咸鱼单机/XDGAME 真实标题回归）', () => {
+  test('咸鱼单机整合包标题：RetroArch/KEmulator/Kawaks/语序变体/Cemu', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('GBA经典游戏整合包-RetroArch模拟器').kind).toEqual('emulator');
+    expect(detectPlatform('Java经典游戏整合包-KEmulator模拟器').kind).toEqual('emulator');
+    expect(detectPlatform('经典街机游戏整合包-Kawaks模拟器').kind).toEqual('emulator');
+    expect(detectPlatform('经典街机游戏整合包-MAME模拟器').kind).toEqual('emulator');
+    // 语序变体（"整合"在前）：恸哭奇机|整合模拟器版|V1.0.4+全DLC
+    expect(detectPlatform('恸哭奇机|整合模拟器版|V1.0.4+全DLC|官方中文|CRYMACHINA').kind).toEqual('emulator');
+    // Cemu + WiiU主机模拟器直装版（异度神剑X）
+    expect(detectPlatform('异度神剑X|汉化最终版|整合版下载Cemu模拟器|WiiU主机模拟器直装版').kind).toEqual('emulator');
+  });
+
+  test('分类页平台提示：标题无标记的条目经提示词命中（两站真实标题）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    // 咸鱼单机 /pcdj/mnqzh 真实标题——标签"模拟器版"在标题外，标题无标记
+    const t1 = '宝可梦传说：阿尔宙斯|v1.1.1|官方中文|支持手柄|Pokemon Legends: Arceus';
+    expect(detectPlatform(t1).kind).toEqual('pc'); // 无提示词 = 标题级识别落空（旧行为）
+    expect(detectPlatform(`${t1}|模拟器版`).kind).toEqual('emulator'); // 提示词拼接后命中
+    const t2 = '火焰之纹章回声：另一位英雄王/火焰纹章回声：另一位英雄王/Fire Emblem Echoes: Shadows of Valentia';
+    expect(detectPlatform(`${t2}|模拟器版`).kind).toEqual('emulator');
+    // XDGAME /game/10/ 真实标题——标签"模拟器整合"在标题外
+    const t3 = '塞尔达传说：王国之泪/The Legend of Zelda: Tears of the kingdom';
+    expect(detectPlatform(`${t3}|模拟器整合`).kind).toEqual('emulator');
+    const t4 = '汽车城：驾驶/Motor Town: Behind The Wheel/支持网络联机';
+    expect(detectPlatform(`${t4}|模拟器整合`).kind).toEqual('emulator');
+    // 提示词不压 PC 守卫：标题自带 steam/pc 段的双平台条目仍走 Steam 管线
+    expect(detectPlatform('某游戏|Steam版|官方中文|模拟器整合').kind).toEqual('pc');
+    expect(detectPlatform('某游戏|PC|官方中文|模拟器版').kind).toEqual('pc');
+  });
+});
+
 describe('trimPlatformTokens（EN 段尾平台词剥离——Metacritic slug 推导前）', () => {
   test('尾部平台/模拟器/格式词逐个剥离', async () => {
     const { trimPlatformTokens } = await import('../../shared/platform-detect.js');

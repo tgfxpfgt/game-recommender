@@ -97,6 +97,9 @@ export async function handleGetSteamRatings(message, sender) {
   // storage after every batch; a fresh SW resumes from the last boundary.
   if (!cacheOnly && pending.length > 0) {
     const tabId = sender && sender.tab ? sender.tab.id : null;
+    // v14.18.0：分类页平台提示（规则 listPlatformHints 声明，内容侧按 URL
+    // 注入）——防御性消毒（非串/超长截断），随检查点持久化供续跑继承
+    const platformHint = typeof message.platformHint === 'string' ? message.platformHint.trim().slice(0, 24) : '';
     const job = {
       tabId,
       queue: pending.slice(), // 待拉取名字（批次边界推进）/ names awaiting fetch
@@ -107,6 +110,7 @@ export async function handleGetSteamRatings(message, sender) {
       urls, // v14.8.2：name → 站点详情页 URL（盲区自愈详情页信号回捞）
       probeBudget: { left: PERF_CONFIG.detailProbeBudget }, // v14.8.2：回捞预算（仅实际探测扣减）
       mcBudget: { left: PERF_CONFIG.metacriticBudget }, // v14.10.0：Metacritic 查询预算（主机条目）
+      platformHint, // v14.18.0：分类页平台提示（空串 = 无提示）
       startedAt: Date.now()
     };
     startRatingJob(job);
@@ -468,7 +472,9 @@ async function runRatingJob(job) {
               pageUrl: job.urls && job.urls[name] ? job.urls[name] : null,
               probeBudget: job.probeBudget || null,
               // v14.10.0：主机条目 Metacritic 查询预算
-              mcBudget: job.mcBudget || null
+              mcBudget: job.mcBudget || null,
+              // v14.18.0：分类页平台提示（规则 listPlatformHints，空串 = 无）
+              platformHint: job.platformHint || ''
             });
           } catch {
             r = null;
@@ -545,6 +551,10 @@ export async function handlePrefetchSteamRatings(message) {
   }
   if (needsPrefetch.length === 0) return { success: true };
 
+  // v14.18.0：分类页平台提示（同 handleGetSteamRatings——预载下一页是同
+  // 分类页翻页，提示词同源继承）
+  const prefetchHint = typeof message.platformHint === 'string' ? message.platformHint.trim().slice(0, 24) : '';
+
   // v9.7.0：预取改后台分离任务（与 GET_STEAM_RATINGS 阶段 2 一致）——此前
   // 整个循环在消息处理内 await，sendResponse 通道被占住数分钟，SW 中途被杀
   // 时内容脚本收到 port closed 拒绝。预取本就不返回数据，立即响应无行为损失
@@ -565,7 +575,9 @@ export async function handlePrefetchSteamRatings(message) {
               await getSteamPositiveRate(name, {
                 ignoreNegativeCache: true,
                 appId: img ? img.appId : null,
-                cover: img ? img.cover : null
+                cover: img ? img.cover : null,
+                // v14.18.0：分类页平台提示（下一页预载与主流程同语义）
+                platformHint: prefetchHint
               });
             } catch {}
           })

@@ -336,6 +336,50 @@ export async function getSiteFeatures() {
   return (rule && rule.features) || {};
 }
 
+// v14.18.0：分类页平台提示（规则 listPlatformHints 声明：[{urlPattern, hint}]）。
+// 两站实证（咸鱼单机"模拟器版"/ XDGAME"模拟器整合"分类页）：分类标签在标题
+// **外**的独立元素，条目标题不含任何平台标记——标题级识别必然落空，全部被
+// 当 PC 走 Steam 检索。规则按 URL 模式声明提示词，当前页 pathname 命中即
+// 随批次传后台（phasePlatform 与标题拼接为附加段参与识别；PC 守卫仍优先）。
+// 消费侧防御：规则支持用户导入——条目类型/模式长度/正则合法性逐一守卫，
+// 坏条目跳过不抛错；结果按页缓存（pathname 页内不变）。
+// Category-page platform hint (rule-declared listPlatformHints). Per-page
+// cached; defensively validated (imported rule packs may be malformed — bad
+// entries are skipped, never thrown).
+/** @type {string|null} */
+let listPlatformHintCache = null;
+export async function getListPlatformHint() {
+  if (listPlatformHintCache !== null) return listPlatformHintCache;
+  await loadSiteRules();
+  const rule = findRuleByDomain();
+  const hints = rule && Array.isArray(rule.listPlatformHints) ? rule.listPlatformHints : [];
+  let out = '';
+  if (hints.length > 0) {
+    let pathname = '';
+    try {
+      pathname = String((globalThis.location && globalThis.location.pathname) || '').slice(0, 256);
+    } catch {
+      pathname = '';
+    }
+    for (const h of hints) {
+      if (!h || typeof h.urlPattern !== 'string' || typeof h.hint !== 'string') continue;
+      const pattern = h.urlPattern.slice(0, 120);
+      const hint = h.hint.trim().slice(0, 24);
+      if (!pattern || !hint) continue;
+      try {
+        if (new RegExp(pattern, 'i').test(pathname)) {
+          out = hint;
+          break;
+        }
+      } catch {
+        /* 坏正则（导入规则包）跳过 / bad regex from an imported pack */
+      }
+    }
+  }
+  listPlatformHintCache = out;
+  return out;
+}
+
 // 当前站点的适配器 key（下载站网址缓存上报用）/ The current site's adapter key
 export function getAdapterKey() {
   const rule = findRuleByDomain();
