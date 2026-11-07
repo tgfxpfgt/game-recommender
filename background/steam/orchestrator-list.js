@@ -30,8 +30,9 @@ import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
 import { appendRatingHistory, extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
-import { detectPlatform, trimPlatformTokens } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段平台词剥离
+import { detectPlatform, trimPlatformTokens, extractEnNameSegment } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段剥离；v14.19.0：EN 段提取单源
 import { fetchMetacriticScore } from './api-metacritic.js'; // v14.10.0：主机条目评分源
+import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
@@ -45,6 +46,31 @@ import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.j
  */
 export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (!gameName) return null;
+  // v14.19.0：首波平台预检（零网络）——手动映射优先于一切索引；标题/分类页
+  // 提示词识别出的模拟器条目直接打标（此前首波无平台检查，URL/名称索引钉住
+  // 的错误 Steam 缓存会先于第二波识别返回——106902 类"主机游戏匹配错误后
+  // 列表页依旧显示错误信息"的根因之一）。主机条目首波不抓分（零网络语义），
+  // 返回 null 转第二波 phasePlatform 常规流程。
+  const manual0 = await getManualPlatform(gameName);
+  if (manual0) {
+    if (manual0.kind === 'console' && manual0.mcScore != null) {
+      return {
+        mcScore: manual0.mcScore,
+        mcName: manual0.mcName,
+        platformTag: manual0.tag,
+        appId: null,
+        name: gameName
+      };
+    }
+    return { platformOnly: true, platformTag: manual0.tag, appId: null, name: gameName };
+  }
+  const hint0 = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
+  if (hint0) {
+    const plat0 = detectPlatform(`${gameName}|${hint0}`);
+    if (plat0.kind === 'emulator') {
+      return { platformOnly: true, platformTag: plat0.tag, appId: null, name: gameName };
+    }
+  }
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
@@ -125,6 +151,26 @@ async function probeDetailSignal(gameName, pageUrl, excludeAppId) {
  * @returns {Promise<Object|null>} 平台终态结果（null = PC 条目继续后续阶段）
  */
 async function phasePlatform(gameName, options) {
+  // v14.19.0（用户需求：详情页手动主机机型声明）：用户手动映射**优先于一切
+  // 识别与索引**——声明过的条目直接返回 MC/平台终态（MC 分为声明时抓取的
+  // 固化值；缺失时按主机条目走常规 Metacritic 预算补查一次）
+  const manual = await getManualPlatform(gameName);
+  if (manual) {
+    if (manual.kind === 'console' && manual.mcScore != null) {
+      return { mcScore: manual.mcScore, mcName: manual.mcName, platformTag: manual.tag, appId: null, name: gameName };
+    }
+    if (manual.kind === 'console') {
+      const enSegManual = trimPlatformTokens(extractEnNameSegment(manual.mcName || gameName));
+      if (enSegManual && (!options.mcBudget || options.mcBudget.left > 0)) {
+        if (options.mcBudget) options.mcBudget.left -= 1;
+        const mcRetry = await fetchMetacriticScore(enSegManual).catch(() => null);
+        if (mcRetry != null) {
+          return { mcScore: mcRetry, mcName: enSegManual, platformTag: manual.tag, appId: null, name: gameName };
+        }
+      }
+    }
+    return { platformOnly: true, platformTag: manual.tag, appId: null, name: gameName };
+  }
   // v14.18.0（两站真实页面实证）：分类页平台提示——咸鱼单机"模拟器版"/
   // XDGAME"模拟器整合"分类页的条目标题**不含**任何平台标记（标签在标题外
   // 的独立元素），标题级识别必然落空。内容侧经规则 listPlatformHints 声明
@@ -136,7 +182,7 @@ async function phasePlatform(gameName, options) {
   if (plat.kind === 'emulator') {
     return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
   }
-  const enSeg = trimPlatformTokens((String(gameName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/) || [''])[0].trim());
+  const enSeg = trimPlatformTokens(extractEnNameSegment(gameName));
   // v14.17.0：EN 段先剥尾部平台/模拟器/格式词再推导 slug——"The Legend of
   // Zelda TotK NSP/Ryujinx"类"英文名+平台标记"标题不剥离则 slug 必 404。
   // 全剥光时 trimPlatformTokens 返回原文，deriveMetacriticSlug 自身有短 slug 守卫。

@@ -409,3 +409,22 @@ test('IMPORT_DATA 合法形态（data 对象 + 可选 moduleKeys）', () => {
   expect(validateMessage('IMPORT_DATA', { data: { format: 'x' }, moduleKeys: ['settings'] }).ok).toEqual(true);
   expect(validateMessage('IMPORT_DATA', { data: { format: 'x' }, moduleKeys: 'settings' }).ok).toEqual(false);
 });
+
+// ============ v14.19.0：手动主机机型声明（SET_MANUAL_PLATFORM） ============
+test('SET_MANUAL_PLATFORM 合法形态', () => {
+  expect(validateMessage('SET_MANUAL_PLATFORM', { gameName: '宝可梦传说：阿尔宙斯', platform: 'switch' }).ok).toEqual(
+    true
+  );
+  expect(
+    validateMessage('SET_MANUAL_PLATFORM', { gameName: '某游戏', platform: 'emu', rawTitle: '标题|English Name' }).ok
+  ).toEqual(true);
+});
+test('SET_MANUAL_PLATFORM 参数缺失/异型拒绝', () => {
+  expect(validateMessage('SET_MANUAL_PLATFORM', {}).ok).toEqual(false); // 缺 gameName+platform
+  expect(validateMessage('SET_MANUAL_PLATFORM', { gameName: '某游戏' }).ok).toEqual(false); // 缺 platform
+  expect(validateMessage('SET_MANUAL_PLATFORM', { gameName: '', platform: 'switch' }).ok).toEqual(false); // 空 gameName
+  expect(validateMessage('SET_MANUAL_PLATFORM', { gameName: '某游戏', platform: 123 }).ok).toEqual(false); // 异型 platform
+  expect(validateMessage('SET_MANUAL_PLATFORM', { gameName: '某游戏', platform: 'switch', rawTitle: 9 }).ok).toEqual(
+    false
+  ); // 异型 rawTitle
+});

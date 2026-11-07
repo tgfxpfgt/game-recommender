@@ -235,6 +235,39 @@ function handleLookupMiss(panel, gameName, response, io) {
         return true;
       }
       return false;
+    },
+    // v14.19.0（用户需求）：主机/模拟器机型选择——SET_MANUAL_PLATFORM 持久化
+    // 映射 + Metacritic 评分，成功即浮窗切 MC 视图（映射同时纠正列表页）
+    async (platformId) => {
+      cancelAutoRetry();
+      const resp = await window.__GR_MSG__
+        .sendMessage(
+          { action: 'SET_MANUAL_PLATFORM', gameName, platform: platformId, rawTitle: document.title },
+          null,
+          { timeout: 30000 }
+        )
+        .catch(() => null);
+      if (resp && resp.success) {
+        renderAndShow(
+          {
+            appId: null,
+            name: gameName,
+            platformOnly: true,
+            platformTag: resp.tag,
+            mcScore: resp.mcScore != null ? resp.mcScore : null,
+            mcName: resp.mcName || null,
+            genres: [],
+            userTags: [],
+            developers: [],
+            description: '',
+            reviews: []
+          },
+          Date.now(),
+          gameName
+        );
+        return true;
+      }
+      return false;
     }
   );
   showPanel();
@@ -268,7 +301,10 @@ export function createSteamFloat(gameName, settings) {
   })();
 
   function renderAndShow(data, cachedAt, name) {
-    if (reverseSiteDomain) {
+    // v14.19.0：手动平台映射条目（MC 评分/平台标签，无 appId）——跳过 Steam
+    // 侧联动（行填充/标签回写/访问记录/AppID 桥接），浮窗渲染 MC 视图模板
+    const isPlatformEntry = !!(data && (data.platformOnly || data.mcScore != null));
+    if (reverseSiteDomain && !isPlatformEntry) {
       data.downloadSiteSearchUrl =
         'https://' + reverseSiteDomain + '/?s=' + encodeURIComponent(name || data.name || '');
     }
@@ -276,19 +312,15 @@ export function createSteamFloat(gameName, settings) {
     actions.setSteamData(data);
     reportIssue = actions.makeReportIssue(name);
     actions.setReportIssue(reportIssue);
-    debug.DEBUG.steamStatus = `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
-    dbg(`Steam: ${data.name} - ${data.ratingDesc} ${data.positiveRate}%`);
+    debug.DEBUG.steamStatus = isPlatformEntry
+      ? `🎮 ${data.platformTag || '主机'}${data.mcScore != null ? ` · MC ${data.mcScore}` : ''}`
+      : `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
+    dbg(`Steam: ${data.name} - ${data.ratingDesc || data.platformTag || ''} ${data.positiveRate || ''}`);
     renderSteamSidebar(panel, data, hidePanel, cachedAt, actions.makeOnRefresh(name), reportIssue);
     showPanel();
 
-    // v10.1.0：AppID 写 DOM 数据桥接——download-tracking 的点击委托（隔离世界
-    // 同全局可读）随 click_download 事件带上 appId，后台据此累计下载计数 a
-    try {
-      if (data.appId) document.documentElement.dataset.grAppId = String(data.appId);
-    } catch {
-      /* ignore */
-    }
-
+    // v14.19.0：平台条目（主机/模拟器映射）无 Steam 侧联动
+    if (isPlatformEntry) return;
     // 记录下载站详情页访问（Steam 匹配成功后补充记录；后台同时累计详情页打开计数 b）
     common.trackDownloadSiteVisit(data.appId, name);
 
@@ -392,11 +424,14 @@ export function createSteamFloat(gameName, settings) {
 // Steam-style info sidebar (template in GR.detailTemplates since v5.1.0;
 // this function keeps the DOM bindings).
 function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport) {
+  // v14.19.0：平台条目（手动主机映射）——刷新/报错按钮与内嵌卡跳过（语义
+  // 属 Steam 条目；MC 视图提供"重新选择"语义由候选浮窗承担）
+  const isPlatformEntry = !!(data && (data.platformOnly || data.mcScore != null));
   panel.innerHTML = detailTemplates.steamSidebar(
     floatModules ? { ...data, floatModules } : data,
     cachedAt,
-    !!onRefresh,
-    !!onReport
+    isPlatformEntry ? false : !!onRefresh,
+    isPlatformEntry ? false : !!onReport
   );
 
   // 绑定手动更新按钮事件
@@ -470,7 +505,7 @@ function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport)
   } catch {
     /* 适配器不可用时跳过 / skip when the adapter is unavailable */
   }
-  if (!inlineEnabled) return;
+  if (!inlineEnabled || isPlatformEntry) return; // v14.19.0：平台条目不渲染内嵌 Steam 卡
   const seq = ++inlineRenderSeq;
   loadInlineCard()
     .then((m) => {

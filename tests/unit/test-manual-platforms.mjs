@@ -1,0 +1,221 @@
+import { test, expect, describe, beforeEach } from 'vitest';
+/**
+ * 游戏雷达 Game Radar - 测试：手动主机机型映射（v14.19.0）
+ *
+ * 覆盖：存储模块 set/get 往返与容量帽 / SET_MANUAL_PLATFORM 处理器全链
+ * （机型解析 → Metacritic 抓分 → 映射持久化 → 名称索引解除）/ 三管线消费
+ * （列表第一波 cache-only、第二波 phasePlatform、详情 searchSteamGame）。
+ * Manual platform mapping: storage roundtrip + cap, the SET_MANUAL_PLATFORM
+ * handler chain (option resolve → Metacritic fetch → persist → index clear),
+ * and consumption by the three pipelines (list wave-1/wave-2, detail search).
+ */
+('use strict');
+
+import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
+import { installFetchMock } from '../helpers/fetch-mock.mjs';
+
+const storage = createStorageMock();
+installChromeStorageMock(storage);
+
+globalThis.chrome.runtime = globalThis.chrome.runtime || {};
+globalThis.chrome.runtime.getPlatformInfo = async () => ({ os: 'win' });
+globalThis.chrome.alarms = { create: () => {}, clear: () => {} };
+globalThis.chrome.tabs = globalThis.chrome.tabs || { sendMessage: async () => ({}) };
+
+const manualPlatforms = await import(
+  new URL('../../background/storage/manual-platforms.js', import.meta.url).href + '?t=' + Date.now()
+);
+const handlersSteam = await import(
+  new URL('../../background/handlers/steam.js', import.meta.url).href + '?t=' + Date.now()
+);
+const orchestratorList = await import(
+  new URL('../../background/steam/orchestrator-list.js', import.meta.url).href + '?t=' + Date.now()
+);
+const orchestratorDetail = await import(
+  new URL('../../background/steam/orchestrator-detail.js', import.meta.url).href + '?t=' + Date.now()
+);
+const nameIndex = await import(
+  new URL('../../background/storage/name-index.js', import.meta.url).href + '?t=' + Date.now()
+);
+
+const MC_PAGE_HTML = '<html><script>window.__s = {"ratingValue":"91","something":1}</script></html>';
+
+describe('manual-platforms 存储模块（v14.19.0）', () => {
+  beforeEach(() => {
+    storage._reset();
+    manualPlatforms.resetManualPlatforms();
+  });
+
+  test('set/get 往返：kind/tag/mcScore 固化与钳制', async () => {
+    await manualPlatforms.setManualPlatform('宝可梦传说：阿尔宙斯|官方中文', {
+      kind: 'console',
+      tag: 'Switch',
+      mcScore: 86.6, // 四舍五入钳到 87
+      mcName: 'Pokemon Legends: Arceus'
+    });
+    const entry = await manualPlatforms.getManualPlatform('宝可梦传说：阿尔宙斯|官方中文');
+    expect(entry && entry.kind).toEqual('console');
+    expect(entry && entry.tag).toEqual('Switch');
+    expect(entry && entry.mcScore).toEqual(87);
+    expect(entry && entry.mcName).toEqual('Pokemon Legends: Arceus');
+  });
+
+  test('容量帽：超限淘汰最早声明条目（LRU by at）', async () => {
+    for (let i = 0; i < 505; i++) {
+      await manualPlatforms.setManualPlatform(`游戏${i}|标题`, {
+        kind: 'console',
+        tag: 'PS5',
+        mcScore: null,
+        mcName: null
+      });
+    }
+    expect(manualPlatforms.getManualPlatformsMemory().size).toBeLessThanOrEqual(500);
+    expect(await manualPlatforms.getManualPlatform('游戏0|标题')).toEqual(null); // 最旧被淘汰
+  });
+
+  test('空 gameName 抛错（防御）', async () => {
+    await expect(
+      manualPlatforms.setManualPlatform('  ', { kind: 'console', tag: 'PS5', mcScore: null, mcName: null })
+    ).rejects.toThrow();
+  });
+});
+
+describe('SET_MANUAL_PLATFORM 处理器全链（v14.19.0）', () => {
+  beforeEach(() => {
+    storage._reset();
+    manualPlatforms.resetManualPlatforms();
+  });
+
+  test('主机机型声明：Metacritic 抓分 + 映射持久化 + 名称索引解除', async () => {
+    const restore = installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      if (u.includes('metacritic.com/game/pokemon-legends-arceus/')) {
+        return {
+          ok: true,
+          status: 200,
+          redirected: false,
+          url: u,
+          json: async () => ({}),
+          text: async () => MC_PAGE_HTML
+        };
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+    try {
+      // 名称索引先钉一个错误条目（模拟历史误匹配）
+      await nameIndex.recordNameIndex('宝可梦传说 阿尔宙斯|v1.1.1|官方中文|Pokemon Legends Arceus', 999999);
+      const resp = await handlersSteam.handleSetManualPlatform({
+        gameName: '宝可梦传说 阿尔宙斯|v1.1.1|官方中文|Pokemon Legends Arceus',
+        platform: 'switch',
+        rawTitle: '宝可梦传说 阿尔宙斯|v1.1.1|官方中文|Pokemon Legends: Arceus'
+      });
+      expect(resp && resp.success).toBe(true);
+      expect(resp && resp.tag).toEqual('Switch');
+      expect(resp && resp.mcScore).toEqual(91);
+      const entry = await manualPlatforms.getManualPlatform(
+        '宝可梦传说 阿尔宙斯|v1.1.1|官方中文|Pokemon Legends Arceus'
+      );
+      expect(entry && entry.mcScore).toEqual(91);
+      // mcName 经 trimPlatformTokens（词拼接）——冒号丢失（slug 语义等价，
+      // 与 v14.17.0 trimPlatformTokens 定的口径一致）
+      expect(entry && entry.mcName).toEqual('Pokemon Legends Arceus');
+    } finally {
+      restore();
+    }
+  });
+
+  test('非法机型 id 拒绝；模拟器机型不抓 MC 分', async () => {
+    const bad = await handlersSteam.handleSetManualPlatform({ gameName: '某游戏', platform: 'ps6' });
+    expect(bad && bad.success).toBe(false);
+    const restore = installFetchMock(async (url) => {
+      throw new Error('模拟器声明不应发起网络请求: ' + String(url));
+    });
+    try {
+      const resp = await handlersSteam.handleSetManualPlatform({ gameName: '某游戏|汉化', platform: 'emu' });
+      expect(resp && resp.success).toBe(true);
+      expect(resp && resp.kind).toEqual('emulator');
+      expect(resp && resp.mcScore).toEqual(null);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('管线消费映射（v14.19.0）', () => {
+  beforeEach(() => {
+    storage._reset();
+    manualPlatforms.resetManualPlatforms();
+  });
+
+  test('列表第二波：映射条目返回 MC 终态（零 Steam 检索）', async () => {
+    await manualPlatforms.setManualPlatform('塞尔达传说：王国之泪|官方中文', {
+      kind: 'console',
+      tag: 'Switch',
+      mcScore: 96,
+      mcName: 'The Legend of Zelda: Tears of the Kingdom'
+    });
+    const restore = installFetchMock(async (url) => {
+      throw new Error('映射条目不应发起网络请求: ' + String(url));
+    });
+    try {
+      const r = await orchestratorList.getSteamPositiveRate('塞尔达传说：王国之泪|官方中文', {
+        ignoreNegativeCache: true
+      });
+      expect(r && r.mcScore).toEqual(96);
+      expect(r && r.platformTag).toEqual('Switch');
+      expect(r && r.appId).toEqual(null);
+    } finally {
+      restore();
+    }
+  });
+
+  test('列表第一波：映射 MC 条目缓存命中直返；模拟器映射打平台标签', async () => {
+    await manualPlatforms.setManualPlatform('宝可梦 朱紫|官方中文', {
+      kind: 'console',
+      tag: 'Switch',
+      mcScore: 72,
+      mcName: 'Pokemon Scarlet'
+    });
+    await manualPlatforms.setManualPlatform('某主机游戏|整合包', {
+      kind: 'emulator',
+      tag: '模拟器',
+      mcScore: null,
+      mcName: null
+    });
+    const mcHit = await orchestratorList.getSteamRatingsFromCacheOnly('宝可梦 朱紫|官方中文', {});
+    expect(mcHit && mcHit.mcScore).toEqual(72);
+    const emuHit = await orchestratorList.getSteamRatingsFromCacheOnly('某主机游戏|整合包', {});
+    expect(emuHit && emuHit.platformOnly).toBe(true);
+    expect(emuHit && emuHit.platformTag).toEqual('模拟器');
+  });
+
+  test('列表第一波：分类页提示词（platformHint）拦下模拟器条目的错误 Steam 缓存', async () => {
+    // 无映射——首波仅有提示词检查（模拟器 → 平台标签；主机条目转第二波）
+    const hit = await orchestratorList.getSteamRatingsFromCacheOnly('塞尔达传说：王国之泪|官方中文', {
+      platformHint: '模拟器版'
+    });
+    expect(hit && hit.platformOnly).toBe(true);
+    expect(hit && hit.platformTag).toEqual('模拟器');
+  });
+
+  test('详情管线：映射条目返回 platformOnly 形态（appId null + 数组字段齐备）', async () => {
+    await manualPlatforms.setManualPlatform('荒野大镖客1：救赎|官方中文', {
+      kind: 'console',
+      tag: 'Switch',
+      mcScore: null,
+      mcName: null
+    });
+    const restore = installFetchMock(async (url) => {
+      throw new Error('映射条目不应发起 Steam 检索: ' + String(url));
+    });
+    try {
+      const r = await orchestratorDetail.searchSteamGame('荒野大镖客1：救赎|官方中文', { ignoreNegativeCache: true });
+      expect(r && r.platformOnly).toBe(true);
+      expect(r && r.appId).toEqual(null);
+      expect(Array.isArray(r && r.genres)).toBe(true);
+      expect(Array.isArray(r && r.reviews)).toBe(true);
+    } finally {
+      restore();
+    }
+  });
+});

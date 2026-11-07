@@ -45,7 +45,18 @@ async function retryItem(item) {
       action: 'RETRY_GAME_LOOKUP',
       gameName: item.name
     });
-    if (resp && resp.appId) {
+    // v14.19.0：手动平台映射条目（platformOnly/mcScore，appId 恒 null）——
+    // 渲染平台/MC 徽章（此前落入"仍未找到"分支，映射后重试无效）
+    if (resp && (resp.platformOnly || resp.mcScore != null)) {
+      badges.removeRatingBadges(item);
+      badges.removeWorkingBadge(item);
+      badges.prependPlatformBadge(item, resp);
+      if (job) {
+        job.processed.add(item.name);
+        job.ratingsByName[item.name] = resp;
+      }
+      dbg('Steam好评率重查命中（平台条目）:', item.name, '→', resp.platformTag);
+    } else if (resp && resp.appId) {
       badges.removeRatingBadges(item); // 未找到徽章共享组标记，重渲染前移除
       badges.removeWorkingBadge(item);
       const settings = (job && job.settings) || {};

@@ -324,6 +324,27 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.19.0（用户反馈三修：手动主机机型 + 浮窗评论修复 + 列表页错误徽章纠正）
+
+**手动主机机型选择（详情页匹配错误时）**
+
+- **SET_MANUAL_PLATFORM 全链**：候选浮窗新增主机机型选择区（Switch/Switch2/PS5/PS4/Xbox/模拟器 ROM，shared MANUAL_PLATFORM_OPTIONS 单源）——匹配错误且实为主机/模拟器条目时，选机型即转 Metacritic 评分并持久化映射（新存储模块 manual-platforms.json，容量 500 LRU，随备份导出、不随清缓存删除）
+- **三管线消费**：列表第一波 cache-only（映射 MC 直返/模拟器打标）、第二波 phasePlatform（映射优先于一切识别与索引）、详情 searchSteamGame（MC 形态数据，浮窗切 MC 视图模板）——错误 Steam 条目随映射消失；名称索引粘性钉住在声明时同步解除
+- **浮窗 MC 视图**：MC 徽章（色带同列表页惯例）+ 机型标签 + Metacritic 链接；平台条目跳过 Steam 侧联动（行填充/标签回写/内嵌卡）
+- **extractEnNameSegment 修复**：取最长英文段而非首个——"宝可梦传说 阿尔宙斯|v1.1.1|官方中文|Pokemon Legends: Arceus"类标题（咸鱼单机真实形态）首个 ASCII 段是版本号（'v1.1.1' 恰好满足 {3,}），slug='v1-1-1' 必 404；列表管线 MC 命中率同受益
+
+**详情页浮窗 Steam 用户评论修复**
+
+- **根因**：appreviews 端点自 v14.8 起对全参数形态 302 商店首页（Steam 侧变更）——好评率当时加了商店页回退，但**中文摘要与评论文本没接**，fetchChineseReviews 每次仍打死端点、评论文本恒空
+- **修复**：fetchChineseReviews 接入同一死亡旗标（置位后跳过死端点，SW 冷启动重新探测）；商店页"您语言"摘要行解析（与全部行同构）经 fetchSteamReviews 合并为 cnReviewSummary 回退；评论文本无 keyless 替代源（商店页不内嵌），端点恢复前按无文本降级（浮窗隐藏该区块）
+
+**列表页错误徽章纠正（106902 案例）**
+
+- **根因**：主机游戏匹配错误后，URL 索引/名称索引钉住的错误 Steam 缓存**先于第二波平台识别**返回——第一波（cache-only）此前无任何平台检查
+- **修复**：第一波平台预检（手动映射 → 分类页提示词识别）——映射/模拟器条目第一波即打平台标签或 MC 徽章；RETRY_GAME_LOOKUP 就地重试补平台分支（platformOnly/mcScore 渲染平台徽章，此前落入"仍未找到"）
+
+**测试**：+12（SET_MANUAL_PLATFORM 契约 ×2、manual-platforms 存储往返/容量帽/防御 ×3、处理器全链 ×2、三管线消费 ×4、extractEnNameSegment ×2）——新增 tests/unit/test-manual-platforms.mjs 入 include
+
 ### v14.18.0（用户需求：两站真实页面实证——分类页平台提示 + 词表补齐）
 
 依据 [咸鱼单机"模拟器版"分类页](https://www.xianyudanji.gg/pcdj/mnqzh) 与 [XDGAME 模拟器整合分类页](https://www.xdgame.com/game/10/) 实抓数据优化检索机制：

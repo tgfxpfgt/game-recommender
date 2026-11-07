@@ -40,6 +40,7 @@ import {
   deleteNameIndexEntry
 } from '../storage/name-index.js';
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
+import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
 import { parseGameTitle } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
@@ -63,6 +64,25 @@ import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 1
  * @param {{[k: string]: any}} [options]
  */
 export async function searchSteamGame(gameName, options = {}) {
+  // v14.19.0（用户需求：详情页手动主机机型声明）：手动映射优先于一切检索——
+  // 声明过的条目返回 MC 形态数据（浮窗 MC 视图渲染；数组字段按模板归一化
+  // 语义补空），不再走 Steam 检索（错误 Steam 条目不再出现）。
+  const manual = await getManualPlatform(gameName);
+  if (manual) {
+    return {
+      appId: null,
+      name: gameName,
+      platformOnly: true,
+      platformTag: manual.tag,
+      mcScore: manual.mcScore,
+      mcName: manual.mcName,
+      genres: [],
+      userTags: [],
+      developers: [],
+      description: '',
+      reviews: []
+    };
+  }
   // v14.3.2：Phase 0 — 元素直取 appId + DLC 解析（内容侧封面图提取的 appId 作为起点，
   // 经 resolveDlcToBase 解析后与名称索引/纠正路径汇合——统一入口消 aside 双管线分叉）
   /** @type {string|number|null} */

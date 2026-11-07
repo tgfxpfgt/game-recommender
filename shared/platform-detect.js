@@ -333,3 +333,46 @@ export function trimPlatformTokens(enName) {
   }
   return words.join(' ') || raw;
 }
+
+// ============ v14.19.0：手动主机机型选择（用户需求：详情页匹配错误时） ============
+// 详情页检索到错误 Steam 条目时，除"重试自动匹配/候选选择"外，用户可直接
+// 声明该条目是主机游戏并选择机型 → 后台转 Metacritic 评分并持久化映射
+// （列表页随映射显示 MC/平台徽章，错误 Steam 徽章不再出现）。
+// Manual console-type picker: on a wrong Steam match on the detail page the
+// user declares the console type; the backend scores it via Metacritic and
+// persists a mapping that list pages honor with MC/platform badges.
+/** @type {Array<{id: string, label: string, kind: 'console'|'emulator', tag: string}>} */
+export const MANUAL_PLATFORM_OPTIONS = [
+  { id: 'switch', label: 'Switch', kind: 'console', tag: 'Switch' },
+  { id: 'switch2', label: 'Switch 2', kind: 'console', tag: 'Switch2' },
+  { id: 'ps5', label: 'PS5', kind: 'console', tag: 'PS5' },
+  { id: 'ps4', label: 'PS4', kind: 'console', tag: 'PS4' },
+  { id: 'xbox', label: 'Xbox', kind: 'console', tag: 'Xbox' },
+  { id: 'emu', label: '模拟器 ROM', kind: 'emulator', tag: '模拟器' }
+];
+
+/**
+ * 机型选项 id → 选项对象（纯函数，可单测；非法 id 返回 null——契约/处理器守卫用）。
+ * @param {string} id @returns {{id: string, label: string, kind: 'console'|'emulator', tag: string}|null}
+ */
+export function resolveManualPlatformOption(id) {
+  const idStr = String(id || '');
+  return MANUAL_PLATFORM_OPTIONS.find((o) => o.id === idStr) || null;
+}
+
+/**
+ * 从标题提取英文段（纯函数，可单测）——Metacritic slug 推导的输入。
+ * v14.19.0 修复：取**最长**匹配而非首个——"xxx|v1.1.1|官方中文|English Name"
+ * 类标题（咸鱼单机真实形态）首个 ASCII 段是版本号（'v1.1.1' 恰好满足
+ * {3,}），首匹配 slug='v1-1-1' 必 404；最长段即真实英文名。无英文段返回空串。
+ * @param {string} rawTitle @returns {string} 无英文段返回空串
+ */
+export function extractEnNameSegment(rawTitle) {
+  const matches = String(rawTitle || '').match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/g) || [];
+  let best = '';
+  for (const m of matches) {
+    const t = m.trim();
+    if (t.length > best.length) best = t;
+  }
+  return best;
+}

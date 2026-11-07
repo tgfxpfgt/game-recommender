@@ -8,6 +8,7 @@
  * 由 sidebar.js 的装载/纠错路径调用（自动匹配失败 → 手动选择兜底）。
  */
 import * as common from '../core/common.js';
+import { MANUAL_PLATFORM_OPTIONS } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源
 
 const esc = (text) => common.escapeHtml(text);
 
@@ -48,13 +49,29 @@ export function isGameDismissed(gameName) {
 // 手动选择浮窗：自动搜索失败时显示候选游戏列表供用户选择
 // v10.9.3：reason（后台诊断：not-found / steam-api-unreachable / error:…）展示 +
 // 重试按钮（穿透负缓存重新自动匹配）——此前静默弹候选，用户无从判断失败原因
-export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onRetry) {
+// v14.19.0（用户需求）：新增主机机型手动选择——匹配错误且实为主机/模拟器
+// 条目时，选择机型后转 Metacritic 评分并持久化映射（列表页随之纠正）。
+export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onRetry, onPickPlatform) {
   const reasonText = String(reason || '').trim();
   const retryBtn = onRetry
     ? `<div style="margin-bottom:10px;display:flex;gap:8px;">
         <button id="gr-manual-retry" class="gr-btn" style="flex:none;padding:6px 12px;">🔄 重试自动匹配</button>
         <button id="gr-manual-skip" class="gr-btn" style="flex:none;padding:6px 12px;">⏭ 跳过，稍后自动重试</button>
         <span id="gr-manual-retry-status" style="font-size:11px;color:#8f98a0;align-self:center;"></span>
+      </div>`
+    : '';
+  // v14.19.0：主机/模拟器机型选择区（onPickPlatform 在场才渲染——回调由
+  // sidebar.js 提供：SET_MANUAL_PLATFORM → MC 评分 → 浮窗 MC 视图）
+  const platformSection = onPickPlatform
+    ? `<div style="margin-bottom:10px;padding:8px 10px;background:rgba(103,193,245,0.06);border:1px solid rgba(103,193,245,0.25);border-radius:3px;">
+        <div style="font-size:12px;color:#c7d5e0;margin-bottom:6px;">🎮 这是主机 / 模拟器游戏？选择机型后转 <b>Metacritic</b> 评分：</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;">
+          ${MANUAL_PLATFORM_OPTIONS.map(
+            (o) =>
+              `<button class="gr-btn gr-manual-platform" data-platform="${common.escapeAttr(o.id)}" title="声明为 ${common.escapeAttr(o.label)} 并查询 Metacritic" style="padding:5px 10px;font-size:11px;">${esc(o.label)}</button>`
+          ).join('')}
+        </div>
+        <div id="gr-platform-status" style="font-size:11px;color:#8f98a0;margin-top:5px;min-height:14px;"></div>
       </div>`
     : '';
   const reasonLine = reasonText
@@ -68,6 +85,7 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         </div>
         ${reasonLine}
         ${retryBtn}
+        ${platformSection}
         <div style="margin-bottom:10px;">
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
@@ -245,6 +263,31 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
     skipBtnEl.addEventListener('click', () => {
       dismissedGames.add(String(gameName || ''));
       if (typeof onClose === 'function') onClose();
+    });
+  }
+
+  // v14.19.0：主机机型选择——点击 → onPickPlatform（sidebar.js：后台声明
+  // 映射 + Metacritic 评分 + 浮窗切 MC 视图）；成功后浮窗被重渲染，失败在
+  // 状态行提示（按钮复位可重选）
+  if (onPickPlatform) {
+    const statusEl = panel.querySelector('#gr-platform-status');
+    panel.querySelectorAll('.gr-manual-platform').forEach((/** @type {any} */ btn) => {
+      btn.addEventListener('click', async () => {
+        const platformId = btn.getAttribute('data-platform');
+        const all = [...panel.querySelectorAll('.gr-manual-platform')];
+        all.forEach((b) => (b.disabled = true));
+        if (statusEl) statusEl.textContent = '⏳ 正在声明平台并查询 Metacritic 评分...';
+        try {
+          const ok = await onPickPlatform(platformId);
+          if (!ok && statusEl) {
+            statusEl.textContent = '❌ Metacritic 查询失败（该条目已记录为主机游戏，评分稍后自动补查）';
+            all.forEach((b) => (b.disabled = false));
+          }
+        } catch (e) {
+          if (statusEl) statusEl.textContent = `❌ ${esc(globalThis.__GR_MSG__.toUserMessage(e))}`;
+          all.forEach((b) => (b.disabled = false));
+        }
+      });
     });
   }
 

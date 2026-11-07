@@ -233,6 +233,24 @@ export async function fetchReviewSummary(appId) {
       const parsed = tips.map(parseTip).filter((r) => r.count != null && r.pct != null);
       const allRow = parsed.find((r) => !r.isRecent && !r.isCn) || parsed[0] || null;
       const recentRow = parsed.find((r) => r.isRecent) || null;
+      // v14.19.0（用户报告：详情页浮窗不能正常显示 Steam 用户评论）：您语言
+      //（简体中文）摘要行同页 server 渲染——此前只解析全部/最近两行，浮窗
+      // "简体中文"评价行自 appreviews 端点死亡后恒空。行形态与全部行同构
+      //（tooltip 带计数+好评率），无该行（游戏无中文评测/解析失败）置 null。
+      const cnRow = parsed.find((r) => r.isCn && !r.isRecent) || null;
+      /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
+      let cnSummary = null;
+      if (cnRow && cnRow.count != null && cnRow.count > 0) {
+        const cnPct = cnRow.pct != null ? cnRow.pct : 0;
+        cnSummary = {
+          total: cnRow.count,
+          positive: Math.round((cnRow.count * cnPct) / 100),
+          negative: Math.max(0, cnRow.count - Math.round((cnRow.count * cnPct) / 100)),
+          score: cnPct >= 95 ? 10 : cnPct >= 80 ? 9 : cnPct >= 70 ? 8 : cnPct >= 40 ? 7 : cnPct >= 20 ? 6 : 5,
+          desc: null, // 商店页摘要行无逐语言评语文案
+          positiveRate: cnPct
+        };
+      }
       // v14.8 TS18047：解构到局部常量供 TS 收窄（allRow.count 判空后不再宽化）
       const allCount = allRow && allRow.count != null ? allRow.count : 0;
       const allPct = allRow && allRow.pct != null ? allRow.pct : 0;
@@ -256,7 +274,8 @@ export async function fetchReviewSummary(appId) {
             total: recentTotal,
             positive: recentRow ? Math.round((recentTotal * recentPct) / 100) : 0,
             rate: recentRow ? recentPct : null
-          }
+          },
+          cn: cnSummary // v14.19.0：简体中文摘要行（fetchSteamReviews 消费后剥离）
         };
       }
       // v14.8.2：低/零评测形态——tooltip 无 count+pct 时，从行内
@@ -379,9 +398,20 @@ async function fetchChineseReviews(appId) {
   /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
   let cnReviewSummary = null;
   let chineseReviews = [];
+  // v14.19.0（用户报告：浮窗不能正常显示 Steam 用户评论）：appreviews 端点
+  // 自 v14.8 观测起 302 商店首页（Steam 侧变更）——本函数此前无感知，每次
+  // 详情页仍打 1 次死端点且评论文本恒空。接入同一死亡旗标：置位后跳过
+  //（评论文本回退无 keyless 替代源——商店页不内嵌评论文本，只剩摘要行，
+  // 由 fetchReviewSummary 的 cn 字段补齐），SW 冷启动后重新探测一次。
+  if (appreviewsDead) return { cnReviewSummary, chineseReviews };
   try {
     const cnReviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
     const resp = await fetchWithTimeout(cnReviewUrl);
+    // v14.19.0：302 跟随落地商店首页 = 端点死亡（与 fetchReviewSummary 同语义）
+    if (resp.redirected && /store\.steampowered\.com\/?$/.test(resp.url || '')) {
+      appreviewsDead = true;
+      return { cnReviewSummary, chineseReviews };
+    }
     // v14.7 批次 13：429/5xx 也带 JSON 体——不查 ok 会静默按空数据处理且不计失败
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
     const data = await resp.json();
@@ -416,9 +446,15 @@ async function fetchChineseReviews(appId) {
 
 export async function fetchSteamReviews(appId) {
   const [reviewSummary, cnData] = await Promise.all([fetchReviewSummary(appId), fetchChineseReviews(appId)]);
+  // v14.19.0：appreviews 死亡期的中文摘要回退——商店页解析的"您语言"摘要行
+  //（fetchReviewSummary 返回的 cn 字段）补齐浮窗"简体中文"评价行；评论文本
+  //（chineseReviews）无替代源，端点恢复前为空数组（浮窗按无文本降级不渲染）。
+  const cn = reviewSummary && reviewSummary.cn ? reviewSummary.cn : null;
+  const cnReviewSummary = cnData.cnReviewSummary || cn;
+  if (reviewSummary && 'cn' in reviewSummary) reviewSummary.cn = undefined; // v14.19.0：回退字段不外泄（置 undefined 替代 delete——TS2790）
   return {
     reviewSummary,
-    cnReviewSummary: cnData.cnReviewSummary,
+    cnReviewSummary,
     chineseReviews: cnData.chineseReviews
   };
 }

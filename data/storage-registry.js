@@ -124,6 +124,13 @@ export const STORAGE_MODULES = {
     desc: 'Wrong Reports',
     backup: true
   }, // 人工纠正知识库：有意保留的长期数据
+  manualPlatforms: {
+    file: 'manual-platforms.json',
+    format: 'json',
+    name: '手动平台映射',
+    desc: 'Manual Platform Mapping',
+    backup: true
+  }, // v14.19.0：用户声明的主机机型映射（长期有效，随备份导出）
   searchCache: { file: 'search-cache.json', format: 'json', name: '下载站搜索缓存', desc: 'Search Cache' }, // v6.4.3
   llmScore: { file: 'llm-score.json', format: 'json', name: 'LLM 评分缓存', desc: 'LLM Score Cache' }, // v6.4.3
   urlAppIdIndex: { file: 'url-appid-index.json', format: 'json', name: '详情页网址索引', desc: 'Detail URL Index' }, // v7.0.2

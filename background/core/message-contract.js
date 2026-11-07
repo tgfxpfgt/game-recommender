@@ -160,6 +160,19 @@ const RULES = {
     return { ok: true, error: '' };
   },
   GET_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
+  // v14.19.0：手动主机机型声明（详情页匹配错误时用户选择机型 → Metacritic
+  // 评分 + 长期映射）。platform 必须在 shared MANUAL_PLATFORM_OPTIONS 枚举内
+  //（后台 resolveManualPlatformOption 守卫，此处只做类型/长度防线）
+  SET_MANUAL_PLATFORM: (m) => {
+    if (!isName(m && m.gameName)) return { ok: false, error: 'SET_MANUAL_PLATFORM.gameName 必填且不超过 200 字符' };
+    if (!m || typeof m.platform !== 'string' || m.platform.length > 20) {
+      return { ok: false, error: 'SET_MANUAL_PLATFORM.platform 必填且不超过 20 字符' };
+    }
+    if (m.rawTitle !== undefined && (typeof m.rawTitle !== 'string' || m.rawTitle.length > 300)) {
+      return { ok: false, error: 'SET_MANUAL_PLATFORM.rawTitle 可选且不超过 300 字符' };
+    }
+    return { ok: true, error: '' };
+  },
   GET_FREEGAME_MISS_STATS: (m) => ({ ok: true }), // v14.8 批次 7：限免错过统计（dashboard 扩展页专用）
   CLEAR_WRONG_REPORT_SAMPLES: (m) => ({ ok: true }),
   // v14.15.0 N5：纠正映射独立导出/导入（扩展页专用 action——内容侧白名单不收）
@@ -442,6 +455,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'REFRESH_STEAM_CACHE',
   'REPORT_WRONG_APPID',
   'SAVE_MANUAL_MAPPING',
+  'SET_MANUAL_PLATFORM', // v14.19.0：手动主机机型声明（内容侧候选浮窗发）
   'SEARCH_DOWNLOAD_SITES',
   'SEARCH_STEAM',
   'SEARCH_STEAM_CANDIDATES',

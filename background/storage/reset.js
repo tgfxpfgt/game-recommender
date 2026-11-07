@@ -19,6 +19,7 @@ import { resetNameIndex } from './name-index.js';
 import { resetLogBuffer } from './logger.js';
 import { resetLearnedNoise } from './learned-noise.js';
 import { resetWrongReports } from './wrong-reports.js';
+import { resetManualPlatforms } from './manual-platforms.js'; // v14.19.0
 import { resetBehaviorState } from './behavior.js';
 import { resetOutboundAudit } from '../core/outbound-audit.js';
 import { resetSearchCache } from './search-cache.js';
@@ -42,6 +43,7 @@ export function resetInMemoryCaches() {
   resetRulesCache();
   resetLearnedNoise();
   resetWrongReports(); // v3.4.0：导入/恢复后纠正知识库内存与存储保持一致
+  resetManualPlatforms(); // v14.19.0：手动平台映射内存与存储保持一致
   resetBehaviorState(); // v5.0.0：偏好模型节流状态一并重置（此前遗漏）
   resetOutboundAudit(); // v3.4.1：出站请求审计缓冲随清理一并清空
   resetSearchCache(); // v6.4.3：下载站搜索缓存

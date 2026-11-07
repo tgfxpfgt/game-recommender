@@ -29,6 +29,9 @@ import {
   latestModuleTs
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
+import { setManualPlatform, flushManualPlatforms } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
+import { resolveManualPlatformOption, extractEnNameSegment, trimPlatformTokens } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源
+import { fetchMetacriticScore } from '../steam/api-metacritic.js'; // v14.19.0：主机条目评分
 import { getAppIdByUrl, setUrlAppId, deleteUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 import { noteTabGame, getTabGame } from '../core/tab-game.js'; // v14.1.0：SidePanel 当前页联动
 
@@ -306,6 +309,48 @@ export async function handleSaveManualMapping(message) {
 
 // 搜索候选游戏列表（手动选择浮窗）
 
+// v14.19.0（用户需求：详情页匹配错误时手动选择主机机型）：用户在候选浮窗
+// 声明"这是主机/模拟器游戏"并选择机型 → ①按机型转 Metacritic 评分（EN 段
+// 取 rawTitle 优先、gameName 兜底，剥平台词后推 slug）；②持久化映射（长期
+// 终态，列表/详情两管线优先于一切索引消费——错误 Steam 徽章随映射消失）；
+// ③清该名名称索引（错误 Steam 条目的粘性钉住解除）。响应携带 MC 数据供
+// 浮窗即时渲染 MC 视图。
+export async function handleSetManualPlatform(message) {
+  const gameName = (message.gameName || '').trim();
+  const option = resolveManualPlatformOption(message.platform);
+  if (!gameName || !option) return { success: false, error: '参数缺失或机型不合法' };
+  // EN 段：标题优先（详情页标题常带"中文名|版本|英文名"多段），游戏名兜底
+  const enSource = typeof message.rawTitle === 'string' && message.rawTitle.trim() ? message.rawTitle : gameName;
+  const enName = trimPlatformTokens(extractEnNameSegment(enSource));
+  /** @type {number|null} */
+  let mcScore = null;
+  /** @type {string|null} */
+  let mcName = null;
+  if (option.kind === 'console' && enName && enName.length >= 3) {
+    // 声明时一次性抓分（主机条目评分源，预算 = 单次；失败置 null 不阻断映射）
+    mcScore = await fetchMetacriticScore(enName).catch(() => null);
+    if (mcScore != null) mcName = enName;
+  }
+  await setManualPlatform(gameName, {
+    kind: option.kind,
+    tag: option.tag,
+    mcScore,
+    mcName
+  });
+  await flushManualPlatforms();
+  // 错误 Steam 条目的名称索引粘性钉住解除（映射检查先于索引，此步为 hygiene）
+  await deleteNameIndexEntry(gameName).catch(() => {});
+  Logger.info('Steam', `手动平台声明: "${gameName}" → ${option.kind}/${option.tag} (MC ${mcScore ?? '—'})`);
+  return {
+    success: true,
+    kind: option.kind,
+    tag: option.tag,
+    mcScore,
+    mcName,
+    name: gameName
+  };
+}
+
 // 搜索候选游戏列表（手动选择浮窗）
 export async function handleSearchSteamCandidates(message) {
   const searchTerms = parseGameTitle(message.gameName || '');
@@ -461,6 +506,7 @@ export const steamHandlers = {
   REFRESH_STEAM_CACHE: handleRefreshSteamCache,
   GET_STEAM_BY_APPID: handleGetSteamByAppId,
   SAVE_MANUAL_MAPPING: handleSaveManualMapping,
+  SET_MANUAL_PLATFORM: handleSetManualPlatform, // v14.19.0：手动主机机型声明
   SEARCH_STEAM_CANDIDATES: handleSearchSteamCandidates,
   GET_STEAM_RATINGS: handleGetSteamRatings,
   PREFETCH_STEAM_RATINGS: handlePrefetchSteamRatings,

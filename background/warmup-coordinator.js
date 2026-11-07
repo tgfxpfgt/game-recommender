@@ -14,6 +14,7 @@
 import { loadSteamCacheToMemory } from './storage/steam-cache.js';
 import { warmupRegistry as warmupRegistryModule } from './storage/registry.js';
 import { warmupWrongReports } from './storage/wrong-reports.js';
+import { warmupManualPlatforms } from './storage/manual-platforms.js'; // v14.19.0
 import { warmupLearnedNoise } from './storage/learned-noise.js';
 import { warmupUrlIndex } from './storage/url-index.js';
 import { warmupBehavior } from './storage/behavior.js';
@@ -48,6 +49,7 @@ const WARM_TIER_TARGETS = [
   () => loadSteamCacheToMemory(), // v14.7 批次 10：温层补载 detail/spy
   warmupRegistryModule,
   warmupWrongReports,
+  warmupManualPlatforms, // v14.19.0
   warmupLearnedNoise,
   warmupUrlIndex,
   warmupBehavior,

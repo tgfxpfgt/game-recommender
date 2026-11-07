@@ -826,3 +826,20 @@ describe('trimPlatformTokens（EN 段尾平台词剥离——Metacritic slug 推
     expect(trimPlatformTokens('')).toEqual('');
   });
 });
+
+describe('extractEnNameSegment（v14.19.0：最长英文段——版本号段不遮蔽真实英文名）', () => {
+  test('咸鱼单机真实标题形态：v1.1.1 段跳过，取英文名段', async () => {
+    const { extractEnNameSegment } = await import('../../shared/platform-detect.js');
+    expect(extractEnNameSegment('宝可梦传说 阿尔宙斯|v1.1.1|官方中文|支持手柄|Pokemon Legends: Arceus')).toEqual(
+      'Pokemon Legends: Arceus'
+    );
+    expect(
+      extractEnNameSegment('异度之刃3|官方中文|模拟器整合版|v2.2.0|全DLC|Xenoblade Chronicles 3|异度神剑3')
+    ).toEqual('Xenoblade Chronicles 3');
+    expect(extractEnNameSegment('恸哭奇机|整合模拟器版|V1.0.4+全DLC|官方中文|CRYMACHINA')).toEqual('CRYMACHINA');
+  });
+  test('无英文段返回空串', async () => {
+    const { extractEnNameSegment } = await import('../../shared/platform-detect.js');
+    expect(extractEnNameSegment('只狼：影逝二度|官方中文')).toEqual('');
+  });
+});

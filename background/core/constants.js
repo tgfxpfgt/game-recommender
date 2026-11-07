@@ -35,6 +35,7 @@ export const DB_KEYS = {
   ADAPTER_RULES: 'adapterRules', // 用户导入的下载站适配规则（覆盖内置 sites.js，可导出迁移）
   LEARNED_NOISE: 'learnedNoise', // 动态学习的标题噪声词（自适应检索，v3.1.2）
   WRONG_REPORTS: 'wrongReports', // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
+  MANUAL_PLATFORMS: 'manualPlatforms', // v14.19.0：手动主机机型映射（用户声明的平台终态 + Metacritic 分）
   SEARCH_CACHE: 'searchCache', // 下载站搜索结果缓存（v6.4.3，24h TTL）
   LLM_SCORE: 'llmScore', // LLM 推荐评分缓存（v6.4.3，7d TTL）
   URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
@@ -103,6 +104,7 @@ export const STORAGE_CAPS = {
   llmCache: 300, // LLM 评分缓存 LRU
   siteHealth: 50, // 站点健康聚合上限
   tabGames: 24, // v14.2.0：SidePanel per-tab 游戏快照上限（复审轮 P2-6 入单源）
+  manualPlatforms: 500, // v14.19.0：手动主机机型映射上限（用户声明，LRU 淘汰）
   itadPriceCache: 500, // v14.2.0：ITAD 价格缓存上限（与 favorites 对齐，复审轮 P2-4）
   runtimeLogDefault: 300, // 运行日志默认条数（设置 maxRuntimeLog 的兜底）
   behaviorLogDefault: 500 // 行为日志默认条数（设置 maxBehaviorLog 的兜底）

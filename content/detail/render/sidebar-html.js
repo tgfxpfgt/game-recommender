@@ -43,6 +43,33 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
   const cacheAgeText = common.formatRelativeTime(cachedAt);
 
+  // v14.19.0：手动主机映射条目的 MC 视图（用户需求：详情页匹配错误时手动
+  // 选择机型 → Metacritic 评分）——标题 + MC 徽章（色带同列表页惯例）+
+  // 平台标签 + Metacritic 页面链接。数据经 normalize（reviews 等）不影响。
+  if (data.platformOnly || data.mcScore != null) {
+    const mcScore = typeof data.mcScore === 'number' ? data.mcScore : null;
+    const mcColor = mcScore != null ? (mcScore >= 75 ? '#66cc33' : mcScore >= 50 ? '#ffcc33' : '#ff4444') : '';
+    const mcSlug = common.escapeAttr(
+      data.mcName ? 'https://www.metacritic.com/game/' + encodeURIComponent(data.mcName) + '/' : ''
+    );
+    return `
+      <div class="gr-detail-content">
+        <div class="gr-detail-title">${esc(data.name)}</div>
+        <div style="display:flex;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap;">
+          <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${mcColor || '#555'};border-radius:3px;">${mcScore != null ? `MC ${mcScore}` : 'MC —'}</span>
+          <span style="padding:3px 10px;font-size:12px;background:rgba(143,152,160,0.15);color:#c7d5e0;border:1px dashed #555;border-radius:3px;">🎮 ${esc(data.platformTag || '主机')}</span>
+        </div>
+        <div style="font-size:12px;color:#8f98a0;line-height:1.7;margin-bottom:12px;">
+          ${mcScore != null ? `Metacritic 媒体评分（${esc(String(data.mcName || ''))}）——已按你的声明记录为主机游戏，评分长期生效。` : '已按你的声明记录为' + esc(data.platformTag || '主机') + '游戏（Metacritic 暂无该条评分，后续访问自动补查）。'}
+        </div>
+        ${mcSlug ? `<a href="${mcSlug}" target="_blank" rel="noopener" style="font-size:12px;color:#67c1f5;text-decoration:none;">在 Metacritic 查看评价 ↗</a>` : ''}
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
+          <span>缓存于 ${cacheAgeText}</span>
+        </div>
+      </div>
+    `;
+  }
+
   // 中文评测
   let reviewsHtml = '';
   if (data.reviews && data.reviews.length > 0) {

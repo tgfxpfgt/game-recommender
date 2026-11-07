@@ -22,7 +22,7 @@
       "2026-11-03 下调 main 510→495（v14.13 B8：message-contract 校验助手五函数补类型；剩余债集中于规则表 (m)=> 形态，后续表驱动重构时清偿）"
     ]
   },
-  "xssUnescapedInterpolations": 72,
+  "xssUnescapedInterpolations": 73,
   "xssScan": {
     "scope": "content/options/dashboard/popup/sidepanel/welcome/hub/freegames/shared 生产 JS 的 innerHTML 模板串",
     "rule": "含引号的 ${...} 插值未经 esc/escapeHtml/escapeAttr 包裹即计数（纯数字/布尔运算豁免）",
@@ -44,5 +44,6 @@
     "main": 675,
     "ui": 347,
     "content": 356
-  }
+  },
+  "xssBaselineNote": "v14.19.0：73 = 72 + candidates.js platformSection（主机机型选择区，受控预构建片段同构 reasonLine/retryBtn——内部插值已全 esc/escapeAttr）"
 }

@@ -40,6 +40,8 @@ export async function handleGetSteamRatings(message, sender) {
   const appIds = message.appIds || {};
   const urls = message.urls || {}; // v7.0.2：name → 详情页网址（URL 索引第一候选）
   const cacheOnly = message.cacheOnly === true; // 兜底重试：只查缓存，不触发后台拉取
+  // v14.19.0：分类页平台提示（首波预检与任务创建共用——声明须在首波之前）
+  const platformHint = typeof message.platformHint === 'string' ? message.platformHint.trim().slice(0, 24) : '';
   const ratings = {};
   const pending = [];
 
@@ -74,7 +76,9 @@ export async function handleGetSteamRatings(message, sender) {
           const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
           const r = await getSteamRatingsFromCacheOnly(name, {
             appId: urlAppId || (img ? img.appId : null),
-            cover: img ? img.cover : null
+            cover: img ? img.cover : null,
+            // v14.19.0：首波平台预检（提示词/映射——错误 Steam 缓存不再先于识别返回）
+            platformHint: platformHint
           });
           if (r) ratings[name] = mergeAppStat(r, statsMap);
           else pending.push(name);
@@ -97,9 +101,6 @@ export async function handleGetSteamRatings(message, sender) {
   // storage after every batch; a fresh SW resumes from the last boundary.
   if (!cacheOnly && pending.length > 0) {
     const tabId = sender && sender.tab ? sender.tab.id : null;
-    // v14.18.0：分类页平台提示（规则 listPlatformHints 声明，内容侧按 URL
-    // 注入）——防御性消毒（非串/超长截断），随检查点持久化供续跑继承
-    const platformHint = typeof message.platformHint === 'string' ? message.platformHint.trim().slice(0, 24) : '';
     const job = {
       tabId,
       queue: pending.slice(), // 待拉取名字（批次边界推进）/ names awaiting fetch
