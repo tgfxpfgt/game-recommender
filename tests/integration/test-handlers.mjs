@@ -834,10 +834,10 @@ describe('v10.9.1 补盲：冷门 handler 链路', () => {
     expect(r3.error).toContain('SITE_ADAPTER_ALERT');
   });
 
-  test('GET_STEAM250_RANK：无榜单快照/网络拒绝时返回 {info:null} 不抛错', async () => {
+  test('GET_STEAM250_RANK：无榜单快照/网络拒绝时返回 {info:null, loaded:false} 不抛错（v14.21.0 补 loaded）', async () => {
     storage._reset();
     const r = await handleMessage({ action: 'GET_STEAM250_RANK', appId: '1213700' });
-    expect(r).toEqual({ info: null });
+    expect(r).toEqual({ info: null, loaded: false });
   });
 
   test('GET_ITAD_LOWEST：未配置 Key 时静默返回 {info:null}', async () => {

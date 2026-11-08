@@ -18,6 +18,21 @@ export function isFailedRatingEntry(cachedData) {
   return !!cachedData && cachedData.positiveRate === null && !cachedData.ratingDesc;
 }
 
+// 缓存条目是否为"评价数倒挂"污染（v14.21.0 自愈指纹）：正常数据里简体中文
+// 评测数恒 ≤ 全时段总数（语言子集），倒挂 = 旧版商店页回退把最近 30 天行误
+// 当全时段行写入的条目（总体行取最近计数、简体中文行取您语言计数，前 <
+// 后）——命中即按需重取（needsRatingRefetch 同级判定），72h 详情 TTL 内的
+// 污染条目不再顶到浮窗。纯函数，可单测。
+// Poisoned-entry fingerprint: simplified-Chinese count can never exceed the
+// all-time total; an inversion proves the entry was written by the old
+// recent-row-as-alltime fallback and must be refetched.
+export function hasInvertedReviewCounts(cachedData) {
+  if (!cachedData || typeof cachedData !== 'object') return false;
+  // 仅认数值型（缓存写入侧恒为 Math.round 数值；null/字符串 = 字段未知 → 不判污染）
+  if (typeof cachedData.totalReviews !== 'number' || typeof cachedData.cnTotalReviews !== 'number') return false;
+  return cachedData.cnTotalReviews > cachedData.totalReviews;
+}
+
 // 无好评率重试冷却期（确认 0 评测后，避免每次刷新列表页都请求 Steam）。
 // v3.3.2：10 分钟 → 5 分钟——游戏评测增长通常以小时计，5 分钟已能防刷新
 // 风暴（用户高频刷新时每轮最多一次重试），同时更快反映"游戏后来有了评测"。
@@ -200,8 +215,8 @@ export async function fetchReviewSummary(appId) {
   }
   // v14.8 批次 18：appreviews 端点 302（Steam 侧变更——全参数形态 302 商店
   // 首页，json=1 失效）→ **商店页 HTML 回退解析**：user_reviews_summary_row
-  // 三行（全部评测/最近评测/您语言）+ game_review_summary 描述文本，返回与
-  // 上方同构的数据（评价文本不可得 → reviews 空数组，UI 按无文本降级）。
+  // 摘要行，返回与上方同构的数据（评价文本不可得 → reviews 空数组，UI 按
+  // 无文本降级）。
   // Store-page HTML fallback: the appreviews endpoint now redirects (Steam
   // change); parse the summary rows from the store page instead.
   // v14.8.2（用户实测截图：低/新评测游戏大面积 #AppID 裸徽章）——解析升级
@@ -212,64 +227,105 @@ export async function fetchReviewSummary(appId) {
   // （tooltip "无用户评测"，total 0 = 历史 appreviews 0 评测同构）。
   // Three row forms: full (count+pct from tooltip), insufficient (count from
   // span/meta, Steam hides the pct → positive=null), zero (无用户评测).
+  // v14.21.0（用户实测：浮窗"总体/简体中文"评价数倒挂）——解析升级 **行块制 +
+  // 行语义分级**：Steam 服务端渲染已不再输出"全部评测"行（2026-11 实测快照：
+  // 桌面区块仅"最近评测"+"您语言"两行，全时段数据只剩 responsive 区块
+  // appReviewsAll_responsive——无 tooltip 且实为"您语言"镜像，不参与）。旧
+  // `allRow || parsed[0]` 回退会把最近 30 天行误当全时段（总体行评测数少于
+  // 简体中文行的倒挂来源），现改为行块逐行解析后按语义分级取总体行：
+  //   ① 真·全时段行（Steam 若恢复则原样走）
+  //   ② "您语言"行代位——请求 l=schinese 时即官方"简体中文评测"全时段摘要
+  //     （计数与好评率精确，仅语言面非全语种）
+  //   ③ 最近行保底（徽章活性优先于数据缺失）
+  // desc 不再取全文首个 game_review_summary span（其属于最近行，代位后文案
+  // 张冠李戴），改取**所用行块内**的 span 文案。
   try {
     const pageResp = await fetchWithTimeout(`${ENDPOINTS.steamStoreApp}${appId}/?l=schinese&cc=cn`);
     if (pageResp.ok) {
       const html = await pageResp.text();
-      const tips = [...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"/g)].map((m) =>
-        m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      );
-      /** @param {string} tip */
-      const parseTip = (tip) => {
-        const count = Number(((tip.match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
-        const pct = Number((tip.match(/有\s*(\d+)%\s*为好评/) || [])[1]);
-        return {
-          count: Number.isFinite(count) ? count : null,
-          pct: Number.isFinite(pct) ? pct : null,
-          isRecent: tip.includes('过去 30 天'),
-          isCn: tip.includes('您语言')
-        };
-      };
-      const parsed = tips.map(parseTip).filter((r) => r.count != null && r.pct != null);
-      const allRow = parsed.find((r) => !r.isRecent && !r.isCn) || parsed[0] || null;
-      const recentRow = parsed.find((r) => r.isRecent) || null;
-      // v14.19.0（用户报告：详情页浮窗不能正常显示 Steam 用户评论）：您语言
-      //（简体中文）摘要行同页 server 渲染——此前只解析全部/最近两行，浮窗
-      // "简体中文"评价行自 appreviews 端点死亡后恒空。行形态与全部行同构
-      //（tooltip 带计数+好评率），无该行（游戏无中文评测/解析失败）置 null。
-      const cnRow = parsed.find((r) => r.isCn && !r.isRecent) || null;
+      // 行块解析：每个桌面行 = <a class="user_reviews_summary_row" … data-tooltip-html="…">行内 HTML</a>
+      //（responsive 区块行无 tooltip，过滤排除）。计数优先级 tooltip →
+      // meta reviewCount → 行内 span（低评测形态 tooltip 无计数）。
+      const ROW_BLOCK_RE = /<a[^>]*class="[^"]*user_reviews_summary_row[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+      const rows = [...html.matchAll(ROW_BLOCK_RE)]
+        .map((m) => {
+          const tip = ((m[0].match(/data-tooltip-html="([^"]+)"/) || [])[1] || '')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
+          const descM = m[1].match(
+            /game_review_summary\s+(?:positive|mixed|negative|not_enough_reviews)"[^>]*>([^<]+)</
+          );
+          // v14.21.0：各源仅在真实匹配到时取值（Number('') = 0 会伪造计数——
+          // 低评测行 tooltip 无计数，0 抢占优先级会把它误判成"无评测"行）
+          const tipCountM = tip.match(/([\d,]+)\s*篇用户评测/);
+          const tipCount = tipCountM ? Number(tipCountM[1].replace(/,/g, '')) : NaN;
+          const metaM = m[1].match(/itemprop="reviewCount" content="(\d+)"/);
+          const meta = metaM ? Number(metaM[1]) : NaN;
+          const spanCountM = m[1].match(/([\d,]+)\s*篇用户评测/);
+          const spanCount = spanCountM ? Number(spanCountM[1].replace(/,/g, '')) : NaN;
+          const tipPctM = tip.match(/有\s*(\d+)%\s*为好评/);
+          const tipPct = tipPctM ? Number(tipPctM[1]) : NaN;
+          const counts = [tipCount, meta, spanCount].filter((n) => Number.isFinite(n));
+          return {
+            tip,
+            count: counts.length > 0 ? counts[0] : null,
+            pct: Number.isFinite(tipPct) ? tipPct : null,
+            desc: descM ? descM[1].trim() : null,
+            isRecent: tip.includes('过去 30 天'),
+            isCn: tip.includes('您语言')
+          };
+        })
+        .filter((r) => r.tip); // responsive 行无 tooltip——排除（其"所有评测"实为"您语言"镜像）
+      const withCount = rows.filter((r) => r.count != null && r.count > 0);
+      // 总体行语义分级（见上 v14.21.0 注）——三级依次回退
+      const allRow =
+        withCount.find((r) => !r.isRecent && !r.isCn && r.pct != null) ||
+        withCount.find((r) => r.isCn && !r.isRecent && r.pct != null) ||
+        withCount.find((r) => r.pct != null) ||
+        null;
+      const recentRow = rows.find((r) => r.isRecent && r.pct != null && r.count != null) || null;
+      // v14.19.0：您语言（简体中文）摘要行——浮窗"简体中文"评价行数据源，
+      // 无该行（游戏无中文评测/解析失败）置 null；v14.21.0：desc 接入行内
+      // span 官方评语文案（"多半好评"等，此前恒 null）。
+      const cnRow = withCount.find((r) => r.isCn && !r.isRecent) || null;
       /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
       let cnSummary = null;
-      if (cnRow && cnRow.count != null && cnRow.count > 0) {
+      if (cnRow) {
+        // v14.21.0：解构局部常量供 TS 收窄（cnRow.count 声明为 number|null，
+        // withCount 过滤后语义非空但类型不跟随——同 v14.8 allCount 模式）
+        const cnCount = cnRow.count != null ? cnRow.count : 0;
         const cnPct = cnRow.pct != null ? cnRow.pct : 0;
         cnSummary = {
-          total: cnRow.count,
-          positive: Math.round((cnRow.count * cnPct) / 100),
-          negative: Math.max(0, cnRow.count - Math.round((cnRow.count * cnPct) / 100)),
+          total: cnCount,
+          positive: Math.round((cnCount * cnPct) / 100),
+          negative: Math.max(0, cnCount - Math.round((cnCount * cnPct) / 100)),
           score: cnPct >= 95 ? 10 : cnPct >= 80 ? 9 : cnPct >= 70 ? 8 : cnPct >= 40 ? 7 : cnPct >= 20 ? 6 : 5,
-          desc: null, // 商店页摘要行无逐语言评语文案
+          desc: cnRow.desc, // 行内 game_review_summary span（官方逐语言评语文案）
           positiveRate: cnPct
         };
       }
-      // v14.8 TS18047：解构到局部常量供 TS 收窄（allRow.count 判空后不再宽化）
-      const allCount = allRow && allRow.count != null ? allRow.count : 0;
-      const allPct = allRow && allRow.pct != null ? allRow.pct : 0;
-      if (allRow && allCount > 0) {
+      if (allRow && allRow.pct != null) {
+        // v14.21.0：解构局部常量供 TS 收窄（allRow.count 声明为 number|null，
+        // withCount 过滤后语义非空但类型不跟随——同上方 cnCount 模式）
+        const allCount = allRow.count != null ? allRow.count : 0;
+        const allPct = allRow.pct;
         const positive = Math.round((allCount * allPct) / 100);
         const recentTotal = recentRow && recentRow.count != null ? recentRow.count : 0;
         const recentPct = recentRow && recentRow.pct != null ? recentRow.pct : 0;
-        const descMatch = html.match(/game_review_summary\s+(?:positive|mixed|negative)"[^>]*>([^<]+)</);
-        const desc = descMatch ? descMatch[1].trim() : null;
         const score = allPct >= 95 ? 10 : allPct >= 80 ? 9 : allPct >= 70 ? 8 : allPct >= 40 ? 7 : allPct >= 20 ? 6 : 5;
         recordSteamCall(true, 200);
         recordDomainCall('store', true);
-        Logger.info('Steam', `好评率回退（商店页解析）: ${appId} → ${allPct}%（${desc}，${allCount} 篇）`);
+        const tier = allRow.isCn ? '您语言代位' : allRow.isRecent ? '最近行保底' : '全时段行';
+        Logger.info(
+          'Steam',
+          `好评率回退（商店页解析·${tier}）: ${appId} → ${allPct}%（${allRow.desc || '—'}，${allCount} 篇）`
+        );
         return {
           total: allCount,
           positive,
           negative: Math.max(0, allCount - positive),
           score,
-          desc,
+          desc: allRow.desc,
           recent: {
             total: recentTotal,
             positive: recentRow ? Math.round((recentTotal * recentPct) / 100) : 0,
@@ -279,20 +335,12 @@ export async function fetchReviewSummary(appId) {
         };
       }
       // v14.8.2：低/零评测形态——tooltip 无 count+pct 时，从行内
-      // game_review_summary span / meta reviewCount 取计数
-      const rowBlocks = [
-        ...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)
-      ].map((m) => {
-        const tip = m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-        const meta = Number((m[2].match(/itemprop="reviewCount" content="(\d+)"/) || [])[1]);
-        const span = Number(((m[2].match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
-        const count = Number.isFinite(meta) ? meta : Number.isFinite(span) ? span : null;
-        return { tip, count: Number.isFinite(count) ? count : null, isRecent: tip.includes('过去 30 天') };
-      });
-      const insufficient = rowBlocks.find(
-        (b) => !b.isRecent && b.count != null && b.count > 0 && b.tip.includes('需要更多用户评测')
+      // game_review_summary span / meta reviewCount 取计数（v14.21.0：统一
+      // 行块解析复用，不再二次 matchAll）
+      const insufficient = rows.find(
+        (r) => !r.isRecent && r.count != null && r.count > 0 && r.tip.includes('需要更多用户评测')
       );
-      const zeroRow = rowBlocks.find((b) => !b.isRecent && (b.tip.includes('无用户评测') || b.count === 0));
+      const zeroRow = rows.find((r) => !r.isRecent && (r.tip.includes('无用户评测') || r.count === 0));
       if (insufficient) {
         recordSteamCall(true, 200);
         recordDomainCall('store', true);

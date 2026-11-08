@@ -878,8 +878,13 @@
   // Ratings via store-page HTML fallback (three row forms), direct.
   // ==================================================================
   /**
-   * 商店页解析评分（三形态：完整行 tooltip 计数+pct / 低评测行计数无 pct /
-   * 无评测行 total 0）。返回与扩展 fetchReviewSummary 同构的数据。
+   * 商店页解析评分（行块制 + 行语义分级，v14.21.0 对齐扩展口径）：Steam
+   * 服务端渲染已无"全部评测"行（桌面区块仅"最近评测"+"您语言"两行；
+   * responsive 区块"所有评测"实为"您语言"镜像且无 tooltip）——总体行按
+   * ① 真·全时段行 ②"您语言"行代位（l=schinese 即官方简体中文全时段摘要）
+   * ③ 最近行保底 三级取用；desc 取所用行块内 game_review_summary span。
+   * 三形态保留：完整行 tooltip 计数+pct / 低评测行计数无 pct / 无评测行
+   * total 0。（顺修旧 tooltip 正则 `[ age]*` 无法跨越 href 属性的错配）
    * @returns {Promise<{total, positive, negative, desc, recent:{total,positive,rate}}|null>}
    */
   async function fetchReviewSummary(appId) {
@@ -889,36 +894,54 @@
       });
       if (!resp.ok || !resp.text) return null;
       const html = resp.text;
-      const tips = [...html.matchAll(/user_reviews_summary_row"[ age]*data-tooltip-html="([^"]+)"/g)].map((m) =>
-        m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>')
-      );
-      const parseTip = (tip) => {
-        const count = Number(((tip.match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
-        const pct = Number((tip.match(/有\s*(\d+)%\s*为好评/) || [])[1]);
-        return {
-          count: Number.isFinite(count) ? count : null,
-          pct: Number.isFinite(pct) ? pct : null,
-          isRecent: tip.indexOf('过去 30 天') >= 0,
-          isCn: tip.indexOf('您语言') >= 0
-        };
-      };
-      const parsed = tips.map(parseTip).filter((r) => r.count != null && r.pct != null);
-      const allRow = parsed.find((r) => !r.isRecent && !r.isCn) || parsed[0] || null;
-      const recentRow = parsed.find((r) => r.isRecent) || null;
-      const allCount = allRow && allRow.count != null ? allRow.count : 0;
-      const allPct = allRow && allRow.pct != null ? allRow.pct : 0;
-      if (allRow && allCount > 0) {
+      const ROW_BLOCK_RE = /<a[^>]*class="[^"]*user_reviews_summary_row[^"]*"[^>]*>([\s\S]*?)<\/a>/g;
+      const rows = [...html.matchAll(ROW_BLOCK_RE)]
+        .map((m) => {
+          const tip = ((m[0].match(/data-tooltip-html="([^"]+)"/) || [])[1] || '')
+            .replace(/&lt;/g, '<')
+            .replace(/&gt;/g, '>');
+          const descM = m[1].match(
+            /game_review_summary\s+(?:positive|mixed|negative|not_enough_reviews)"[^>]*>([^<]+)</
+          );
+          // 各源仅在真实匹配到时取值（Number('') = 0 会伪造计数）
+          const tipCountM = tip.match(/([\d,]+)\s*篇用户评测/);
+          const tipCount = tipCountM ? Number(tipCountM[1].replace(/,/g, '')) : NaN;
+          const metaM = m[1].match(/itemprop="reviewCount" content="(\d+)"/);
+          const meta = metaM ? Number(metaM[1]) : NaN;
+          const spanCountM = m[1].match(/([\d,]+)\s*篇用户评测/);
+          const spanCount = spanCountM ? Number(spanCountM[1].replace(/,/g, '')) : NaN;
+          const tipPctM = tip.match(/有\s*(\d+)%\s*为好评/);
+          const tipPct = tipPctM ? Number(tipPctM[1]) : NaN;
+          const counts = [tipCount, meta, spanCount].filter((n) => Number.isFinite(n));
+          return {
+            tip,
+            count: counts.length > 0 ? counts[0] : null,
+            pct: Number.isFinite(tipPct) ? tipPct : null,
+            desc: descM ? descM[1].trim() : null,
+            isRecent: tip.indexOf('过去 30 天') >= 0,
+            isCn: tip.indexOf('您语言') >= 0
+          };
+        })
+        .filter((r) => r.tip); // responsive 行无 tooltip——排除
+      const withCount = rows.filter((r) => r.count != null && r.count > 0);
+      const allRow =
+        withCount.find((r) => !r.isRecent && !r.isCn && r.pct != null) ||
+        withCount.find((r) => r.isCn && !r.isRecent && r.pct != null) ||
+        withCount.find((r) => r.pct != null) ||
+        null;
+      const recentRow = rows.find((r) => r.isRecent && r.pct != null && r.count != null) || null;
+      if (allRow && allRow.pct != null) {
+        const allCount = allRow.count;
+        const allPct = allRow.pct;
         const positive = Math.round((allCount * allPct) / 100);
         const recentTotal = recentRow && recentRow.count != null ? recentRow.count : 0;
         const recentPct = recentRow && recentRow.pct != null ? recentRow.pct : 0;
-        const descMatch = html.match(/game_review_summary\s+(?:positive|mixed|negative)"[^>]*>([^<]+)</);
-        const desc = descMatch ? descMatch[1].trim() : null;
         return {
           total: allCount,
           positive,
           negative: Math.max(0, allCount - positive),
           rate: allPct, // 直接携带 Steam 官方百分比（免反推舍入）
-          desc,
+          desc: allRow.desc,
           recent: {
             total: recentTotal,
             positive: recentRow ? Math.round((recentTotal * recentPct) / 100) : 0,
@@ -927,19 +950,10 @@
         };
       }
       // 低/零评测形态：tooltip 无 count+pct → 行内 span / meta reviewCount 取计数
-      const rowBlocks = [
-        ...html.matchAll(/user_reviews_summary_row"[^>]*data-tooltip-html="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g)
-      ].map((m) => {
-        const tip = m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>');
-        const meta = Number((m[2].match(/itemprop="reviewCount" content="(\d+)"/) || [])[1]);
-        const span = Number(((m[2].match(/([\d,]+)\s*篇用户评测/) || [])[1] || '').replace(/,/g, ''));
-        const count = Number.isFinite(meta) ? meta : Number.isFinite(span) ? span : null;
-        return { tip, count: Number.isFinite(count) ? count : null, isRecent: tip.indexOf('过去 30 天') >= 0 };
-      });
-      const insufficient = rowBlocks.find(
-        (b) => !b.isRecent && b.count != null && b.count > 0 && b.tip.indexOf('需要更多用户评测') >= 0
+      const insufficient = rows.find(
+        (r) => !r.isRecent && r.count != null && r.count > 0 && r.tip.indexOf('需要更多用户评测') >= 0
       );
-      const zeroRow = rowBlocks.find((b) => !b.isRecent && (b.tip.indexOf('无用户评测') >= 0 || b.count === 0));
+      const zeroRow = rows.find((r) => !r.isRecent && (r.tip.indexOf('无用户评测') >= 0 || r.count === 0));
       if (insufficient) {
         return {
           total: insufficient.count,

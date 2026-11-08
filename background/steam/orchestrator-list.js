@@ -20,7 +20,8 @@ import {
   coverImageFor,
   isDemoAppId,
   baseAppIdFromDetails,
-  needsRatingRefetch
+  needsRatingRefetch,
+  hasInvertedReviewCounts // v14.21.0：评价数倒挂污染指纹（旧回退误写条目自愈）
 } from './api.js';
 import { isModuleValid, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
@@ -86,7 +87,14 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   const cached = await getSteamCacheEntry(appId);
   const merged = getMergedData(cached) || {};
   // 无好评率条目（0 评测/失败固化）按冷却期重新获取（v3.3.7：rating 模块有效判定）
-  if (!isModuleValid(cached, 'rating') || merged.positiveRate === undefined || needsRatingRefetch(merged)) return null;
+  // v14.21.0：评价数倒挂条目（旧回退误写）不命中，重取自愈
+  if (
+    !isModuleValid(cached, 'rating') ||
+    merged.positiveRate === undefined ||
+    needsRatingRefetch(merged) ||
+    hasInvertedReviewCounts(merged)
+  )
+    return null;
   if (isDemoCacheWithoutRating(merged)) return null;
 
   // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
@@ -303,7 +311,12 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   if (appId) {
     const cached = await getSteamCacheEntry(appId);
     const merged = getMergedData(cached) || {};
-    if (isModuleValid(cached, 'rating') && merged.positiveRate !== undefined && !needsRatingRefetch(merged)) {
+    if (
+      isModuleValid(cached, 'rating') &&
+      merged.positiveRate !== undefined &&
+      !needsRatingRefetch(merged) &&
+      !hasInvertedReviewCounts(merged) // v14.21.0：倒挂污染条目不命中（重取自愈）
+    ) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(merged)) {
         // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）

@@ -26,28 +26,36 @@ let mapUpdatedAt = 0;
 /** @type {Promise<boolean>|null} */
 let loading = null;
 
-// 解析 top250 HTML（纯函数，可单测）——每行恰有一个商店链接（行尾 Actions
-// 外链），以链接位置切分出行段，行段内提取：排名（#N，段首）/评分（N.NN，
-// 首个出现，先于价格）/评价数（锚定 "reviews" 关键词）。结构变更时条目数
-// 不足 MIN_ENTRIES 由调用方弃用。
+// 解析 top250 HTML（纯函数，可单测）——v14.21.0：steam250 重建页面后行结构
+// 变更为行容器锚定制（旧锚点 "#N" 文本与 "N reviews" 关键词已双双消失，旧
+// 解析器仅能凑出 10 条垃圾数据被哨兵拒绝 → 功能静默失效）。现行结构（2026-11
+// 实测快照）每行为：
+//   <div id=N><div class=rank>N</div>…<div class="score stat"><span>9.94</span>…
+//   <span class=votes>1,050,323</span>…<div class="actions stat">
+//   <a class=store href="https://store.steampowered.com/app/ID/?curator_clanid=…">
+// 以 `<div id=N><div class=rank>` 行容器切分行段（站点渲染 250 行,属性引号
+// 可选；约 1/10 行在排名数字前嵌排名变化指示 `<span class=+><span>+1</span>
+// </span>`，一并兼容），行段内提取：排名（rank 容器文本）/评分（score stat
+// 首个 span）/评价数（votes span，无则 0）/appId（行段内唯一商店链接）。结构
+// 变更时条目数不足 MIN_ENTRIES 由调用方弃用。
 export function parseSteam250Html(html) {
   const games = {};
   if (typeof html !== 'string' || html.length < 200) return games;
-  const rowLinks = [...html.matchAll(/store\.steampowered\.com\/app\/(\d{2,7})/g)];
-  let prevEnd = 0;
-  for (const link of rowLinks) {
-    const id = link[1];
-    const seg = html.slice(prevEnd, link.index); // 本行 = 上一个链接结束 → 本行链接
-    prevEnd = link.index + link[0].length;
-    const rankM = seg.match(/#(\d{1,4})\b/);
-    // 负向环视排除价格（$9.99）——防止价格被误认为评分
-    const scoreM = seg.match(/(?<!\$)\b(\d\.\d{2})\b/);
-    const votesM = seg.match(/([\d,]{3,})\s*reviews/i); // 评价数锚定 reviews
-    if (!rankM || !scoreM) continue;
-    const rank = parseInt(rankM[1], 10);
+  const ROW_RE =
+    /<div id="?(\d{1,4})"?><div class="?rank"?>\s*(?:<span[^>]*>\s*<span[^>]*>[+\-]?\d{1,4}<\/span>\s*<\/span>\s*)?(\d{1,4})\s*<\/div>/g;
+  const rows = [...html.matchAll(ROW_RE)];
+  for (let i = 0; i < rows.length; i++) {
+    const rank = parseInt(rows[i][2], 10);
+    const segEnd = i + 1 < rows.length ? rows[i + 1].index : html.length;
+    const seg = html.slice(rows[i].index, segEnd);
+    const idM = seg.match(/store\.steampowered\.com\/app\/(\d{2,7})/);
+    // 评分锚定 score stat 容器首 span（免受价格 $9.99 干扰）；评价数锚定 votes span
+    const scoreM = seg.match(/class="?score stat"?><span>([\d.]+)<\/span>/);
+    const votesM = seg.match(/class="?votes"?>([\d,]+)</);
+    if (!idM || !scoreM) continue;
     const score = parseFloat(scoreM[1]);
     const votes = votesM ? parseInt(votesM[1].replace(/,/g, ''), 10) || 0 : 0;
-    if (rank > 0 && rank <= 1000 && score > 0 && score <= 10) games[id] = { rank, score, votes };
+    if (rank > 0 && rank <= 1000 && score > 0 && score <= 10) games[idM[1]] = { rank, score, votes };
   }
   // 数量下限哨兵在调用方 ensureLoaded（≥MIN_ENTRIES 才采用；解析器保持纯函数）
   return games;
@@ -110,16 +118,28 @@ async function ensureLoaded() {
 }
 
 /**
+ * 查询游戏的 Steam250 排名信息（带加载状态，v14.21.0）：loaded=false = 快照
+ * 不可用（抓取/解析失败，UI 整行隐藏）；loaded=true 且 info=null = 已加载但
+ * 该游戏未入前 250（UI 显示"未入榜"提示行，功能存在感可辨识）。
+ * @param {string|number} appId
+ * @returns {Promise<{loaded: boolean, info: {rank: number, score: number, votes: number}|null}>}
+ */
+export async function getSteam250Status(appId) {
+  const key = String(appId || '');
+  if (!key) return { loaded: false, info: null };
+  const ok = await ensureLoaded();
+  if (!ok || !rankMap) return { loaded: false, info: null };
+  return { loaded: true, info: rankMap.get(key) || null };
+}
+
+/**
  * 查询游戏的 Steam250 排名信息（无记录/未加载返回 null）
  * @param {string|number} appId
  * @returns {Promise<{rank: number, score: number, votes: number}|null>}
  */
 export async function getSteam250Info(appId) {
-  const key = String(appId || '');
-  if (!key) return null;
-  const ok = await ensureLoaded();
-  if (!ok || !rankMap) return null;
-  return rankMap.get(key) || null;
+  const st = await getSteam250Status(appId);
+  return st.info;
 }
 
 // 重置（测试/清除数据用）/ reset

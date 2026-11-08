@@ -21,6 +21,7 @@ import {
   ensureRegistryEntry,
   ensureValidRegistryNames,
   needsRatingRefetch,
+  hasInvertedReviewCounts, // v14.21.0：评价数倒挂污染指纹（旧回退误写条目自愈）
   isCompleteCacheData,
   namesRelated,
   coreTokensOf // v14.6.2 审查 A11：英文内容词单源（排噪声词）
@@ -333,12 +334,15 @@ async function tryCacheServed(gameName, appId) {
   const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
   const merged = getMergedData(cached) || {};
   // 无好评率条目（0 评测/失败固化）按冷却期重新获取
+  // v14.21.0：评价数倒挂条目（cnTotalReviews > totalReviews，旧商店页回退
+  // 把最近 30 天行误当全时段写入）同样不命中——按需重取自愈
   if (
     detail &&
     merged.appId &&
     merged.name &&
     isCompleteCacheData(detail) &&
     !needsRatingRefetch(merged) &&
+    !hasInvertedReviewCounts(merged) &&
     namesRelated(gameName, merged.name)
   ) {
     // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版

@@ -10,7 +10,7 @@ import { createSessionPersist } from '../core/session-persist.js';
 import { metricsSnapshot } from '../core/metrics.js'; // v14 B10：运行指标归口
 import { getOutboundAudit, resetOutboundAudit } from '../core/outbound-audit.js'; // v14 B10
 import { getSteamApiStatus, getDomainStatus } from '../core/api-monitor.js';
-import { getSteam250Info } from '../steam/steam250.js';
+import { getSteam250Status } from '../steam/steam250.js';
 import { getSiteHealth, recordSiteAlert } from '../storage/site-health.js';
 import { getFlushHealth } from '../storage/flush-health.js';
 import { Logger } from '../storage/logger.js';
@@ -26,11 +26,13 @@ export async function handleGetApiStatus() {
 }
 
 // v10.4.4：Steam250 排名查询（appId → {rank, score, votes}；无记录 null）
+// v14.21.0：响应补 loaded（快照是否可用）——内容侧据此区分"未入榜"与"快照
+// 不可用"（前者显示提示行，后者整行隐藏）
 export async function handleGetSteam250Rank(message) {
   const appId = message && message.appId;
-  if (!appId) return { info: null };
-  const info = await getSteam250Info(appId);
-  return { info };
+  if (!appId) return { info: null, loaded: false };
+  const { loaded, info } = await getSteam250Status(appId);
+  return { info, loaded };
 }
 
 // v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）

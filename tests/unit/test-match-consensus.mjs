@@ -843,3 +843,112 @@ describe('extractEnNameSegment（v14.19.0：最长英文段——版本号段不
     expect(extractEnNameSegment('只狼：影逝二度|官方中文')).toEqual('');
   });
 });
+
+// ============ v14.21.0：商店页回退行块制 + 行语义分级 + 倒挂指纹自愈 ============
+// 现行结构（2026-11 实测快照）：桌面区块无"全部评测"行，仅"最近评测"+"您语言"
+// 两行；responsive 区块"所有评测"无 tooltip 且实为"您语言"镜像（必须排除）。
+const CURRENT_STRUCTURE_PAGE =
+  '<html><div id="userReviews" class="user_reviews">' +
+  '<a class="user_reviews_summary_row" href="#app_reviews_hash" data-tooltip-html="过去 30 天内的 21,141 篇用户评测中有 69% 为好评。">' +
+  '<div class="subtitle column">最近评测：</div><div class="summary column">' +
+  '<span class="game_review_summary mixed">褒贬不一</span>' +
+  '<span class="responsive_hidden"> (21,141) </span>' +
+  '<span class="nonresponsive_hidden responsive_reviewdesc"> - 过去 30 天内的 21,141 篇用户评测中有 69% 为好评。 </span>' +
+  '</div></a>' +
+  '<a class="user_reviews_summary_row" href="#app_reviews_hash" data-tooltip-html="您语言的 208,065 篇用户评测中有 78% 为好评。" itemprop="aggregateRating" itemscope itemtype="http://schema.org/AggregateRating">' +
+  '<div class="subtitle column all"> 简体中文评测： </div><div class="summary column">' +
+  '<span class="game_review_summary positive" itemprop="description">多半好评</span>' +
+  '<span class="responsive_hidden"> (208,065) </span></div></a>' +
+  '<a id="appReviewsAll_responsive" class="user_reviews_summary_row" href="#app_reviews_hash">' +
+  '<div class="subtitle column all">所有评测：</div><div class="summary column">' +
+  '<span class="responsive_reviewdesc_short"><span class="desc_short">简体中文评测</span>' +
+  '<span class="game_review_summary positive">多半好评</span> (208,065 篇中的 78%)</span></div></a>' +
+  '<a id="appReviewsRecent_responsive" class="user_reviews_summary_row" href="#app_reviews_hash" data-tooltip-html="过去 30 天内的 21,141 篇用户评测中有 69% 为好评。">' +
+  '<div class="subtitle column">最近评测：</div><div class="summary column">' +
+  '<span class="responsive_reviewdesc_short"><span class="desc_short">最近：</span>' +
+  '<span class="game_review_summary mixed">褒贬不一</span> (21,141 篇中的 69%)</span></div></a>' +
+  '</div></html>';
+
+describe('fetchReviewSummary 商店页回退·现行结构（v14.21.0 行语义分级）', () => {
+  /** @param {Record<string, string>} routes */
+  function installPages(routes) {
+    return installFetchMock(async (url) => {
+      const u = decodeURIComponent(String(url));
+      for (const [frag, body] of Object.entries(routes)) {
+        if (u.includes(frag)) {
+          return { ok: true, status: 200, redirected: false, url: u, json: async () => ({}), text: async () => body };
+        }
+      }
+      return { ok: false, status: 404, redirected: false, url: u, json: async () => ({}), text: async () => '' };
+    });
+  }
+
+  test('现行结构（无全部评测行）：总体行取"您语言"代位，desc 取该行 span', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    const restore = installPages({ '/app/900011/': CURRENT_STRUCTURE_PAGE });
+    try {
+      const s = await reviews.fetchReviewSummary('900011');
+      // 旧实现此处取 parsed[0]（最近 30 天行）→ total 21141 < cn 208065 倒挂
+      expect(s && s.total).toEqual(208065);
+      expect(s && s.positive).toEqual(162291); // round(208065*0.78)
+      expect(s && s.desc).toEqual('多半好评'); // 行内 span（非最近行的"褒贬不一"）
+      expect(s && s.score).toEqual(8); // 78% → >=70 档
+      expect(s && s.recent && s.recent.total).toEqual(21141);
+      expect(s && s.recent && s.recent.rate).toEqual(69);
+      // cn 摘要：您语言行（desc 接入行内官方文案，此前恒 null）
+      expect(s && s.cn && s.cn.total).toEqual(208065);
+      expect(s && s.cn && s.cn.positiveRate).toEqual(78);
+      expect(s && s.cn && s.cn.desc).toEqual('多半好评');
+    } finally {
+      restore();
+    }
+  });
+
+  test('真·全时段行在场时优先于您语言行（Steam 恢复该行即原样走）', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    const restore = installPages({ '/app/900012/': FULL_REVIEW_PAGE });
+    try {
+      const s = await reviews.fetchReviewSummary('900012');
+      expect(s && s.total).toEqual(128);
+      expect(s && s.positive).toEqual(111);
+      expect(s && s.desc).toEqual('特别好评');
+    } finally {
+      restore();
+    }
+  });
+
+  test('只有最近一行（无您语言行）→ 最近行保底，desc 为最近行 span', async () => {
+    const recentOnly =
+      '<html><a class="user_reviews_summary_row" href="#app_reviews_hash" data-tooltip-html="过去 30 天内的 500 篇用户评测中有 80% 为好评。">' +
+      '<div class="summary column"><span class="game_review_summary positive">特别好评</span></div></a></html>';
+    const reviews = await import('../../background/steam/api-reviews.js');
+    const restore = installPages({ '/app/900013/': recentOnly });
+    try {
+      const s = await reviews.fetchReviewSummary('900013');
+      expect(s && s.total).toEqual(500);
+      expect(s && s.positive).toEqual(400);
+      expect(s && s.desc).toEqual('特别好评');
+      expect(s && s.recent && s.recent.rate).toEqual(80);
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('hasInvertedReviewCounts（v14.21.0 倒挂污染指纹）', () => {
+  test('简体中文数 > 总数 → 污染（旧回退把最近行当全时段写入）', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    expect(reviews.hasInvertedReviewCounts({ totalReviews: 21141, cnTotalReviews: 208065 })).toBe(true);
+    expect(reviews.hasInvertedReviewCounts({ totalReviews: 208065, cnTotalReviews: 208065 })).toBe(false);
+    expect(reviews.hasInvertedReviewCounts({ totalReviews: 500000, cnTotalReviews: 208065 })).toBe(false);
+  });
+
+  test('字段缺失/异型安全', async () => {
+    const reviews = await import('../../background/steam/api-reviews.js');
+    expect(reviews.hasInvertedReviewCounts(null)).toBe(false);
+    expect(reviews.hasInvertedReviewCounts({})).toBe(false);
+    expect(reviews.hasInvertedReviewCounts({ totalReviews: null, cnTotalReviews: 100 })).toBe(false);
+    expect(reviews.hasInvertedReviewCounts({ totalReviews: '100', cnTotalReviews: '50' })).toBe(false);
+    expect(reviews.hasInvertedReviewCounts('garbage')).toBe(false);
+  });
+});

@@ -10,6 +10,7 @@
  * Keep-alive, rate-limit slowdown, retry and debounced persistence live here.
  */
 import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrator.js';
+import { hasInvertedReviewCounts } from './api.js'; // v14.21.0：评价数倒挂污染指纹（预载重取自愈）
 import { PERF_CONFIG } from '../core/constants.js';
 import { getSettings } from '../core/settings.js'; // v14.5.0 B9：用户批大小接线
 import { flushAllCaches } from '../storage/flush.js';
@@ -540,8 +541,9 @@ export async function handlePrefetchSteamRatings(message) {
       if (appId) {
         const cached = await getSteamCacheEntry(appId, 'rating');
         // v3.3.7：rating 模块有效（含好评率）即跳过；仅 rating 过期才预载
+        // v14.21.0：评价数倒挂条目（旧回退误写）不跳过，预载重取自愈
         const rating = isModuleValid(cached, 'rating') ? getModuleData(cached, 'rating') : null;
-        if (rating && rating.positiveRate !== undefined) continue;
+        if (rating && rating.positiveRate !== undefined && !hasInvertedReviewCounts(rating)) continue;
         needsPrefetch.push(name);
       } else {
         needsPrefetch.push(name);

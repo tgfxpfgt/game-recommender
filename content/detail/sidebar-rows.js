@@ -93,17 +93,23 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
   }
 }
 
-// v10.4.4：Steam250 排名行填充（查询后台快照；游戏不在前 250 时隐藏）
+// v10.4.4：Steam250 排名行填充（查询后台快照）
+// v14.21.0：区分"未入榜"与"快照不可用"——快照已加载（resp.loaded）而游戏不
+// 在前 250 时显示灰色提示行（功能存在感可辨识）；快照不可用/查询失败整行隐藏
 /** @param {string} appId */
 export async function fillSteam250Info(appId) {
   if (!appId) return;
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, { timeout: 25000 });
     const info = resp && resp.info;
+    const loaded = !!(resp && resp.loaded);
+    const linkHtml = `<a href="https://steam250.com/top250" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">Steam250 ↗</a>`;
     const html = info
       ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${esc(String(info.rank ?? '-'))}</b> · ${esc(String(info.score ?? '-'))} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` + // v10.9.1；v14.6.2：rank/score 补 esc（审查 B4）
-        `<a href="https://steam250.com/top250" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">Steam250 ↗</a>`
-      : '';
+        linkHtml
+      : loaded
+        ? `<span style="color:#666;">🏆 未入 Steam250 前 250 名</span> ` + linkHtml
+        : '';
     for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {
       const el = document.getElementById(id);
       if (!el) continue;
