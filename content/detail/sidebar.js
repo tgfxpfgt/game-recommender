@@ -184,7 +184,7 @@ function createAutoRetry(io) {
  * @param {HTMLElement} panel
  * @param {string} gameName
  * @param {{reason?: string, [k: string]: any}|null} response
- * @param {{hidePanel: () => void, showPanel: () => void, renderAndShow: Function, cancelAutoRetry: () => void, scheduleAutoRetry: (name: string) => void}} io
+ * @param {{hidePanel: () => void, showPanel: () => void, renderAndShow: Function, cancelAutoRetry: () => void, scheduleAutoRetry: (name: string) => void, makePickPlatform: (name: string) => (platformId: string) => Promise<boolean>}} io
  */
 function handleLookupMiss(panel, gameName, response, io) {
   const { hidePanel, showPanel, renderAndShow, cancelAutoRetry, scheduleAutoRetry } = io;
@@ -236,38 +236,12 @@ function handleLookupMiss(panel, gameName, response, io) {
       }
       return false;
     },
-    // v14.19.0（用户需求）：主机/模拟器机型选择——SET_MANUAL_PLATFORM 持久化
-    // 映射 + Metacritic 评分，成功即浮窗切 MC 视图（映射同时纠正列表页）
+    // v14.19.1：主机/模拟器机型选择改消费 actions.makePickPlatform 单源工厂
+    //（v14.19.0 曾在此内联闭包——报错路径的第二个调用点漏接致选项缺失，
+    // 用户报告后收口单源，两调用点共用）
     async (platformId) => {
       cancelAutoRetry();
-      const resp = await window.__GR_MSG__
-        .sendMessage(
-          { action: 'SET_MANUAL_PLATFORM', gameName, platform: platformId, rawTitle: document.title },
-          null,
-          { timeout: 30000 }
-        )
-        .catch(() => null);
-      if (resp && resp.success) {
-        renderAndShow(
-          {
-            appId: null,
-            name: gameName,
-            platformOnly: true,
-            platformTag: resp.tag,
-            mcScore: resp.mcScore != null ? resp.mcScore : null,
-            mcName: resp.mcName || null,
-            genres: [],
-            userTags: [],
-            developers: [],
-            description: '',
-            reviews: []
-          },
-          Date.now(),
-          gameName
-        );
-        return true;
-      }
-      return false;
+      return io.makePickPlatform(gameName)(platformId);
     }
   );
   showPanel();
@@ -405,7 +379,8 @@ export function createSteamFloat(gameName, settings) {
           showPanel,
           renderAndShow,
           cancelAutoRetry,
-          scheduleAutoRetry
+          scheduleAutoRetry,
+          makePickPlatform: actions.makePickPlatform // v14.19.1：机型选择单源工厂
         });
       }
     } catch (e) {

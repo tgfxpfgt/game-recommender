@@ -137,9 +137,48 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
               return true;
             }
             return false;
-          }
+          },
+          makePickPlatform(name) // v14.19.1：报错路径同样提供主机机型选择（用户报告缺失点）
         );
       }
+    };
+  }
+
+  // v14.19.0（用户反馈：报错路径的手动面板没有主机选项）：手动主机机型
+  // 声明回调工厂——SET_MANUAL_PLATFORM 持久化映射 + Metacritic 评分，成功
+  // 即浮窗切 MC 视图。单源：handleLookupMiss（首次未命中）与 makeReportIssue
+  // （报错重检索仍同 appId/未命中——匹配错误场景必经此路径）两处共用。
+  /** @param {string} name */
+  function makePickPlatform(name) {
+    return async (platformId) => {
+      const resp = await window.__GR_MSG__
+        .sendMessage(
+          { action: 'SET_MANUAL_PLATFORM', gameName: name, platform: platformId, rawTitle: document.title },
+          null,
+          { timeout: 30000 }
+        )
+        .catch(() => null);
+      if (resp && resp.success) {
+        renderAndShow(
+          {
+            appId: null,
+            name,
+            platformOnly: true,
+            platformTag: resp.tag,
+            mcScore: resp.mcScore != null ? resp.mcScore : null,
+            mcName: resp.mcName || null,
+            genres: [],
+            userTags: [],
+            developers: [],
+            description: '',
+            reviews: []
+          },
+          Date.now(),
+          name
+        );
+        return true;
+      }
+      return false;
     };
   }
 
@@ -159,6 +198,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
       reportIssue = fn;
     },
     makeOnRefresh,
-    makeReportIssue
+    makeReportIssue,
+    makePickPlatform
   };
 }
