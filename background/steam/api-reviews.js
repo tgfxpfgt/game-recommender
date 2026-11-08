@@ -2,6 +2,7 @@ import { recordSteamCall, recordDomainCall, isCircuitOpen } from '../core/api-mo
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS, STORAGE_CAPS, PERF_CONFIG } from '../core/constants.js'; // v10.7.0：端点单源；v14.6.2：超时单源
 import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
+import { fetchCommunityChineseReviews } from './api-community-reviews.js'; // v14.21.2：社区评论正文回退（appreviews 死端点）
 import { Logger } from '../storage/logger.js';
 
 /**
@@ -446,18 +447,39 @@ async function fetchChineseReviews(appId) {
   /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
   let cnReviewSummary = null;
   let chineseReviews = [];
-  // v14.19.0（用户报告：浮窗不能正常显示 Steam 用户评论）：appreviews 端点
-  // 自 v14.8 观测起 302 商店首页（Steam 侧变更）——本函数此前无感知，每次
-  // 详情页仍打 1 次死端点且评论文本恒空。接入同一死亡旗标：置位后跳过
-  //（评论文本回退无 keyless 替代源——商店页不内嵌评论文本，只剩摘要行，
-  // 由 fetchReviewSummary 的 cn 字段补齐），SW 冷启动后重新探测一次。
-  if (appreviewsDead) return { cnReviewSummary, chineseReviews };
+  // v14.19.0：appreviews 死亡旗标（302 商店首页）——置位后跳过死端点
+  // v14.21.2（用户报告：浮窗"依旧没有显示具体评论"）：v14.19.0 只补了摘要行
+  //（cn 字段），**评论正文**一直空着——商店页 SSR 不内嵌评论文本，唯一免登录
+  // 替代源是 steamcommunity 评论浏览页（实测每页 10 条完整简体中文评论卡）。
+  // 死旗标置位后转社区页回退（独立 'steamcommunity' 熔断域，失败不连坐 store）。
+  if (appreviewsDead) {
+    const community = await fetchCommunityChineseReviews(appId);
+    if (community && community.length > 0) {
+      chineseReviews = community.slice(0, 5).map((r) => ({
+        recommended: r.recommended,
+        text: r.text,
+        author: '匿名', // 社区页解析不含作者（保持与 appreviews 形态同构）
+        language: 'schinese'
+      }));
+    }
+    return { cnReviewSummary, chineseReviews };
+  }
   try {
     const cnReviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
     const resp = await fetchWithTimeout(cnReviewUrl);
     // v14.19.0：302 跟随落地商店首页 = 端点死亡（与 fetchReviewSummary 同语义）
     if (resp.redirected && /store\.steampowered\.com\/?$/.test(resp.url || '')) {
       appreviewsDead = true;
+      // v14.21.2：端点死亡 → 立即转社区页回退（首条详情页请求即有评论正文）
+      const community = await fetchCommunityChineseReviews(appId);
+      if (community && community.length > 0) {
+        chineseReviews = community.slice(0, 5).map((r) => ({
+          recommended: r.recommended,
+          text: r.text,
+          author: '匿名',
+          language: 'schinese'
+        }));
+      }
       return { cnReviewSummary, chineseReviews };
     }
     // v14.7 批次 13：429/5xx 也带 JSON 体——不查 ok 会静默按空数据处理且不计失败

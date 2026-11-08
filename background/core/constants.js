@@ -86,6 +86,7 @@ export const PERF_CONFIG = {
   fetchTimeoutBingMs: 15000, // Bing 检索兜底（ai-fallback，HTML 较重）
   fetchTimeoutSteam250Ms: 20000, // Steam250 榜单页 HTML（整页抓取最重）
   fetchTimeoutCommunitySearchMs: 8000, // 社区搜索兜底（SearchApps 轻量响应快）
+  fetchTimeoutCommunityReviewsMs: 12000, // 社区评论浏览页 HTML（v14.21.2，~150KB 较重但非主链阻塞）
   fetchTimeoutLastUpdateMs: 4000, // "最近更新"徽章硬帽（v10.9.2：api 域不可达时不得拖爆搜索主预算）
   fetchTimeoutLlmMs: 30000, // LLM 兜底（ai-fallback，生成较慢；v14.7 批次 1 入单源）
   ratingsKeepAliveIntervalMs: 10000 // 批量任务 SW 保活心跳（getPlatformInfo 触发）
@@ -145,6 +146,9 @@ export const ENDPOINTS = {
   steamAppListDump: 'https://raw.githubusercontent.com/jsnli/steamappidlist/main/data/games_appid.json', // 每日全量镜像（免 key）
   steamStoreServiceList: 'https://api.steampowered.com/IStoreService/GetAppList/v1/', // 官方替代（需用户 key）
   steamCommunitySearch: 'https://steamcommunity.com/actions/SearchApps/', // 社区搜索（免 key，仅英文）
+  // v14.21.2：社区评论浏览页（免登录 keyless 评论文本源——appreviews 端点 302
+  // 死亡后简体中文评论正文的唯一替代源，10 条/页完整评论卡）
+  steamCommunityReviews: 'https://steamcommunity.com/app/',
   // v14.10.0：Metacritic（主机/模拟器条目评分源——用户指令"优先从 metacritic 获取"）
   metacritic: 'https://www.metacritic.com'
 };
