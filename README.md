@@ -324,6 +324,11 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.20.0（手动主机机型扩至全主机厂商）
+
+- **名册扩充（用户需求：索尼/微软/任天堂/世嘉全主机类型）**：MANUAL_PLATFORM_OPTIONS 6 → **28 项**，按厂商分组渲染（`MANUAL_PLATFORM_BRANDS` 单源）——任天堂 11（Switch/Switch 2/Wii U/Wii/NGC/N64/SFC/FC/3DS/NDS/GBA）、索尼 7（PS5/PS4/PS3/PS2/PS1/PSP/PSV）、微软 4（Xbox Series X|S/Xbox One/Xbox 360/Xbox）、世嘉 4（DC/SS/MD/GG）+ 其他主机/模拟器 ROM；候选面板按厂商行分组（flex-wrap 自适应）
+- **零下游改动**：id 全小写 ASCII（契约 ≤20 字符），声明→抓分→映射→三管线消费链路不变；检测词表此前已含全部对应机型段（整段匹配）
+
 ### v14.19.1（修复：报错路径的手动面板没有主机机型选项）
 
 - **根因**：`renderManualSelectPanel` 有**两个调用点**——首次未命中路径（sidebar.js）与"⚠️ 信息有误？重新检索"路径（sidebar-actions.js）。匹配错误的场景（首次检索"成功"匹配到错误 Steam 条目）必经后者，而该调用点 v14.19.0 漏接 `onPickPlatform` 参数——主机选项区不渲染（用户报告）

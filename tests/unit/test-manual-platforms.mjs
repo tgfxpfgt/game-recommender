@@ -219,3 +219,46 @@ describe('管线消费映射（v14.19.0）', () => {
     }
   });
 });
+
+// ============ v14.20.0：全主机厂商机型（任天堂/索尼/微软/世嘉 + 通用） ============
+describe('MANUAL_PLATFORM_OPTIONS 全主机名册（v14.20.0）', () => {
+  test('名册完整性：id 唯一/≤20 字符/每项经 resolve 命中/厂商字段齐备', async () => {
+    const { MANUAL_PLATFORM_OPTIONS, MANUAL_PLATFORM_BRANDS, resolveManualPlatformOption } =
+      await import('../../shared/platform-detect.js');
+    const ids = MANUAL_PLATFORM_OPTIONS.map((o) => o.id);
+    expect(new Set(ids).size).toEqual(ids.length); // id 唯一
+    for (const o of MANUAL_PLATFORM_OPTIONS) {
+      expect(o.id.length).toBeLessThanOrEqual(20); // 契约 platform 上限
+      expect(o.brand.length).toBeGreaterThan(0);
+      expect(resolveManualPlatformOption(o.id)).toEqual(o);
+    }
+    // 厂商分组全覆盖：每个选项的 brand 都在分组表内，且每分组至少一项
+    const brandIds = new Set(MANUAL_PLATFORM_BRANDS.map((b) => b.id));
+    for (const o of MANUAL_PLATFORM_OPTIONS) expect(brandIds.has(o.brand)).toBe(true);
+    for (const b of MANUAL_PLATFORM_BRANDS) {
+      expect(MANUAL_PLATFORM_OPTIONS.some((o) => o.brand === b.id)).toBe(true);
+    }
+    // 四大厂商齐备（用户需求：索尼/微软/任天堂/世嘉）
+    for (const brand of ['nintendo', 'sony', 'microsoft', 'sega']) {
+      expect(MANUAL_PLATFORM_OPTIONS.filter((o) => o.brand === brand).length).toBeGreaterThanOrEqual(4);
+    }
+  });
+
+  test('世嘉 DC 声明：console 终态 + 无 EN 段时不抓分（不阻断映射）', async () => {
+    storage._reset();
+    manualPlatforms.resetManualPlatforms();
+    const restore = installFetchMock(async (url) => {
+      throw new Error('无 EN 段不应发起网络请求: ' + String(url));
+    });
+    try {
+      const resp = await handlersSteam.handleSetManualPlatform({ gameName: ' Sonic大冒险|汉化', platform: 'dc' });
+      expect(resp && resp.success).toBe(true);
+      expect(resp && resp.tag).toEqual('DC');
+      expect(resp && resp.kind).toEqual('console');
+      const entry = await manualPlatforms.getManualPlatform(' Sonic大冒险|汉化');
+      expect(entry && entry.tag).toEqual('DC');
+    } finally {
+      restore();
+    }
+  });
+});

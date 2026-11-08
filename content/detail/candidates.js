@@ -8,7 +8,7 @@
  * 由 sidebar.js 的装载/纠错路径调用（自动匹配失败 → 手动选择兜底）。
  */
 import * as common from '../core/common.js';
-import { MANUAL_PLATFORM_OPTIONS } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源
+import { MANUAL_PLATFORM_OPTIONS, MANUAL_PLATFORM_BRANDS } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源；v14.20.0：厂商分组
 
 const esc = (text) => common.escapeHtml(text);
 
@@ -61,16 +61,27 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
       </div>`
     : '';
   // v14.19.0：主机/模拟器机型选择区（onPickPlatform 在场才渲染——回调由
-  // sidebar.js 提供：SET_MANUAL_PLATFORM → MC 评分 → 浮窗 MC 视图）
+  // sidebar.js/sidebar-actions.js 提供：SET_MANUAL_PLATFORM → MC 评分 → MC 视图）
+  // v14.20.0（用户需求：全主机类型）：按厂商分组渲染（任天堂/索尼/微软/世嘉/
+  // 通用——MANUAL_PLATFORM_BRANDS 单源），flex-wrap 自适应换行
   const platformSection = onPickPlatform
     ? `<div style="margin-bottom:10px;padding:8px 10px;background:rgba(103,193,245,0.06);border:1px solid rgba(103,193,245,0.25);border-radius:3px;">
         <div style="font-size:12px;color:#c7d5e0;margin-bottom:6px;">🎮 这是主机 / 模拟器游戏？选择机型后转 <b>Metacritic</b> 评分：</div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-          ${MANUAL_PLATFORM_OPTIONS.map(
-            (o) =>
-              `<button class="gr-btn gr-manual-platform" data-platform="${common.escapeAttr(o.id)}" title="声明为 ${common.escapeAttr(o.label)} 并查询 Metacritic" style="padding:5px 10px;font-size:11px;">${esc(o.label)}</button>`
-          ).join('')}
-        </div>
+        ${MANUAL_PLATFORM_BRANDS.map((b) => {
+          const opts = MANUAL_PLATFORM_OPTIONS.filter((o) => o.brand === b.id);
+          if (opts.length === 0) return '';
+          return `<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
+            <span style="flex:none;width:42px;padding-top:5px;font-size:11px;color:#8f98a0;">${esc(b.label)}</span>
+            <div style="display:flex;gap:5px;flex-wrap:wrap;">
+              ${opts
+                .map(
+                  (o) =>
+                    `<button class="gr-btn gr-manual-platform" data-platform="${common.escapeAttr(o.id)}" title="声明为 ${common.escapeAttr(o.label)} 并查询 Metacritic" style="padding:4px 9px;font-size:11px;">${esc(o.label)}</button>`
+                )
+                .join('')}
+            </div>
+          </div>`;
+        }).join('')}
         <div id="gr-platform-status" style="font-size:11px;color:#8f98a0;margin-top:5px;min-height:14px;"></div>
       </div>`
     : '';

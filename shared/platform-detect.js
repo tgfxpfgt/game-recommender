@@ -341,19 +341,58 @@ export function trimPlatformTokens(enName) {
 // Manual console-type picker: on a wrong Steam match on the detail page the
 // user declares the console type; the backend scores it via Metacritic and
 // persists a mapping that list pages honor with MC/platform badges.
-/** @type {Array<{id: string, label: string, kind: 'console'|'emulator', tag: string}>} */
+// v14.20.0（用户需求：全主机类型）：按厂商分组扩至全机型——任天堂/索尼/
+// 微软/世嘉 + 通用 + 模拟器 ROM。id 全小写 ASCII（契约 platform ≤20 字符）；
+// label = 按钮文案，tag = 徽章/映射文案。厂商序由 MANUAL_PLATFORM_BRANDS 单源。
+/** @type {Array<{id: string, label: string, kind: 'console'|'emulator', tag: string, brand: string}>} */
 export const MANUAL_PLATFORM_OPTIONS = [
-  { id: 'switch', label: 'Switch', kind: 'console', tag: 'Switch' },
-  { id: 'switch2', label: 'Switch 2', kind: 'console', tag: 'Switch2' },
-  { id: 'ps5', label: 'PS5', kind: 'console', tag: 'PS5' },
-  { id: 'ps4', label: 'PS4', kind: 'console', tag: 'PS4' },
-  { id: 'xbox', label: 'Xbox', kind: 'console', tag: 'Xbox' },
-  { id: 'emu', label: '模拟器 ROM', kind: 'emulator', tag: '模拟器' }
+  // 任天堂
+  { id: 'switch', label: 'Switch', kind: 'console', tag: 'Switch', brand: 'nintendo' },
+  { id: 'switch2', label: 'Switch 2', kind: 'console', tag: 'Switch2', brand: 'nintendo' },
+  { id: 'wiiu', label: 'Wii U', kind: 'console', tag: 'WiiU', brand: 'nintendo' },
+  { id: 'wii', label: 'Wii', kind: 'console', tag: 'Wii', brand: 'nintendo' },
+  { id: 'ngc', label: 'NGC', kind: 'console', tag: 'NGC', brand: 'nintendo' },
+  { id: 'n64', label: 'N64', kind: 'console', tag: 'N64', brand: 'nintendo' },
+  { id: 'sfc', label: 'SFC', kind: 'console', tag: 'SFC', brand: 'nintendo' },
+  { id: 'fc', label: 'FC', kind: 'console', tag: 'FC', brand: 'nintendo' },
+  { id: '3ds', label: '3DS', kind: 'console', tag: '3DS', brand: 'nintendo' },
+  { id: 'nds', label: 'NDS', kind: 'console', tag: 'NDS', brand: 'nintendo' },
+  { id: 'gba', label: 'GBA', kind: 'console', tag: 'GBA', brand: 'nintendo' },
+  // 索尼
+  { id: 'ps5', label: 'PS5', kind: 'console', tag: 'PS5', brand: 'sony' },
+  { id: 'ps4', label: 'PS4', kind: 'console', tag: 'PS4', brand: 'sony' },
+  { id: 'ps3', label: 'PS3', kind: 'console', tag: 'PS3', brand: 'sony' },
+  { id: 'ps2', label: 'PS2', kind: 'console', tag: 'PS2', brand: 'sony' },
+  { id: 'ps1', label: 'PS1', kind: 'console', tag: 'PS1', brand: 'sony' },
+  { id: 'psp', label: 'PSP', kind: 'console', tag: 'PSP', brand: 'sony' },
+  { id: 'psv', label: 'PSV', kind: 'console', tag: 'PSV', brand: 'sony' },
+  // 微软
+  { id: 'xbox-series', label: 'Xbox Series X|S', kind: 'console', tag: 'Xbox Series', brand: 'microsoft' },
+  { id: 'xboxone', label: 'Xbox One', kind: 'console', tag: 'XboxOne', brand: 'microsoft' },
+  { id: 'xbox360', label: 'Xbox 360', kind: 'console', tag: 'Xbox360', brand: 'microsoft' },
+  { id: 'xbox', label: 'Xbox', kind: 'console', tag: 'Xbox', brand: 'microsoft' },
+  // 世嘉
+  { id: 'dc', label: 'DC', kind: 'console', tag: 'DC', brand: 'sega' },
+  { id: 'ss', label: 'SS', kind: 'console', tag: 'SS', brand: 'sega' },
+  { id: 'md', label: 'MD', kind: 'console', tag: 'MD', brand: 'sega' },
+  { id: 'gg', label: 'GG', kind: 'console', tag: 'GG', brand: 'sega' },
+  // 通用 / 模拟器
+  { id: 'console', label: '其他主机', kind: 'console', tag: '主机', brand: 'generic' },
+  { id: 'emu', label: '模拟器 ROM', kind: 'emulator', tag: '模拟器', brand: 'generic' }
+];
+
+// 厂商分组序（单源——候选面板按此渲染分组行；label = 分组标题）
+export const MANUAL_PLATFORM_BRANDS = [
+  { id: 'nintendo', label: '任天堂' },
+  { id: 'sony', label: '索尼' },
+  { id: 'microsoft', label: '微软' },
+  { id: 'sega', label: '世嘉' },
+  { id: 'generic', label: '通用' }
 ];
 
 /**
  * 机型选项 id → 选项对象（纯函数，可单测；非法 id 返回 null——契约/处理器守卫用）。
- * @param {string} id @returns {{id: string, label: string, kind: 'console'|'emulator', tag: string}|null}
+ * @param {string} id @returns {{id: string, label: string, kind: 'console'|'emulator', tag: string, brand: string}|null}
  */
 export function resolveManualPlatformOption(id) {
   const idStr = String(id || '');
