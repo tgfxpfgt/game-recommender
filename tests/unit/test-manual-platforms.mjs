@@ -238,6 +238,10 @@ describe('MANUAL_PLATFORM_OPTIONS 全主机名册（v14.20.0）', () => {
     for (const b of MANUAL_PLATFORM_BRANDS) {
       expect(MANUAL_PLATFORM_OPTIONS.some((o) => o.brand === b.id)).toBe(true);
     }
+    // v14.21.0：通用组按 M 站分类口径补齐其余平台（M 站无分时优雅降级为机型徽章）
+    for (const id of ['gb', 'gbc', 'neogeo', 'pce', 'segacd', 'atari2600', 'wonderswan']) {
+      expect(resolveManualPlatformOption(id)).not.toEqual(null);
+    }
     // 四大厂商齐备（用户需求：索尼/微软/任天堂/世嘉）
     for (const brand of ['nintendo', 'sony', 'microsoft', 'sega']) {
       expect(MANUAL_PLATFORM_OPTIONS.filter((o) => o.brand === brand).length).toBeGreaterThanOrEqual(4);

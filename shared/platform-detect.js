@@ -376,7 +376,15 @@ export const MANUAL_PLATFORM_OPTIONS = [
   { id: 'ss', label: 'SS', kind: 'console', tag: 'SS', brand: 'sega' },
   { id: 'md', label: 'MD', kind: 'console', tag: 'MD', brand: 'sega' },
   { id: 'gg', label: 'GG', kind: 'console', tag: 'GG', brand: 'sega' },
-  // 通用 / 模拟器
+  // 通用（v14.21.0：按 M 站分类口径补齐其余有评分分类的平台——M 站无分时
+  // 优雅降级为纯机型徽章，罗列广度无风险）
+  { id: 'gb', label: 'GB', kind: 'console', tag: 'GB', brand: 'generic' },
+  { id: 'gbc', label: 'GBC', kind: 'console', tag: 'GBC', brand: 'generic' },
+  { id: 'neogeo', label: 'Neo Geo', kind: 'console', tag: 'NeoGeo', brand: 'generic' },
+  { id: 'pce', label: 'PC Engine', kind: 'console', tag: 'PCE', brand: 'generic' },
+  { id: 'segacd', label: 'Mega CD', kind: 'console', tag: 'MegaCD', brand: 'generic' },
+  { id: 'atari2600', label: 'Atari 2600', kind: 'console', tag: 'Atari', brand: 'generic' },
+  { id: 'wonderswan', label: 'WonderSwan', kind: 'console', tag: 'WS', brand: 'generic' },
   { id: 'console', label: '其他主机', kind: 'console', tag: '主机', brand: 'generic' },
   { id: 'emu', label: '模拟器 ROM', kind: 'emulator', tag: '模拟器', brand: 'generic' }
 ];

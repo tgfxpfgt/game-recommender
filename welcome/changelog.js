@@ -16,6 +16,13 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.21.0',
+        date: '2026-11-09',
+        items: [
+          '🕹 <b>复古平台补齐</b>——手动选择通用组新增 GB/GBC/Neo Geo/PC Engine/Mega CD/Atari 2600/WonderSwan（按 Metacritic 分类口径，总名册 35 项）'
+        ]
+      },
+      {
         ver: '14.20.0',
         date: '2026-11-09',
         items: [
