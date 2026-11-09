@@ -60,18 +60,23 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         <span id="gr-manual-retry-status" style="font-size:11px;color:#8f98a0;align-self:center;"></span>
       </div>`
     : '';
-  // v14.19.0：主机/模拟器机型选择区（onPickPlatform 在场才渲染——回调由
+  // v14.19.0：主机/模拟器机型选择（onPickPlatform 在场才渲染——回调由
   // sidebar.js/sidebar-actions.js 提供：SET_MANUAL_PLATFORM → MC 评分 → MC 视图）
   // v14.20.0（用户需求：全主机类型）：按厂商分组渲染（任天堂/索尼/微软/世嘉/
   // 通用——MANUAL_PLATFORM_BRANDS 单源），flex-wrap 自适应换行
-  const platformSection = onPickPlatform
-    ? `<div style="margin-bottom:10px;padding:8px 10px;background:rgba(103,193,245,0.06);border:1px solid rgba(103,193,245,0.25);border-radius:3px;">
-        <div style="font-size:12px;color:#c7d5e0;margin-bottom:6px;">🎮 这是主机 / 模拟器游戏？选择机型后转 <b>Metacritic</b> 评分：</div>
+  // v14.22.2（用户需求：检索错误后选主机"不直观，直接加一个按钮"）：35 个机型
+  // 按钮平铺在浮窗中部不显眼——收敛为主视图一个醒目入口按钮，点击切换到
+  // **机型选择专页**（厂商分组 + 状态行 + 返回按钮 + Esc），候选搜索视图保持紧凑
+  /** 机型选择专页（默认隐藏；onPickPlatform 在场才构建） */
+  const platformViewHtml = onPickPlatform
+    ? `<div id="gr-platform-view" style="display:none;padding:16px;" role="dialog" aria-label="主机机型选择">
+        <div style="font-size:14px;font-weight:bold;color:#fff;margin-bottom:6px;">🎮 主机 / 模拟器机型选择</div>
+        <div style="font-size:12px;color:#8f98a0;margin-bottom:10px;">选择机型后转 <b>Metacritic</b> 评分——声明长期生效，列表页评分随之纠正。</div>
         ${MANUAL_PLATFORM_BRANDS.map((b) => {
           const opts = MANUAL_PLATFORM_OPTIONS.filter((o) => o.brand === b.id);
           if (opts.length === 0) return '';
-          return `<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:4px;">
-            <span style="flex:none;width:42px;padding-top:5px;font-size:11px;color:#8f98a0;">${esc(b.label)}</span>
+          return `<div style="display:flex;align-items:flex-start;gap:6px;margin-bottom:6px;">
+            <span style="flex:none;width:46px;padding-top:5px;font-size:11px;color:#8f98a0;">${esc(b.label)}</span>
             <div style="display:flex;gap:5px;flex-wrap:wrap;">
               ${opts
                 .map(
@@ -83,6 +88,7 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
           </div>`;
         }).join('')}
         <div id="gr-platform-status" style="font-size:11px;color:#8f98a0;margin-top:5px;min-height:14px;"></div>
+        <button id="gr-platform-back" class="gr-btn" style="margin-top:8px;width:100%;padding:6px 0;">← 返回手动搜索</button>
       </div>`
     : '';
   const reasonLine = reasonText
@@ -90,13 +96,18 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
     : '';
   panel.innerHTML = `
       <div style="padding:16px;" role="dialog" aria-label="手动选择游戏">
+        <div id="gr-main-view">
         <div style="font-size:15px;font-weight:bold;color:#fff;margin-bottom:8px;">🎮 手动选择游戏</div>
         <div style="font-size:12px;color:#8f98a0;margin-bottom:12px;">
           未能自动匹配 Steam 游戏。请从下方候选列表中选择正确游戏，<br>或输入关键词手动搜索。
         </div>
         ${reasonLine}
         ${retryBtn}
-        ${platformSection}
+        ${
+          onPickPlatform
+            ? `<button id="gr-platform-entry" style="margin-bottom:10px;width:100%;padding:8px 0;background:linear-gradient(to right,#3a6c8e,#2a475e);color:#c7d5e0;border:1px solid #3a6c8e;border-radius:3px;cursor:pointer;font-size:12px;font-family:inherit;transition:background 0.2s;">🎮 这是主机 / 模拟器游戏？<b>点此选择机型</b>（转 Metacritic 评分）→</button>`
+            : ''
+        }
         <div style="margin-bottom:10px;">
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
@@ -132,6 +143,8 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
             正在搜索候选游戏...
           </div>
         </div>
+        </div>
+        ${platformViewHtml}
       </div>
     `;
 
@@ -280,8 +293,51 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
   // v14.19.0：主机机型选择——点击 → onPickPlatform（sidebar.js：后台声明
   // 映射 + Metacritic 评分 + 浮窗切 MC 视图）；成功后浮窗被重渲染，失败在
   // 状态行提示（按钮复位可重选）
+  // v14.22.2：视图切换——主视图入口按钮 ↔ 机型专页（返回按钮/Esc 双出口）；
+  // Esc 监听带自清理（面板重渲染/专页隐藏即失效——v14.13 B6 kbHandler 同款
+  // 防泄漏模式），专页激活期间候选列表键盘导航停用（列表仅隐藏未销毁）
   if (onPickPlatform) {
     const statusEl = panel.querySelector('#gr-platform-status');
+    const mainView = panel.querySelector('#gr-main-view');
+    const platformView = panel.querySelector('#gr-platform-view');
+    /** @type {((ev: KeyboardEvent) => void) | null} */
+    let escBackHandler = null;
+    const showPlatformView = () => {
+      if (!mainView || !platformView) return;
+      mainView.style.display = 'none';
+      platformView.style.display = '';
+      const listEl = panel.querySelector('#gr-candidates-list');
+      if (listEl) listEl.dataset.kbNav = '0'; // 专页下隐藏列表不再吃 ↑/↓/Enter
+      if (escBackHandler) document.addEventListener('keydown', escBackHandler);
+    };
+    const showMainView = () => {
+      if (!mainView || !platformView) return;
+      platformView.style.display = 'none';
+      mainView.style.display = '';
+      const listEl = panel.querySelector('#gr-candidates-list');
+      if (listEl) listEl.dataset.kbNav = '1'; // 恢复候选列表键盘导航
+      if (escBackHandler) {
+        document.removeEventListener('keydown', escBackHandler);
+        escBackHandler = null;
+      }
+    };
+    const entryBtn = panel.querySelector('#gr-platform-entry');
+    if (entryBtn) entryBtn.addEventListener('click', showPlatformView);
+    const backBtn = panel.querySelector('#gr-platform-back');
+    if (backBtn) backBtn.addEventListener('click', showMainView);
+    escBackHandler = (ev) => {
+      // 面板重渲染（MC 视图/重检索）后 platformView 已脱文档——自摘防泄漏
+      if (!panel.contains(platformView)) {
+        const h = escBackHandler; // 自引用初始化器内 TS 不收窄——局部常量守卫
+        if (h) document.removeEventListener('keydown', h);
+        escBackHandler = null;
+        return;
+      }
+      if (ev.key === 'Escape' && platformView.style.display !== 'none') {
+        ev.preventDefault();
+        showMainView();
+      }
+    };
     panel.querySelectorAll('.gr-manual-platform').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', async () => {
         const platformId = btn.getAttribute('data-platform');

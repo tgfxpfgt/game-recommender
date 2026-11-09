@@ -266,3 +266,35 @@ describe('MANUAL_PLATFORM_OPTIONS 全主机名册（v14.20.0）', () => {
     }
   });
 });
+
+// ============ v14.22.2：候选浮窗主机入口按钮化（双视图回归守卫） ============
+// 用户需求：检索错误后选主机"不直观，直接加一个按钮"——35 个机型按钮从浮窗
+// 中部平铺收敛为主视图一个入口按钮 + 机型选择专页（返回/Esc 双出口）。
+// UI 交互无法以现有 DOM 桩行为级驱动（FakeEl 不支持 #id 选择器）——按项目
+// 源码守卫惯例（sim-detail detailSrc.includes 同风格）锁定结构要素。
+describe('候选浮窗主机入口按钮化（v14.22.2 源码守卫）', () => {
+  test('双视图结构四要素 + 键盘护栏 + Esc 自清理', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync(new URL('../../content/detail/candidates.js', import.meta.url), 'utf8');
+    expect(src.includes('id="gr-platform-entry"')).toBe(true); // 主视图入口按钮
+    expect(src.includes('id="gr-platform-view"')).toBe(true); // 机型专页容器（默认隐藏）
+    expect(src.includes('id="gr-platform-back"')).toBe(true); // 专页返回按钮
+    expect(src.includes('showPlatformView')).toBe(true);
+    expect(src.includes('showMainView')).toBe(true);
+    // 专页激活时停用候选列表键盘导航（列表仅隐藏未销毁——防隐藏列表吃键盘）
+    expect(src.includes("kbNav = '0'")).toBe(true);
+    expect(src.includes("kbNav = '1'")).toBe(true);
+    // Esc 监听自清理：面板重渲染后自摘（v14.13 B6 kbHandler 同款防泄漏模式）
+    expect(src.includes('panel.contains(platformView)')).toBe(true);
+    // 旧的内联平铺形态已移除（入口按钮取代——防双入口并存）
+    expect(src.includes('这是主机 / 模拟器游戏？选择机型后转')).toBe(false);
+  });
+
+  test('两个调用点（未命中/报错路径）均经同一渲染函数——单源不变式', async () => {
+    const fs = await import('node:fs');
+    const sidebarSrc = fs.readFileSync(new URL('../../content/detail/sidebar.js', import.meta.url), 'utf8');
+    const actionsSrc = fs.readFileSync(new URL('../../content/detail/sidebar-actions.js', import.meta.url), 'utf8');
+    expect(sidebarSrc.includes('renderManualSelectPanel')).toBe(true); // 未命中路径
+    expect(actionsSrc.includes('renderManualSelectPanel')).toBe(true); // 报错重检索路径
+  });
+});
