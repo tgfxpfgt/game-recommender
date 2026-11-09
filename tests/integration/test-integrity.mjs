@@ -128,7 +128,9 @@ const jsFiles = [];
 (function walk(dir) {
   for (const f of fs.readdirSync(dir)) {
     const p = path.join(dir, f);
-    if (f === '.git' || f === '.mimosa' || f === 'node_modules' || f === '.extension-js') continue;
+    // v14.22.2：dist/ 本地构建产物（外部工具链输出，git-ignored）不参与扫描——
+    // 压缩包体会灌入数千条伪 TDZ 命中（2188 假红实证）
+    if (f === '.git' || f === '.mimosa' || f === 'node_modules' || f === '.extension-js' || f === 'dist') continue;
     if (fs.statSync(p).isDirectory()) walk(p);
     else if (f.endsWith('.js')) jsFiles.push(p);
   }
@@ -287,10 +289,14 @@ test('adapters 目录文件全部注册（无漏注册）', () => {
 // domains 三方同步——新增内置站点必须同时改三处（manifest matches、
 // background/core/site-scripts.js、adapters/sites/xxx.js）
 const manifestMatches = (manifest.content_scripts || []).flatMap((cs) => cs.matches || []);
+// v14.22.0：steam250 与 steampowered 同类——功能页宿主（非追踪站），排除出
+// "内置追踪站三方一致"校验（site-scripts 动态注册只服务追踪站规则域）。
+// v14.22.0: steam250 joins steampowered as a feature-only host excluded from
+// the tracked-site triple-consistency check.
 const manifestDomains = [
   ...new Set(
     manifestMatches
-      .filter((m) => m.startsWith('http') && !m.includes('steampowered.com'))
+      .filter((m) => m.startsWith('http') && !m.includes('steampowered.com') && !m.includes('steam250.com'))
       .map((m) => m.replace(/^https?:\/\/\*\./, '').replace(/\/\*$/, ''))
   )
 ].sort();
@@ -359,7 +365,7 @@ test('web_accessible_resources.matches 覆盖全部注入域名', () => {
   const warDomains = new Set(
     warMatches.filter((m) => m.startsWith('http')).map((m) => m.replace(/^https?:\/\/\*\./, '').replace(/\/\*$/, ''))
   );
-  // WAR ⊇ content_scripts（WAR 可额外含 steampowered.com——Steam 页浮窗资源）
+  // WAR ⊇ content_scripts（WAR 可额外含 steampowered.com/steam250.com——功能页浮窗资源）
   const missing = manifestDomains.filter((d) => !warDomains.has(d));
   expect(missing, 'WAR 缺少注入域名（动态模块在该站将加载失败）:\n  ' + missing.join('\n  ')).toEqual([]);
 });
@@ -710,6 +716,7 @@ test('P2：出站 URL 字面量 ⊆ MOCK_RE 拦截域 ∪ 豁免表（E2E 离线
     'www.gamers520.com',
     'www.xdgame.com',
     'www.xianyudanji.gg',
+    'club.steam250.com', // v14.22.0/v14.22.1：steam250 游戏页/排名行深链（后台快照 fetch 走 steam250.com/top250，已在 MOCK_RE）
     'localhost' // 测试/开发
   ]);
   const HREF_ONLY_PREFIXES = [

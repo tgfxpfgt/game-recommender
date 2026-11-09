@@ -231,6 +231,29 @@ test('steamSidebar 标签链接使用 zh-cn 小写语言段（v10.9.4 回归）'
   expect((html.match(/tags\/zh-cn\//g) || []).length).toEqual(2); // 每个标签一个链接
 });
 
+// ============ v14.22.2：异步数据行锚点独立于 spy 模块（用户报告"浮窗缺 Steam250 排名信息"） ============
+// gr-steam250-row/gr-series-row/gr-itad-row/gr-fav-row 四锚点原嵌在 SteamSpy
+// 块内——options 关闭 SteamSpy 模块会把四行一并带走。提出常驻块后 spy 开关
+// 只管 spy 本体；行默认 display:none、数据就绪才显示。
+test('steamSidebar 关闭 spy 模块仍输出 Steam250/系列/ITAD/收藏行锚点（v14.22.2 回归）', () => {
+  const html = detailTemplates.steamSidebar(
+    {
+      appId: '570',
+      name: 'Dota 2',
+      positiveRate: 82,
+      totalReviews: 1000,
+      floatModules: { spy: false }
+    },
+    Date.now(),
+    false,
+    false
+  );
+  expect(html.includes('gr-detail-spy')).toEqual(false); // spy 面板本体随开关隐藏
+  for (const id of ['gr-steam250-row', 'gr-series-row', 'gr-itad-row', 'gr-fav-row']) {
+    expect(html.includes(`id="${id}"`)).toEqual(true); // 异步行锚点常驻（独立数据源）
+  }
+});
+
 // ============ v14.10.1：详情浮窗低/零评测原因行（用户需求） ============
 const { renderRatingRows } = await import('../../content/detail/render/rating-rows.js');
 

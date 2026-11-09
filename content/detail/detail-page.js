@@ -17,7 +17,14 @@ import * as sidebar from './sidebar.js';
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 
 // v14 B3：下载站资源浮窗与下载历史浮窗迁至 tracking.js——re-export 保持入口
-export { injectDownloadSitePanel, injectDownloadHistoryPanel } from './tracking.js';
+// v14.22.0：steam250 游戏页入口一并 re-export（page-init 调用面 + 纯函数可测）
+export {
+  injectDownloadSitePanel,
+  injectDownloadHistoryPanel,
+  injectSteam250Panel,
+  steam250AppIdFromUrl,
+  steam250NameFromTitle
+} from './tracking.js';
 
 // 从 Steam 图片的 alt 属性提取英文游戏名（"XXX on Steam" 模式）
 // Extract the EN name from a Steam image alt ("XXX on Steam")

@@ -82,18 +82,49 @@ describe('fillItadAndFavorites（ITAD 最低价行 + 收藏按钮）', () => {
 });
 
 describe('fillSteam250Info（Steam250 排名行）', () => {
-  it('有排名：双挂点同填', async () => {
+  it('有排名：双挂点同填 + 游戏专属深链（v14.22.1）+ 整行可点（v14.22.2）', async () => {
     msgHandlers.GET_STEAM250_RANK = async () => ({ info: { rank: 42, score: 8.8, votes: 1200 } });
     await fillSteam250Info('730');
     expect(rows['gr-steam250-row'].innerHTML).toContain('#42');
     expect(rows['gr-steam250-inline'].innerHTML).toContain('#42');
+    // v14.22.1：链接 = 该游戏 steam250 专属页（top250 通用榜单页缺未入榜游戏）
+    expect(rows['gr-steam250-row'].innerHTML).toContain('https://club.steam250.com/app/730');
+    expect(rows['gr-steam250-inline'].innerHTML).toContain('https://club.steam250.com/app/730');
+    // v14.22.2：整行并入深链——锚点开标签先于排名文案、闭标签收尾（命中区 = 整行）
+    const html = rows['gr-steam250-row'].innerHTML;
+    const openIdx = html.indexOf('<a href="https://club.steam250.com/app/730"');
+    expect(openIdx).toBeGreaterThanOrEqual(0);
+    expect(openIdx).toBeLessThan(html.indexOf('🏆'));
+    expect(html.lastIndexOf('</a>')).toBeGreaterThan(html.indexOf('条评价'));
   });
 
-  it('无排名/无 appId：行隐藏', async () => {
+  it('未入榜（loaded）：整行深链提示行（250 名外扩展排名可看）', async () => {
+    msgHandlers.GET_STEAM250_RANK = async () => ({ info: null, loaded: true });
+    await fillSteam250Info('1091500');
+    const html = rows['gr-steam250-row'].innerHTML;
+    expect(html).toContain('未入 Steam250 前 250 名');
+    expect(html).toContain('https://club.steam250.com/app/1091500');
+    expect(html.indexOf('<a href=')).toBeLessThan(html.indexOf('🏆')); // 整行可点（v14.22.2）
+  });
+
+  it('快照不可用：保底可点榜单链接行，不再整行隐藏（v14.22.2）', async () => {
     msgHandlers.GET_STEAM250_RANK = async () => ({ info: null });
     await fillSteam250Info('730');
-    expect(rows['gr-steam250-row'].style.display).toEqual('none');
+    const html = rows['gr-steam250-row'].innerHTML;
+    expect(html).toContain('Steam250 榜单');
+    expect(html).toContain('https://club.steam250.com/app/730');
+    expect(rows['gr-steam250-row'].style.display).toEqual('');
+    expect(rows['gr-steam250-inline'].style.display).toEqual('');
+  });
+
+  it('消息失败：行保持模板默认隐藏不抛错；无 appId 早退不触行', async () => {
+    msgHandlers.GET_STEAM250_RANK = async () => {
+      throw new Error('boom');
+    };
+    await expect(fillSteam250Info('730')).resolves.toBeUndefined();
+    expect(rows['gr-steam250-row'].innerHTML).toEqual('');
+    expect(rows['gr-steam250-row'].style.display).toBeUndefined(); // 未触碰（默认隐藏由模板管）
     await fillSteam250Info('');
-    expect(rows['gr-steam250-inline'].style.display).toEqual('none');
+    expect(rows['gr-steam250-inline'].innerHTML).toEqual('');
   });
 });

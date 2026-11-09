@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "14.21.2",
+  "version": "14.23.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -34,6 +34,7 @@
     "http://*.xdgame.com/*",
     "https://*.xdgame.com/*",
     "https://store.steampowered.com/*",
+    "https://*.steam250.com/*",
     "https://api.steampowered.com/*",
     "https://steamspy.com/*",
     "https://store-site-backend-official.ak.epicgames.com/*",
@@ -69,7 +70,8 @@
         "https://*.ali213.net/*",
         "http://*.gamersky.com/*",
         "https://*.gamersky.com/*",
-        "https://*.steampowered.com/*"
+        "https://*.steampowered.com/*",
+        "https://*.steam250.com/*"
       ],
       "js": [
         "shared/patterns.js",
@@ -121,7 +123,8 @@
         "https://*.ali213.net/*",
         "http://*.gamersky.com/*",
         "https://*.gamersky.com/*",
-        "https://*.steampowered.com/*"
+        "https://*.steampowered.com/*",
+        "https://*.steam250.com/*"
       ]
     }
   ]

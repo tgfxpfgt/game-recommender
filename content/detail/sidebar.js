@@ -25,7 +25,36 @@ import { createSteamActions } from './sidebar-actions.js'; // v14.5.0 B7：回�
 
 const dbg = (...a) => debug.dbg(...a);
 const BTN_FAIL_FEEDBACK_MS = 1500; // 按钮失败文案恢复延时（v14.6.2：具名单点，两按钮共用）
+const MENU_INFO_TIMEOUT_MS = 5000; // v14.23.0：浮窗菜单缓存信息查询限时（具名单点）
 const esc = (text) => common.escapeHtml(text);
+
+// v14.23.0：浮窗菜单缓存信息上下文——renderAndShow 每次渲染刷新（当前游戏
+// 名称/缓存时间），菜单打开时随全局缓存规模一并提供
+// Menu cache-info context: refreshed by every renderAndShow, consumed when
+// the float menu opens (combined with global cache stats from the backend).
+const menuCacheContext = { name: '', cachedAt: null };
+function buildMenuCacheInfo() {
+  return (async () => {
+    const rows = [];
+    if (menuCacheContext.cachedAt) {
+      rows.push('本游戏缓存：' + common.formatRelativeTime(menuCacheContext.cachedAt));
+    }
+    try {
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FLOAT_CACHE_INFO' }, null, {
+        timeout: MENU_INFO_TIMEOUT_MS
+      });
+      if (resp && resp.success && resp.steamCache) {
+        rows.push(
+          `Steam 缓存：${resp.steamCache.entries} 条（命中 ${resp.steamCache.hits} / 未中 ${resp.steamCache.misses}）`
+        );
+        rows.push(`负缓存（匹配失败记录）：${resp.negativeCacheCount} 条`);
+      }
+    } catch {
+      rows.push('缓存信息不可用');
+    }
+    return rows;
+  })();
+}
 
 // ============ 详情页专属子模块按需加载（v14.5.0 B3） ============
 // Promise 单例：并发渲染共享同一次模块加载；getURL 由 sim mock 解析到同一
@@ -93,7 +122,8 @@ function createFloatShell(settings) {
       chrome: true,
       width: 320,
       title: '🎮 Steam 信息',
-      folded: settings ? settings.detailFloatExpanded === false : false
+      folded: settings ? settings.detailFloatExpanded === false : false,
+      menuInfo: buildMenuCacheInfo // v14.23.0：⚙ 菜单缓存信息区
     }
   );
   // 初始隐藏，数据就绪后滑入显示（保留原动画语义）
@@ -283,6 +313,9 @@ export function createSteamFloat(gameName, settings) {
         'https://' + reverseSiteDomain + '/?s=' + encodeURIComponent(name || data.name || '');
     }
     steamData = data;
+    // v14.23.0：菜单缓存信息上下文刷新（cachedAt 空值 = 刚拉取的新数据）
+    menuCacheContext.name = name || data.name || '';
+    menuCacheContext.cachedAt = cachedAt || Date.now();
     actions.setSteamData(data);
     reportIssue = actions.makeReportIssue(name);
     actions.setReportIssue(reportIssue);

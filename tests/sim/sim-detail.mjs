@@ -27,6 +27,7 @@ import {
   reloadContentScripts,
   waitForSignal,
   presets,
+  sentMessages,
   documentMock,
   DEFAULT_SETTINGS,
   FakeEl,
@@ -406,6 +407,102 @@ simTest('9d. 详情页未找到路径（手动选择浮窗）', async () => {
   const manualBody = manualRoot && manualRoot.children[1];
   expect(((manualBody && manualBody._html) || '').includes('手动选择游戏')).toEqual(true);
   expect(((manualBody && manualBody._html) || '').includes('gr-manual-search-input')).toEqual(true);
+});
+
+// ============ 9e. steam250 游戏页：下载站检索 + Steam 跳转（v14.22.0） ============
+// 真实游戏页在 club.steam250.com/app/<id>（steam250.com/app/* 404，2026-11
+// 实测）；页面 <h2> 为游戏名、title 尾缀 " – Steam 250"。复用 Steam 商品页
+// 的下载站检索面板管线（appId/名称/跳转链接参数化），非追踪站零行为采集。
+simTest('9e. steam250 游戏页面板（复用管线 + 榜单页早退 + 名称清洗）', async () => {
+  await reloadContentScripts();
+  presets['GET_SETTINGS'] = () => ({
+    settings: { ...DEFAULT_SETTINGS, badgeVisibility: undefined, trackedSites: ['xianyudanji'] }
+  });
+  // steam250 游戏页 URL + <h2> 游戏名
+  globalThis.location = {
+    hostname: 'club.steam250.com',
+    pathname: '/app/413150',
+    href: 'https://club.steam250.com/app/413150'
+  };
+  window.location = globalThis.location;
+  documentMock.title = 'Stardew Valley – Steam 250';
+  const h2El = new FakeEl('h2');
+  h2El._text = 'Stardew Valley';
+  setQueryStubs(
+    () => [],
+    (sel) => (sel === 'h2' ? h2El : null)
+  );
+  // 下载站检索：缓存未命中 → 全量搜索返回 1 站命中
+  presets['SEARCH_DOWNLOAD_SITES'] = (msg) => {
+    if (msg.cacheOnly) return { sites: [] };
+    return {
+      sites: [
+        {
+          key: 'xianyudanji',
+          name: '咸鱼单机',
+          found: true,
+          detailUrl: 'https://www.xianyudanji.gg/16598.html',
+          updateDate: '2026-01-01'
+        }
+      ]
+    };
+  };
+  const GR = getGR();
+  sentMessages.length = 0;
+  GR.detail.injectSteam250Panel();
+  await waitForSignal(() => {
+    const root = documentMock.body.children.find((c) => c.id === 'gr-download-site-panel');
+    const body = root && root.children[1];
+    // 测试规则无 displayName——面板站点名渲染 key（真实环境为中文显示名）
+    return !!(body && (body._html || '').includes('data-site-key="xianyudanji"'));
+  }, '节9e: 下载站检索面板渲染');
+
+  // 面板内容：游戏名 + Steam 商店页跳转链接 + 站点命中结果
+  const root = documentMock.body.children.find((c) => c.id === 'gr-download-site-panel');
+  const body = root && root.children[1];
+  const html = (body && body._html) || '';
+  expect(html.includes('Stardew Valley')).toEqual(true);
+  expect(html.includes('商店页 ↗')).toEqual(true);
+  expect(html.includes('https://store.steampowered.com/app/413150/')).toEqual(true);
+  expect(html.includes('https://www.xianyudanji.gg/16598.html')).toEqual(true);
+  // CACHE_STEAM_PAGE 预热已发送（Steam 商品页同款；回到下载站徽章即时）
+  expect(sentMessages.some((m) => m.action === 'CACHE_STEAM_PAGE' && m.appId === '413150')).toEqual(true);
+  // 非追踪站：零行为采集消息（TRACK_EVENT 不得发出）
+  expect(sentMessages.some((m) => m.action === 'TRACK_EVENT')).toEqual(false);
+
+  // 纯函数：appId 提取（仅 /app/<digits>）与 title 尾缀清洗
+  //（挂 GR.detail——manifest 'tracking' 键是 content/tracking/download-tracking.js，
+  // detail/tracking.js 经 detail-page re-export）
+  expect(GR.detail.steam250AppIdFromUrl('https://club.steam250.com/app/413150')).toEqual('413150');
+  expect(GR.detail.steam250AppIdFromUrl('https://steam250.com/top250')).toEqual('');
+  expect(GR.detail.steam250AppIdFromUrl('https://club.steam250.com/app/10')).toEqual('10');
+  expect(GR.detail.steam250AppIdFromUrl('')).toEqual('');
+  expect(GR.detail.steam250NameFromTitle('Stardew Valley – Steam 250')).toEqual('Stardew Valley');
+  expect(GR.detail.steam250NameFromTitle('Cyberpunk 2077 - Steam 250')).toEqual('Cyberpunk 2077');
+  expect(GR.detail.steam250NameFromTitle('不带尾缀')).toEqual('不带尾缀');
+
+  // 榜单页（非 /app/ 路径）早退：零面板、零预热消息
+  globalThis.location = {
+    hostname: 'steam250.com',
+    pathname: '/top250',
+    href: 'https://steam250.com/top250'
+  };
+  window.location = globalThis.location;
+  sentMessages.length = 0;
+  documentMock.body.children = documentMock.body.children.filter((c) => c.id !== 'gr-download-site-panel');
+  GR.detail.injectSteam250Panel();
+  await new Promise((r) => setTimeout(r, 50));
+  expect(documentMock.body.children.some((c) => c.id === 'gr-download-site-panel')).toEqual(false);
+  expect(sentMessages.some((m) => m.action === 'CACHE_STEAM_PAGE')).toEqual(false);
+
+  // 还原环境（后续节不受影响）
+  documentMock.title = '测试页面';
+  globalThis.location = {
+    hostname: 'www.xianyudanji.gg',
+    pathname: '/16598.html',
+    href: 'https://www.xianyudanji.gg/16598.html'
+  };
+  window.location = globalThis.location;
 });
 
 // ============ 10. 下载追踪（v10.0.0）——tracking 纯函数（实例无关） ============

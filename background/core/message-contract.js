@@ -224,6 +224,7 @@ const RULES = {
     Array.isArray(m && m.names) && Array.isArray(m && m.appIds)
       ? { ok: true, error: '' }
       : { ok: false, error: 'CLEAR_CACHE_FOR_PAGE.names/appIds 必须是数组（可空）' },
+  GET_FLOAT_CACHE_INFO: () => ({ ok: true }), // v14.23.0：浮窗菜单缓存信息（读侧零参）
   GET_GAME_CACHE_LIST: (m) =>
     optStr(m && m.keyword, 100) &&
     optStr(m && m.tag, 100) &&
@@ -448,6 +449,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
   'GET_STEAM_BY_APPID',
   'GET_STEAM_RATINGS',
   'GET_RATINGS_QUEUE_STATUS', // v14.8.1：等待检测徽章实时队列信息（读侧零参）
+  'GET_FLOAT_CACHE_INFO', // v14.23.0：浮窗 ⚙ 菜单缓存信息（读侧零参）
   'RETRY_GAME_LOOKUP', // v14.7 批次 3：未找到徽章点击重试（窄化，不经 URL 索引记录）
   'LOG_PERF',
   'PREFETCH_STEAM_RATINGS',

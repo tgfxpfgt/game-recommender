@@ -96,6 +96,14 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
 // v10.4.4：Steam250 排名行填充（查询后台快照）
 // v14.21.0：区分"未入榜"与"快照不可用"——快照已加载（resp.loaded）而游戏不
 // 在前 250 时显示灰色提示行（功能存在感可辨识）；快照不可用/查询失败整行隐藏
+// v14.22.1：跳转链接升级为该游戏的 steam250 专属页深链——top250 通用榜单页
+// 不含未入榜游戏；club.steam250.com/app/<appId> 实测对未入前 250 的游戏同样
+// 提供（含 250 名外扩展排名），入榜游戏页面头部即其排名锚点。
+// v14.22.2（用户需求"点击跳转 steam250"）：整行并入深链——命中区从尾部小
+// 链接扩到整行；快照不可用（抓取失败/解析哨兵拒绝）不再整行静默——保底显示
+// 可点榜单链接行（持续不可达环境下功能入口仍可辨识可触达）。
+// v14.22.2: the whole row becomes the deep link (larger hit area); when the
+// snapshot is unavailable, fall back to a link-only row instead of hiding.
 /** @param {string} appId */
 export async function fillSteam250Info(appId) {
   if (!appId) return;
@@ -103,25 +111,23 @@ export async function fillSteam250Info(appId) {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, { timeout: 25000 });
     const info = resp && resp.info;
     const loaded = !!(resp && resp.loaded);
-    const linkHtml = `<a href="https://steam250.com/top250" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">Steam250 ↗</a>`;
+    const href = `https://club.steam250.com/app/${encodeURIComponent(String(appId))}`;
+    const linkAttr = `href="${href}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;cursor:pointer;"`;
+    const linkHtml = `<a ${linkAttr}>`;
     const html = info
-      ? `🏆 Steam250 排名 <b style="color:#67c1f5;">#${esc(String(info.rank ?? '-'))}</b> · ${esc(String(info.score ?? '-'))} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 ` + // v10.9.1；v14.6.2：rank/score 补 esc（审查 B4）
-        linkHtml
+      ? // v10.9.1；v14.6.2：rank/score 补 esc（审查 B4）
+        `${linkHtml}🏆 Steam250 排名 <b style="color:#67c1f5;">#${esc(String(info.rank ?? '-'))}</b> · ${esc(String(info.score ?? '-'))} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 <span style="color:#67c1f5;">Steam250 ↗</span></a>`
       : loaded
-        ? `<span style="color:#666;">🏆 未入 Steam250 前 250 名</span> ` + linkHtml
-        : '';
+        ? `${linkHtml}<span style="color:#666;">🏆 未入 Steam250 前 250 名</span> <span style="color:#67c1f5;">Steam250 ↗</span></a>`
+        : `<a href="${href}" target="_blank" rel="noopener" style="color:#666;text-decoration:none;cursor:pointer;">🏆 Steam250 榜单 ↗</a>`;
     for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {
       const el = document.getElementById(id);
       if (!el) continue;
-      if (html) {
-        el.innerHTML = html;
-        el.style.display = '';
-      } else {
-        el.style.display = 'none';
-      }
+      el.innerHTML = html;
+      el.style.display = '';
     }
   } catch {
-    /* 查询失败静默（行保持隐藏） */
+    /* 消息失败静默（行保持隐藏；快照不可用已有保底链接行） */
   }
 }
 

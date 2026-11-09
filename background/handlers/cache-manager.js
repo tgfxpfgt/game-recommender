@@ -20,7 +20,7 @@ import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：AppID 行为统计信号
 import { appendRatingHistory } from '../steam/orchestrator-shared.js'; // v14.15.0 N1：走势历史
 import { Logger } from '../storage/logger.js';
-import { flushNameIndex, deleteNameIndexEntries } from '../storage/name-index.js';
+import { flushNameIndex, deleteNameIndexEntries, getNegativeCacheCount } from '../storage/name-index.js';
 import { flushRegistry, deleteGameRegistryEntry, getGameRegistry, recordGameInRegistry } from '../storage/registry.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
 import {
@@ -30,7 +30,8 @@ import {
   getSteamCacheMemory,
   loadSteamCacheToMemory,
   getMergedData,
-  isModuleValid
+  isModuleValid,
+  getCacheStats
 } from '../storage/steam-cache.js';
 
 /**
@@ -345,13 +346,29 @@ export async function handleRefreshGameCacheEntry(message) {
   }
 }
 
+// v14.23.0：浮窗 ⚙ 菜单缓存信息（轻量只读——Steam 缓存条目数/命中率快照 +
+// 负缓存条数；区别于 GET_STATS 的全量统计聚合，菜单打开时即时查询）
+// v14.23.0: lightweight read-only cache summary for the float menu (steam
+// cache entries/hit-rate snapshot + negative cache count), unlike GET_STATS.
+async function handleGetFloatCacheInfo() {
+  await loadSteamCacheToMemory();
+  const stats = getCacheStats();
+  const negativeCacheCount = await getNegativeCacheCount();
+  return {
+    success: true,
+    steamCache: { entries: getSteamCacheMemory().size, hits: stats.hits, misses: stats.misses },
+    negativeCacheCount
+  };
+}
+
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const cacheManagerHandlers = {
   CLEAN_EXPIRED_CACHE: handleCleanExpiredCache,
   GET_GAME_CACHE_LIST: handleGetGameCacheList,
   DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,
   CLEAR_GAME_CACHE: handleClearGameCache,
-  REFRESH_GAME_CACHE_ENTRY: handleRefreshGameCacheEntry
+  REFRESH_GAME_CACHE_ENTRY: handleRefreshGameCacheEntry,
+  GET_FLOAT_CACHE_INFO: handleGetFloatCacheInfo
 };
 
 // --- 数据模块：清单/导出/导入 ---

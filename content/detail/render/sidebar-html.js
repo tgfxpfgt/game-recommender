@@ -127,6 +127,17 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         </div>
         ${spyBody}
       </div>
+    `;
+
+  // v14.22.2：异步数据行锚点从 spy 块提出为常驻独立块（用户报告"浮窗缺
+  // Steam250 排名信息"根因）——Steam250 排名/系列作品/ITAD 最低价/收藏按钮
+  // 的数据源是各自独立的后台消息，与 SteamSpy 无关；原嵌在 spy 块内导致
+  // options 关闭 SteamSpy 模块（fmSpy）时四行一并消失。行默认 display:none、
+  // 数据就绪才填充显示，常驻渲染零视觉成本。
+  // v14.22.2: async row anchors hoisted out of the spy block — Steam250/
+  // series/ITAD/favorite rows no longer vanish when the SteamSpy module is
+  // toggled off (independent data sources; rows self-hide until filled).
+  const asyncRowsHtml = `
       <div id="gr-steam250-row" style="display:none;margin-top:8px;padding-top:6px;border-top:1px solid rgba(255,255,255,0.08);font-size:11px;color:#8f98a0;line-height:1.6;"></div>
       <div id="gr-series-row" style="display:none;margin-top:6px;font-size:11px;color:#8f98a0;line-height:1.8;"></div>
       <div id="gr-itad-row" style="display:none;margin-top:6px;font-size:11px;color:#8f98a0;line-height:1.6;"></div>
@@ -266,6 +277,9 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
 
         <!-- 可排序信息模块（chips/tags/developers/description/spy 按用户配置序） -->
         ${orderedModulesHtml}
+
+        <!-- 异步数据行（Steam250/系列/ITAD/收藏，独立于 spy 模块常驻锚点 v14.22.2） -->
+        ${asyncRowsHtml}
 
         <!-- 中文评测 -->
         ${reviewsHtml}

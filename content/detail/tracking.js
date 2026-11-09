@@ -18,20 +18,31 @@ const esc = (text) => common.escapeHtml(text);
 
 // ============ 功能3：Steam页面下载站资源浮窗 ============
 // 显示下载站搜索结果，提供详情页跳转链接（v1.1 起不再提供网盘直链）。
-export function injectDownloadSitePanel() {
-  const appIdMatch = window.location.pathname.match(/\/app\/(\d+)/);
-  const appId = appIdMatch ? appIdMatch[1] : '';
-  const gameNameEl = document.querySelector('.apphub_AppName, .page_title');
-  // 回退 title 时清理站点前缀/后缀：
-  // 中文站 title 为"Steam 上的 X"（需去掉前缀），英文站为"X on Steam"（去后缀）
-  // When falling back to the title, strip the site prefix/suffix:
-  // CN store titles are "Steam 上的 X", EN store titles are "X on Steam".
-  const gameName = gameNameEl
-    ? gameNameEl.textContent.trim()
-    : document.title
-        .replace(/^Steam\s*上的\s*/, '')
-        .replace(/ on Steam.*$/, '')
-        .trim();
+// v14.22.0：页面标识参数化（opts.appId / opts.gameName / opts.steamJumpUrl）——
+// Steam 商品页无参调用行为不变（自取 URL/标题）；steam250 游戏页复用同一
+// 面板管线（传 appId/清洗后名称/Steam 商店跳转链接），零复制逻辑。
+// v14.22.0: page identity is parameterizable — the Steam store page keeps its
+// no-arg behavior; the steam250 game page reuses the same panel pipeline.
+/**
+ * @param {{appId?: string, gameName?: string, steamJumpUrl?: string}} [opts]
+ */
+export function injectDownloadSitePanel(opts = {}) {
+  const appId = opts.appId || (window.location.pathname.match(/\/app\/(\d+)/) || [])[1] || '';
+  let gameName = opts.gameName || '';
+  if (!gameName) {
+    const gameNameEl = document.querySelector('.apphub_AppName, .page_title');
+    // 回退 title 时清理站点前缀/后缀：
+    // 中文站 title 为"Steam 上的 X"（需去掉前缀），英文站为"X on Steam"（去后缀）
+    // When falling back to the title, strip the site prefix/suffix:
+    // CN store titles are "Steam 上的 X", EN store titles are "X on Steam".
+    gameName = gameNameEl
+      ? gameNameEl.textContent.trim()
+      : document.title
+          .replace(/^Steam\s*上的\s*/, '')
+          .replace(/ on Steam.*$/, '')
+          .trim();
+  }
+  const steamJumpUrl = opts.steamJumpUrl || '';
 
   if (!gameName) return;
   dbg(`Steam游戏: ${gameName} (appId=${appId})`);
@@ -59,7 +70,7 @@ export function injectDownloadSitePanel() {
       const cachedSites = cacheResp && Array.isArray(cacheResp.sites) ? cacheResp.sites : []; // v10.9
       const cachedFound = cachedSites.filter((s) => s.found);
       if (cachedFound.length > 0) {
-        renderDownloadSitePanel(panel, cachedSites, gameName);
+        renderDownloadSitePanel(panel, cachedSites, gameName, steamJumpUrl);
         status.showStats({
           title: '下载站缓存命中',
           summary: `${cachedFound.length}/${cachedSites.length} 个下载站已有收录`,
@@ -76,7 +87,7 @@ export function injectDownloadSitePanel() {
       });
       if (resp && Array.isArray(resp.sites)) {
         // v10.9：异型守卫（同 v10.8.1 候选浮窗教训——响应形状假设必须显式）
-        renderDownloadSitePanel(panel, resp.sites, gameName);
+        renderDownloadSitePanel(panel, resp.sites, gameName, steamJumpUrl);
         // 工作状态浮窗：完成统计 / Completion stats
         const found = resp.sites.filter((s) => s.found).length;
         status.showStats({
@@ -98,15 +109,38 @@ export function injectDownloadSitePanel() {
 }
 
 // 渲染下载站结果（仅显示详情页链接）
-function renderDownloadSitePanel(panel, sites, gameName) {
+// v14.22.0：steamJumpUrl 非空时头部附 Steam 商店页跳转链接（steam250 页
+// 复用入口——页面本身不在 Steam 域，无"打开商店页"原生路径）。
+// v14.22.0: optional Steam store jump link in the header (steam250 reuse).
+/**
+ * @param {HTMLElement} panel
+ * @param {Array<any>} sites
+ * @param {string} gameName
+ * @param {string} [steamJumpUrl]
+ */
+function renderDownloadSitePanel(panel, sites, gameName, steamJumpUrl) {
   // v9.3.0：站点显示名读规则 displayName（此前硬编码 3 站——自定义站点显示 key）
   const rules = (builder.getSITE_RULES && builder.getSITE_RULES()) || [];
   const siteNames = {};
   for (const r of rules) if (r && r.key && r.displayName) siteNames[r.key] = r.displayName;
+  // v14.22.0：Steam 跳转链接仅接受 http(s)（外部输入防御同 detailUrl/searchUrl）
+  let steamJumpHtml = '';
+  if (steamJumpUrl) {
+    try {
+      const u = new URL(steamJumpUrl, location.href);
+      if (u.protocol === 'http:' || u.protocol === 'https:') {
+        steamJumpHtml =
+          `<a href="${common.escapeAttr(u.href)}" target="_blank" rel="noopener noreferrer" ` +
+          `style="font-size:11px;color:#67c1f5;text-decoration:none;">商店页 ↗</a>`;
+      }
+    } catch {
+      /* 非法 URL → 不渲染 */
+    }
+  }
   let html = `
       <div style="padding:12px 14px 6px 14px;">
         <div style="font-size:13px;font-weight:bold;color:#fff;margin-bottom:2px;">📥 下载站资源</div>
-        <div style="font-size:11px;color:#8f98a0;margin-bottom:8px;">${esc(gameName)}</div>
+        <div style="font-size:11px;color:#8f98a0;margin-bottom:8px;">${esc(gameName)}${steamJumpHtml ? ' · ' + steamJumpHtml : ''}</div>
       </div>
     `;
 
@@ -252,6 +286,53 @@ export function injectDownloadHistoryPanel(gameName) {
       `;
     })
     .catch(() => {});
+}
+
+// ============ v14.22.0：steam250 游戏页功能入口（复用 Steam 页管线） ============
+// steam250.com/app/<id> 404——真实游戏详情页在 club.steam250.com/app/<id>
+//（2026-11 实测：top250 行内商店链接同指 club 子域）。本入口自 URL 提取
+// appId、页面 <h2>/title 清洗提取游戏名，复用下载站检索面板（附 Steam
+// 商店页跳转）与 CACHE_STEAM_PAGE 预热——与 Steam 商品页注入等价，行为
+// 追踪不启用（steam250 非追踪站）。
+// steam250 game-page entry (v14.22.0): the real game page lives on
+// club.steam250.com/app/<id>; reuse the download-site panel + cache warm-up.
+const S250_TITLE_SUFFIX_RE = /\s*[–—-]\s*Steam\s*250\s*$/i; // 页面 title 尾缀
+
+/**
+ * @param {string} url
+ * @returns {string} appId（非 /app/<digits> 页返回空——榜单页零注入）
+ */
+export function steam250AppIdFromUrl(url) {
+  const m = String(url || '').match(/\/app\/(\d{2,7})/);
+  return m ? m[1] : '';
+}
+
+/**
+ * @param {string} title
+ * @returns {string} 清洗尾缀后的游戏名
+ */
+export function steam250NameFromTitle(title) {
+  return String(title || '')
+    .replace(S250_TITLE_SUFFIX_RE, '')
+    .trim();
+}
+
+export function injectSteam250Panel() {
+  const appId = steam250AppIdFromUrl(window.location.href);
+  if (!appId) return; // 榜单/首页：无单一游戏对象，跳过
+  const h2 = document.querySelector('h2');
+  const rawName = (h2 && h2.textContent ? h2.textContent : document.title).trim();
+  const gameName = steam250NameFromTitle(rawName);
+  if (!gameName) return;
+  dbg(`steam250 游戏页: ${gameName} (appId=${appId})`);
+  // Steam 商品页同款预热（回到下载站列表页徽章立即有数据；有效缓存自动跳过）
+  // Same cache warm-up as the store page (badges ready when returning).
+  chrome.runtime.sendMessage({ action: 'CACHE_STEAM_PAGE', appId, gameName }).catch(() => {});
+  injectDownloadSitePanel({
+    appId,
+    gameName,
+    steamJumpUrl: `https://store.steampowered.com/app/${appId}/`
+  });
 }
 
 // ============ TRACK_EVENT 行为采集 / Behavior Event Collection ============

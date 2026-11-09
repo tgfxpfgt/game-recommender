@@ -50,14 +50,18 @@ export async function initPage(boot) {
   const trackedSites = settings.trackedSites || [];
   const isTracked = trackedSites.length === 0 || trackedSites.some((/** @type {string} */ s) => domain.includes(s));
   const isSteamPage = domain.includes('store.steampowered.com');
+  // v14.22.0：steam250（club.steam250.com/app/<id> 游戏页）——复用 Steam 页
+  // 功能（下载站检索浮窗 + 缓存预热），非追踪站（不做行为学习）。
+  // v14.22.0: steam250 game pages reuse the Steam-page features (not tracked).
+  const isSteam250Page = domain.endsWith('steam250.com');
 
   // 调试模式：开启时统一浮窗在统计显示 3 秒后切换为诊断视图
   // Debug mode: with it on, the unified bar switches to the debug view after stats
   debug.DEBUG.siteTracked = isTracked;
-  status.setDebugMode(settings.showDebugPanel && (isTracked || isSteamPage));
+  status.setDebugMode(settings.showDebugPanel && (isTracked || isSteamPage || isSteam250Page));
 
   // === 功能4：非追踪网站且非Steam页 → 尽早退出，节省资源 ===
-  if (!isTracked && !isSteamPage) {
+  if (!isTracked && !isSteamPage && !isSteam250Page) {
     return;
   }
 
@@ -70,6 +74,15 @@ export async function initPage(boot) {
   if (isSteamPage && window.location.pathname.startsWith('/tags/')) {
     dbg('Steam 标签页：跳过注入');
     return;
+  }
+
+  // === v14.22.0：steam250 游戏页 → 下载站检索浮窗 + Steam 跳转（复用管线） ===
+  // 榜单页（非 /app/ 路径）injectSteam250Panel 内部早退，零注入。
+  // Steam250 game page: reuse the Steam-page panel; list pages no-op inside.
+  if (isSteam250Page) {
+    debug.DEBUG.pageType = 'steam250 游戏页';
+    detail.injectSteam250Panel();
+    return; // 非追踪站：检索浮窗即全部功能，不做行为追踪/列表/详情流程
   }
 
   // === 功能3：Steam页面 → 注入下载站跳转浮窗 ===

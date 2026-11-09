@@ -40,6 +40,7 @@ export default defineConfig({
       'tests/sim/sim-list.mjs',
       'tests/sim/sim-badges.mjs',
       'tests/sim/sim-detail.mjs',
+      'tests/sim/sim-float-menu.mjs', // v14.23.0：浮窗菜单/折叠回归/调宽（轻载直 import）
       'tests/unit/test-title-parser.mjs',
       'tests/unit/test-engine.mjs',
       'tests/unit/test-contract.mjs',
@@ -101,9 +102,10 @@ export default defineConfig({
       'tests/unit/test-escape-robust.mjs',
       'tests/unit/test-settings-lite.mjs',
       'tests/unit/test-last-update-timeout.mjs',
-      // v14 B9（第五轮）：content-sim 拆分为 tests/sim/ 三套件（共享
+      // v14 B9（第五轮）：content-sim 拆分为 tests/sim/ 套件（共享
       // sim-harness.mjs 不入 include——非测试文件）；节→文件映射：
-      // sim-list=1-7+11 / sim-badges=8-8d / sim-detail=9-9d+10
+      // sim-list=1-7+11 / sim-badges=8-8d / sim-detail=9-9d+10 /
+      // sim-float-menu=F1-F10（v14.23.0 浮窗菜单独立轻载套件）
       'tests/integration/test-orchestrator.mjs',
       'tests/integration/test-handlers.mjs',
       'tests/integration/test-integrity.mjs',

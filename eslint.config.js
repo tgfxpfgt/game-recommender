@@ -104,7 +104,9 @@ export default [
   {
     // v10.2.0：第三方 vendored 库（lib/vendor/**）豁免 lint——压缩产物不适用
     // 源码风格规则（no-var/eqeqeq 等）
-    ignores: ['lib/vendor/**']
+    // v14.22.2：dist/** 本地构建产物（外部工具链输出，git-ignored）豁免 lint——
+    // 压缩包体不适用源码规则，存在即把错误计数冲至上万
+    ignores: ['lib/vendor/**', 'dist/**']
   },
   {
     files: ['**/*.js'],

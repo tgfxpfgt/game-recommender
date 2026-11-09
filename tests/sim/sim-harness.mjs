@@ -174,12 +174,26 @@ export class FakeEl {
     const cbs = (this._listeners && this._listeners['click']) || [];
     cbs.forEach((cb) => cb({ preventDefault() {}, stopPropagation() {} }));
   }
+  // v14.23.0：几何 API（浮窗拖拽/调宽处理器读取；默认零位矩形，测试可经
+  // el._rect 覆盖）— Rect API for drag/resize handlers (overridable via _rect).
+  getBoundingClientRect() {
+    const r = this._rect || {};
+    const left = r.left || 0;
+    const top = r.top || 0;
+    const width = r.width || 100;
+    const height = r.height || 40;
+    return { left, top, right: left + width, bottom: top + height, width, height };
+  }
 }
 
 // document 模拟：querySelectorAll 可插桩（列表页场景）/ stubbable querySelectorAll
 let queryAllStub = null;
 let queryOneStub = null;
 const docReadyCallbacks = [];
+// v14.23.0：非 DOMContentLoaded 的文档级监听也登记（浮窗拖拽 mousemove/mouseup、
+// 菜单外点关闭 mousedown——测试经 fireDocEvent 驱动）
+// Non-DOMContentLoaded document listeners are recorded too (drag/menu tests).
+const docListeners = {};
 
 export const documentMock = {
   readyState: 'loading',
@@ -192,13 +206,34 @@ export const documentMock = {
   querySelector: (sel) => (queryOneStub ? queryOneStub(sel) : null),
   addEventListener: (type, cb) => {
     if (type === 'DOMContentLoaded') docReadyCallbacks.push(cb);
+    else (docListeners[type] = docListeners[type] || []).push(cb);
+  },
+  removeEventListener: (type, cb) => {
+    const arr = docListeners[type];
+    if (arr) {
+      const i = arr.indexOf(cb);
+      if (i >= 0) arr.splice(i, 1);
+    }
   },
   createTreeWalker: () => ({ nextNode: () => null }),
   createTextNode: (t) => ({ textContent: t, nodeType: 3 }),
   createDocumentFragment: () => new FakeEl('fragment')
 };
+// v14.23.0：触发文档级事件（拖拽/菜单外点关闭的测试驱动入口）
+// Fire a document-level event (test driver for drag & outside-close).
+export function fireDocEvent(type, ev) {
+  (docListeners[type] || []).forEach((cb) => cb(ev || { preventDefault() {}, stopPropagation() {} }));
+}
+// v14.23.0：文档级监听计数（泄漏断言用：remove 后外点关闭监听应自摘）
+// Document listener count (leak assertions: teardown must remove its listeners).
+export function docListenerCount(type) {
+  return (docListeners[type] || []).length;
+}
 globalThis.NodeFilter = { SHOW_TEXT: 4 };
 globalThis.window = globalThis;
+// v14.23.0：视口尺寸默认值（浮窗拖拽/调宽钳位计算读取）
+globalThis.innerWidth = 1400;
+globalThis.innerHeight = 900;
 // v6.3.0：模拟浏览器 window.open（download-tracking 拦截链需要原始实现转发）
 globalThis.window.open = () => null;
 globalThis.location = { hostname: 'www.xianyudanji.gg', pathname: '/pcdj', href: 'https://www.xianyudanji.gg/pcdj' };
@@ -256,6 +291,12 @@ export const DEFAULT_SETTINGS = {
 let msgListener = null;
 export const presets = {}; // action → 响应函数（每次调用都生效）/ response factory per action
 export const sentMessages = [];
+// v14.23.0：storage.local 真实化（内存 store：get 按 keys 取 / set 合并 /
+// undefined 值删键——对齐 chrome.storage 语义），浮窗折叠/位置/宽度/缩放
+// 持久化测试依赖读写往返；adapterRules 仍内建（loadSiteRules 依赖）
+// Real in-memory storage.local: get by keys, set merges, undefined deletes
+// (mirrors chrome.storage semantics); adapterRules stays built-in.
+export const chromeLocalStore = {};
 globalThis.chrome = {
   runtime: {
     sendMessage: async (msg) => {
@@ -273,9 +314,25 @@ globalThis.chrome = {
     getManifest: () => ({ version: '2.1.3' })
   },
   storage: {
-    // v7.2.0：返回测试规则——loadSiteRules 从 storage 读取，免疫 tracker
-    // 副作用 import（adapters/index.js）对 __GAME_RECOMMENDER_SITES__ 的覆盖
-    local: { get: async () => ({ adapterRules: { version: 1, sites: SITE_RULES } }) }
+    local: {
+      get: async (keys) => {
+        if (keys == null) return { ...chromeLocalStore };
+        const out = {};
+        (Array.isArray(keys) ? keys : [keys]).forEach((k) => {
+          if (k in chromeLocalStore) out[k] = chromeLocalStore[k];
+        });
+        return out;
+      },
+      set: async (obj) => {
+        Object.keys(obj || {}).forEach((k) => {
+          if (obj[k] === undefined) delete chromeLocalStore[k];
+          else chromeLocalStore[k] = obj[k];
+        });
+      },
+      remove: async (keys) => {
+        (Array.isArray(keys) ? keys : [keys]).forEach((k) => delete chromeLocalStore[k]);
+      }
+    }
   },
   tabs: { sendMessage: async () => ({}) }
 };
@@ -305,6 +362,8 @@ export const SITE_RULES = [
   }
 ];
 globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: SITE_RULES };
+// v14.23.0：storage 真实化后需内建 adapterRules（原桩对任意 get 恒返回它）
+chromeLocalStore['adapterRules'] = { version: 1, sites: SITE_RULES };
 
 // ============ 按 manifest 顺序加载内容脚本 / Load content scripts in order ============
 // v6.0.0：内容脚本 ESM 化——经典入口 tracker.js eval + 模块动态 import

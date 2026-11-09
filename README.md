@@ -324,6 +324,31 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.23.0（详情页浮窗：⚙ 下拉菜单 + 右缘拖拽调宽 + 折叠回归修复）
+
+- **折叠按钮修复（用户报告"点击无反应"）**：v10.6.0 重构引入回归——切换条件把"当前状态"当"目标状态"传入 `setFolded`（`setFolded(display==='none')` 恒等于设回当前态），折叠按钮自 v10.6.0 起恒无操作；真机复现实证后修复为取反切换，sim F1 回归锁定
+- **折叠按钮升级为 ⚙ 下拉菜单（用户需求）**：浮窗标题栏 ▾ 折叠按钮改为 ⚙ 菜单——折叠/展开、内容缩放（80%–140%，步进 10%，body zoom 单点生效——浮窗模板全内联 px 字号）、重置位置与大小；所有 chrome 浮窗统一获得（诊断/下载站面板/下载历史同享），缩放/宽度按浮窗 id 持久化（`grFloatScale`/`grFloatWidth`，chrome.storage.local）
+- **右缘拖拽调宽（用户需求）**：浮窗右缘手柄拖拽调整宽度（260–640px 钳位 + 视口右界钳位，手柄右探 3px 避开滚动条）；位置记忆（v11.0）实测有效，本次补恢复时视口钳位（换屏/缩窗后旧坐标出屏防护）
+- **菜单缓存信息区（用户需求）**：⚙ 菜单显示当前游戏缓存时间 + Steam 缓存条目/命中/未中 + 负缓存条数——新增轻量只读 action `GET_FLOAT_CACHE_INFO`（区别于 GET_STATS 全量聚合，菜单打开时即时查询）
+- **候选浮窗主机机型入口按钮化（用户需求："检索错误再选择主机不直观，直接加一个按钮"，并发批次并入）**：35 个机型按钮从浮窗中部平铺收敛为主视图一个醒目入口按钮（`gr-platform-entry`），点击切换机型选择专页（厂商分组 + 状态行 + 返回按钮/Esc 双出口）——候选搜索视图保持紧凑；专页激活期间候选列表键盘导航停用（列表仅隐藏未销毁），Esc 监听带自清理（面板重渲染后自摘防泄漏，v14.13 B6 同款模式）；两个调用点（未命中/报错重检索）均经同一渲染函数自动受益；XSS 棘轮 73→74（入口按钮三元受控静态片段 +1 入基线）+ 回归守卫 +2 入 test-manual-platforms（commit 53a8f3a）
+- 测试：`tests/sim/sim-float-menu.mjs` 新套件 F1–F10（折叠回归/菜单三态/调宽钳位/缩放持久化/外点关闭/恢复钳位/重置/teardown 泄漏）；sim-harness `storage.local` 真实化（内存 store 语义对齐 chrome.storage）+ 文档级监听捕获/计数
+
+### v14.22.2（Steam 浮窗 Steam250 排名行：关 SteamSpy 不再丢失 + 整行可点跳转）
+
+- **排名行与 SteamSpy 模块解耦（用户报告"浮窗缺 Steam250 排名信息"根因）**：`gr-steam250-row`/`gr-series-row`/`gr-itad-row`/`gr-fav-row` 四个异步数据行锚点原嵌在 SteamSpy 块内——options 关闭 SteamSpy 模块（fmSpy）时四行被一并带走（Steam250 排名/系列作品/ITAD 最低价/收藏按钮全消失）；提出为常驻独立块，各行数据源本就独立（各自后台消息）、默认隐藏数据就绪才显示，常驻渲染零视觉成本，SteamSpy 开关回归只管 SteamSpy 本体
+- **整行可点跳转 steam250（用户需求）**：排名行/"未入前 250"提示行整体并入 `club.steam250.com/app/<appId>` 游戏专属深链——命中区从尾部 `Steam250 ↗` 小链接扩到整行；快照不可用（抓取失败/解析哨兵拒绝）不再整行静默，保底显示可点"🏆 Steam250 榜单 ↗"行（持续不可达环境下功能入口仍可辨识可触达）
+- 测试：test-ui-pure 新增 spy:false 四锚点常驻回归；test-sidebar-rows 新增整行链接/保底行/消息失败三用例
+
+### v14.22.1（Steam 浮窗 Steam250 排名行：跳转升级游戏专属深链）
+
+- **排名行跳转升级（Steam 浮窗 + 内嵌卡双挂点）**：`Steam250 ↗` 链接从通用 top250 榜单页改为该游戏的 steam250 专属页深链（`club.steam250.com/app/<appId>`）——top250 页不含未入榜游戏，专属页实测对未入前 250 的游戏同样提供（含 250 名外扩展排名），入榜游戏落地即其排名锚点；"未入前 250"提示行同步带链接
+
+### v14.22.0（steam250 游戏页接入：下载站检索 + Steam 跳转）
+
+- **steam250 游戏页功能接入（复用 Steam 商品页管线）**：`club.steam250.com/app/<appId>` 游戏详情页现注入下载站资源检索浮窗（缓存优先 + 站内搜索——Steam 商品页同一管线参数化复用零复制），面板头部附 Steam 商店页跳转链接，并同步发送 `CACHE_STEAM_PAGE` 预热（回到下载站列表页徽章即时有数据）；manifest `content_scripts`/`host_permissions`/`web_accessible_resources` 三处新增 `*.steam250.com`
+- **页面识别与降级**：真实游戏页在 club 子域（`steam250.com/app/*` 为 404，2026-11 实测）——按 `/app/<digits>` 路径判定；榜单页（top250 等）无单一游戏对象零注入；steam250 为功能页宿主（非追踪站）：不做行为学习、零 TRACK_EVENT，与 Steam 商品页同先例
+- **名称提取**：页面 `<h2>` 优先，title 回退并清洗 " – Steam 250" 尾缀（`steam250AppIdFromUrl`/`steam250NameFromTitle` 纯函数，sim 9e 节回归覆盖：面板渲染/预热消息/榜单页早退/名称清洗）
+
 ### v14.21.2（浮窗具体评论回归：steamcommunity 评论正文回退源）
 
 - **评论正文替代源上线（用户报告：xdgame 详情页"依旧没有显示具体评论"）**：appreviews 端点 302 死亡后 v14.19/v14.21.1 只补齐了好评率**摘要行**（百分比/评价数），浮窗"简体中文评测"区（评论**文字引用**）一直空着——商店页 SSR 不内嵌评论文本。实测发现 **steamcommunity 评论浏览页仍活着**（免登录，每页 10 条完整评论卡）——新增 `background/steam/api-community-reviews.js`：解析 `apphub_CardTextContent` 评论卡（正文/推荐方向 thumbsUp|Down/日期），DLC 的 reviews URL 自动 302 到本体评论枢纽（评论归属本体语义正确）

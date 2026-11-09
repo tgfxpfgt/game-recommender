@@ -62,6 +62,96 @@
   padding: 8px 10px;
 }
 
+/* v14.23.0：⚙ 下拉菜单（折叠/缩放/重置/缓存信息）与右缘调宽手柄 */
+.gr-float-menu {
+  position: absolute;
+  top: 30px;
+  right: 8px;
+  z-index: 10;
+  min-width: 158px;
+  max-height: calc(100% - 42px);
+  overflow-y: auto;
+  background: var(--gr-float-bg, #1b2838);
+  border: 1px solid var(--gr-float-border, #2a475e);
+  border-radius: 6px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.55);
+  padding: 4px;
+  font-size: 12px;
+  font-weight: normal;
+}
+.gr-float-menu-item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: none;
+  background: transparent;
+  color: var(--gr-float-text, #c7d5e0);
+  font-size: 12px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+}
+.gr-float-menu-item:hover {
+  background: rgba(103, 193, 245, 0.12);
+  color: var(--gr-float-text-bright, #fff);
+}
+.gr-float-menu-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  color: var(--gr-float-text, #c7d5e0);
+}
+.gr-float-menu-row-label {
+  flex: 1;
+  min-width: 0;
+}
+.gr-float-menu-row-val {
+  min-width: 40px;
+  text-align: center;
+  color: var(--gr-float-accent, #66c0f4);
+}
+.gr-float-menu-mini {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--gr-float-border, #2a475e);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--gr-float-text, #c7d5e0);
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  line-height: 1;
+  font-family: inherit;
+}
+.gr-float-menu-mini:hover {
+  color: var(--gr-float-accent, #66c0f4);
+  border-color: var(--gr-float-accent, #66c0f4);
+}
+.gr-float-menu-sep {
+  height: 1px;
+  margin: 4px 6px;
+  background: var(--gr-float-border, #2a475e);
+}
+.gr-float-menu-info {
+  padding: 4px 10px 6px;
+  color: var(--gr-float-text-dim, #8f98a0);
+  font-size: 11px;
+}
+.gr-float-menu-info-row {
+  margin: 2px 0;
+}
+.gr-float-resize {
+  position: absolute;
+  top: 0;
+  right: -3px;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 11;
+}
+
 /* ============ 状态浮窗 ============ */
 .gr-status-title {
   display: flex;
