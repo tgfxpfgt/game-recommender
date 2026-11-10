@@ -52,7 +52,7 @@ function staticImportsOf(src) {
  * @param {string[]} entries 仓库相对 POSIX 路径
  * @returns {{files: string[], bytes: number, missing: string[]}}
  */
-function walk(entries) {
+export function walk(entries) {
   const seen = new Set();
   const missing = [];
   const stack = [...entries];
@@ -76,7 +76,7 @@ function walk(entries) {
 }
 
 /** manifest 内容脚本条目 / content_scripts entries from manifest */
-function contentScriptAssets() {
+export function contentScriptAssets() {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf-8'));
   const js = [];
   let cssBytes = 0;
@@ -95,7 +95,7 @@ function contentScriptAssets() {
 }
 
 /** tracker 内的动态装载目标（getURL 字面量）/ dynamic getURL literals in tracker */
-function trackerDynamicTargets() {
+export function trackerDynamicTargets() {
   const src = fs.readFileSync(path.join(ROOT, 'content/tracker.js'), 'utf-8');
   const out = [];
   for (const m of src.matchAll(/getURL\(\s*'([^']+)'/g)) {
@@ -178,7 +178,10 @@ async function main() {
   console.log('\n✅ 体积预算通过');
 }
 
-main().catch((e) => {
-  console.error('perf-budget 执行失败:', e);
-  process.exit(1);
-});
+// 仅直接执行时跑主流程；被其他脚本 import（如 gen-war.mjs 复用 walk）时不执行
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => {
+    console.error('perf-budget 执行失败:', e);
+    process.exit(1);
+  });
+}

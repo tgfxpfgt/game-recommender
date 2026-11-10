@@ -122,6 +122,9 @@ jobs:
       # 三项按基线锁定（与 gate 同源脚本，无浏览器依赖）
       - name: 体积预算 / Bundle budget
         run: node scripts/perf-budget.mjs --assert
+      # v14.27.0（优化方案 P2-6）：WAR 必须与 module-manifest 派生结果一致
+      - name: WAR 一致性 / WAR consistency
+        run: node scripts/gen-war.mjs --check
       - name: 测试耗时预算 / Test timing budget
         run: npm run test:timed -- --budget 90
 

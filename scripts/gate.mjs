@@ -69,6 +69,9 @@ step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
 // v14.26.0（优化方案 P1-2 后半 + P2-12）：体积预算——SW 静态图/静态注入/内容
 // 闭包三项按实测基线锁定，任何增长即红（真机冷启动断言在 E2E，fast 模式不做）。
 step('perf-budget（体积预算）', 'node scripts/perf-budget.mjs --assert');
+// v14.27.0（优化方案 P2-6）：WAR 从 module-manifest 派生——手工往 manifest 加
+// 资源（或新增内容模块忘了重生成）在此处打回，`npm run war:gen` 一键修复。
+step('gen-war（WAR 派生一致性）', 'node scripts/gen-war.mjs --check');
 step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
 // v14.11 B10（报告 B P1-01）：全局覆盖率快照棘轮——coverage:gate 只查新增
 // 文件（push 后 diff-filter=A 恒空 = 恒绿），存量改动无约束；快照补全局
