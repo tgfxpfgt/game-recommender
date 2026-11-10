@@ -16,6 +16,48 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.25.0',
+        date: '2026-11-10',
+        items: [
+          '新增使用证据档案（usage-evidence）——三层有界记录全本地：计数器（15 键 allowlist：缓存先行命中/检索命中/未命中/强制刷新/机型声明/手动映射等关键路径累计）、耗时环形（检索/直取 p50/p90）、高信号事件 FIFO（未命中原因/好评率回退层级/评论结构漂移/人工报错，近 7 天分布）',
+          '读侧：GET_USAGE_EVIDENCE_REPORT（扩展页）+ 一键诊断包同源附带 usageEvidence 字段——后续优化会话读报告即可量化定位问题/调默认参数（docs/playbooks.md §0 已写读法配方）',
+          '埋点 18 处全在后台（菜单动作经既有 action 落账，内容侧零改动）：SEARCH_STEAM 四出口/直取/强制刷新/名称刷新/重查/强制清页/手动映射/机型声明/人工报错/好评率回退三级+活端点/社区评论成功失败+结构漂移/评论回填/错题采集',
+          '顺带修真 bug：记录 API fire-and-forget 与 flush 竞态——flush 不等在途 apply 会丢记录（单测实证），apply 串行队列 + flush 先排空（铁律 6 同源）',
+          '隐私边界：不记录页面 URL 与游戏标题（仅类别/结果码/appId）；有界（计数键 allowlist/环形 50/事件 300）；随清除数据清理、随备份导出'
+        ]
+      },
+      {
+        ver: '14.24.1',
+        date: '2026-11-10',
+        items: [
+          '白名单单源升级改定向验证——related + 扫描器套件（契约/设置同步/完整性）替代全量 npm test（100-270s→~20s），测试基建例外仍全量；大批次 >15 文件仍全量',
+          'coverage:gate 基线标记 .coverage-gate-base（上次已门禁 HEAD）——消除未推送提交堆积导致的每批全量覆盖率重跑（~4min→瞬时）；修复 cmd.exe 吃 ^ 字符致标记恒失效',
+          'gate:fast visual 按变更面跳过（触发面 = 扩展页/样式/图标/shared/manifest——基线只渲染四个扩展页），纯后台/工具批次省 ~30-60s',
+          'sim 信号超时默认 20s→60s（推送抖动 ~40% 假红提额即稳，v14.17 先例）+ 节2/2b retry:2 绷带（Vitest 4 嫌疑专项前保 gate 可用）+ Vitest 4 死配置 poolOptions 清理 + test:sim 固化 include 顺序',
+          'docs/playbooks.md 任务类型配方（浮窗/管线/设置键/action/存储/词表/发版 7 类触点查表）+ AGENTS.md 指针——探索式读码改查表直达'
+        ]
+      },
+      {
+        ver: '14.24.0',
+        date: '2026-11-10',
+        items: [
+          "浮窗提速（用户报告'有缓存也慢'）——详情页 URL 索引命中路径此前完全绕过缓存每次全量拉取（appdetails×2+商店页+评测+spy+公告 ~6 出站请求），现缓存先行：完整有效条目（含好评率重取/倒挂自愈/评论回填标记/名称相关性四重判定，与列表页 tryCacheServed 同口径）直接合并返回零出站，未命中才转全量",
+          "动作迁入 ⚙ 菜单（用户需求）——手动更新/重新检索/选择机型三项进右上角菜单（data-menu-action 标记，点击自管 busy 反馈），浮窗底部两按钮移除；'选择主机机型'菜单直达机型专页（candidates 主视图入口按钮同步移除，openPlatformView 参数）",
+          "评论回填自愈（用户报告'依旧没有具体评论'）——cnReviewsFetchedAt 标记：v14.21.2 前旧缓存条目 reviews 恒空且被缓存命中永久顶住，现缺标记条目自动转完整拉取一次回填社区评论正文（标记在位且 reviews 空 = 确实无评论，不循环重取）",
+          "真实清缓存（用户需求'重新检索就该清掉缓存即使没找到新信息'）——GET_STEAM_BY_APPID 新增 forceRefresh：手动更新/重新检索带标记跳缓存直取并预删该 appId 缓存，拉取失败也不留旧数据（旧实现缓存有效时直接回旧缓存 = 更新按钮无效）",
+          '缓存池扩容（用户需求）——STEAM_CACHE_MAX_ENTRIES 1200→3000（4 分文件写放大已控，LRU 语义不变）'
+        ]
+      },
+      {
+        ver: '14.23.1',
+        date: '2026-11-10',
+        items: [
+          '分层门禁——gate:fast 改为受影响测试选择（vitest related + sim 显式路径映射），宽爆炸半径单源白名单（constants/settings/契约/存储层/shared 等）触碰自动升级全量 vitest，全量 gate 保留发布触发点',
+          '版本四处一键 bump——npm run bump patch|minor "标题" "要点"一次完成 manifest/package/README/welcome 同步（油猴 @version 仍为移植基线不动）',
+          'AGENTS.md 新增最小必要变更纪律（分层门禁/样板一键化/最小 diff）+ 测试最小必要规则（就近回归用例、不三层重复铺）'
+        ]
+      },
+      {
         ver: '14.23.0',
         date: '2026-11-10',
         items: [

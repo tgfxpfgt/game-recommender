@@ -2,6 +2,8 @@
 
 > 本文件为 AI 编码助手（Claude/GPT/GLM 等）的精简上下文。**改代码前必读**；
 > 细节见 CONTRIBUTING.md（工程约定）与 README.md（功能/更新日志）。
+> **按需求类型直达触点：先查 `docs/playbooks.md`**（浮窗/管线/设置键/action/
+> 存储模块/词表/发版 7 类配方——文件+测试+坑查表，免探索式读码）。
 
 ## 项目一句话
 
@@ -12,8 +14,9 @@
 ## 常用命令
 
 ```bash
-npm run gate        # 全量门禁：check + E2E(MOCK) + visual（提交/发布前必跑）
-npm run gate:fast   # 快速门禁：跳过 E2E
+npm run gate        # 全量门禁：vitest 全量 + E2E(MOCK) + visual（发布触发点跑，日常不用）
+npm run gate:fast   # 快速门禁：lint/typecheck + 受影响测试 + 棘轮 + visual —— 每批提交前必跑
+npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]
 npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时）
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ```
@@ -113,7 +116,27 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
   真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
   主世界 evaluate 读不到，模块加载以网络请求为准）；不进门禁。
+- **最小必要测试（用户指令 2026-11-10）**：修复类就近现有套件补 1 个回归用例，不新建套件；
+  新 sim 套件仅限新模块/新行为；同一变更不在 unit/sim/E2E 三层重复铺（主选变更所在层，
+  其余层留发布触发点补）；E2E section 增项默认随完整发版批次。
 - 已知问题：background/handlers.js 的 coverage 归因伪影（见 CONTRIBUTING 末尾）。
+
+## 最小必要变更纪律（用户指令 2026-11-10）
+
+- **分层门禁**：日常批次 `npm run gate:fast`——vitest 按变更面选择（单源规则在
+  `scripts/test-changed.mjs`：宽爆炸半径单源白名单触碰即升级**定向验证**（related +
+  扫描器套件；测试基建例外仍全量）；相关文件 >15 → 全量；sim 不在静态 import 图上
+  （__grImport 装载），走文件内显式映射）。**coverage:gate 基线 = .coverage-gate-base
+  标记**（上次已门禁 HEAD，gitignored 本地状态）——已门禁文件不重复门禁。
+  **fast 模式 visual 按变更面跳过**（触发面 = popup/options/dashboard/freegames/
+  styles/icons/shared/manifest——基线只渲染这四个扩展页+主题+版本号）。
+  全量 `npm run gate` 只在发布触发点跑。**sim 多文件连跑必须保 include 顺序**
+  （sim-list 前置——CLI 目录参数按字母序打乱会复现节 2/2b 挂起，v14.24.1 实证；
+  npm run test:sim 已固化显式顺序）。
+- **版本样板一键化**：`npm run bump patch|minor "标题" "要点1" ...` 一次完成
+  manifest/package/README/welcome 四处（油猴 @version 不动=移植基线），勿再手改四处。
+- **最小 diff**：需求外顺手改动（重构/格式化/依赖微调/无关配置）不并入功能批次，
+  单独列出由用户决定；不动需求未触及的文件。
 
 ## 并发与写入纪律（B5/B9 单源）
 
@@ -146,7 +169,7 @@ job 同源调用——漂移即红）。
 
 触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。步骤（顺序固定）：
 
-1. `npm run gate`（全量门禁一条命令）
+1. `npm run gate`（全量门禁一条命令——发布触发点必跑；日常批次合并前 `gate:fast` 即可）
 2. bump manifest+package+README changelog → `npm run package` → `npm run release:smoke`
 3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + Mimosa seal）
 4. 深度扫描（security_scan，focusFiles=改动文件）→ seal 补入 release notes
