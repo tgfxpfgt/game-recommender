@@ -347,6 +347,15 @@ test('内容侧发送 action ⊆ CONTENT_ALLOWED_ACTIONS（sender 门禁一致�
     []
   );
 });
+// v14.28.0（S3 P2-16）：反向一致性——白名单条目必须都在规则表内。正向测试
+// 只保证"发的都被允许"，本测试保证"允许的都是已契约化 action"：白名单残留
+// 未契约化 action 时内容侧调用会撞上"未契约化→默认拒绝"，两条断言合起来即
+// 双向闭环（白名单 == 内容侧可发的已契约化 action 集合）。
+test('CONTENT_ALLOWED_ACTIONS ⊆ 规则表（白名单不得含未契约化 action）', () => {
+  const rules = contractMod.getRules();
+  const orphan = [...contractMod.CONTENT_ALLOWED_ACTIONS].filter((a) => !rules[a]);
+  expect(orphan, '白名单中但规则表缺失（内容侧调用将命中"未契约化"拒绝）:\n  ' + orphan.join('\n  ')).toEqual([]);
+});
 
 // v10.7.0 批次4：内容模块清单（module-manifest.js）中每个文件必须真实存在
 // ——tracker 装载/测试加载/integrity 校验三处消费同一清单，杜绝漂移
