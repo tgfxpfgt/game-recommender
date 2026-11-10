@@ -1,3 +1,6 @@
+
+# v14.24.1：coverage:gate 基线标记（上次已门禁 HEAD——本地状态，不入库）
+.coverage-gate-base
 # ===== 操作系统生成文件 / OS generated files =====
 .DS_Store
 Thumbs.db

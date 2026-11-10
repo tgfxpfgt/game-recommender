@@ -5,15 +5,16 @@
  * 替代手动多步（check → E2E → visual）。发布前必跑；日常开发可分子命令。
  *
  * 用法 / Usage:
- *   npm run gate            # 全量：check + E2E(MOCK) + visual
- *   npm run gate -- --fast  # 跳过 E2E（仅 check + visual）
+ *   npm run gate            # 全量：vitest 全量 + E2E(MOCK) + visual（发布触发点）
+ *   npm run gate -- --fast  # 快速：受影响测试（scripts/test-changed.mjs 按变更面
+ *                           # 选择，白名单单源触碰自动升级全量）——每批提交前
  *   npm run gate -- --continue  # 失败不中止，跑完全部步骤后汇总（重负载机
  *                               # 一次看全貌；默认仍 fail-fast）
  *
  * 真实网络 E2E（npm run e2e，无 E2E_MOCK）为发布可选增强——受外网延迟
  * 影响偶发超时（已知环境敏感，见 CONTRIBUTING），不作为确定性门禁。
  */
-import { spawnSync } from 'node:child_process';
+import { spawnSync, execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -46,7 +47,18 @@ function step(name, cmd, env = {}) {
   console.log(`✅ ${name} 通过`);
 }
 
-step('check（lint + typecheck + vitest）', 'npm run check');
+// v14.23.0（用户指令：最小必要收敛——测试规模与变更面成正比）：check 拆步，
+// fast 模式 vitest 走受影响选择（test-changed.mjs），全量模式保持原 check 语义
+// v14.25.0：gate 上下文 sim 信号超时钳回 20s（快速失败）——已知进程级翻转
+// 在满载下 60s 也救不回（实证 360s×2 假红墙钟），单跑隔离车道保持 60s 容忍
+step('lint', 'npm run lint');
+step('typecheck', 'npm run typecheck');
+const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };
+if (fast) {
+  step('vitest（受影响套件，白名单单源触碰自动升级全量）', 'node scripts/test-changed.mjs', GATE_VITEST_ENV);
+} else {
+  step('vitest（全量两阶段）', 'npm test', GATE_VITEST_ENV);
+}
 step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
 step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
 // v14.11 B10（报告 B P1-01）：全局覆盖率快照棘轮——coverage:gate 只查新增
@@ -57,7 +69,48 @@ if (!fast) {
 if (!fast) {
   step('E2E 冒烟（MOCK 离线）', 'npm run e2e', { E2E_MOCK: '1' });
 }
-step('visual（视觉回归）', 'npm run visual');
+// v14.24.1（fast 模式）：visual 按变更面跳过——基线只渲染 4 个扩展页
+//（popup/options/dashboard/freegames）+ 主题样式 + 版本号文本，纯后台/内容/
+// 工具/测试批次零视觉影响。触发面外（background/content/data/tests/docs/
+// scripts）→ skip；全量 gate 不跳（发布触发点整体验证）。
+if (fast) {
+  const VISUAL_TRIGGERS = [
+    'popup/',
+    'options/',
+    'dashboard/',
+    'freegames/',
+    'styles/',
+    'icons/',
+    'shared/',
+    'manifest.json'
+  ];
+  let files = [];
+  try {
+    const norm = (s) =>
+      s
+        .split('\n')
+        .map((f) => f.trim().replace(/\\/g, '/'))
+        .filter(Boolean);
+    files = [
+      ...norm(execSync('git diff --name-only HEAD', { cwd: ROOT, encoding: 'utf-8' })),
+      ...norm(execSync('git ls-files --others --exclude-standard', { cwd: ROOT, encoding: 'utf-8' }))
+    ];
+    if (files.length === 0)
+      files = norm(execSync('git diff --name-only HEAD~1 HEAD', { cwd: ROOT, encoding: 'utf-8' }));
+  } catch {
+    files = ['<unknown>']; // git 异常保守跑 visual
+  }
+  const touches = files.some((f) => VISUAL_TRIGGERS.some((t) => f === t || f.startsWith(t)));
+  if (!touches) {
+    console.log(
+      `\n===== visual（视觉回归）=====\n⏭️ 跳过：变更 ${files.length} 文件均不在视觉触发面（扩展页/样式/主题/版本号）`
+    );
+  } else {
+    step('visual（视觉回归）', 'npm run visual');
+  }
+} else {
+  step('visual（视觉回归）', 'npm run visual');
+}
 if (process.argv.includes('--bench')) {
   // v14.7 批次 13：性能基准（可选步骤——性能批次的前后对比入口）
   step('perf-bench（性能基准）', 'node scripts/perf-bench.mjs');

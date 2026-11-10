@@ -24,12 +24,13 @@ export default defineConfig({
     // v6.4.10：content-sim 高负载与并行文件 CPU 竞争致节 2/2b 偶发超时——串行。
     // v8.2.0：P0-1 根治后恢复并行；v9.1.0：测试集增长（615 项）后并行负载再次
     // 吃满 20s 余量（节 2/2b 偶发超时回归）——回退串行，稳定性优先（~15s 可接受）
-    // v14.5.0 B8：池级 isolate 显式声明——跨文件连跑（test-freegames →
-    // sim-list 同进程复用）时 Node ESM 模块注册表跨文件残留引发推送竞态；
-    // 池级标志强制每文件新进程。
+    // v14.5.0 B8：isolate 显式声明——跨文件连跑时 Node ESM 模块注册表跨文件
+    // 残留引发推送竞态；每文件新进程。
+    // v14.24.1：Vitest 4 移除 poolOptions（config.d.ts 已无此键，静默忽略仅剩
+    // DEPRECATED 警告）——forks 隔离消费顶层 isolate（cli-api 池调度器读
+    // project.config.isolate），删除死键；fileParallelism 保持顶层。
     fileParallelism: false,
     isolate: true,
-    poolOptions: { forks: { isolate: true } },
     include: [
       // v6.2.0：14 个套件全部由 vitest 收集（content-sim 经 __grImport
       // 注入兼容 eval 动态 import，单 runner 全量统一）
@@ -57,6 +58,7 @@ export default defineConfig({
       'tests/unit/test-ui-pure.mjs',
       'tests/unit/test-ratings-resume.mjs',
       'tests/unit/test-manual-platforms.mjs',
+      'tests/unit/test-usage-evidence.mjs',
       'tests/unit/test-match-consensus.mjs',
       'tests/unit/test-health.mjs',
       'tests/unit/test-wiring.mjs',
