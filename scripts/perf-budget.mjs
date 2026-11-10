@@ -59,7 +59,8 @@ export const BUDGETS = {
   // v14.29.0（SW 饱和修复）：批量追加 appendModuleBatch（data-store +~600B）、
   // 重试轮退避/单并发（ratings-batch）、缓存读去重（orchestrator-list）——
   // SW 图 +693B，均为修复性净增（去重后运行期往返反而减少），按实测重锁。
-  swGraphBytes: 842819,
+  // v14.29.1：重试轮快照副本 + 根因注释（ratings-batch）再 +752B，同批修复性净增。
+  swGraphBytes: 843571,
   swGraphFiles: 105,
   staticInjectionBytes: 50164,
   closureBytes: 294466
