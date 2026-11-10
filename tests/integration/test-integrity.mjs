@@ -263,6 +263,13 @@ test('CSP 显式声明（extension_pages 默认基线）', () => {
     JSON.stringify({ extension_pages: "script-src 'self'; object-src 'self'" })
   );
 });
+// v14.26.0 P2-15：本机地址走按需授权（最小权限）——不得回到静态 host_permissions。
+// 申请侧（options/panels/settings-bind.js）依赖更宽的 optional 模式才能收窄请求。
+test('localhost 不在静态 host_permissions（按需 optional 申请）', () => {
+  const hosts = manifest.host_permissions || [];
+  expect(hosts.some((h) => /localhost|127\.0\.0\.1/.test(h))).toEqual(false);
+  expect((manifest.optional_host_permissions || []).includes('http://*/*')).toEqual(true);
+});
 
 // 6. adapters 清单一致性（v6.3.1：manifest/SW/options.html 三处手写同步防漂移）
 const swSrc2 = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');

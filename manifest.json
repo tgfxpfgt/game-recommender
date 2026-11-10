@@ -41,9 +41,7 @@
     "https://www.gog.com/*",
     "https://www.gamerpower.com/*",
     "https://api.isthereanydeal.com/*",
-    "https://cn.bing.com/*",
-    "http://localhost/*",
-    "http://127.0.0.1/*"
+    "https://cn.bing.com/*"
   ],
   "optional_host_permissions": ["http://*/*", "https://*/*"],
   "content_security_policy": {

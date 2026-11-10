@@ -12,6 +12,43 @@
 
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
+  // ============ 本地 LLM 端点权限（v14.26.0 P2-15） ============
+  // manifest 不再静态持有 localhost/127.0.0.1 的 host 权限（最小权限）——
+  // 仅当用户显式启用本地 LLM 端点时按需申请。permissions.request 必须在
+  // 用户手势内调用：自动保存是 800ms 防抖（已脱离手势），故挂在 change/click
+  // 事件上；已授权时 request 直接 resolve(true) 不弹窗。
+  // localhost is now an optional host permission, requested on demand inside
+  // user-gesture handlers (the debounced autosave can no longer carry one).
+  const LOCAL_LLM_ORIGINS = { localhost: 'http://localhost/*', '127.0.0.1': 'http://127.0.0.1/*' };
+
+  /** 端点指向本机时返回待申请的 origin，否则 null / origin to request, or null */
+  function localOriginOf(endpoint) {
+    try {
+      const host = new URL(String(endpoint || '')).hostname;
+      return LOCAL_LLM_ORIGINS[host] || null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * 按需申请本地端点权限；返回是否可用（非本地端点恒 true）。
+   * Request localhost permission on demand; always true for non-local endpoints.
+   * @param {string} endpoint
+   * @returns {Promise<boolean>}
+   */
+  async function ensureLocalEndpointPermission(endpoint) {
+    const origin = localOriginOf(endpoint);
+    if (!origin) return true;
+    const perms = globalThis.chrome && globalThis.chrome.permissions;
+    if (!perms || !perms.request) return true; // 非扩展页/旧浏览器：交由请求自身报错
+    try {
+      return await perms.request({ origins: [origin] });
+    } catch {
+      return false;
+    }
+  }
+
   // ============ Test LLM Connection / 测试 LLM 连接 ============
   // v14.5.0 B8：端点探测单点——fetch → {ok, status, data} 形状 + 错误归一
   // （原 local/openai 两分支各自手写 response.ok 判定与 JSON 容错）。
@@ -33,6 +70,13 @@
     const endpoint = document.getElementById('llmEndpoint').value;
     const apiKey = document.getElementById('llmApiKey').value;
     const model = document.getElementById('llmModel').value;
+
+    // v14.26.0 P2-15：本地端点权限按需申请（点击"测试连接"即用户手势）
+    if (!(await ensureLocalEndpointPermission(endpoint))) {
+      resultEl.textContent = '❌ 未授予本地端点访问权限（请重新允许后重试）';
+      resultEl.className = 'test-result error';
+      return;
+    }
 
     try {
       let result;
@@ -132,8 +176,15 @@
       };
       if (presets[e.target.value]) {
         document.getElementById('llmEndpoint').value = presets[e.target.value];
+        // v14.26.0 P2-15：切到本地提供商即申请 localhost 权限（change = 用户手势）
+        void ensureLocalEndpointPermission(presets[e.target.value]);
       }
       OPTS.scheduleAutoSave();
+    });
+
+    // v14.26.0 P2-15：手填/粘贴本地端点后（change = 失焦/回车，属用户手势）按需申请
+    document.getElementById('llmEndpoint').addEventListener('change', (e) => {
+      void ensureLocalEndpointPermission(e.target.value);
     });
 
     // LLM 文本输入（防抖自动保存）
