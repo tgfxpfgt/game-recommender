@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.27.0',
+        date: '2026-11-11',
+        items: [
+          'Steam 注入面收窄至 store.steampowered.com，WAR 改为 module-manifest 单源派生（gen-war --check 入门禁/CI）',
+          '自定义站点按域申请可选权限并在拒绝时降级，删除站点回收该域权限',
+          'api-search 拆分为候选/共识/兜底三模块，导出面与逐值行为不变（golden 测试冻结）',
+          '新增 options 保存/渲染与 dashboard 诊断 DOM 单测，全局行覆盖 44.7%→46.1%'
+        ]
+      },
+      {
         ver: '14.26.0',
         date: '2026-11-10',
         items: [

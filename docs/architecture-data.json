@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-10T15:12:50.520Z",
-  "version": "14.25.0",
+  "generatedAt": "2026-11-10T16:44:27.181Z",
+  "version": "14.26.0",
   "nodes": [
     {
       "dir": "background",
@@ -8,7 +8,7 @@
       "color": "#4a9eff",
       "desc": "Service Worker — 消息分发/检索管线/推荐引擎/存储",
       "files": 3,
-      "lines": 451
+      "lines": 462
     },
     {
       "dir": "content",
@@ -16,7 +16,7 @@
       "color": "#a3cf06",
       "desc": "内容脚本 — 徽章注入/浮窗/行为采集",
       "files": 2,
-      "lines": 333
+      "lines": 345
     },
     {
       "dir": "options",
@@ -32,7 +32,7 @@
       "color": "#ff7b00",
       "desc": "数据分析 — 统计/洞察/诊断/备份",
       "files": 10,
-      "lines": 2114
+      "lines": 2128
     },
     {
       "dir": "popup",
@@ -87,7 +87,7 @@
     "actionCount": 78,
     "storageCount": 30,
     "testCount": 0,
-    "suiteCount": 68
+    "suiteCount": 73
   },
   "flows": [
     {

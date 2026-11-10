@@ -324,6 +324,13 @@ Issue（含"未找到"错题样本可经 dashboard 一键导出附上）。
 
 ## 更新日志
 
+### v14.27.0（S2 权限收窄与可维护性批次）
+
+- Steam 注入面收窄至 store.steampowered.com，WAR 改为 module-manifest 单源派生（gen-war --check 入门禁/CI）
+- 自定义站点按域申请可选权限并在拒绝时降级，删除站点回收该域权限
+- api-search 拆分为候选/共识/兜底三模块，导出面与逐值行为不变（golden 测试冻结）
+- 新增 options 保存/渲染与 dashboard 诊断 DOM 单测，全局行覆盖 44.7%→46.1%
+
 ### v14.26.0（安全与性能加固（S1））
 
 - 日志与诊断包脱敏：URL 裁至 origin+path、递归剔除密钥字段
