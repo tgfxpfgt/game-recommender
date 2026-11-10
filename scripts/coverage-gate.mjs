@@ -7,7 +7,6 @@
  * Run: npm run coverage:gate
  */
 import { execSync } from 'node:child_process';
-import { readFileSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -60,54 +59,40 @@ function run(cmd) {
   }
 }
 
-// 1. 基线解析（v14.24.1）：优先 **.coverage-gate-base 标记**（上次成功门禁的
-//    HEAD，gitignored 本地状态）——消除"未推送提交堆积导致 origin/main 陈旧、
-//    新增文件误判、每批全量 vitest 跑覆盖率（~4min）"的成本；已门禁过的文件
-//    不再重复门禁（每批增量语义不变）。标记失效/缺失回退 origin/main，
-//    再回退 HEAD~1（CI 浅克隆——防止门禁被静默跳过）。
-//    Baseline: last-gated-HEAD marker first; origin/main and HEAD~1 fallbacks.
-const MARKER_FILE = path.join(ROOT, '.coverage-gate-base');
-/** @returns {string|null} */
-function resolveBase() {
+// 1. 基线解析（v14.29.1，第二轮审计 R2-03）：**不再依赖 .coverage-gate-base
+//    标记文件**（gitignored 本地状态——新克隆/CI/换机会话即失效，且"是否已门禁"
+//    变成不可复现的本地事实）。改为纯 git 可推导的两段并集：
+//      A 已提交的新增文件：merge-base(HEAD, origin/main)..HEAD（无 origin/main
+//        时回退 HEAD~1..HEAD，CI 浅克隆同语义）
+//      B 未提交的新增文件：HEAD（工作区 diff）
+//    代价：未推送期间每跑一次会重门禁这些文件（原标记跳过）——换来确定性，
+//    且门禁通常在推送前跑 1 次，重跑成本可接受。
+//    Baseline is derived purely from git (committed-since-main ∪ uncommitted).
+/** @returns {string[]} */
+function diffAddedFiles(baseArgs) {
   try {
-    const marker = readFileSync(MARKER_FILE, 'utf-8').trim();
-    // v14.24.1 修正：勿用 ^{commit} 后缀——cmd.exe 把 ^ 当转义符吃掉导致校验
-    // 恒败、标记恒失效（首发版实测）。裸 sha 校验：rev-parse 产物为 40 位全哈希，
-    // cat-file -e 直接可校验；歧义/不存在 → 异常走远端基线（保守方向）。
-    if (/^[0-9a-f]{40}$/.test(marker)) {
-      execSync(`git cat-file -e ${marker}`, { cwd: ROOT, stdio: 'ignore' }); // 校验提交存在
-      console.log(`ℹ️ 基线 = 上次已门禁提交 ${marker.slice(0, 10)}（.coverage-gate-base）`);
-      return marker;
-    }
+    return run(`git diff --name-only --diff-filter=A ${baseArgs}`)
+      .split('\n')
+      .map((f) => f.trim())
+      .filter(Boolean);
   } catch {
-    /* 标记缺失/失效 → 走远端基线 */
-  }
-  try {
-    const base = run('git merge-base HEAD origin/main').trim();
-    console.log('ℹ️ 基线 = origin/main 合并点（无本地标记）');
-    return base;
-  } catch {
-    try {
-      const base = run('git rev-parse HEAD~1').trim();
-      console.log('⚠️ 无 origin/main 基线，回退 HEAD~1');
-      return base;
-    } catch {
-      console.log('⚠️ 无法确定基线，跳过覆盖率门禁');
-      process.exit(0);
-    }
+    return [];
   }
 }
 let newFiles = [];
 try {
-  const base = resolveBase();
-  const diff = run(`git diff --name-only --diff-filter=A ${base}`);
-  newFiles = diff
-    .split('\n')
-    .map((f) => f.trim())
-    .filter(
-      (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
-    )
-    .filter((f) => !f.includes('/test') && !f.startsWith('tests/'));
+  /** @type {string} */
+  let committedBase;
+  try {
+    committedBase = run('git merge-base HEAD origin/main').trim() + '..HEAD';
+  } catch {
+    committedBase = 'HEAD~1..HEAD';
+    console.log('⚠️ 无 origin/main 基线，已提交部分按 HEAD~1 计算');
+  }
+  const added = new Set([...diffAddedFiles(committedBase), ...diffAddedFiles('HEAD')]);
+  newFiles = [...added].filter(
+    (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
+  );
 } catch {
   console.log('⚠️ 基线 diff 失败，跳过覆盖率门禁');
   process.exit(0);
@@ -167,10 +152,3 @@ if (failed.length > 0) {
   process.exit(1);
 }
 console.log(`✅ 覆盖率门禁通过（全部新增文件行覆盖 ≥ ${MIN_LINES}%）`);
-// v14.24.1：记录本次已门禁 HEAD（含工作区语义——diff 基于 base 含未提交文件，
-// 通过即代表当前工作区状态已验证），下次从此处增量
-try {
-  writeFileSync(MARKER_FILE, run('git rev-parse HEAD').trim());
-} catch {
-  /* 写标记失败不影响门禁结果 */
-}
