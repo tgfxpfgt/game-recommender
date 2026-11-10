@@ -48,6 +48,7 @@ export default defineConfig({
       'tests/unit/test-trends.mjs',
       'tests/unit/test-freegames.mjs',
       'tests/unit/test-sites.mjs',
+      'tests/unit/test-options-sites.mjs', // v14.27.0 P2-5：自定义站点按域授权
       'tests/unit/test-security.mjs',
       'tests/unit/test-api-pure.mjs',
       'tests/unit/test-rules-cleanup.mjs',

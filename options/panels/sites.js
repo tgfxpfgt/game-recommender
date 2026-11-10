@@ -14,6 +14,34 @@
 
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
+  // ============ 自定义站点权限（v14.27.0 P2-5） ============
+  // manifest 的 optional_host_permissions 仍保留 http/https 通配——Chrome 要求
+  // permissions.request 的 origin 必须落在 optional 声明内，该通配只是"可按需
+  // 申请任意域"的伞形声明；实际授予面 = 用户弹窗确认的那一个域。
+  // The wildcard optional declaration only enables arbitrary-origin requests;
+  // the granted surface is exactly the single host the user confirmed.
+  /** 待申请的 origin：指定协议只申请该协议，裸域名申请 http+https（匹配模式不含端口） */
+  function permissionOrigins(site, protocol) {
+    if (protocol === 'http' || protocol === 'https') return [`${protocol}://${site}/*`];
+    return [`http://${site}/*`, `https://${site}/*`];
+  }
+
+  /**
+   * 用户手势内申请站点权限；返回是否可用（无 permissions API 时视为可用）。
+   * Request the site permission inside the user gesture.
+   * @param {string} site @param {string} protocol
+   * @returns {Promise<boolean>}
+   */
+  function requestSitePermission(site, protocol) {
+    const perms = globalThis.chrome && globalThis.chrome.permissions;
+    if (!perms || !perms.request) return Promise.resolve(true);
+    try {
+      return Promise.resolve(perms.request({ origins: permissionOrigins(site, protocol) })).catch(() => false);
+    } catch {
+      return Promise.resolve(false);
+    }
+  }
+
   // ============ 自定义站点管理 / Custom Site Management ============
   function bindSiteManagement() {
     // 添加网站
@@ -24,9 +52,18 @@
       // Normalize to a bare hostname and validate strictly so we never request a
       // wildcard / malformed origin (least privilege).
       let raw = input.value.trim().toLowerCase();
+      let protocol = '';
       if (raw.includes('://')) {
         try {
-          raw = new URL(raw).hostname;
+          const url = new URL(raw);
+          // v14.27.0 P2-5：匹配模式不支持端口（授权覆盖该域全部端口）→ 显式拒绝，
+          // 避免"填了 8080 却按整域授权"的误解
+          if (url.port) {
+            window.alert('请勿填写端口：权限按域名授予，自动覆盖该域全部端口');
+            return;
+          }
+          protocol = url.protocol.replace(':', '');
+          raw = url.hostname;
         } catch {
           /* 解析失败保留原值，下面正则再拒 / keep raw on parse failure; regex rejects below */
         }
@@ -43,12 +80,16 @@
         OPTS.currentSettings.trackedSites.push(site);
         // v6.3.0：host_permissions 已收窄到内置域名，自定义站点经
         // optional_host_permissions 按需请求权限（用户手势内调用）
-        if (chrome.permissions && chrome.permissions.request) {
-          chrome.permissions.request({ origins: [`http://${site}/*`, `https://${site}/*`] }).catch(() => {});
-        }
+        // v14.27.0 P2-5：只申请用户实填的域；拒绝则降级（站点保留但不生效）
+        const pending = requestSitePermission(site, protocol);
         OPTS.renderSiteManagement(OPTS.currentSettings);
         input.value = '';
         OPTS.scheduleAutoSave();
+        void pending.then((granted) => {
+          if (!granted) {
+            window.alert(`未授予 ${site} 的访问权限：站点已保存但功能不会生效（删除后重新添加可再次授权）`);
+          }
+        });
       }
     });
 

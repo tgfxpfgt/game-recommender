@@ -228,6 +228,12 @@
       btn.addEventListener('click', () => {
         const domain = btn.dataset.domain;
         OPTS.currentSettings.trackedSites = (OPTS.currentSettings.trackedSites || []).filter((d) => d !== domain);
+        // v14.27.0（P2-5）：移除站点即回收按需授予的该域权限——授予面随列表收缩，
+        // 不留"已删除站点仍持有访问权"的残留（remove 可随时调用，无需手势）
+        const perms = globalThis.chrome && globalThis.chrome.permissions;
+        if (perms && perms.remove) {
+          perms.remove({ origins: [`http://${domain}/*`, `https://${domain}/*`] }).catch(() => {});
+        }
         renderSiteManagement(OPTS.currentSettings);
         OPTS.scheduleAutoSave();
       });
