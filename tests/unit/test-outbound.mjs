@@ -18,6 +18,8 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
 // second module instance whose audit state the tests cannot see.
 const mod = await import(new URL('../../background/core/outbound-audit.js', import.meta.url).href);
 const utils = await import(new URL('../../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());
+// 优化方案 P1-1：LLM 端点准入（?t= 隔离实例，避免与其他套件共享模块状态）
+const llm = await import(new URL('../../background/core/llm-client.js', import.meta.url).href + '?t=' + Date.now());
 const { AUDIT_MAX, RATE_WINDOW_MS, RATE_MAX, recordOutbound, getOutboundAudit, resetOutboundAudit, checkRateLimit } =
   mod;
 
@@ -190,5 +192,62 @@ describe('4. fetchWithTimeout 审计接入（mock fetch）', () => {
     globalThis.fetch = async () => fakeResp(200);
     const resp2 = await utils.fetchWithTimeout('https://other.example.com/games', {}, 2000);
     expect(resp2.status).toEqual(200);
+  });
+});
+
+// ============ 5. LLM 端点准入（优化方案 P1-1） ============
+// openai 兼容分支不得把 Bearer 密钥发往本机/私有地址；本地 Ollama 分支保持放行
+
+describe('5. LLM 端点准入（openai 拒绝私有地址）', () => {
+  const realFetch = globalThis.fetch;
+  afterAll(() => {
+    globalThis.fetch = realFetch;
+    resetOutboundAudit();
+  });
+
+  const okResp = () => ({
+    status: 200,
+    ok: true,
+    headers: { has: () => false },
+    url: 'https://mock.example.com/x',
+    json: async () => ({ response: 'local-ok', choices: [{ message: { content: 'remote-ok' } }] })
+  });
+
+  test('openai 分支 https 私有 IP 被拒且不发出请求', async () => {
+    let called = false;
+    globalThis.fetch = async () => {
+      called = true;
+      return okResp();
+    };
+    let msg = '';
+    try {
+      await llm.callLlm({ provider: 'openai', endpoint: 'https://127.0.0.1:8443/v1/chat', apiKey: 'sk-x' }, {}, 2000);
+    } catch (e) {
+      msg = e.message;
+    }
+    expect(/llm-endpoint-blocked/.test(msg)).toEqual(true);
+    expect(called).toEqual(false);
+  });
+
+  test('openai 分支非 https 被拒', async () => {
+    let msg = '';
+    try {
+      await llm.callLlm({ provider: 'openai', endpoint: 'http://api.example.com/v1/chat', apiKey: 'sk-x' }, {}, 2000);
+    } catch (e) {
+      msg = e.message;
+    }
+    expect(/llm-endpoint-insecure/.test(msg)).toEqual(true);
+  });
+
+  test('openai 分支公网 https 放行并取 choices 文本', async () => {
+    globalThis.fetch = async () => okResp();
+    const out = await llm.callLlm({ provider: 'openai', endpoint: 'https://api.example.com/v1/chat' }, {}, 2000);
+    expect(out).toEqual('remote-ok');
+  });
+
+  test('local 分支仍允许本机端点（Ollama 正常用法）', async () => {
+    globalThis.fetch = async () => okResp();
+    const out = await llm.callLlm({ provider: 'local', endpoint: 'http://localhost:11434/api/generate' }, {}, 2000);
+    expect(out).toEqual('local-ok');
   });
 });
