@@ -66,6 +66,9 @@ if (fast) {
   step('vitest（全量两阶段）', 'npm test', GATE_VITEST_ENV);
 }
 step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
+// v14.26.0（优化方案 P1-2 后半 + P2-12）：体积预算——SW 静态图/静态注入/内容
+// 闭包三项按实测基线锁定，任何增长即红（真机冷启动断言在 E2E，fast 模式不做）。
+step('perf-budget（体积预算）', 'node scripts/perf-budget.mjs --assert');
 step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
 // v14.11 B10（报告 B P1-01）：全局覆盖率快照棘轮——coverage:gate 只查新增
 // 文件（push 后 diff-filter=A 恒空 = 恒绿），存量改动无约束；快照补全局

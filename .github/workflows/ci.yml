@@ -118,6 +118,10 @@ jobs:
           cache: npm
       - name: 安装依赖 / Install dependencies
         run: npm ci
+      # v14.26.0（优化方案 P2-12）：体积预算——SW 静态图/静态注入/内容闭包
+      # 三项按基线锁定（与 gate 同源脚本，无浏览器依赖）
+      - name: 体积预算 / Bundle budget
+        run: node scripts/perf-budget.mjs --assert
       - name: 测试耗时预算 / Test timing budget
         run: npm run test:timed -- --budget 90
 
@@ -142,7 +146,9 @@ jobs:
       - name: 安装 Playwright Chromium / Install pinned Playwright Chromium
         run: npx playwright-core install chromium
       - name: 运行 E2E 冒烟（离线回放全量）/ Run E2E smoke (offline replay, full)
-        run: xvfb-run -a env E2E_MOCK=1 npm run e2e
+        # v14.26.0（P2-12）：冷启动预算在 CI 放宽到 2500ms（Linux xvfb 冷启动
+        # 显著慢于本地 Windows；硬红线是 gate 的体积字节断言，此处防灾难性回归）
+        run: xvfb-run -a env E2E_MOCK=1 GR_BOOT_BUDGET_MS=2500 npm run e2e
 
   visual:
     # v10.5.1 任务3：视觉回归独立作业——基线在开发者 Windows 机采集，Linux CI
