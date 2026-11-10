@@ -16,6 +16,17 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.28.0',
+        date: '2026-11-11',
+        items: [
+          'README 版本流水拆分到 CHANGELOG.md（README 327 行）',
+          '根目录迭代文档归档 docs/reports/archive/ + docs/INDEX.md 索引',
+          '新增 check:docs 文档版本/索引门禁与油猴移植基线差距门禁',
+          '内容白名单补 ⊆ 规则表反向断言',
+          'perf-budget 打印方案目标差距（目标判定不可达，基线锁定实测值）'
+        ]
+      },
+      {
         ver: '14.27.0',
         date: '2026-11-11',
         items: [

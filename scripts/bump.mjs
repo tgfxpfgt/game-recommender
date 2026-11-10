@@ -40,11 +40,13 @@ const d = new Date();
 const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // 重复 bump 防护（幂等性：同一版本不写两次）
-const readmePath = path.join(ROOT, 'README.md');
+// v14.28.0（S3 P2-2）：版本流水自 README 拆到 CHANGELOG.md（README ≤ 400 行），
+// 新条目仍插入到首个 `### v` 之前（保持倒序）
+const changelogMdPath = path.join(ROOT, 'CHANGELOG.md');
 const changelogPath = path.join(ROOT, 'welcome/changelog.js');
-const readme = readFileSync(readmePath, 'utf-8');
+const changelogMd = readFileSync(changelogMdPath, 'utf-8');
 const changelog = readFileSync(changelogPath, 'utf-8');
-if (readme.includes(`### v${version}（`) || changelog.includes(`ver: '${version}'`)) {
+if (changelogMd.includes(`### v${version}（`) || changelog.includes(`ver: '${version}'`)) {
   console.error(`❌ v${version} 条目已存在（重复 bump？）——如确需重跑请先回退上次变更`);
   process.exit(1);
 }
@@ -58,15 +60,14 @@ if (!mp) {
 }
 writeFileSync(pkgPath, pkg.replace(mp[0], `"version": "${version}"`));
 
-// 3. README 更新日志：新条目插入到「## 更新日志」下首个条目之前（保持倒序）
-const anchor = readme.indexOf('## 更新日志');
-const entryStart = anchor >= 0 ? readme.indexOf('### v', anchor) : -1;
+// 3. CHANGELOG.md：新条目插入到首个 `### v` 之前（保持倒序）
+const entryStart = changelogMd.indexOf('### v');
 if (entryStart < 0) {
-  console.error('❌ README 未找到「## 更新日志」下的既有条目锚点');
+  console.error('❌ CHANGELOG.md 未找到既有条目锚点（### v）');
   process.exit(1);
 }
-const readmeEntry = `### v${version}（${title}）\n\n${items.map((i) => `- ${i}`).join('\n')}\n\n`;
-writeFileSync(readmePath, readme.slice(0, entryStart) + readmeEntry + readme.slice(entryStart));
+const changelogEntry = `### v${version}（${title}）\n\n${items.map((i) => `- ${i}`).join('\n')}\n\n`;
+writeFileSync(changelogMdPath, changelogMd.slice(0, entryStart) + changelogEntry + changelogMd.slice(entryStart));
 
 // 4. welcome/changelog.js：versions 头部插入新块（缩进对齐既有条目；welcome 页动态渲染）
 const anchorCh = changelog.indexOf('versions: [');
@@ -83,6 +84,6 @@ const chEntry =
 writeFileSync(changelogPath, changelog.slice(0, insertAt) + chEntry + changelog.slice(insertAt));
 
 console.log(`✅ 四处同步完成 / 4-place bump done: v${version}（${level}, ${today}）`);
-console.log('   - manifest.json / package.json / README 更新日志 / welcome changelog');
+console.log('   - manifest.json / package.json / CHANGELOG.md / welcome changelog');
 console.log('   - 油猴 @version 未动（移植基线，仅功能口径同步后递增）');
 console.log('   - 提交前跑 `npm run release:smoke` 校验四处同步（机器门禁兜底）');
