@@ -96,8 +96,11 @@ export class FakeEl {
     c.parentNode = this;
     if (ref) {
       const idx = this.children.indexOf(ref);
-      if (idx >= 0) this.children.splice(idx, 0, c);
-      else this.children.push(c);
+      // 与真实 DOM 对齐：参照节点不是子节点必须抛错（v14.29.1——旧实现
+      // "找不到就 push"掩盖了 floats.js 的 menuSep 未挂载 bug，细节红 3 轮）
+      // Match real DOM: a non-child reference must throw, not silently append.
+      if (idx < 0) throw new Error('NotFoundError: insertBefore 参照节点不是子节点');
+      this.children.splice(idx, 0, c);
     } else {
       this.children.push(c);
     }

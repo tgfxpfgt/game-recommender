@@ -211,6 +211,11 @@ export function create(zone, id, opts = {}) {
     // v14.24.0: float-specific menu items (opts.menuItems, data-menu-action for
     // selectors). onClick owns busy feedback; the menu stays open so
     // multi-second actions keep visible progress.
+    // v14.29.1（详情浮窗 3 连红根因）：menuSep 必须先入 menu 再作为
+    // insertBefore 参照——参照节点非子节点时真实 DOM 抛 NotFoundError，
+    // create() 整体失败 → 浮窗不渲染（FakeEl 旧实现"找不到就 push"掩盖了它）。
+    // menuSep must be a child before being used as insertBefore reference.
+    menu.appendChild(menuSep);
     (opts.menuItems || []).forEach((mi) => {
       const item = document.createElement('button');
       item.type = 'button';
@@ -225,7 +230,6 @@ export function create(zone, id, opts = {}) {
       });
       menu.insertBefore(item, menuSep);
     });
-    menu.appendChild(menuSep);
     menu.appendChild(menuInfo);
     root.appendChild(menu);
 
