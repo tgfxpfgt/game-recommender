@@ -29,8 +29,11 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
  * Budgets: pinned to the measured baseline; targets are noted in the plan.
  */
 export const BUDGETS = {
-  swGraphBytes: 837801,
-  swGraphFiles: 102,
+  // v14.27.0（P2-10）：api-search 拆为 4 文件（编排 + 候选/共识/兜底）后按新
+  // 实测值重锁——纯重构 +3.7KB/+3 文件（文件头与 import/export 样板），
+  // 无运行时逻辑增长。
+  swGraphBytes: 841578,
+  swGraphFiles: 105,
   staticInjectionBytes: 49821,
   closureBytes: 294123
 };

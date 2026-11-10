@@ -51,6 +51,7 @@ export default defineConfig({
       'tests/unit/test-options-sites.mjs', // v14.27.0 P2-5：自定义站点按域授权
       'tests/unit/test-security.mjs',
       'tests/unit/test-api-pure.mjs',
+      'tests/unit/test-api-search-golden.mjs', // v14.27.0 P2-10：拆分前后纯函数快照
       'tests/unit/test-rules-cleanup.mjs',
       'tests/unit/test-storage.mjs',
       'tests/unit/test-outbound.mjs',
