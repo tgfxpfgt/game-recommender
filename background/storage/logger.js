@@ -11,6 +11,8 @@ import { createDebouncedStore } from './debounced-store.js';
 import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE, STORAGE_CAPS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { withLock } from '../core/mechanisms.js';
+// v14.26.0 P1-8：日志载荷脱敏单源（URL 裁 query + 递归剔密钥）
+import { sanitizeLogData, sanitizeUrlText } from '../core/sanitize.js';
 
 let logBuffer = [];
 // v10.7.0 批次2：OPFS 落盘条数内存计数（-1 = 未探底）——支持真追加写路径
@@ -127,10 +129,13 @@ async function writeLog(level, module, message, data) {
     if (!cfg.enableLog) return;
     if (LOG_LEVELS[level] < cfg.minLevel) return;
 
-    const entry = { timestamp: Date.now(), level, module, message };
+    const entry = { timestamp: Date.now(), level, module, message: sanitizeUrlText(message) };
     if (data !== undefined) {
       try {
-        const s = typeof data === 'string' ? data : JSON.stringify(data);
+        // v14.26.0 P1-8：写入前统一净化——递归剔密钥 + URL 裁 query（只保留
+        // origin+path 与 appid/id 白名单），避免导出诊断包时外带凭据
+        const clean = sanitizeLogData(data);
+        const s = typeof clean === 'string' ? clean : JSON.stringify(clean);
         entry.data = s.length > 1000 ? s.substring(0, 1000) + '...' : s;
       } catch {
         entry.data = String(data);

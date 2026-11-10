@@ -28,3 +28,60 @@ export function stripSecrets(settings) {
   }
   return s;
 }
+
+// ============ v14.26.0 P1-8：日志脱敏（URL 裁 query + 递归密钥剔除） ============
+// 诊断包/运行日志曾把带密钥的 URL（如 ?key=xxx）原样落盘——导出即外带凭据。
+// 规则（取舍 C-8）：URL 只保留 origin + pathname，query 仅保留 appid/id 白名单
+//（保留排障定位所需），其余参数与 hash 丢弃；对象递归剔除密钥字段。
+// Runtime logs previously persisted credential-bearing URLs verbatim. URLs keep
+// origin + pathname only (plus appid/id whitelist); objects drop secret keys.
+const KEEP_QUERY_KEYS = new Set(['appid', 'id']);
+const SECRET_KEY_RE =
+  /^(?:api_?key|apikey|key|token|access_?token|refresh_?token|secret|password|passwd|authorization|auth|cookie)$/i;
+const URL_IN_TEXT_RE = /https?:\/\/[^\s"'<>()\\]+/g;
+const MAX_DEPTH = 6;
+
+/**
+ * 把文本中的 URL 裁成 origin + pathname（保留 appid/id 查询参数）。
+ * Trim every URL embedded in a string to origin + pathname (+ appid/id).
+ * @param {string} text
+ * @returns {string}
+ */
+export function sanitizeUrlText(text) {
+  if (typeof text !== 'string' || text.indexOf('http') < 0) return text;
+  return text.replace(URL_IN_TEXT_RE, (raw) => {
+    try {
+      const u = new URL(raw);
+      let out = u.origin + u.pathname;
+      /** @type {string[]} */
+      const kept = [];
+      u.searchParams.forEach((v, k) => {
+        if (KEEP_QUERY_KEYS.has(k.toLowerCase())) kept.push(`${k}=${v}`);
+      });
+      if (kept.length > 0) out += '?' + kept.join('&');
+      return out;
+    } catch {
+      return raw; // 畸形 URL 原样（无法判定，不冒险改写）
+    }
+  });
+}
+
+/**
+ * 递归净化日志载荷：密钥字段置空 + 字符串中的 URL 裁 query。
+ * Recursively sanitize a log payload: blank secret fields, trim URL queries.
+ * @param {any} value
+ * @param {number} [depth]
+ * @returns {any}
+ */
+export function sanitizeLogData(value, depth = 0) {
+  if (depth > MAX_DEPTH) return '…';
+  if (typeof value === 'string') return sanitizeUrlText(value);
+  if (value === null || typeof value !== 'object') return value;
+  if (Array.isArray(value)) return value.map((v) => sanitizeLogData(v, depth + 1));
+  /** @type {Record<string, any>} */
+  const out = {};
+  for (const [k, v] of Object.entries(value)) {
+    out[k] = SECRET_KEY_RE.test(k) ? '' : sanitizeLogData(v, depth + 1);
+  }
+  return out;
+}

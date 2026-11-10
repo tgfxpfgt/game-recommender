@@ -1,6 +1,6 @@
 # 隐私政策 / Privacy Policy
 
-游戏雷达 Game Radar（游戏智能推荐）Chrome 扩展 —— 数据隐私说明（v10.8.0）
+游戏雷达 Game Radar（游戏智能推荐）Chrome 扩展 —— 数据隐私说明（v14.26.0）
 
 ## 数据收集与存储
 
@@ -49,6 +49,14 @@ OPFS（Origin Private File System）、chrome.storage.local 与 chrome.storage.s
 | `contextMenus`             | 右键选中文本搜索 Steam              |
 | 域名 host 权限（内置域名） | Steam/下载站/限免源/匹配兜底请求    |
 | 可选域名权限（optional）   | 用户添加自定义下载站时按需请求      |
+
+## 日志与诊断包脱敏（v14.26.0）
+
+运行日志（`runtimeLogs`）与「导出诊断包」在本机写入/导出前统一脱敏，不会外带凭据：
+
+- **URL 裁剪**：日志中出现的网址只保留 `origin + 路径`，查询参数仅保留 `appid`/`id`（排障定位所需），其余参数与 `#hash` 一律丢弃
+- **字段剔除**：对象中 `apiKey`/`token`/`secret`/`password`/`authorization` 等密钥字段递归置空
+- **二次净化**：导出诊断包时对历史日志再净化一次（兼容旧版本写入的未脱敏记录）
 
 ## 数据导出与删除
 

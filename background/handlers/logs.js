@@ -6,13 +6,25 @@
  */
 import { getRuntimeLogs, clearRuntimeLogs } from '../storage/logger.js';
 import { getSettings } from '../core/settings.js';
-import { stripSecrets } from '../core/sanitize.js'; // v14.11 B3：脱敏单源
+import { stripSecrets, sanitizeLogData, sanitizeUrlText } from '../core/sanitize.js'; // v14.11 B3 / v14.26.0 P1-8
 import { metricsSnapshot } from '../core/metrics.js';
 import { getSteamApiStatus, getDomainStatus } from '../core/api-monitor.js';
 import { getOutboundAudit } from '../core/outbound-audit.js';
 import { getFlushHealth } from '../storage/flush-health.js';
 import { getNotifications, markNotificationsRead } from '../storage/notifications.js'; // v14.16.0 N6
 import { buildUsageEvidenceReport } from '../storage/usage-evidence.js'; // v14.25.0：使用证据档案
+
+// v14.26.0 P1-8：历史日志的 data 是 JSON 字符串——能解析则递归净化后回写
+// 字符串，解析失败退化为纯文本 URL 裁剪（不丢排障信息）。
+/** @param {any} raw @returns {any} */
+function safeData(raw) {
+  if (typeof raw !== 'string') return sanitizeLogData(raw);
+  try {
+    return JSON.stringify(sanitizeLogData(JSON.parse(raw)));
+  } catch {
+    return sanitizeUrlText(raw);
+  }
+}
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const logsHandlers = {
@@ -45,7 +57,12 @@ export const logsHandlers = {
         outboundAudit: getOutboundAudit(),
         flushHealth: getFlushHealth(),
         usageEvidence,
-        logs
+        // v14.26.0 P1-8：导出前二次净化（双保险——历史日志可能由旧版本写入）
+        logs: (logs || []).map((/** @type {any} */ l) => ({
+          ...l,
+          message: sanitizeUrlText(l.message),
+          data: l.data === undefined ? undefined : safeData(l.data)
+        }))
       }
     };
   }
