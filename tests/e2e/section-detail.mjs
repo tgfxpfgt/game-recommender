@@ -29,8 +29,10 @@ export async function runDetail(state) {
   }
   await page3.goto(`${FIXTURE_ROOT}16598.html`);
   // 等浮窗渲染（真实 Steam 搜索 + 完整详情拉取需数秒）
-  await page3.waitForSelector('#gr-report-issue-btn', { timeout: 20000 }).catch(() => {});
-  const hasReportBtn = await page3.evaluate(() => !!document.querySelector('#gr-report-issue-btn'));
+  // v14.24.0：动作按钮迁入 ⚙ 菜单——数据就绪信号改 gr-detail-title，
+  // 重检索动作经菜单按钮 + data-menu-action 菜单项触发
+  await page3.waitForSelector('#gr-steam-float .gr-detail-title', { timeout: 20000 }).catch(() => {});
+  const hasReportBtn = await page3.evaluate(() => !!document.querySelector('#gr-steam-float .gr-float-menu-btn'));
   if (!hasReportBtn) {
     // v14.11 B1：失败现场诊断（与 3b/5a 同构——runtimeLog 经扩展页读取）
     try {
@@ -51,7 +53,7 @@ export async function runDetail(state) {
       console.log('  ⚠️ 4 诊断读取失败:', String(e).slice(0, 80));
     }
   }
-  check('浮窗报错按钮存在', hasReportBtn);
+  check('浮窗 ⚙ 菜单存在（动作项已迁入菜单 v14.24.0）', hasReportBtn);
   // v3.3.14：主内容区图（1213700）应优先于侧边推荐图（2001760）
   const shownText = await page3.evaluate(
     () => (document.querySelector('#gr-steam-float') || { textContent: '' }).textContent || ''
@@ -63,13 +65,14 @@ export async function runDetail(state) {
   );
   if (hasReportBtn) {
     // force: 状态浮窗（右下）可能遮挡按钮区域，强制点击（真实场景两区域不重叠）
-    await page3.click('#gr-report-issue-btn', { force: true });
+    await page3.click('#gr-steam-float .gr-float-menu-btn', { force: true });
+    await page3.click('#gr-steam-float [data-menu-action="steam-research"]', { force: true });
     // 清缓存 + 重新检索：同 appid → 自动手动选择；不同 appid → 渲染纠正结果
     await page3
       .waitForFunction(
         () => {
-          const btn = document.querySelector('#gr-report-issue-btn');
-          return !btn || !btn.textContent.includes('重新检索中');
+          const item = document.querySelector('#gr-steam-float [data-menu-action="steam-research"]');
+          return !item || !item.textContent.includes('重新检索中');
         },
         null,
         { timeout: 30000 }

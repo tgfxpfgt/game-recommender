@@ -269,25 +269,30 @@ describe('MANUAL_PLATFORM_OPTIONS 全主机名册（v14.20.0）', () => {
 
 // ============ v14.22.2：候选浮窗主机入口按钮化（双视图回归守卫） ============
 // 用户需求：检索错误后选主机"不直观，直接加一个按钮"——35 个机型按钮从浮窗
-// 中部平铺收敛为主视图一个入口按钮 + 机型选择专页（返回/Esc 双出口）。
+// 中部平铺收敛为机型选择专页（返回/Esc 双出口）。
+// v14.24.0（用户需求：选择机型迁入 ⚙ 菜单）：主视图入口按钮移除——菜单
+// "🎮 选择主机机型"经 openPlatformView 直达专页（sidebar.js 装配单源）。
 // UI 交互无法以现有 DOM 桩行为级驱动（FakeEl 不支持 #id 选择器）——按项目
 // 源码守卫惯例（sim-detail detailSrc.includes 同风格）锁定结构要素。
-describe('候选浮窗主机入口按钮化（v14.22.2 源码守卫）', () => {
-  test('双视图结构四要素 + 键盘护栏 + Esc 自清理', async () => {
+describe('候选浮窗主机机型专页（v14.22.2/v14.24.0 源码守卫）', () => {
+  test('双视图结构四要素 + 键盘护栏 + Esc 自清理 + 菜单直达', async () => {
     const fs = await import('node:fs');
     const src = fs.readFileSync(new URL('../../content/detail/candidates.js', import.meta.url), 'utf8');
-    expect(src.includes('id="gr-platform-entry"')).toBe(true); // 主视图入口按钮
     expect(src.includes('id="gr-platform-view"')).toBe(true); // 机型专页容器（默认隐藏）
     expect(src.includes('id="gr-platform-back"')).toBe(true); // 专页返回按钮
     expect(src.includes('showPlatformView')).toBe(true);
     expect(src.includes('showMainView')).toBe(true);
+    expect(src.includes('if (openPlatformView) showPlatformView()')).toBe(true); // 菜单直达切换
     // 专页激活时停用候选列表键盘导航（列表仅隐藏未销毁——防隐藏列表吃键盘）
     expect(src.includes("kbNav = '0'")).toBe(true);
     expect(src.includes("kbNav = '1'")).toBe(true);
     // Esc 监听自清理：面板重渲染后自摘（v14.13 B6 kbHandler 同款防泄漏模式）
     expect(src.includes('panel.contains(platformView)')).toBe(true);
-    // 旧的内联平铺形态已移除（入口按钮取代——防双入口并存）
+    // 旧的内联平铺形态与主视图入口按钮均已移除（⚙ 菜单直达取代——防双入口并存）
     expect(src.includes('这是主机 / 模拟器游戏？选择机型后转')).toBe(false);
+    expect(src.includes('id="gr-platform-entry"')).toBe(false);
+    const sidebarSrc = fs.readFileSync(new URL('../../content/detail/sidebar.js', import.meta.url), 'utf8');
+    expect(sidebarSrc.includes("'steam-platform'")).toBe(true); // ⚙ 菜单机型入口
   });
 
   test('两个调用点（未命中/报错路径）均经同一渲染函数——单源不变式', async () => {

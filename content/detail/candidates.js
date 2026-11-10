@@ -51,7 +51,20 @@ export function isGameDismissed(gameName) {
 // 重试按钮（穿透负缓存重新自动匹配）——此前静默弹候选，用户无从判断失败原因
 // v14.19.0（用户需求）：新增主机机型手动选择——匹配错误且实为主机/模拟器
 // 条目时，选择机型后转 Metacritic 评分并持久化映射（列表页随之纠正）。
-export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reason, onRetry, onPickPlatform) {
+// v14.24.0（用户需求：选择机型迁入 ⚙ 菜单）：主视图入口按钮移除（菜单
+// "🎮 选择主机机型"直达）；openPlatformView=true 时渲染后直接切机型专页。
+// v14.24.0: main-view entry button removed (menu item jumps straight to the
+// platform view); openPlatformView=true auto-switches after render.
+export function renderManualSelectPanel(
+  panel,
+  gameName,
+  onClose,
+  onSelect,
+  reason,
+  onRetry,
+  onPickPlatform,
+  openPlatformView = false
+) {
   const reasonText = String(reason || '').trim();
   const retryBtn = onRetry
     ? `<div style="margin-bottom:10px;display:flex;gap:8px;">
@@ -64,9 +77,10 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
   // sidebar.js/sidebar-actions.js 提供：SET_MANUAL_PLATFORM → MC 评分 → MC 视图）
   // v14.20.0（用户需求：全主机类型）：按厂商分组渲染（任天堂/索尼/微软/世嘉/
   // 通用——MANUAL_PLATFORM_BRANDS 单源），flex-wrap 自适应换行
-  // v14.22.2（用户需求：检索错误后选主机"不直观，直接加一个按钮"）：35 个机型
-  // 按钮平铺在浮窗中部不显眼——收敛为主视图一个醒目入口按钮，点击切换到
-  // **机型选择专页**（厂商分组 + 状态行 + 返回按钮 + Esc），候选搜索视图保持紧凑
+  // v14.22.2：35 个机型按钮平铺不显眼——收敛为**机型选择专页**（厂商分组 +
+  // 状态行 + 返回按钮 + Esc）。v14.24.0（用户需求：选择机型迁入 ⚙ 菜单）：
+  // 主视图入口按钮移除——菜单"🎮 选择主机机型"直达专页（openPlatformView），
+  // 候选搜索视图保持紧凑
   /** 机型选择专页（默认隐藏；onPickPlatform 在场才构建） */
   const platformViewHtml = onPickPlatform
     ? `<div id="gr-platform-view" style="display:none;padding:16px;" role="dialog" aria-label="主机机型选择">
@@ -103,11 +117,6 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         </div>
         ${reasonLine}
         ${retryBtn}
-        ${
-          onPickPlatform
-            ? `<button id="gr-platform-entry" style="margin-bottom:10px;width:100%;padding:8px 0;background:linear-gradient(to right,#3a6c8e,#2a475e);color:#c7d5e0;border:1px solid #3a6c8e;border-radius:3px;cursor:pointer;font-size:12px;font-family:inherit;transition:background 0.2s;">🎮 这是主机 / 模拟器游戏？<b>点此选择机型</b>（转 Metacritic 评分）→</button>`
-            : ''
-        }
         <div style="margin-bottom:10px;">
           <input type="text" id="gr-manual-search-input" placeholder="输入游戏名搜索..."
             style="width:100%;padding:8px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;font-size:13px;outline:none;font-family:inherit;">
@@ -321,8 +330,6 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         escBackHandler = null;
       }
     };
-    const entryBtn = panel.querySelector('#gr-platform-entry');
-    if (entryBtn) entryBtn.addEventListener('click', showPlatformView);
     const backBtn = panel.querySelector('#gr-platform-back');
     if (backBtn) backBtn.addEventListener('click', showMainView);
     escBackHandler = (ev) => {
@@ -356,6 +363,9 @@ export function renderManualSelectPanel(panel, gameName, onClose, onSelect, reas
         }
       });
     });
+    // v14.24.0：⚙ 菜单"选择机型"直达——渲染完成后立即切机型专页（Esc 自清理
+    // 监听已先注册，返回/Esc 双出口照常生效）
+    if (openPlatformView) showPlatformView();
   }
 
   // 初始搜索

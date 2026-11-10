@@ -93,20 +93,29 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
     const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
     return root && root.children.length >= 2;
   }, '节9: Steam 浮窗打开');
-  // v14 B6：固定 300ms → 侧栏渲染完成信号（报错按钮出现 = renderAndShow 完成）
+  // v14 B6：固定 300ms → 侧栏渲染完成信号（v14.24.0 报错按钮迁入 ⚙ 菜单，
+  // 信号改数据就绪标题 = renderAndShow 完成）
   await waitForSignal(() => {
     const root = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
     const body = root ? root.children[1] : null;
-    return body ? (body._html || '').includes('gr-report-issue-btn') : false;
-  }, '节9: Steam 侧栏渲染完成（gr-report-issue-btn）');
+    return body ? (body._html || '').includes('gr-detail-title') : false;
+  }, '节9: Steam 侧栏渲染完成（数据就绪）');
 
-  // floats 结构：root(id) → [header, body(内容区)]；渲染 HTML 在 body.innerHTML
+  // floats 结构：root(id) → [header, body(内容区), menu, resize]；渲染 HTML 在 body.innerHTML
+  // v14.24.0：动作按钮迁入 ⚙ 菜单（data-menu-action）——底部按钮不再存在
   const steamRoot = documentMock.body.children.find((c) => c.id === 'gr-steam-float');
   const steamBody = steamRoot ? steamRoot.children[1] : null;
   const steamHtml = steamBody ? steamBody.innerHTML : '';
   expect(!!steamRoot && steamHtml.length > 50).toEqual(true);
-  expect(steamHtml.includes('gr-report-issue-btn') && steamHtml.includes('信息有误')).toEqual(true);
-  expect(steamHtml.includes('gr-refresh-cache-btn')).toEqual(true);
+  const steamMenu = steamRoot ? steamRoot.children[2] : null;
+  const menuActions = steamMenu
+    ? steamMenu.children.map((c) => c.getAttribute('data-menu-action')).filter(Boolean)
+    : [];
+  expect(menuActions).toContain('steam-refresh');
+  expect(menuActions).toContain('steam-research');
+  expect(menuActions).toContain('steam-platform');
+  expect(steamHtml.includes('gr-refresh-cache-btn')).toEqual(false);
+  expect(steamHtml.includes('gr-report-issue-btn')).toEqual(false);
   expect(steamHtml.includes('2001760') || steamHtml.includes('轮回之兽')).toEqual(true);
   // v3.4.1：原断言恒真（"由 E2E 验证"），改为源码级守护——报错按钮绑定 +
   // REPORT_WRONG_APPID 消息流 + 手动选择面板兜底路径必须存在
@@ -127,9 +136,11 @@ simTest('9. 详情页报错按钮（人工纠错重新检索）', async () => {
   ]
     .map((f) => fs.readFileSync(path.join(ROOT, f), 'utf-8'))
     .join('\n');
-  expect(detailSrc.includes('#gr-report-issue-btn') && detailSrc.includes("action: 'REPORT_WRONG_APPID'")).toEqual(
-    true
-  );
+  expect(
+    detailSrc.includes("'steam-research'") &&
+      detailSrc.includes("action: 'REPORT_WRONG_APPID'") &&
+      detailSrc.includes("'steam-platform'")
+  ).toEqual(true);
   expect(detailSrc.includes('renderManualSelectPanel')).toEqual(true);
   expect(searchCalls >= 1).toEqual(true);
   // v3.4.2：demo 判定防误伤（源码级）——浮窗前端正则必须带词边界
@@ -338,8 +349,9 @@ simTest('9b. 详情浮窗模板全量渲染（detail-templates 分支覆盖）',
   expect(html.includes('gr-detail-spy') && html.includes('92%')).toEqual(true);
   expect(html.includes('gr-detail-review') && html.includes('很好玩的游戏')).toEqual(true);
   expect(html.includes('gr-detail-btn')).toEqual(true);
-  expect(html.includes('gr-refresh-cache-btn')).toEqual(true);
-  expect(html.includes('gr-report-issue-btn')).toEqual(true);
+  // v14.24.0：动作按钮迁入 ⚙ 菜单——模板不再输出底部按钮（参数保留兼容旧调用）
+  expect(html.includes('gr-refresh-cache-btn')).toEqual(false);
+  expect(html.includes('gr-report-issue-btn')).toEqual(false);
 });
 
 // ============ 9c. 详情浮窗模板变体分支（v9.1.0 覆盖率） ============
@@ -370,8 +382,8 @@ simTest('9c. 详情浮窗模板变体分支（空数据/降级路径）', async 
   expect(html.includes('gr-detail-spy')).toEqual(true); // 面板始终渲染
   expect(html.includes('暂不可用')).toEqual(true); // 无 steamspy → 降级文案
   expect(html.includes('gr-detail-review')).toEqual(false); // 无评测 → 无块
-  expect(html.includes('gr-refresh-cache-btn')).toEqual(false); // hasRefresh=false
-  expect(html.includes('gr-report-issue-btn')).toEqual(false); // hasReport=false
+  expect(html.includes('gr-refresh-cache-btn')).toEqual(false); // v14.24.0：按钮已迁 ⚙ 菜单
+  expect(html.includes('gr-report-issue-btn')).toEqual(false); // v14.24.0：按钮已迁 ⚙ 菜单
   expect(html.includes('褒贬不一')).toEqual(true);
 });
 

@@ -475,8 +475,12 @@ export { loadModules };
 // v14 B6：waitFor → waitForSignal——必须携带 desc，超时抛错并打印描述定位
 //（原返回 false 由调用方兜底转储的模式废弃：失败信息统一进超时错误）
 // v14.7 批次 2（C-P1）：默认预算可配置（GR_SIM_SIGNAL_TIMEOUT_MS，默认
+// v14.24.1：20s → 60s——推送类信号随机抖动（~40% 翻转，bisect 先于 v14.23.0
+// harness 改造、头号嫌疑 Vitest 4，retry:2 绷带在位）在 20s 下高频假红；
+// 提额实测即稳（v14.17 先例）。绿跑不受影响（信号 ~ms 级到达），仅真回归
+// 失败判定变慢。
 // 20000 不变）——FaceFusion 类重负载争核机上 gate 提额消除假红。
-const SIM_SIGNAL_TIMEOUT_MS = Number(process.env.GR_SIM_SIGNAL_TIMEOUT_MS) || 20000;
+const SIM_SIGNAL_TIMEOUT_MS = Number(process.env.GR_SIM_SIGNAL_TIMEOUT_MS) || 60000;
 export async function waitForSignal(fn, desc, timeoutMs = SIM_SIGNAL_TIMEOUT_MS) {
   const t0 = Date.now();
   while (Date.now() - t0 < timeoutMs) {

@@ -111,9 +111,11 @@ let inlineRenderSeq = 0; // v14.5.0 B3：内嵌卡渲染令牌（按需加载窗
 /**
  * 浮窗外壳（v14.14.0 提取，重构序 6c）：创建 + 初始隐藏动画 + 占位文案 +
  * 显隐助手（floatModules 显隐设置随 settings 注入模块级变量，语义同前）。
+ * v14.24.0：⚙ 菜单浮窗专属项（menuItems）透传。
  * @param {{[k: string]: any}} settings
+ * @param {Array<{action?: string, label: string, title?: string, onClick?: (btn: HTMLElement) => void | Promise<void>}>} menuItems
  */
-function createFloatShell(settings) {
+function createFloatShell(settings, menuItems) {
   floatModules = (settings && settings.floatModules) || null;
   const panel = float.create(
     settings && settings.detailFloatSide === 'right' ? float.ZONE.TOP_RIGHT : float.ZONE.TOP_LEFT,
@@ -123,7 +125,8 @@ function createFloatShell(settings) {
       width: 320,
       title: '🎮 Steam 信息',
       folded: settings ? settings.detailFloatExpanded === false : false,
-      menuInfo: buildMenuCacheInfo // v14.23.0：⚙ 菜单缓存信息区
+      menuInfo: buildMenuCacheInfo, // v14.23.0：⚙ 菜单缓存信息区
+      menuItems // v14.24.0：手动更新/重新检索/选择机型迁入 ⚙ 菜单（用户需求）
     }
   );
   // 初始隐藏，数据就绪后滑入显示（保留原动画语义）
@@ -211,13 +214,14 @@ function createAutoRetry(io) {
 /**
  * 未命中处理：已跳过检查 → 网络故障/熔断期自动重查 → 手动选择浮窗
  *（未命中原因透传 + 穿透负缓存重试）。
- * @param {HTMLElement} panel
+ * v14.24.0：手动面板装配收口 io.openManualSelect（⚙ 菜单"选择机型"直达
+ * 与未命中兜底同源装配；原先内联的候选面板参数随装配收进工厂）。
  * @param {string} gameName
  * @param {{reason?: string, [k: string]: any}|null} response
- * @param {{hidePanel: () => void, showPanel: () => void, renderAndShow: Function, cancelAutoRetry: () => void, scheduleAutoRetry: (name: string) => void, makePickPlatform: (name: string) => (platformId: string) => Promise<boolean>}} io
+ * @param {{scheduleAutoRetry: (name: string) => void, openManualSelect: (name: string, opts?: {reason?: string, openPlatformView?: boolean}) => void}} io
  */
-function handleLookupMiss(panel, gameName, response, io) {
-  const { hidePanel, showPanel, renderAndShow, cancelAutoRetry, scheduleAutoRetry } = io;
+function handleLookupMiss(gameName, response, io) {
+  const { scheduleAutoRetry, openManualSelect } = io;
   debug.DEBUG.steamStatus = '❌ 未找到';
   // v14.7 批次 3/4：本页已"跳过"的游戏不再自动弹候选浮窗（负缓存首档
   // 15min 到期后下次访问自动重查）
@@ -234,52 +238,68 @@ function handleLookupMiss(panel, gameName, response, io) {
   dbg('Steam: 自动搜索未找到，显示手动选择浮窗');
   // v10.9.3：未命中原因透传 + 重试（穿透负缓存重新自动匹配）
   const missReason = (response && response.reason) || '';
-  candidates.renderManualSelectPanel(
-    panel,
-    gameName,
-    hidePanel,
-    (selectedData, selectedAppId) => {
-      cancelAutoRetry(); // v14.7 批次 9：手动选择后自动重查作废
-      renderAndShow(selectedData, Date.now(), gameName);
-      chrome.runtime
-        .sendMessage({
-          action: 'SAVE_MANUAL_MAPPING',
-          // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
-          // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
-          gameName,
-          appId: selectedAppId,
-          // v14.8 批次 3：rawTitle 随行——错题样本采集现场（后台确认后采集）
-          rawTitle: document.title
-        })
-        .catch(() => {});
-    },
-    missReason,
-    async () => {
-      const retryResp = await window.__GR_MSG__
-        .sendMessage({ action: 'SEARCH_STEAM', gameName, rawTitle: document.title, ignoreNegativeCache: true }, null, {
-          timeout: 25000
-        })
-        .catch(() => null);
-      if (retryResp && retryResp.data) {
-        renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), gameName);
-        return true;
-      }
-      return false;
-    },
-    // v14.19.1：主机/模拟器机型选择改消费 actions.makePickPlatform 单源工厂
-    //（v14.19.0 曾在此内联闭包——报错路径的第二个调用点漏接致选项缺失，
-    // 用户报告后收口单源，两调用点共用）
-    async (platformId) => {
-      cancelAutoRetry();
-      return io.makePickPlatform(gameName)(platformId);
-    }
-  );
-  showPanel();
+  openManualSelect(gameName, { reason: missReason });
 }
 
 export function createSteamFloat(gameName, settings) {
   dbg('注入Steam浮窗...');
-  const { panel, showPanel, hidePanel } = createFloatShell(settings);
+  // v14.24.0（用户需求：手动更新/重新检索/选择机型迁入右上角 ⚙ 菜单）：菜单项
+  // 持久（浮窗创建一次），回调经 menuState 注册表取每次渲染的最新闭包——
+  // renderAndShow 重渲染时刷新注册表（name/refresh/report），菜单点击永远
+  // 作用于当前游戏。
+  // v14.24.0: persistent ⚙ menu items resolve the latest callbacks through the
+  // menuState registry, refreshed on every renderAndShow.
+  /** @type {{name: string, refresh: (() => Promise<void>) | null, report: (() => Promise<void>) | null}} */
+  const menuState = { name: gameName, refresh: null, report: null };
+  const floatMenuItems = [
+    {
+      action: 'steam-refresh',
+      label: '🔄 手动更新 Steam 缓存',
+      title: '清除缓存并从 Steam 重新拉取最新数据',
+      onClick: async (/** @type {HTMLElement} */ btn) => {
+        if (!menuState.refresh) return;
+        const orig = btn.textContent;
+        btn.textContent = '⏳ 更新中...';
+        try {
+          await menuState.refresh();
+          btn.textContent = '✅ 已更新';
+        } catch {
+          btn.textContent = '❌ 更新失败';
+        }
+        setTimeout(() => {
+          btn.textContent = orig;
+        }, BTN_FAIL_FEEDBACK_MS);
+      }
+    },
+    {
+      action: 'steam-research',
+      label: '⚠️ 信息有误？重新检索',
+      title: '清除错误缓存并重新匹配（未命中进入手动选择）',
+      onClick: async (/** @type {HTMLElement} */ btn) => {
+        if (!menuState.report) return;
+        const orig = btn.textContent;
+        btn.textContent = '⏳ 重新检索中...';
+        try {
+          await menuState.report();
+          btn.textContent = orig;
+        } catch {
+          btn.textContent = '❌ 重检索失败';
+          setTimeout(() => {
+            btn.textContent = orig;
+          }, BTN_FAIL_FEEDBACK_MS);
+        }
+      }
+    },
+    {
+      action: 'steam-platform',
+      label: '🎮 选择主机机型',
+      title: '声明为主机/模拟器游戏并转 Metacritic 评分',
+      onClick: () => {
+        openManualSelect(menuState.name || gameName, { openPlatformView: true });
+      }
+    }
+  ];
+  const { panel, showPanel, hidePanel } = createFloatShell(settings, floatMenuItems);
 
   /** @type {SteamLookupData|null} */
   let steamData = null;
@@ -293,6 +313,57 @@ export function createSteamFloat(gameName, settings) {
   /** @type {(() => Promise<void>)|null} */
   let reportIssue = null;
   const actions = createSteamActions({ panel, hidePanel, showPanel, renderSteamSidebar, renderAndShow });
+
+  // v14.24.0：手动选择面板装配收口——未命中兜底与 ⚙ 菜单"选择机型"直达
+  // 共用同一装配（原先 handleLookupMiss 内联，菜单路径无从复用）。
+  // Manual-select panel assembly unified: miss fallback and the menu's
+  // platform item share one factory.
+  function openManualSelect(name, opts = {}) {
+    candidates.renderManualSelectPanel(
+      panel,
+      name,
+      hidePanel,
+      (selectedData, selectedAppId) => {
+        cancelAutoRetry(); // v14.7 批次 9：手动选择后自动重查作废
+        renderAndShow(selectedData, Date.now(), name);
+        chrome.runtime
+          .sendMessage({
+            action: 'SAVE_MANUAL_MAPPING',
+            // v9.7.0：gameName 为契约必填字段——漏发会被消息契约层直接拒绝，
+            // 手动纠错映射永不保存（报错重检索路径一直带着，此处是遗漏）
+            gameName: name,
+            appId: selectedAppId,
+            // v14.8 批次 3：rawTitle 随行——错题样本采集现场（后台确认后采集）
+            rawTitle: document.title
+          })
+          .catch(() => {});
+      },
+      opts.reason || '',
+      async () => {
+        const retryResp = await window.__GR_MSG__
+          .sendMessage(
+            { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
+            null,
+            {
+              timeout: 25000
+            }
+          )
+          .catch(() => null);
+        if (retryResp && retryResp.data) {
+          renderAndShow(retryResp.data, retryResp.cachedAt || Date.now(), name);
+          return true;
+        }
+        return false;
+      },
+      // v14.19.1：主机/模拟器机型选择消费 actions.makePickPlatform 单源工厂
+      async (platformId) => {
+        cancelAutoRetry();
+        return actions.makePickPlatform(name)(platformId);
+      },
+      opts.openPlatformView === true // v14.24.0：菜单直达 → 渲染后直接切机型专页
+    );
+    showPanel();
+  }
 
   // 渲染数据并显示浮窗的通用函数
   // v14.8 批次 5（第九轮 B6）：反向深链——Steam 页浮窗附"在下载站搜索"
@@ -316,14 +387,19 @@ export function createSteamFloat(gameName, settings) {
     // v14.23.0：菜单缓存信息上下文刷新（cachedAt 空值 = 刚拉取的新数据）
     menuCacheContext.name = name || data.name || '';
     menuCacheContext.cachedAt = cachedAt || Date.now();
+    // v14.24.0：⚙ 菜单回调注册表刷新（菜单项消费最新闭包）
+    menuState.name = name || data.name || '';
     actions.setSteamData(data);
     reportIssue = actions.makeReportIssue(name);
     actions.setReportIssue(reportIssue);
+    menuState.report = reportIssue;
+    const onRefresh = actions.makeOnRefresh(name);
+    menuState.refresh = onRefresh;
     debug.DEBUG.steamStatus = isPlatformEntry
       ? `🎮 ${data.platformTag || '主机'}${data.mcScore != null ? ` · MC ${data.mcScore}` : ''}`
       : `✅ ${data.ratingDesc || ''} ${data.positiveRate || ''}%`;
     dbg(`Steam: ${data.name} - ${data.ratingDesc || data.platformTag || ''} ${data.positiveRate || ''}`);
-    renderSteamSidebar(panel, data, hidePanel, cachedAt, actions.makeOnRefresh(name), reportIssue);
+    renderSteamSidebar(panel, data, hidePanel, cachedAt);
     showPanel();
 
     // v14.19.0：平台条目（主机/模拟器映射）无 Steam 侧联动
@@ -406,14 +482,10 @@ export function createSteamFloat(gameName, settings) {
         });
       } else {
         // v14.14.0（重构序 6c）：未命中处理（跳过检查/自动重查/手动选择浮窗）
-        // 提取为 handleLookupMiss
-        handleLookupMiss(panel, gameName, response, {
-          hidePanel,
-          showPanel,
-          renderAndShow,
-          cancelAutoRetry,
+        // v14.24.0：手动面板装配收口 openManualSelect（菜单直达同源）
+        handleLookupMiss(gameName, response, {
           scheduleAutoRetry,
-          makePickPlatform: actions.makePickPlatform // v14.19.1：机型选择单源工厂
+          openManualSelect
         });
       }
     } catch (e) {
@@ -431,58 +503,13 @@ export function createSteamFloat(gameName, settings) {
 // 本函数保留 DOM 绑定；模板按元素 id 约定输出）
 // Steam-style info sidebar (template in GR.detailTemplates since v5.1.0;
 // this function keeps the DOM bindings).
-function renderSteamSidebar(panel, data, onClose, cachedAt, onRefresh, onReport) {
-  // v14.19.0：平台条目（手动主机映射）——刷新/报错按钮与内嵌卡跳过（语义
-  // 属 Steam 条目；MC 视图提供"重新选择"语义由候选浮窗承担）
+// v14.24.0（用户需求：手动更新/重新检索迁入 ⚙ 菜单）：底部两按钮移除——
+// 绑定随按钮删除，动作改由浮窗菜单项承担（menuState 注册表，见 createSteamFloat）。
+function renderSteamSidebar(panel, data, onClose, cachedAt) {
+  // v14.19.0：平台条目（手动主机映射）——内嵌卡跳过（语义属 Steam 条目；
+  // MC 视图提供"重新选择"语义由候选浮窗承担）
   const isPlatformEntry = !!(data && (data.platformOnly || data.mcScore != null));
-  panel.innerHTML = detailTemplates.steamSidebar(
-    floatModules ? { ...data, floatModules } : data,
-    cachedAt,
-    isPlatformEntry ? false : !!onRefresh,
-    isPlatformEntry ? false : !!onReport
-  );
-
-  // 绑定手动更新按钮事件
-  if (onRefresh) {
-    const refreshBtn = panel.querySelector('#gr-refresh-cache-btn');
-    if (refreshBtn) {
-      refreshBtn.addEventListener('click', async () => {
-        const originalText = refreshBtn.textContent;
-        refreshBtn.textContent = '⏳ 更新中...';
-        refreshBtn.disabled = true;
-        try {
-          await onRefresh();
-        } catch {
-          refreshBtn.textContent = '❌ 更新失败';
-          setTimeout(() => {
-            refreshBtn.textContent = originalText;
-            refreshBtn.disabled = false;
-          }, BTN_FAIL_FEEDBACK_MS);
-        }
-      });
-    }
-  }
-
-  // 绑定报错按钮事件（v3.3.11：人工纠错 → 清缓存重检索）
-  if (onReport) {
-    const reportBtn = panel.querySelector('#gr-report-issue-btn');
-    if (reportBtn) {
-      reportBtn.addEventListener('click', async () => {
-        const originalText = reportBtn.textContent;
-        reportBtn.textContent = '⏳ 重新检索中...';
-        reportBtn.disabled = true;
-        try {
-          await onReport();
-        } catch {
-          reportBtn.textContent = '❌ 重检索失败';
-          setTimeout(() => {
-            reportBtn.textContent = originalText;
-            reportBtn.disabled = false;
-          }, BTN_FAIL_FEEDBACK_MS);
-        }
-      });
-    }
-  }
+  panel.innerHTML = detailTemplates.steamSidebar(floatModules ? { ...data, floatModules } : data, cachedAt);
 
   // 头部图片加载失败时按备选 CDN 域回退（v10.6.0），全部失败才隐藏
   const headerImg = panel.querySelector('#gr-header-image');

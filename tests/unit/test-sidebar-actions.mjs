@@ -79,6 +79,38 @@ describe('sidebar-actions 回调工厂', () => {
     await expect(actions.makeOnRefresh('Y')()).rejects.toThrow('刷新后未获取到数据');
   });
 
+  // v14.24.0（用户需求：手动更新必须真实刷新，不得回旧缓存）：有封面 appId
+  // 时 GET_STEAM_BY_APPID 必须携带 forceRefresh——后台跳缓存直取并预清该
+  // appId 缓存（回归锚点：旧实现缓存有效时直接回旧数据 = 更新按钮无效）。
+  test('手动刷新（有封面 appId）：GET_STEAM_BY_APPID 携带 forceRefresh', async () => {
+    const { deps, calls } = makeDeps();
+    const actions = createSteamActions(deps);
+    const sent = [];
+    presets = {
+      GET_STEAM_BY_APPID: (msg) => {
+        sent.push(msg);
+        return { data: { appId: '12345', name: 'Z', positiveRate: 70 }, cachedAt: 7 };
+      }
+    };
+    // DOM 桩注入封面图（/steam/apps/12345/ → appId 12345）
+    const origQSA = globalThis.document.querySelectorAll;
+    globalThis.document.querySelectorAll = () => [
+      {
+        getAttribute: (n) =>
+          n === 'data-src' ? 'https://cdn.akamai.steamstatic.com/steam/apps/12345/header.jpg' : null
+      }
+    ];
+    try {
+      await actions.makeOnRefresh('Z')();
+    } finally {
+      globalThis.document.querySelectorAll = origQSA;
+    }
+    expect(sent.length).toEqual(1);
+    expect(sent[0].appId).toEqual('12345');
+    expect(sent[0].forceRefresh).toEqual(true); // v14.24.0：真实刷新语义
+    expect(calls.render.length).toEqual(1);
+  });
+
   test('报错重检索：纠正成功 → 渲染 + showPanel + 数据替换', async () => {
     const { deps, calls } = makeDeps();
     const actions = createSteamActions(deps);

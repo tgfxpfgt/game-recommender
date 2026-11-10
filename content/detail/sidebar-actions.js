@@ -49,13 +49,21 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
   let reportIssue = null;
 
   // 手动更新缓存回调（成功获取数据后复用渲染逻辑）
+  // v14.24.0（用户需求：更新必须真实刷新）：GET_STEAM_BY_APPID 带 forceRefresh
+  // ——后台跳过缓存直取并**预先删除该 appId 缓存**（拉取失败不留旧数据，
+  // 拉取成功写回全新条目；旧语义缓存有效时直接回旧缓存 = 更新按钮无效）。
   function makeOnRefresh(name) {
-    return async () => {
+    const fn = async () => {
       const appId = builder.extractSteamAppIdFromImages();
       /** @type {SteamLookupResp|null} */
       let refreshResp;
       if (appId) {
-        refreshResp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId, gameName: name });
+        refreshResp = await window.__GR_MSG__.sendMessage({
+          action: 'GET_STEAM_BY_APPID',
+          appId,
+          gameName: name,
+          forceRefresh: true
+        });
       } else {
         refreshResp = await window.__GR_MSG__.sendMessage({ action: 'REFRESH_STEAM_CACHE', gameName: name });
       }
@@ -63,11 +71,12 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
         steamData = refreshResp.data;
         const newCachedAt = refreshResp.cachedAt || Date.now();
         dbg(`🔄 手动刷新缓存成功: ${steamData.name}`);
-        renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
+        renderSteamSidebar(panel, steamData, hidePanel, newCachedAt);
       } else {
         throw new Error('刷新后未获取到数据');
       }
     };
+    return fn;
   }
 
   // 人工报错重检索回调（v3.3.11）：清除错误 appid 缓存 → 重新检索 →
@@ -75,7 +84,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
   // 手动选择面板**（v3.3.12）。reportIssue 在 renderAndShow 时创建
   // 并随渲染传递（makeOnRefresh 重渲染时复用同一回调）
   function makeReportIssue(name) {
-    return async () => {
+    const fn = async () => {
       const wrongAppId =
         steamData && steamData.appId ? String(steamData.appId) : builder.extractSteamAppIdFromImages() || '';
       dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
@@ -85,11 +94,18 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
         /* 后台不可达不阻断重检索 */
       }
       // 重新检索：有封面 appId 直取，否则名称搜索
+      // v14.24.0：forceRefresh——重检索语义 = 清缓存取全新数据（后台预清该
+      // appId 缓存，即使没找到新信息也不保留旧缓存）
       const imgAppId = builder.extractSteamAppIdFromImages();
       /** @type {SteamLookupResp|null} */
       let resp = null;
       if (imgAppId) {
-        resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_BY_APPID', appId: imgAppId, gameName: name });
+        resp = await window.__GR_MSG__.sendMessage({
+          action: 'GET_STEAM_BY_APPID',
+          appId: imgAppId,
+          gameName: name,
+          forceRefresh: true
+        });
       }
       if (!resp || !resp.data) {
         resp = await window.__GR_MSG__.sendMessage({
@@ -104,13 +120,15 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
         steamData = resp.data;
         const newCachedAt = resp.cachedAt || Date.now();
         dbg(`✅ 报错重检索成功: ${steamData.name} (appId ${steamData.appId})`);
-        renderSteamSidebar(panel, steamData, hidePanel, newCachedAt, makeOnRefresh(name), reportIssue);
+        renderSteamSidebar(panel, steamData, hidePanel, newCachedAt);
         showPanel();
       } else {
         dbg(
           sameAppId ? `⚠️ 报错重检索仍是同一 appId ${wrongAppId}，进入手动选择` : '⚠️ 报错重检索未找到，进入手动选择'
         );
         // v10.9.3：重检路径同样带原因与重试
+        // v14.24.0：菜单"选择机型"直达路径复用 openPlatformView 参数——
+        // （报错路径维持主视图 + 菜单直达语义，见 sidebar.js openManualSelect）
         candidates.renderManualSelectPanel(
           panel,
           name,
@@ -142,6 +160,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
         );
       }
     };
+    return fn;
   }
 
   // v14.19.0（用户反馈：报错路径的手动面板没有主机选项）：手动主机机型
@@ -197,6 +216,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
     setReportIssue(fn) {
       reportIssue = fn;
     },
+    /** v14.24.0：⚙ 菜单项消费的最新回调注册表在 sidebar.js（renderAndShow 刷新） */
     makeOnRefresh,
     makeReportIssue,
     makePickPlatform

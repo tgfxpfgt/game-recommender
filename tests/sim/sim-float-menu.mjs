@@ -14,6 +14,7 @@ import { expect } from 'vitest';
  *   F8 位置恢复视口钳位（旧坐标出屏防护）
  *   F9 重置项：位置/宽度/缩放回默认 + 存储键清除
  *   F10 remove() 清理文档级监听（菜单外点关闭监听不泄漏）
+ *   F11 浮窗专属菜单项（v14.24.0：menuItems 注入/标记/点击/busy 反馈）
  * Light suite: imports floats.js directly (zero-dependency module) and drives
  * it via the harness FakeEl DOM + the now-real storage.local. Covers the fold
  * regression fix, menu items, width drag, zoom persistence, cache info rows,
@@ -257,4 +258,54 @@ simTest('F10. remove 清理文档级监听', async () => {
   expect(parts.menu.style.display).toEqual('none'); // teardown 关闭菜单
   expect(docListenerCount('mousedown')).toEqual(base); // 外点监听已自摘（无泄漏）
   fireDocEvent('mousedown', { target: documentMock.body }); // 不抛 = 状态自洽
+});
+
+// F11. 浮窗专属菜单项（v14.24.0：手动更新/重新检索/选择机型迁入 ⚙ 菜单）——
+// 渲染位置（重置项后、分隔线前）+ data-menu-action 标记 + 点击执行 + busy
+// 文案自管（菜单保持打开，多秒动作的进度在菜单内可见）
+simTest('F11. 浮窗专属菜单项（menuItems 注入 + 点击 + busy 反馈）', async () => {
+  closeAll();
+  const calls = [];
+  /** @type {(() => void)|null} */
+  let resolveAction = null;
+  const body = create(ZONE.TOP_LEFT, 'f-items', {
+    chrome: true,
+    menuItems: [
+      {
+        action: 'act-a',
+        label: '动作 A',
+        title: '动作 A 提示',
+        onClick: (btn) => {
+          calls.push('a');
+          btn.textContent = '⏳ A 中...'; // busy 反馈由回调自管（sidebar.js 同款）
+          return new Promise((r) => {
+            resolveAction = () => {
+              btn.textContent = '✅ 完成';
+              r();
+            };
+          });
+        }
+      },
+      { label: '无动作项' } // 无 action —— 纯文案项（不含 data-menu-action）
+    ]
+  });
+  const parts = chromeParts(body);
+  openMenu(parts);
+  // 结构序：fold/scale/reset 之后插入 menuItems，随后是分隔线与缓存信息区
+  const items = parts.menu.children.filter((c) => c.getAttribute('data-menu-action'));
+  expect(items.length).toEqual(1);
+  expect(items[0].getAttribute('data-menu-action')).toEqual('act-a');
+  expect(items[0].textContent).toEqual('动作 A');
+  expect(items[0].title).toEqual('动作 A 提示');
+  // 位置断言：menuItems 在 reset 与分隔线之间（现有子元素序不被破坏）
+  const idx = parts.menu.children.indexOf(items[0]);
+  expect(parts.menu.children[idx - 1].textContent).toEqual('重置位置与大小');
+  // 点击执行 + busy 文案可见（菜单未关闭）
+  items[0].click();
+  expect(items[0].textContent).toEqual('⏳ A 中...');
+  expect(parts.menu.style.display).toEqual(''); // 菜单保持打开（进度可见）
+  resolveAction();
+  await TICK();
+  expect(items[0].textContent).toEqual('✅ 完成');
+  expect(calls).toEqual(['a']);
 });

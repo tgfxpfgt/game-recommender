@@ -106,7 +106,9 @@ function storeSet(obj) {
  * @param {string} zone
  * @param {string} id
  * @param {{chrome?: boolean, width?: number, title?: string, folded?: boolean,
- *   onClose?: () => void, menuInfo?: () => Promise<string[]> | string[]}} [opts]
+ *   onClose?: () => void, menuInfo?: () => Promise<string[]> | string[],
+ *   menuItems?: Array<{action?: string, label: string, title?: string,
+ *     onClick?: (btn: HTMLElement) => void | Promise<void>}>}} [opts]
  * @returns {HTMLDivElement}
  */
 export function create(zone, id, opts = {}) {
@@ -138,7 +140,7 @@ export function create(zone, id, opts = {}) {
     title.className = 'gr-float-chrome-title';
     title.textContent = opts.title || '游戏雷达 Game Radar';
     const menuBtn = document.createElement('span');
-    menuBtn.className = 'gr-float-chrome-btn';
+    menuBtn.className = 'gr-float-chrome-btn gr-float-menu-btn'; // v14.24.0：专属类（E2E/测试选择器）
     menuBtn.textContent = '⚙';
     menuBtn.title = '浮窗菜单 / Menu';
     const closeBtn = document.createElement('span');
@@ -202,6 +204,27 @@ export function create(zone, id, opts = {}) {
     menu.appendChild(foldItem);
     menu.appendChild(scaleRow);
     menu.appendChild(resetItem);
+    // v14.24.0（用户需求：手动更新/重新检索/选择机型迁入右上角 ⚙ 菜单）：浮窗
+    // 专属菜单项（opts.menuItems 注入，data-menu-action 供测试/E2E 选择器）。
+    // onClick 自管 busy 文案与反馈；菜单**不自动关闭**——更新/检索需数秒，
+    // 进度要在菜单内可见，开合由点击语义与外点关闭共同负责。
+    // v14.24.0: float-specific menu items (opts.menuItems, data-menu-action for
+    // selectors). onClick owns busy feedback; the menu stays open so
+    // multi-second actions keep visible progress.
+    (opts.menuItems || []).forEach((mi) => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'gr-float-menu-item';
+      if (mi.action) item.setAttribute('data-menu-action', mi.action);
+      if (mi.title) item.title = mi.title;
+      item.textContent = mi.label;
+      item.addEventListener('click', () => {
+        Promise.resolve(mi.onClick ? mi.onClick(item) : undefined).catch(() => {
+          /* 回调自反馈失败文案 / callback reports its own failure state */
+        });
+      });
+      menu.insertBefore(item, menuSep);
+    });
     menu.appendChild(menuSep);
     menu.appendChild(menuInfo);
     root.appendChild(menu);

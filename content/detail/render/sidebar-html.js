@@ -15,9 +15,12 @@ import { renderRatingRows, renderVerdictRow } from './rating-rows.js';
 
 const esc = (text) => common.escapeHtml(text);
 
-// Steam 信息栏完整模板（数据 + 缓存时间 + 按钮开关 → HTML）
-// Full Steam-info sidebar template (data + cachedAt + button flags → HTML)
-export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
+// Steam 信息栏完整模板（数据 + 缓存时间 → HTML）
+// v14.24.0（用户需求：手动更新/重新检索/选择机型迁入右上角 ⚙ 菜单）：底部
+// 两按钮移除——动作由浮窗菜单承担（data-menu-action，见 floats.js/sidebar.js）。
+// Full Steam-info sidebar template (data + cachedAt → HTML); the bottom action
+// buttons moved into the float ⚙ menu since v14.24.0.
+export function steamSidebar(data, cachedAt) {
   // v10.9：跨边界字段归一化——旧缓存/异型数据（reviews/userTags/genres/
   // developers/description 为字符串或对象）此前使浮窗整条渲染链抛错。
   // Normalize cross-boundary fields: legacy cache entries may hold wrong types.
@@ -284,38 +287,12 @@ export function steamSidebar(data, cachedAt, hasRefresh, hasReport) {
         <!-- 中文评测 -->
         ${reviewsHtml}
 
-        <!-- 底部信息栏：App ID + 缓存时间 + 手动更新/报错按钮 -->
+        <!-- 底部信息栏：App ID + 缓存时间（动作在右上角 ⚙ 菜单，v14.24.0 迁移） -->
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;">
             ${data.appId ? `<span>App ID: <a href="${common.escapeAttr('https://store.steampowered.com/app/' + data.appId)}" target="_blank" style="color:#67c1f5;text-decoration:none;">${esc(String(data.appId))}</a></span>` : '<span>App ID: —</span>'}
             <span title="${cachedAt ? new Date(cachedAt).toLocaleString() : ''}">缓存于 ${cacheAgeText}</span>
           </div>
-          ${
-            hasRefresh
-              ? `
-            <button id="gr-refresh-cache-btn" style="
-              margin-top:8px;width:100%;padding:7px 0;
-              background:linear-gradient(to right,#3a6c8e,#2a475e);
-              color:#c7d5e0;border:1px solid #3a6c8e;border-radius:3px;
-              cursor:pointer;font-size:12px;font-family:inherit;
-              transition:background 0.2s;
-            ">🔄 手动更新 Steam 缓存</button>
-          `
-              : ''
-          }
-          ${
-            hasReport
-              ? `
-            <button id="gr-report-issue-btn" style="
-              margin-top:6px;width:100%;padding:7px 0;
-              background:linear-gradient(to right,#8e3a3a,#5e2a2a);
-              color:#ffb3b3;border:1px solid #8e3a3a;border-radius:3px;
-              cursor:pointer;font-size:12px;font-family:inherit;
-              transition:background 0.2s;
-            " title="检索到的游戏与页面内容不符？点击清除错误缓存并重新检索">⚠️ 信息有误？重新检索</button>
-          `
-              : ''
-          }
         </div>
       </div>
     `;
