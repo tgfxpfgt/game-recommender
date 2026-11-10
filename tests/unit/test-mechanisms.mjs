@@ -52,6 +52,22 @@ describe('mechanisms（批次1 机制工厂）', () => {
     expect(calls).toEqual(7);
   });
 
+  it('debounce maxWaitMs：连续调用也必须在上界内落盘（v14.29.1 日志留存）', async () => {
+    const t0 = Date.now();
+    /** @type {number[]} */
+    const fires = [];
+    const fn = debounce(() => fires.push(Date.now() - t0), 20, { maxWaitMs: 50 });
+    // 每 10ms 调一次（< 20ms 窗，纯防抖会一直被推迟 → 全程不触发）
+    while (Date.now() - t0 < 120) {
+      fn();
+      await sleep(10);
+    }
+    // 上界契约：首个触发不得晚于 maxWaitMs + 调度抖动（纯防抖此时为 0 次）
+    expect(fires.length).toBeGreaterThanOrEqual(1);
+    expect(fires[0]).toBeLessThanOrEqual(50 + 40);
+    fn.cancel();
+  });
+
   it('createTtlCache：过期惰性清除 / null 负缓存 / LRU 容量', async () => {
     let t = 1000;
     const cache = createTtlCache({ ttlMs: 100, max: 2, now: () => t });

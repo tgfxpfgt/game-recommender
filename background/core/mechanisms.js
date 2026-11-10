@@ -35,24 +35,35 @@ export function withLock() {
  * @param {number} waitMs
  * @returns {((...args: any[]) => void) & { flush: () => void, cancel: () => void }}
  */
-export function debounce(fn, waitMs) {
+export function debounce(fn, waitMs, { maxWaitMs = 0 } = {}) {
   /** @type {ReturnType<typeof setTimeout>|null} */
   let timer = null;
+  /** 首个待触发调用的时间戳（maxWait 计时起点）/ first pending call timestamp */
+  let pendingSince = 0;
   /** @type {any[]} */
   let lastArgs = [];
   /** @param {any[]} args */
   const wrapped = (...args) => {
     lastArgs = args;
+    const now = Date.now();
+    if (!pendingSince) pendingSince = now;
     if (timer) clearTimeout(timer);
+    // v14.29.1：maxWaitMs > 0 时给连续调用设上界——纯防抖在持续调用下会无限
+    // 推迟（日志这类"调用流不断"的场景，崩溃前可能整窗日志未落盘）。
+    // Bounded wait: pure debounce postpones forever under a continuous call
+    // stream; maxWaitMs caps how long the first call may wait.
+    const delay = maxWaitMs > 0 ? Math.min(waitMs, Math.max(0, pendingSince + maxWaitMs - now)) : waitMs;
     timer = setTimeout(() => {
       timer = null;
+      pendingSince = 0;
       fn(...lastArgs);
-    }, waitMs);
+    }, delay);
   };
   wrapped.flush = () => {
     if (timer) {
       clearTimeout(timer);
       timer = null;
+      pendingSince = 0;
       fn(...lastArgs);
     }
   };
@@ -60,6 +71,7 @@ export function debounce(fn, waitMs) {
     if (timer) {
       clearTimeout(timer);
       timer = null;
+      pendingSince = 0;
     }
   };
   return wrapped;

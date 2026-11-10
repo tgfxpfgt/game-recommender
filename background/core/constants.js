@@ -430,6 +430,11 @@ export const DOWNLOAD_URLS_VERSION = 2;
 
 // 日志缓冲写参数 / Log buffer write params
 export const LOG_FLUSH_DEBOUNCE = 2000;
+// v14.29.1（第二轮审计 R2-04）：连续写日志时的落盘上界——纯防抖在"调用流不
+// 断"时会被无限推迟，SW 被杀则整窗日志丢失。10s ≈ 5 个防抖窗，兼顾写放大
+// （每 10s 至多一次批量追加）与崩溃前留存。
+// Upper bound for a continuous log stream (pure debounce could postpone forever).
+export const LOG_FLUSH_MAX_WAIT = 10000;
 
 // 偏好模型更新节流 / Preference-model update throttle
 export const PREF_UPDATE_INTERVAL = 60000;

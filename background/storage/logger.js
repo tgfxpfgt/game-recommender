@@ -8,7 +8,7 @@
  */
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
-import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE, STORAGE_CAPS } from '../core/constants.js';
+import { DB_KEYS, LOG_LEVELS, LOG_FLUSH_DEBOUNCE, LOG_FLUSH_MAX_WAIT, STORAGE_CAPS } from '../core/constants.js';
 import { getSettings } from '../core/settings.js';
 import { withLock } from '../core/mechanisms.js';
 // v14.26.0 P1-8：日志载荷脱敏单源（URL 裁 query + 递归剔密钥）
@@ -43,6 +43,7 @@ async function getLogConfig() {
 const writer = createDebouncedStore({
   name: '日志',
   debounceMs: LOG_FLUSH_DEBOUNCE,
+  maxWaitMs: LOG_FLUSH_MAX_WAIT, // v14.29.1：连续日志流的落盘上界（崩溃前留存）
   save: flushLogBuffer
 });
 
