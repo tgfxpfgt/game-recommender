@@ -57,6 +57,9 @@ step('check:imports（未跟踪静态导入）', 'node scripts/check-untracked-i
 // v14.26.0（优化方案 P1-5）：文档/脚本引用路径存在性——断链会让 AI 助手按
 // AGENTS.md 读到空文件后回退探索式读码（本轮回审查实际发生过）
 step('check:refs（引用路径存在性）', 'node scripts/check-referenced-paths.mjs');
+// v14.28.0（优化方案 S3 P2-17）：文档版本/索引门禁——根目录 md 数量、"当前版本"
+// 表述与 manifest 一致、索引链接不腐烂（文档腐烂是 AI 读错上下文的首要来源）
+step('check:docs（文档版本/索引一致性）', 'node scripts/check-doc-version.mjs');
 step('lint', 'npm run lint');
 step('typecheck', 'npm run typecheck');
 const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };

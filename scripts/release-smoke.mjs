@@ -27,13 +27,15 @@ if (pkg.version !== ver) {
   errors.push(`package.json.version (${pkg.version}) != manifest.version (${ver})`);
 }
 
-// ② README 更新日志头条 == manifest.version
-const readme = readFileSync(path.join(ROOT, 'README.md'), 'utf-8');
+// ② CHANGELOG.md 头条 == manifest.version
+// v14.28.0（S3 P2-2）：版本流水自 README 拆到 CHANGELOG.md（README ≤ 400 行），
+// 头条断言随之改读 CHANGELOG.md
+const readme = readFileSync(path.join(ROOT, 'CHANGELOG.md'), 'utf-8');
 const readmeHead = readme.match(/^### v(\d+\.\d+\.\d+)/m);
 if (!readmeHead) {
-  errors.push('README 更新日志未找到头条版本（### vX.Y.Z）');
+  errors.push('CHANGELOG.md 未找到头条版本（### vX.Y.Z）');
 } else if (readmeHead[1] !== ver) {
-  errors.push(`README 更新日志头条 v${readmeHead[1]} != manifest ${ver}（版本号纪律：bump 须同步 README changelog）`);
+  errors.push(`CHANGELOG 头条 v${readmeHead[1]} != manifest ${ver}（版本号纪律：bump 须同步 CHANGELOG.md）`);
 }
 
 // ③ welcome/changelog.js 头条 == manifest.version
@@ -62,6 +64,19 @@ if (!existsSync(userscriptPath)) {
   if (headerVer && cmpVer(headerVer, ver) > 0) {
     errors.push(`油猴 @version (${headerVer}) 超前于 manifest (${ver})——油猴移植基线不得高于扩展当前版`);
   }
+  // ⑥ v14.28.0（S3 P2-18 / M-7）：移植基线差距门禁
+  // 油猴 @version 是"移植基线"（AGENTS：≠ 扩展 patch 联动），差距天然存在；
+  // 本门禁只防差距继续扩大：>3 minor 告警，> 基线（实测锁定值）失败。基线随
+  // "功能口径同步"下降，不下调（防止用放宽阈值掩盖漂移）。
+  const USERSCRIPT_GAP_BASELINE = 14;
+  if (headerVer) {
+    const gap = minorIndexOf(ver) - minorIndexOf(headerVer);
+    if (gap > USERSCRIPT_GAP_BASELINE) {
+      errors.push(`油猴移植基线落后 ${gap} 个 minor（> 基线 ${USERSCRIPT_GAP_BASELINE}）——须同步 shared 纯逻辑快照`);
+    } else if (gap > 3) {
+      console.warn(`⚠️ 油猴移植基线落后 ${gap} 个 minor（> 3，未超基线 ${USERSCRIPT_GAP_BASELINE}）——建议排期同步`);
+    }
+  }
 }
 
 // ⑤ release zip（存在时校验内容；package 之前运行则跳过并提示）
@@ -75,6 +90,12 @@ if (!existsSync(zipPath)) {
   if (!list.includes('manifest.json')) errors.push('zip 缺 manifest.json');
   if (!list.includes('background/service-worker.js')) errors.push('zip 缺 service-worker');
   if (/node_modules\/|\stests\//.test(list)) errors.push('zip 泄漏 node_modules/tests');
+}
+
+/** 单调 minor 序号（major*1000+minor），用于油猴移植基线差距 / minor index */
+function minorIndexOf(v) {
+  const [ma, mi] = String(v).split('.').map(Number);
+  return (ma || 0) * 1000 + (mi || 0);
 }
 
 /** 版本三元组比较：a>b → 1，a<b → -1，相等 → 0 */
