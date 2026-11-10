@@ -49,6 +49,9 @@ export default defineConfig({
       'tests/unit/test-freegames.mjs',
       'tests/unit/test-sites.mjs',
       'tests/unit/test-options-sites.mjs', // v14.27.0 P2-5：自定义站点按域授权
+      'tests/unit/test-options-save.mjs', // v14.27.0 P2-4：保存映射（DEFAULT_SETTINGS 对照）
+      'tests/unit/test-options-render.mjs', // v14.27.0 P2-4：设置面板渲染/站点管理
+      'tests/unit/test-dashboard-render.mjs', // v14.27.0 P2-4：dashboard 日志/导出
       'tests/unit/test-security.mjs',
       'tests/unit/test-api-pure.mjs',
       'tests/unit/test-api-search-golden.mjs', // v14.27.0 P2-10：拆分前后纯函数快照
