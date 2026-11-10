@@ -60,7 +60,10 @@ export const BUDGETS = {
   // 重试轮退避/单并发（ratings-batch）、缓存读去重（orchestrator-list）——
   // SW 图 +693B，均为修复性净增（去重后运行期往返反而减少），按实测重锁。
   // v14.29.1：重试轮快照副本 + 根因注释（ratings-batch）再 +752B，同批修复性净增。
-  swGraphBytes: 843571,
+  // v14.28.4（第二轮落地）：日志连续写入上界（mechanisms debounce maxWaitMs +
+  // logger/debounced-store 传参）与 R2-04 根因注释 +1.4KB；其中主体是双语
+  // 根因注释（UTF-8 中文 3B/字），代码增量约 0.2KB。按实测重锁。
+  swGraphBytes: 844988,
   swGraphFiles: 105,
   staticInjectionBytes: 50164,
   closureBytes: 294466

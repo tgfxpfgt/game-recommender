@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-10T20:33:45.598Z",
-  "version": "14.28.3",
+  "generatedAt": "2026-11-10T21:17:41.258Z",
+  "version": "14.28.4",
   "nodes": [
     {
       "dir": "background",
@@ -87,7 +87,7 @@
     "actionCount": 78,
     "storageCount": 30,
     "testCount": 0,
-    "suiteCount": 73
+    "suiteCount": 74
   },
   "flows": [
     {

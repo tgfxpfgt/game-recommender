@@ -129,7 +129,7 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
   `scripts/test-changed.mjs`：宽爆炸半径单源白名单触碰即升级**定向验证**（related +
   扫描器套件；测试基建例外仍全量）；相关文件 >15 → 全量；sim 不在静态 import 图上
   （__grImport 装载），走文件内显式映射）。**coverage:gate 基线 = git 可推导**
-  （merge-base(HEAD, origin/main)..HEAD ∪ 未提交新增，v14.29.1 起不再依赖
+  （merge-base(HEAD, origin/main)..HEAD ∪ 未提交新增，v14.28.4 起不再依赖
   gitignored 标记文件；未推送期间重跑会重门禁同批文件，属确定性代价）。
   **fast 模式 visual 按变更面跳过**（触发面 = popup/options/dashboard/freegames/
   styles/icons/shared/manifest——基线只渲染这四个扩展页+主题+版本号）。
