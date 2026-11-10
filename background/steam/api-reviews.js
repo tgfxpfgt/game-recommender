@@ -4,6 +4,7 @@ import { ENDPOINTS, STORAGE_CAPS, PERF_CONFIG } from '../core/constants.js'; // 
 import { createTtlCache } from '../core/mechanisms.js'; // v10.7.0：TTL 缓存工厂
 import { fetchCommunityChineseReviews } from './api-community-reviews.js'; // v14.21.2：社区评论正文回退（appreviews 死端点）
 import { Logger } from '../storage/logger.js';
+import { recordUsageCounter, recordUsageEvent } from '../storage/usage-evidence.js'; // v14.25.0：使用证据档案
 
 /**
  * 游戏雷达 Game Radar - Steam API 子模块：api-reviews.js
@@ -197,6 +198,7 @@ export async function fetchReviewSummary(appId) {
         recordDomainCall('store', response.ok || response.status === 404); // v11.0 B2
         if (!response.ok) continue;
         if (data.success === 1 && data.query_summary) {
+          recordUsageCounter('rating.liveApi'); // v14.25.0：appreviews 活端点命中（数据源健康证据）
           const qs = data.query_summary;
           const recent = summarizeRecentReviews(data.reviews);
           return {
@@ -317,6 +319,7 @@ export async function fetchReviewSummary(appId) {
         recordSteamCall(true, 200);
         recordDomainCall('store', true);
         const tier = allRow.isCn ? '您语言代位' : allRow.isRecent ? '最近行保底' : '全时段行';
+        recordUsageEvent('rating', 'fallback', { kind: tier }); // v14.25.0：好评率回退层级落账
         Logger.info(
           'Steam',
           `好评率回退（商店页解析·${tier}）: ${appId} → ${allPct}%（${allRow.desc || '—'}，${allCount} 篇）`
@@ -345,6 +348,7 @@ export async function fetchReviewSummary(appId) {
       if (insufficient) {
         recordSteamCall(true, 200);
         recordDomainCall('store', true);
+        recordUsageEvent('rating', 'fallback', { kind: 'insufficient' }); // v14.25.0
         Logger.info('Steam', `好评率回退（低评测）: ${appId} → ${insufficient.count} 篇（Steam 未生成整体评价）`);
         return {
           total: insufficient.count,
@@ -358,6 +362,7 @@ export async function fetchReviewSummary(appId) {
       if (zeroRow) {
         recordSteamCall(true, 200);
         recordDomainCall('store', true);
+        recordUsageEvent('rating', 'fallback', { kind: 'zero' }); // v14.25.0
         Logger.info('Steam', `好评率回退（无评测）: ${appId} → 0 篇`);
         return {
           total: 0,

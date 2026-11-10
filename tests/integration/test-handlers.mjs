@@ -429,6 +429,81 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     // 错误绑定已清除（否则重载页面会再次命中同一错误 appId）
     expect(await urlIdx.getAppIdByUrl(TEST_URL)).toEqual(null);
   });
+
+  // ============ v14.24.0：URL 命中路径缓存先行（用户报告：有缓存也慢） ============
+  // 此前 URL 索引命中直接 fetchSteamFullDetailsByAppId 全量拉取（~6 出站请求），
+  // 缓存完全被绕过——现完整条目（与 orchestrator tryCacheServed 同口径四重
+  // 判定 + 评论回填标记）直接合并返回零出站。
+  const completeEntry = (over = {}) => ({
+    appId: 3764200,
+    name: 'Resident Evil Requiem',
+    englishName: 'Resident Evil Requiem',
+    type: 'game',
+    url: 'https://store.steampowered.com/app/3764200/',
+    headerImage: 'https://cdn.akamai.steamstatic.com/steam/apps/3764200/header.jpg',
+    positiveRate: 90,
+    ratingDesc: '特别好评',
+    totalReviews: 100,
+    cnReviewsFetchedAt: Date.now(), // 评论回填标记在位 = 可直接服务
+    genres: ['Action'],
+    userTags: [],
+    developers: ['Capcom'],
+    chineseSupported: true,
+    releaseDate: '2026-02-27',
+    description: 'x',
+    ...over
+  });
+  test('v14.24.0：URL 命中 + 完整缓存 → 缓存先行直返（零 appdetails 出站）', async () => {
+    await urlIdx.setUrlAppId(TEST_URL, 3764200);
+    await cacheMod.setSteamCacheEntry(3764200, completeEntry());
+    await cacheMod.flushSteamCache();
+    const before = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    const resp = await handleMessage(
+      { action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' },
+      { tab: { url: TEST_URL } }
+    );
+    const after = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    expect(resp.data && String(resp.data.appId)).toEqual('3764200');
+    expect(after === before).toEqual(true); // 缓存先行 = 零出站
+  });
+  test('v14.24.0：旧缓存缺 cnReviewsFetchedAt → 不命中转完整拉取（评论回填自愈）', async () => {
+    const { resetAppDetailsDedupForTest } = await import('../../background/steam/api-details.js');
+    resetAppDetailsDedupForTest(); // appdetails 去重表（in-flight+10s TTL）跨用例残留会吞掉本用例的出站断言
+    await urlIdx.setUrlAppId(TEST_URL, 3764200);
+    // 模拟 v14.21.2 前的旧缓存条目（无评论回填标记）
+    await cacheMod.setSteamCacheEntry(3764200, completeEntry({ cnReviewsFetchedAt: undefined }));
+    await cacheMod.flushSteamCache();
+    const before = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    const resp = await handleMessage(
+      { action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' },
+      { tab: { url: TEST_URL } }
+    );
+    const after = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    expect(after > before).toEqual(true); // 缺标记 → 全量拉取一次
+    expect(resp.data && !!resp.data.cnReviewsFetchedAt).toEqual(true); // 回写带标记
+  });
+  test('v14.24.0：GET_STEAM_BY_APPID forceRefresh → 预清缓存 + 全新拉取', async () => {
+    const { resetAppDetailsDedupForTest } = await import('../../background/steam/api-details.js');
+    resetAppDetailsDedupForTest(); // 同上：去重表残留会吞掉 forceRefresh 的出站断言
+    await cacheMod.setSteamCacheEntry(3764200, completeEntry());
+    await cacheMod.flushSteamCache();
+    // 对照组：不带 forceRefresh → 缓存直返（零 appdetails）
+    const c1 = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    const r1 = await handleMessage({ action: 'GET_STEAM_BY_APPID', appId: 3764200, gameName: '生化危机9 安魂曲' });
+    expect(r1.data && String(r1.data.appId)).toEqual('3764200');
+    expect(fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length).toEqual(c1);
+    // forceRefresh → 缓存删除 + 全新拉取（appdetails 出站发生，写回带标记）
+    const r2 = await handleMessage({
+      action: 'GET_STEAM_BY_APPID',
+      appId: 3764200,
+      gameName: '生化危机9 安魂曲',
+      forceRefresh: true
+    });
+    expect(fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length).toBeGreaterThan(c1);
+    expect(r2.data && String(r2.data.appId)).toEqual('3764200');
+    const entry = await cacheMod.getSteamCacheEntry(3764200);
+    expect(!!entry && !!entry.modules.detail.data.cnReviewsFetchedAt).toEqual(true);
+  });
 });
 
 // ============ v7.0.3：检索顺序（网址 → 直取 → 标题 → 搜索）+ 缓存优先展示 ============
@@ -1020,5 +1095,24 @@ describe('v10.9.3：未命中原因（reason 字段）', () => {
     } finally {
       restore3();
     }
+  });
+});
+
+// ============ v14.25.0：使用证据档案报告（读侧接线） ============
+describe('GET_USAGE_EVIDENCE_REPORT（使用证据档案）', () => {
+  test('返回 success + report 结构（counters/durations/recentEvents7d/events）', async () => {
+    const evidence = await import('../../background/storage/usage-evidence.js');
+    evidence.resetUsageEvidence(); // 计数器为累计语义——同文件前置用例已落账，先归零再精确断言
+    await globalThis.chrome.storage.local.remove('usageEvidence'); // reset 仅清内存——后端旧条目会被重载读回，一并清除
+    evidence.recordUsageCounter('match.searchOk', 2);
+    evidence.recordUsageEvent('platform', 'declared', { kind: 'console' });
+    await evidence.flushUsageEvidence();
+    const resp = await handleMessage({ action: 'GET_USAGE_EVIDENCE_REPORT' });
+    expect(resp.success).toEqual(true);
+    expect(resp.report.counters['match.searchOk']).toEqual(2);
+    expect(Array.isArray(resp.report.events)).toEqual(true);
+    expect(typeof resp.report.recentEvents7d).toEqual('object');
+    expect(resp.report.durations).not.toEqual(null);
+    evidence.resetUsageEvidence();
   });
 });

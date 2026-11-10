@@ -16,6 +16,7 @@ import { DB_KEYS, ENDPOINTS } from '../core/constants.js';
 import { parseGameTitle } from '../core/title-parser.js';
 import { fetchWithTimeout } from '../core/utils.js';
 import { Logger } from '../storage/logger.js';
+import { recordUsageCounter } from '../storage/usage-evidence.js'; // v14.25.0：使用证据档案
 
 const SAMPLES_CAP = 20; // FIFO 上限（错题样本是高价值小数据）
 const TERMS_CAP = 8; // 单样本采集词上限（防超长标题刷请求）
@@ -94,6 +95,7 @@ export async function captureMismatchSample(scene) {
       recorded
     });
     await writeSamples(samples);
+    recordUsageCounter('mismatch.captured'); // v14.25.0：错题样本采集落账
     Logger.info('MismatchSamples', `错题样本已采集: "${rawTitle.slice(0, 40)}" → ${appId}`);
     return { captured: true };
   } catch (e) {

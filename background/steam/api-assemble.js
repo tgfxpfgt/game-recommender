@@ -73,6 +73,16 @@ export function buildSteamResult(
     cnPositiveRate: cnReviewSummary ? cnReviewSummary.positiveRate : null,
     cnTotalReviews: cnReviewSummary ? cnReviewSummary.total : 0,
     reviews: chineseReviews,
+    // v14.24.0（用户报告：浮窗依旧没有具体评论）：评论正文回填自愈标记——
+    // 旧缓存条目（v14.21.2 前）reviews 恒空且被缓存命中路径永久顶住（完整性
+    // 判定不含评论字段）。本标记 = "评论抓取已尝试过"：缺失（旧缓存）→ 缓存
+    // 不命中转完整拉取（评论回填一次）；存在且 reviews 仍空 = 该游戏确实没有
+    // 可得的简体中文评论（社区页无产出/未配置代理），不循环重取。
+    // v14.24.0: review-backfill marker — pre-v14.21.2 caches carry empty
+    // reviews forever (completeness check has no review field). Missing marker
+    // ⇒ cache miss → one full refetch backfills comments; marker present with
+    // empty reviews ⇒ genuinely unavailable, no retry loop.
+    cnReviewsFetchedAt: reviews ? Date.now() : 0,
     genres: (gameData.genres || []).map((g) => g.description),
     userTags,
     chineseSupported,

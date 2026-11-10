@@ -18,6 +18,7 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js';
 import { recordDomainCall, isCircuitOpen } from '../core/api-monitor.js';
 import { Logger } from '../storage/logger.js';
+import { recordUsageCounter, recordUsageEvent } from '../storage/usage-evidence.js'; // v14.25.0
 
 // 本 SW 会话内"端点不可用"标记（结构性变更哨兵）：解析零产出时置位，后续
 // 调用直接跳过（省请求）；SW 冷启动后重新探测一次。与 appreviewsDead 同构。
@@ -141,6 +142,7 @@ export async function fetchCommunityChineseReviews(appId) {
     if (reviews.length === 0) {
       // 结构变更哨兵：本会话不再打（页面结构漂移时静默降级为无文本，与
       // appreviewsDead 同语义）
+      recordUsageEvent('reviews', 'structureDrift'); // v14.25.0：页面结构漂移证据
       communityReviewsDead = true;
       Logger.warn('Steam', '社区评论页解析零产出（结构可能已变更），本会话跳过');
       return null;
@@ -151,10 +153,12 @@ export async function fetchCommunityChineseReviews(appId) {
       if (first !== undefined) fetchCache.delete(first);
     }
     fetchCache.set(key, { t: Date.now(), reviews });
+    recordUsageCounter('reviews.communityOk'); // v14.25.0：社区评论回退成功
     Logger.info('Steam', `社区评论回退: ${key} → ${reviews.length} 条简体中文评论`);
     return reviews;
   } catch (e) {
     recordDomainCall('steamcommunity', false);
+    recordUsageCounter('reviews.communityFail'); // v14.25.0
     Logger.debug('Steam', '社区评论抓取失败:', String(e));
     return null;
   }

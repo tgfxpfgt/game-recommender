@@ -13,6 +13,7 @@ import { flushRegistry } from './registry.js';
 import { flushUrlIndex } from './url-index.js';
 import { flushWrongReports } from './wrong-reports.js';
 import { flushManualPlatforms } from './manual-platforms.js'; // v14.19.0
+import { flushUsageEvidence } from './usage-evidence.js'; // v14.25.0：使用证据档案
 import { flushLearnedNoise } from './learned-noise.js';
 import { flushLogBuffer } from './logger.js';
 import { flushAppStats } from './app-stats.js';
@@ -31,6 +32,7 @@ export async function flushAllCaches() {
   await flushUrlIndex();
   await flushWrongReports();
   await flushManualPlatforms(); // v14.19.0：手动平台映射链尾
+  await flushUsageEvidence(); // v14.25.0：使用证据档案链尾
   await flushLearnedNoise();
   await flushAppStats();
   await flushProfiles(); // v14.5.0 B5

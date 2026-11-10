@@ -12,6 +12,7 @@ import { getSteamApiStatus, getDomainStatus } from '../core/api-monitor.js';
 import { getOutboundAudit } from '../core/outbound-audit.js';
 import { getFlushHealth } from '../storage/flush-health.js';
 import { getNotifications, markNotificationsRead } from '../storage/notifications.js'; // v14.16.0 N6
+import { buildUsageEvidenceReport } from '../storage/usage-evidence.js'; // v14.25.0：使用证据档案
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const logsHandlers = {
@@ -27,7 +28,11 @@ export const logsHandlers = {
   //（含 failAttribution 环形缓冲）+ 出站审计 + flush 健康 + 最近日志，一 JSON
   // 下载；issue 一来一回闭环（v10.9.2"用户侧环境不可远程推断"教训的收集端）。
   GET_DIAGNOSTIC_BUNDLE: async () => {
-    const [settings, logs] = await Promise.all([getSettings(), getRuntimeLogs()]);
+    const [settings, logs, usageEvidence] = await Promise.all([
+      getSettings(),
+      getRuntimeLogs(),
+      buildUsageEvidenceReport() // v14.25.0：使用证据档案随诊断包导出
+    ]);
     return {
       success: true,
       bundle: {
@@ -39,6 +44,7 @@ export const logsHandlers = {
         domainStatus: getDomainStatus(),
         outboundAudit: getOutboundAudit(),
         flushHealth: getFlushHealth(),
+        usageEvidence,
         logs
       }
     };

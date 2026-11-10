@@ -148,7 +148,15 @@ const RULES = {
   // URL 是列表页而非详情页，写入会污染 URL→appId 缓存）。
   RETRY_GAME_LOOKUP: nameRule('RETRY_GAME_LOOKUP.gameName'),
   REFRESH_STEAM_CACHE: nameRule('REFRESH_STEAM_CACHE.gameName'),
-  GET_STEAM_BY_APPID: (m) => appIdRule(m && m.appId, 'GET_STEAM_BY_APPID.appId'),
+  GET_STEAM_BY_APPID: (m) => {
+    const base = appIdRule(m && m.appId, 'GET_STEAM_BY_APPID.appId');
+    if (!base.ok) return base;
+    // v14.24.0：forceRefresh 可选布尔（菜单"手动更新"——跳缓存直取 + 预清缓存）
+    if (m && m.forceRefresh !== undefined && typeof m.forceRefresh !== 'boolean') {
+      return { ok: false, error: 'GET_STEAM_BY_APPID.forceRefresh 可选且必须为布尔' };
+    }
+    return { ok: true, error: '' };
+  },
   SAVE_MANUAL_MAPPING: (m) => {
     if (!isName(m && m.gameName)) return { ok: false, error: 'SAVE_MANUAL_MAPPING.gameName 必填且不超过 200 字符' };
     const appId = appIdRule(m && m.appId, 'SAVE_MANUAL_MAPPING.appId');
@@ -225,6 +233,7 @@ const RULES = {
       ? { ok: true, error: '' }
       : { ok: false, error: 'CLEAR_CACHE_FOR_PAGE.names/appIds 必须是数组（可空）' },
   GET_FLOAT_CACHE_INFO: () => ({ ok: true }), // v14.23.0：浮窗菜单缓存信息（读侧零参）
+  GET_USAGE_EVIDENCE_REPORT: () => ({ ok: true }), // v14.25.0：使用证据档案报告（扩展页读侧零参）
   GET_GAME_CACHE_LIST: (m) =>
     optStr(m && m.keyword, 100) &&
     optStr(m && m.tag, 100) &&

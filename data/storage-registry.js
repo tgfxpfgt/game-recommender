@@ -131,6 +131,14 @@ export const STORAGE_MODULES = {
     desc: 'Manual Platform Mapping',
     backup: true
   }, // v14.19.0：用户声明的主机机型映射（长期有效，随备份导出）
+  usageEvidence: {
+    file: 'usage-evidence.json',
+    format: 'json',
+    name: '使用证据档案',
+    desc: 'Usage Evidence',
+    backup: true,
+    clearOnDataReset: true
+  }, // v14.25.0：本地使用记录（计数/耗时/事件，有界——后续优化依据）
   searchCache: { file: 'search-cache.json', format: 'json', name: '下载站搜索缓存', desc: 'Search Cache' }, // v6.4.3
   llmScore: { file: 'llm-score.json', format: 'json', name: 'LLM 评分缓存', desc: 'LLM Score Cache' }, // v6.4.3
   urlAppIdIndex: { file: 'url-appid-index.json', format: 'json', name: '详情页网址索引', desc: 'Detail URL Index' }, // v7.0.2

@@ -33,6 +33,7 @@ import {
   isModuleValid,
   getCacheStats
 } from '../storage/steam-cache.js';
+import { buildUsageEvidenceReport } from '../storage/usage-evidence.js'; // v14.25.0：使用证据档案
 
 /**
  * 游戏雷达 Game Radar - 消息处理：游戏缓存管理 / Cache Manager Handlers
@@ -361,6 +362,13 @@ async function handleGetFloatCacheInfo() {
   };
 }
 
+// v14.25.0：使用证据档案报告（扩展页读侧——后续优化会话的数据入口）。
+// 全本地聚合零出站；诊断包（GET_DIAGNOSTIC_BUNDLE）同源附带。
+async function handleGetUsageEvidenceReport() {
+  const report = await buildUsageEvidenceReport();
+  return { success: true, report };
+}
+
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const cacheManagerHandlers = {
   CLEAN_EXPIRED_CACHE: handleCleanExpiredCache,
@@ -368,7 +376,8 @@ export const cacheManagerHandlers = {
   DELETE_GAME_CACHE_ENTRY: handleDeleteGameCacheEntry,
   CLEAR_GAME_CACHE: handleClearGameCache,
   REFRESH_GAME_CACHE_ENTRY: handleRefreshGameCacheEntry,
-  GET_FLOAT_CACHE_INFO: handleGetFloatCacheInfo
+  GET_FLOAT_CACHE_INFO: handleGetFloatCacheInfo,
+  GET_USAGE_EVIDENCE_REPORT: handleGetUsageEvidenceReport // v14.25.0
 };
 
 // --- 数据模块：清单/导出/导入 ---

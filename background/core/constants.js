@@ -36,6 +36,7 @@ export const DB_KEYS = {
   LEARNED_NOISE: 'learnedNoise', // 动态学习的标题噪声词（自适应检索，v3.1.2）
   WRONG_REPORTS: 'wrongReports', // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
   MANUAL_PLATFORMS: 'manualPlatforms', // v14.19.0：手动主机机型映射（用户声明的平台终态 + Metacritic 分）
+  USAGE_EVIDENCE: 'usageEvidence', // v14.25.0：使用证据档案（计数/耗时环形/高信号事件，全本地有界）
   SEARCH_CACHE: 'searchCache', // 下载站搜索结果缓存（v6.4.3，24h TTL）
   LLM_SCORE: 'llmScore', // LLM 推荐评分缓存（v6.4.3，7d TTL）
   URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）
@@ -106,6 +107,8 @@ export const STORAGE_CAPS = {
   siteHealth: 50, // 站点健康聚合上限
   tabGames: 24, // v14.2.0：SidePanel per-tab 游戏快照上限（复审轮 P2-6 入单源）
   manualPlatforms: 500, // v14.19.0：手动主机机型映射上限（用户声明，LRU 淘汰）
+  usageEvidenceEvents: 300, // v14.25.0：使用证据事件 FIFO 上限（高信号事件流）
+  usageEvidenceDurations: 50, // v14.25.0：耗时样本环形上限（每键）
   itadPriceCache: 500, // v14.2.0：ITAD 价格缓存上限（与 favorites 对齐，复审轮 P2-4）
   runtimeLogDefault: 300, // 运行日志默认条数（设置 maxRuntimeLog 的兜底）
   behaviorLogDefault: 500 // 行为日志默认条数（设置 maxBehaviorLog 的兜底）
@@ -402,7 +405,13 @@ export function moduleTtlMs(moduleKey) {
 // Steam 缓存写参数 / Steam cache write parameters
 export const STEAM_CACHE_WRITE_DEBOUNCE = 2000; // 2秒防抖写入 / 2s debounced write
 // 最大条目数（控制配额占用）
-export const STEAM_CACHE_MAX_ENTRIES = 1200;
+// v14.24.0（用户需求：增大缓存池容量）：1200 → 3000——4 分文件持久化（v10.6.0
+// C1）已控写放大，3 倍容量扩大离线命中率（详情页缓存先行路径的免出站覆盖面），
+// LRU 淘汰语义不变。
+// v14.24.0 (user request: larger cache pool): 1200 → 3000 — per-module files
+// already bound write amplification; 3× capacity widens offline hit rate of
+// the cache-first detail path. LRU eviction semantics unchanged.
+export const STEAM_CACHE_MAX_ENTRIES = 3000;
 
 // 名称索引/注册表写参数 / Name-index & registry write params
 export const NAME_INDEX_WRITE_DEBOUNCE = 2000;

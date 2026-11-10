@@ -69,6 +69,7 @@ const FIELD_MODULES = {
   cnPositiveRate: 'detail',
   cnTotalReviews: 'detail',
   reviews: 'detail',
+  cnReviewsFetchedAt: 'detail', // v14.24.0：评论回填自愈标记（缓存命中判定消费）
   // spy：第三方补充数据（SteamSpy/SteamDB）
   steamdb: 'spy',
   steamspy: 'spy'

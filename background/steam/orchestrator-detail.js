@@ -343,6 +343,13 @@ async function tryCacheServed(gameName, appId) {
     isCompleteCacheData(detail) &&
     !needsRatingRefetch(merged) &&
     !hasInvertedReviewCounts(merged) &&
+    // v14.24.0（用户报告：浮窗依旧没有具体评论）：缺评论回填标记的旧缓存条目
+    // 不命中——转完整拉取一次，社区页评论正文随写缓存回填（此后标记在位，
+    // 空 reviews = 确实无评论，不再循环重取）
+    // v14.24.0: cache entries without the review-backfill marker (written
+    // before the community-reviews fallback existed) miss once so comments
+    // backfill; marked-but-empty stays served (genuinely no reviews).
+    !!merged.cnReviewsFetchedAt &&
     namesRelated(gameName, merged.name)
   ) {
     // 自愈：Demo 版缓存无好评率 → 忽略缓存，重新搜索完整版
