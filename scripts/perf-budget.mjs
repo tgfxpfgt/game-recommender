@@ -56,7 +56,10 @@ export const BUDGETS = {
   // v14.28.0（P3-1/P3-2）：msg.js 补 clearTimeout（+约 340B，静态注入与闭包同步
   // 计入）、cache-manager 换 createTtlCache 并引入 mechanisms 导入（SW 图 +548B）
   // ——按新实测值重锁，均为修复性净增，无冗余代码。
-  swGraphBytes: 842126,
+  // v14.29.0（SW 饱和修复）：批量追加 appendModuleBatch（data-store +~600B）、
+  // 重试轮退避/单并发（ratings-batch）、缓存读去重（orchestrator-list）——
+  // SW 图 +693B，均为修复性净增（去重后运行期往返反而减少），按实测重锁。
+  swGraphBytes: 842819,
   swGraphFiles: 105,
   staticInjectionBytes: 50164,
   closureBytes: 294466
