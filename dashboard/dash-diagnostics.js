@@ -251,6 +251,16 @@ async function loadRuntimeMetrics() {
       appListEl.textContent = `${hit}/${fuzzy}/${miss}`;
       appListEl.title = `目录精确命中 ${hit} · 空格变体命中 ${fuzzy} · 未中 ${miss}（会话累计）`;
     }
+    // v14.26.0 P2-11：冷启动故障计数（此前只打控制台，用户与排障都看不到）
+    const bootEl = document.getElementById('diagBootFail');
+    if (bootEl) {
+      const restoreFail = Number(counters['boot.restore.fail']) || 0;
+      const initFail = Number(counters['boot.initStorage.fail']) || 0;
+      const scriptFail = Number(counters['boot.sitescripts.fail']) || 0;
+      bootEl.textContent = `${restoreFail}/${initFail}/${scriptFail}`;
+      bootEl.title = `备份自动恢复失败 ${restoreFail} · 存储初始化失败 ${initFail} · 站点脚本同步失败 ${scriptFail}（会话累计）`;
+      if (restoreFail + initFail + scriptFail > 0) bootEl.style.color = '#e05c5c';
+    }
   } catch {
     batchEl.textContent = opfsEl.textContent = msgEl.textContent = '—';
   }

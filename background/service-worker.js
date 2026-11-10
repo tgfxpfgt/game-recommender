@@ -50,7 +50,7 @@ import '../adapters/index.js';
 // Data store layer (OPFS per-module files; falls back to storage.local)
 import { initStorage, getSettings } from './core/settings.js';
 import { setWriteMetricsHook } from '../data/data-store.js'; // v10.8：写指标钩子（静态——铁律 2）
-import { trackOpfsWrite } from './core/metrics.js'; // v14.13 B2：写指标采样随钩子消费点保留
+import { trackOpfsWrite, metricInc } from './core/metrics.js'; // v14.13 B2 / v14.26.0 P2-11 启动故障计数
 import { resumeRatingsBatch } from './steam/ratings-batch.js'; // v14.13 B2：alarm 续跑链路依赖（非预热）
 import { Logger } from './storage/logger.js';
 import { handleMessage } from './handlers.js';
@@ -89,9 +89,17 @@ attachEarlyMessageRouter(async (message, sender) => handleMessage(message, sende
 // "settings 已存在"直接跳过，自动恢复被永久击穿。串行后：恢复未完成时
 // settings 未写入，下次启动仍会重试恢复（dataStore.init 幂等，先行安全）
 restoreLatestIfFresh()
-  .catch(() => {})
+  .catch((e) => {
+    // v14.26.0 P2-11：冷启动故障从"控制台黑盒"变可观测（日志 + dashboard 计数）
+    Logger.error('Boot', 'restoreLatestIfFresh 失败', { message: String(e && e.message ? e.message : e) });
+    metricInc('boot.restore.fail');
+  })
   .finally(() => {
-    initStorage().catch((e) => console.error('初始化失败:', e));
+    initStorage().catch((e) => {
+      Logger.error('Boot', 'initStorage 失败', { message: String(e && e.message ? e.message : e) });
+      metricInc('boot.initStorage.fail');
+      console.error('初始化失败:', e); // 保留控制台双写（存储未就绪时日志可能落不下去）
+    });
   });
 // v9.1.0：启动完成基线（监听器已注册 + 存储初始化发起）——Perf 日志供 dashboard
 // 诊断卡与自动化分析读取；v14.5.0 B2 增加模块图就绪耗时（冷启动→消息可用）
@@ -100,7 +108,10 @@ Logger.info('Perf', `SW 模块图就绪: ${GRAPH_READY_MS}ms (冷启动→消息
 
 // v7.4.0：自定义站点内容脚本动态注册（SW 启动时补齐；规则保存后由 handlers 再触发）
 // Custom-site content scripts (registered on startup; re-synced after rule saves)
-syncSiteScripts().catch((e) => console.error('站点脚本同步失败:', String(e)));
+syncSiteScripts().catch((e) => {
+  Logger.error('Boot', '站点脚本同步失败', { message: String(e) });
+  metricInc('boot.sitescripts.fail');
+});
 
 // v7.4.0：安装/更新欢迎页（首次安装显示功能导览；更新显示版本更新记录）
 // v14.6.1：更新分流收紧——update 但用户从未使用过（无任何注入痕迹，如装完

@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-10T14:22:10.421Z",
+  "generatedAt": "2026-11-10T15:12:50.520Z",
   "version": "14.25.0",
   "nodes": [
     {
@@ -16,7 +16,7 @@
       "color": "#a3cf06",
       "desc": "内容脚本 — 徽章注入/浮窗/行为采集",
       "files": 2,
-      "lines": 279
+      "lines": 333
     },
     {
       "dir": "options",
@@ -87,7 +87,7 @@
     "actionCount": 78,
     "storageCount": 30,
     "testCount": 0,
-    "suiteCount": 67
+    "suiteCount": 68
   },
   "flows": [
     {
