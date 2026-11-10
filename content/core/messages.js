@@ -7,14 +7,18 @@
  * Inbound message handlers moved from tracker.js (B7); tracker keeps a thin
  * listener that queues early messages and wires the router after boot —
  * semantics unchanged.
+ * v14.26.0（优化方案 P1-3）：列表域改为按需装载——URL 判定用零依赖的
+ * core/page-url.js，处理器仅在确实需要列表能力时 ensureScope('list')；
+ * 非列表页收到好评率推送直接忽略（不为此装载整域）。
  */
+import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from './page-url.js';
 
 /**
  * 创建消息路由器（tracker boot 完成后接线）
- * @param {{bootPromise: Promise<{M: any, settings: any}>, getModules: () => any}} ctx
+ * @param {{bootPromise: Promise<{M: any, settings: any}>, getModules: () => any, ensureScope: (s: 'list'|'detail'|'both') => Promise<any>}} ctx
  * @returns {(message: any, sender: any, sendResponse: Function) => boolean|undefined}
  */
-export function createMessageRouter({ bootPromise, getModules }) {
+export function createMessageRouter({ bootPromise, getModules, ensureScope }) {
   // 统一取模块句柄：MODULES 就绪直取，否则等 boot（与原监听器双路径等价）
   const getM = async () => {
     const mods = getModules();
@@ -48,13 +52,15 @@ export function createMessageRouter({ bootPromise, getModules }) {
           const adapter = M.builder.getAdapter();
           // v10.5.3 任务2：首页不响应推荐刷新（首页无列表功能，防止徽章
           // 经消息通道错位注入）/ skip on homepages (no list features there)
-          if (!M.list.isHomePageUrl() && (M.list.isListPageByUrl() || adapter.isListPage())) {
-            let items = M.list.getListItemsSmart(adapter);
+          // v14.26.0 P1-3：URL 判定不依赖列表域；确需列表能力时才装载
+          if (!isHomePageUrl() && (isListPageByUrl() || adapter.isListPage())) {
+            const { list } = await ensureScope('list');
+            let items = list.getListItemsSmart(adapter);
             // 应用关键词过滤规则（若已启用；v7.2.0 修正参数——原传 vmFilterKeywords 数组）
             if (settings.enableVmFilter) {
-              items = M.list.applyVmFilter(items, settings);
+              items = list.applyVmFilter(items, settings);
             }
-            M.list.requestRecommendations(items, settings);
+            list.requestRecommendations(items, settings);
           }
           sendResponse({ success: true });
         } catch (e) {
@@ -87,6 +93,12 @@ export function createMessageRouter({ bootPromise, getModules }) {
       // 路径（批次 13 曾按 B 路审查按"不可达"移除——test-content-messages
       // 实证路由可被直调于 boot 前，防御分支恢复保留）。
       const ready = readyM();
+      // v14.26.0 P1-3：详情页等未装载列表域的场景不该收到该推送（徽章只在
+      // 列表页渲染）——缺域直接忽略，不为一条迟到推送装载整个列表域。
+      if (ready && !ready.M.list) {
+        sendResponse({ success: true, ignored: true });
+        return;
+      }
       if (ready) {
         try {
           ready.M.list.applySteamRatingsUpdate(message.ratings, message.done === true, message.progress);
@@ -96,7 +108,10 @@ export function createMessageRouter({ bootPromise, getModules }) {
         }
       } else {
         bootPromise
-          .then(({ M }) => M.list.applySteamRatingsUpdate(message.ratings, message.done === true, message.progress))
+          .then(
+            ({ M }) =>
+              M.list && M.list.applySteamRatingsUpdate(message.ratings, message.done === true, message.progress)
+          )
           .catch((e) => {
             console.warn('【游戏雷达】 好评率推送处理失败:', e);
           });
@@ -112,15 +127,18 @@ export function createMessageRouter({ bootPromise, getModules }) {
           const M = await getM();
           const names = new Set();
           const appIds = new Set();
-          if (M.list.isDetailPageByUrl()) {
-            const gn = M.detail.detectGameName();
+          if (isDetailPageByUrl()) {
+            // v14.26.0 P1-3：详情域按需装载（detectGameName 由该域 re-export）
+            const { detail } = await ensureScope('detail');
+            const gn = detail.detectGameName();
             if (gn && gn.length > 1) names.add(gn);
             const img = M.builder.extractSteamImageInfo(document);
             if (img) appIds.add(img.appId);
           } else {
             const adapter = M.builder.getAdapter();
-            if (M.list.isListPageByUrl() || adapter.isListPage()) {
-              M.list.getListItemsSmart(adapter).forEach((/** @type {any} */ item) => {
+            if (isListPageByUrl() || adapter.isListPage()) {
+              const { list } = await ensureScope('list');
+              list.getListItemsSmart(adapter).forEach((/** @type {any} */ item) => {
                 if (item.name) names.add(item.name);
                 const info = M.builder.extractSteamImageInfo(item.element);
                 if (info) appIds.add(info.appId);

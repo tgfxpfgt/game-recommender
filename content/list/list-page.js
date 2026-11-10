@@ -15,6 +15,10 @@ import * as builder from '../adapters/builder.js';
 import * as badges from './badges/core.js';
 import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
+// v14.26.0 P1-3：URL 判定下沉 core/page-url.js（装载前也要用，避免装载列表域）
+import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from '../core/page-url.js';
+
+export { isDetailPageByUrl, isHomePageUrl, isListPageByUrl };
 
 const dbg = (...a) => debug.dbg(...a);
 
@@ -146,36 +150,11 @@ async function runRetryBatch() {
 const PRELOAD_ABORT_MS = 15000;
 
 // ============ 页面类型检测（URL优先，最可靠） ============
-// 详情页URL特征：以 数字.html 结尾，或 /game/数字.html 形式
-// 注意：/game/数字/ 是分类页，不是详情页
-function isDetailPageByUrl() {
-  const path = window.location.pathname;
-  return /\/\d+\.html?$/.test(path) || /\/game\/\d+\.html?$/i.test(path) || /\/\d+\.s?html?$/i.test(path);
-}
-
-// 列表页URL特征：首页、分类页、list页
-function isListPageByUrl() {
-  if (isDetailPageByUrl()) return false;
-  const path = window.location.pathname;
-  return (
-    path === '/' ||
-    path === '' ||
-    /^\/[a-z0-9_-]+\/?$/i.test(path) ||
-    /\/list\//i.test(path) ||
-    /\/page\/\d+/i.test(path)
-  );
-}
-
-// v10.5.3 任务2：下载站首页判定（根路径或 /index.html 且无查询串）——
-// 首页混排轮播/新闻/多尺寸卡片，列表功能（徽章/过滤/网格重排）会打破站点
-// 原生布局（用户反馈各站首页显示错位）。tracker 初始化与消息处理统一经
-// 此函数门控；带查询串的根路径（如 WordPress 搜索 /?s=）仍按列表页处理。
-// Homepage (root or /index.html, no query string): mixed layouts break under
-// list features; shared gate for tracker init and message handlers. Root
-// paths WITH a query string (e.g. /?s=) still run the list flow.
-function isHomePageUrl() {
-  return /^\/(?:index\.html?)?$/i.test(window.location.pathname || '/') && !window.location.search;
-}
+// v14.26.0 P1-3：三个 URL 判定（详情页 / 列表页 / 下载站首页）已下沉至
+// core/page-url.js（tracker 装载前与 page-init 分发共用，避免为了纯 URL
+// 判断而装载整个列表域）。此处仅 re-export 保持既有调用面。
+// The three URL predicates now live in core/page-url.js (metadata + dispatch
+// need them before list modules load); re-exported to keep the old surface.
 
 // 智能获取列表项：优先适配器，回退通用链接提取（v3.3.9：回退扫描受
 // maxScanLinks 上限保护，防止极端大列表页提取数千项并发请求）
@@ -600,16 +579,7 @@ export { _state, _internal, ratingFilterPass, sortItemsByRating, formatQueueStat
 // v14.16.0 N4：测试导出（纯收集函数 + 帽常量）
 export { collectRetryTargets, RETRY_BATCH_CAP };
 
-export {
-  isDetailPageByUrl,
-  isListPageByUrl,
-  isHomePageUrl,
-  getListItemsSmart,
-  trackListView,
-  applyVmFilter,
-  waitForListItems,
-  applySteamRatingsUpdate
-};
+export { getListItemsSmart, trackListView, applyVmFilter, waitForListItems, applySteamRatingsUpdate };
 export function requestRecommendations(items, settings) {
   return listBatch.requestRecommendations(items, settings);
 }

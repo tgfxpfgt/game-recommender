@@ -9,10 +9,16 @@
  */
 
 // 核心初始化（URL 检测页面类型 → 分发各域功能）
-// boot = { M, settings }（tracker bootPromise 的解析值）
+// boot = { M, settings, ensureScope }（tracker bootPromise 的解析值）
+// v14.26.0（优化方案 P1-3）：列表/详情两域按页面场景懒装载——URL 判定用
+// core/page-url.js（零依赖），真正进入某域流程时才 ensureScope 补载。
+// List/detail clusters are loaded on demand; URL predicates come from the
+// zero-dependency core/page-url.js so no domain module is needed to classify.
+import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from './page-url.js';
+
 export async function initPage(boot) {
   const { M, settings: bootSettings } = boot;
-  const { common, debug, builder, list, detail, tracking, status } = M;
+  const { common, debug, builder, tracking, status } = M;
   // 复用预热结果（通常已就绪，立即返回；否则等待剩余时间）
   let settings = bootSettings;
   // SW 冷启动失败兜底：重试一次获取设置，避免整页功能静默失效
@@ -81,13 +87,13 @@ export async function initPage(boot) {
   // Steam250 game page: reuse the Steam-page panel; list pages no-op inside.
   if (isSteam250Page) {
     debug.DEBUG.pageType = 'steam250 游戏页';
-    detail.injectSteam250Panel();
+    (await boot.ensureScope('detail')).detail.injectSteam250Panel();
     return; // 非追踪站：检索浮窗即全部功能，不做行为追踪/列表/详情流程
   }
 
   // === 功能3：Steam页面 → 注入下载站跳转浮窗 ===
   if (isSteamPage) {
-    detail.injectDownloadSitePanel();
+    (await boot.ensureScope('detail')).detail.injectDownloadSitePanel();
     // v3.3.8：浏览 Steam 商品页时预取并缓存该游戏完整数据——回到下载站
     // 列表页时徽章/筛选立即有数据（后台 detail 缓存有效则自动跳过）
     // Cache the game when browsing a Steam store page, so badges are ready
@@ -114,7 +120,7 @@ export async function initPage(boot) {
   // Download-site homepages mix carousels/news/varied cards and break under
   // list features; suspend them there (keep download tracking + QR unlock).
   // Root paths WITH a query string (e.g. /?s=) still run the list flow.
-  if (list.isHomePageUrl()) {
+  if (isHomePageUrl()) {
     debug.DEBUG.pageType = '首页';
     dbg('🏠 下载站首页：跳过列表/详情功能（防错位），仅保留下载追踪与二维码');
     tracking.setupDownloadTracking(settings);
@@ -126,8 +132,8 @@ export async function initPage(boot) {
   debug.DEBUG.adapter = adapter.name;
 
   // === 页面类型检测：URL优先，DOM辅助 ===
-  const detailByUrl = list.isDetailPageByUrl();
-  const listByUrl = list.isListPageByUrl();
+  const detailByUrl = isDetailPageByUrl();
+  const listByUrl = isListPageByUrl();
   dbg(`URL检测: 详情=${detailByUrl}, 列表=${listByUrl}`);
 
   // === 1. 列表页：提取游戏列表并高亮 ===
@@ -135,6 +141,8 @@ export async function initPage(boot) {
   if (isList) {
     debug.DEBUG.pageType = '列表页';
     dbg('✅ 检测到列表页');
+    // v14.26.0 P1-3：进入列表流程才装载列表域（首屏已按 URL 预载，此处通常零开销）
+    const { list } = await boot.ensureScope('list');
     // 页面数据渲染完成即开始（AJAX 延迟渲染页面：等待列表容器出现，最多 4 秒）
     let items = list.getListItemsSmart(adapter);
     if (items.length === 0) {
@@ -159,6 +167,8 @@ export async function initPage(boot) {
   const isDetail = detailByUrl || (!isList && !!document.querySelector('h1'));
   if (isDetail) {
     debug.DEBUG.pageType = '详情页';
+    // v14.26.0 P1-3：进入详情流程才装载详情域（自愈：URL 未命中但 DOM 判定为详情页时补载）
+    const { detail } = await boot.ensureScope('detail');
     const gameName = detail.detectGameName();
     // 即使未检测到游戏名，若页面含 Steam 图片可提取 appId，仍注入 Steam 浮窗
     const appIdFromImg = builder.extractSteamAppIdFromImages();

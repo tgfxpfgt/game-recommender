@@ -11,7 +11,7 @@
  */
 import * as debug from '../core/debug.js';
 import * as common from '../core/common.js';
-import * as detail from '../detail/detail-page.js';
+import * as detail from '../detail/detect-name.js';
 
 // 网盘/下载URL识别（覆盖主流网盘）/ Pan/download URL detection
 export function isDownloadUrl(str) {

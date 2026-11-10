@@ -30,47 +30,80 @@
   /** @type {GRModules|null} */
   let MODULES = null;
 
-  // v10.4.4：可选模块按设置条件导入——关闭后**模块代码完全不加载**
-  //（资源占用需求）；settings 为 null（SW 冷启动超时）时默认全加载，
-  // init 的重试路径会补齐设置
-  // v10.7.0 批次4：模块清单由 content/module-manifest.js 单源驱动（原 12+2
-  // 个 import 字面量与测试/校验两处手工同步）
-  async function ensureModules(settings) {
-    if (MODULES) return MODULES;
-    // 逐模块 getURL（动态 import 的 URL 由浏览器解析；测试环境 getURL 可 mock）
-    const m = (p) => chrome.runtime.getURL(p);
-    const { CORE_MODULES, OPTIONAL_MODULES } = await import(m('content/module-manifest.js'));
-    const coreMods = await Promise.all(CORE_MODULES.map((mod) => import(m(mod.file))));
-    const loaded = {}; // v14 B5：checkJs 进化对象类型，无需 any 断言
-    CORE_MODULES.forEach((mod, i) => {
-      loaded[mod.key] = coreMods[i];
-    });
-    // 可选模块（开关默认开；settings 缺失视为开）
-    await Promise.all(
-      OPTIONAL_MODULES.map(async (mod) => {
-        if (settings && settings[mod.setting] === false) return;
-        loaded[mod.key] = await import(m(mod.file));
-      })
-    );
-    MODULES = {
-      common: loaded.common,
-      floats: loaded.floats,
-      status: loaded.status,
-      debug: loaded.debug,
-      builder: loaded.builder,
-      badges: loaded.badges,
-      listBatch: loaded.listBatch,
-      list: loaded.list,
-      listState: loaded.listState,
-      detailTemplates: loaded.detailTemplates,
-      detail: loaded.detail,
-      tracking: loaded.tracking,
-      messages: loaded.messages, // v14.5.0 B7：消息路由域
-      pageInit: loaded.pageInit, // v14.5.0 B7：页面检测与分发域
-      qrUnlock: loaded.qrUnlock || null,
-      xdgrid: loaded.xdgrid || null
-    };
+  // v14.26.0（优化方案 P1-3）：按页面场景分流装载——列表页不装载详情域
+  //（sidebar/candidates ~80KB），详情页不装载列表域（徽章/批次 ~80KB）。
+  // 判定仅用 URL（core/page-url.js），粗判失误由 ensureScope 在分发时补齐。
+  // Scope-based loading: a list page never evaluates the detail cluster and
+  // vice versa; a coarse URL guess is repaired on demand by ensureScope().
+  const MODULE_KEYS = [
+    'common',
+    'floats',
+    'status',
+    'debug',
+    'builder',
+    'badges',
+    'listBatch',
+    'list',
+    'listState',
+    'detailTemplates',
+    'detail',
+    'tracking',
+    'messages',
+    'pageInit',
+    'qrUnlock',
+    'xdgrid'
+  ];
+  /** @type {Map<string, Promise<any>>} 文件 → 装载 Promise（去重，故并行安全） */
+  const loadPromises = new Map();
+  /** @type {any} 清单与设置缓存（ensureScope 补加载时复用） */
+  let manifestCache = null;
+  let settingsCache = null;
+
+  /** 全键空壳（未装载的键 = null，便于调用方判存在）@returns {GRModules} */
+  function emptyModules() {
+    MODULES = /** @type {GRModules} */ (Object.fromEntries(MODULE_KEYS.map((k) => [k, null])));
     return MODULES;
+  }
+
+  /** 装载单个模块文件（同一文件只评估一次）@param {string} file @returns {Promise<any>} */
+  function loadOne(file) {
+    let p = loadPromises.get(file);
+    if (!p) {
+      p = import(chrome.runtime.getURL(file));
+      loadPromises.set(file, p);
+    }
+    return p;
+  }
+
+  /**
+   * 装载与 scope 匹配的模块集合（已装载的键跳过）
+   * @param {'list'|'detail'|'both'} scope
+   */
+  async function loadScope(scope) {
+    const mods0 = MODULES || emptyModules();
+    const { CORE_MODULES, OPTIONAL_MODULES } = (manifestCache ??= await import(
+      chrome.runtime.getURL('content/module-manifest.js')
+    ));
+    const targets = [...CORE_MODULES, ...OPTIONAL_MODULES].filter((mod) => {
+      if (mods0[mod.key]) return false;
+      // 可选模块开关关闭 → 代码零加载（settings 缺失视为开）
+      if (mod.setting && settingsCache && settingsCache[mod.setting] === false) return false;
+      return mod.scope === 'all' || scope === 'both' || mod.scope === scope;
+    });
+    const loaded = await Promise.all(targets.map((mod) => loadOne(mod.file)));
+    targets.forEach((mod, i) => {
+      mods0[mod.key] = loaded[i];
+    });
+    return mods0;
+  }
+
+  /**
+   * 按需补加载指定场景模块（页面分发自愈兜底）
+   * @param {'list'|'detail'|'both'} scope
+   * @returns {Promise<GRModules>}
+   */
+  async function ensureScope(scope) {
+    return loadScope(scope);
   }
 
   // v9.1.0：boot 计时（性能基线）
@@ -87,7 +120,16 @@
         return null; // 后台不可达时 init 会自行重试
       }
     })();
-    const M = await ensureModules(settingsEarly);
+    settingsCache = settingsEarly;
+    // v14.26.0 P1-3：URL 粗判场景 → 只装载该侧模块集（未知结构 = both）
+    let scope = /** @type {'list'|'detail'|'both'} */ ('both');
+    try {
+      const pageUrl = await import(chrome.runtime.getURL('content/core/page-url.js'));
+      scope = pageUrl.detectPageScope(location.hostname, location.pathname, location.search);
+    } catch {
+      /* 判定失败 → both（与旧全量装载等价） */
+    }
+    const M = await ensureScope(scope);
     try {
       await M.builder.loadSiteRules();
       M.builder.buildSiteAdapters(M.builder.getSITE_RULES());
@@ -106,7 +148,7 @@
     } catch {
       /* 忽略上报失败 */
     }
-    return { M, settings: settingsEarly };
+    return { M, settings: settingsEarly, ensureScope };
   })();
   // v8.2.0：boot 就绪信号（测试等待模块+预热完成——推送不再走延迟路径）
   window.__grBootPromise = bootPromise;
@@ -142,7 +184,11 @@
   });
   bootPromise
     .then(({ M }) => {
-      const r = M.messages.createMessageRouter({ bootPromise, getModules: () => MODULES });
+      const r = M.messages.createMessageRouter({
+        bootPromise,
+        getModules: () => MODULES,
+        ensureScope
+      });
       route = r;
       queued.splice(0).forEach(([m, s, res]) => r(m, s, res));
     })

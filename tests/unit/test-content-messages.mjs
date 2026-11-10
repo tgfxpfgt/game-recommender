@@ -24,6 +24,15 @@ globalThis.document = {
   createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, remove() {} })
 };
 globalThis.location = globalThis.location || { href: 'http://test/list', reload: () => {} };
+// v14.26.0 P1-3：URL 判定改由 core/page-url.js 直读 location（不再经 M.list 桩）
+const LOC = {
+  hostname: 'dl.test',
+  pathname: '/list/page/1',
+  search: '',
+  href: 'http://dl.test/list/page/1',
+  reload: () => {}
+};
+globalThis.window.location = LOC;
 globalThis.chrome = globalThis.chrome || { runtime: { getManifest: () => ({ version: '0-test' }) } };
 
 const { createMessageRouter } = await import('../../content/core/messages.js');
@@ -48,7 +57,9 @@ function makeRouter({ ready = true } = {}) {
   const bootPromise = Promise.resolve({ M });
   const route = createMessageRouter({
     bootPromise,
-    getModules: ready ? readyMods : () => null
+    getModules: ready ? readyMods : () => null,
+    // v14.26.0 P1-3：按需装载桩（恒返回已准备好的模块句柄）
+    ensureScope: async () => M
   });
   return route;
 }
@@ -113,6 +124,8 @@ describe('内容消息路由 createMessageRouter', () => {
 
   test('REFRESH_RECOMMENDATIONS：首页不响应 / 设置缺失返回失败', async () => {
     M = makeM({ isHome: true });
+    const prevPath = LOC.pathname;
+    LOC.pathname = '/'; // 首页（根路径、无查询串）
     let recd = 0;
     M.list.requestRecommendations = () => {
       recd++;
@@ -124,6 +137,7 @@ describe('内容消息路由 createMessageRouter', () => {
     expect(resp).toEqual({ success: true });
     expect(recd).toEqual(0); // 首页跳过推荐
 
+    LOC.pathname = prevPath;
     settingsResp = null; // 设置缺失
     let resp2;
     route({ action: 'REFRESH_RECOMMENDATIONS' }, {}, (r) => (resp2 = r));
@@ -172,10 +186,13 @@ describe('内容消息路由 createMessageRouter', () => {
       gameName: '北方之魂',
       imageInfo: { appId: '1213700' }
     });
+    const prevPath = LOC.pathname;
+    LOC.pathname = '/123.html'; // 详情页 URL 特征
     const route = makeRouter();
     let resp;
     route({ action: 'FORCE_REFRESH_PAGE' }, {}, (r) => (resp = r));
     await new Promise((r) => setTimeout(r, 0));
+    LOC.pathname = prevPath;
     expect(resp).toEqual({ success: true, cleared: 2 }); // 1 名 + 1 appId
     const clear = msgLog.find((m) => m.action === 'CLEAR_CACHE_FOR_PAGE');
     expect(clear.names).toContain('北方之魂');

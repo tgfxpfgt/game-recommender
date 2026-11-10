@@ -189,13 +189,16 @@ test('title-parser 消费编译词表（无本地噪声正则副本）', () => {
   // test-retrieval-vocab 的 golden 断言守护
   expect(titleParserSrc.includes('const noisePattern =')).toEqual(false);
 });
+// v14.26.0 P1-3：游戏名提取（词表消费者）迁至 content/detail/detect-name.js
+const detailNameSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detect-name.js'), 'utf-8');
 const detailPageSrc = fs.readFileSync(path.join(ROOT, 'content/detail/detail-page.js'), 'utf-8');
 test('detail-page 消费编译词表（无 noisePatternSource 引用）', () => {
-  expect(detailPageSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(false);
-  expect(detailPageSrc.includes('getCompiledRetrievalRules')).toEqual(true);
+  expect(detailNameSrc.includes('__GR_PATTERNS__.noisePatternSource')).toEqual(false);
+  expect(detailNameSrc.includes('getCompiledRetrievalRules')).toEqual(true);
 });
 test('detail-page 不含完整漂移副本', () => {
   expect(!detailPageSrc.includes('抢先试玩|抢先体验')).toEqual(true);
+  expect(!detailNameSrc.includes('抢先试玩|抢先体验')).toEqual(true);
 });
 
 // v14.2.0：spawn 假阳性根治（主报告 P1-1）——哨兵自检 + 区分"环境不可用"
