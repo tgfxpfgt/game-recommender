@@ -12,6 +12,7 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
+import { resetApiMonitor } from '../../background/core/api-monitor.js';
 
 const storage = createStorageMock();
 installChromeStorageMock(storage);
@@ -38,6 +39,115 @@ const JOB_KEY = 'grRatingsBatchJob';
 function sessionGet(key) {
   return chrome.storage.session._data.get(key);
 }
+
+// ============ v14.29.x：SW 饱和修复（全 miss 批量链）回归 ============
+// 置于文件最前：api-monitor 的失败计数与 anomalyGate 是模块级状态，后面
+// "死 tab/失败请求"类用例会留下脏状态，污染这两个用例的耗时判定。
+// Kept first: api-monitor failure counters and anomalyGate are module-level,
+// and later failing-request cases would pollute the timing assertions here.
+describe('v14.29.x SW 饱和修复：批量链全 miss', () => {
+  /** 等待全局链空闲 / wait for the global chain to idle */
+  async function waitIdle() {
+    for (let i = 0; i < 200; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!s.running && s.pending === 0) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  // 此前进重试队列的条件是 `!r || r.failed`，全 miss（检索无命中 → null，
+  // 非 failed:true）会让整批被第二轮原样重打：90 项批量链耗时翻倍、限流
+  // 队列二次打满。修复后确定性 miss 由内容侧"未找到·点击重查"承接。
+  // Deterministic misses (null) must not trigger the second pass.
+  test('确定性 miss 不进重试轮（每项只推送一次）', async () => {
+    await waitIdle();
+    storage._reset();
+    pushed.length = 0;
+    const prevFetch = globalThis.fetch;
+    // 空候选 + 空目录镜像 → 纯确定性 miss，零 API 失败（不触发异常暂停）
+    globalThis.fetch = createFetchMock({ '/api/storesearch': { items: [] }, games_appid: [] });
+    const names = ['不存在的游戏甲', '不存在的游戏乙', '不存在的游戏丙'];
+    try {
+      const started = ratingsBatch.startRatingJob({
+        tabId: 12,
+        queue: names,
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      expect(started).toEqual(true);
+      for (let i = 0; i < 300; i++) {
+        const s = ratingsBatch.getRatingsQueueStatus();
+        if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(sessionGet(JOB_KEY)).toEqual(undefined);
+      for (const n of names) {
+        // 第二轮重打会再次推送同名项 → 计数为 2；修复后恒为 1
+        const times = pushed.filter(
+          (p) => p.msg.ratings && Object.prototype.hasOwnProperty.call(p.msg.ratings, n)
+        ).length;
+        expect(times).toEqual(1);
+      }
+      expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
+    } finally {
+      globalThis.fetch = prevFetch;
+    }
+  });
+
+  // v14.29.1：重试轮数组别名导致的无界循环回归。此前 runPool(retryNames)
+  // 与 retryNames 同一数组，重试失败的条目 push 回自身 → 数组长度随游标
+  // 增长，`cursor < passNames.length` 永不满足（实测 20 项 233s 未收尾、
+  // 堆 4GB OOM）。修复传快照副本后，重试轮只跑一遍。
+  // Regression for the aliased-array unbounded retry pass (233s/OOM observed).
+  test('失败条目的重试轮有界（429 全失败也不无限重打）', async () => {
+    await waitIdle();
+    storage._reset();
+    pushed.length = 0;
+    const prevFetch = globalThis.fetch;
+    const base = createFetchMock({
+      '/api/storesearch': { items: [{ id: 999001, name: '限流测试游戏', type: 'game' }] },
+      '/api/appdetails': {
+        999001: { success: true, data: { steam_appid: 999001, name: '限流测试游戏', type: 'game' } }
+      }
+    });
+    let reviewCalls = 0;
+    globalThis.fetch = async (/** @type {any} */ url, /** @type {any} */ opts) => {
+      if (String(url).includes('/appreviews')) {
+        reviewCalls++;
+        return { ok: false, status: 429, json: async () => ({}), text: async () => '' };
+      }
+      return base(url, opts);
+    };
+    try {
+      const started = ratingsBatch.startRatingJob({
+        tabId: 13,
+        queue: ['限流测试游戏'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      expect(started).toEqual(true);
+      // 上限 30s（含 6s 退避）：无界循环时任务永不收尾
+      for (let i = 0; i < 600; i++) {
+        const s = ratingsBatch.getRatingsQueueStatus();
+        if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(sessionGet(JOB_KEY)).toEqual(undefined);
+      expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
+      // 首轮 1 次 + 重试 1 次；无界循环会数百次（每次重打都再请求评价）
+      expect(reviewCalls).toBeLessThanOrEqual(4);
+    } finally {
+      globalThis.fetch = prevFetch;
+      resetApiMonitor(); // 模块级失败计数会污染后续用例 / module-level counter cleanup
+    }
+  });
+});
 
 describe('批量好评率任务可恢复化（v10.0.0）', () => {
   let restoreFetch;
@@ -291,42 +401,6 @@ describe('v14.17.0 任务治理：硬截止 + 死 tab 中止', () => {
     const r = platPush && platPush.msg.ratings[name];
     expect(r && r.platformOnly).toBe(true);
     expect(r && r.platformTag).toEqual('模拟器');
-    expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
-  });
-
-  // v14.29.0 SW 饱和修复回归：确定性 miss（检索无命中 → null，非 failed:true）
-  // 不再进入第二轮全量重打。此前进重试队列的条件是 `!r || r.failed`，全 miss
-  // 的批次会被原样重打一轮（90 项批量链耗时翻倍、限流队列二次打满）。
-  // Regression: deterministic misses (null, not failed:true) must not trigger the
-  // second pass — each name is pushed exactly once.
-  test('v14.29.0：确定性 miss 不进重试轮（每项只推送一次）', async () => {
-    await waitForIdle();
-    storage._reset();
-    pushed.length = 0;
-    const names = ['不存在的游戏甲', '不存在的游戏乙', '不存在的游戏丙'];
-    const started = ratingsBatch.startRatingJob({
-      tabId: 12,
-      queue: names,
-      retried: false,
-      urlAppIds: {},
-      imageData: {},
-      appIds: {},
-      startedAt: Date.now()
-    });
-    expect(started).toEqual(true);
-    for (let i = 0; i < 100; i++) {
-      const s = ratingsBatch.getRatingsQueueStatus();
-      if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    expect(sessionGet(JOB_KEY)).toEqual(undefined);
-    for (const n of names) {
-      // 第二轮重打会再次推送同名项 → 计数必然为 2；修复后恒为 1
-      const times = pushed.filter(
-        (p) => p.msg.ratings && Object.prototype.hasOwnProperty.call(p.msg.ratings, n)
-      ).length;
-      expect(times).toEqual(1);
-    }
     expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
   });
 });

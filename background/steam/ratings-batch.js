@@ -518,7 +518,15 @@ async function runRatingJob(job) {
       const retryWait = PERF_CONFIG.retryBackoffMs;
       if (Date.now() + retryWait < deadlineAt) {
         await new Promise((r) => setTimeout(r, retryWait));
-        await runPool(retryNames, { concurrency: PERF_CONFIG.retryConcurrency });
+        // v14.29.1：必须传快照副本——runPool 的 worker 以 `cursor < passNames.length`
+        // 推进，而重试失败的条目会再次 push 进 retryNames；若直接传同一个数组
+        // （passNames === retryNames），数组长度随 push 增长、游标永远追不上，
+        // 重试轮变成**无界循环**（全 miss 批次实测：20 项 233s 未收尾、node 堆
+        // 涨到 4GB OOM；真机表现为 SW 单线程被持续占满、其余消息饥饿）。
+        // Pass a snapshot: runPool advances on cursor < passNames.length, and
+        // failed retries push back into retryNames — aliasing the same array
+        // makes the retry pass unbounded (observed: 233s/OOM on a 20-item run).
+        await runPool(retryNames.slice(), { concurrency: PERF_CONFIG.retryConcurrency });
       }
     }
     // 全部完成：done 标记（内容脚本据此收尾并显示统计）+ 清任务
