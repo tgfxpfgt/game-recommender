@@ -414,8 +414,8 @@ async function runRatingJob(job) {
       batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
     };
 
-    /** @param {string[]} passNames */
-    const runPool = async (passNames) => {
+    /** @param {string[]} passNames @param {{concurrency?: number}} [poolOpts] */
+    const runPool = async (passNames, poolOpts = {}) => {
       if (passNames.length === 0) return;
       const completedInPass = new Set();
       let cursor = 0;
@@ -484,22 +484,42 @@ async function runRatingJob(job) {
           completedInPass.add(name);
           doneCount++;
           pendingWave.set(name, r ? mergeAppStat(r, statsMap) : null);
-          // 网络失败/限流（null 或 failed 标记）→ 进入重试队列
-          if (!r || r.failed) retryNames.push(name);
+          // v14.29.0：**只重试明确标记为失败的结果**（网络/限流/超时 →
+          // orchestrator-list 置 failed:true）。此前 `!r` 也入重试队列，而
+          // 全 miss 的确定性结果（phaseSearch 返回 null）同样 `!r` → 整批
+          // 90 项被第二轮原样重打，批量链耗时直接翻倍（实测 90 项全 miss
+          // 153s 中约一半来自这一轮）。确定性 miss 由内容侧"未找到·点击重查"
+          // 徽章承接，不牺牲失败统计准确性。
+          // Only explicitly-failed results are retried (network/ratelimit/timeout);
+          // deterministic misses (null) no longer trigger a full second pass.
+          if (r && r.failed) retryNames.push(name);
           metricInc('batch.items', 1);
           await flushWave(passNames, completedInPass, false);
         }
       };
-      await Promise.all(Array.from({ length: Math.min(concurrency, passNames.length) }, worker));
+      await Promise.all(
+        Array.from({ length: Math.min(poolOpts.concurrency || concurrency, passNames.length) }, worker)
+      );
       await flushWave(passNames, completedInPass, true);
     };
 
     await runPool(allNames);
     // 一轮结束后重试失败的条目（最多一轮，防无限循环）
     // v14.17.0：死 tab / 已过硬截止时跳过重试轮（丢项走刷新重查自愈，不再拖链）
+    // v14.29.0：重试轮改为**限并发 + 先退避**——全失败的最慢路径此前以同样
+    // 并发立刻硬打第二轮，在限流/网络故障期正好把限流队列再次打满。退避
+    // 6000ms 让限流窗口与瞬时网络抖动先恢复；并发降到 1 让重试轮退化为
+    // 串行游标，不再与其他标签页/新一轮任务抢 slot。两项合起来把"最慢路径"
+    // 从 2×全量并发突刺压到 1×串行，且不改变失败统计口径。
+    // Retry pass is now backoff-first and single-concurrency instead of an
+    // immediate full-speed duplicate of round one.
     if (retryNames.length > 0 && !retried && !tabDead && Date.now() < deadlineAt) {
       retried = true;
-      await runPool(retryNames);
+      const retryWait = PERF_CONFIG.retryBackoffMs;
+      if (Date.now() + retryWait < deadlineAt) {
+        await new Promise((r) => setTimeout(r, retryWait));
+        await runPool(retryNames, { concurrency: PERF_CONFIG.retryConcurrency });
+      }
     }
     // 全部完成：done 标记（内容脚本据此收尾并显示统计）+ 清任务
     job.queue = [];

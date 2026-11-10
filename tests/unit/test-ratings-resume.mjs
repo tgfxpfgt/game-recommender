@@ -293,4 +293,40 @@ describe('v14.17.0 任务治理：硬截止 + 死 tab 中止', () => {
     expect(r && r.platformTag).toEqual('模拟器');
     expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
   });
+
+  // v14.29.0 SW 饱和修复回归：确定性 miss（检索无命中 → null，非 failed:true）
+  // 不再进入第二轮全量重打。此前进重试队列的条件是 `!r || r.failed`，全 miss
+  // 的批次会被原样重打一轮（90 项批量链耗时翻倍、限流队列二次打满）。
+  // Regression: deterministic misses (null, not failed:true) must not trigger the
+  // second pass — each name is pushed exactly once.
+  test('v14.29.0：确定性 miss 不进重试轮（每项只推送一次）', async () => {
+    await waitForIdle();
+    storage._reset();
+    pushed.length = 0;
+    const names = ['不存在的游戏甲', '不存在的游戏乙', '不存在的游戏丙'];
+    const started = ratingsBatch.startRatingJob({
+      tabId: 12,
+      queue: names,
+      retried: false,
+      urlAppIds: {},
+      imageData: {},
+      appIds: {},
+      startedAt: Date.now()
+    });
+    expect(started).toEqual(true);
+    for (let i = 0; i < 100; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    expect(sessionGet(JOB_KEY)).toEqual(undefined);
+    for (const n of names) {
+      // 第二轮重打会再次推送同名项 → 计数必然为 2；修复后恒为 1
+      const times = pushed.filter(
+        (p) => p.msg.ratings && Object.prototype.hasOwnProperty.call(p.msg.ratings, n)
+      ).length;
+      expect(times).toEqual(1);
+    }
+    expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
+  });
 });

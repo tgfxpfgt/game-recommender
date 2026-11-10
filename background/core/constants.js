@@ -67,6 +67,13 @@ export const PERF_CONFIG = {
   // 旧实现每波可各暂停 5s/30s，60 项 × 异常级联可把单任务拖到 15 分钟级，
   // 全局单任务链（v14.8）下后开标签页全部陪等。总额耗尽后裸跑完剩余项。
   anomalyPauseTotalCapMs: 90000,
+  // v14.29.0：批量链重试轮退避与并发（单源）——限流/网络故障期的最慢路径
+  // 不再以全量并发立刻硬打第二轮。退避 6000ms > 单次限流窗口（150ms × 并发
+  // 3 ≈ 450ms）且 < anomalyWaitMs(5000)/anomalyConsecutivePauseMs(30000) 的
+  // 数量级，足以让瞬时抖动恢复而不至于把任务拖过截止；并发 1 = 重试轮串行，
+  // 确保它与新一轮任务/其他标签页不抢限流 slot。
+  retryBackoffMs: 6000,
+  retryConcurrency: 1,
   // v14.17.0：单任务**硬截止**——超过后丢弃剩余项并推送 done 终态（内容侧
   // 立即收尾、队列衔接下一 tab；丢项由刷新重查自愈）。全局链排队等待有界。
   ratingsJobMaxRuntimeMs: 300000,
