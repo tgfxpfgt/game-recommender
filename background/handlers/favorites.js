@@ -8,8 +8,7 @@
  */
 import { toggleFavorite, getFavorites } from '../storage/favorites.js'; // v10.6.0 F2 收藏
 import { getFavoritePrices } from '../freegames/manager.js'; // v14.1.0：价格列
-import { fetchWithTimeout } from '../core/utils.js'; // v14.2.0：Key 测试改走后台（铁律 #8）
-import { ENDPOINTS } from '../core/constants.js';
+import { itadFetch } from '../freegames/itad.js'; // v14.26.0：ITAD 请求构造单源（P1-7）
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const favoritesHandlers = {
@@ -23,7 +22,7 @@ export const favoritesHandlers = {
     const key = String((msg && msg.key) || '').slice(0, 200);
     if (!key) return { ok: false, status: 0 };
     try {
-      const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${encodeURIComponent(key)}&appids=steam/730`);
+      const resp = await itadFetch(key, 'appids=steam/730');
       return { ok: resp.ok, status: resp.status };
     } catch {
       return { ok: false, status: 0 };

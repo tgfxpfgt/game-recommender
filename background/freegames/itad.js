@@ -18,13 +18,53 @@ import { notifyBase } from './notify.js'; // v14.3.0：通知构造单源（B8�
 // 防 GamerPower 数据过期/错误导致的误报；无 key 或失败时容错放行（按原分类）
 // ITAD secondary check: confirm the game is currently free (price 0)
 // v14.2.0：导出（三域拆分后 notify 域复核 Steam 候选时消费）
+
+// v14.26.0（优化方案 P1-7）：ITAD 请求构造单源——此前 4 处各自拼 URL（itad ×3 +
+// handlers/favorites 的 Key 测试），key 作为查询参数进入 URL，DevTools 网络面板、
+// chrome://net-export、代理/企业网关日志均可见明文密钥。改为优先 ITAD-API-Key
+// 头（官方文档：key 可走 `?key=` 或 `ITAD-API-Key` 头）；旧 v02 端点若不认头会
+// 回 401/403，此时自动降级回查询参数并记住——单次降级，之后直连，功能不回退。
+// Single source for ITAD requests: key goes in the ITAD-API-Key header first,
+// falling back to the legacy `key` query param once if the endpoint rejects it.
+/** @type {'header'|'query'} */
+let itadAuthMode = 'header';
+
+/**
+ * 构造 ITAD 价格请求（单源；key 默认走请求头）。
+ * @param {string} apiKey ITAD 密钥（空则退化为查询参数模式，与旧行为一致）
+ * @param {string} query 查询串（如 `appids=steam/730`）
+ * @returns {{url: string, init: Object, authInQuery: boolean}} 请求描述
+ */
+export function buildItadRequest(apiKey, query) {
+  const key = String(apiKey || '');
+  const authInQuery = itadAuthMode === 'query' || !key;
+  const url = ENDPOINTS.itadPrices + '?' + (authInQuery ? `key=${encodeURIComponent(key)}&` : '') + query;
+  return { url, init: authInQuery ? {} : { headers: { 'ITAD-API-Key': key } }, authInQuery };
+}
+
+/**
+ * 发起 ITAD 请求（头鉴权 → 401/403 时降级查询参数重试一次）。
+ * @param {string} apiKey ITAD 密钥
+ * @param {string} query 查询串
+ * @param {number} [timeoutMs] 超时（缺省走 PERF_CONFIG 单源）
+ * @returns {Promise<Response>} 响应（降级后仍失败则返回该失败响应，由调用方判状态）
+ */
+export async function itadFetch(apiKey, query, timeoutMs) {
+  const first = buildItadRequest(apiKey, query);
+  const resp = await fetchWithTimeout(first.url, first.init, timeoutMs);
+  if (first.authInQuery || (resp.status !== 401 && resp.status !== 403)) return resp;
+  itadAuthMode = 'query';
+  const retry = buildItadRequest(apiKey, query);
+  return fetchWithTimeout(retry.url, retry.init, timeoutMs);
+}
+
 export async function checkItadFree(appId) {
   try {
     // v6.4.19：多套配置——使用激活配置的 key；旧 itadApiKey 兼容为隐式配置
     const settings = await getSettings();
     const key = activeItadKey(settings);
     if (!key || !appId) return null;
-    const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${key}&appids=steam/${appId}`);
+    const resp = await itadFetch(key, `appids=steam/${appId}`);
     // v9.7.0：非 2xx 区分凭证失效（401/403 → key 失效告警）与其他失败
     if (resp.status === 401 || resp.status === 403) {
       Logger.warn('FreeGames', `ITAD校验凭证失效（HTTP ${resp.status}，检查激活 Key 是否有效）`);
@@ -63,7 +103,7 @@ export async function getItadLowest(appId) {
   /** @type {{price: number, shop: string}|null} */
   let info = null;
   try {
-    const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${apiKey}&appids=steam/${key}&region=cn`);
+    const resp = await itadFetch(apiKey, `appids=steam/${key}&region=cn`);
     if (resp.status === 401 || resp.status === 403) {
       Logger.warn('FreeGames', `ITAD 最低价查询凭证失效（HTTP ${resp.status}）`);
       itadLowestCache.set(key, null);
@@ -94,7 +134,7 @@ async function fetchFavoriteCurrentPrice(appId, apiKey) {
   /** @type {number|null} */
   let price = null;
   try {
-    const resp = await fetchWithTimeout(`${ENDPOINTS.itadPrices}?key=${apiKey}&appids=steam/${appId}&region=cn`);
+    const resp = await itadFetch(apiKey, `appids=steam/${appId}&region=cn`);
     if (resp.ok) {
       const data = await resp.json();
       const entry = data && data['steam/' + appId];
