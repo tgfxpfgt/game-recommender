@@ -8,6 +8,8 @@
  */
 ('use strict');
 
+import { withTimeout, isTimeout } from './helpers.mjs';
+
 export async function runListChecks(state) {
   const { context, extId, check, FIXTURE_URL } = state;
 
@@ -133,54 +135,116 @@ export async function runListChecks(state) {
 }
 
 // 5a. 滚动批次：130 项大列表 → 滚动底部触发 IO 哨兵 → 第二批徽章（v4.1.0）
+// v14.28.1：本节的 newPage/goto/evaluate 全部经 withTimeout 兜底——SW 批量
+// 评分饱和期 Chromium 主进程会被拖到 100% CPU（实测），CDP 不回包时裸
+// await 会白等到 120s 节超时并丢失现场（诊断页也一起挂死）。
+// All browser-touching awaits here are timeout-guarded: when the SW batch
+// starves the browser process, bare awaits burn the full 120s section timeout
+// and lose the failure context (the diagnostics page hangs too).
 export async function runScrollBatch(state) {
   const { context, check, extId, FIXTURE_ROOT } = state;
   console.log('5a. 滚动批次（按需扫描）');
-  const page4 = await context.newPage();
-  await page4.goto(`${FIXTURE_ROOT}?scroll=1`);
+  const page4 = await withTimeout(context.newPage(), 15000, '5a newPage');
+  if (isTimeout(page4)) {
+    check('滚动触发第二批徽章（按需扫描）', false, '(新页创建超时 15s——浏览器/CDP 无响应，未进入滚动)');
+    return;
+  }
+  const nav = await withTimeout(page4.goto(`${FIXTURE_ROOT}?scroll=1`, { timeout: 15000 }), 20000, '5a goto');
+  if (isTimeout(nav)) {
+    check('滚动触发第二批徽章（按需扫描）', false, '(滚动页打开超时 20s——浏览器/CDP 无响应)');
+    await withTimeout(
+      page4.close().catch(() => {}),
+      5000,
+      '5a close'
+    );
+    return;
+  }
+  const ev = (fn, label, ms = 8000) => withTimeout(page4.evaluate(fn), ms, label);
   await page4.waitForTimeout(1200); // 首屏批（60 项）发起
-  const badgesBefore = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
-  await page4.evaluate(() => window.scrollTo(0, document.body.scrollHeight));
+  const badgesBefore0 = await ev(() => document.querySelectorAll('.gr-rating-badge').length, '5a badgesBefore');
+  if (isTimeout(badgesBefore0)) {
+    check('滚动触发第二批徽章（按需扫描）', false, '(页面求值超时 8s——内容脚本/渲染进程无响应)');
+    await withTimeout(
+      page4.close().catch(() => {}),
+      5000,
+      '5a close'
+    );
+    return;
+  }
+  const badgesBefore = badgesBefore0;
+  await ev(() => window.scrollTo(0, document.body.scrollHeight), '5a scrollTo');
   let badgesAfter = badgesBefore;
   // v14.10.1：等待轮数可配置（E2E_SCROLL_WAIT_ROUNDS，默认 80 = 40s）——
   // 130 项全 miss 链 ~700 请求经 150ms 限速单趟即超 40s（重负载机更甚），
   // 第二批徽章出现在 1-2 波推送后；提额消除假红（与 GR_SIM_SIGNAL_TIMEOUT_MS
   // /E2E_SECTION_TIMEOUT_MS 同一抗负载家族）。
   const scrollWaitRounds = Number(process.env.E2E_SCROLL_WAIT_ROUNDS) || 80;
+  let pageResponsive = true;
   for (let i = 0; i < scrollWaitRounds && badgesAfter <= badgesBefore; i++) {
     await new Promise((r) => setTimeout(r, 500));
-    badgesAfter = await page4.evaluate(() => document.querySelectorAll('.gr-rating-badge').length);
+    const n = await ev(() => document.querySelectorAll('.gr-rating-badge').length, '5a loop');
+    if (isTimeout(n)) {
+      pageResponsive = false;
+      console.log('  ⚠️ 5a 滚动等待中断：页面求值超时 8s（渲染进程/内容脚本无响应）');
+      break;
+    }
+    badgesAfter = n;
   }
   if (badgesAfter <= badgesBefore) {
     // v14.8.1：失败现场诊断（与 3b 同构——runtimeLog + 内容侧计数）
-    try {
-      const diagPage = await context.newPage();
-      await diagPage.goto(`chrome-extension://${extId}/popup/popup.html`);
-      const diagData = await diagPage.evaluate(async () => {
-        const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
-        const logs = (resp && resp.logs) || [];
-        const qs = await chrome.runtime.sendMessage({ action: 'GET_RATINGS_QUEUE_STATUS' }).catch(() => null);
-        return { logs, qs, lifecycle: logs.filter((l) => /评分任务|评分波次/.test(l.message || '')) };
-      });
-      await diagPage.close();
-      console.log('  ⚠️ 5a 队列快照:', JSON.stringify(diagData.qs));
-      console.log('  ⚠️ 5a 生命周期:', JSON.stringify(diagData.lifecycle).slice(0, 800));
-      const diagLogs = diagData.logs;
-      console.log('  ⚠️ 5a 失败现场 runtimeLog:');
-      for (const l of diagLogs.slice(-20))
-        console.log(`    [${l.module}] ${l.level} ${String(l.message).slice(0, 130)}`);
-    } catch (e) {
-      console.log('  ⚠️ 5a 诊断读取失败:', String(e).slice(0, 80));
+    // v14.28.1：页面无响应时跳过诊断（诊断页同样会挂在 CDP 上，白等 120s）
+    if (pageResponsive) {
+      try {
+        const diagPage = await withTimeout(context.newPage(), 10000, '5a diag newPage');
+        if (isTimeout(diagPage)) throw new Error('诊断页创建超时 10s（浏览器无响应）');
+        const diagNav = await withTimeout(
+          diagPage.goto(`chrome-extension://${extId}/popup/popup.html`, { timeout: 10000 }),
+          15000,
+          '5a diag goto'
+        );
+        if (isTimeout(diagNav)) throw new Error('诊断页打开超时 15s（浏览器无响应）');
+        const diagData = await withTimeout(
+          diagPage.evaluate(async () => {
+            const resp = await chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 });
+            const logs = (resp && resp.logs) || [];
+            const qs = await chrome.runtime.sendMessage({ action: 'GET_RATINGS_QUEUE_STATUS' }).catch(() => null);
+            return { logs, qs, lifecycle: logs.filter((l) => /评分任务|评分波次/.test(l.message || '')) };
+          }),
+          15000,
+          '5a diag eval'
+        );
+        if (isTimeout(diagData)) throw new Error('诊断读取超时 15s（SW 无应答）');
+        await withTimeout(
+          diagPage.close().catch(() => {}),
+          5000,
+          '5a diag close'
+        );
+        console.log('  ⚠️ 5a 队列快照:', JSON.stringify(diagData.qs));
+        console.log('  ⚠️ 5a 生命周期:', JSON.stringify(diagData.lifecycle).slice(0, 800));
+        const diagLogs = diagData.logs;
+        console.log('  ⚠️ 5a 失败现场 runtimeLog:');
+        for (const l of diagLogs.slice(-20))
+          console.log(`    [${l.module}] ${l.level} ${String(l.message).slice(0, 130)}`);
+      } catch (e) {
+        console.log('  ⚠️ 5a 诊断读取失败:', String(e).slice(0, 80));
+      }
     }
-    const contentState = await page4
-      .evaluate(() => ({
-        statusBar: (document.getElementById('gr-status-bar') || {}).textContent || '(无浮窗)',
-        working: document.querySelectorAll('.gr-working-badge').length,
-        badges: document.querySelectorAll('.gr-rating-badge').length
-      }))
-      .catch((e) => ({ err: String(e).slice(0, 80) }));
+    const contentState = pageResponsive
+      ? await ev(
+          () => ({
+            statusBar: (document.getElementById('gr-status-bar') || {}).textContent || '(无浮窗)',
+            working: document.querySelectorAll('.gr-working-badge').length,
+            badges: document.querySelectorAll('.gr-rating-badge').length
+          }),
+          '5a contentState'
+        ).catch((e) => ({ err: String(e).slice(0, 80) }))
+      : { err: '页面无响应，跳过现场读取' };
     console.log('  ⚠️ 5a 内容侧现场:', JSON.stringify(contentState));
   }
   check('滚动触发第二批徽章（按需扫描）', badgesAfter > badgesBefore, `(${badgesBefore} → ${badgesAfter})`);
-  await page4.close();
+  await withTimeout(
+    page4.close().catch(() => {}),
+    5000,
+    '5a close'
+  );
 }

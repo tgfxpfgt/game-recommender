@@ -9,6 +9,8 @@
  */
 ('use strict');
 
+import { withTimeout, isTimeout } from './helpers.mjs';
+
 export async function runDetail(state) {
   const { context, check, MOCK, FAST, FIXTURE_ROOT } = state;
 
@@ -37,17 +39,35 @@ export async function runDetail(state) {
     // v14.11 B1：失败现场诊断（与 3b/5a 同构——runtimeLog 经扩展页读取）
     try {
       const { extId } = state;
-      const diagPage = await context.newPage();
-      await diagPage.goto(`chrome-extension://${extId}/popup/popup.html`);
-      const diagLogs = await diagPage.evaluate(async () => {
-        const timeout = new Promise((resolve) => setTimeout(() => resolve(['(SW 3s 无响应——疑似事件循环阻塞)']), 3000));
-        const resp = await Promise.race([
-          chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 }).then((x) => (x && x.logs) || []),
-          timeout
-        ]);
-        return resp;
-      });
-      await diagPage.close();
+      // v14.28.1：SW 饱和期 newPage 可能永久挂起——必须加超时兜底
+      const diagPage = await withTimeout(context.newPage(), 10000, '4 diag newPage');
+      if (isTimeout(diagPage)) throw new Error('诊断页创建超时 10s（浏览器无响应）');
+      const diagNav = await withTimeout(
+        diagPage.goto(`chrome-extension://${extId}/popup/popup.html`, { timeout: 10000 }),
+        15000,
+        '4 diag goto'
+      );
+      if (isTimeout(diagNav)) throw new Error('诊断页打开超时 15s（浏览器无响应）');
+      const diagLogs = await withTimeout(
+        diagPage.evaluate(async () => {
+          const timeout = new Promise((resolve) =>
+            setTimeout(() => resolve(['(SW 3s 无响应——疑似事件循环阻塞)']), 3000)
+          );
+          const resp = await Promise.race([
+            chrome.runtime.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 300 }).then((x) => (x && x.logs) || []),
+            timeout
+          ]);
+          return resp;
+        }),
+        8000,
+        '4 diag eval'
+      );
+      if (isTimeout(diagLogs)) throw new Error('诊断读取超时 8s（SW 无应答）');
+      await withTimeout(
+        diagPage.close().catch(() => {}),
+        5000,
+        '4 diag close'
+      );
       console.log('  ⚠️ 4 失败现场 runtimeLog:', JSON.stringify(diagLogs.slice(-30)).slice(0, 1500));
     } catch (e) {
       console.log('  ⚠️ 4 诊断读取失败:', String(e).slice(0, 80));
@@ -91,6 +111,11 @@ export async function runDetail(state) {
     `(手动选择=${manualShown} | 内容=${panelText.substring(0, 40).replace(/\n/g, ' ')})`
   );
   check('报错流程无 console error', errors3.length === 0, `(${errors3.slice(0, 3).join(' | ')})`);
-  await page3.close();
+  // v14.28.1：实测 SW 饱和期 page.close() 会永久挂起（CDP 无回包）——加超时兜底
+  await withTimeout(
+    page3.close().catch(() => {}),
+    10000,
+    '4 page.close'
+  );
   return true;
 }

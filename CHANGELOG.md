@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.28.1（E2E 抗卡死兜底）
+
+- E2E 全链路 newPage/goto/evaluate/close 加超时兜底（SW 饱和期浏览器失联不再白等 120s）
+- 5a/4/5b/终局转储超时用既有断言判红，放宽断言为零
+
 ### v14.28.0（S3 文档与门禁批次）
 
 - README 版本流水拆分到 CHANGELOG.md（README 327 行）

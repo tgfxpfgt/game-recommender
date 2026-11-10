@@ -6,13 +6,33 @@
  */
 ('use strict');
 
+import { withTimeout, isTimeout } from './helpers.mjs';
+
 export async function runDashboard(state) {
   const { context, extId, check } = state;
 
   // 5b. dashboard 趋势图（第 4 节详情页访问已产生当天 view_detail）
   console.log('5b. dashboard 趋势图');
-  const dash = await context.newPage();
-  await dash.goto(`chrome-extension://${extId}/dashboard/dashboard.html`);
+  // v14.28.1：前一节 5a 之后浏览器可能已卡死——newPage/goto 加超时兜底
+  const dash = await withTimeout(context.newPage(), 10000, '5b newPage');
+  if (isTimeout(dash)) {
+    check('dashboard 趋势图 SVG 渲染', false, '(新页创建超时 10s——浏览器/CDP 无响应)');
+    return;
+  }
+  const dashNav = await withTimeout(
+    dash.goto(`chrome-extension://${extId}/dashboard/dashboard.html`, { timeout: 15000 }),
+    20000,
+    '5b goto'
+  );
+  if (isTimeout(dashNav)) {
+    check('dashboard 趋势图 SVG 渲染', false, '(dashboard 打开超时 20s——浏览器/CDP 无响应)');
+    await withTimeout(
+      dash.close().catch(() => {}),
+      5000,
+      '5b close'
+    );
+    return;
+  }
   await dash.waitForTimeout(800);
   const trendInfo = await dash.evaluate(() => ({
     svgCount: document.querySelectorAll('#trendChart svg').length,

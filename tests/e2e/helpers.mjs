@@ -195,13 +195,41 @@ const channel = process.env.E2E_CHANNEL || 'chromium';
 // 各节开工前轮询至 SW 可在 2s 内应答（GET_API_STATUS 轻只读），最长等 60s。
 // SW-responsive gate: on loaded machines the SW may take seconds to even wake;
 // poll until it answers a cheap read within 2s before starting a new section.
+// v14.28.1（E2E scroll 卡死取证）：Playwright 的 newPage/goto/evaluate/close
+// 在浏览器主进程卡死（CDP 不回包）时会永久挂起——不存在默认超时。此前
+// 5a 与 SW 响应门都用裸 await，浏览器一旦失联整段 E2E 永不结束（实测
+// 10min+ 无输出）。所有可能触达浏览器/CDP 的 await 必须经本函数兜底。
+// Playwright CDP calls have no default timeout; when the browser process wedges
+// they hang forever. Wrap every browser-touching await with this guard.
+export function withTimeout(promise, ms, label) {
+  let timer = null;
+  const timeout = new Promise((resolve) => {
+    timer = setTimeout(() => resolve({ __timeout: label, ms }), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+export const isTimeout = (v) => !!(v && v.__timeout);
+
 export async function waitSwResponsive(context, extId, timeoutMs = 60000) {
   const t0 = Date.now();
   let page = null;
   let attempts = 0;
   try {
-    page = await context.newPage();
-    await page.goto(`chrome-extension://${extId}/popup/popup.html`);
+    page = await withTimeout(context.newPage(), 10000, 'waitSwResponsive.newPage');
+    if (isTimeout(page)) {
+      console.log('  ⚠️ SW 响应门: newPage 超时（浏览器/CDP 无响应）——按原时序继续');
+      return false;
+    }
+    const nav = await withTimeout(
+      page.goto(`chrome-extension://${extId}/popup/popup.html`, { timeout: 10000 }),
+      15000,
+      'waitSwResponsive.goto'
+    );
+    if (isTimeout(nav)) {
+      console.log('  ⚠️ SW 响应门: 打开探测页超时（浏览器/CDP 无响应）——按原时序继续');
+      return false;
+    }
     while (Date.now() - t0 < timeoutMs) {
       attempts++;
       const ok = await Promise.race([
