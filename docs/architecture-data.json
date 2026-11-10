@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-10T19:02:35.811Z",
-  "version": "14.28.1",
+  "generatedAt": "2026-11-10T20:15:26.540Z",
+  "version": "14.28.3",
   "nodes": [
     {
       "dir": "background",
@@ -8,7 +8,7 @@
       "color": "#4a9eff",
       "desc": "Service Worker — 消息分发/检索管线/推荐引擎/存储",
       "files": 3,
-      "lines": 462
+      "lines": 465
     },
     {
       "dir": "content",
@@ -72,7 +72,7 @@
       "color": "#2ecc71",
       "desc": "站点适配器 — 规则/选择器/搜索 URL",
       "files": 2,
-      "lines": 91
+      "lines": 89
     },
     {
       "dir": "data",
@@ -80,7 +80,7 @@
       "color": "#f39c12",
       "desc": "OPFS 持久化 — data-store/STORAGE_MODULES 注册表",
       "files": 3,
-      "lines": 725
+      "lines": 743
     }
   ],
   "stats": {
