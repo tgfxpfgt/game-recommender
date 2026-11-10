@@ -74,6 +74,7 @@ export default defineConfig({
       'tests/unit/test-community-reviews.mjs',
       'tests/unit/test-crypto-utils.mjs',
       'tests/unit/test-mechanisms.mjs',
+      'tests/unit/test-session-persist.mjs',
       'tests/unit/test-metrics.mjs',
       'tests/unit/test-list-batch-capacity.mjs',
       'tests/unit/test-flush-concurrency.mjs',
