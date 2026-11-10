@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.28.2（SW 故障日志并入运行时日志（P3-4））
+
+- Logger warn/error 镜像控制台，替代散落的 console 双写
+- service-worker 11 处 console.* 改为 Logger（启动横幅与存储未就绪兜底保留）
+
 ### v14.28.1（E2E 抗卡死兜底）
 
 - E2E 全链路 newPage/goto/evaluate/close 加超时兜底（SW 饱和期浏览器失联不再白等 120s）

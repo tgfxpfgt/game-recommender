@@ -151,7 +151,7 @@ chrome.notifications.onClicked.addListener((notificationId) => {
       if (url) chrome.tabs.create({ url });
       chrome.notifications.clear(notificationId);
     })
-    .catch((e) => console.error('限免通知点击处理失败:', String(e)));
+    .catch((e) => Logger.error('Notify', '限免通知点击处理失败', { message: String(e) }));
 });
 
 // v7.4.0：右键菜单（选中文本 → 搜 Steam）
@@ -166,7 +166,7 @@ function setupContextMenu() {
       });
     });
   } catch (e) {
-    console.warn('【游戏雷达】 右键菜单创建失败:', String(e));
+    Logger.warn('Menu', '右键菜单创建失败', { message: String(e) });
   }
 }
 chrome.contextMenus.onClicked.addListener((info, tab) => {
@@ -181,7 +181,7 @@ chrome.commands.onCommand.addListener((command, tab) => {
   if (command === 'gr-force-refresh' && tab && tab.id != null) {
     chrome.tabs
       .sendMessage(tab.id, { action: 'FORCE_REFRESH_PAGE' })
-      .catch(() => console.warn('【游戏雷达】 快捷键发送失败（当前页无扩展脚本）'));
+      .catch(() => Logger.warn('Command', '快捷键发送失败（当前页无扩展脚本）'));
   }
 });
 
@@ -219,7 +219,7 @@ async function ensureAlarm(name, periodInMinutes) {
     if (existing && existing.periodInMinutes === periodInMinutes) return;
     chrome.alarms.create(name, { periodInMinutes });
   } catch (e) {
-    console.error('alarm 创建失败:', name, String(e));
+    Logger.error('Alarm', 'alarm 创建失败: ' + name, { message: String(e) });
   }
 }
 
@@ -236,7 +236,7 @@ async function setupBackupAlarm() {
   const intervalMinutes = (settings.backupIntervalHours || 24) * 60;
   await ensureAlarm('autoBackup', intervalMinutes);
 }
-setupBackupAlarm().catch((e) => console.error('自动备份定时器初始化失败:', String(e)));
+setupBackupAlarm().catch((e) => Logger.error('Backup', '自动备份定时器初始化失败', { message: String(e) }));
 
 // v10.5.0 P1-B：周期性兜底落盘 alarm——远大于 2s 防抖窗口，作为脏数据刷回
 // 存储的最低保障。v10.7.0 批次3：5min → 30min——每次 alarm 唤醒 SW 都要付
@@ -248,10 +248,10 @@ ensureAlarm('grPeriodicFlush', 30);
 
 chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === 'refreshFreeGames') {
-    refreshFreeGames(true).catch((e) => console.error('限免刷新失败:', String(e)));
+    refreshFreeGames(true).catch((e) => Logger.error('FreeGames', '限免刷新失败', { message: String(e) }));
   }
   if (alarm.name === 'favoritePriceWatch') {
-    watchFavoritePrices().catch((e) => console.error('收藏折扣监控失败:', String(e)));
+    watchFavoritePrices().catch((e) => Logger.error('FreeGames', '收藏折扣监控失败', { message: String(e) }));
   }
   if (alarm.name === 'weeklyDigest') {
     // v14.5.0 B2：handleGetStats 改静态调用——原动态 import 被 SW import()
@@ -275,28 +275,31 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   }
   if (alarm.name === 'autoBackup') {
     getSettings().then((settings) => {
-      if (settings.autoBackup) createBackup(false).catch((e) => console.error('自动备份失败:', String(e)));
+      if (settings.autoBackup)
+        createBackup(false).catch((e) => Logger.error('Backup', '自动备份失败', { message: String(e) }));
     });
   }
   // v10.0.0：批量好评率任务续跑（SW 被 5 分钟硬上限杀死后由 alarm 唤醒；
   // 任务已在途/无任务时幂等早退）。v14.5.0 B2：改静态调用——原动态 import
   // 被禁令拦截，续跑自 v10.0.0 起静默失效（B1 的续跑链路依赖本修复）。
   if (alarm.name === 'ratingsBatchResume') {
-    resumeRatingsBatch().catch((e) => console.error('批量好评率续跑失败:', String(e)));
+    resumeRatingsBatch().catch((e) => Logger.error('Ratings', '批量好评率续跑失败', { message: String(e) }));
   }
   // v10.5.0 P1-B：周期性兜底落盘——SW 存活但空闲（两次操作之间的 2s 防抖窗口）时
   // 也能把脏数据刷回存储，降低 MV3 SW 被回收导致的写入丢失概率
   // Periodic durability net: flush dirty debounced stores during idle periods.
   if (alarm.name === 'grPeriodicFlush') {
-    flushAllCaches().catch((e) => console.error('周期性落盘失败:', String(e)));
+    flushAllCaches().catch((e) => Logger.error('Flush', '周期性落盘失败', { message: String(e) }));
   }
 });
 
 // 启动时刷新限免游戏并更新 badge / Refresh free games on startup
-refreshFreeGames(false).catch((e) => console.error('启动限免刷新失败:', String(e)));
+refreshFreeGames(false).catch((e) => Logger.error('FreeGames', '启动限免刷新失败', { message: String(e) }));
 
 // 启动日志（含版本号，便于确认浏览器加载的是否为最新版本）
 // Startup log with the version, to verify the browser loaded the latest build
 const MANIFEST_VERSION = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || 'unknown';
 Logger.info('System', `Service Worker 已启动 v${MANIFEST_VERSION}`);
+// 控制台横幅保留（与上面的 Logger.info 双写）：SW 首启在 dashboard 打开前就要能
+// 肉眼确认"浏览器加载的是哪个版本"，故不并入 Logger（v14.29 S3 P3-4 例外之一）。
 console.log(`【游戏雷达】 Service Worker 已启动 v${MANIFEST_VERSION}`);

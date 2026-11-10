@@ -122,8 +122,18 @@ export function flushLogBuffer() {
   });
 }
 
+// v14.29（S3 P3-4）：warn/error 镜像控制台——runtimeLog 需打开 dashboard 才能读，
+// 真机首启/崩溃排障不能只依赖存储是否就绪；info/debug 不镜像（事件多，避免刷屏）。
+// Mirror warn/error to console so field debugging never depends on storage readiness.
+const CONSOLE_MIRROR = { warn: true, error: true };
+
 // 记录日志（按配置级别过滤）/ Write a log entry (filtered by configured level)
 async function writeLog(level, module, message, data) {
+  if (CONSOLE_MIRROR[level]) {
+    const sink = level === 'error' ? console.error : console.warn;
+    if (data === undefined) sink('[' + module + '] ' + message);
+    else sink('[' + module + '] ' + message, data);
+  }
   try {
     const cfg = await getLogConfig();
     if (!cfg.enableLog) return;

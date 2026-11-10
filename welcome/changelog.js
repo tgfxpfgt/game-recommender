@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.28.2',
+        date: '2026-11-11',
+        items: [
+          'Logger warn/error 镜像控制台，替代散落的 console 双写',
+          'service-worker 11 处 console.* 改为 Logger（启动横幅与存储未就绪兜底保留）'
+        ]
+      },
+      {
         ver: '14.28.1',
         date: '2026-11-11',
         items: [
