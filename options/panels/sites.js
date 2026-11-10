@@ -20,7 +20,11 @@
   // 申请任意域"的伞形声明；实际授予面 = 用户弹窗确认的那一个域。
   // The wildcard optional declaration only enables arbitrary-origin requests;
   // the granted surface is exactly the single host the user confirmed.
-  /** 待申请的 origin：指定协议只申请该协议，裸域名申请 http+https（匹配模式不含端口） */
+  /**
+   * 待申请的 origin：指定协议只申请该协议，裸域名申请 http+https（匹配模式不含端口）。
+   * @param {string} site @param {string} protocol
+   * @returns {string[]}
+   */
   function permissionOrigins(site, protocol) {
     if (protocol === 'http' || protocol === 'https') return [`${protocol}://${site}/*`];
     return [`http://${site}/*`, `https://${site}/*`];
