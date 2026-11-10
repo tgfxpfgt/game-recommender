@@ -12,6 +12,8 @@
  * link next to the QR (clickable + copy button). Lazy-loads the decoder.
  */
 import * as debug from '../core/debug.js';
+// v14.26.0 P1-6：消息超时单源（出站图片代取走长超时组）
+import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
 const dbg = (...a) => debug.dbg(...a);
 const COPY_FEEDBACK_MS = 1500; // "已复制"文案恢复延时（v14.6.2：具名单点）
@@ -72,7 +74,7 @@ async function decodeElement(el) {
         const resp = await window.__GR_MSG__.sendMessage(
           { action: 'FETCH_IMAGE_DATA_URL', url: src.split('#')[0] },
           null,
-          { timeout: 20000 }
+          { timeout: MSG_TIMEOUT_LONG_MS }
         );
         if (resp && resp.success && resp.dataUrl) {
           const img = new Image();

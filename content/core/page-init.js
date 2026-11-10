@@ -15,6 +15,8 @@
 // List/detail clusters are loaded on demand; URL predicates come from the
 // zero-dependency core/page-url.js so no domain module is needed to classify.
 import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from './page-url.js';
+// v14.26.0 P1-6：消息超时单源
+import { MSG_TIMEOUT_SHORT_MS } from './timeouts.js';
 
 export async function initPage(boot) {
   const { M, settings: bootSettings } = boot;
@@ -25,7 +27,9 @@ export async function initPage(boot) {
   // Fallback when the warm-up failed (e.g. SW cold start): retry once
   if (!settings) {
     try {
-      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, {
+        timeout: MSG_TIMEOUT_SHORT_MS
+      });
       settings = resp?.settings;
     } catch {
       /* 仍失败则放弃本页 */

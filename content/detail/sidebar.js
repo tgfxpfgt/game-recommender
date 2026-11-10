@@ -22,6 +22,8 @@ import * as builder from '../adapters/builder.js';
 import * as candidates from './candidates.js';
 import * as tracking from './tracking.js';
 import { createSteamActions } from './sidebar-actions.js'; // v14.5.0 B7：回调工厂
+// v14.26.0 P1-6：消息超时单源（Steam 检索为出站长超时）
+import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
 const dbg = (...a) => debug.dbg(...a);
 const BTN_FAIL_FEEDBACK_MS = 1500; // 按钮失败文案恢复延时（v14.6.2：具名单点，两按钮共用）
@@ -191,7 +193,7 @@ function createAutoRetry(io) {
             ignoreNegativeCache: true
           },
           null,
-          { timeout: 25000 }
+          { timeout: MSG_TIMEOUT_LONG_MS }
         );
         if (resp && resp.data) {
           renderAndShow(resp.data, resp.cachedAt || null, name);
@@ -345,7 +347,7 @@ export function createSteamFloat(gameName, settings) {
             { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
             null,
             {
-              timeout: 25000
+              timeout: MSG_TIMEOUT_LONG_MS
             }
           )
           .catch(() => null);
@@ -449,7 +451,7 @@ export function createSteamFloat(gameName, settings) {
           appId: imgAppId || undefined
         },
         null,
-        { timeout: 25000 }
+        { timeout: MSG_TIMEOUT_LONG_MS }
       );
       // 未命中自动重试一次（穿透负缓存）——历史失败遗留的负缓存不再把
       // 可匹配的游戏永久推入手动选择；仅在"干净未命中"时重试（超时不重试）
@@ -464,7 +466,7 @@ export function createSteamFloat(gameName, settings) {
               ignoreNegativeCache: true
             },
             null,
-            { timeout: 25000 }
+            { timeout: MSG_TIMEOUT_LONG_MS }
           )
           .catch(() => null);
       }

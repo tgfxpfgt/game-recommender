@@ -7,6 +7,8 @@
  * adapters/ otherwise); site lookup and image-appId extraction utilities.
  */
 import * as common from '../core/common.js';
+// v14.26.0 P1-6：消息超时单源（内容侧不可 import background，见铁律 13）
+import { MSG_TIMEOUT_SHORT_MS } from '../core/timeouts.js';
 
 /** @type {Array<any>|null} */
 let SITE_RULES = null;
@@ -20,7 +22,9 @@ export async function loadSiteRules(force) {
   // 用户导入的规则在内容侧永不生效（storage.local 只剩 pre-OPFS 旧副本，
   // 两端"生效规则"不一致）。3s 短超时：boot 关键路径不被 SW 冷启动拖死
   try {
-    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' }, null, { timeout: 3000 });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' }, null, {
+      timeout: MSG_TIMEOUT_SHORT_MS
+    });
     const merged = resp && resp.rules && resp.rules.merged;
     if (merged && merged.version && Array.isArray(merged.sites) && merged.sites.length > 0) {
       SITE_RULES = merged.sites;

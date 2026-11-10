@@ -568,3 +568,37 @@ simTest('11. 好评过滤三态与按好评率重排', async () => {
   });
   expect(kept4.map((i) => i.name)).toEqual(['非虚拟机内容']);
 });
+
+// v14.26.0 P1-6：批次硬截止（收尾）后迟到推送仍补真实徽章——超时未返回项
+// 收尾转"未返回·点击重查"错误徽章，后台晚到的评分到达时替换为好评率徽章，
+// 且不重开状态机/轮询（无工作徽章残留）。Late push after finish still paints
+// the real badge and must not revive the working-badge state machine.
+simTest('12. 收尾后迟到推送补真实徽章（P1-6 超时未返回项）', async () => {
+  const GR = getGR();
+  const msgListener = getMsgListener();
+  const { li, a } = makeItem('迟到游戏', 901);
+  li.isConnected = true; // FakeEl 无 isConnected——收尾转错误徽章要求元素仍在文档中
+  const items = [{ element: li, link: a, name: '迟到游戏', url: 'https://www.xianyudanji.gg/901.html', titleEl: a }];
+  presets['GET_STEAM_RATINGS'] = () => ({ ratings: {}, pending: 1 });
+  GR.listBatch.requestSteamRatings(items, DEFAULT_SETTINGS);
+  await waitForSignal(
+    () => a.children.some((c) => (c.className || '').includes('gr-working-badge')),
+    '节12: 未返回项工作徽章（job 开放）'
+  );
+  GR.list._internal.finishRatings(); // 模拟批次超时硬截止
+  await waitForSignal(
+    () => a.children.some((c) => (c.className || '').includes('gr-error-badge')),
+    '节12: 收尾转"未返回·点击重查"错误徽章'
+  );
+  await msgListener(
+    { action: 'STEAM_RATINGS_UPDATE', ratings: { 迟到游戏: { appId: '901', positiveRate: 88 } }, done: true },
+    {},
+    () => {}
+  );
+  await waitForSignal(
+    () => a.children.some((c) => (c.className || '').includes('gr-rating-badge')),
+    '节12: 迟到推送补好评率徽章'
+  );
+  expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
+  expect(a.children.some((c) => (c.className || '').includes('gr-working-badge'))).toEqual(false);
+});

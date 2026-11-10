@@ -9,6 +9,8 @@
  * Steam250 rank (float + inline-card mounts). Anchor ids come from the
  * steamSidebar template.
  */
+// v14.26.0 P1-6：消息超时单源
+import { MSG_TIMEOUT_LONG_MS, MSG_TIMEOUT_NORMAL_MS } from '../core/timeouts.js';
 
 // v14.6.2 修复（审查 B5）：回退分支曾是恒等函数（shared/escape.js 未注入的
 // 异常场景下本文件所有注入点裸奔）——回退复刻 common.escapeHtmlLocal 的
@@ -57,7 +59,7 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
               releaseDate: releaseDate || '' // v12 B6：发售追踪
             },
             null,
-            { timeout: 5000 }
+            { timeout: MSG_TIMEOUT_NORMAL_MS }
           );
           if (resp && resp.favorited !== undefined) renderFav(resp.favorited);
         } catch {
@@ -67,7 +69,9 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
       favRow.appendChild(btn);
     };
     try {
-      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' }, null, { timeout: 5000 });
+      const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' }, null, {
+        timeout: MSG_TIMEOUT_NORMAL_MS
+      });
       const favs = (resp && resp.favorites) || {};
       renderFav(!!favs[appId]);
     } catch {
@@ -77,7 +81,9 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
   // —— ITAD 最低价行（Key 未配置时后台返回 null → 行隐藏）——
   if (!itadEl) return;
   try {
-    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ITAD_LOWEST', appId }, null, { timeout: 20000 });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ITAD_LOWEST', appId }, null, {
+      timeout: MSG_TIMEOUT_LONG_MS
+    });
     const info = resp && resp.info;
     if (!info || info.price === undefined || info.price === null) {
       itadEl.style.display = 'none';
@@ -108,7 +114,9 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
 export async function fillSteam250Info(appId) {
   if (!appId) return;
   try {
-    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, { timeout: 25000 });
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM250_RANK', appId }, null, {
+      timeout: MSG_TIMEOUT_LONG_MS
+    });
     const info = resp && resp.info;
     const loaded = !!(resp && resp.loaded);
     const href = `https://club.steam250.com/app/${encodeURIComponent(String(appId))}`;
@@ -140,7 +148,7 @@ export async function fillSeriesInfo(appId, name) {
     const resp = await window.__GR_MSG__.sendMessage(
       { action: 'GET_SERIES_ENTRIES', gameName: name, excludeAppId: appId },
       null,
-      { timeout: 15000 }
+      { timeout: MSG_TIMEOUT_NORMAL_MS }
     );
     const entries = (resp && resp.entries) || [];
     const html =

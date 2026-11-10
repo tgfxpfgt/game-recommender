@@ -10,6 +10,8 @@
 import * as builder from '../adapters/builder.js';
 import * as candidates from './candidates.js';
 import * as debug from '../core/debug.js';
+// v14.26.0 P1-6：消息超时单源（出站检索走长超时组）
+import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
@@ -146,7 +148,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
                 { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
                 null,
                 {
-                  timeout: 25000
+                  timeout: MSG_TIMEOUT_LONG_MS
                 }
               )
               .catch(() => null);
@@ -174,7 +176,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
         .sendMessage(
           { action: 'SET_MANUAL_PLATFORM', gameName: name, platform: platformId, rawTitle: document.title },
           null,
-          { timeout: 30000 }
+          { timeout: MSG_TIMEOUT_LONG_MS }
         )
         .catch(() => null);
       if (resp && resp.success) {

@@ -13,6 +13,8 @@ import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';
 import * as badges from './badges/core.js';
+// v14.26.0 P1-6：批量评分消息超时单源
+import { RATINGS_TIMEOUT_MS } from '../core/timeouts.js';
 
 const dbg = (...a) => debug.dbg(...a);
 
@@ -170,13 +172,19 @@ async function fireBatch(names) {
   // 平台识别落空；后台 phasePlatform 与标题拼接参与识别）
   const platformHint = await builder.getListPlatformHint().catch(() => '');
   try {
-    const response = await window.__GR_MSG__.sendMessage({
-      action: 'GET_STEAM_RATINGS',
-      names,
-      imageData,
-      urls,
-      platformHint
-    });
+    const response = await window.__GR_MSG__.sendMessage(
+      {
+        action: 'GET_STEAM_RATINGS',
+        names,
+        imageData,
+        urls,
+        platformHint
+      },
+      null,
+      // v14.26.0 P1-6：批量评分显式超时（此前依赖 msg 层默认值，与后台
+      // 300s 硬截止不匹配——早退会误判本批为空；此处给 120s 长超时）
+      { timeout: RATINGS_TIMEOUT_MS }
+    );
     // v10.5.0 P2-D：后台拒绝（契约/sender/异常）不再静默降级为空，显式告警便于定位
     // Surface backend rejections instead of silently showing "no data".
     if (response && response.error) {

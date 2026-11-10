@@ -111,10 +111,22 @@
   // ============ 预热（模块加载 + 设置/规则并行） ============
   // Warm-up: module load, settings and site rules all run in parallel.
   const bootPromise = (async () => {
+    // v14.26.0 P1-6：消息超时单源——tracker 是经典脚本（无静态 import），
+    // 动态取常量；取不到则省略 timeout 走 shared/msg.js 默认值。
+    /** @type {{MSG_TIMEOUT_SHORT_MS?: number}|null} */
+    let timeouts = null;
+    try {
+      timeouts = await import(chrome.runtime.getURL('content/core/timeouts.js'));
+    } catch {
+      /* 常量模块不可达 → 用 msg.js 默认超时 */
+    }
+    const SHORT_TIMEOUT_MS = timeouts ? timeouts.MSG_TIMEOUT_SHORT_MS : undefined;
     // v10.4.4：设置先行——可选模块的加载与否取决于开关状态
     const settingsEarly = await (async () => {
       try {
-        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, { timeout: 3000 });
+        const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' }, null, {
+          timeout: SHORT_TIMEOUT_MS
+        });
         return resp?.settings || null;
       } catch {
         return null; // 后台不可达时 init 会自行重试
@@ -142,7 +154,7 @@
         .sendMessage(
           { action: 'LOG_PERF', source: 'content-boot', metric: location.hostname, durationMs: Date.now() - BOOT_T0 },
           null,
-          { timeout: 2000 }
+          { timeout: SHORT_TIMEOUT_MS }
         )
         .catch(() => {});
     } catch {

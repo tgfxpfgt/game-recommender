@@ -17,6 +17,8 @@ import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
 // v14.26.0 P1-3：URL 判定下沉 core/page-url.js（装载前也要用，避免装载列表域）
 import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from '../core/page-url.js';
+// v14.26.0 P1-6：消息超时单源
+import { MSG_TIMEOUT_SHORT_MS } from '../core/timeouts.js';
 
 export { isDetailPageByUrl, isHomePageUrl, isListPageByUrl };
 
@@ -240,7 +242,7 @@ function maybeReportAdapterIssue(adapter) {
           url: window.location.href
         },
         null,
-        { timeout: 2000 }
+        { timeout: MSG_TIMEOUT_SHORT_MS }
       )
       .catch(() => {});
   } catch {
