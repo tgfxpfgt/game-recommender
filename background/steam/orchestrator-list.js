@@ -306,10 +306,30 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     appId = null;
   }
 
+  // v14.29.0：同一次调用内 Steam 缓存读去重——此前同一 appId 会
+  // getSteamCacheEntry 三次（命中判定 :312 / type 校验 :368 / 写回合并 :484）。
+  // 本函数在这三处之间不写 steam-cache（唯一写点 :513 在最后），因此复用首次
+  // 读到的合并视图是安全的；批量链 90 项 × 3 → 1，减少 2 次/项的 await 往返。
+  // Deduplicate the Steam cache read within one call (3 reads -> 1). This
+  // function does not write the cache between the three read sites.
+  /** @type {any} */
+  let cachedEntryMemo = null;
+  /** @type {string|null} */
+  let cachedEntryMemoKey = null;
+  /** @param {any} id */
+  const readCachedOnce = async (id) => {
+    const key = id === null || id === undefined ? null : String(id);
+    if (key === null) return null;
+    if (cachedEntryMemoKey === key) return cachedEntryMemo;
+    cachedEntryMemo = await getSteamCacheEntry(id);
+    cachedEntryMemoKey = key;
+    return cachedEntryMemo;
+  };
+
   // 2. 若有 appId，检查 Steam 动态缓存（含 Demo 自愈；v3.3.7：rating 模块有效判定）
   let usableAppId = appId;
   if (appId) {
-    const cached = await getSteamCacheEntry(appId);
+    const cached = await readCachedOnce(appId);
     const merged = getMergedData(cached) || {};
     if (
       isModuleValid(cached, 'rating') &&
@@ -365,7 +385,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let appType = null;
     if (foundAppId) {
       // v3.3.7：缓存 type 从合并视图读取（meta 模块）
-      const cachedType = usableAppId ? (await getSteamCacheEntry(usableAppId)) || null : null;
+      const cachedType = usableAppId ? (await readCachedOnce(usableAppId)) || null : null;
       const cachedTypeVal = cachedType ? (getMergedData(cachedType) || {}).type : null;
       if (cachedTypeVal) {
         appType = cachedTypeVal;
@@ -481,7 +501,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //    只更新 meta/rating 模块，detail/spy 保留）。
     //    v3.3.8：列表页独立获取最近更新日期（不依赖详情页访问；缓存已有则复用；
     //    GetNewsForApp 在 api.steampowered.com 独立限流域，不影响商店 API 配额）。
-    const existing = usableAppId ? getMergedData(await getSteamCacheEntry(usableAppId)) || {} : {};
+    const existing = usableAppId ? getMergedData(await readCachedOnce(usableAppId)) || {} : {};
     const headerImage = coverImageFor(foundAppId, options.cover);
     let lastUpdate = existing.lastUpdate || null;
     if (!lastUpdate) {
