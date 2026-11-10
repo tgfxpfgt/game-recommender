@@ -350,9 +350,20 @@ class DataStore {
   // Append one entry (ND-JSON modules only): appends a line without rewriting
   /** @param {any} moduleKey @param {any} entry */
   async appendModule(moduleKey, entry) {
+    return this.appendModuleBatch(moduleKey, [entry]);
+  }
+
+  // 批量追加（仅 ND-JSON 模块）：一次 open/createWritable/close 写入 N 行。
+  // v14.29.0：日志 flush 此前逐条 appendModule，每条一次 OPFS 句柄打开+关闭
+  //（90 项批量链上的 warn 峰值可达数百次/任务）——批量后写次数降为 1，
+  // 顺序严格保持 entries 顺序。空数组 no-op。
+  // Batch append (ND-JSON only): one handle open/write/close per N lines.
+  /** @param {any} moduleKey @param {Array<any>} entries */
+  async appendModuleBatch(moduleKey, entries) {
     await this.init();
     const cfg = MODULE_FILES[moduleKey];
-    if (!cfg || cfg.format !== 'ndjson') return;
+    if (!cfg || cfg.format !== 'ndjson' || !Array.isArray(entries) || entries.length === 0) return;
+    const text = entries.map((e) => JSON.stringify(e)).join('\n');
     // v3.4.1：同模块写入串行化（修复并发追加时 read-size + write 竞态导致
     // 互相覆盖/错位的问题）
     return this._serialize(moduleKey, async () => {
@@ -362,8 +373,15 @@ class DataStore {
           const file = await handle.getFile();
           const prefix = file.size > 0 ? '\n' : '';
           const writable = await handle.createWritable({ keepExistingData: true });
-          await writable.write({ type: 'write', position: file.size, data: prefix + JSON.stringify(entry) });
+          await writable.write({ type: 'write', position: file.size, data: prefix + text });
           await writable.close();
+          if (writeMetricsHook) {
+            try {
+              writeMetricsHook(cfg.file, text.length);
+            } catch {
+              /* 指标失败不影响写入 */
+            }
+          }
           return;
         } catch (e) {
           console.warn(`[DataStore] 追加 ${moduleKey} 失败:`, String(e));
@@ -378,7 +396,7 @@ class DataStore {
       // 降级：读-改-写 / fallback: read-modify-write
       const stored = await chrome.storage.local.get(moduleKey);
       const list = stored[moduleKey] || [];
-      list.push(entry);
+      for (const entry of entries) list.push(entry);
       await chrome.storage.local.set({ [moduleKey]: list });
     });
   }

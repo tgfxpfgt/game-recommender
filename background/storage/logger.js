@@ -60,8 +60,12 @@ export function flushLogBuffer() {
     logBuffer = [];
 
     try {
-      // flush 低频（防抖 2s），实时读设置兜底（开关关闭时立即丢弃缓冲）
-      const settings = await getSettings();
+      // v14.29.0：flush 改用**同一份 getLogConfig 快照**（10s TTL）——此前每次
+      // flush 都 getSettings()（5s TTL，过期即 OPFS readModule）；批量链上
+      // 90 项 × 数条 warn 会让 flush 频繁触发，构成"高频路径重复读配置"。
+      // 语义影响面：日志开关关闭最多延迟 10s 生效（与 writeLog 的既有 TTL 一致）。
+      // Reuse the cached log config snapshot instead of re-reading settings each flush.
+      const settings = await getLogConfig();
       if (!settings.enableLog) return; // 日志开关已关闭，丢弃缓冲 / Logging disabled; drop buffer
 
       const max = settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault;
@@ -79,9 +83,9 @@ export function flushLogBuffer() {
           persistedLogCount = (stored || []).length;
         }
         if (persistedLogCount + pending.length <= max) {
-          for (const entry of pending) {
-            await dataStore.appendModule(DB_KEYS.RUNTIME_LOG, entry);
-          }
+          // v14.29.0：批量追加（一次 OPFS 句柄打开/关闭写 N 行，顺序不变）
+          // One batch append instead of N handle open/close cycles.
+          await dataStore.appendModuleBatch(DB_KEYS.RUNTIME_LOG, pending);
           persistedLogCount += pending.length;
           return;
         }
