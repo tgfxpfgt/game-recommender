@@ -54,6 +54,9 @@ function step(name, cmd, env = {}) {
 // v14.26.0（优化方案 P0-1）：首步查"被静态 import 却未跟踪"——该类问题会让
 // 干净克隆的扩展完全无法装载，且只有 git 状态能发现（lint/typecheck 全绿）。
 step('check:imports（未跟踪静态导入）', 'node scripts/check-untracked-imports.mjs');
+// v14.26.0（优化方案 P1-5）：文档/脚本引用路径存在性——断链会让 AI 助手按
+// AGENTS.md 读到空文件后回退探索式读码（本轮回审查实际发生过）
+step('check:refs（引用路径存在性）', 'node scripts/check-referenced-paths.mjs');
 step('lint', 'npm run lint');
 step('typecheck', 'npm run typecheck');
 const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };
