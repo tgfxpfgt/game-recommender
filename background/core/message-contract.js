@@ -118,13 +118,14 @@ const trackEventRule = (m) => {
 // Rule table is now built on first validation instead of at module evaluation
 // (MV3 forbids dynamic import, so the file stays in the static graph — this
 // only defers the 79 closure allocations).
+/** @type {Record<string, (m: any) => {ok: boolean, error?: string}>|null} */
 let _rules = null;
 /** @returns {Record<string, (m: any) => {ok: boolean, error?: string}>} 规则表（懒构建，全局复用） */
 export function getRules() {
   return (_rules ??= buildRules());
 }
 
-/** @type {Record<string, (m: any) => {ok: boolean, error?: string}>} */
+/** @type {() => Record<string, (m: any) => {ok: boolean, error?: string}>} */
 const buildRules = () => ({
   // 最高频：内容脚本每页加载即发，此前零校验直接入库
   TRACK_EVENT: trackEventRule,
