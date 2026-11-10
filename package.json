@@ -25,6 +25,7 @@
     "check:docs": "node scripts/check-doc-version.mjs",
     "perf:budget": "node scripts/perf-budget.mjs",
     "war:gen": "node scripts/gen-war.mjs --write",
+    "clean:artifacts": "node scripts/clean-artifacts.mjs",
     "audit": "npm audit --audit-level=high",
     "test:timed": "node scripts/test-timing.mjs",
     "visual": "node tests/visual-regression.mjs",

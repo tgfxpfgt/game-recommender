@@ -1,7 +1,8 @@
 import { dataStore } from '../../data/data-store.js';
 import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
 import { flushAllCaches } from '../storage/flush.js';
-import { DB_KEYS, resolveTtlMs } from '../core/constants.js';
+import { DB_KEYS, resolveTtlMs, STORAGE_CAPS } from '../core/constants.js';
+import { createTtlCache } from '../core/mechanisms.js';
 import { getDownloadSites } from '../core/rules.js';
 import { getSettings } from '../core/settings.js';
 import '../../shared/msg.js'; // v14.0.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
@@ -43,8 +44,10 @@ import { buildUsageEvidenceReport } from '../storage/usage-evidence.js'; // v14.
 
 // v7.0.4：推荐值计算缓存（key 含数据版本与 lastConfirmed——行为/缓存变更
 // 自动失效；内存换延迟：缓存面板查询不再每条目重算评分）
+// v14.28.0（S3 P3-2）：裸 Map + 超限整表 clear() 换 createTtlCache（LRU 逐出 +
+// 60s TTL 兜底，容量入 STORAGE_CAPS 单源）
 import { getDataVersion } from '../storage/behavior.js';
-const recCache = new Map();
+const recCache = createTtlCache({ ttlMs: 60000, max: STORAGE_CAPS.recCache });
 
 // --- 缓存过期清理（v3.0.0）---
 export async function handleCleanExpiredCache() {
@@ -163,7 +166,7 @@ export async function handleGetGameCacheList(message) {
     // v7.0.4：推荐值计算缓存（内存换延迟）——按 appId + 数据版本缓存 60s，
     // 缓存面板翻页/重复查询不再每条目重算评分
     const recCacheKey = String(appId) + ':' + getDataVersion() + ':' + (entry.lastConfirmed || 0);
-    let rec = recCache.get(recCacheKey);
+    let rec = recCache.peek(recCacheKey);
     if (!rec) {
       // 推荐值计算（纯函数，行为/Steam 信息动态反映）
       const profile = findProfile(gameProfiles, entry.cnName || entry.enName || '', entry);
@@ -192,10 +195,6 @@ export async function handleGetGameCacheList(message) {
         weights
       });
       recCache.set(recCacheKey, rec);
-      if (recCache.size > 2000) {
-        // 简单 LRU 裁剪：清空重来（缓存面板查询间隔内条目数远小于此）
-        recCache.clear();
-      }
     }
     return {
       appId,

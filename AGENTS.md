@@ -18,6 +18,8 @@ npm run gate        # 全量门禁：vitest 全量 + E2E(MOCK) + visual（发布
 npm run gate:fast   # 快速门禁：lint/typecheck + 受影响测试 + 棘轮 + visual —— 每批提交前必跑
 npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]
 npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时）
+npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
+npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ```
 

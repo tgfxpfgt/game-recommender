@@ -30,12 +30,18 @@
       throw new Error(`消息失败 ${actionName}: ${String((e && e.message) || e)}`);
     });
     if (!timeout) return p;
+    // v14.28.0（S3 P3-1）：竞争结束后清除定时器——此前每次成功响应都会留下
+    // 一个直到超时才触发的悬挂定时器（长页面/高频消息下累积）
+    /** @type {ReturnType<typeof setTimeout>|null} */
+    let timer = null;
     return Promise.race([
       p,
-      new Promise((_, reject) =>
-        setTimeout(() => reject(new Error(`消息超时: ${actionName} (>${timeout}ms)`)), timeout)
-      )
-    ]);
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`消息超时: ${actionName} (>${timeout}ms)`)), timeout);
+      })
+    ]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
   }
 
   // v14 B8：错误格式化——Error 对象取 message 并去掉 "Error: " 前缀；

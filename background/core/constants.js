@@ -105,6 +105,7 @@ export const STORAGE_CAPS = {
   searchCache: 200, // 搜索缓存 LRU
   llmCache: 300, // LLM 评分缓存 LRU
   siteHealth: 50, // 站点健康聚合上限
+  recCache: 2000, // v14.28.0（S3 P3-2）：缓存面板推荐值内存缓存上限（LRU，60s TTL）
   tabGames: 24, // v14.2.0：SidePanel per-tab 游戏快照上限（复审轮 P2-6 入单源）
   manualPlatforms: 500, // v14.19.0：手动主机机型映射上限（用户声明，LRU 淘汰）
   usageEvidenceEvents: 300, // v14.25.0：使用证据事件 FIFO 上限（高信号事件流）

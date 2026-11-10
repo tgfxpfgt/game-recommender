@@ -94,3 +94,21 @@ npm run coverage       # vitest 覆盖率
 - **30 天好评率口径**：近 30 天好评率基于 appreviews"最新 100 条评测"自算
   （filter=recent），Steam 官方 30 天聚合是全量过滤——热门游戏（评测远超
   100 条/30 天）会略有偏差；全时段好评率与官方一致。
+
+## 第三方与内置快照清单（v14.28.0 / S3 P3-6）
+
+仓库内不是自研、需要"改动时同步或保持只读"的内容集中如下，勿当普通源码编辑：
+
+| 位置 | 性质 | 维护方式 |
+| --- | --- | --- |
+| `docs/skills/neat-freak-person/` | 第三方技能包（lsa03/neat-freak-person，MIT） | 只读，升级整目录替换 |
+| `userscript/game-radar.user.js` 中的词表/纯函数段 | 扩展 `shared/` + api-search 的**移植快照** | 改扩展侧后同步（`test-userscript-pure` 防漂移门禁） |
+| `tests/fixtures/http/` | 真实网络响应录制 fixture | 只增不改；重录须注明来源 URL 与日期 |
+| `tests/fixtures/list-page.html` | 运行时页面重写产物 | 不入库（`.gitignore`），由测试生成 |
+| `.github/workflows/` | CI 配置（视觉/预算/发布三 job） | 与 `scripts/gate.mjs` 同步 |
+
+## 生成物清理（v14.28.0 / S3 P3-3）
+
+`npm run clean:artifacts` 删除本地生成物（E2E/探针 profile、视觉 diff、coverage、
+录制页、dist、zip），不触碰源码与入库 fixture——磁盘告急或切换分支前使用。
+
