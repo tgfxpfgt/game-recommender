@@ -112,8 +112,20 @@ const trackEventRule = (m) => {
 // v14.14（重构研究报告 §3.1 序 4）：表级类型——(m) 参数经上下文获得 any，
 // 48 处表内箭头函数 TS7006 一次清零；返回值消费方（handlers）自行判
 // .ok/.error，表体无需逐键 JSDoc
+// v14.26.0（优化方案 P1-2 前半）：规则表由"模块求值期装配"改为"首次校验时
+// 装配"——SW 冷启动不再为 79 条规则创建闭包。MV3 SW 禁动态 import，故文件仍在
+// 静态图内（字节不变），省的是执行期装配成本。
+// Rule table is now built on first validation instead of at module evaluation
+// (MV3 forbids dynamic import, so the file stays in the static graph — this
+// only defers the 79 closure allocations).
+let _rules = null;
+/** @returns {Record<string, (m: any) => {ok: boolean, error?: string}>} 规则表（懒构建，全局复用） */
+export function getRules() {
+  return (_rules ??= buildRules());
+}
+
 /** @type {Record<string, (m: any) => {ok: boolean, error?: string}>} */
-const RULES = {
+const buildRules = () => ({
   // 最高频：内容脚本每页加载即发，此前零校验直接入库
   TRACK_EVENT: trackEventRule,
   // v14 B10：批量追踪（内容侧 v12 B3 攒批）——事件数上限 100（内容侧满 10
@@ -425,13 +437,13 @@ const RULES = {
     return { ok: true, error: '' };
   },
   OPEN_HUB: () => ({ ok: true })
-};
+});
 
 // 统一校验入口：未契约化 action **默认拒绝**（v10.5.0 P2-D 收紧——此前未覆盖
 // 一律放行是隐患面；新增 action 必须在 RULES 补规则，对齐 AGENTS.md 铁律 #7）
 // Unified entry: uncontracted actions are now DENIED (fail-closed).
 export function validateMessage(action, msg) {
-  const rule = RULES[action];
+  const rule = getRules()[action];
   if (!rule) return { ok: false, error: `未契约化的 action（需在 message-contract.js RULES 登记）: ${action}` };
   const r = rule(msg);
   return r.ok ? { ok: true, error: '' } : { ok: false, error: r.error };
