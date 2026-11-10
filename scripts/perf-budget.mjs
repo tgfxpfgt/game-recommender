@@ -23,10 +23,34 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
 /**
+ * 方案目标值（M-1/M-3）：只用于打印差距，不做断言。
+ * Plan targets (M-1/M-3): printed as a gap, never asserted.
+ */
+export const TARGETS = {
+  swGraphBytes: 780 * 1024,
+  swGraphFiles: 98,
+  staticInjectionBytes: 47 * 1024,
+  closureBytes: 300 * 1024
+};
+
+/**
  * 预算上限（v14.26.0 首次锁定实测值）。
  * 目标值（方案 M-1/M-3）：SW 图 ≤ 780KB、静态注入 ≤ 47KB、闭包 ≤ 300KB——
  * 当前 SW 图仍高于目标（待 SW 瘦身批次），故基线取实测值，只做"禁止变差"。
  * Budgets: pinned to the measured baseline; targets are noted in the plan.
+ *
+ * v14.28.0（S3 P1-2 后半结项）：目标值经实测判定为**当前架构不可达**，
+ * 依据见 docs/reports/archive 对应执行记录：
+ *   - SW 图需再减 42.9KB；6 个站点 adapter + index 合计 18.1KB，即使全部
+ *     移出静态图仍差 24.8KB；
+ *   - MV3 ServiceWorkerGlobalScope 禁止 import()（AGENTS 铁律 2），静态图
+ *     字节 = 源码字节之和，静态导入的文件无法既"保留"又"不计入"；
+ *   - 剩余体积均由启动即用的消息/存储/业务模块构成，删减即改行为。
+ *   静态注入同理：需减 1.7KB，注入集是 3 个 shared + 7 个 adapter + tracker
+ *   + CSS 的最小可用面，任何"挪出静态注入"的做法只是把成本搬到闭包
+ *   （闭包预算同权），不产生净收益。
+ *   结论：预算锁在实测值（只禁止变差）；目标差距由本文件在非断言模式下
+ *   打印，作为后续拆分批次的可视化依据。不改行为、不做为凑数的拆包。
  */
 export const BUDGETS = {
   // v14.27.0（P2-10）：api-search 拆为 4 文件（编排 + 候选/共识/兜底）后按新
@@ -156,6 +180,12 @@ async function main() {
     );
     const missing = [...swGraph.missing, ...closures.list.missing, ...closures.detail.missing];
     if (missing.length > 0) console.log(`⚠ 未解析路径: ${missing.join(', ')}`);
+    // 目标差距（只打印，不断言）——见 TARGETS 注释：目标值当前架构不可达
+    const gap = (value, target) => `目标 ${kb(target)}，差 ${kb(Math.max(0, value - target))}`;
+    console.log('--- 方案目标差距（仅参考）---');
+    console.log(`SW 图            ${gap(report.swGraph.bytes, TARGETS.swGraphBytes)}`);
+    console.log(`内容静态注入      ${gap(report.staticInjection.bytes, TARGETS.staticInjectionBytes)}`);
+    console.log(`内容闭包(list)   ${gap(report.closure.list.bytes, TARGETS.closureBytes)}`);
   }
 
   if (!assertMode) return;
