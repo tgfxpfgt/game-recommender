@@ -14,6 +14,7 @@
 import { readFileSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { listZipEntries } from './zip-entries.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const errors = [];
@@ -84,12 +85,16 @@ const zipPath = path.join(ROOT, `release/game-recommender-v${ver}.zip`);
 if (!existsSync(zipPath)) {
   console.log(`ℹ️ 未找到 ${path.basename(zipPath)}——跳过 zip 校验（发版流程 npm run package 后重跑本脚本）`);
 } else {
-  const { execSync } = await import('node:child_process');
-  const raw = execSync(`unzip -l "${zipPath}"`, { encoding: 'utf-8' });
-  const list = raw.split('\\').join('/'); // Windows 打包 zip 路径为反斜杠——归一后断言（CI Linux 正斜杠同过）
-  if (!list.includes('manifest.json')) errors.push('zip 缺 manifest.json');
-  if (!list.includes('background/service-worker.js')) errors.push('zip 缺 service-worker');
-  if (/node_modules\/|\stests\//.test(list)) errors.push('zip 泄漏 node_modules/tests');
+  // P2-13：原 `unzip -l` 依赖外部命令（Windows 默认无 unzip → 发版门禁在本机
+  // 必红）。改纯 JS 读 zip central directory（scripts/zip-entries.mjs），零依赖
+  // 跨平台。路径统一正斜杠后断言（Windows 打包可能写反斜杠）。
+  const names = listZipEntries(readFileSync(zipPath)).map((n) => n.split('\\').join('/').replace(/^\.\//, ''));
+  const has = (target) => names.some((n) => n === target || n.endsWith('/' + target));
+  if (!has('manifest.json')) errors.push('zip 缺 manifest.json');
+  if (!has('background/service-worker.js')) errors.push('zip 缺 service-worker');
+  if (names.some((n) => n.startsWith('node_modules/') || n.startsWith('tests/'))) {
+    errors.push('zip 泄漏 node_modules/tests');
+  }
 }
 
 /** 单调 minor 序号（major*1000+minor），用于油猴移植基线差距 / minor index */
