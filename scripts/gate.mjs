@@ -51,6 +51,9 @@ function step(name, cmd, env = {}) {
 // fast 模式 vitest 走受影响选择（test-changed.mjs），全量模式保持原 check 语义
 // v14.25.0：gate 上下文 sim 信号超时钳回 20s（快速失败）——已知进程级翻转
 // 在满载下 60s 也救不回（实证 360s×2 假红墙钟），单跑隔离车道保持 60s 容忍
+// v14.26.0（优化方案 P0-1）：首步查"被静态 import 却未跟踪"——该类问题会让
+// 干净克隆的扩展完全无法装载，且只有 git 状态能发现（lint/typecheck 全绿）。
+step('check:imports（未跟踪静态导入）', 'node scripts/check-untracked-imports.mjs');
 step('lint', 'npm run lint');
 step('typecheck', 'npm run typecheck');
 const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };

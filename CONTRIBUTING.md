@@ -26,6 +26,7 @@ npm run coverage       # vitest 覆盖率
 - **单 runner（v6.2.0 起）**：`npm test` = vitest run，26 套件全部由 vitest 收集（content-sim 经 `__grImport` 注入兼容 eval 动态 import）。
 - **目录**：`tests/unit/`（纯函数单测）+ `tests/integration/`（content-sim 内容脚本模拟 / test-handlers 消息链路 / test-orchestrator Steam 编排 / test-integrity 项目完整性）。
 - **新增测试文件必须加入 `vitest.config.js` 的 include 显式列表**（vitest 默认只匹配 `.test.` 后缀）。
+- **新增源文件必须复核 `git status` 的 `??`**（v14.26.0 优化方案 P0-1）：凡被已跟踪文件静态 import 的新文件，提交前必须 `git add`——漏提交会让干净克隆的扩展完全无法装载（MV3 SW 静态 import 失败无运行时降级）。`npm run check:imports` 已作为 `gate`/`gate:fast` 首步自动拦截。
 - **转换教训（重要）**：check 线性脚本（顶层准备 + 立即断言）转 vitest 时，**凡"顶层状态 + 延迟断言"必须打包进同一 test/beforeAll**——顶层准备在收集阶段全部提前执行，断言运行阶段读到最终状态（v6.1.1 根因）。多 fetch mock 必须按 describe 作用域安装/卸载（顶层多 mock 后装覆盖前者，v6.2.0 教训）。
 - **mock 工具**：`tests/helpers/storage-mock.mjs`（chrome.storage，含 `_reset()` 隔离）+ `fetch-mock.mjs`（URL 子串分发）。
 - **新增业务文件覆盖率门槛（v7.0.7）**：`npm run coverage:gate`——相对 origin/main（浅克隆回退 HEAD~1）的**新增业务文件**行覆盖 <50% 拒绝；已接入 CI。

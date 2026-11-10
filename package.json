@@ -20,6 +20,7 @@
     "install-hooks": "sh scripts/install-hooks.sh",
     "coverage:snapshot": "node scripts/coverage-snapshot.mjs",
     "coverage:gate": "node scripts/coverage-gate.mjs",
+    "check:imports": "node scripts/check-untracked-imports.mjs",
     "audit": "npm audit --audit-level=high",
     "test:timed": "node scripts/test-timing.mjs",
     "visual": "node tests/visual-regression.mjs",
