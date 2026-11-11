@@ -1,5 +1,5 @@
 /**
- * 游戏雷达 Game Radar - 匹配置信度三态 / Match Confidence (v14.30.0 R4-B)
+ * 游戏雷达 Game Radar - 匹配置信度三态 / Match Confidence (v14.28.6 R4-B)
  *
  * 用户裁决（2026-11-11）：
  * 1. 确认的**唯一**条件 = 平台 + 标题 + 发行年份三者一致；缺任一 → 推测。

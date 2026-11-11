@@ -28,7 +28,7 @@ const FORCE_FINISH_MS = 45000;
 // 全局态（qs）优先——跨 tab 排队时本 tab 推送无进度可显；两者皆缺回落"等待检索"。
 // Format the waiting badge's visible queue info (pure, unit-tested): pipeline
 // progress from the running job (global snapshot preferred) + queue depth.
-/** 阶段中文名（v14.30.0 R4-A：卡住时告诉用户卡在哪一步）/ phase labels */
+/** 阶段中文名（v14.28.6 R4-A：卡住时告诉用户卡在哪一步）/ phase labels */
 const PHASE_LABELS = {
   platform: '平台识别',
   cache: '查缓存',
@@ -63,7 +63,7 @@ export function formatQueueStatusText(prog, qs) {
   } else if (prog && typeof prog.position === 'number' && prog.position > 0) {
     parts.push(`排队中·前方 ${prog.position} 项`);
   }
-  // v14.30.0 R4-A：软阈值超时 → 明确告知"卡在哪一步、已等多久"（只展示不放弃；
+  // v14.28.6 R4-A：软阈值超时 → 明确告知"卡在哪一步、已等多久"（只展示不放弃；
   // 硬阈值放弃由后台继续队列，前端看到的是该项最终为未找到）
   const stalled = (cur && cur.stalled) || (prog && prog.stalled) || null;
   if (stalled && Number(stalled.elapsedMs) >= 1000) {

@@ -115,8 +115,8 @@
  * @property {number} [uiThemeNightStart] - 夜间窗口起始小时（含，默认 19，v10.7.0）
  * @property {number} [uiThemeNightEnd] - 夜间窗口结束小时（不含，默认 7，v10.7.0）
  * @property {number} [ratingsBatchSize] - 列表评分批次大小（10-200，默认 60，v10.7.0）
- * @property {number} [ratingsItemSoftWarnMs] - 单条目看门狗软阈值（只告警留证，0=用默认，v14.30.0）
- * @property {number} [ratingsItemHardTimeoutMs] - 单条目看门狗硬阈值（放弃条目继续队列，0=用默认，v14.30.0）
+ * @property {number} [ratingsItemSoftWarnMs] - 单条目看门狗软阈值（只告警留证，0=用默认，v14.28.6）
+ * @property {number} [ratingsItemHardTimeoutMs] - 单条目看门狗硬阈值（放弃条目继续队列，0=用默认，v14.28.6）
  * @property {number} [qrImageMaxKb] - 二维码代取图片上限 KB（默认 3072，v10.7.0）
  * @property {number} [appStatDedupHours] - a-b 同站去重窗口小时（0=关闭，v10.3.0）
  * @property {number} [appStatDownloadCap] - a 对数封顶（v10.3.0）

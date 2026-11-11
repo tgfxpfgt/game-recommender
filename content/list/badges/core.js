@@ -24,7 +24,7 @@ export {
 export { prependRecBadge } from './rec.js';
 export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v14.7 批次 3
 
-// v14.30.0 R4-B：推测匹配的视觉与依据串——用户裁决：不用符号表达推测，
+// v14.28.6 R4-B：推测匹配的视觉与依据串——用户裁决：不用符号表达推测，
 // 徽章文字直接写「推测」+ 琥珀配色 + 双线边框；悬停给出匹配标题与数据来源。
 // Confirmed/suspected/not-found differ in text, color and border shape.
 const SUSPECT_STYLE = { color: '#b8860b', bg: 'rgba(184,134,11,0.12)' };
@@ -194,7 +194,7 @@ export function prependBadge(item, rating, settings) {
       // v7.4.0：色盲友好——符号前缀（✓ ≥80 / ▲ ≥60 / ✕ <60，与分级色一致）
       // Color-blind friendly: symbol prefix matching the grade colors
       const sym = rate >= 80 ? '✓ ' : rate >= 60 ? '▲ ' : '✕ ';
-      // v14.30.0 R4-B：推测匹配→文字前缀「推测」+ 琥珀 + 双线边框（确认态保持原样）
+      // v14.28.6 R4-B：推测匹配→文字前缀「推测」+ 琥珀 + 双线边框（确认态保持原样）
       badges.push(
         createBadge(link, {
           text: `${suspected ? '推测 ' : ''}${sym}${rate}%`,

@@ -24,7 +24,7 @@ import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
 import { getSteamApiStatus } from '../core/api-monitor.js';
 import { metricInc, metricObserve } from '../core/metrics.js'; // v10.7.0：运行指标
-import { withWatchdog } from '../core/mechanisms.js'; // v14.30.0 R4-A：单条目两级看门狗
+import { withWatchdog } from '../core/mechanisms.js'; // v14.28.6 R4-A：单条目两级看门狗
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：a-b 徽章数据并入 ratings
 
 // v10.1.0：把 AppID 行为统计（a 下载 / b 详情页打开）并入 rating 条目——
@@ -345,7 +345,7 @@ async function runRatingJob(job) {
   job.deadlineAt = deadlineAt;
   let totalPauseMs = 0;
   let tabDead = false;
-  // v14.30.0 R4-A：任务心跳定时器（finally 统一清理，防 try 内声明后被 finally 丢失）
+  // v14.28.6 R4-A：任务心跳定时器（finally 统一清理，防 try 内声明后被 finally 丢失）
   /** @type {ReturnType<typeof setInterval>|null} */
   let heartbeatTimer = null;
   try {
@@ -360,7 +360,7 @@ async function runRatingJob(job) {
     // 收集但从未被消费，UI 配置静默失效）作为基础批大小；API 异常降速仍走
     // PERF_CONFIG（自适应优先于用户偏好）；设置不可达回退 PERF_CONFIG
     let baseBatch = PERF_CONFIG.ratingsBatchSize;
-    // v14.30.0 R4-A：看门狗两级阈值（设置可覆盖，0/未设 = PERF_CONFIG 默认）——
+    // v14.28.6 R4-A：看门狗两级阈值（设置可覆盖，0/未设 = PERF_CONFIG 默认）——
     // 用户裁决：阈值不是结论而是可调参数，默认偏宽松
     let itemSoftMs = PERF_CONFIG.ratingsItemSoftWarnMs;
     let itemHardMs = PERF_CONFIG.ratingsItemHardTimeoutMs;
@@ -392,7 +392,7 @@ async function runRatingJob(job) {
     const retryNames = []; // 网络失败/限流（null 或 failed 标记）
     /** @type {{done: boolean, promise: Promise<void>}|null} */
     let anomalyGate = null; // 共享暂停门（所有 worker 等同一窗口，防 N 个独立定时器）
-    // v14.30.0 R4-A：在途条目表（真实起点 + 当前阶段）——软阈值告警与状态栏
+    // v14.28.6 R4-A：在途条目表（真实起点 + 当前阶段）——软阈值告警与状态栏
     // "卡在哪一步、已等多久"的证据来源；key = 游戏名
     /** @type {Map<string, {startedAt: number, phase: string}>} */
     const inFlight = new Map();
@@ -436,7 +436,7 @@ async function runRatingJob(job) {
           total: totalNames,
           degraded: getSteamApiStatus().anomaly,
           queued: jobQueue.pending.length,
-          // v14.30.0 R4-A：当前阶段 + 超软阈值的在途条目（无则 null）
+          // v14.28.6 R4-A：当前阶段 + 超软阈值的在途条目（无则 null）
           phase: lastPhase,
           stalled
         }
@@ -521,7 +521,7 @@ async function runRatingJob(job) {
             const img =
               (job.imageData && job.imageData[name]) ||
               (job.appIds && job.appIds[name] ? { appId: job.appIds[name] } : null);
-            // v14.30.0 R4-A：两级看门狗——软阈值只告警留证（记录条目/阶段/耗时），
+            // v14.28.6 R4-A：两级看门狗——软阈值只告警留证（记录条目/阶段/耗时），
             // 硬阈值才放弃该条目并继续队列（用户裁决：误杀 > 晚发现）
             r = await withWatchdog(
               () =>
@@ -536,7 +536,7 @@ async function runRatingJob(job) {
                   mcBudget: job.mcBudget || null,
                   // v14.18.0：分类页平台提示（规则 listPlatformHints，空串 = 无）
                   platformHint: job.platformHint || '',
-                  // v14.30.0 R4-A：阶段回调（告警留证 / 状态栏 stalled 用）
+                  // v14.28.6 R4-A：阶段回调（告警留证 / 状态栏 stalled 用）
                   onPhase: (/** @type {string} */ phase) => {
                     itemMeta.phase = phase;
                     lastPhase = phase;

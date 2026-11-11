@@ -70,21 +70,21 @@ export const BUDGETS = {
   // 不再把全部条目的并集（任何单页都不会全量加载）当作"每页必付"。
   // v14.28.5: budgets re-locked after the per-site content_scripts split; the
   // static-injection metric now measures the worst single page, not the union.
-  // v14.30.0（第四轮 R4-B）：新增 background/steam/match-confidence.js（三要素
+  // v14.28.6（第四轮 R4-B）：新增 background/steam/match-confidence.js（三要素
   // 置信度 + 身份段标题核对，~4.0KB，主体是双语根因注释）+ 徽章推测样式
   // （styles/content.css +256B）；SW 图 857,074B/106 文件、静态注入 38,663B，
   // 按实测重锁（新增模块，无冗余代码）。
-  // v14.30.0 (R4-B): new match-confidence module + suspected-badge CSS; re-locked
+  // v14.28.6 (R4-B): new match-confidence module + suspected-badge CSS; re-locked
   // to the measured values.
-  // v14.30.0（第四轮 R4-A）：单条目两级看门狗——mechanisms 新增 withWatchdog 与
+  // v14.28.6（第四轮 R4-A）：单条目两级看门狗——mechanisms 新增 withWatchdog 与
   // withLock 可选超时、constants 两级阈值（含实测依据注释）、ratings-batch 在途表/
   // 心跳/软硬阈值接线、orchestrator-list 阶段回调；SW 图 +13.2KB（主体是双语
   // 根因注释），按实测重锁（新增能力，无冗余代码）。
-  // v14.30.0 (R4-A): two-level per-item watchdog; re-locked to the measured value.
-  // v14.30.0（第四轮 R4-C）：四处模块头新增 @invariant 注释（orchestrator-list /
+  // v14.28.6 (R4-A): two-level per-item watchdog; re-locked to the measured value.
+  // v14.28.6（第四轮 R4-C）：四处模块头新增 @invariant 注释（orchestrator-list /
   // ratings-batch / mechanisms / badge-base），SW 图 +1,197B 全为文档注释、零运行时
   // 代码；按实测重锁。
-  // v14.30.0 (R4-C): @invariant header comments only (no runtime code); re-locked.
+  // v14.28.6 (R4-C): @invariant header comments only (no runtime code); re-locked.
   swGraphBytes: 871522,
   swGraphFiles: 106,
   staticInjectionBytes: 38663,

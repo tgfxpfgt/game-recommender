@@ -1,6 +1,6 @@
 import { test, expect, describe, beforeEach } from 'vitest';
 /**
- * 游戏雷达 Game Radar - 测试：匹配置信度三态（v14.30.0 R4-B）
+ * 游戏雷达 Game Radar - 测试：匹配置信度三态（v14.28.6 R4-B）
  *
  * 覆盖用户裁决：确认 = 平台 + 标题 + 发行年份三者一致（缺任一 → 推测，年份
  * 缺失按缺失处理）；第一波平台预检拦下主机条目（不得被名称索引钉住的错误

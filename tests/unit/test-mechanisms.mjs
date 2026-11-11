@@ -110,7 +110,7 @@ describe('mechanisms（批次1 机制工厂）', () => {
     expect(err.message).toEqual('always');
   });
 
-  // v14.30.0 R4-A：看门狗两级阈值（软阈值只告警、硬阈值才放弃）
+  // v14.28.6 R4-A：看门狗两级阈值（软阈值只告警、硬阈值才放弃）
   it('withWatchdog：软阈值只告警不结算，任务照常完成', async () => {
     const warns = [];
     const r = await withWatchdog(

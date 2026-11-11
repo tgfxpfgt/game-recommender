@@ -42,10 +42,10 @@ import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2�
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
-// v14.30.0 R4-B：三要素置信度（平台+标题+发行年份一致才 confirmed）
+// v14.28.6 R4-B：三要素置信度（平台+标题+发行年份一致才 confirmed）
 import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
 
-// v14.30.0 R4-B：把三要素置信度挂到结果上（确认/推测 + 依据串），内容侧据此
+// v14.28.6 R4-B：把三要素置信度挂到结果上（确认/推测 + 依据串），内容侧据此
 // 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 缺哪一项）。
 // Attach the 3-factor confidence (and human-readable evidence) to a result.
 function attachMatch(result, { gameName, resultName, source, steamYear }) {
@@ -91,7 +91,7 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
     }
     return { platformOnly: true, platformTag: manual0.tag, appId: null, name: gameName };
   }
-  // v14.30.0 R4-B：首波必须做**标题级**平台预检（此前仅在分类页提示词存在时
+  // v14.28.6 R4-B：首波必须做**标题级**平台预检（此前仅在分类页提示词存在时
   // 才判模拟器）——主机独占标题若被 URL/名称索引钉住一个无关 Steam appId，
   // 首波缓存命中即返回"看起来成功"的错误徽章，第二波永远不会纠正（第一波
   // 结果是终态）。主机条目首波保持零网络：不抓分，返回 null 交第二波
@@ -133,7 +133,7 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (isDemoCacheWithoutRating(merged)) return null;
 
   // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
-  // v14.30.0 R4-B：附三要素置信度（确认/推测 + 依据）
+  // v14.28.6 R4-B：附三要素置信度（确认/推测 + 依据）
   return attachMatch(await applyCacheHit(merged, appId, gameName), {
     gameName,
     resultName: merged.name,
@@ -257,7 +257,7 @@ async function phasePlatform(gameName, options) {
  * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean, source: string}|null>}
  *   null = 确认未找到（负缓存已按守卫语义处理）；englishName 在 usableAppId
  *   直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）；
- *   source = 命中来源（v14.30.0 R4-B，仅作推测依据展示，不参与置信度判定）
+ *   source = 命中来源（v14.28.6 R4-B，仅作推测依据展示，不参与置信度判定）
  */
 async function phaseSearch(gameName, options, corr, usableAppId) {
   let foundAppId = usableAppId;
@@ -333,7 +333,7 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
-  // v14.30.0 R4-A：阶段回调——供批量链看门狗"卡在哪一步"留证与状态栏展示；
+  // v14.28.6 R4-A：阶段回调——供批量链看门狗"卡在哪一步"留证与状态栏展示；
   // 观测出口异常绝不影响主流程（calling code 出错不能变成检索失败）
   const onPhase = typeof options.onPhase === 'function' ? options.onPhase : null;
   const phase = (/** @type {string} */ p) => {
@@ -360,7 +360,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   const corr = await lookupWrongReportCorrection(gameName);
 
   // 0. appId 优先（列表页封面图提取），否则名称索引
-  // v14.30.0 R4-B：记录 appId 来源（推测依据展示用）
+  // v14.28.6 R4-B：记录 appId 来源（推测依据展示用）
   let idSource = options.appId ? 'image' : 'unknown';
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
@@ -407,7 +407,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(merged)) {
         // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
-        // v14.30.0 R4-B：附三要素置信度（确认/推测 + 依据）
+        // v14.28.6 R4-B：附三要素置信度（确认/推测 + 依据）
         return attachMatch(await applyCacheHit(merged, appId, gameName), {
           gameName,
           resultName: merged.name,
@@ -436,7 +436,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let foundName = gameName;
     /** @type {import('../core/types.js').SteamSearchResult|null} */
     let searchResult = null;
-    // v14.30.0 R4-B：本次命中的搜索来源（未搜索时回落到 appId 来源）
+    // v14.28.6 R4-B：本次命中的搜索来源（未搜索时回落到 appId 来源）
     /** @type {string|null} */
     let searchSource = null;
     if (!foundAppId) {

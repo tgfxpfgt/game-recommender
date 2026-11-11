@@ -322,7 +322,7 @@
     const batchRaw = intVal('ratingsBatchSize');
     OPTS.currentSettings.ratingsBatchSize =
       Number.isInteger(batchRaw) && batchRaw >= 10 && batchRaw <= 200 ? batchRaw : 60;
-    // v14.30.0 R4-A：看门狗阈值**有意无 UI**（见 DEFAULT_SETTINGS / OPTIONS_ALLOWLIST
+    // v14.28.6 R4-A：看门狗阈值**有意无 UI**（见 DEFAULT_SETTINGS / OPTIONS_ALLOWLIST
     // 理由）——全量保存必须显式带回已存值，否则用户经备份 JSON 调过的参数会被抹掉
     // （v10.7.0 "漏保存映射被全量保存抹掉"同型坑）
     const keepNum = (/** @type {string} */ k, /** @type {number} */ def) => {

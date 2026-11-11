@@ -1,7 +1,7 @@
 /**
  * 游戏雷达 Game Radar - 占位实现 / 契约缺口门禁（D 类）
  *
- * v14.30.0 R4-D：两类"看着像做完了、其实没做"的缺口：
+ * v14.28.6 R4-D：两类"看着像做完了、其实没做"的缺口：
  *  1. 占位实现——`TODO` / `FIXME` / `XXX` 标记，或 `throw new Error('…未实现')`；
  *  2. 契约→handler 缺口——消息契约里声明了 action，但 background 全树没有实现
  *     （反方向 handler→契约 已由 test-integrity 覆盖，本项补上另一半）。

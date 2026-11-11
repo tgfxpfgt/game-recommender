@@ -16,7 +16,7 @@
  * 串行互斥锁工厂（promise 链）——同刻只允许一个 task 在临界区内。
  * Serial mutex via promise chaining; one task inside the critical section.
  *
- * v14.30.0 R4-A（用户裁决：卡死不能无界等待）：`locked` 新增可选第二参数
+ * v14.28.6 R4-A（用户裁决：卡死不能无界等待）：`locked` 新增可选第二参数
  * `{ timeoutMs, warnMs, label, onWarn }`，**默认行为完全不变**（无超时）。
  * - timeoutMs > 0：排队超过该时长仍未轮到 → 调用方 reject `锁等待超时`；
  *   该排队项在前序释放后**不执行 task**（cancelled 标记），仅推进链——
@@ -94,7 +94,7 @@ export function withLock() {
  * Two-level watchdog: soft threshold only warns (keeps waiting), hard threshold
  * settles the awaited promise with a timeout marker.
  *
- * v14.30.0 R4-A（用户裁决）：**软阈值只告警留证、硬阈值才放弃**——误杀正常长
+ * v14.28.6 R4-A（用户裁决）：**软阈值只告警留证、硬阈值才放弃**——误杀正常长
  * 任务的代价高于晚发现。与 withLock 不同，本工厂无法撤销底层 Promise（JS 固有
  * 边界），硬阈值只让**等待方**不再无界阻塞；被放弃的任务可能仍会完成并写缓存，
  * 调用方必须按"结果可能迟到"处理（幂等写入 + 不重复推送）。

@@ -1,6 +1,6 @@
 import { test, expect, describe } from 'vitest';
 /**
- * 游戏雷达 Game Radar - 测试：占位/契约缺口门禁（v14.30.0 R4-D）
+ * 游戏雷达 Game Radar - 测试：占位/契约缺口门禁（v14.28.6 R4-D）
  *
  * 覆盖：占位标记识别（TODO/FIXME、显式"未实现"抛错）、正文里的"未实现"不算、
  * 豁免必须带原因文本、契约 action 提取与 handler 缺口判定。

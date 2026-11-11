@@ -248,7 +248,7 @@
 .gr-badge-dashed {
   border-style: dashed;
 }
-/* v14.30.0 R4-B：推测匹配徽章——双线边框 + 琥珀色（确认=实线 / 推测=双线 /
+/* v14.28.6 R4-B：推测匹配徽章——双线边框 + 琥珀色（确认=实线 / 推测=双线 /
    未找到=虚线，三者边框形状不同；文字与配色也各自区分）*/
 .gr-badge-suspected {
   border-style: double;

@@ -1,7 +1,7 @@
 /**
  * 游戏雷达 Game Radar - 模块索引校验 / Module Index Gate
  *
- * v14.30.0 R4-C：`docs/modules/INDEX.md` 与代码不同步即红（漂移 = 索引开始腐烂，
+ * v14.28.6 R4-C：`docs/modules/INDEX.md` 与代码不同步即红（漂移 = 索引开始腐烂，
  * 比没有索引更危险）；`@stub-ok` 无原因文本即红；豁免出现在索引未覆盖目录即红
  * （未登记的豁免视为未实现）。修复一律 `node scripts/gen-module-index.mjs`。
  *

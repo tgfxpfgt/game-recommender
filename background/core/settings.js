@@ -74,7 +74,7 @@ export async function getSettings() {
 // Server-side range clamps for known numeric keys (defense in depth).
 const NUMERIC_RANGES = {
   ratingsBatchSize: [10, 200, 60],
-  // v14.30.0 R4-A：单条目看门狗阈值（0 = 用 PERF_CONFIG 默认；上下界防误配成
+  // v14.28.6 R4-A：单条目看门狗阈值（0 = 用 PERF_CONFIG 默认；上下界防误配成
   // "秒杀"或"永不触发"——软阈值 ≤ 硬阈值由消费方兜底钳制）
   ratingsItemSoftWarnMs: [1000, 120000, 0],
   ratingsItemHardTimeoutMs: [10000, 600000, 0],
