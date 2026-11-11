@@ -8,8 +8,10 @@
 ## 通用前置（所有类型）
 
 ```bash
-npm run gate:fast     # 提交前唯一门禁（受影响测试自动选择；白名单单源自动升级）
-npm run bump patch|minor "标题" "要点1" ...   # 版本四处一键
+npm run gate:fast     # 提交前唯一门禁（受影响测试自动选择；白名单单源自动升级；
+                      #   含 ext-refs/first-run/corpus/mutations 四门禁与步骤级墙钟预算）
+npm run verify:mutations -- --only <id>   # 修复类批次快速复核：放回缺陷必须红
+npm run bump patch|minor "标题" "要点1" ...   # 版本四处一键（manifest/package/CHANGELOG.md/welcome）
 node scripts/test-changed.mjs --base <ref> [--to <ref>]   # 预演受影响测试选择
 ```
 
@@ -36,6 +38,14 @@ match.urlCacheServe vs match.urlFetch 比例 = 缓存先行有效性；search �
 COUNTER_KEYS）/`recordUsageDuration(key, ms)`（DURATION_KEYS）/`recordUsageEvent(cat, k, {kind, appId})`。
 边界：只记类别/结果码/appId，**不记页面 URL 与游戏标题**（隐私）；全 fire-and-forget
 （flush 自动排空在途 apply——applyChain 队列，勿绕过 enqueueApply）。
+
+**运行期卡点排查（v14.28.9 diagTrace）**：`GET_DIAG_TRACE`（扩展页零参）或一键诊断包
+`trace + traceVerdict` 字段——`classifyTrace()` 直接给出 `{verdict, stuckStage,
+stuckDurMs, lastFailKind, cacheLayer, counts}`（判据：最后一个有 enter 无 exit 的
+stage + 最近失败类别 + 波次进度 + 缓存命中层）。断网场景判定样例 = 录制夹具
+`tests/fixtures/diag-trace-network.json`（verdict=network / stuckStage=search，
+由 integration 真跑录制非手写；夹具 `schemaVersion` ≠ SCHEMA_VERSION 门禁即红）。
+隐私：仅 hostname + 游戏名 6 位哈希，无完整 URL/标题/appId 明文。
 
 ---
 
@@ -103,4 +113,17 @@ COUNTER_KEYS）/`recordUsageDuration(key, ms)`（DURATION_KEYS）/`recordUsageEv
 ## 7. 发版批次
 
 顺序：`npm run gate`（全量）→ `npm run bump …` → `npm run package` → `npm run release:smoke` → 分步 commit → tag/push → gh release（附 zip+seal）→ 深度扫描。
-**坑**：commit/push 分步、不带管道（吞退出码事故×2）；链式命令 commit 失败必须中止；visual 基线含版本号——bump 后 `npm run visual -- --update`；推送 GFW 间歇重置等 2 分钟窗口。
+**坑**：commit/push 分步、不带管道（吞退出码事故×2）；链式命令 commit 失败必须中止；visual 基线含版本号——bump 后 `npm run visual -- --update`；推送 GFW 间歇重置等 2 分钟窗口；发布前 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜）。
+
+## 8. 外部资源型功能上线（全量目录/dump 类，v14.28.8 A/G 类教训）
+
+**触点**：`background/core/constants.js` ENDPOINTS（主源 jsDelivr + 备源 raw，**分支必须与上游默认分支一致**）→ `scripts/external-refs.json` 登记（url/owner/repo/branch/validatedAt/httpStatus/bytes）→ 真实首拉实测（如 `GR_LIVE_APPLIST=1 npx vitest run tests/unit/test-app-list-index.mjs`）→ `scripts/first-run.json` 回填 firstRun（at/bytes/entries/evidence，required:true）→ `scripts/mutations.json` 登记缺陷回放（如分支写回 main）。
+
+**测试**：`tests/unit/test-app-list-index.mjs`（离线桩 + GR_LIVE 真网用例）+ 三门禁 `check:ext-refs` / `check:first-run` / `check:corpus` + `verify:mutations`。
+
+**坑**：
+
+- 404 分两类：对端资源不存在（空结果可兜底）vs **我方引用写错**（配置错误必须红）——appListIndex 写死 `main` 分支 404 五个月零运行，即后者被"404=空结果非失败"doctrine 吞掉的实例。
+- 桩只模拟响应内容，**URL 必须参与断言**（桩记录入参）；单测自建 URL 常量绕过生产常量 = 生产写错测试仍绿（D-4，由 ext-refs 兜底）。
+- 外部引用可变部分（分支/域名/路径前缀）零字面量：进 ENDPOINTS 单源 + 锁文件；`validatedAt` 超 30 天门禁红（发布前 `--refresh` 校验真实默认分支，离线模式不查上游）。
+- 上线 = "有首次成功运行的证据"，不是"代码合并"——无 firstRun 记录的外部资源型功能一律视同不存在（G 类）。

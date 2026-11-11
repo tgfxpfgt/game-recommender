@@ -1,27 +1,33 @@
 # AGENTS.md — AI 编码助手项目指引（浓缩版）
 
 > 本文件为 AI 编码助手（Claude/GPT/GLM 等）的精简上下文。**改代码前必读**；
-> 细节见 CONTRIBUTING.md（工程约定）与 README.md（功能/更新日志）。
+> 细节见 CONTRIBUTING.md（工程约定）、README.md（功能）与 CHANGELOG.md（更新日志，
+> v14.28.0 起自 README 拆出）。
 > **按需求类型直达触点：先查 `docs/playbooks.md`**（浮窗/管线/设置键/action/
-> 存储模块/词表/发版 7 类配方——文件+测试+坑查表，免探索式读码）。
+> 存储模块/词表/外部资源上线/发版 8 类配方——文件+测试+坑查表，免探索式读码）。
 
 ## 项目一句话
 
 游戏雷达 Game Radar——Chrome MV3 扩展（零构建、原生 JS + JSDoc 类型），
 在下载站页面注入 Steam 好评率徽章、行为学习推荐与限免监控。
-当前版本见 manifest.json；版本流水与发布记录见 README「更新日志」。
+当前版本见 manifest.json；版本流水见 CHANGELOG.md（`npm run bump` 自动同步
+manifest/package/CHANGELOG/welcome 四处）。
 
 ## 常用命令
 
 ```bash
-npm run gate        # 全量门禁：vitest 全量 + E2E(MOCK) + visual（发布触发点跑，日常不用）
-npm run gate:fast   # 快速门禁：lint/typecheck + 受影响测试 + 棘轮 + visual —— 每批提交前必跑
-npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]
-npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时）
+npm run gate        # 全量门禁：vitest 两阶段 + E2E(MOCK) + visual + 打包（发布触发点跑；步骤级墙钟预算 suite-budgets.json）
+npm run gate:fast   # 快速门禁：静态门禁群 + lint/typecheck + 受影响测试 + 缺陷回放 + 棘轮 + visual —— 每批提交前必跑
+npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]（manifest/package/CHANGELOG.md/welcome）
+npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时，不进门禁）
 npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
 npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
 npm run check:modules  # 模块索引（docs/modules/INDEX.md）漂移 + 豁免登记校验；重生成 node scripts/gen-module-index.mjs
 npm run check:stubs    # 占位实现（TODO/未实现抛错）+ 契约→handler 缺口；唯一豁免 @stub-ok: <原因>
+npm run check:ext-refs  # 外部引用锁（scripts/external-refs.json）：登记一致性 + validatedAt 30 天保鲜；--refresh 真实校验上游默认分支（发布前跑）
+npm run check:first-run # 首次运行证据（scripts/first-run.json）：外部资源型功能必须有真实成功调用记录
+npm run check:corpus    # 匹配语料分母：名称级样本必须有 expectedName（豁免须写原因）
+npm run verify:mutations # 缺陷回放（scripts/mutations.json）：历史缺陷放回必须红；--only <id> 单条
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ```
 
@@ -43,7 +49,9 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   附属词/版本词保序词条数据 + 编译 + 校验；**保序语义**——重叠词先长后短决定删除
   范围；等价性由 golden 测试 + 错题库回放双重门禁）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
-- `userscript/game-radar.user.js`（v14.14.1）：油猴单文件版（扩展核心移植，
+- `userscript/game-radar.user.js`（@version 14.14.0；与 manifest 已差 14 个 minor，
+  release:smoke 告警阈值在案——下次 minor bump 前须先决策移植同步或调阈值）：
+  油猴单文件版（扩展核心移植，
   GM_* 适配层直调管线）——**词表/纯函数是扩展快照**，改 shared/retrieval-vocab.js
   或 api-search 纯函数后须同步该文件（test-userscript-pure 的防漂移门禁会红）；
   版本号 = 移植基线（@version 对齐功能口径的扩展版），不随扩展 patch 递增。
@@ -52,6 +60,11 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   （clearOnDataReset 标记）全部由该表派生——**勿再手改 MODULE_FILES / DATA_MODULES /
   BACKUP_CORE_KEYS**。steam 缓存为 4 分文件（meta/rating/detail/spy，steam-cache.js
   dirtyModules 子集写入）——动其持久化须四处同步并保持旧单文件迁移兼容。
+- 运行期诊断轨迹（v14.28.9）：`background/storage/diag-trace.js`——环形 500 事件、
+  白名单键（仅 hostname + 游戏名 6 位哈希，零完整 URL/标题/appId）经 `GET_DIAG_TRACE`
+  或诊断包 `trace/traceVerdict` 导出；卡点判读 `classifyTrace()` =
+  `{verdict, stuckStage, stuckDurMs, lastFailKind, cacheLayer, counts}`。录制夹具
+  `schemaVersion` ≠ 当前 SCHEMA_VERSION 即红（保鲜门禁）。
 
 ## 铁律（违反 = 测试/钩子拦截或线上事故）
 
@@ -91,12 +104,31 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     PERF_CONFIG（超时组 fetchTimeout*Ms）；内容侧/页面层不可 import background
     （分层），在文件顶提具名大写常量。发现"改一处要同步 N 个文件"= 该做单源化，
     不要照抄第 N 份。
+14. **故障三态语义（v14.28.8 起，sim-list 节 13 真值表门禁）**：面向用户的查询结果
+    必须三态可区分——有值 / 确认无值 / 失败未知。后台网络/限流/超时失败一律走
+    `networkFailed` 哨兵（`failed:true` + errorType），内容侧渲染
+    `gr-badge-network-error`「⚠️ 网络异常·点击重查」——**禁止把失败渲染成「未找到」**
+    （与"Steam 无此游戏"同形 = 误导用户去补数据而非修网络）。新增 errorType 分支
+    先核对语义映射，再配真值表用例（network/ratelimit/notfound/timeout/empty）。
+15. **机制必须绑定可见输出**：超时/看门狗/降级类机制必须驱动一次用户可见变化
+    （推送/UI 变更），或在代码与文档显式标注"仅诊断"——只写日志的机制等于不存在
+    （停滞边沿心跳 `scheduleStallCheck` 推 progress.stalled；test-ratings-resume
+    用例 + 变异 `stall-heartbeat-log-only` 兜底）。
+16. **外部引用登记制 + 首次运行证据**：托管 URL 一律走 constants.js ENDPOINTS 单源，
+    并入 `scripts/external-refs.json` 登记（check:ext-refs：未登记/与代码漂移/
+    validatedAt 超 30 天即红；发布前 `--refresh` 校验上游真实默认分支）。外部资源型
+    功能上线前必须有真实成功调用记录入 `scripts/first-run.json`（check:first-run）——
+    "机制存在 ≠ 功能生效"（appListIndex 写死 main 分支 404 五个月零运行的教训）；
+    404 须区分"对端无资源"（空结果可兜底）与"我方引用写错"（配置错误必须红）。
+17. **缺陷回放登记**：修过的结构级缺陷（放回后门禁应红）进 `scripts/mutations.json`，
+    `verify:mutations` 在 gate:fast 兜底；修复类批次可用 `--only <id>` 快速复核。
+    测试桩必须断言入参 URL——桩只模拟响应内容，不模拟"URL 是否正确"。
 
 ## 文档同步（默认启用）
 
 技能包 `docs/skills/neat-freak-person/`（源自 lsa03/neat-freak-person，MIT）已安装并
 **默认启用**：功能批次合并后，AI 助手按其纪律同步三层知识（AGENTS.md 规则 /
-README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。要点：
+CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。要点：
 
 - 同步触发：功能新增/调整/删除合并后（说"同步一下"或自动执行）
 - 尺寸红线：AGENTS.md ~300 行软上限；记忆毕业机制（稳定教训迁入本文件/CONTRIBUTING，
@@ -123,6 +155,11 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 - **最小必要测试（用户指令 2026-11-10）**：修复类就近现有套件补 1 个回归用例，不新建套件；
   新 sim 套件仅限新模块/新行为；同一变更不在 unit/sim/E2E 三层重复铺（主选变更所在层，
   其余层留发布触发点补）；E2E section 增项默认随完整发版批次。
+- 墙钟预算（v14.28.9 起）：`scripts/suite-budgets.json`（cap = 本机实测×1.5）在
+  gate.mjs 逐步骤生效，超 cap 直接判失败——先隔离复跑排机器负载（并行编译/杀毒/争核），
+  仍超才调基线；套件实测与口径见 docs/specs/gr-hardening-2026-11-11/spec.md L3。
+- 已知噪声：变异 `network-rendered-as-notfound` 偶发撞 240s 检查上界被判「未拦截」
+  （语义仍红不会假绿）——隔离复跑即可。
 - 已知问题：background/handlers.js 的 coverage 归因伪影（见 CONTRIBUTING 末尾）。
 
 ## 最小必要变更纪律（用户指令 2026-11-10）
@@ -137,9 +174,12 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
   styles/icons/shared/manifest——基线只渲染这四个扩展页+主题+版本号）。
   全量 `npm run gate` 只在发布触发点跑。**sim 多文件连跑必须保 include 顺序**
   （sim-list 前置——CLI 目录参数按字母序打乱会复现节 2/2b 挂起，v14.24.1 实证；
-  npm run test:sim 已固化显式顺序）。
+  npm run test:sim 已固化显式顺序）。fast 现含 ext-refs/first-run/corpus/mutations
+  四门禁与**夹具→套件映射**（夹具改动映射不到套件即红，不再「空匹配=通过」）；
+  仅跑 fast 即可提交的条件清单见 docs/specs/gr-hardening-2026-11-11/spec.md L3
+  （跨层契约/存储注册表/词表/测试基建改动必须全量）。
 - **版本样板一键化**：`npm run bump patch|minor "标题" "要点1" ...` 一次完成
-  manifest/package/README/welcome 四处（油猴 @version 不动=移植基线），勿再手改四处。
+  manifest/package/CHANGELOG.md/welcome 四处（油猴 @version 不动=移植基线），勿再手改四处。
 - **最小 diff**：需求外顺手改动（重构/格式化/依赖微调/无关配置）不并入功能批次，
   单独列出由用户决定；不动需求未触及的文件。
 
@@ -166,16 +206,18 @@ README 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘点。�
 ## 发布流程
 
 **版本号纪律（用户指令，2026-10-31 起）**：每次功能/修复批次合并即 bump
-manifest+package 版本号（patch/minor）并同步 README 更新日志 + welcome
-changelog——版本号必须能区分"内容是否更新"；完整发版（tag/release）仍按
+manifest+package 版本号（patch/minor）并同步 CHANGELOG.md + welcome
+changelog（bump 自动四处）——版本号必须能区分"内容是否更新"；完整发版（tag/release）仍按
 下方触发线。**v14.15.0 起四处同步由 `npm run release:smoke` 机器门禁**
-（manifest/package/README/welcome/油猴 @version ≤ manifest；CI release-smoke
+（manifest/package/CHANGELOG.md/welcome/油猴 @version ≤ manifest；CI release-smoke
 job 同源调用——漂移即红）。
 
 触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。步骤（顺序固定）：
 
-1. `npm run gate`（全量门禁一条命令——发布触发点必跑；日常批次合并前 `gate:fast` 即可）
-2. bump manifest+package+README changelog → `npm run package` → `npm run release:smoke`
+1. `npm run gate`（全量门禁一条命令——发布触发点必跑；日常批次合并前 `gate:fast` 即可）；
+   发布前先 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜 + 真实默认分支）
+2. bump manifest+package+CHANGELOG.md → `npm run package` → `npm run release:smoke`；
+   新增外部资源型功能须已回填 first-run.json 真实证据（check:first-run 在 gate 内兜底）
 3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + Mimosa seal）
 4. 深度扫描（security_scan，focusFiles=改动文件）→ seal 补入 release notes
 5. 油猴脚本更新（v14.15.0 N8）：@updateURL/@downloadURL 指向 raw.githubusercontent
