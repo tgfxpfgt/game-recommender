@@ -75,6 +75,9 @@ export function steamSidebar(data, cachedAt) {
   }
 
   // 中文评测
+  // v14.28.12（B-2 审计 B2-F1）：失败与"确实无评论"分离——reviewsFailed 时渲染
+  // 灰色失败行（此前整区静默消失，与"该游戏无中文评论"同形且固化 72h）。
+  // Review failure gets its own row (never silently conflated with "no reviews").
   let reviewsHtml = '';
   if (data.reviews && data.reviews.length > 0) {
     reviewsHtml = `
@@ -91,6 +94,13 @@ export function steamSidebar(data, cachedAt) {
           `
             )
             .join('')}
+        </div>
+      `;
+  } else if (data.reviewsFailed) {
+    reviewsHtml = `
+        <div class="gr-detail-section">
+          <div style="font-size:12px;color:#8f98a0;margin-bottom:6px;">🇨🇳 简体中文评测</div>
+          <div style="color:#8f98a0;font-size:12px;">⚠️ 评论获取失败（网络/站点结构变更）——稍后重试将自动回填</div>
         </div>
       `;
   }

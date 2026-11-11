@@ -50,6 +50,16 @@
       "replace": "\"firstRunRemoved\": true",
       "check": "node scripts/check-first-run.mjs",
       "caughtBy": "脚本：首次运行证据门禁（required:true 缺 firstRun）"
+    },
+    {
+      "id": "review-failure-fixated-as-empty",
+      "class": "B",
+      "defect": "评论获取失败被 cnReviewsFetchedAt 无条件写标记固化成 72h「无评论」（B-2 审计 B2-F1）：失败与确实无评论同形，断网/steamcommunity 被墙时评论区静默消失整个 TTL 窗口",
+      "file": "background/steam/api-assemble.js",
+      "find": "cnReviewsFetchedAt: reviews && !reviewsFailed ? Date.now() : 0,",
+      "replace": "cnReviewsFetchedAt: reviews ? Date.now() : 0,",
+      "check": "npx vitest run tests/integration/test-handlers.mjs",
+      "caughtBy": "integration：B2-F1 用例（失败后标记必须为 0，恢复后重取回填）"
     }
   ]
 }

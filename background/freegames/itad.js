@@ -93,34 +93,48 @@ export async function checkItadFree(appId) {
 const itadLowestCache = createTtlCache({ ttlMs: 12 * 3600 * 1000, max: STORAGE_CAPS.itadPriceCache });
 
 export async function getItadLowest(appId) {
+  // v14.28.12（B-2 审计 B2-F3）：返回 {info, reason}——未配置 Key/凭证失效/
+  // 网络失败/无记录四态此前同形为 null（内容侧整行隐藏，四态不可区分）。
+  // reason ∈ 'no-key'|'auth'|'http'|'network'|'empty'|null（null = 成功）。
+  // B2-F3 audit: {info, reason} so the UI can distinguish the four states that
+  // previously all collapsed into a hidden row.
   const key = String(appId || '').trim();
-  if (!key) return null;
+  if (!key) return { info: null, reason: 'no-key' };
   const settings = await getSettings();
   const apiKey = activeItadKey(settings);
-  if (!apiKey) return null; // 未配置 Key → 功能静默（与限免校验同策略）
+  if (!apiKey) return { info: null, reason: 'no-key' }; // 未配置 Key → 显式原因（不再静默）
   const cached = itadLowestCache.peek(key);
-  if (cached !== undefined) return cached; // 命中（含 null 负缓存）
+  if (cached !== undefined) return cached; // 命中（含负缓存 {info:null, reason}）
   /** @type {{price: number, shop: string}|null} */
   let info = null;
+  /** @type {string|null} */
+  let reason = null;
   try {
     const resp = await itadFetch(apiKey, `appids=steam/${key}&region=cn`);
     if (resp.status === 401 || resp.status === 403) {
       Logger.warn('FreeGames', `ITAD 最低价查询凭证失效（HTTP ${resp.status}）`);
-      itadLowestCache.set(key, null);
-      return null;
+      itadLowestCache.set(key, { info: null, reason: 'auth' });
+      return { info: null, reason: 'auth' };
     }
-    if (!resp.ok) return null;
+    if (!resp.ok) {
+      itadLowestCache.set(key, { info: null, reason: 'http' });
+      return { info: null, reason: 'http' };
+    }
     const data = await resp.json();
     const entry = data && data['steam/' + key];
     const lowest = entry && entry.lowest;
     if (lowest && lowest.price !== undefined) {
       info = { price: lowest.price, shop: (lowest.shop && lowest.shop.name) || '' };
+    } else {
+      reason = 'empty';
     }
   } catch (e) {
     Logger.debug('FreeGames', 'ITAD 最低价查询失败:', String(e));
+    reason = 'network';
   }
-  itadLowestCache.set(key, info);
-  return info;
+  const result = { info, reason: info ? null : reason };
+  itadLowestCache.set(key, result);
+  return result;
 }
 
 // v11.0 B3：收藏折扣监控——ITAD 轮询收藏游戏现价，折扣 ≥ 阈值 → 通知。
@@ -162,7 +176,8 @@ export async function watchFavoritePrices() {
   const threshold = Number(settings.favoriteDiscountThreshold) || 0.8; // 现价 ≤ 最低 × 阈值
   let notified = 0;
   for (const appId of keys) {
-    const lowest = await getItadLowest(appId); // 复用 12h 缓存
+    // v14.28.12（B2-F3）：返回形状 {info, reason}——内部消费取 info
+    const { info: lowest } = await getItadLowest(appId); // 复用 12h 缓存
     if (!lowest || !Number.isFinite(lowest.price) || lowest.price <= 0) continue;
     const current = await fetchFavoriteCurrentPrice(appId, apiKey);
     if (!Number.isFinite(current) || current <= 0) continue;
@@ -255,7 +270,7 @@ export async function getFavoritePrices() {
   /** @type {Record<string, {current: number|null, lowest: number|null, shop: string}>} */
   const prices = {};
   for (const appId of keys) {
-    const lowest = await getItadLowest(appId);
+    const { info: lowest } = await getItadLowest(appId); // v14.28.12（B2-F3）：{info, reason} 形状
     const current = await fetchFavoriteCurrentPrice(appId, apiKey);
     prices[appId] = {
       current: Number.isFinite(current) && current > 0 ? Math.round(current * 100) / 100 : null,

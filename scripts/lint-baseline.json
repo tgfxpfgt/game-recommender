@@ -1,5 +1,5 @@
 {
-  "updatedAt": "2026-10-05",
+  "updatedAt": "2026-11-12",
   "batch": "v14 B9 lint 规则收紧——错误/警告数基线锁定（新增即红，防劣化）",
   "eslint": {
     "errors": 0,
@@ -22,7 +22,7 @@
       "2026-11-03 下调 main 510→495（v14.13 B8：message-contract 校验助手五函数补类型；剩余债集中于规则表 (m)=> 形态，后续表驱动重构时清偿）"
     ]
   },
-  "xssUnescapedInterpolations": 74,
+  "xssUnescapedInterpolations": 75,
   "xssScan": {
     "scope": "content/options/dashboard/popup/sidepanel/welcome/hub/freegames/shared 生产 JS 的 innerHTML 模板串",
     "rule": "含引号的 ${...} 插值未经 esc/escapeHtml/escapeAttr 包裹即计数（纯数字/布尔运算豁免）",
@@ -45,5 +45,5 @@
     "ui": 347,
     "content": 356
   },
-  "xssBaselineNote": "v14.22.2：74 = 73 + candidates.js 入口按钮三元（gr-platform-entry 主视图入口——受控静态片段，onPickPlatform 门控，无外部数据插值；v14.19.0 platformSection 73 基线说明仍适用：其插值全 esc/escapeAttr）"
+  "xssBaselineNote": "v14.28.12：75 = 74 + candidates.js:273 reasonText 三元（B2-F4 失败原因映射——受控静态片段，三个分支均为代码内固定文案、无外部数据插值；v14.22.2 入口按钮 74 与 v14.19.0 platformSection 73 基线说明仍适用：其插值全 esc/escapeAttr）"
 }

@@ -78,14 +78,28 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
       favRow.style.display = 'none';
     }
   }
-  // —— ITAD 最低价行（Key 未配置时后台返回 null → 行隐藏）——
+  // —— ITAD 最低价行（v14.28.12 B2-F3：reason 三态化——未配置/失效/暂不可用/
+  // 无记录各自有灰行文案，不再四态同形为整行消失；仿 Steam250 保底行）——
   if (!itadEl) return;
+  const REASON_TEXT = {
+    'no-key': '未配置 API Key（设置页可配置）',
+    auth: 'API Key 已失效（请检查设置页）',
+    http: '服务暂不可用',
+    network: '网络暂不可用',
+    empty: '暂无价格记录'
+  };
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ITAD_LOWEST', appId }, null, {
       timeout: MSG_TIMEOUT_LONG_MS
     });
     const info = resp && resp.info;
+    const reason = resp && resp.reason;
     if (!info || info.price === undefined || info.price === null) {
+      if (reason && REASON_TEXT[reason]) {
+        itadEl.innerHTML = `💰 ITAD 历史最低: <span style="color:#8f98a0;">${esc(REASON_TEXT[reason])}</span> <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
+        itadEl.style.display = '';
+        return;
+      }
       itadEl.style.display = 'none';
       return;
     }
@@ -135,7 +149,16 @@ export async function fillSteam250Info(appId) {
       el.style.display = '';
     }
   } catch {
-    /* 消息失败静默（行保持隐藏；快照不可用已有保底链接行） */
+    // v14.28.12（B-2 审计 B2-F6）：消息级 catch 不再整行静默——渲染与
+    // 快照不可用同款的保底链接行（入口可辨识可触达）。
+    // Message-level catch renders the same fallback link row (not silent).
+    const href = `https://club.steam250.com/app/${encodeURIComponent(String(appId))}`;
+    for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {
+      const el = document.getElementById(id);
+      if (!el) continue;
+      el.innerHTML = `<a href="${href}" target="_blank" rel="noopener" style="color:#666;text-decoration:none;cursor:pointer;">🏆 Steam250 榜单 ↗</a>`;
+      el.style.display = '';
+    }
   }
 }
 

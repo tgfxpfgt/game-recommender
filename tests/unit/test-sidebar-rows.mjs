@@ -117,14 +117,44 @@ describe('fillSteam250Info（Steam250 排名行）', () => {
     expect(rows['gr-steam250-inline'].style.display).toEqual('');
   });
 
-  it('消息失败：行保持模板默认隐藏不抛错；无 appId 早退不触行', async () => {
+  it('消息失败：渲染保底榜单链接行，不再整行静默（v14.28.12 B2-F6）；无 appId 早退不触行', async () => {
     msgHandlers.GET_STEAM250_RANK = async () => {
       throw new Error('boom');
     };
     await expect(fillSteam250Info('730')).resolves.toBeUndefined();
-    expect(rows['gr-steam250-row'].innerHTML).toEqual('');
-    expect(rows['gr-steam250-row'].style.display).toBeUndefined(); // 未触碰（默认隐藏由模板管）
+    const html = rows['gr-steam250-row'].innerHTML;
+    expect(html).toContain('Steam250 榜单');
+    expect(html).toContain('https://club.steam250.com/app/730');
+    expect(rows['gr-steam250-row'].style.display).toEqual('');
+    expect(rows['gr-steam250-inline'].style.display).toEqual('');
     await fillSteam250Info('');
-    expect(rows['gr-steam250-inline'].innerHTML).toEqual('');
+    expect(rows['gr-steam250-inline'].innerHTML).toEqual(html); // 无 appId 早退未重写
+  });
+});
+
+// ============ v14.28.12（B-2 审计 B2-F3）：ITAD reason 三态化 ============
+describe('fillItadAndFavorites：reason 保底行（四态不再同形隐藏）', () => {
+  it("reason:'no-key' → 灰色「未配置 API Key」行 + 保底链接", async () => {
+    msgHandlers.GET_ITAD_LOWEST = async () => ({ info: null, reason: 'no-key' });
+    msgHandlers.GET_FAVORITES = async () => ({ favorites: {} });
+    await fillItadAndFavorites('730', 'CS2', '');
+    expect(rows['gr-itad-row'].style.display).toEqual('');
+    expect(rows['gr-itad-row'].innerHTML).toContain('未配置 API Key');
+    expect(rows['gr-itad-row'].innerHTML).toContain('isthereanydeal.com');
+  });
+
+  it("reason:'network' → 灰色「网络暂不可用」行", async () => {
+    msgHandlers.GET_ITAD_LOWEST = async () => ({ info: null, reason: 'network' });
+    msgHandlers.GET_FAVORITES = async () => ({ favorites: {} });
+    await fillItadAndFavorites('730', 'CS2', '');
+    expect(rows['gr-itad-row'].style.display).toEqual('');
+    expect(rows['gr-itad-row'].innerHTML).toContain('网络暂不可用');
+  });
+
+  it('无 reason（旧后台形状兼容）→ 仍整行隐藏', async () => {
+    msgHandlers.GET_ITAD_LOWEST = async () => ({ info: null });
+    msgHandlers.GET_FAVORITES = async () => ({ favorites: {} });
+    await fillItadAndFavorites('730', 'CS2', '');
+    expect(rows['gr-itad-row'].style.display).toEqual('none');
   });
 });

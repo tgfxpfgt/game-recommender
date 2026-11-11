@@ -529,6 +529,66 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     expect(!!entry && !!entry.modules.detail.data.cnReviewsFetchedAt).toEqual(true);
   });
 
+  // ============ v14.28.12（B-2 审计 B2-F1/F4/F5）：故障语义三态对齐 ============
+  test('B2-F1/F5：评论+好评率获取失败 → reviewsFailed/ratingFailed 透传、cnReviewsFetchedAt 不写（失败不固化 72h，恢复后自动回填）', async () => {
+    const { resetAppDetailsDedupForTest } = await import('../../background/steam/api-details.js');
+    resetAppDetailsDedupForTest();
+    // scoped mock：appreviews/商店页全部未匹配（ok:false）→ fetchReviewSummary
+    // 与 fetchChineseReviews 双双失败（network），appdetails/公告正常。
+    const failing = createFetchMock({
+      '/api/appdetails': {
+        3764200: {
+          success: true,
+          data: {
+            steam_appid: 3764200,
+            name: 'Resident Evil Requiem',
+            type: 'game',
+            genres: [{ id: 1, description: 'Action' }]
+          }
+        }
+      },
+      '/api/ISteamNews': { appnews: { newsitems: [] } }
+    });
+    const restoreFailing = installFetchMock(failing);
+    let r1;
+    try {
+      r1 = await handleMessage({
+        action: 'GET_STEAM_BY_APPID',
+        appId: 3764200,
+        gameName: '生化危机9 安魂曲',
+        forceRefresh: true
+      });
+    } finally {
+      restoreFailing();
+    }
+    expect(r1.data && r1.data.reviewsFailed).toEqual(true); // 失败信号透传（≠ 无评论）
+    expect(r1.data && r1.data.ratingFailed).toEqual(true); // 好评率失败 ≠ 暂无评测
+    expect(r1.data && (r1.data.cnReviewsFetchedAt || 0)).toEqual(0); // **失败不写回填标记**
+    // 恢复正常 mock → 再次查询：标记 0 使可服务判定失败 → 部分刷新重取（不再被
+    // "确实无评论"顶住 72h）
+    const r2 = await handleMessage({ action: 'GET_STEAM_BY_APPID', appId: 3764200, gameName: '生化危机9 安魂曲' });
+    expect(r2.data && r2.data.reviewsFailed).toEqual(false);
+    expect(r2.data && (r2.data.cnReviewsFetchedAt || 0)).toBeGreaterThan(0);
+    expect(r2.data && r2.data.ratingFailed).toEqual(false);
+  });
+
+  test('B2-F4：直取链路失败必带 reason（网络异常经 api-details 吞异常归入 no-data 层语义；外层 catch 兜底 fetch-failed）', async () => {
+    const restoreBoom = installFetchMock(async () => {
+      throw new Error('network down');
+    });
+    try {
+      const r = await handleMessage({ action: 'GET_STEAM_BY_APPID', appId: 42424242 });
+      expect(r.data).toEqual(null);
+      // fetchSteamAppDetails 内部吞网络异常返回 null（404=空结果 doctrine）→
+      // 本层语义为 no-data；外层 catch（写缓存/注册表等抛错）才归 fetch-failed。
+      // 断言核心：失败响应必带 reason 字段（与 {data:null} 裸形状区分）。
+      expect(r.reason).toEqual('no-data');
+      expect(['no-data', 'fetch-failed', 'name-mismatch']).toContain(r.reason);
+    } finally {
+      restoreBoom();
+    }
+  });
+
   // ============ v14.28.8：模块级部分刷新（残缺缓存只补缺失模块） ============
   test('v14.28.8：detail 缺 userTags → 部分刷新（appdetails/商店页/评测/公告增加，SteamSpy 零新增）', async () => {
     // 用独立 appId/URL：3764201 的 lastUpdate 24h 模块缓存为冷 → 公告出站断言
@@ -1005,9 +1065,9 @@ describe('v10.9.1 补盲：冷门 handler 链路', () => {
     expect(r).toEqual({ info: null, loaded: false });
   });
 
-  test('GET_ITAD_LOWEST：未配置 Key 时静默返回 {info:null}', async () => {
+  test('GET_ITAD_LOWEST：未配置 Key 返回 {info:null, reason:"no-key"}（v14.28.12 B2-F3 四态可区分）', async () => {
     const r = await handleMessage({ action: 'GET_ITAD_LOWEST', appId: '1213700' });
-    expect(r).toEqual({ info: null });
+    expect(r).toEqual({ info: null, reason: 'no-key' });
   });
 
   test('SEARCH_CACHED_GAMES：空缓存返回空结果；畸形 query 被契约拒绝', async () => {

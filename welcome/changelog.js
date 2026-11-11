@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.28.12',
+        date: '2026-11-12',
+        items: [
+          '评论获取失败不再固化 72h「无评论」——reviewsFailed 信号透传 + cnReviewsFetchedAt 失败不写标记（恢复后自动回填）+ 浮窗评论区失败行（B2-F1）',
+          '好评率获取失败与「暂无评测」文案区分（ratingFailed，B2-F5）；ITAD 行四态化——未配置/失效/暂不可用/无记录各有灰行文案（{info,reason}，B2-F3）',
+          'GET_STEAM_BY_APPID 失败响应补 reason（与「无数据」可区分，候选浮窗文案透出，B2-F4）；Steam250 消息级失败渲染保底榜单链接行（B2-F6）；限免页全源失败显示「上次成功数据」提示行（fetchErrorAt 消费，B2-F2）'
+        ]
+      },
+      {
         ver: '14.28.11',
         date: '2026-11-12',
         items: [

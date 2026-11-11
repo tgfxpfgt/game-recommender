@@ -32,7 +32,7 @@ export function buildSteamResult(
   /** @type {string|null} */ lastUpdate = null
 ) {
   // v6.4.19：reviews 可能为 null（rating 模块关闭时）——容忍缺失
-  const { reviewSummary, cnReviewSummary, chineseReviews } = reviews || {};
+  const { reviewSummary, cnReviewSummary, chineseReviews, reviewsFailed } = reviews || {};
   const { chineseSupported, simplifiedChinese, chineseHasAudio, chineseHasSubtitles } = langInfo;
   // 近 30 天好评率（v3.3.6，来自 filter=recent 评测数组统计）
   const recent = reviewSummary && reviewSummary.recent ? reviewSummary.recent : null;
@@ -83,7 +83,18 @@ export function buildSteamResult(
     // reviews forever (completeness check has no review field). Missing marker
     // ⇒ cache miss → one full refetch backfills comments; marker present with
     // empty reviews ⇒ genuinely unavailable, no retry loop.
-    cnReviewsFetchedAt: reviews ? Date.now() : 0,
+    // v14.28.12（B-2 审计 B2-F1）：**失败不写标记**——reviewsFailed 时标记置 0，
+    // 缓存可服务判定视为"未尝试"→ 下次打开详情部分刷新重取（用户驱动的有界
+    // 自愈）；不再把网络失败固化成 72h「无评论」。
+    // Failure writes no marker (0) — the servable check treats it as
+    // "not attempted" and the next detail open backfills; no more 72h fixation.
+    cnReviewsFetchedAt: reviews && !reviewsFailed ? Date.now() : 0,
+    // v14.28.12（B2-F1/B2-F5）：失败态透传内容侧——评论区/好评率行据此区分
+    // 「获取失败」与「确实没有」（reviews===null = 模块关闭，不算失败）。
+    // Failure flags for the UI: transient failure ≠ genuinely empty. (reviews
+    // === null means the module is disabled — not a failure.)
+    reviewsFailed: !!(reviews && reviewsFailed),
+    ratingFailed: !!(reviews && !reviewSummary),
     genres: (gameData.genres || []).map((g) => g.description),
     userTags,
     chineseSupported,

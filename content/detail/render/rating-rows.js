@@ -54,7 +54,14 @@ export function renderRatingRows(data, spy) {
   //（需要更多用户评测来生成整体评价 / 无用户评测）+ 评测数 + 发售日期
   if (data.positiveRate === null || data.positiveRate === undefined) {
     const total = num(data.totalReviews);
-    const reason = data.ratingDesc ? esc(String(data.ratingDesc)) : '暂无评测';
+    // v14.28.12（B-2 审计 B2-F5）：获取失败 ≠ 暂无评测——ratingFailed 时显式
+    // 区分（此前与"真 0 评测"仅一词之差，用户误判游戏口碑）。
+    // Failure ≠ no reviews: explicit wording when the fetch itself failed.
+    const reason = data.ratingFailed
+      ? '评价获取失败·稍后重试'
+      : data.ratingDesc
+        ? esc(String(data.ratingDesc))
+        : '暂无评测';
     const rel = data.releaseDate ? ` · 发售于 ${esc(String(data.releaseDate))}` : '';
     html +=
       '<div class="gr-detail-rate-row">' +

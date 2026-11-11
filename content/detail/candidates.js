@@ -263,7 +263,14 @@ export function renderManualSelectPanel(
             if (detailResp && detailResp.data) {
               onSelect(detailResp.data, parseInt(selectedAppId));
             } else {
-              listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取详情失败，请重试</div>`;
+              // v14.28.12（B2-F4）：失败原因透出（与 SEARCH_STEAM reason 对齐）
+              const reasonText =
+                detailResp && detailResp.reason === 'name-mismatch'
+                  ? '（AppID 与页面标题不相关，已转标题搜索）'
+                  : detailResp && detailResp.reason === 'fetch-failed'
+                    ? '（网络/接口失败，请检查网络后重试）'
+                    : '';
+              listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取详情失败，请重试${reasonText}</div>`;
             }
           } catch (e) {
             listEl.innerHTML = `<div style="padding:20px;text-align:center;color:#e74c3c;font-size:12px;">获取失败: ${esc(globalThis.__GR_MSG__.toUserMessage(e))}</div>`;

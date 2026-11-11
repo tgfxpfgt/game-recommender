@@ -420,6 +420,11 @@ async function fetchChineseReviews(appId) {
   /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
   let cnReviewSummary = null;
   let chineseReviews = [];
+  // v14.28.12（B-2 审计 B2-F1）：失败信号——true = 网络失败/熔断/结构漂移，
+  // 区别于"成功但确实无评论"（两者此前同形，失败被缓存标记固化为 72h"无评论"）。
+  // Failure signal: true = network/circuit/structure-drift; distinguishes
+  // transient failure from "genuinely no comments" (previously conflated).
+  let reviewsFailed = false;
   // v14.19.0：appreviews 死亡旗标（302 商店首页）——置位后跳过死端点
   // v14.21.2（用户报告：浮窗"依旧没有显示具体评论"）：v14.19.0 只补了摘要行
   //（cn 字段），**评论正文**一直空着——商店页 SSR 不内嵌评论文本，唯一免登录
@@ -435,7 +440,7 @@ async function fetchChineseReviews(appId) {
         language: 'schinese'
       }));
     }
-    return { cnReviewSummary, chineseReviews };
+    return { cnReviewSummary, chineseReviews, reviewsFailed: community === null }; // null = 死旗标/熔断/漂移
   }
   try {
     const cnReviewUrl = `${ENDPOINTS.steamAppReviews}${appId}?json=1&language=schinese&num_per_page=10&filter=all`;
@@ -453,7 +458,7 @@ async function fetchChineseReviews(appId) {
           language: 'schinese'
         }));
       }
-      return { cnReviewSummary, chineseReviews };
+      return { cnReviewSummary, chineseReviews, reviewsFailed: community === null };
     }
     // v14.7 批次 13：429/5xx 也带 JSON 体——不查 ok 会静默按空数据处理且不计失败
     if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
@@ -483,8 +488,9 @@ async function fetchChineseReviews(appId) {
     recordSteamCall(false, 0); // v14.0.0：网络失败计入限流统计（与 fetchReviewSummary 对齐）
     recordDomainCall('store', false); // v14.0.0：计入 store 域熔断
     Logger.debug('Steam', '获取中文评价失败:', String(e));
+    reviewsFailed = true; // v14.28.12（B2-F1）：网络失败 ≠ 无评论
   }
-  return { cnReviewSummary, chineseReviews };
+  return { cnReviewSummary, chineseReviews, reviewsFailed };
 }
 
 export async function fetchSteamReviews(appId) {
@@ -498,7 +504,8 @@ export async function fetchSteamReviews(appId) {
   return {
     reviewSummary,
     cnReviewSummary,
-    chineseReviews: cnData.chineseReviews
+    chineseReviews: cnData.chineseReviews,
+    reviewsFailed: cnData.reviewsFailed === true // v14.28.12（B2-F1）：失败信号透传
   };
 }
 

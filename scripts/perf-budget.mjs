@@ -128,7 +128,12 @@ export const BUDGETS = {
   // 过一遍改动文件，避免"测量态 ≠ 入库态"的二次红。
   // v14.28.11: +18B = pre-commit prettier reformat of manager.js (measured
   // pre-commit; re-locked to the committed size, no logic change).
-  swGraphBytes: 920201,
+  // v14.28.12（B-2 六连清偿）：故障语义三态对齐——reviewsFailed/ratingFailed
+  // 透传链（api-reviews/api-assemble）+ getItadLowest {info,reason} 重构 + 直取
+  // reason + 内容侧保底行（sidebar-rows/rating-rows/sidebar-html）——SW 图
+  // 923,152B（+2,951B，全为双语文档注释与失败分支），静态注入/闭包未超。按实测重锁。
+  // v14.28.12 (B-2 six fixes): failure-semantics alignment; re-locked (+2,951B).
+  swGraphBytes: 923152,
   swGraphFiles: 107,
   staticInjectionBytes: 38663,
   closureBytes: 295062

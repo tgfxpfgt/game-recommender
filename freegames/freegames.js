@@ -136,6 +136,20 @@ async function loadFreeGames(force = false) {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_FREE_GAMES', force });
     if (response && response.data) {
       allGames = Array.isArray(response.data.games) ? response.data.games : []; // v10.9：异型守卫
+      // v14.28.12（B-2 审计 B2-F2）：全源失败保护提示——后台保留旧数据并带
+      // fetchErrorAt，页面不再把"源拉取失败显示上次数据"误渲染成"当前无限免"。
+      // All-source failure guard: show last-known-data notice instead of
+      // silently conflating with "no giveaways right now".
+      const warnEl = document.getElementById('fetchWarn');
+      if (warnEl) {
+        if (response.data.fetchErrorAt) {
+          const at = new Date(response.data.fetchErrorAt).toLocaleString('zh-CN');
+          warnEl.textContent = `⚠️ 限免源拉取失败（${at}），以下为上次成功数据`;
+          warnEl.style.display = '';
+        } else {
+          warnEl.style.display = 'none';
+        }
+      }
       // 显示最后更新时间
       if (response.data.lastUpdate) {
         document.getElementById('lastUpdate').textContent =
