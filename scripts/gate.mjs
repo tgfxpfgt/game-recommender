@@ -60,6 +60,9 @@ step('check:refs（引用路径存在性）', 'node scripts/check-referenced-pat
 // v14.28.0（优化方案 S3 P2-17）：文档版本/索引门禁——根目录 md 数量、"当前版本"
 // 表述与 manifest 一致、索引链接不腐烂（文档腐烂是 AI 读错上下文的首要来源）
 step('check:docs（文档版本/索引一致性）', 'node scripts/check-doc-version.mjs');
+// v14.30.0 R4-C：模块索引漂移/豁免合规——索引腐烂比没有索引更危险；重生成
+// 一条命令（node scripts/gen-module-index.mjs），漏登记豁免视为未实现。
+step('check:modules（模块索引/豁免登记）', 'node scripts/check-module-index.mjs');
 step('lint', 'npm run lint');
 step('typecheck', 'npm run typecheck');
 const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };

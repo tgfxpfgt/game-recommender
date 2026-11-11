@@ -8,6 +8,10 @@
  * Two-phase list-page rating lookup (cache hits return instantly; misses are
  * fetched in batches with incremental pushes) plus next-page prefetch warming.
  * Keep-alive, rate-limit slowdown, retry and debounced persistence live here.
+ *
+ * @invariant 全局 FIFO 单任务链：任一时刻至多一个评分任务在跑，新任务只入队不并行（并行会让限速窗口失败率翻倍）
+ * @invariant STEAM_RATINGS_UPDATE 必须按任务创建时的 tabId 定向推送；tab 无接收端（关闭/导航）任务在开跑时即跳过
+ * @invariant 单条目硬阈值放弃后结果仍可能迟到——缓存写入必须幂等（按 appId 覆盖），任务收尾以 done 标记为唯一终态
  */
 import { getSteamPositiveRate, getSteamRatingsFromCacheOnly } from './orchestrator.js';
 import { hasInvertedReviewCounts } from './api.js'; // v14.21.0：评价数倒挂污染指纹（预载重取自愈）

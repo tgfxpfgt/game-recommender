@@ -13,6 +13,16 @@ npm run bump patch|minor "标题" "要点1" ...   # 版本四处一键
 node scripts/test-changed.mjs --base <ref> [--to <ref>]   # 预演受影响测试选择
 ```
 
+## 模块索引（改任何模块前先查表）
+
+`docs/modules/INDEX.md`（自动生成）给出每个模块的 职责/依赖/导出/**不变式**。
+不变式列 = 改动前必须知道、但从代码里看不出来的约束（顺序依赖、并发假设、
+幂等要求、单位约定）——**先读那一行，再读代码**，否则最容易被踩坏的就是它。
+新增/调整不变式在模块文件头写 `@invariant …`；重生成
+`node scripts/gen-module-index.mjs`；漂移由 `npm run check:modules` 在 gate:fast 拦截。
+临时未实现处用 `@stub-ok: <原因>` 豁免（无原因文本不算豁免），且必须出现在索引
+「豁免登记」表——未登记的豁免视为未实现。
+
 ## 0. 使用证据档案（v14.25.0，优化依据的数据入口）
 
 **读**：`GET_USAGE_EVIDENCE_REPORT` action（扩展页）或一键诊断包（`GET_DIAGNOSTIC_BUNDLE`，
@@ -40,6 +50,7 @@ COUNTER_KEYS）/`recordUsageDuration(key, ms)`（DURATION_KEYS）/`recordUsageEv
 `tests/unit/test-sidebar-actions.mjs`（回调工厂直调）+ `tests/unit/test-ui-pure.mjs`（模板分支）。
 
 **坑**：
+
 - 回调闭包随渲染重建——菜单等持久 UI 消费 menuState 注册表取最新闭包（v14.24.0 形态）。
 - 动作按钮标记用 `data-menu-action`（E2E/测试选择器契约）；底部按钮已删除勿再新增。
 - JS 注解可能比无注解更严格（null 初始化字段必须 `@type` 标注可空函数类型，否则 TS2349）。
@@ -56,6 +67,7 @@ COUNTER_KEYS）/`recordUsageDuration(key, ms)`（DURATION_KEYS）/`recordUsageEv
 **测试**：`tests/integration/test-handlers.mjs`（链路级）+ `tests/integration/test-orchestrator.mjs` + 纯函数入 test-api-pure。
 
 **坑**：
+
 - **缓存命中判定五重口径必须同步**：isCompleteCacheData + needsRatingRefetch + hasInvertedReviewCounts + cnReviewsFetchedAt + namesRelated——orchestrator tryCacheServed 与 handlers 两处（URL 缓存先行/直取）三处同口径，漏一处=污染条目被该路径永久顶住。
 - **api-details 去重表**（in-flight+10s TTL）跨测试用例残留会吞出站计数断言 → `resetAppDetailsDedupForTest()`。
 - 404=空结果非失败 doctrine 逐路径审计；新端点先问"计入哪个熔断域"（不同主机不得连坐）。

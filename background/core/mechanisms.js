@@ -7,6 +7,9 @@
  * 供 storage/steam/freegames 各层复用；新代码一律引用本文件，不再手写同构。
  * Consolidates the duplicated lock/debounce/TTL-cache/retry implementations
  * into clock-injectable pure factories; new code must use these.
+ *
+ * @invariant withLock 返回的锁禁止嵌套持有（同一锁链内再取锁 = 自死锁）；同一时刻至多持有一把锁
+ * @invariant 时钟可注入（纯工厂）——模块不得直接 import Logger/Date.now 之外的运行环境依赖，告警出口由调用方注入
  */
 
 /**

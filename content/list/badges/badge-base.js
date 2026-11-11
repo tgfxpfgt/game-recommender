@@ -6,6 +6,9 @@
  * 循环 import。
  * Shared DOM primitives for the badge family (B6): a standalone module keeps
  * the core↔rec split cycle-free.
+ *
+ * @invariant createBadge 默认 base 含 gr-rating-badge；组外徽章（推荐值等）必须显式传 base:'gr-badge'（铁律 12，v10.6.0 事故）
+ * @invariant 徽章文本由调用方拼好传入（本模块不做转义）——动态内容在调用方经 escapeHtml/escapeAttr 处理
  */
 
 // 创建单个徽章 span（统一样式；clickable 时点击跳转 Steam 详情页）

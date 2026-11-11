@@ -20,6 +20,7 @@ npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题
 npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时）
 npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
 npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
+npm run check:modules  # 模块索引（docs/modules/INDEX.md）漂移 + 豁免登记校验；重生成 node scripts/gen-module-index.mjs
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ```
 

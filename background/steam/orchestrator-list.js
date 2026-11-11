@@ -7,6 +7,10 @@
  * The list-page pipeline: zero-network first wave + the full cache-first
  * rating lookup (type validation → review fetch → zero-review re-search →
  * 3-layer cache writes).
+ *
+ * @invariant 第一波 getSteamRatingsFromCacheOnly 零网络，且返回非 null 即终态（第二波不会纠错）——故平台预检必须发生在第一波内部
+ * @invariant console 条目第一波一律返回 null 交第二波 phasePlatform（Metacritic）；emulator 返回 platformOnly 终态
+ * @invariant 缓存写入以 appId 为键、可重复覆盖（幂等）——看门狗放弃后迟到的结果允许覆盖旧值
  */
 import {
   searchSteamAppId,
