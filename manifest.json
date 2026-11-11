@@ -53,35 +53,101 @@
   },
   "content_scripts": [
     {
-      "matches": [
-        "http://*.xdgame.com/*",
-        "https://*.xdgame.com/*",
-        "http://*.xianyudanji.gg/*",
-        "https://*.xianyudanji.gg/*",
-        "http://*.gamer520.com/*",
-        "https://*.gamer520.com/*",
-        "http://*.gamers520.com/*",
-        "https://*.gamers520.com/*",
-        "http://*.3dmgame.com/*",
-        "https://*.3dmgame.com/*",
-        "http://*.ali213.net/*",
-        "https://*.ali213.net/*",
-        "http://*.gamersky.com/*",
-        "https://*.gamersky.com/*",
-        "https://store.steampowered.com/*",
-        "https://*.steam250.com/*"
-      ],
+      "matches": ["http://*.xdgame.com/*", "https://*.xdgame.com/*"],
       "js": [
         "shared/patterns.js",
         "shared/msg.js",
         "shared/escape.js",
         "adapters/default.js",
         "adapters/sites/xdgame.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
+      "css": ["styles/content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://*.xianyudanji.gg/*", "https://*.xianyudanji.gg/*"],
+      "js": [
+        "shared/patterns.js",
+        "shared/msg.js",
+        "shared/escape.js",
+        "adapters/default.js",
         "adapters/sites/xianyudanji.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
+      "css": ["styles/content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "http://*.gamer520.com/*",
+        "https://*.gamer520.com/*",
+        "http://*.gamers520.com/*",
+        "https://*.gamers520.com/*"
+      ],
+      "js": [
+        "shared/patterns.js",
+        "shared/msg.js",
+        "shared/escape.js",
+        "adapters/default.js",
         "adapters/sites/gamer520.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
+      "css": ["styles/content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://*.3dmgame.com/*", "https://*.3dmgame.com/*"],
+      "js": [
+        "shared/patterns.js",
+        "shared/msg.js",
+        "shared/escape.js",
+        "adapters/default.js",
         "adapters/sites/3dmgame.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
+      "css": ["styles/content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://*.ali213.net/*", "https://*.ali213.net/*"],
+      "js": [
+        "shared/patterns.js",
+        "shared/msg.js",
+        "shared/escape.js",
+        "adapters/default.js",
         "adapters/sites/ali213.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
+      "css": ["styles/content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["http://*.gamersky.com/*", "https://*.gamersky.com/*"],
+      "js": [
+        "shared/patterns.js",
+        "shared/msg.js",
+        "shared/escape.js",
+        "adapters/default.js",
         "adapters/sites/gamersky.js",
+        "adapters/index.js",
+        "content/tracker.js"
+      ],
+      "css": ["styles/content.css"],
+      "run_at": "document_start"
+    },
+    {
+      "matches": ["https://store.steampowered.com/*", "https://*.steam250.com/*"],
+      "js": [
+        "shared/patterns.js",
+        "shared/msg.js",
+        "shared/escape.js",
+        "adapters/default.js",
         "adapters/index.js",
         "content/tracker.js"
       ],

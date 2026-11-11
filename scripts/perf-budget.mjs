@@ -63,9 +63,16 @@ export const BUDGETS = {
   // v14.28.4（第二轮落地）：日志连续写入上界（mechanisms debounce maxWaitMs +
   // logger/debounced-store 传参）与 R2-04 根因注释 +1.4KB；其中主体是双语
   // 根因注释（UTF-8 中文 3B/字），代码增量约 0.2KB。按实测重锁。
-  swGraphBytes: 844988,
+  // v14.28.5（第三轮 R3）：T1 LLM 超时 25s + T2 站点脚本同步移出冷启动，双语根因
+  // 注释 +2,157B（HEAD 提交态实测 847,145B；工作区含用户侧未提交 adapter 改动
+  // −718B，若其回退则正好等于本值）。
+  // staticInjection 口径同时修正：拆分后改锁**单条最坏页面**注入量（38,407B），
+  // 不再把全部条目的并集（任何单页都不会全量加载）当作"每页必付"。
+  // v14.28.5: budgets re-locked after the per-site content_scripts split; the
+  // static-injection metric now measures the worst single page, not the union.
+  swGraphBytes: 847145,
   swGraphFiles: 105,
-  staticInjectionBytes: 50164,
+  staticInjectionBytes: 38407,
   closureBytes: 294466
 };
 
@@ -113,19 +120,40 @@ export function walk(entries) {
 export function contentScriptAssets() {
   const manifest = JSON.parse(fs.readFileSync(path.join(ROOT, 'manifest.json'), 'utf-8'));
   const js = [];
+  const cssFiles = new Set();
   let cssBytes = 0;
+  // v14.28.5：content_scripts 按站点拆分后，"每家页面都付"的成本不再等于各条目
+  // js 之和（那是全部条目的并集，任何单页都不会全量加载）。改为逐条目求和取最大
+  // ——worstPageBytes 才是真实单页注入成本，也是预算该锁的口径。
+  // After splitting content_scripts per site, the per-page cost is the largest
+  // single entry, not the union of all entries.
+  let worstPageBytes = 0;
   for (const entry of manifest.content_scripts || []) {
     for (const f of entry.js || []) js.push(f);
-    for (const f of entry.css || []) {
+    let entryBytes = 0;
+    for (const f of [...(entry.js || []), ...(entry.css || [])]) {
       const abs = path.join(ROOT, f);
-      if (fs.existsSync(abs)) cssBytes += fs.statSync(abs).size;
+      if (fs.existsSync(abs)) entryBytes += fs.statSync(abs).size;
     }
+    for (const f of entry.css || []) cssFiles.add(f);
+    worstPageBytes = Math.max(worstPageBytes, entryBytes);
   }
-  const jsBytes = js.reduce((acc, f) => {
+  for (const f of cssFiles) {
+    const abs = path.join(ROOT, f);
+    if (fs.existsSync(abs)) cssBytes += fs.statSync(abs).size;
+  }
+  const uniqueJs = [...new Set(js)];
+  const jsBytes = uniqueJs.reduce((acc, f) => {
     const abs = path.join(ROOT, f);
     return acc + (fs.existsSync(abs) ? fs.statSync(abs).size : 0);
   }, 0);
-  return { files: [...new Set(js)], bytes: jsBytes + cssBytes, cssBytes };
+  return {
+    files: uniqueJs,
+    bytes: worstPageBytes, // 单页最坏注入量（预算口径）
+    unionBytes: jsBytes + cssBytes, // 全部条目并集（仅参考，任何单页都不会全量加载）
+    cssBytes,
+    entries: (manifest.content_scripts || []).length
+  };
 }
 
 /** tracker 内的动态装载目标（getURL 字面量）/ dynamic getURL literals in tracker */
@@ -177,7 +205,7 @@ async function main() {
       `SW 静态图        ${kb(report.swGraph.bytes)} / ${report.swGraph.files} 文件   (预算 ${kb(BUDGETS.swGraphBytes)} / ${BUDGETS.swGraphFiles})`
     );
     console.log(
-      `内容静态注入      ${kb(report.staticInjection.bytes)} (${report.staticInjection.files} 文件)   (预算 ${kb(BUDGETS.staticInjectionBytes)})`
+      `内容静态注入      ${kb(report.staticInjection.bytes)} 单页最坏 (${report.staticInjection.files} 文件 / ${staticAssets.entries} 条 content_scripts，并集 ${kb(staticAssets.unionBytes)})   (预算 ${kb(BUDGETS.staticInjectionBytes)})`
     );
     console.log(
       `内容闭包 list     ${kb(report.closure.list.bytes)} / ${report.closure.list.files} 文件   (预算 ${kb(BUDGETS.closureBytes)})`

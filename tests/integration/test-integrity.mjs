@@ -274,10 +274,14 @@ test('localhost 不在静态 host_permissions（按需 optional 申请）', () =
 // 6. adapters 清单一致性（v6.3.1：manifest/SW/options.html 三处手写同步防漂移）
 const swSrc2 = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
 const optsHtml = fs.readFileSync(path.join(ROOT, 'options/options.html'), 'utf-8');
-const manifestAdapters = (manifest.content_scripts || [])
-  .flatMap((cs) => cs.js || [])
-  .filter((j) => j.startsWith('adapters/'))
-  .map((j) => j.replace('adapters/', ''));
+const manifestAdapters = [
+  ...new Set(
+    (manifest.content_scripts || [])
+      .flatMap((cs) => cs.js || [])
+      .filter((j) => j.startsWith('adapters/'))
+      .map((j) => j.replace('adapters/', ''))
+  )
+].sort();
 const swAdapters = [...swSrc2.matchAll(/import\s+'\.\.\/adapters\/([^']+)'/g)].map((m) => m[1]);
 // v9.3.0：options.html 不再注入 adapters 脚本（改为 GET_ADAPTER_RULES 消息获取）
 const htmlAdapters = [...optsHtml.matchAll(/<script src="\.\.\/adapters\/([^"]+)"/g)].map((m) => m[1]);
@@ -599,9 +603,41 @@ test('vitest include 清单覆盖全部测试文件（漏登记 = 静默不跑�
 // ============ 11. SITE_SCRIPT_FILES 真单源（v14.2.0，补充轮 P0-4） ============
 // 此前 manifest js 清单与 site-scripts.js 各一份手工副本（零测试守护）——
 // 漂移时内置站静态注入与自定义站动态注册一半失灵且 check 全绿。
-test('manifest content_scripts js 清单 = SITE_SCRIPT_FILES（顺序敏感单源断言）', () => {
-  const manifestJs = (manifest.content_scripts || []).flatMap((cs) => cs.js || []);
-  expect(JSON.stringify(manifestJs)).toEqual(JSON.stringify(siteScriptsMod.SITE_SCRIPT_FILES));
+// v14.28.5：content_scripts 按站点拆分为多条后，断言从"全等单条清单"改为三点：
+//   ① 并集 == SITE_SCRIPT_FILES（不多不少；SITE_SCRIPT_FILES 仍是动态注册单源）
+//   ② 每条都含完整公共前缀且顺序正确（shared → default → index → tracker）
+//   ③ 每条至多 1 个站点 adapter，且每个站点 adapter 恰好出现在一条
+// 依据：Chrome 内容脚本性能指南（每页只应注入该页需要的脚本）。
+test('manifest content_scripts 覆盖 SITE_SCRIPT_FILES（按站点拆分后的单源断言）', () => {
+  const entries = manifest.content_scripts || [];
+  expect(entries.length, '按站点拆分后应有多条 content_scripts').toBeGreaterThan(1);
+  const union = [...new Set(entries.flatMap((cs) => cs.js || []))].sort();
+  expect(union).toEqual([...siteScriptsMod.SITE_SCRIPT_FILES].sort());
+  const COMMON = [
+    'shared/patterns.js',
+    'shared/msg.js',
+    'shared/escape.js',
+    'adapters/default.js',
+    'adapters/index.js',
+    'content/tracker.js'
+  ];
+  const problems = [];
+  for (const cs of entries) {
+    const js = cs.js || [];
+    const host = (cs.matches || [])[0];
+    for (const f of COMMON) if (!js.includes(f)) problems.push(`${host} 缺 ${f}`);
+    if (js.indexOf('adapters/default.js') > js.indexOf('adapters/index.js'))
+      problems.push(`${host} 顺序错：default 必须在 index 之前`);
+    if (js.indexOf('adapters/index.js') > js.indexOf('content/tracker.js'))
+      problems.push(`${host} 顺序错：index 必须在 tracker 之前`);
+    const siteAdapters = js.filter((f) => f.startsWith('adapters/sites/'));
+    if (siteAdapters.length > 1) problems.push(`${host} 注入了多个站点 adapter：${siteAdapters.join(',')}`);
+  }
+  for (const f of siteScriptsMod.SITE_SCRIPT_FILES.filter((x) => x.startsWith('adapters/sites/'))) {
+    const n = entries.filter((cs) => (cs.js || []).includes(f)).length;
+    if (n !== 1) problems.push(`${f} 出现在 ${n} 条 content_scripts（应为 1）`);
+  }
+  expect(problems, '拆分后注入面异常:\n  ' + problems.join('\n  ')).toEqual([]);
 });
 
 // v14.28.5：注册时机收敛——registerContentScripts 的 persistAcrossSessions
