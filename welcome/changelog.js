@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.28.5',
+        date: '2026-11-11',
+        items: [
+          'LLM 兜底超时降至 25s（避开 MV3 SW 的 30s fetch 终止阈值）并新增超时组静态门禁',
+          '站点脚本注册移出 SW 冷启动（persistAcrossSessions 默认保留），改锚 onInstalled/onStartup/规则保存',
+          'content_scripts 按站点拆 7 条：单页注入 45.4KB→36.5~38.4KB；perf-budget 改锁单页最坏量',
+          'WAR 覆盖门禁扩展到 module-manifest + getURL 字面量全部动态入口'
+        ]
+      },
+      {
         ver: '14.28.4',
         date: '2026-11-11',
         items: [

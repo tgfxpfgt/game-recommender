@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.28.5（R3 性能与门禁批次）
+
+- LLM 兜底超时降至 25s（避开 MV3 SW 的 30s fetch 终止阈值）并新增超时组静态门禁
+- 站点脚本注册移出 SW 冷启动（persistAcrossSessions 默认保留），改锚 onInstalled/onStartup/规则保存
+- content_scripts 按站点拆 7 条：单页注入 45.4KB→36.5~38.4KB；perf-budget 改锁单页最坏量
+- WAR 覆盖门禁扩展到 module-manifest + getURL 字面量全部动态入口
+
 ### v14.28.4（详情浮窗修复与门禁确定性）
 
 - 修复详情浮窗菜单插入崩溃（insertBefore 参照未挂载，v14.24.0 起浮窗不渲染）
