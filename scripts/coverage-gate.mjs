@@ -59,7 +59,7 @@ function run(cmd) {
   }
 }
 
-// 1. 基线解析（v14.29.1，第二轮审计 R2-03）：**不再依赖 .coverage-gate-base
+// 1. 基线解析（v14.28.4，第二轮审计 R2-03）：**不再依赖 .coverage-gate-base
 //    标记文件**（gitignored 本地状态——新克隆/CI/换机会话即失效，且"是否已门禁"
 //    变成不可复现的本地事实）。改为纯 git 可推导的两段并集：
 //      A 已提交的新增文件：merge-base(HEAD, origin/main)..HEAD（无 origin/main

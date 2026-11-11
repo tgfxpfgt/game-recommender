@@ -185,7 +185,7 @@ export function debounce(fn, waitMs, { maxWaitMs = 0 } = {}) {
     const now = Date.now();
     if (!pendingSince) pendingSince = now;
     if (timer) clearTimeout(timer);
-    // v14.29.1：maxWaitMs > 0 时给连续调用设上界——纯防抖在持续调用下会无限
+    // v14.28.4：maxWaitMs > 0 时给连续调用设上界——纯防抖在持续调用下会无限
     // 推迟（日志这类"调用流不断"的场景，崩溃前可能整窗日志未落盘）。
     // Bounded wait: pure debounce postpones forever under a continuous call
     // stream; maxWaitMs caps how long the first call may wait.

@@ -225,3 +225,29 @@ test('全网络失败：轨迹含 fail(network)，classifyTrace 指出卡在 sea
   expect(verdict.stuckStage).toEqual('search');
   expect(verdict.lastFailKind).toEqual('network');
 });
+
+// ===== v14.28.10 P1-1：首波 miss 分桶落证据档案（热载 1/4 未命中定位） =====
+// 置于文件末尾：上方用例的顶层流程会预写缓存/索引（999001=健康游戏 88 分等），
+// 本组用例用独立 appId/名称隔离；usage-evidence 记录为 fire-and-forget
+//（applyChain 队列），断言前必须 flushUsageEvidence 排空——v14.25.0 同源教训。
+const evMod = await import(new URL('../../background/storage/usage-evidence.js', import.meta.url).href);
+test('P1-1：无索引 miss 分桶落证据档案', async () => {
+  evMod.resetUsageEvidence();
+  expect(await getSteamRatingsFromCacheOnly('P1无索引占位名甲')).toEqual(null);
+  await evMod.flushUsageEvidence();
+  const mem = evMod.getUsageEvidenceMemory();
+  expect(mem.counters['match.wave1Miss']).toEqual(1);
+  expect(mem.events.some((e) => e.k === 'wave1Miss' && e.kind === 'no-index-entry')).toEqual(true);
+});
+test('P1-1：残缺缓存 miss 分桶（cache-* 类）', async () => {
+  evMod.resetUsageEvidence();
+  await cacheMod.setSteamCacheEntry('999003', { appId: '999003', name: 'P1残缺占位名乙', type: 'game' });
+  await nameIdx.recordNameIndex('P1残缺占位名乙', '999003');
+  expect(await getSteamRatingsFromCacheOnly('P1残缺占位名乙')).toEqual(null);
+  await evMod.flushUsageEvidence();
+  const mem = evMod.getUsageEvidenceMemory();
+  // reset 仅清内存，后端旧值会被重载读回（v14.25.0 教训）——断言非零而非精确值
+  expect(mem.counters['match.wave1Miss'] || 0).toBeGreaterThan(0);
+  const kind = (mem.events.find((e) => e.k === 'wave1Miss' && String(e.kind).startsWith('cache-')) || {}).kind || '';
+  expect(kind.startsWith('cache-')).toEqual(true);
+});

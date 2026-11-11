@@ -28,6 +28,7 @@ async function fetchEpicFreeGames() {
   try {
     const url = ENDPOINTS.epicPromotions;
     const resp = await fetchWithTimeout(url);
+    if (!resp.ok) return null; // v14.28.10：HTTP 失败 ≠ 无条目（B-2 链路 2）——其余三源已有此判定，Epic 此前遗漏
     const data = await resp.json();
     const elements = data?.data?.Catalog?.searchStore?.elements || [];
     for (const el of elements) {
@@ -58,6 +59,7 @@ async function fetchEpicFreeGames() {
     }
   } catch (e) {
     Logger.debug('FreeGames', 'Epic限免获取失败:', String(e));
+    return null; // v14.28.10（B-2 链路 2）：失败与"成功但空"分离，null 供全源失败保护判定
   }
   return games;
 }
@@ -68,7 +70,7 @@ async function fetchGogFreeGames() {
     const resp = await fetchWithTimeout(ENDPOINTS.gogFreeApi, {
       headers: { Accept: 'application/json' }
     });
-    if (!resp.ok) return games;
+    if (!resp.ok) return null; // v14.28.10：HTTP 失败 ≠ 无条目（B-2 链路 2）
     const data = await resp.json();
     const products = data?.products || [];
     for (const p of products.slice(0, 10)) {
@@ -93,6 +95,7 @@ async function fetchGogFreeGames() {
     }
   } catch (e) {
     Logger.debug('FreeGames', 'GOG限免获取失败:', String(e));
+    return null; // v14.28.10：失败与"成功但空"分离（B-2 链路 2）
   }
   return games;
 }
@@ -101,7 +104,7 @@ async function fetchSteamFreeGames() {
   const games = [];
   try {
     const resp = await fetchWithTimeout(`${ENDPOINTS.steamFeatured}?l=schinese&cc=cn`);
-    if (!resp.ok) return games;
+    if (!resp.ok) return null; // v14.28.10：HTTP 失败 ≠ 无条目（B-2 链路 2）
     const data = await resp.json();
     const specials = data?.specials?.items || [];
     for (const item of specials) {
@@ -125,6 +128,7 @@ async function fetchSteamFreeGames() {
     }
   } catch (e) {
     Logger.debug('FreeGames', 'Steam限免获取失败:', String(e));
+    return null; // v14.28.10：失败与"成功但空"分离（B-2 链路 2）
   }
   return games;
 }
@@ -189,9 +193,9 @@ async function fetchGamerPowerFreeGames() {
   const games = [];
   try {
     const resp = await fetchWithTimeout(ENDPOINTS.gamerPower);
-    if (!resp.ok) return games;
+    if (!resp.ok) return null; // v14.28.10：HTTP 失败 ≠ 无条目（B-2 链路 2）
     const data = await resp.json();
-    if (!Array.isArray(data)) return games;
+    if (!Array.isArray(data)) return null; // 结构漂移按失败处理（不再静默当空列表）
 
     for (const item of data) {
       const platforms = (item.platforms || '').toLowerCase();
@@ -247,6 +251,7 @@ async function fetchGamerPowerFreeGames() {
     }
   } catch (e) {
     Logger.debug('FreeGames', 'GamerPower限免获取失败:', String(e));
+    return null; // v14.28.10：失败与"成功但空"分离（B-2 链路 2）
   }
   return games;
 }
@@ -259,10 +264,18 @@ export async function fetchAllFreeGames() {
     fetchGamerPowerFreeGames()
   ]);
 
-  const merged = [...epic, ...gog, ...steam];
+  // v14.28.10（B-2 审计链路 2）：源级失败可见化——null = 该源拉取失败
+  //（网络/HTTP 非 2xx/结构异常），[] = 成功但当下无条目。此前各源失败静默
+  // 收缩为 []，断网时 manager 会用空列表整体覆盖旧库（数据销毁且 24h 短路
+  // 无法自愈）。
+  const sources = [epic, gog, steam, gamerpower];
+  const failedCount = sources.filter((r) => r === null).length;
+  const items = (r) => r || [];
+
+  const merged = [...items(epic), ...items(gog), ...items(steam)];
   const seenNames = new Set(merged.map((g) => normalizeGameName(g.name)));
 
-  for (const gp of gamerpower) {
+  for (const gp of items(gamerpower)) {
     const norm = normalizeGameName(gp.name);
     if (!seenNames.has(norm)) {
       seenNames.add(norm);
@@ -276,7 +289,7 @@ export async function fetchAllFreeGames() {
     g.image = sanitizeGameUrl(g.image);
   }
 
-  return merged;
+  return { games: merged, failedCount, totalSources: sources.length };
 }
 
 /** @param {string} name */

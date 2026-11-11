@@ -59,7 +59,7 @@ export function prependBadge(item, rating, settings) {
   const rate = rating ? rating.positiveRate : null;
 
   const badges = [];
-  // v14.29.0：网络/限流故障（未能解析出 appId）——独立语义与样式，绝不与
+  // v14.28.8：网络/限流故障（未能解析出 appId）——独立语义与样式，绝不与
   // "未找到"混用。断网时后台返回 {failed:true,errorType:'network',appId:null}，
   // 此前落入 isNotFound 分支被渲染成「未找到」，误导用户以为 Steam 没有该游戏。
   // Network/ratelimit failure without appId gets its own badge (never "not found").

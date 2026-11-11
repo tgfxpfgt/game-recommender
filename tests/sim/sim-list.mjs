@@ -603,7 +603,7 @@ simTest('12. 收尾后迟到推送补真实徽章（P1-6 超时未返回项）',
   expect(a.children.some((c) => (c.className || '').includes('gr-working-badge'))).toEqual(false);
 });
 
-// v14.29.0：故障语义分离（B 类门禁）——断网/限流导致的检索失败必须渲染
+// v14.28.8：故障语义分离（B 类门禁）——断网/限流导致的检索失败必须渲染
 // 「网络异常·点击重查」，不得复用「未找到」的文案与类名。
 // 缺陷样本：网络黑洞下 42.4s 后三项全部显示「未找到」。
 // Network/ratelimit failure must never render as "not found".

@@ -263,7 +263,7 @@ test('无重试记录立即重取', () => {
   expect(nr({ data: { positiveRate: null, ratingDesc: '无用户评测' } })).toEqual(true);
 });
 
-// ============ 0.10 详情页缓存完整性（v14.29.x）/ isDetailCacheComplete ============
+// ============ 0.10 详情页缓存完整性（v14.28.8）/ isDetailCacheComplete ============
 // 完整性判定已移入 steam-cache.js（按字段所属模块读，与 FIELD_MODULES 单源）；
 // 旧 isCompleteCacheData 在 detail 数据里找 meta 字段 name/headerImage 恒假。
 // 独立实例（?t=）避免与后部 cacheMod 的内存状态/声明顺序纠缠。

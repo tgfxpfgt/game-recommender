@@ -91,7 +91,7 @@ export function formatQueueStatusText(prog, qs) {
  * @property {number} filtered
  * @property {Array<string>} filteredNames
  * @property {Array<string>} notFoundNames
- * @property {Array<string>} failedNames - v14.29.0：网络/限流故障（非"Steam 无此游戏"）
+ * @property {Array<string>} failedNames - v14.28.8：网络/限流故障（非"Steam 无此游戏"）
  * @property {Array<any>} urlEntries
  * @property {boolean} finished
  * @property {any} forceTimer
@@ -114,7 +114,7 @@ function createRatingsJob(processItems, settings, uniqueNames) {
     filtered: 0,
     filteredNames: [], // v7.4.0：被过滤游戏名（状态浮窗可恢复）/ filtered names
     notFoundNames: [],
-    failedNames: [], // v14.29.0：网络/限流故障（非"Steam 无此游戏"）/ network-failed names
+    failedNames: [], // v14.28.8：网络/限流故障（非"Steam 无此游戏"）/ network-failed names
     urlEntries: [], // appId → 下载页地址批量写入 / download-URL batch entries
     finished: false,
     domOrder: null, // v14.0.0：原始顺序基线（首次排序前捕获）/ original DOM order baseline
@@ -182,7 +182,7 @@ export function applyRatingsResponse(ratings, mode) {
       job.shown++;
       return;
     }
-    // v14.29.0：网络/限流故障（无 appId）——与"确认未找到"分离：独立徽章 +
+    // v14.28.8：网络/限流故障（无 appId）——与"确认未找到"分离：独立徽章 +
     // 独立计数，绝不落入下面的未找到分支（此前断网与"Steam 无此游戏"同形）。
     // Network/ratelimit failure without appId must never render as "not found".
     if (rating && rating.failed && !rating.appId) {

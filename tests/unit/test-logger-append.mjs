@@ -3,7 +3,7 @@
  *
  * v10.8 缺口2 回归：v10.7.0 将 OPFS 文件模式改为真追加（persistedLogCount
  * 探底/追加/截断/失败复位分支）——此前全量重写，写放大热点 top1。
- * v14.29.0：flush 改为**批量追加**（appendModuleBatch）——此前逐条
+ * v14.28.3：flush 改为**批量追加**（appendModuleBatch）——此前逐条
  * appendModule，N 条日志 = N 次 OPFS 句柄打开/关闭。
  * mocks：dataStore（read/append/appendBatch/write）与 getSettings。
  */
@@ -52,7 +52,7 @@ describe('logger 追加路径（v10.8 缺口2 回归）', () => {
     expect(writeModule).not.toHaveBeenCalled();
   });
 
-  it('v14.29.0 回归：10 条日志 = 1 次批量追加，顺序与入缓冲一致', async () => {
+  it('v14.28.3 回归：10 条日志 = 1 次批量追加，顺序与入缓冲一致', async () => {
     readModule.mockResolvedValue([]);
     const { Logger, flushLogBuffer } = await freshLogger();
     for (let i = 0; i < 10; i++) await Logger.warn('Test', 'w' + i);
@@ -64,7 +64,7 @@ describe('logger 追加路径（v10.8 缺口2 回归）', () => {
     expect(appendModule).not.toHaveBeenCalled();
   });
 
-  it('v14.29.0 回归：warn 本身不触发同步 OPFS 写（仅入内存缓冲）', async () => {
+  it('v14.28.3 回归：warn 本身不触发同步 OPFS 写（仅入内存缓冲）', async () => {
     const { Logger } = await freshLogger();
     await Logger.warn('Test', 'no-sync-write');
     // 防抖窗口内：读/追加/重写三类 OPFS 操作都必须为 0

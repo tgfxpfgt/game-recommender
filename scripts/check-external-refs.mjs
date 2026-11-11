@@ -1,7 +1,7 @@
 /**
  * 游戏雷达 Game Radar - 外部引用锁门禁 / External Reference Lock Gate
  *
- * v14.29.0（A 类缺陷制度性根治）：代码里的第三方托管 URL（GitHub raw / jsDelivr）
+ * v14.28.9（A 类缺陷制度性根治）：代码里的第三方托管 URL（GitHub raw / jsDelivr）
  * 全部登记在 scripts/external-refs.json，且 branch 必须等于仓库真实默认分支。
  * 背景实证：appListIndex 的 dump URL 写死 `main`（仓库默认分支是 `master`）→
  * v14.6 起 404 从未生效、五个月零运行，而 lint/typecheck/测试全绿——因为

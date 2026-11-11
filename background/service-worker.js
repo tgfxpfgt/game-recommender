@@ -318,5 +318,5 @@ refreshFreeGames(false).catch((e) => Logger.error('FreeGames', '启动限免刷�
 const MANIFEST_VERSION = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || 'unknown';
 Logger.info('System', `Service Worker 已启动 v${MANIFEST_VERSION}`);
 // 控制台横幅保留（与上面的 Logger.info 双写）：SW 首启在 dashboard 打开前就要能
-// 肉眼确认"浏览器加载的是哪个版本"，故不并入 Logger（v14.29 S3 P3-4 例外之一）。
+// 肉眼确认"浏览器加载的是哪个版本"，故不并入 Logger（v14.28.2 P3-4 例外之一）。
 console.log(`【游戏雷达】 Service Worker 已启动 v${MANIFEST_VERSION}`);

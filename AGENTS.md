@@ -158,8 +158,11 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
 - 墙钟预算（v14.28.9 起）：`scripts/suite-budgets.json`（cap = 本机实测×1.5）在
   gate.mjs 逐步骤生效，超 cap 直接判失败——先隔离复跑排机器负载（并行编译/杀毒/争核），
   仍超才调基线；套件实测与口径见 docs/specs/gr-hardening-2026-11-11/spec.md L3。
-- 已知噪声：变异 `network-rendered-as-notfound` 偶发撞 240s 检查上界被判「未拦截」
-  （语义仍红不会假绿）——隔离复跑即可。
+- 已知噪声：变异 `network-rendered-as-notfound` 在 **gate 上下文**偶发撞 240s 检查
+  上界被判「未拦截」（实测 3 次全量中 2 次超时；**隔离运行恒 ~2.7s 红**，5/5 PASS）——
+  疑似 spawnSync 超时杀 cmd.exe 后孙进程持管道的楔死级联。处置：`npm run verify:mutations
+-- --only=network-rendered-as-notfound` 隔离复跑定性（红=门禁有效），不阻塞批次；
+  语义上不会假绿（超时判红）。
 - 已知问题：background/handlers.js 的 coverage 归因伪影（见 CONTRIBUTING 末尾）。
 
 ## 最小必要变更纪律（用户指令 2026-11-10）

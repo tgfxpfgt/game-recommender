@@ -25,6 +25,7 @@ export const DB_KEYS = {
   STEAM_CACHE_SPY: 'steamCacheSpy',
   KEYWORD_WEIGHTS: 'keywordWeights',
   FREE_GAMES: 'freeGames',
+  FREE_GAMES_META: 'freeGamesMeta', // v14.28.10 P2-1：刷新节奏/失败标记（与 games 内容分文件）
   RUNTIME_LOG: 'runtimeLog',
   BACKUPS: 'backups',
   DOWNLOAD_HISTORY: 'downloadHistory',
@@ -68,7 +69,7 @@ export const PERF_CONFIG = {
   // 旧实现每波可各暂停 5s/30s，60 项 × 异常级联可把单任务拖到 15 分钟级，
   // 全局单任务链（v14.8）下后开标签页全部陪等。总额耗尽后裸跑完剩余项。
   anomalyPauseTotalCapMs: 90000,
-  // v14.29.0：批量链重试轮退避与并发（单源）——限流/网络故障期的最慢路径
+  // v14.28.3：批量链重试轮退避与并发（单源）——限流/网络故障期的最慢路径
   // 不再以全量并发立刻硬打第二轮。退避 6000ms > 单次限流窗口（150ms × 并发
   // 3 ≈ 450ms）且 < anomalyWaitMs(5000)/anomalyConsecutivePauseMs(30000) 的
   // 数量级，足以让瞬时抖动恢复而不至于把任务拖过截止；并发 1 = 重试轮串行，
@@ -181,7 +182,7 @@ export const ENDPOINTS = {
   // host_permissions 已为 cn.bing.com 声明，属正式出站依赖）
   bingSearch: 'https://cn.bing.com/search?q=',
   // v14.6：标题检索目录层数据源（调研 docs/标题检索AppID-准确率与效率调研-2026-10.md）
-  // v14.29.0 修复：原 URL 写死 `main` 分支，而仓库默认分支是 `master`
+  // v14.28.8 修复：原 URL 写死 `main` 分支，而仓库默认分支是 `master`
   // （GitHub API 实测 default_branch=master）→ v14.6 起该功能 404 从未生效。
   // 现主源改 jsDelivr（实测 200 / 20,247,815B，raw 域名在部分网络不可达），
   // 备源保留 raw master。两条引用的有效性由 scripts/check-external-refs.mjs
@@ -468,7 +469,7 @@ export const DOWNLOAD_URLS_VERSION = 2;
 
 // 日志缓冲写参数 / Log buffer write params
 export const LOG_FLUSH_DEBOUNCE = 2000;
-// v14.29.1（第二轮审计 R2-04）：连续写日志时的落盘上界——纯防抖在"调用流不
+// v14.28.4（第二轮审计 R2-04）：连续写日志时的落盘上界——纯防抖在"调用流不
 // 断"时会被无限推迟，SW 被杀则整窗日志丢失。10s ≈ 5 个防抖窗，兼顾写放大
 // （每 10s 至多一次批量追加）与崩溃前留存。
 // Upper bound for a continuous log stream (pure debounce could postpone forever).

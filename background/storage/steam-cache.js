@@ -18,7 +18,7 @@
  * module is refetched on use while the others stay. Legacy flat entries are
  * migrated on load and keep working.
  *
- * v14.29.x：详情页"可直返缓存"的字段契约（DETAIL_SERVABLE_FIELDS）与
+ * v14.28.8：详情页"可直返缓存"的字段契约（DETAIL_SERVABLE_FIELDS）与
  * FIELD_MODULES 同源——判定按 moduleOf 取字段实际所属模块，调用方不得另抄
  * 一份字段清单（旧 isCompleteCacheData 在 detail 模块里找 name/headerImage，
  * 二者属 meta，判定恒假 → 缓存先行从未生效）。完整性 ≠ 永久缓存：命中仍
@@ -92,7 +92,7 @@ function moduleOf(field) {
   return FIELD_MODULES[field] || DEFAULT_MODULE;
 }
 
-// v14.29.x：详情页可服务字段契约（单源）——"一份可直返的详情缓存"由哪些模块的
+// v14.28.8：详情页可服务字段契约（单源）——"一份可直返的详情缓存"由哪些模块的
 // 哪些字段构成只在此定义；命中判定经 moduleOf 取模块，判定处不得另抄字段清单。
 // 旧 isCompleteCacheData 在 detail 模块里找 name/headerImage（二者属 meta）恒假，
 // 导致 v14.24.0 的缓存先行零出站从未生效。

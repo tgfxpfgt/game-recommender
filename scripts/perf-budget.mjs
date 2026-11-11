@@ -56,10 +56,10 @@ export const BUDGETS = {
   // v14.28.0（P3-1/P3-2）：msg.js 补 clearTimeout（+约 340B，静态注入与闭包同步
   // 计入）、cache-manager 换 createTtlCache 并引入 mechanisms 导入（SW 图 +548B）
   // ——按新实测值重锁，均为修复性净增，无冗余代码。
-  // v14.29.0（SW 饱和修复）：批量追加 appendModuleBatch（data-store +~600B）、
+  // v14.28.3（SW 饱和修复）：批量追加 appendModuleBatch（data-store +~600B）、
   // 重试轮退避/单并发（ratings-batch）、缓存读去重（orchestrator-list）——
   // SW 图 +693B，均为修复性净增（去重后运行期往返反而减少），按实测重锁。
-  // v14.29.1：重试轮快照副本 + 根因注释（ratings-batch）再 +752B，同批修复性净增。
+  // v14.28.3：重试轮快照副本 + 根因注释（ratings-batch）再 +752B，同批修复性净增。
   // v14.28.4（第二轮落地）：日志连续写入上界（mechanisms debounce maxWaitMs +
   // logger/debounced-store 传参）与 R2-04 根因注释 +1.4KB；其中主体是双语
   // 根因注释（UTF-8 中文 3B/字），代码增量约 0.2KB。按实测重锁。
@@ -116,7 +116,13 @@ export const BUDGETS = {
   // 288.1KB 未超。按实测重锁（新增诊断能力，无冗余代码）。
   // v14.28.9 (L4 runtime trace): new diag-trace module + five instrumentation points;
   // re-locked to the measured graph size (static injection and closures unchanged).
-  swGraphBytes: 915674,
+  // v14.28.10（挂账清偿批次）：P1-1 首波 miss 分桶（orchestrator-list + usage-evidence
+  // 接线）+ P2-1 限免写放大治理（manager meta 分文件 + fetch 四源失败可见化）+
+  // F-2 注释归位——SW 图 920,183B / 107 文件（+4,509B，全为双语文档注释与守卫
+  // 逻辑；其中 +2B 是版本号注释归位本身），静态注入/内容闭包未超。按实测重锁。
+  // v14.28.10 (debt-clearing batch): wave-1 miss bucketing, free-games write
+  // amplification fix and all-source failure guard; re-locked to measured size.
+  swGraphBytes: 920183,
   swGraphFiles: 107,
   staticInjectionBytes: 38663,
   closureBytes: 295062

@@ -6,7 +6,7 @@ import {
   searchSteamAppId,
   fetchSteamFullDetailsByAppId,
   scanAndHealRegistry,
-  planDetailRefresh, // v14.29.x：缓存残缺时的模块级部分刷新计划
+  planDetailRefresh, // v14.28.8：缓存残缺时的模块级部分刷新计划
   namesRelated,
   findVersionVariant,
   needsRatingRefetch, // v14.24.0：URL 缓存先行命中判定（与 tryCacheServed 同口径）
@@ -29,7 +29,7 @@ import {
   getModuleData,
   getMergedData,
   latestModuleTs,
-  isDetailCacheComplete // v14.29.x：完整性单源（按字段所属模块判定）
+  isDetailCacheComplete // v14.28.8：完整性单源（按字段所属模块判定）
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
 import { setManualPlatform, flushManualPlatforms } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
@@ -110,7 +110,7 @@ async function doHandleSearchSteam(message, sender) {
   //（appdetails×2+商店页+评测+spy+公告 ~6 出站请求），缓存完全被绕过——每次
   // 打开详情页都慢。现缓存先行：有效完整条目（含好评率重取/倒挂自愈/评论回填
   // 标记/名称相关性四重判定，与 orchestrator tryCacheServed 同口径）直接合并
-  // 返回零出站；未命中才刷新——v14.29.x 起按模块级计划只补残缺模块。
+  // 返回零出站；未命中才刷新——v14.28.8 起按模块级计划只补残缺模块。
   // v14.24.0: cache-first on the URL-index hit — the path used to bypass the
   // cache entirely (~6 outbound requests every visit). A valid complete entry
   // (same guard set as orchestrator tryCacheServed) is served with zero
@@ -129,7 +129,7 @@ async function doHandleSearchSteam(message, sender) {
         cachedMerged &&
         cachedMerged.appId &&
         cachedMerged.name &&
-        isDetailCacheComplete(cachedEntry) && // v14.29.x：传整个条目（字段按所属模块读）
+        isDetailCacheComplete(cachedEntry) && // v14.28.8：传整个条目（字段按所属模块读）
         !needsRatingRefetch(cachedMerged) &&
         !hasInvertedReviewCounts(cachedMerged) &&
         !!cachedMerged.cnReviewsFetchedAt && // v14.24.0：缺标记旧缓存 → 全量拉取一次回填评论
@@ -147,13 +147,13 @@ async function doHandleSearchSteam(message, sender) {
       if (cachedDetail && cachedMerged && !cachedMerged.cnReviewsFetchedAt) {
         recordUsageEvent('reviews', 'backfill', { appId: String(urlAppId) });
       }
-      // v14.29.x：有缓存条目 → 只补缺失/过期模块；无条目 → 全量
+      // v14.28.8：有缓存条目 → 只补缺失/过期模块；无条目 → 全量
       const refreshModules = cachedEntry ? planDetailRefresh(cachedEntry, cachedMerged) : undefined;
       const byUrl = await fetchSteamFullDetailsByAppId(urlAppId, { refreshModules });
       if (byUrl) {
         recordUsageCounter('match.urlFetch'); // v14.25.0：缓存未命中刷新（部分/全量）
         recordUsageDuration('search', Date.now() - t0);
-        // v14.29.x：此路径此前不写缓存 → 缓存永远补不齐；现在写回本次拉到的模块
+        // v14.28.8：此路径此前不写缓存 → 缓存永远补不齐；现在写回本次拉到的模块
         // （picked 子集只更新对应模块，未涉及模块的字段与 ts 不动）
         await setSteamCacheEntry(byUrl.appId, byUrl);
         // 部分刷新：返回"旧合并视图 + 本次补到的字段"
@@ -304,7 +304,7 @@ export async function handleGetSteamByAppId(message, sender) {
     // v3.3.14：非手动路径校验名称相关性（侧边推荐缓存也可能被误取）
     // v14.24.0：好评率重取/倒挂自愈/评论回填标记三重判定对齐 tryCacheServed——
     // 污染条目不再被直取路径永久顶住
-    // v14.29.x：完整性按条目判定（detail 模块永远没有 name——名称从合并视图读）
+    // v14.28.8：完整性按条目判定（detail 模块永远没有 name——名称从合并视图读）
     if (
       (manual || !gameName || namesRelated(gameName, cachedMerged.name)) &&
       isDetailCacheComplete(cached) &&
@@ -324,7 +324,7 @@ export async function handleGetSteamByAppId(message, sender) {
   }
 
   try {
-    // v14.29.x：有缓存条目 → 只补缺失/过期模块；无条目 → 全量
+    // v14.28.8：有缓存条目 → 只补缺失/过期模块；无条目 → 全量
     const refreshModules = cached ? planDetailRefresh(cached, cachedMerged) : undefined;
     const result = await fetchSteamFullDetailsByAppId(appId, { refreshModules });
     if (!result) return { data: null, cachedAt: null };
@@ -523,7 +523,7 @@ export async function handleCacheSteamPage(message) {
     const cached = await getSteamCacheEntry(appId);
     const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
     if (detail && isDetailCacheComplete(cached)) return { success: true, cached: true };
-    // v14.29.x：残缺缓存只补缺失模块（无条目 → 全量）
+    // v14.28.8：残缺缓存只补缺失模块（无条目 → 全量）
     const plan = cached ? planDetailRefresh(cached, getMergedData(cached)) : undefined;
     const result = await fetchSteamFullDetailsByAppId(appId, { refreshModules: plan });
     if (!result) return { success: false };

@@ -1,7 +1,7 @@
 /**
  * 游戏雷达 Game Radar - 匹配语料分母门禁 / Match Corpus Denominator Gate
  *
- * v14.29.0（E 类缺陷制度性根治：验收无分母）：
+ * v14.28.9（E 类缺陷制度性根治：验收无分母）：
  * 回放类套件最容易"假绿"的形态是——样本缺 ground truth（expectedAppId/
  * expectedName 空）、或录制的检索词全为 0 条（回放对空 mock 必然"通过"）、
  * 或用 skipVerify 一把豁免却不写原因。三种形态都会让"准确率"没有分母，

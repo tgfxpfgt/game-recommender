@@ -15,7 +15,7 @@ await import('../../shared/escape.js');
 const storage = createStorageMock();
 installChromeStorageMock(storage);
 
-// v14.29.0：保留真实 fetch 供 GR_LIVE_APPLIST=1 的真实网络首次取用实证
+// v14.28.8：保留真实 fetch 供 GR_LIVE_APPLIST=1 的真实网络首次取用实证
 const realFetch = globalThis.fetch;
 // fetch 桩：按 URL 片段分发（dump / IStoreService）
 let fetchResponses = {};
@@ -29,7 +29,7 @@ globalThis.fetch = async (url) => {
   return { ok: false, status: 404, json: async () => ({}) };
 };
 
-// v14.29.0：主源已改为 jsDelivr、备源 raw——用仓库名片段同时匹配两者
+// v14.28.8：主源已改为 jsDelivr、备源 raw——用仓库名片段同时匹配两者
 // （此前写死 raw 域名，URL 换成 jsDelivr 后桩会全部落空 → 这类"桩与真实
 //  源脱节"正是 appListIndex 五个月零运行没被发现的原因之一）
 const DUMP_URL = 'steamappidlist';
@@ -265,7 +265,7 @@ describe('目录空格变体匹配（批次 11）', () => {
   });
 });
 
-// v14.29.0：真实网络首次取用实证（默认跳过——20MB 下载不进日常门禁）。
+// v14.28.8：真实网络首次取用实证（默认跳过——20MB 下载不进日常门禁）。
 // 手动执行：GR_LIVE_APPLIST=1 npx vitest run tests/unit/test-app-list-index.mjs
 // 断言的是"真实源可用 + 解析 + 匹配"整条链路，而不是 mock 想象出来的数据。
 const liveDescribe = process.env.GR_LIVE_APPLIST === '1' ? describe : describe.skip;

@@ -29,6 +29,7 @@ const COUNTER_KEYS = new Set([
   'match.urlFetch', // URL 索引命中但缓存未命中转全量拉取
   'match.searchOk', // 标题检索命中
   'match.miss', // 检索未命中（事件流带原因 kind）
+  'match.wave1Miss', // v14.28.10 P1-1：首波缓存 miss 分桶（事件流带 kind——热载未命中定位）
   'direct.cacheServe', // GET_STEAM_BY_APPID 缓存直返
   'direct.fetch', // GET_STEAM_BY_APPID 全量拉取
   'refresh.forced', // forceRefresh（菜单"手动更新/重新检索"）

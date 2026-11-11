@@ -43,7 +43,7 @@ async function getLogConfig() {
 const writer = createDebouncedStore({
   name: '日志',
   debounceMs: LOG_FLUSH_DEBOUNCE,
-  maxWaitMs: LOG_FLUSH_MAX_WAIT, // v14.29.1：连续日志流的落盘上界（崩溃前留存）
+  maxWaitMs: LOG_FLUSH_MAX_WAIT, // v14.28.4：连续日志流的落盘上界（崩溃前留存）
   save: flushLogBuffer
 });
 
@@ -61,7 +61,7 @@ export function flushLogBuffer() {
     logBuffer = [];
 
     try {
-      // v14.29.0：flush 改用**同一份 getLogConfig 快照**（10s TTL）——此前每次
+      // v14.28.3：flush 改用**同一份 getLogConfig 快照**（10s TTL）——此前每次
       // flush 都 getSettings()（5s TTL，过期即 OPFS readModule）；批量链上
       // 90 项 × 数条 warn 会让 flush 频繁触发，构成"高频路径重复读配置"。
       // 语义影响面：日志开关关闭最多延迟 10s 生效（与 writeLog 的既有 TTL 一致）。
@@ -84,7 +84,7 @@ export function flushLogBuffer() {
           persistedLogCount = (stored || []).length;
         }
         if (persistedLogCount + pending.length <= max) {
-          // v14.29.0：批量追加（一次 OPFS 句柄打开/关闭写 N 行，顺序不变）
+          // v14.28.3：批量追加（一次 OPFS 句柄打开/关闭写 N 行，顺序不变）
           // One batch append instead of N handle open/close cycles.
           await dataStore.appendModuleBatch(DB_KEYS.RUNTIME_LOG, pending);
           persistedLogCount += pending.length;
@@ -127,7 +127,7 @@ export function flushLogBuffer() {
   });
 }
 
-// v14.29（S3 P3-4）：warn/error 镜像控制台——runtimeLog 需打开 dashboard 才能读，
+// v14.28.2（S3 P3-4）：warn/error 镜像控制台——runtimeLog 需打开 dashboard 才能读，
 // 真机首启/崩溃排障不能只依赖存储是否就绪；info/debug 不镜像（事件多，避免刷屏）。
 // Mirror warn/error to console so field debugging never depends on storage readiness.
 const CONSOLE_MIRROR = { warn: true, error: true };

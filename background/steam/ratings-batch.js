@@ -355,7 +355,7 @@ async function runRatingJob(job) {
   // v14.28.6 R4-A：任务心跳定时器（finally 统一清理，防 try 内声明后被 finally 丢失）
   /** @type {ReturnType<typeof setInterval>|null} */
   let heartbeatTimer = null;
-  // v14.29.0：停滞边沿推送定时器（单次 setTimeout，非轮询；finally 清理）
+  // v14.28.8：停滞边沿推送定时器（单次 setTimeout，非轮询；finally 清理）
   /** @type {ReturnType<typeof setTimeout>|null} */
   let stallTimer = null;
   try {
@@ -460,7 +460,7 @@ async function runRatingJob(job) {
       };
     };
 
-    // v14.29.0：停滞期**边沿**推送——进度此前只挂载在成波推送（flushWave）上，
+    // v14.28.8：停滞期**边沿**推送——进度此前只挂载在成波推送（flushWave）上，
     // 停滞时 pendingWave 不满 → 一次推送都不发；20s 软阈值只落日志，用户看到的
     // UI 从 0.4s 到 40s 完全静止（实测 40.3s 才见"限流降速"）。
     // 做法：单次 setTimeout 精确排在"最早在途条目越过软阈值"的时刻（+20ms），
@@ -592,7 +592,7 @@ async function runRatingJob(job) {
           let fetchError = false;
           const itemMeta = { startedAt: Date.now(), phase: 'start' };
           inFlight.set(name, itemMeta);
-          scheduleStallCheck(); // v14.29.0：排到该条目越过软阈值的时刻
+          scheduleStallCheck(); // v14.28.8：排到该条目越过软阈值的时刻
           try {
             const urlAppId = job.urlAppIds && job.urlAppIds[name] ? job.urlAppIds[name] : null;
             const img =
@@ -674,7 +674,7 @@ async function runRatingJob(job) {
             });
           }
           pendingWave.set(name, r ? mergeAppStat(r, statsMap) : null);
-          // v14.29.0：**只重试明确标记为失败的结果**（网络/限流/超时 →
+          // v14.28.3：**只重试明确标记为失败的结果**（网络/限流/超时 →
           // orchestrator-list 置 failed:true）。此前 `!r` 也入重试队列，而
           // 全 miss 的确定性结果（phaseSearch 返回 null）同样 `!r` → 整批
           // 90 项被第二轮原样重打，批量链耗时直接翻倍（实测 90 项全 miss
@@ -682,7 +682,7 @@ async function runRatingJob(job) {
           // 徽章承接，不牺牲失败统计准确性。
           // Only explicitly-failed results are retried (network/ratelimit/timeout);
           // deterministic misses (null) no longer trigger a full second pass.
-          // v14.29.0：noRetry（整窗网络故障且无 appId）不再自动重试——全站
+          // v14.28.8：noRetry（整窗网络故障且无 appId）不再自动重试——全站
           // 不可达时重试只是把同一超时再跑一遍；用户点击重查可随时再试。
           if (r && r.failed && !r.noRetry) retryNames.push(name);
           metricInc('batch.items', 1);
@@ -698,7 +698,7 @@ async function runRatingJob(job) {
     await runPool(allNames);
     // 一轮结束后重试失败的条目（最多一轮，防无限循环）
     // v14.17.0：死 tab / 已过硬截止时跳过重试轮（丢项走刷新重查自愈，不再拖链）
-    // v14.29.0：重试轮改为**限并发 + 先退避**——全失败的最慢路径此前以同样
+    // v14.28.3：重试轮改为**限并发 + 先退避**——全失败的最慢路径此前以同样
     // 并发立刻硬打第二轮，在限流/网络故障期正好把限流队列再次打满。退避
     // 6000ms 让限流窗口与瞬时网络抖动先恢复；并发降到 1 让重试轮退化为
     // 串行游标，不再与其他标签页/新一轮任务抢 slot。两项合起来把"最慢路径"
@@ -710,7 +710,7 @@ async function runRatingJob(job) {
       const retryWait = PERF_CONFIG.retryBackoffMs;
       if (Date.now() + retryWait < deadlineAt) {
         await new Promise((r) => setTimeout(r, retryWait));
-        // v14.29.1：必须传快照副本——runPool 的 worker 以 `cursor < passNames.length`
+        // v14.28.3：必须传快照副本——runPool 的 worker 以 `cursor < passNames.length`
         // 推进，而重试失败的条目会再次 push 进 retryNames；若直接传同一个数组
         // （passNames === retryNames），数组长度随 push 增长、游标永远追不上，
         // 重试轮变成**无界循环**（全 miss 批次实测：20 项 233s 未收尾、node 堆
@@ -752,7 +752,7 @@ async function runRatingJob(job) {
     });
     clearInterval(keepAlive);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
-    if (stallTimer) clearTimeout(stallTimer); // v14.29.0：任务收尾清停滞推送定时器
+    if (stallTimer) clearTimeout(stallTimer); // v14.28.8：任务收尾清停滞推送定时器
   }
 }
 

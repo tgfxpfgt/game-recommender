@@ -64,15 +64,33 @@ async function doRefreshFreeGames(force = false) {
   }
   const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
   const existing = stored || { lastUpdate: 0, games: [] };
+  // v14.28.10 P2-1（写放大治理，审查报告 P2-1）：刷新节奏（lastUpdate）与
+  // 内容（games）分文件——meta 每刷必变约 20B，不再逼 23KB 级 games 全量
+  // 重写（实证单次 22,953B 占 OPFS 写量 64.8%）。meta 缺失时回退旧单文件
+  // payload.lastUpdate（存量迁移零动作）。
+  const meta = (await dataStore.readModule(DB_KEYS.FREE_GAMES_META)) || {};
+  const lastUpdate = meta.lastUpdate || existing.lastUpdate || 0;
 
-  if (!force && existing.lastUpdate && Date.now() - existing.lastUpdate < ONE_DAY) {
+  if (!force && lastUpdate && Date.now() - lastUpdate < ONE_DAY) {
     await updateFreeGamesBadge();
-    return existing;
+    return { lastUpdate, games: existing.games };
   }
 
-  const newGames = await fetchAllFreeGames();
-  const existingMap = new Map(existing.games.map((g) => [g.id, g]));
+  const { games: newGames, failedCount, totalSources } = await fetchAllFreeGames();
   const now = Date.now();
+  // v14.28.10（B-2 审计链路 2，全源失败保护）：各源失败此前静默收缩为 []，
+  // 断网时旧限免列表被空列表整体覆盖销毁，且节奏时间戳被刷新后 24h 内短路
+  // 无法自愈。全败保留旧库，仅记录 fetchErrorAt；部分失败仍合并成功源。
+  if (failedCount >= totalSources) {
+    Logger.warn(
+      'FreeGames',
+      `限免全源拉取失败（${failedCount}/${totalSources}），保留旧数据 ${existing.games.length} 条`
+    );
+    await dataStore.writeModule(DB_KEYS.FREE_GAMES_META, { lastUpdate, fetchErrorAt: now });
+    await updateFreeGamesBadge();
+    return { lastUpdate, games: existing.games, fetchErrorAt: now };
+  }
+  const existingMap = new Map(existing.games.map((g) => [g.id, g]));
   /** @type {Array<Object>} */
   const fresh = []; // 首次出现的游戏（v6.3.2 C2 通知用）/ newly appeared games
   newGames.forEach((g) => {
@@ -86,11 +104,17 @@ async function doRefreshFreeGames(force = false) {
     }
   });
 
-  const result = { lastUpdate: now, games: newGames };
-  await dataStore.writeModule(DB_KEYS.FREE_GAMES, result);
+  // P2-1：内容（含 claimed/firstSeen 合并结果）未变化时跳过 games 全量重写；
+  // meta 照常刷新（节奏推进 + 清除 fetchErrorAt）。
+  if (JSON.stringify(newGames) !== JSON.stringify(existing.games)) {
+    await dataStore.writeModule(DB_KEYS.FREE_GAMES, { lastUpdate: now, games: newGames });
+  }
+  const metaUpdate = { lastUpdate: now };
+  if (failedCount > 0) metaUpdate.lastFailedSources = failedCount;
+  await dataStore.writeModule(DB_KEYS.FREE_GAMES_META, metaUpdate);
   await updateFreeGamesBadge();
   await notifyNewFreeGames(fresh);
-  return result;
+  return { lastUpdate: now, games: newGames };
 }
 
 // v14.8 批次 7（第九轮 B2）：错过统计——监控开启期间已出现（firstSeen 在案）

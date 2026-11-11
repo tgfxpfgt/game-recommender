@@ -368,7 +368,7 @@ export async function refreshAppListIndex(force = false) {
       let source = '';
       try {
         payload = await fetchDumpPayload();
-        source = `jsnli-dump-${payload.source || 'unknown'}`; // v14.29.0：记录实际生效源
+        source = `jsnli-dump-${payload.source || 'unknown'}`; // v14.28.8：记录实际生效源
       } catch (e) {
         Logger.warn('AppListIndex', `镜像 dump 拉取失败: ${String(e).slice(0, 120)}`);
       }
@@ -439,7 +439,7 @@ export async function refreshAppListIndex(force = false) {
  * 总耗时相近，但消息处理不再被长任务阻塞。
  * Streamed parse: split top-level objects (depth counter, string-escape
  * aware) and yield the event loop every N entries — no long task.
- * v14.29.0：抽为导出纯函数——离线夹具与真实网络用例共用同一解析路径。
+ * v14.28.8：抽为导出纯函数——离线夹具与真实网络用例共用同一解析路径。
  * @param {string} raw
  * @param {number} [yieldEvery]
  * @returns {Promise<Array<{appId: string, name: string}>>}
@@ -492,7 +492,7 @@ export async function parseDumpEntries(raw, yieldEvery = PERF_CONFIG.appListStre
 }
 
 /**
- * v14.29.0：多源拉取——主源 jsDelivr（CDN 可达性优于 raw），备源
+ * v14.28.8：多源拉取——主源 jsDelivr（CDN 可达性优于 raw），备源
  * raw.githubusercontent（master）。任一成功即用；全部失败才抛错（上层
  * 走 6h 退避 + 回退在线管线）。首次成功实证见 tests/unit/test-app-list-index.mjs
  * 的 GR_LIVE_APPLIST=1 用例与 scripts/check-external-refs.mjs --refresh。

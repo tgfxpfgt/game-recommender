@@ -99,6 +99,7 @@ export const STORAGE_MODULES = {
     clearOnDataReset: true
   },
   freeGames: { file: 'free-games.json', format: 'json', name: '限免游戏', desc: 'Free Games' },
+  freeGamesMeta: { file: 'free-games-meta.json', format: 'json', name: '限免刷新元数据', desc: 'Free Games Meta' }, // v14.28.10 P2-1：lastUpdate/fetchErrorAt 与 games 分文件（写放大治理；backup/清除范围与 freeGames 同——均不备份不清除）
   runtimeLog: { file: 'runtime-log.ndjson', format: 'ndjson', name: '运行日志', desc: 'Runtime Logs' },
   downloadHistory: {
     file: 'download-history.json',

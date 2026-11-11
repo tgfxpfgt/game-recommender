@@ -52,7 +52,7 @@ describe('mechanisms（批次1 机制工厂）', () => {
     expect(calls).toEqual(7);
   });
 
-  it('debounce maxWaitMs：连续调用也必须在上界内落盘（v14.29.1 日志留存）', async () => {
+  it('debounce maxWaitMs：连续调用也必须在上界内落盘（v14.28.4 日志留存）', async () => {
     const t0 = Date.now();
     /** @type {number[]} */
     const fires = [];

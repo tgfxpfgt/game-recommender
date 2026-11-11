@@ -27,7 +27,7 @@ const continueOnFail = process.argv.includes('--continue');
 /** @type {Array<{name: string, code: number, reason: string, ring: string[], firstError: string}>} */
 const failedSteps = [];
 
-// v14.29.1（L3 时长预算）：步骤名 → 套件 id（scripts/suite-budgets.json）。
+// v14.28.9（L3 时长预算）：步骤名 → 套件 id（scripts/suite-budgets.json）。
 // 未列出的步骤不设预算；vitest 步长度随变更面变化（受影响套件/全量），
 // 由整条门禁的总预算（gateFast/gateFull）兜底——它是用户真实等待的时间。
 const STEP_BUDGET_IDS = {
@@ -39,9 +39,9 @@ const TAIL_LINES = 25;
 const RING_LINES = 200; // 环形保留：够算末 25 行 + 首个错误行，不无界吃内存
 const GATE_STARTED_AT = Date.now();
 
-// v14.29.1（L3 诊断信息）：失败一次给足线索——步骤名/退出码/末 N 行/首个错误行。
+// v14.28.9（L3 诊断信息）：失败一次给足线索——步骤名/退出码/末 N 行/首个错误行。
 // 实时流式回显（信息量不减）+ 环形缓冲留存摘要，避免为拿线索重跑全量或翻日志。
-// v14.29.1 修正：**不用 spawnSync 捕获**——coverage:gate 这类"脚本再 spawn vitest
+// v14.28.9 修正：**不用 spawnSync 捕获**——coverage:gate 这类"脚本再 spawn vitest
 // 且输出超过管道缓冲的步骤在 Windows 上会卡死（实测 13 分钟无输出、CPU 空转）；
 // 改异步 spawn 流式读取，既无死锁又保留实时输出。
 /** @param {string} name @param {number} code @param {string[]} ring @param {string} firstError */
@@ -162,13 +162,13 @@ await step('check:docs（文档版本/索引一致性）', 'node scripts/check-d
 await step('check:modules（模块索引/豁免登记）', 'node scripts/check-module-index.mjs');
 // v14.28.6 R4-D：占位实现 + 契约→handler 缺口——"看着像做完了"的两类假完成。
 await step('check:stubs（占位实现/契约缺口）', 'node scripts/check-stubs.mjs');
-// v14.29.0（A 类根治）：外部引用锁——代码里的 GitHub raw/jsDelivr URL 必须登记，
+// v14.28.9（A 类根治）：外部引用锁——代码里的 GitHub raw/jsDelivr URL 必须登记，
 // 且 URL 分支必须等于登记默认分支（appListIndex 写死 main → 404 五个月零运行）。
 await step('check:ext-refs（外部引用锁）', 'node scripts/check-external-refs.mjs');
 // v14.28.9（G 类）：首次运行证据——外部资源"登记了 URL"不等于"真的跑通过"，
 // required:true 必须有真实 bytes/entries/evidence，且与 ext-refs 交叉校验。
 await step('check:first-run（首次运行证据）', 'node scripts/check-first-run.mjs');
-// v14.29.0（E 类根治）：匹配语料分母——回放样本必须有 ground truth，
+// v14.28.9（E 类根治）：匹配语料分母——回放样本必须有 ground truth，
 // 禁止"缺 expectedName / recorded 全 0 命中 / 豁免不写原因"的真空通过。
 await step('check:corpus（匹配语料分母）', 'node scripts/check-match-corpus.mjs');
 await step('lint', 'npm run lint');
@@ -180,7 +180,7 @@ if (fast) {
   await step('vitest（全量两阶段）', 'npm test', GATE_VITEST_ENV);
 }
 await step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
-// v14.29.0（D/C/F 类根治）：缺陷回放验证——把 4 类历史缺陷放回去，对应门禁
+// v14.28.9（D/C/F 类根治）：缺陷回放验证——把 4 类历史缺陷放回去，对应门禁
 // 必须变红；绿 = 门禁失效即红。跑在 vitest 之后（需要先确认基线本身是绿的），
 // 耗时约 15s；变异只作用于工作副本并按字节还原（不碰 git 状态）。
 await step('verify:mutations（缺陷回放：放回必须变红）', 'node scripts/mutation-check.mjs');

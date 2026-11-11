@@ -84,7 +84,7 @@ const SIM_MAP = [
 // 特例映射：不在静态 import 图上的定向回归（userscript 纯函数防漂移门禁）
 const EXTRA_MAP = [{ prefix: 'userscript/', suites: ['tests/unit/test-userscript-pure.mjs'] }];
 
-// v14.29.1（L3 D 类假绿修复）：非测试文件（夹具 JSON）→ 消费它的测试套件。
+// v14.28.9（L3 D 类假绿修复）：非测试文件（夹具 JSON）→ 消费它的测试套件。
 // 此前把 fixtures 路径直接传给 vitest，vitest 报 "No test files found"，脚本
 // 按"空匹配"判绿——夹具改了却没有任何断言跑过。**未登记的非 .mjs 变更直接红**
 // （拒绝空匹配通过），映射缺失即要求补这一行。

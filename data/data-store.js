@@ -354,7 +354,7 @@ class DataStore {
   }
 
   // 批量追加（仅 ND-JSON 模块）：一次 open/createWritable/close 写入 N 行。
-  // v14.29.0：日志 flush 此前逐条 appendModule，每条一次 OPFS 句柄打开+关闭
+  // v14.28.3：日志 flush 此前逐条 appendModule，每条一次 OPFS 句柄打开+关闭
   //（90 项批量链上的 warn 峰值可达数百次/任务）——批量后写次数降为 1，
   // 顺序严格保持 entries 顺序。空数组 no-op。
   // Batch append (ND-JSON only): one handle open/write/close per N lines.

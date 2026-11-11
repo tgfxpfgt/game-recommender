@@ -191,6 +191,97 @@ test('第三方 URL 协议白名单净化（恶意协议拒绝）', async () => 
   }
 });
 
+// ============ 2.5 写放大治理与全源失败保护（v14.28.10 P2-1 + B-2 链路 2） ============
+test('P2-1：内容不变时跳过 games 全量重写（meta 承载刷新节奏）', async () => {
+  storage._reset();
+  const fetchMock = createFetchMock({
+    freeGamesPromotions: {
+      data: {
+        Catalog: {
+          searchStore: {
+            elements: [
+              {
+                id: 'keep1',
+                title: '常驻游戏',
+                productSlug: 'keep-a',
+                promotions: {
+                  promotionalOffers: [
+                    {
+                      promotionalOffers: [
+                        {
+                          startDate: new Date(Date.now() - 86400e3).toISOString(),
+                          endDate: new Date(Date.now() + 86400e3).toISOString()
+                        }
+                      ]
+                    }
+                  ]
+                },
+                keyImages: [{ type: 'OfferImageWide', url: 'https://img.epic.com/keep.jpg' }]
+              }
+            ]
+          }
+        }
+      }
+    }
+  });
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    await mod.refreshFreeGames(true); // 首刷：写 payload + meta
+    const dump1 = storage._dump();
+    expect(dump1.freeGames.games.length).toEqual(1);
+    // 二刷：以首刷落库内容为上游基线，保证 JSON 级一致 → 应跳过 payload 重写
+    storage._reset({
+      freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: dump1.freeGames.games },
+      freeGamesMeta: { lastUpdate: Date.now() - 86400e3 * 2 }
+    });
+    const r2 = await mod.refreshFreeGames(true);
+    const dump2 = storage._dump();
+    expect(r2.games).toEqual(dump2.freeGames.games);
+    expect(r2.lastUpdate).toBeGreaterThan(Date.now() - 5000); // 返回视图带新鲜节奏时间戳
+    expect(dump2.freeGamesMeta.lastUpdate).toBeGreaterThan(Date.now() - 5000); // meta 已推进
+    expect(dump2.freeGames.lastUpdate).toBeLessThan(Date.now() - 3600e3); // payload 未被重写（仍是旧时间戳）
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('P2-1：meta.lastUpdate 驱动一天内短路（payload 旧也不触发抓取）', async () => {
+  storage._reset({
+    freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: [{ id: 'epic-1', name: '旧数据', platform: 'epic' }] },
+    freeGamesMeta: { lastUpdate: Date.now() - 3600e3 }
+  });
+  const fetchMock = createFetchMock({});
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const r = await mod.refreshFreeGames(false);
+    expect(fetchMock._calls.length).toEqual(0);
+    expect(r.games[0].name).toEqual('旧数据');
+    expect(r.lastUpdate).toBeGreaterThan(Date.now() - 7200e3); // meta 时间戳
+  } finally {
+    restoreFetch();
+  }
+});
+
+test('全源失败保留旧库（B-2 链路 2：不再被空列表覆盖销毁）', async () => {
+  const oldGames = [{ id: 'epic-old', name: '旧限免', platform: 'epic', claimed: false }];
+  storage._reset({
+    freeGames: { lastUpdate: Date.now() - 86400e3 * 2, games: oldGames },
+    freeGamesMeta: { lastUpdate: Date.now() - 86400e3 * 2 }
+  });
+  const fetchMock = createFetchMock({}); // 四源全部未匹配 → 全失败
+  const restoreFetch = installFetchMock(fetchMock);
+  try {
+    const r = await mod.refreshFreeGames(true);
+    const dump = storage._dump();
+    expect(dump.freeGames.games).toEqual(oldGames); // 旧库原样保留
+    expect(dump.freeGamesMeta.fetchErrorAt).toBeGreaterThan(0);
+    expect(r.games).toEqual(oldGames);
+    expect(r.fetchErrorAt).toBeGreaterThan(0);
+  } finally {
+    restoreFetch();
+  }
+});
+
 // ============ 3. 限免推送通知（v6.3.2 C2） ============
 test('新限免触发推送通知（聚合一条）', async () => {
   storage._reset({

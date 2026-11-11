@@ -11,7 +11,7 @@ import { fetchLastUpdate, fetchSteamReviews, needsRatingRefetch, hasInvertedRevi
 import { DEMO_NAME_PATTERN } from './api-search.js';
 import { fetchSteamSpyInfo } from './api-supplement.js';
 import { getSettings } from '../core/settings.js'; // v6.4.19：模块开关（MV3 SW 不支持动态 import，必须静态）
-import { isModuleValid, getMergedData, isDetailCacheComplete, pickFieldsForModules } from '../storage/steam-cache.js'; // v14.29.x：缓存完整性单源 + 部分刷新字段挑选
+import { isModuleValid, getMergedData, isDetailCacheComplete, pickFieldsForModules } from '../storage/steam-cache.js'; // v14.28.8：缓存完整性单源 + 部分刷新字段挑选
 
 /**
  * 游戏雷达 Game Radar - Steam API 子模块：api-assemble.js
@@ -154,7 +154,7 @@ export async function fetchSteamFullDetailsByAppId(appId, options = {}) {
 
   // v6.4.19：Steam API 模块开关——关闭的模块不调用其接口（好评率/详情解析/
   // SteamSpy），对应字段置空；基础信息（meta）为必需项不参与开关。
-  // v14.29.x：部分刷新计划（refreshModules）进一步收窄出站面——未列入的模块
+  // v14.28.8：部分刷新计划（refreshModules）进一步收窄出站面——未列入的模块
   // 一个请求都不发（残缺缓存只补缺失模块）。
   // Per-module API toggles: disabled modules are not fetched (fields left empty).
   // A refresh plan narrows the outbound surface to the modules being refreshed.

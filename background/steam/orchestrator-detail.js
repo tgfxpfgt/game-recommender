@@ -22,7 +22,7 @@ import {
   ensureValidRegistryNames,
   needsRatingRefetch,
   hasInvertedReviewCounts, // v14.21.0：评价数倒挂污染指纹（旧回退误写条目自愈）
-  planDetailRefresh, // v14.29.x：缓存残缺时的模块级部分刷新计划
+  planDetailRefresh, // v14.28.8：缓存残缺时的模块级部分刷新计划
   namesRelated,
   coreTokensOf // v14.6.2 审查 A11：英文内容词单源（排噪声词）
 } from './api.js';
@@ -32,7 +32,7 @@ import {
   getMergedData,
   getSteamCacheEntry,
   setSteamCacheEntry,
-  isDetailCacheComplete // v14.29.x：完整性单源（按字段所属模块判定）
+  isDetailCacheComplete // v14.28.8：完整性单源（按字段所属模块判定）
 } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
 import {
@@ -160,7 +160,7 @@ export async function searchSteamGame(gameName, options = {}) {
   //    拉取只更新 detail/spy 模块，meta/rating 保留）。
   //    v3.3.10：命中前校验标题与缓存名相关——名称索引粘性条目（历史误写
   //    钉死 appId）在此被推翻，转重新搜索自愈（如 16598 页误钉 2001760）
-  // v14.29.x：缓存未命中时的部分刷新上下文（仅 appId 分支可产生；声明在
+  // v14.28.8：缓存未命中时的部分刷新上下文（仅 appId 分支可产生；声明在
   // 函数作用域供下方拉取段消费——无缓存条目时保持 undefined = 全量拉取）
   /** @type {string[]|undefined} */
   let refreshModules;
@@ -400,7 +400,7 @@ async function fetchDetailsResolveDlc(id, refreshModules) {
  * 缓存命中判定（重构序 6b）：detail 模块有效且完整、无好评率重取需求、名称
  * 相关 → 命中（幂等补写注册表后返回 merged）；Demo 缓存无好评率或 appId 本身
  * 为 Demo → 返回 served:false + appId:null 触发重搜完整版。
- * v14.29.x：完整性改用 isDetailCacheComplete(entry)（传整个条目，按字段所属
+ * v14.28.8：完整性改用 isDetailCacheComplete(entry)（传整个条目，按字段所属
  * 模块判定；旧判定在 detail 数据里找 meta 字段 name/headerImage 恒假）。
  * 命中仍要求 detail 模块 TTL 有效——TTL 过期 / 字段缺失 / 缺
  * cnReviewsFetchedAt / 好评率需重取时都算未命中；未命中返回部分刷新计划
@@ -473,7 +473,7 @@ async function tryCacheServed(gameName, appId) {
 /**
  * 三层缓存写入（重构序 6b）：好评率重试计数 + Steam 动态缓存 + 游戏注册表
  * （中英文名+变体+封面）+ 名称索引（官方中英文名离线化覆盖）。
- * v14.29.x：部分刷新时 result 只含本次刷到的模块字段（picked 子集）——
+ * v14.28.8：部分刷新时 result 只含本次刷到的模块字段（picked 子集）——
  * rating 字段缺失 = 本次未刷新 rating，不改 ratingFailCount / 走势历史；
  * 写缓存只写 result；注册表与名称索引读 view（旧合并视图 + 新字段）。
  * @param {string|number} appId

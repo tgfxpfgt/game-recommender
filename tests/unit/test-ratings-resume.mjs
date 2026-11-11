@@ -41,12 +41,12 @@ function sessionGet(key) {
   return chrome.storage.session._data.get(key);
 }
 
-// ============ v14.29.x：SW 饱和修复（全 miss 批量链）回归 ============
+// ============ v14.28.3：SW 饱和修复（全 miss 批量链）回归 ============
 // 置于文件最前：api-monitor 的失败计数与 anomalyGate 是模块级状态，后面
 // "死 tab/失败请求"类用例会留下脏状态，污染这两个用例的耗时判定。
 // Kept first: api-monitor failure counters and anomalyGate are module-level,
 // and later failing-request cases would pollute the timing assertions here.
-describe('v14.29.x SW 饱和修复：批量链全 miss', () => {
+describe('v14.28.3 SW 饱和修复：批量链全 miss', () => {
   /** 等待全局链空闲 / wait for the global chain to idle */
   async function waitIdle() {
     for (let i = 0; i < 200; i++) {
@@ -98,7 +98,7 @@ describe('v14.29.x SW 饱和修复：批量链全 miss', () => {
     }
   });
 
-  // v14.29.1：重试轮数组别名导致的无界循环回归。此前 runPool(retryNames)
+  // v14.28.3：重试轮数组别名导致的无界循环回归。此前 runPool(retryNames)
   // 与 retryNames 同一数组，重试失败的条目 push 回自身 → 数组长度随游标
   // 增长，`cursor < passNames.length` 永不满足（实测 20 项 233s 未收尾、
   // 堆 4GB OOM）。修复传快照副本后，重试轮只跑一遍。
@@ -275,14 +275,14 @@ describe('批量好评率任务可恢复化（v10.0.0）', () => {
   });
 });
 
-// ============ v14.29.0：停滞期边沿心跳（C 类门禁） ============
+// ============ v14.28.8：停滞期边沿心跳（C 类门禁） ============
 // 缺陷样本：20s 软阈值只写日志、UI 40s 无变化。此用例把条目软阈值压到
 // 120ms（仅测试内覆盖 PERF_CONFIG，不改生产默认），断言"越过软阈值后
 // 必然出现一次 progress.stalled 推送"——若删除 scheduleStallCheck 调用，
 // 该推送永远不会发生，用例变红。
 // Regression for the log-only watchdog: crossing the soft threshold must emit
 // a stalled progress push instead of only writing a log line.
-describe('v14.29.0 停滞边沿心跳', () => {
+describe('v14.28.8 停滞边沿心跳', () => {
   test('条目越过软阈值 → 立即推送 progress.stalled（无需等成波）', async () => {
     for (let i = 0; i < 50; i++) {
       const s = ratingsBatch.getRatingsQueueStatus();

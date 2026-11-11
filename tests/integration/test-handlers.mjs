@@ -350,7 +350,7 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
             genres: [{ id: 1, description: 'Action' }]
           }
         },
-        // v14.29.x：部分刷新用例专用（3764201 的 lastUpdate 24h 模块缓存为冷，
+        // v14.28.8：部分刷新用例专用（3764201 的 lastUpdate 24h 模块缓存为冷，
         // 公告出站断言不受前序用例预热影响 = 不依赖执行顺序）
         3764201: {
           success: true,
@@ -375,7 +375,7 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     restoreFetch();
     await urlIdx.resetUrlIndex();
   });
-  // v14.29.x：appdetails 有 10s 去重表（in-flight + 已完成）——整文件跑时前序用例
+  // v14.28.8：appdetails 有 10s 去重表（in-flight + 已完成）——整文件跑时前序用例
   // 已填充，后续"零出站/部分刷新"断言看到的 0 可能是去重造成而非缓存先行。
   // 每例重置，让出站计数只反映本用例的真实行为。
   // The appdetails dedup table (10s TTL) leaks across cases; reset per test so
@@ -529,8 +529,8 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     expect(!!entry && !!entry.modules.detail.data.cnReviewsFetchedAt).toEqual(true);
   });
 
-  // ============ v14.29.x：模块级部分刷新（残缺缓存只补缺失模块） ============
-  test('v14.29.x：detail 缺 userTags → 部分刷新（appdetails/商店页/评测/公告增加，SteamSpy 零新增）', async () => {
+  // ============ v14.28.8：模块级部分刷新（残缺缓存只补缺失模块） ============
+  test('v14.28.8：detail 缺 userTags → 部分刷新（appdetails/商店页/评测/公告增加，SteamSpy 零新增）', async () => {
     // 用独立 appId/URL：3764201 的 lastUpdate 24h 模块缓存为冷 → 公告出站断言
     // 与用例顺序无关（3764200 已被前序用例预热）
     const APP_ID = 3764201;
@@ -578,7 +578,7 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     expect(after.spy).toEqual(before.spy);
   });
 
-  test('v14.29.x：detail TTL 过期 → 仍重拉（完整性通过也必须重取过期模块）', async () => {
+  test('v14.28.8：detail TTL 过期 → 仍重拉（完整性通过也必须重取过期模块）', async () => {
     await urlIdx.setUrlAppId(TEST_URL, 3764200);
     await cacheMod.setSteamCacheEntry(3764200, completeEntry());
     await cacheMod.flushSteamCache();

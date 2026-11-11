@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-11T11:53:52.210Z",
-  "version": "14.28.9",
+  "generatedAt": "2026-11-11T16:28:28.881Z",
+  "version": "14.28.10",
   "nodes": [
     {
       "dir": "background",
@@ -80,12 +80,12 @@
       "color": "#f39c12",
       "desc": "OPFS 持久化 — data-store/STORAGE_MODULES 注册表",
       "files": 3,
-      "lines": 750
+      "lines": 751
     }
   ],
   "stats": {
     "actionCount": 79,
-    "storageCount": 31,
+    "storageCount": 32,
     "testCount": 0,
     "suiteCount": 77
   },

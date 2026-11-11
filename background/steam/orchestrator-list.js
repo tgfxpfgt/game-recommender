@@ -50,6 +50,7 @@ import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.j
 // v14.28.7 R4-B2：置信度规则（平台最优先/年份 >1 年才降级/标题相似度主门槛）
 import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
 import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9：运行期诊断轨迹
+import { recordUsageCounter, recordUsageEvent } from '../storage/usage-evidence.js'; // v14.28.10 P1-1：首波 miss 分桶
 
 // v14.28.6 R4-B：把置信度挂到结果上（确认/推测 + 依据串），内容侧据此
 // 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 平台判定）。
@@ -71,6 +72,17 @@ function attachMatch(result, { gameName, resultName, source, steamYear }) {
   result.matchPlatform = m.platformLabel;
   result.matchNote = m.reasonText;
   return result;
+}
+
+// v14.28.10 P1-1（热载 1/4 条目未命中定位，审查报告 P1-1）：首波 miss 分桶
+// 落证据档案——计数 match.wave1Miss + 事件 kind（no-index-entry/correction-blocked/
+// cache-invalid-rating/cache-missing-rate/cache-needs-refetch/cache-inverted-counts/
+// demo-no-rating）。先拿数据再改缓存键（不盲改纪律）；不改变返回语义（恒 null）。
+// Wave-1 miss bucketing: counter + event kind for cache-health diagnosis.
+function recordWave1Miss(kind) {
+  recordUsageCounter('match.wave1Miss');
+  recordUsageEvent('match', 'wave1Miss', { kind });
+  return null;
 }
 
 /**
@@ -123,22 +135,20 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   // 错 appId 命中错误缓存时不再返回（该名进入 pending 走重搜纠正）
   if (appId) {
     const corr0 = await lookupWrongReportCorrection(gameName);
-    if (corr0 && String(appId) === String(corr0.wrongAppId)) return null;
+    if (corr0 && String(appId) === String(corr0.wrongAppId)) return recordWave1Miss('correction-blocked');
   }
-  if (!appId) return null;
+  if (!appId) return recordWave1Miss('no-index-entry');
 
   const cached = await getSteamCacheEntry(appId);
   const merged = getMergedData(cached) || {};
   // 无好评率条目（0 评测/失败固化）按冷却期重新获取（v3.3.7：rating 模块有效判定）
   // v14.21.0：评价数倒挂条目（旧回退误写）不命中，重取自愈
-  if (
-    !isModuleValid(cached, 'rating') ||
-    merged.positiveRate === undefined ||
-    needsRatingRefetch(merged) ||
-    hasInvertedReviewCounts(merged)
-  )
-    return null;
-  if (isDemoCacheWithoutRating(merged)) return null;
+  // v14.28.10 P1-1：各 miss 原因分桶落账（语义不变，见 recordWave1Miss）
+  if (!isModuleValid(cached, 'rating')) return recordWave1Miss('cache-invalid-rating');
+  if (merged.positiveRate === undefined) return recordWave1Miss('cache-missing-rate');
+  if (needsRatingRefetch(merged)) return recordWave1Miss('cache-needs-refetch');
+  if (hasInvertedReviewCounts(merged)) return recordWave1Miss('cache-inverted-counts');
+  if (isDemoCacheWithoutRating(merged)) return recordWave1Miss('demo-no-rating');
 
   // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
   // v14.28.6 R4-B：附三要素置信度（确认/推测 + 依据）
@@ -264,7 +274,7 @@ async function phasePlatform(gameName, options) {
  * @param {string|number|null} usableAppId 已知 appId（缓存过期/Demo 重搜场景跳过搜索）
  * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean, source: string}|{networkFailed: true}|null>}
  *   null = 确认未找到（负缓存已按守卫语义处理）；`{networkFailed:true}` =
- *   窗口内有 API 失败，无法区分"未找到"与"网络故障"（v14.29.0 故障语义分离）；
+ *   窗口内有 API 失败，无法区分"未找到"与"网络故障"（v14.28.8 故障语义分离）；
  *   englishName 在 usableAppId 直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）；
  *   source = 命中来源（v14.28.6 R4-B，仅作推测依据展示，不参与置信度判定）
  */
@@ -323,7 +333,7 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
       if (apiStatus.failed === 0) {
         await recordNameIndex(gameName, null);
       } else {
-        // v14.29.0：故障语义分离——窗口内有 API 失败时，不能把"没查到"当成
+        // v14.28.8：故障语义分离——窗口内有 API 失败时，不能把"没查到"当成
         // "确认 Steam 无此游戏"（此前返回 null，内容侧一律渲染「未找到」，
         // 断网与"游戏不在 Steam"完全同形）。返回哨兵由调用方转成 errorType。
         Logger.warn(
@@ -413,7 +423,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     appId = null;
   }
 
-  // v14.29.0：同一次调用内 Steam 缓存读去重——此前同一 appId 会
+  // v14.28.3：同一次调用内 Steam 缓存读去重——此前同一 appId 会
   // getSteamCacheEntry 三次（命中判定 :312 / type 校验 :368 / 写回合并 :484）。
   // 本函数在这三处之间不写 steam-cache（唯一写点 :513 在最后），因此复用首次
   // 读到的合并视图是安全的；批量链 90 项 × 3 → 1，减少 2 次/项的 await 往返。
@@ -492,7 +502,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       phase('search');
       const hit = await phaseSearch(gameName, options, corr, usableAppId);
       if (!hit) return null;
-      // v14.29.0：网络/限流故障 ≠ 未找到——显式标记 errorType，内容侧据此渲染
+      // v14.28.8：网络/限流故障 ≠ 未找到——显式标记 errorType，内容侧据此渲染
       // 「网络异常·点击重查」而不是「未找到」；noRetry 避免全站不可达时批内
       // 每个条目再陪跑一轮重试（总量有界，用户可点击重查）。
       if (/** @type {any} */ (hit).networkFailed) {
