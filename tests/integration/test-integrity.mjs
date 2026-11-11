@@ -571,6 +571,17 @@ test('P2：DATA_MODULES 每个 storageKey 均在 MODULE_FILES 中', () => {
   expect(bad, 'storageKey 不在 data-store MODULE_FILES（漏文件映射）:\n  ' + bad.join('\n  ')).toEqual([]);
 });
 
+// v14.28.5：Chrome 规定 fetch 响应超过 30s 未到达即终止 SW（三条件：30s 空闲 /
+// 30s fetch 响应 / 5min 单请求）。客户端超时必须严格低于 30000ms，否则超时永远
+// 赶不上终止——表现为消息永无应答（发送侧看到 "message port closed"）。
+// https://developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle
+test('出站 fetch 超时严格低于 SW 30s 终止阈值', () => {
+  const tooLong = Object.entries(constantsMod.PERF_CONFIG)
+    .filter(([k, v]) => /^fetchTimeout\w+Ms$/.test(k) && typeof v === 'number' && v >= 30000)
+    .map(([k, v]) => `${k}=${v}ms`);
+  expect(tooLong, '以下超时 ≥30000ms（会被 SW 终止抢先）:\n  ' + tooLong.join('\n  ')).toEqual([]);
+});
+
 // ============ 10. vitest include 清单自检（v14.2.0，补充轮 P0-3） ============
 // 显式清单漏加新测试文件时 npm test 静默不跑且门禁全绿——把约定升级为不变量。
 const vitestCfgSrc = fs.readFileSync(path.join(ROOT, 'vitest.config.js'), 'utf-8');

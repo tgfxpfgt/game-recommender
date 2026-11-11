@@ -96,7 +96,11 @@ export const PERF_CONFIG = {
   fetchTimeoutCommunitySearchMs: 8000, // 社区搜索兜底（SearchApps 轻量响应快）
   fetchTimeoutCommunityReviewsMs: 12000, // 社区评论浏览页 HTML（v14.21.2，~150KB 较重但非主链阻塞）
   fetchTimeoutLastUpdateMs: 4000, // "最近更新"徽章硬帽（v10.9.2：api 域不可达时不得拖爆搜索主预算）
-  fetchTimeoutLlmMs: 30000, // LLM 兜底（ai-fallback，生成较慢；v14.7 批次 1 入单源）
+  // LLM 兜底（ai-fallback，生成较慢；v14.7 批次 1 入单源）。
+  // v14.28.5：30000→25000——Chrome 规定 fetch 响应超过 30s 未到达即终止 SW
+  // （裸的 30s 客户端超时与终止阈值同时到达，实际先被杀、消息无应答）；
+  // 来源：developer.chrome.com/docs/extensions/develop/concepts/service-workers/lifecycle
+  fetchTimeoutLlmMs: 25000,
   ratingsKeepAliveIntervalMs: 10000 // 批量任务 SW 保活心跳（getPlatformInfo 触发）
 };
 
