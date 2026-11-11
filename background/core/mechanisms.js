@@ -12,20 +12,154 @@
 /**
  * 串行互斥锁工厂（promise 链）——同刻只允许一个 task 在临界区内。
  * Serial mutex via promise chaining; one task inside the critical section.
- * @returns {<T>(task: () => Promise<T>) => Promise<T>}
+ *
+ * v14.30.0 R4-A（用户裁决：卡死不能无界等待）：`locked` 新增可选第二参数
+ * `{ timeoutMs, warnMs, label, onWarn }`，**默认行为完全不变**（无超时）。
+ * - timeoutMs > 0：排队超过该时长仍未轮到 → 调用方 reject `锁等待超时`；
+ *   该排队项在前序释放后**不执行 task**（cancelled 标记），仅推进链——
+ *   避免"调用方已放弃、任务迟到写入"。
+ * - warnMs > 0 且提供 onWarn：等待超过该时长告警一次（携带 label 与已等时长），
+ *   任务继续等待。模块保持纯（不 import Logger），告警出口由调用方注入。
+ * 注意：锁持有者本身无限挂起时，本机制只能让**等待者**不再无界阻塞，链尾仍
+ * 卡在持有者上——这是 JS 无法撤销 Promise 的固有边界，故持有者内部必须依赖
+ * fetchWithTimeout 等自带超时的调用。
+ * Optional queue-wait timeout (default off): the queued task is cancelled (never
+ * runs later) and the caller rejects; a warn callback fires once past warnMs.
+ * @returns {<T>(task: () => Promise<T>, opts?: { timeoutMs?: number, warnMs?: number, label?: string, onWarn?: (info: { label: string, waitedMs: number }) => void }) => Promise<T>}
  */
 export function withLock() {
   /** @type {Promise<void>} */
   let tail = Promise.resolve();
-  return function locked(/** @type {() => Promise<any>} */ task) {
-    const run = tail.then(() => task());
+  return function locked(task, opts = {}) {
+    const timeoutMs = Math.max(0, Number(opts && opts.timeoutMs) || 0);
+    const warnMs = Math.max(0, Number(opts && opts.warnMs) || 0);
+    const label = (opts && opts.label) || '';
+    const onWarn = opts && typeof opts.onWarn === 'function' ? opts.onWarn : null;
+    const waitStart = Date.now();
+    let released = false; // 已轮到本任务（此后超时/告警定时器一律失效）
+    let cancelled = false;
+    /** @type {ReturnType<typeof setTimeout>|null} */
+    let waitTimer = null;
+    /** @type {ReturnType<typeof setTimeout>|null} */
+    let warnTimer = null;
+    const clearTimers = () => {
+      if (waitTimer) clearTimeout(waitTimer);
+      if (warnTimer) clearTimeout(warnTimer);
+      waitTimer = null;
+      warnTimer = null;
+    };
+    const run = tail.then(() => {
+      released = true;
+      clearTimers();
+      if (cancelled) throw new Error(`锁等待超时（${label || 'task'}）`);
+      return task();
+    });
     // 链推进与错误隔离：前序失败不阻塞后续任务
     tail = run.then(
       () => undefined,
       () => undefined
     );
+    if (warnMs > 0 && onWarn) {
+      warnTimer = setTimeout(() => {
+        warnTimer = null;
+        if (released || cancelled) return;
+        try {
+          onWarn({ label, waitedMs: Date.now() - waitStart });
+        } catch {
+          /* 告警出口异常不影响锁语义 */
+        }
+      }, warnMs);
+    }
+    if (timeoutMs > 0) {
+      return new Promise((resolve, reject) => {
+        waitTimer = setTimeout(() => {
+          waitTimer = null;
+          if (released) return;
+          cancelled = true;
+          clearTimers();
+          reject(new Error(`锁等待超时（${label || 'task'}，已等 ${Date.now() - waitStart}ms）`));
+        }, timeoutMs);
+        run.then(resolve, reject);
+      });
+    }
     return run;
   };
+}
+
+/**
+ * 单任务看门狗（两级阈值，纯工厂）。
+ * Two-level watchdog: soft threshold only warns (keeps waiting), hard threshold
+ * settles the awaited promise with a timeout marker.
+ *
+ * v14.30.0 R4-A（用户裁决）：**软阈值只告警留证、硬阈值才放弃**——误杀正常长
+ * 任务的代价高于晚发现。与 withLock 不同，本工厂无法撤销底层 Promise（JS 固有
+ * 边界），硬阈值只让**等待方**不再无界阻塞；被放弃的任务可能仍会完成并写缓存，
+ * 调用方必须按"结果可能迟到"处理（幂等写入 + 不重复推送）。
+ * @template T
+ * @param {() => Promise<T>} task 被监控任务 / monitored task
+ * @param {{ label?: string, softMs?: number, hardMs?: number,
+ *   onSoftWarn?: (info: { label: string, elapsedMs: number, thresholdMs: number }) => void,
+ *   onTimeout?: (info: { label: string, elapsedMs: number, thresholdMs: number }) => void }} [opts]
+ * @returns {Promise<T | { __watchdogTimeout: true, label: string, elapsedMs: number, thresholdMs: number }>}
+ */
+export function withWatchdog(task, opts = {}) {
+  const label = opts.label || '';
+  const softMs = Math.max(0, Number(opts.softMs) || 0);
+  const hardMs = Math.max(0, Number(opts.hardMs) || 0);
+  const onSoftWarn = typeof opts.onSoftWarn === 'function' ? opts.onSoftWarn : null;
+  const onTimeout = typeof opts.onTimeout === 'function' ? opts.onTimeout : null;
+  return new Promise((resolve, reject) => {
+    const startedAt = Date.now();
+    let settled = false;
+    /** @type {ReturnType<typeof setTimeout>|null} */
+    let softTimer = null;
+    /** @type {ReturnType<typeof setTimeout>|null} */
+    let hardTimer = null;
+    const clearTimers = () => {
+      if (softTimer) clearTimeout(softTimer);
+      if (hardTimer) clearTimeout(hardTimer);
+      softTimer = null;
+      hardTimer = null;
+    };
+    const settle = (fn, value) => {
+      if (settled) return;
+      settled = true;
+      clearTimers();
+      fn(value);
+    };
+    if (softMs > 0 && onSoftWarn) {
+      softTimer = setTimeout(() => {
+        softTimer = null;
+        if (settled) return;
+        try {
+          onSoftWarn({ label, elapsedMs: Date.now() - startedAt, thresholdMs: softMs });
+        } catch {
+          /* 告警出口异常不改变任务语义 */
+        }
+      }, softMs);
+    }
+    if (hardMs > 0) {
+      hardTimer = setTimeout(() => {
+        hardTimer = null;
+        if (settled) return;
+        const info = { label, elapsedMs: Date.now() - startedAt, thresholdMs: hardMs };
+        settle(resolve, { __watchdogTimeout: /** @type {const} */ (true), ...info });
+        if (onTimeout) {
+          try {
+            onTimeout(info);
+          } catch {
+            /* 超时出口异常不影响已结算结果 */
+          }
+        }
+      }, hardMs);
+    }
+    Promise.resolve()
+      .then(task)
+      .then(
+        (v) => settle(resolve, v),
+        (e) => settle(reject, e)
+      );
+  });
 }
 
 /**

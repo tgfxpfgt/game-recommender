@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-11T04:04:23.745Z",
+  "generatedAt": "2026-11-11T04:30:49.869Z",
   "version": "14.28.5",
   "nodes": [
     {
@@ -24,7 +24,7 @@
       "color": "#e74c3c",
       "desc": "设置中心 — 全量配置/缓存管理/规则编辑",
       "files": 3,
-      "lines": 4022
+      "lines": 4031
     },
     {
       "dir": "dashboard",

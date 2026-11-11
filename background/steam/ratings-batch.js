@@ -20,6 +20,7 @@ import { lookupAppIdByName } from '../storage/name-index.js';
 import { Logger } from '../storage/logger.js';
 import { getSteamApiStatus } from '../core/api-monitor.js';
 import { metricInc, metricObserve } from '../core/metrics.js'; // v10.7.0：运行指标
+import { withWatchdog } from '../core/mechanisms.js'; // v14.30.0 R4-A：单条目两级看门狗
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：a-b 徽章数据并入 ratings
 
 // v10.1.0：把 AppID 行为统计（a 下载 / b 详情页打开）并入 rating 条目——
@@ -177,7 +178,7 @@ const jobQueue = { running: false, pending: [] };
 // total 取任务起始长度（job.queue 会被批次边界收缩，不可作分母）。
 // Global-chain run snapshot since v14.8.1: the waiting badges show live queue
 // info ("检索中 N/M · 排队 X") from pushes + GET_RATINGS_QUEUE_STATUS polling.
-/** @type {{tabId: number|null, total: number, done: number}|null} */
+/** @type {{tabId: number|null, total: number, done: number, phase?: string, stalled?: {name: string, phase: string, elapsedMs: number}|null}|null} */
 let currentRun = null;
 
 // v14.8.1：模块级推送器（runRatingJob 内的 push 与入队/开跑即时进度共用）
@@ -340,6 +341,9 @@ async function runRatingJob(job) {
   job.deadlineAt = deadlineAt;
   let totalPauseMs = 0;
   let tabDead = false;
+  // v14.30.0 R4-A：任务心跳定时器（finally 统一清理，防 try 内声明后被 finally 丢失）
+  /** @type {ReturnType<typeof setInterval>|null} */
+  let heartbeatTimer = null;
   try {
     // v14.17.0：推送改感知成功——失败置 tabDead（无接收端 = tab 关闭/导航中）
     const push = async (payload) => {
@@ -352,12 +356,21 @@ async function runRatingJob(job) {
     // 收集但从未被消费，UI 配置静默失效）作为基础批大小；API 异常降速仍走
     // PERF_CONFIG（自适应优先于用户偏好）；设置不可达回退 PERF_CONFIG
     let baseBatch = PERF_CONFIG.ratingsBatchSize;
+    // v14.30.0 R4-A：看门狗两级阈值（设置可覆盖，0/未设 = PERF_CONFIG 默认）——
+    // 用户裁决：阈值不是结论而是可调参数，默认偏宽松
+    let itemSoftMs = PERF_CONFIG.ratingsItemSoftWarnMs;
+    let itemHardMs = PERF_CONFIG.ratingsItemHardTimeoutMs;
     try {
       const settings = await getSettings();
       if (settings && settings.ratingsBatchSize) baseBatch = settings.ratingsBatchSize;
+      if (settings && Number(settings.ratingsItemSoftWarnMs) > 0) itemSoftMs = Number(settings.ratingsItemSoftWarnMs);
+      if (settings && Number(settings.ratingsItemHardTimeoutMs) > 0)
+        itemHardMs = Number(settings.ratingsItemHardTimeoutMs);
     } catch {
       /* 设置不可达回退 PERF_CONFIG */
     }
+    // 软阈值必须严格小于硬阈值（误配成"软即硬"会让软阈值失去留证意义）
+    if (itemHardMs > 0 && itemSoftMs >= itemHardMs) itemSoftMs = Math.floor(itemHardMs / 2);
     let batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
     const allNames = job.queue;
     let retried = job.retried === true;
@@ -375,17 +388,53 @@ async function runRatingJob(job) {
     const retryNames = []; // 网络失败/限流（null 或 failed 标记）
     /** @type {{done: boolean, promise: Promise<void>}|null} */
     let anomalyGate = null; // 共享暂停门（所有 worker 等同一窗口，防 N 个独立定时器）
+    // v14.30.0 R4-A：在途条目表（真实起点 + 当前阶段）——软阈值告警与状态栏
+    // "卡在哪一步、已等多久"的证据来源；key = 游戏名
+    /** @type {Map<string, {startedAt: number, phase: string}>} */
+    const inFlight = new Map();
+    /** @type {string} */
+    let lastPhase = '';
+    // 任务级心跳（15s 一次，日志留证"任务还活着 + 卡在哪个阶段"）
+    heartbeatTimer = setInterval(() => {
+      if (tabDead) return;
+      Logger.info(
+        'Steam',
+        `评分任务心跳: ${Math.min(doneCount, totalNames)}/${totalNames} 阶段=${lastPhase || '-'} 在途=${inFlight.size}`
+      );
+    }, PERF_CONFIG.ratingsHeartbeatMs);
+
+    // 最慢在途条目超过软阈值 → 状态栏 stalled 证据（长度 0 或 1，避免推送膨胀）
+    const stalledInfo = () => {
+      if (inFlight.size === 0) return null;
+      const now = Date.now();
+      /** @type {{name: string, phase: string, elapsedMs: number}|null} */
+      let worst = null;
+      for (const [n, v] of inFlight) {
+        const elapsedMs = now - v.startedAt;
+        if (!worst || elapsedMs > worst.elapsedMs) worst = { name: n, phase: v.phase, elapsedMs };
+      }
+      return worst && worst.elapsedMs >= itemSoftMs ? worst : null;
+    };
 
     // v14.7 批次 5：条目级进度（重试轮不重复计数，done 钳到 total）
     // v14.8.1：progress 增 queued（全局链排队任务数）+ 同步 currentRun.done
     const progressPayload = () => {
-      if (currentRun) currentRun.done = Math.min(doneCount, totalNames);
+      const doneNow = Math.min(doneCount, totalNames);
+      const stalled = stalledInfo();
+      if (currentRun) {
+        currentRun.done = doneNow;
+        currentRun.phase = lastPhase;
+        currentRun.stalled = stalled;
+      }
       return {
         progress: {
-          done: Math.min(doneCount, totalNames),
+          done: doneNow,
           total: totalNames,
           degraded: getSteamApiStatus().anomaly,
-          queued: jobQueue.pending.length
+          queued: jobQueue.pending.length,
+          // v14.30.0 R4-A：当前阶段 + 超软阈值的在途条目（无则 null）
+          phase: lastPhase,
+          stalled
         }
       };
     };
@@ -461,25 +510,60 @@ async function runRatingJob(job) {
           await maybePause();
           /** @type {any} */
           let r = null;
+          const itemMeta = { startedAt: Date.now(), phase: 'start' };
+          inFlight.set(name, itemMeta);
           try {
             const urlAppId = job.urlAppIds && job.urlAppIds[name] ? job.urlAppIds[name] : null;
             const img =
               (job.imageData && job.imageData[name]) ||
               (job.appIds && job.appIds[name] ? { appId: job.appIds[name] } : null);
-            r = await getSteamPositiveRate(name, {
-              ignoreNegativeCache: true,
-              appId: urlAppId || (img ? img.appId : null),
-              cover: img ? img.cover : null,
-              // v14.8.2：盲区自愈——miss 时按任务预算回捞站点详情页 appid 信号
-              pageUrl: job.urls && job.urls[name] ? job.urls[name] : null,
-              probeBudget: job.probeBudget || null,
-              // v14.10.0：主机条目 Metacritic 查询预算
-              mcBudget: job.mcBudget || null,
-              // v14.18.0：分类页平台提示（规则 listPlatformHints，空串 = 无）
-              platformHint: job.platformHint || ''
-            });
+            // v14.30.0 R4-A：两级看门狗——软阈值只告警留证（记录条目/阶段/耗时），
+            // 硬阈值才放弃该条目并继续队列（用户裁决：误杀 > 晚发现）
+            r = await withWatchdog(
+              () =>
+                getSteamPositiveRate(name, {
+                  ignoreNegativeCache: true,
+                  appId: urlAppId || (img ? img.appId : null),
+                  cover: img ? img.cover : null,
+                  // v14.8.2：盲区自愈——miss 时按任务预算回捞站点详情页 appid 信号
+                  pageUrl: job.urls && job.urls[name] ? job.urls[name] : null,
+                  probeBudget: job.probeBudget || null,
+                  // v14.10.0：主机条目 Metacritic 查询预算
+                  mcBudget: job.mcBudget || null,
+                  // v14.18.0：分类页平台提示（规则 listPlatformHints，空串 = 无）
+                  platformHint: job.platformHint || '',
+                  // v14.30.0 R4-A：阶段回调（告警留证 / 状态栏 stalled 用）
+                  onPhase: (/** @type {string} */ phase) => {
+                    itemMeta.phase = phase;
+                    lastPhase = phase;
+                  }
+                }),
+              {
+                label: name,
+                softMs: itemSoftMs,
+                hardMs: itemHardMs,
+                onSoftWarn: (info) => {
+                  metricInc('batch.itemSlow', 1);
+                  Logger.warn(
+                    'Steam',
+                    `评分条目慢（不放弃）: ${name} 阶段=${itemMeta.phase} 已 ${info.elapsedMs}ms（软阈值 ${info.thresholdMs}ms）`
+                  );
+                },
+                onTimeout: (info) => {
+                  metricInc('batch.itemTimeout', 1);
+                  Logger.warn(
+                    'Steam',
+                    `评分条目超硬阈值已放弃: ${name} 阶段=${itemMeta.phase} 已 ${info.elapsedMs}ms（硬阈值 ${info.thresholdMs}ms）`
+                  );
+                }
+              }
+            );
+            // 硬阈值放弃：让出队列继续下一条（结果迟到由缓存幂等写入承接）
+            if (r && r.__watchdogTimeout) r = null;
           } catch {
             r = null;
+          } finally {
+            inFlight.delete(name);
           }
           completedInPass.add(name);
           doneCount++;
@@ -550,6 +634,7 @@ async function runRatingJob(job) {
     pushToTab(job.tabId, { ratings: null, done: true });
   } finally {
     clearInterval(keepAlive);
+    if (heartbeatTimer) clearInterval(heartbeatTimer);
   }
 }
 

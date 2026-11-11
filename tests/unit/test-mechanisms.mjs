@@ -5,7 +5,7 @@
  * ——收编 17 份同构实现后的行为契约测试。
  */
 import { describe, it, expect, vi } from 'vitest';
-import { withLock, debounce, createTtlCache, withRetry } from '../../background/core/mechanisms.js';
+import { withLock, debounce, createTtlCache, withRetry, withWatchdog } from '../../background/core/mechanisms.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -108,6 +108,83 @@ describe('mechanisms（批次1 机制工厂）', () => {
       { retries: 1, sleep: async () => {} }
     ).catch((e) => e);
     expect(err.message).toEqual('always');
+  });
+
+  // v14.30.0 R4-A：看门狗两级阈值（软阈值只告警、硬阈值才放弃）
+  it('withWatchdog：软阈值只告警不结算，任务照常完成', async () => {
+    const warns = [];
+    const r = await withWatchdog(
+      async () => {
+        await sleep(80);
+        return 'done';
+      },
+      {
+        label: 'gameX',
+        softMs: 20,
+        hardMs: 200,
+        onSoftWarn: (info) => warns.push(info)
+      }
+    );
+    expect(r).toEqual('done');
+    expect(warns.length).toEqual(1);
+    expect(warns[0].label).toEqual('gameX');
+    expect(warns[0].elapsedMs).toBeGreaterThanOrEqual(20);
+  });
+
+  it('withWatchdog：硬阈值放弃并返回超时标记，任务异常正常透传', async () => {
+    const timeouts = [];
+    const r = await withWatchdog(() => new Promise(() => {}), {
+      label: 'stuck',
+      softMs: 10,
+      hardMs: 30,
+      onSoftWarn: () => {},
+      onTimeout: (info) => timeouts.push(info)
+    });
+    expect(r.__watchdogTimeout).toEqual(true);
+    expect(r.label).toEqual('stuck');
+    expect(timeouts.length).toEqual(1);
+    await expect(
+      withWatchdog(
+        async () => {
+          throw new Error('boom');
+        },
+        { hardMs: 1000 }
+      )
+    ).rejects.toThrow('boom');
+  });
+
+  it('withLock 超时：排队项不执行 task 且链继续推进', async () => {
+    const locked = withLock();
+    const order = [];
+    const holder = locked(async () => {
+      await sleep(60);
+      order.push('holder');
+    });
+    const opts = { timeoutMs: 15, label: 'flush' };
+    const timedOut = locked(async () => order.push('late'), opts);
+    const after = locked(async () => order.push('after'));
+    await expect(timedOut).rejects.toThrow('锁等待超时');
+    await holder;
+    await after;
+    // 超时项在轮到时被取消（不得迟到执行），后续任务不受影响
+    expect(order).toEqual(['holder', 'after']);
+  });
+
+  it('withLock 告警：等待超过 warnMs 告警一次，任务仍执行', async () => {
+    const locked = withLock();
+    const warns = [];
+    const holder = locked(async () => {
+      await sleep(50);
+    });
+    const r = await locked(async () => 'ok', {
+      warnMs: 10,
+      label: 'db-write',
+      onWarn: (info) => warns.push(info)
+    });
+    expect(r).toEqual('ok');
+    expect(warns.length).toEqual(1);
+    expect(warns[0].label).toEqual('db-write');
+    await holder;
   });
 });
 

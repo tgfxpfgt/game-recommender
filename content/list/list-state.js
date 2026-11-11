@@ -28,9 +28,24 @@ const FORCE_FINISH_MS = 45000;
 // 全局态（qs）优先——跨 tab 排队时本 tab 推送无进度可显；两者皆缺回落"等待检索"。
 // Format the waiting badge's visible queue info (pure, unit-tested): pipeline
 // progress from the running job (global snapshot preferred) + queue depth.
+/** 阶段中文名（v14.30.0 R4-A：卡住时告诉用户卡在哪一步）/ phase labels */
+const PHASE_LABELS = {
+  platform: '平台识别',
+  cache: '查缓存',
+  search: '搜索匹配',
+  validate: '校验条目',
+  reviews: '取评价',
+  names: '补全名称',
+  write: '写缓存',
+  start: '启动'
+};
+
 /**
- * @param {{done?: number, total?: number, degraded?: boolean, queued?: number, position?: number}|null} prog
- * @param {{running?: boolean, pending?: number, current?: {done: number, total: number}|null, degraded?: boolean}|null} qs
+ * @param {{done?: number, total?: number, degraded?: boolean, queued?: number, position?: number,
+ *   phase?: string, stalled?: {name?: string, phase?: string, elapsedMs?: number}|null}|null} prog
+ * @param {{running?: boolean, pending?: number,
+ *   current?: {done: number, total: number, phase?: string, stalled?: {name?: string, phase?: string, elapsedMs?: number}|null}|null,
+ *   degraded?: boolean}|null} qs
  * @returns {string}
  */
 export function formatQueueStatusText(prog, qs) {
@@ -47,6 +62,13 @@ export function formatQueueStatusText(prog, qs) {
     parts.push(`排队 ${qs.pending}`);
   } else if (prog && typeof prog.position === 'number' && prog.position > 0) {
     parts.push(`排队中·前方 ${prog.position} 项`);
+  }
+  // v14.30.0 R4-A：软阈值超时 → 明确告知"卡在哪一步、已等多久"（只展示不放弃；
+  // 硬阈值放弃由后台继续队列，前端看到的是该项最终为未找到）
+  const stalled = (cur && cur.stalled) || (prog && prog.stalled) || null;
+  if (stalled && Number(stalled.elapsedMs) >= 1000) {
+    const label = PHASE_LABELS[String(stalled.phase)] || String(stalled.phase || '未知步骤');
+    parts.push(`卡在${label} ${Math.round(Number(stalled.elapsedMs) / 1000)}s`);
   }
   if ((qs && qs.degraded) || (prog && prog.degraded)) parts.push('限流降速');
   return parts.length > 0 ? `⏳ ${parts.join(' · ')}` : '⏳ 等待检索';

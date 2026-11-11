@@ -76,7 +76,12 @@ export const BUDGETS = {
   // 按实测重锁（新增模块，无冗余代码）。
   // v14.30.0 (R4-B): new match-confidence module + suspected-badge CSS; re-locked
   // to the measured values.
-  swGraphBytes: 857074,
+  // v14.30.0（第四轮 R4-A）：单条目两级看门狗——mechanisms 新增 withWatchdog 与
+  // withLock 可选超时、constants 两级阈值（含实测依据注释）、ratings-batch 在途表/
+  // 心跳/软硬阈值接线、orchestrator-list 阶段回调；SW 图 +13.2KB（主体是双语
+  // 根因注释），按实测重锁（新增能力，无冗余代码）。
+  // v14.30.0 (R4-A): two-level per-item watchdog; re-locked to the measured value.
+  swGraphBytes: 870325,
   swGraphFiles: 106,
   staticInjectionBytes: 38663,
   closureBytes: 294466

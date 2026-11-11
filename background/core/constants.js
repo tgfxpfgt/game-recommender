@@ -77,6 +77,28 @@ export const PERF_CONFIG = {
   // v14.17.0：单任务**硬截止**——超过后丢弃剩余项并推送 done 终态（内容侧
   // 立即收尾、队列衔接下一 tab；丢项由刷新重查自愈）。全局链排队等待有界。
   ratingsJobMaxRuntimeMs: 300000,
+  // v14.30.0 R4-A：单条目看门狗**两级阈值**（用户裁决：75000ms 是猜测不是结论）。
+  // 软阈值只**告警留证**（记录条目/阶段/已等时长 + 进度推送 stalled 字段），
+  // 条目不放弃；硬阈值才**放弃该条目**并继续队列（误杀长任务代价 > 晚发现）。
+  // 默认值取值口径（2026-11-11 实测，非估计）：直连 Steam 端点 11 次采样——
+  // storesearch 0.37-1.07s、appdetails 0.44-0.92s、appreviews 1.3-2.2s、
+  // metacritic 1.5s；失败端点耗时 5.3s（community）与 10.6s（steamspy）即网络层
+  // 超时上限。成功调用串行合计 8.2s，含一次降级链的最坏路径实测上界 ≈ 30s。
+  // 故软阈值取 20s（只告警，覆盖正常长尾）、硬阈值取 120s（≈ 最坏路径 4 倍，
+  // 只有真正卡死才命中）。分布未覆盖"每平台 50+ 样本"的重尾验证，故阈值保持
+  // 可覆盖 + 偏宽松，不为凑指标收紧。
+  // Measured on 2026-11-11 (11 real requests): per-stage median ~1.1s, max 2.2s,
+  // failure timeouts 5.3-10.6s, full chain ~8.2s, worst path ~30s → soft 20s,
+  // hard 120s. Tunable at runtime; deliberately loose.
+  // 运行期可覆盖：settings.ratingsItemSoftWarnMs / ratingsItemHardTimeoutMs
+  // （0 = 用本默认；无设置页 UI，见 DEFAULT_SETTINGS 注释），改一处即全链路生效。
+  // Two-level per-item watchdog: the soft threshold only logs evidence (never
+  // abandons), the hard threshold abandons the item and continues the queue.
+  ratingsItemSoftWarnMs: 20000,
+  ratingsItemHardTimeoutMs: 120000,
+  // 任务级心跳（日志）与锁等待告警阈值 / Job heartbeat + lock-wait warn
+  ratingsHeartbeatMs: 15000,
+  lockWaitWarnMs: 5000,
   searchRetryDelayMs: 3000, // 搜索重试间隔
   maxSearchRetries: 1, // 搜索失败重试次数
   detailAbortTimeoutMs: 15000, // 列表页内容脚本 abort 超时
@@ -296,6 +318,11 @@ export const DEFAULT_SETTINGS = {
   uiThemeNightEnd: 7, // 夜间主题结束小时（不含；跨零点窗口 = start > end）
   // v10.7.0 批次5：列表评分批次大小可调（原 60 写死；调大 = 首屏快但请求数多）
   ratingsBatchSize: 60,
+  // v14.30.0 R4-A：单条目看门狗阈值（运行期可覆盖，0 = 用 PERF_CONFIG 默认）。
+  // **有意无设置页 UI**（OPTIONS_ALLOWLIST 登记）：普通用户无从判断该值，默认
+  // 已按偏宽松取值；需要调参的高级用户可改备份 JSON 后恢复，或用扩展存储写入。
+  ratingsItemSoftWarnMs: 0,
+  ratingsItemHardTimeoutMs: 0,
   // v10.4.0：详情页浮窗（Steam 信息）默认形态
   detailFloatExpanded: true, // 默认展开（false = 创建即折叠，可点击标题栏展开）
   detailFloatSide: 'left', // 浮窗位置：left（左上，默认）| right（右上）

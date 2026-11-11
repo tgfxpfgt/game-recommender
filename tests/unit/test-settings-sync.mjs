@@ -50,7 +50,13 @@ const OPTIONS_ALLOWLIST = {
   vmFilterKeywords: '旧兼容字段：v6.4.19 起 filterRules 取代，UI 已移除',
   filterKeywords: '旧兼容字段：v6.4.8 起 filterRules 取代，UI 已移除',
   filterMatchMode: '旧兼容字段：filterRules 语义内建排除词，UI 已移除',
-  itadApiKey: '旧兼容字段：v6.4.19 起 itadProfiles 多配置取代'
+  itadApiKey: '旧兼容字段：v6.4.19 起 itadProfiles 多配置取代',
+  // v14.30.0 R4-A：看门狗阈值有意无设置页 UI——普通用户无从判断毫秒级取值，
+  // 默认已按偏宽松取值；高级用户可改备份 JSON 后恢复（运行期读取生效）
+  ratingsItemSoftWarnMs:
+    '无 UI（有意）：单条目看门狗软阈值（只告警留证），默认取 PERF_CONFIG，高级用户经备份 JSON 调整',
+  ratingsItemHardTimeoutMs:
+    '无 UI（有意）：单条目看门狗硬阈值（放弃并继续队列），默认取 PERF_CONFIG，高级用户经备份 JSON 调整'
 };
 
 test('DEFAULT_SETTINGS 顶层键全部同步设置层（options 层引用）', () => {

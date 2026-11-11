@@ -329,6 +329,19 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
+  // v14.30.0 R4-A：阶段回调——供批量链看门狗"卡在哪一步"留证与状态栏展示；
+  // 观测出口异常绝不影响主流程（calling code 出错不能变成检索失败）
+  const onPhase = typeof options.onPhase === 'function' ? options.onPhase : null;
+  const phase = (/** @type {string} */ p) => {
+    if (!onPhase) return;
+    try {
+      onPhase(p);
+    } catch {
+      /* 观测出口异常不改变检索语义 */
+    }
+  };
+  phase('platform');
+
   // v14.10.0（用户需求：主机/模拟器条目 + 评分优先 Metacritic）：非 PC 平台
   // 识别在**一切 Steam 检索之前**——模拟器 ROM 包检索必错配（标题含大量游戏
   // 名片段），主机独占 Steam 无数据。模拟器 → 平台标签徽章（零网络）；主机 →
@@ -376,6 +389,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   };
 
   // 2. 若有 appId，检查 Steam 动态缓存（含 Demo 自愈；v3.3.7：rating 模块有效判定）
+  phase('cache');
   let usableAppId = appId;
   if (appId) {
     const cached = await readCachedOnce(appId);
@@ -422,6 +436,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     /** @type {string|null} */
     let searchSource = null;
     if (!foundAppId) {
+      phase('search');
       const hit = await phaseSearch(gameName, options, corr, usableAppId);
       if (!hit) return null;
       foundAppId = hit.appId;
@@ -443,6 +458,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     /** @type {string|null} */
     let appType = null;
     if (foundAppId) {
+      phase('validate');
       // v3.3.7：缓存 type 从合并视图读取（meta 模块）
       const cachedType = usableAppId ? (await readCachedOnce(usableAppId)) || null : null;
       const cachedTypeVal = cachedType ? (getMergedData(cachedType) || {}).type : null;
@@ -472,6 +488,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     // 5. 获取评价统计（好评率 + 近 30 天好评率，v3.3.6 一次请求同取）。
     //    获取失败（网络/限流）→ 不写缓存并标记 failed，
     //    下次访问自动重试（避免 null 固化导致长期只显示 AppID）。
+    phase('reviews');
     const reviewSummary = await fetchReviewSummary(foundAppId);
     // v10.5.3：最终生效的评测统计——0 评测重搜本体成功后由 rs2 覆盖（此前
     // mergedData/返回值仍读旧 appId 的 reviewSummary，total 与新 appId 不一致）
@@ -517,6 +534,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let fetchedReleaseDate = '';
     let fetchedComingSoon = false;
     if (positiveRate === null) {
+      phase('names');
       // 英文名缺失时才并行补英文（避免 validateSteamNames 误判重搜）
       const needsEn = !/[A-Za-z]{2,}/.test(officialEn);
       const [cnData, enData] = await Promise.all([
@@ -558,6 +576,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     //    v3.3.6：近 30 天好评率随同一请求写入缓存（徽章三段式数据源）。
     //    v3.3.7：existing 为模块合并视图（setSteamCacheEntry 按字段自动路由，
     //    只更新 meta/rating 模块，detail/spy 保留）。
+    phase('write');
     //    v3.3.8：列表页独立获取最近更新日期（不依赖详情页访问；缓存已有则复用；
     //    GetNewsForApp 在 api.steampowered.com 独立限流域，不影响商店 API 配额）。
     const existing = usableAppId ? getMergedData(await readCachedOnce(usableAppId)) || {} : {};
