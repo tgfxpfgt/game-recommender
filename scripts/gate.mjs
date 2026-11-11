@@ -18,6 +18,7 @@ import { spawn, execSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluateStep } from './check-suite-budget.mjs';
+import { recordStepCost, reportCostAnomalies } from './test-cost-history.mjs'; // v14.28.11：开销历史与异常发现
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fast = process.argv.includes('--fast');
@@ -38,6 +39,10 @@ const STEP_BUDGET_IDS = {
 const TAIL_LINES = 25;
 const RING_LINES = 200; // 环形保留：够算末 25 行 + 首个错误行，不无界吃内存
 const GATE_STARTED_AT = Date.now();
+// v14.28.11（用户指令：测试开销有记录、异常及时发现）：本次各步骤耗时入内存
+// + 追加 gitignored 历史（scripts/.gate-costs.jsonl）；收尾与近期中位数对比告警。
+// 变口径步骤（fast vitest 耗时随变更面变化）记录但不参与异常判定。
+const currentStepRuns = [];
 
 // v14.28.9（L3 诊断信息）：失败一次给足线索——步骤名/退出码/末 N 行/首个错误行。
 // 实时流式回显（信息量不减）+ 环形缓冲留存摘要，避免为拿线索重跑全量或翻日志。
@@ -121,6 +126,8 @@ async function step(name, cmd, env = {}) {
   const started = Date.now();
   const r = await runCaptured(cmd, env);
   const ms = Date.now() - started;
+  currentStepRuns.push({ step: name, ms, code: r.code });
+  recordStepCost(fast ? 'fast' : 'full', name, ms, r.code);
   const reasons = [];
   if (r.code !== 0) reasons.push(`exit ${r.code}`);
   const budgetId = STEP_BUDGET_IDS[name];
@@ -251,6 +258,13 @@ await step('release-smoke（发布打包冒烟）', 'npm run package');
 const totalMs = Date.now() - GATE_STARTED_AT;
 const totalBudgetId = fast ? 'gateFast' : 'gateFull';
 const totalBudget = evaluateStep(totalBudgetId, totalMs);
+recordStepCost(fast ? 'fast' : 'full', '整条门禁', totalMs, failedSteps.length > 0 || totalBudget.over ? 1 : 0);
+// v14.28.11：开销异常发现（对失败路径也输出——异常与失败常同源）
+reportCostAnomalies(
+  fast ? 'fast' : 'full',
+  currentStepRuns,
+  new Set(['vitest（受影响套件，白名单单源触碰自动升级全量）'])
+);
 console.log(
   `\n⏱️ 整条门禁墙钟: ${totalMs}ms${totalBudget.capMs ? ` / 预算 ${totalBudget.capMs}ms（${totalBudgetId}）` : `（${totalBudgetId} 暂无预算）`}`
 );

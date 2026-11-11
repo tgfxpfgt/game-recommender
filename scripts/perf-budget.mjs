@@ -122,7 +122,13 @@ export const BUDGETS = {
   // 逻辑；其中 +2B 是版本号注释归位本身），静态注入/内容闭包未超。按实测重锁。
   // v14.28.10 (debt-clearing batch): wave-1 miss bucketing, free-games write
   // amplification fix and all-source failure guard; re-locked to measured size.
-  swGraphBytes: 920183,
+  // v14.28.11：+18B = pre-commit 钩子的 prettier 对 background/freegames/manager.js
+  // 的提交时重排（perf-budget 在提交前测量，钩子格式化后入库内容略大；逻辑零变更）。
+  // 教训：pre-commit 格式化会移动字节——重锁后批次提交前先 `npx prettier --write`
+  // 过一遍改动文件，避免"测量态 ≠ 入库态"的二次红。
+  // v14.28.11: +18B = pre-commit prettier reformat of manager.js (measured
+  // pre-commit; re-locked to the committed size, no logic change).
+  swGraphBytes: 920201,
   swGraphFiles: 107,
   staticInjectionBytes: 38663,
   closureBytes: 295062

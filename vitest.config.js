@@ -68,6 +68,7 @@ export default defineConfig({
       'tests/unit/test-match-consensus.mjs',
       'tests/unit/test-match-confidence.mjs', // v14.28.6 R4-B：三要素置信度 + 第一波平台预检
       'tests/unit/test-check-stubs.mjs', // v14.28.6 R4-D：占位实现/契约→handler 缺口门禁
+      'tests/unit/test-cost-history.mjs', // v14.28.11：测试开销历史与异常发现（中位数/阈值/容错）
       'tests/unit/test-health.mjs',
       'tests/unit/test-wiring.mjs',
       'tests/unit/test-settings-sync.mjs',

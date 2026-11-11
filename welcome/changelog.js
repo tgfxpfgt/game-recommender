@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.28.11',
+        date: '2026-11-12',
+        items: [
+          '新增用户指令两条纪律入 AGENTS.md：每批工作闭环做完不留半成品（留未完成须先确认）/ 测试开销要有记录异常及时发现',
+          'gate 每步骤耗时自动记录 scripts/.gate-costs.jsonl（gitignored）+ 收尾滚动中位数对比，超 1.5× 中位数告警（拦静态预算 cap 之下的缓慢漂移）；新套件 test-cost-history 6 用例',
+          'mutation-check 改异步 spawn + 超时进程树击杀（taskkill /T /F）——根治 spawnSync 只杀直属子进程遗留孤儿导致的楔死级联（实测 network 变异间歇 240s 超时 3 次）'
+        ]
+      },
+      {
         ver: '14.28.10',
         date: '2026-11-11',
         items: [

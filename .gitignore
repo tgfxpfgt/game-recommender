@@ -72,3 +72,4 @@ tests/visual/diff/
 .diag-store*.html
 comm-probe.html
 gh-probe.html
+scripts/.gate-costs.jsonl

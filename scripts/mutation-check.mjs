@@ -16,7 +16,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -34,15 +34,52 @@ function isDirty(rel) {
   return r1.status !== 0 || r2.status !== 0;
 }
 
+// v14.28.11（楔死级联根治，D-2 教训：门禁不得靠挂死当兜底）：spawnSync 的
+// timeout 只杀 cmd.exe 直属子进程，npm→vitest 孙进程存活并持有输出管道——
+// 本进程与后续运行被级联楔死（实测 gate 内 240s 超时 3/5 次，隔离亦间歇）。
+// 改异步 spawn + 超时对**整棵进程树** taskkill /T /F（Windows 语义），超时
+// 后不再留孤儿。语义不变：124 仍判「未拦截」（超时判红，不会假绿）。
+// Async spawn + process-tree kill on timeout: spawnSync only killed the direct
+// cmd.exe child, leaving npm→vitest grandchildren holding the pipes (wedging
+// later runs). Semantics unchanged: 124 still means "not intercepted".
 function runCheck(cmd) {
-  const started = Date.now();
-  const r = spawnSync(cmd, { cwd: ROOT, shell: true, encoding: 'utf-8', timeout: CHECK_TIMEOUT_MS });
-  const out = `${r.stdout || ''}${r.stderr || ''}`;
-  return {
-    code: r.status === null ? 124 : r.status,
-    ms: Date.now() - started,
-    tail: out.trim().split(/\r?\n/).slice(-3).join(' | ')
-  };
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const child = spawn(cmd, { cwd: ROOT, shell: true, stdio: ['ignore', 'pipe', 'pipe'] });
+    let out = '';
+    let done = false;
+    /** @param {string} s */
+    const feed = (s) => {
+      out += s;
+      if (out.length > 64 * 1024) out = out.slice(-32 * 1024); // 环形截断防无界
+    };
+    child.stdout.setEncoding('utf-8');
+    child.stderr.setEncoding('utf-8');
+    child.stdout.on('data', feed);
+    child.stderr.on('data', feed);
+    /** @param {number} code */
+    const finish = (code) => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      resolve({
+        code,
+        ms: Date.now() - started,
+        tail: out.trim().split(/\r?\n/).slice(-3).join(' | ')
+      });
+    };
+    const timer = setTimeout(() => {
+      try {
+        // taskkill /T = 整棵树（cmd.exe→npm→vitest forks），/F = 强制
+        spawnSync('taskkill', ['/pid', String(child.pid), '/T', '/F'], { stdio: 'ignore' });
+      } catch {
+        /* 击杀失败按原语义交给 124 判定 */
+      }
+      finish(124);
+    }, CHECK_TIMEOUT_MS);
+    child.on('error', () => finish(124));
+    child.on('close', (code) => finish(code === null ? 124 : code));
+  });
 }
 
 /** @type {Array<{id: string, file: string, original: string, timer: any}>} */
@@ -84,7 +121,7 @@ for (const m of PLAN.mutations) {
   let r = null;
   try {
     fs.writeFileSync(abs, mutated, 'utf-8');
-    r = runCheck(m.check);
+    r = await runCheck(m.check); // v14.28.11：异步 + 进程树击杀
   } finally {
     fs.writeFileSync(abs, original, 'utf-8');
     const idx = pending.findIndex((p) => p.id === m.id);
