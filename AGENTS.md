@@ -21,6 +21,7 @@ npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强
 npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
 npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
 npm run check:modules  # 模块索引（docs/modules/INDEX.md）漂移 + 豁免登记校验；重生成 node scripts/gen-module-index.mjs
+npm run check:stubs    # 占位实现（TODO/未实现抛错）+ 契约→handler 缺口；唯一豁免 @stub-ok: <原因>
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 ```
 

@@ -21,8 +21,22 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_REL = 'docs/modules/INDEX.md';
-// 索引覆盖的模块目录（其余目录的 @stub-ok 视为"未登记"）
-export const SCAN_DIRS = ['background', 'content', 'data', 'lib', 'shared', 'adapters'];
+// 索引覆盖的模块目录（其余目录的 stub-ok 标记视为"未登记"）
+// 覆盖所有随包发布的 JS（含页面层）；lib/vendor 是第三方代码，扫描时跳过。
+export const SCAN_DIRS = [
+  'background',
+  'content',
+  'data',
+  'lib',
+  'shared',
+  'adapters',
+  'options',
+  'dashboard',
+  'popup',
+  'freegames',
+  'hub',
+  'welcome'
+];
 
 const MAX_DEPS = 8;
 const MAX_EXPORTS = 6;
@@ -33,6 +47,7 @@ function listJs(dirAbs) {
   /** @type {string[]} */
   const out = [];
   for (const ent of fs.readdirSync(dirAbs, { withFileTypes: true })) {
+    if (ent.name === 'vendor') continue; // 第三方 vendored 代码不入索引
     const abs = path.join(dirAbs, ent.name);
     if (ent.isDirectory()) out.push(...listJs(abs));
     else if (ent.isFile() && ent.name.endsWith('.js')) out.push(abs);
@@ -107,13 +122,13 @@ function pickInvariants(src) {
   return out;
 }
 
-/** @stub-ok 豁免（原因文本必填）/ stub exemptions (reason mandatory) */
+/** 豁免标记（冒号 + 原因文本必填；与 check-stubs 同一口径）/ stub exemptions */
 function pickStubs(src) {
   const out = [];
-  const re = /@stub-ok:?([^\n]*)/g;
+  const re = /@stub-ok:\s*([^\n]*)/g;
   let m;
   while ((m = re.exec(src)) !== null) {
-    const reason = m[1].replace(/^[\s*]+/, '').trim();
+    const reason = m[1].replace(/\s*\*\/\s*$/, '').trim();
     out.push(reason);
   }
   return out;
@@ -203,9 +218,14 @@ export function buildIndex() {
 /** 索引未覆盖目录里出现 @stub-ok → 未登记 / unregistered exemptions */
 export function findUnregisteredStubs() {
   const bad = [];
-  const skip = new Set(['node_modules', 'dist', 'coverage', '.git', 'release', '.extension-js']);
+  // tests/ 是夹具（门禁测试自身要写标记字面量），不是随包发布的实现代码
+  const skip = new Set(['node_modules', 'dist', 'coverage', '.git', 'release', '.extension-js', 'tests']);
   // 标记定义自身（生成器/校验器）不参与扫描——它们的正则字面量与说明必须出现该词
-  const selfFiles = new Set(['scripts/gen-module-index.mjs', 'scripts/check-module-index.mjs']);
+  const selfFiles = new Set([
+    'scripts/gen-module-index.mjs',
+    'scripts/check-module-index.mjs',
+    'scripts/check-stubs.mjs'
+  ]);
   const walk = (dirAbs) => {
     for (const ent of fs.readdirSync(dirAbs, { withFileTypes: true })) {
       if (ent.name.startsWith('.')) continue;

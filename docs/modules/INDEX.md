@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 152，其中声明不变式 4。
+> 模块数 179，其中声明不变式 4。
 
 ## adapters/default.js
 
@@ -243,6 +243,54 @@
 | --- | --- | --- | --- | --- |
 | `content/tracking/download-tracking.js` | 下载追踪模块 | `content/core/common`<br>`content/core/debug`<br>`content/detail/detect-name` | isDownloadUrl<br>isDownloadText<br>setupDownloadTracking | — |
 
+## dashboard/dash-backups.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-backups.js` | Dashboard 备份模块 | — | — | — |
+
+## dashboard/dash-diagnostics.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-diagnostics.js` | Dashboard 诊断模块 | — | — | — |
+
+## dashboard/dash-export.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-export.js` | Dashboard 导出模块 | — | — | — |
+
+## dashboard/dash-insights.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-insights.js` | Dashboard 洞察模块 | — | — | — |
+
+## dashboard/dash-logs.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-logs.js` | Dashboard 运行日志与分页模块 | — | — | — |
+
+## dashboard/dash-radar.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-radar.js` | Dashboard 画像雷达（第九轮 B3）/ Profile Radar | — | — | — |
+
+## dashboard/dash-stats.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dash-stats.js` | Dashboard 统计模块 | — | — | — |
+
+## dashboard/dashboard.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `dashboard/dashboard.js` | Dashboard 壳 | — | — | — |
+
 ## data/data-store.js
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
@@ -261,17 +309,69 @@
 | --- | --- | --- | --- | --- |
 | `data/storage-registry.js` | 存储模块注册表（单源）/ Storage Module Registry | — | STORAGE_MODULES<br>LEGACY_BACKUP_KEYS | — |
 
+## freegames/freegames.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `freegames/freegames.js` | Free Games Script | — | — | — |
+
+## hub/hub.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `hub/hub.js` | 设置中心逻辑 | — | — | — |
+
 ## lib/ndjson.js
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `lib/ndjson.js` | ND-JSON (JSON Lines) 编解码 | — | NDJSON | — |
 
-## lib/vendor
+## options/options.js
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
-| `lib/vendor/qrcode-reader.js` | — | — | — | — |
+| `options/options.js` | 设置页入口 | — | — | — |
+
+## options/panels
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `options/panels/cache-formatters.js` | 缓存面板格式化器 | — | — | — |
+| `options/panels/cache.js` | 游戏缓存面板模块 | — | — | — |
+| `options/panels/data-manage.js` | 数据管理面板模块 | — | — | — |
+| `options/panels/favorites.js` | 收藏折扣与周报面板模块 | — | — | — |
+| `options/panels/reset-defaults.js` | 设置页每项"恢复默认"微按钮 | — | — | — |
+| `options/panels/rules.js` | 规则管理面板模块 | — | — | — |
+| `options/panels/search.js` | 搜索与过滤面板模块 | — | — | — |
+| `options/panels/settings-bind.js` | 设置面板事件绑定 | — | — | — |
+| `options/panels/settings-render.js` | 设置面板渲染器 | — | — | — |
+| `options/panels/settings.js` | 设置面板（浮窗模块顺序）/ Settings Panel (FM Order) | — | — | — |
+| `options/panels/sites.js` | 站点管理与数据源面板模块 | — | — | — |
+
+## popup/popup-search.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `popup/popup-search.js` | Popup 快速搜索 | — | — | — |
+
+## popup/popup-status.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `popup/popup-status.js` | Popup 状态区渲染 | — | — | — |
+
+## popup/popup-weights.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `popup/popup-weights.js` | Popup 权重滑块 | — | — | — |
+
+## popup/popup.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `popup/popup.js` | Popup Script（装配壳）/ Popup (shell) | — | — | — |
 
 ## shared/crypto-utils.js
 
@@ -344,6 +444,18 @@
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `shared/spy-scales.js` | SteamSpy 信号归一化刻度单源 | — | SPY_SCALES | — |
+
+## welcome/changelog.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `welcome/changelog.js` | 版本更新记录数据 | — | — | — |
+
+## welcome/welcome.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `welcome/welcome.js` | 欢迎页 | — | — | — |
 
 ## 豁免登记 / Stub Exemptions
 

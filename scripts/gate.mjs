@@ -63,6 +63,8 @@ step('check:docs（文档版本/索引一致性）', 'node scripts/check-doc-ver
 // v14.30.0 R4-C：模块索引漂移/豁免合规——索引腐烂比没有索引更危险；重生成
 // 一条命令（node scripts/gen-module-index.mjs），漏登记豁免视为未实现。
 step('check:modules（模块索引/豁免登记）', 'node scripts/check-module-index.mjs');
+// v14.30.0 R4-D：占位实现 + 契约→handler 缺口——"看着像做完了"的两类假完成。
+step('check:stubs（占位实现/契约缺口）', 'node scripts/check-stubs.mjs');
 step('lint', 'npm run lint');
 step('typecheck', 'npm run typecheck');
 const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };
