@@ -22,7 +22,7 @@ import {
   ensureValidRegistryNames,
   needsRatingRefetch,
   hasInvertedReviewCounts, // v14.21.0：评价数倒挂污染指纹（旧回退误写条目自愈）
-  isCompleteCacheData,
+  planDetailRefresh, // v14.29.x：缓存残缺时的模块级部分刷新计划
   namesRelated,
   coreTokensOf // v14.6.2 审查 A11：英文内容词单源（排噪声词）
 } from './api.js';
@@ -31,7 +31,8 @@ import {
   getModuleData,
   getMergedData,
   getSteamCacheEntry,
-  setSteamCacheEntry
+  setSteamCacheEntry,
+  isDetailCacheComplete // v14.29.x：完整性单源（按字段所属模块判定）
 } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
 import {
@@ -159,12 +160,20 @@ export async function searchSteamGame(gameName, options = {}) {
   //    拉取只更新 detail/spy 模块，meta/rating 保留）。
   //    v3.3.10：命中前校验标题与缓存名相关——名称索引粘性条目（历史误写
   //    钉死 appId）在此被推翻，转重新搜索自愈（如 16598 页误钉 2001760）
+  // v14.29.x：缓存未命中时的部分刷新上下文（仅 appId 分支可产生；声明在
+  // 函数作用域供下方拉取段消费——无缓存条目时保持 undefined = 全量拉取）
+  /** @type {string[]|undefined} */
+  let refreshModules;
+  /** @type {Record<string, any>|null|undefined} */
+  let cachedMerged;
   if (appId) {
     // v14.14.0（重构序 6b）：命中判定/Demo 自愈/注册表补写提取为 tryCacheServed
     const hit = await tryCacheServed(gameName, appId);
     // v14.28.7 R4-B3：命中同样标置信度（来源链 = 上图取/名称索引/人工纠正）
     if (hit.served && hit.merged) return attachMatch(hit.merged, gameName, pageTitle, appIdSource);
     appId = hit.appId ?? null;
+    refreshModules = hit.refreshModules;
+    cachedMerged = hit.cachedMerged;
   } else if (!options.ignoreNegativeCache && (await isRecentlySearchedNotFound(gameName))) {
     // 3. 无 appId 时，检查负缓存（v10.9.2：ignoreNegativeCache 可穿透——详情页
     // 对未命中自动重试一次，历史失败遗留的负缓存不再永久阻断自动匹配）
@@ -191,38 +200,42 @@ export async function searchSteamGame(gameName, options = {}) {
       appIdSource = flow.source;
       appIdTrusted = true;
     }
-    const first = await fetchDetailsResolveDlc(appId);
+    const first = await fetchDetailsResolveDlc(appId, refreshModules);
     if (!first) return null;
     appId = first.appId;
     let result = first.detail;
-    if (!namesRelated(gameName, result.name)) {
+    // 部分刷新：返回给 UI/校验用"旧合并视图 + 本次补到的字段"
+    // Partial refresh: UI/validation see the old merged view + the fields fetched now.
+    let view = refreshModules && cachedMerged ? { ...cachedMerged, ...result } : result;
+    if (!namesRelated(gameName, view.name)) {
       if (appIdTrusted) {
         // 搜索流/纠正来源自带相关性校验，仍不相关 = 罕见边界（如改名）——
         // 保留结果（劣于反复重搜）；Trusted origins carry their own checks.
-        Logger.warn('Steam', `相关性护栏: 可信来源 appId ${appId} ("${result.name}") 与 "${gameName}" 不相关，保留`);
+        Logger.warn('Steam', `相关性护栏: 可信来源 appId ${appId} ("${view.name}") 与 "${gameName}" 不相关，保留`);
       } else {
         Logger.warn(
           'Steam',
-          `相关性护栏: 直取/索引 appId ${appId} ("${result.name}") 与标题 "${gameName}" 不相关，转标题重搜`
+          `相关性护栏: 直取/索引 appId ${appId} ("${view.name}") 与标题 "${gameName}" 不相关，转标题重搜`
         );
         const again = await searchAppIdFlow(gameName, options, excludeAppId);
         if (!again) return null;
         appId = again.appId;
         appIdSource = again.source;
         appIdTrusted = true;
-        const second = await fetchDetailsResolveDlc(appId);
+        const second = await fetchDetailsResolveDlc(appId); // 重搜后 appId 已变，plan 必须丢弃
         if (!second) return null;
         appId = second.appId;
         result = second.detail;
+        view = result;
       }
     }
 
     // 6. 写入三层缓存（动态缓存+注册表+名称索引）——v14.14.0（重构序 6b）
-    // 提取为 writeSearchCaches
-    await writeSearchCaches(appId, result, gameName);
+    // 提取为 writeSearchCaches；写缓存只写 result（picked 子集），view 仅供返回
+    await writeSearchCaches(appId, result, gameName, view);
 
     // v14.28.7 R4-B3：置信度在缓存写入之后打标——不落盘（规则升级即生效）
-    return attachMatch(result, gameName, pageTitle, appIdSource);
+    return attachMatch(view, gameName, pageTitle, appIdSource);
   } catch (error) {
     console.error('Steam API 调用失败:', error);
     return null;
@@ -355,10 +368,11 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
 // 数据归属 DLC 而非本体，需替换后重取本体详情。
 /**
  * @param {string|number} id
- * @returns {Promise<{appId: string|number, detail: Object}|null>}
+ * @param {string[]} [refreshModules] - 部分刷新计划（缺省 = 全量）
+ * @returns {Promise<{appId: string|number, detail: Record<string, any>}|null>}
  */
-async function fetchDetailsResolveDlc(id) {
-  let r = await fetchSteamFullDetailsByAppId(id);
+async function fetchDetailsResolveDlc(id, refreshModules) {
+  let r = await fetchSteamFullDetailsByAppId(id, { refreshModules });
   if (!r) return null;
   // finalId 保留调用方原始类型（number appId 写名称索引的类型契约，
   // test-handlers 断言 lookupAppIdByName 返回 number）——仅 DLC 解析时
@@ -368,6 +382,7 @@ async function fetchDetailsResolveDlc(id) {
     const baseId = r.fullgame.appid || r.fullgame.appId || '';
     if (baseId && String(baseId) !== String(id)) {
       Logger.info('Steam', `DLC 解析: ${r.name} (DLC ${id}) → 本体 ${baseId} (${r.fullgame.name || ''})`);
+      // DLC → 本体：plan 属于原 appId，丢弃按全量重取
       const baseResult = await fetchSteamFullDetailsByAppId(baseId);
       if (baseResult) {
         finalId = baseId;
@@ -385,9 +400,20 @@ async function fetchDetailsResolveDlc(id) {
  * 缓存命中判定（重构序 6b）：detail 模块有效且完整、无好评率重取需求、名称
  * 相关 → 命中（幂等补写注册表后返回 merged）；Demo 缓存无好评率或 appId 本身
  * 为 Demo → 返回 served:false + appId:null 触发重搜完整版。
+ * v14.29.x：完整性改用 isDetailCacheComplete(entry)（传整个条目，按字段所属
+ * 模块判定；旧判定在 detail 数据里找 meta 字段 name/headerImage 恒假）。
+ * 命中仍要求 detail 模块 TTL 有效——TTL 过期 / 字段缺失 / 缺
+ * cnReviewsFetchedAt / 好评率需重取时都算未命中；未命中返回部分刷新计划
+ * （refreshModules）与旧合并视图（cachedMerged）供调用方只补缺失模块。
  * @param {string} gameName
  * @param {string|number} appId
- * @returns {Promise<{served: boolean, merged?: Object, appId?: string|number|null}>}
+ * @returns {Promise<{
+ *   served: boolean,
+ *   merged?: Object,
+ *   appId?: string|number|null,
+ *   refreshModules?: string[],
+ *   cachedMerged?: Record<string, any>|null
+ * }>}
  */
 async function tryCacheServed(gameName, appId) {
   const cached = await getSteamCacheEntry(appId, 'detail');
@@ -400,7 +426,7 @@ async function tryCacheServed(gameName, appId) {
     detail &&
     merged.appId &&
     merged.name &&
-    isCompleteCacheData(detail) &&
+    isDetailCacheComplete(cached) &&
     !needsRatingRefetch(merged) &&
     !hasInvertedReviewCounts(merged) &&
     // v14.24.0（用户报告：浮窗依旧没有具体评论）：缺评论回填标记的旧缓存条目
@@ -433,7 +459,13 @@ async function tryCacheServed(gameName, appId) {
     // 缓存缺失/过期且该 appId 是 Demo 版 → 重新搜索完整版
     return { served: false, appId: null };
   }
-  return { served: false, appId };
+  return {
+    served: false,
+    appId,
+    // 有缓存条目 → 模块级部分刷新计划；无条目 → undefined（全量拉取）
+    refreshModules: cached ? planDetailRefresh(cached, merged) : undefined,
+    cachedMerged: cached ? merged : null
+  };
 }
 
 // ============ 三层缓存写入（v14.14.0 提取）/ Cache writes ============
@@ -441,31 +473,37 @@ async function tryCacheServed(gameName, appId) {
 /**
  * 三层缓存写入（重构序 6b）：好评率重试计数 + Steam 动态缓存 + 游戏注册表
  * （中英文名+变体+封面）+ 名称索引（官方中英文名离线化覆盖）。
+ * v14.29.x：部分刷新时 result 只含本次刷到的模块字段（picked 子集）——
+ * rating 字段缺失 = 本次未刷新 rating，不改 ratingFailCount / 走势历史；
+ * 写缓存只写 result；注册表与名称索引读 view（旧合并视图 + 新字段）。
  * @param {string|number} appId
  * @param {Record<string, any>} result
  * @param {string} gameName
+ * @param {Record<string, any>} [view]
  */
-async function writeSearchCaches(appId, result, gameName) {
-  {
+async function writeSearchCaches(appId, result, gameName, view = result) {
+  // 只在本次真的刷新了 rating 时处理好评率失败计数/走势（picked 子集不含
+  // positiveRate 时 hasOwnProperty 为 false）
+  if (Object.prototype.hasOwnProperty.call(result, 'positiveRate')) {
     const oldCached = await getSteamCacheEntry(appId);
     const oldRating = oldCached ? getModuleData(oldCached, 'rating') : null;
     const oldCount = (oldRating && oldRating.ratingFailCount) || 0;
     result.ratingFailCount = result.positiveRate == null ? oldCount + 1 : 0;
+    appendRatingHistory(result, result.positiveRate); // v14.15.0 N1：走势点（成功重取才入点）
   }
-  appendRatingHistory(result, result.positiveRate); // v14.15.0 N1：走势点（成功重取才入点）
   await setSteamCacheEntry(appId, result);
   await recordGameInRegistry(appId, {
-    cnName: result.name,
-    enName: result.englishName || result.name,
+    cnName: view.name,
+    enName: view.englishName || view.name,
     gameName,
-    tags: result.genres,
-    coverImage: result.headerImage || ''
+    tags: view.genres,
+    coverImage: view.headerImage || ''
   });
   await recordNameIndex(gameName, appId);
   // v14 F3：官方中英文名也入名称索引——后续任一名称搜索均先命中本地字典，
   // 不再出网（扩大 appId 离线清单覆盖率）
-  if (result.name && result.name !== gameName) await recordNameIndex(result.name, appId).catch(() => {});
-  if (result.englishName && result.englishName !== result.name && result.englishName !== gameName) {
-    await recordNameIndex(result.englishName, appId).catch(() => {});
+  if (view.name && view.name !== gameName) await recordNameIndex(view.name, appId).catch(() => {});
+  if (view.englishName && view.englishName !== view.name && view.englishName !== gameName) {
+    await recordNameIndex(view.englishName, appId).catch(() => {});
   }
 }

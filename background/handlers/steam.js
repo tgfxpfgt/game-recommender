@@ -6,7 +6,7 @@ import {
   searchSteamAppId,
   fetchSteamFullDetailsByAppId,
   scanAndHealRegistry,
-  isCompleteCacheData,
+  planDetailRefresh, // v14.29.x：缓存残缺时的模块级部分刷新计划
   namesRelated,
   findVersionVariant,
   needsRatingRefetch, // v14.24.0：URL 缓存先行命中判定（与 tryCacheServed 同口径）
@@ -28,7 +28,8 @@ import {
   isModuleValid,
   getModuleData,
   getMergedData,
-  latestModuleTs
+  latestModuleTs,
+  isDetailCacheComplete // v14.29.x：完整性单源（按字段所属模块判定）
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
 import { setManualPlatform, flushManualPlatforms } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
@@ -109,11 +110,11 @@ async function doHandleSearchSteam(message, sender) {
   //（appdetails×2+商店页+评测+spy+公告 ~6 出站请求），缓存完全被绕过——每次
   // 打开详情页都慢。现缓存先行：有效完整条目（含好评率重取/倒挂自愈/评论回填
   // 标记/名称相关性四重判定，与 orchestrator tryCacheServed 同口径）直接合并
-  // 返回零出站；未命中才转全量拉取。
+  // 返回零出站；未命中才刷新——v14.29.x 起按模块级计划只补残缺模块。
   // v14.24.0: cache-first on the URL-index hit — the path used to bypass the
   // cache entirely (~6 outbound requests every visit). A valid complete entry
   // (same guard set as orchestrator tryCacheServed) is served with zero
-  // outbound requests; otherwise fall through to the full fetch.
+  // outbound requests; otherwise fall through to a (partial) refresh.
   if (pageUrl) {
     const urlAppId = await getAppIdByUrl(pageUrl);
     if (urlAppId) {
@@ -128,7 +129,7 @@ async function doHandleSearchSteam(message, sender) {
         cachedMerged &&
         cachedMerged.appId &&
         cachedMerged.name &&
-        isCompleteCacheData(cachedDetail) &&
+        isDetailCacheComplete(cachedEntry) && // v14.29.x：传整个条目（字段按所属模块读）
         !needsRatingRefetch(cachedMerged) &&
         !hasInvertedReviewCounts(cachedMerged) &&
         !!cachedMerged.cnReviewsFetchedAt && // v14.24.0：缺标记旧缓存 → 全量拉取一次回填评论
@@ -146,24 +147,31 @@ async function doHandleSearchSteam(message, sender) {
       if (cachedDetail && cachedMerged && !cachedMerged.cnReviewsFetchedAt) {
         recordUsageEvent('reviews', 'backfill', { appId: String(urlAppId) });
       }
-      const byUrl = await fetchSteamFullDetailsByAppId(urlAppId);
+      // v14.29.x：有缓存条目 → 只补缺失/过期模块；无条目 → 全量
+      const refreshModules = cachedEntry ? planDetailRefresh(cachedEntry, cachedMerged) : undefined;
+      const byUrl = await fetchSteamFullDetailsByAppId(urlAppId, { refreshModules });
       if (byUrl) {
-        recordUsageCounter('match.urlFetch'); // v14.25.0：URL 命中但缓存未命中转全量拉取
+        recordUsageCounter('match.urlFetch'); // v14.25.0：缓存未命中刷新（部分/全量）
         recordUsageDuration('search', Date.now() - t0);
+        // v14.29.x：此路径此前不写缓存 → 缓存永远补不齐；现在写回本次拉到的模块
+        // （picked 子集只更新对应模块，未涉及模块的字段与 ts 不动）
+        await setSteamCacheEntry(byUrl.appId, byUrl);
+        // 部分刷新：返回"旧合并视图 + 本次补到的字段"
+        const view = refreshModules && cachedMerged ? { ...cachedMerged, ...byUrl } : byUrl;
         // v9.7.0：URL 命中同样过名称相关性校验（与 handleGetSteamByAppId
         // 的直取校验对称）——URL 索引由历史匹配写入，一旦写入错误 appId 而
         // 命中路径无校验短路返回，错误被永久固化（报错清理不覆盖 URL 索引
         // 时换绑永远不会发生）。不相关 → 清除错误绑定，继续标题搜索路径
-        if (namesRelated(message.gameName, byUrl.name)) {
-          Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${byUrl.name}`, { appId: byUrl.appId });
+        if (namesRelated(message.gameName, view.name)) {
+          Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${view.name}`, { appId: byUrl.appId });
           await flushAllCaches();
-          const cachedEntry = await getSteamCacheEntry(byUrl.appId);
-          noteResolvedGame(sender, byUrl); // v14.1.0：SidePanel 联动
-          return { data: byUrl, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null };
+          const newEntry = await getSteamCacheEntry(byUrl.appId);
+          noteResolvedGame(sender, view); // v14.1.0：SidePanel 联动
+          return { data: view, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
         }
         Logger.warn(
           'Steam',
-          `网址索引 appId ${urlAppId} 与标题不相关（${byUrl.name} vs ${message.gameName}），清除错误绑定`
+          `网址索引 appId ${urlAppId} 与标题不相关（${view.name} vs ${message.gameName}），清除错误绑定`
         );
         await deleteUrlAppId(pageUrl);
       }
@@ -296,8 +304,10 @@ export async function handleGetSteamByAppId(message, sender) {
     // v3.3.14：非手动路径校验名称相关性（侧边推荐缓存也可能被误取）
     // v14.24.0：好评率重取/倒挂自愈/评论回填标记三重判定对齐 tryCacheServed——
     // 污染条目不再被直取路径永久顶住
+    // v14.29.x：完整性按条目判定（detail 模块永远没有 name——名称从合并视图读）
     if (
-      (manual || !gameName || namesRelated(gameName, detailData.name)) &&
+      (manual || !gameName || namesRelated(gameName, cachedMerged.name)) &&
+      isDetailCacheComplete(cached) &&
       !needsRatingRefetch(cachedMerged) &&
       !hasInvertedReviewCounts(cachedMerged) &&
       !!cachedMerged.cnReviewsFetchedAt
@@ -305,21 +315,25 @@ export async function handleGetSteamByAppId(message, sender) {
       noteResolvedGame(sender, cachedMerged); // v14.1.0：SidePanel 联动
       return { data: cachedMerged, cachedAt: latestModuleTs(cached) };
     }
-    if (!gameName || namesRelated(gameName, detailData.name)) {
-      Logger.info('Steam', `直取缓存判定不命中（重取/倒挂/评论回填），转完整拉取: ${detailData.name}`);
+    if (!gameName || namesRelated(gameName, cachedMerged.name)) {
+      Logger.info('Steam', `直取缓存判定不命中（重取/倒挂/评论回填），转缓存未命中刷新: ${cachedMerged.name}`);
     } else {
-      Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${detailData.name} vs ${gameName}），拒绝缓存命中`);
+      Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${cachedMerged.name} vs ${gameName}），拒绝缓存命中`);
       return { data: null, cachedAt: null };
     }
   }
 
   try {
-    const result = await fetchSteamFullDetailsByAppId(appId);
+    // v14.29.x：有缓存条目 → 只补缺失/过期模块；无条目 → 全量
+    const refreshModules = cached ? planDetailRefresh(cached, cachedMerged) : undefined;
+    const result = await fetchSteamFullDetailsByAppId(appId, { refreshModules });
     if (!result) return { data: null, cachedAt: null };
-    recordUsageCounter('direct.fetch'); // v14.25.0：直取全量拉取
+    recordUsageCounter('direct.fetch'); // v14.25.0：直取缓存未命中刷新（部分/全量）
+    // 部分刷新：校验/返回用"旧合并视图 + 本次补到的字段"（写缓存只写 result）
+    const view = refreshModules && cachedMerged ? { ...cachedMerged, ...result } : result;
     // v3.3.14：名称相关性校验（手动选择跳过）
-    if (!manual && gameName && !namesRelated(gameName, result.name)) {
-      Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${result.name} vs ${gameName}），拒绝并转标题搜索`);
+    if (!manual && gameName && !namesRelated(gameName, view.name)) {
+      Logger.warn('Steam', `图片 appId ${appId} 与页面标题不相关（${view.name} vs ${gameName}），拒绝并转标题搜索`);
       return { data: null, cachedAt: null };
     }
 
@@ -327,6 +341,7 @@ export async function handleGetSteamByAppId(message, sender) {
     // 封面/直取 appId 是旧版时升级到新版（如 gamer520 40746 封面 271590 是
     // GTA5 老版，标题"侠盗猎车手V 增强版"应匹配 3240220）；命中则整体走新版
     let target = result;
+    let targetView = view;
     if (!manual && gameName) {
       const variant = await findVersionVariant(appId, gameName);
       if (variant && String(variant.appId) !== String(appId)) {
@@ -337,17 +352,18 @@ export async function handleGetSteamByAppId(message, sender) {
             `版本后缀补搜: "${gameName}" 封面 ${appId} 为旧版 → 升级 ${variant.appId} ${variantResult.name}`
           );
           target = variantResult;
+          targetView = variantResult;
         }
       }
     }
 
     await setSteamCacheEntry(target.appId, target);
     await recordGameInRegistry(target.appId, {
-      cnName: target.name,
-      enName: target.englishName || target.name,
+      cnName: targetView.name,
+      enName: targetView.englishName || targetView.name,
       gameName,
-      tags: target.genres,
-      coverImage: target.headerImage || ''
+      tags: targetView.genres,
+      coverImage: targetView.headerImage || ''
     });
     if (gameName) await recordNameIndex(gameName, target.appId);
     // v7.0.3：直取匹配成功也回写网址索引（统一详情页/列表页/Steam 页匹配）
@@ -355,9 +371,9 @@ export async function handleGetSteamByAppId(message, sender) {
 
     await flushAllCaches();
     const newEntry = await getSteamCacheEntry(target.appId);
-    Logger.info('Steam', `通过 appId ${target.appId} 直接获取: ${target.name}`);
-    noteResolvedGame(sender, target); // v14.1.0：SidePanel 联动
-    return { data: target, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
+    Logger.info('Steam', `通过 appId ${target.appId} 直接获取: ${targetView.name}`);
+    noteResolvedGame(sender, targetView); // v14.1.0：SidePanel 联动
+    return { data: targetView, cachedAt: newEntry ? latestModuleTs(newEntry) : null };
   } catch (e) {
     Logger.error('Steam', `通过 appId ${appId} 获取失败: ${String(e)}`);
     return { data: null, cachedAt: null };
@@ -506,8 +522,10 @@ export async function handleCacheSteamPage(message) {
   try {
     const cached = await getSteamCacheEntry(appId);
     const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
-    if (detail && isCompleteCacheData(detail)) return { success: true, cached: true };
-    const result = await fetchSteamFullDetailsByAppId(appId);
+    if (detail && isDetailCacheComplete(cached)) return { success: true, cached: true };
+    // v14.29.x：残缺缓存只补缺失模块（无条目 → 全量）
+    const plan = cached ? planDetailRefresh(cached, getMergedData(cached)) : undefined;
+    const result = await fetchSteamFullDetailsByAppId(appId, { refreshModules: plan });
     if (!result) return { success: false };
     await setSteamCacheEntry(appId, result);
     if (gameName) await recordNameIndex(gameName, appId);

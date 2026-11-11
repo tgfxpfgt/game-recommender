@@ -7,10 +7,11 @@ import {
   parseChineseLanguageSupport,
   parseUserTags
 } from './api-details.js';
-import { fetchLastUpdate, fetchSteamReviews } from './api-reviews.js';
+import { fetchLastUpdate, fetchSteamReviews, needsRatingRefetch, hasInvertedReviewCounts } from './api-reviews.js';
 import { DEMO_NAME_PATTERN } from './api-search.js';
 import { fetchSteamSpyInfo } from './api-supplement.js';
 import { getSettings } from '../core/settings.js'; // v6.4.19：模块开关（MV3 SW 不支持动态 import，必须静态）
+import { isModuleValid, getMergedData, isDetailCacheComplete, pickFieldsForModules } from '../storage/steam-cache.js'; // v14.29.x：缓存完整性单源 + 部分刷新字段挑选
 
 /**
  * 游戏雷达 Game Radar - Steam API 子模块：api-assemble.js
@@ -112,7 +113,15 @@ export function buildSteamResult(
 // 先校验 appId：DLC 等非游戏本体自动解析为所属本体（fullgame）。
 // Fetch full Steam details by appId (details/language/tags/reviews/SteamDB/
 // SteamSpy). The appId is validated first: a DLC resolves to its base game.
-export async function fetchSteamFullDetailsByAppId(appId) {
+/**
+ * @param {string|number} appId
+ * @param {{ refreshModules?: string[] }} [options] - refreshModules = 部分刷新计划（缺省全量）
+ * @returns {Promise<Record<string, any>|null>} 全量结果，或部分刷新时只含计划内模块字段的子集
+ */
+export async function fetchSteamFullDetailsByAppId(appId, options = {}) {
+  // plan=null → 全量（旧行为）；plan=Set → 只拉所列模块
+  /** @type {Set<string>|null} */
+  let plan = Array.isArray(options.refreshModules) ? new Set(options.refreshModules) : null;
   // 并行获取中英文详情：中文用于页面显示，英文名写入游戏注册表
   let [gameData, enGameData] = await Promise.all([
     fetchSteamAppDetails(appId, 'schinese'),
@@ -129,6 +138,8 @@ export async function fetchSteamFullDetailsByAppId(appId) {
         `appId ${appId} 为 ${reason}，自动解析为本体 ${baseId}（${(gameData.fullgame && gameData.fullgame.name) || ''}）`
       );
       appId = baseId;
+      // plan 描述的是原 appId 的残缺模块 → 换到本体重取时按全量拉取
+      plan = null;
       [gameData, enGameData] = await Promise.all([
         fetchSteamAppDetails(appId, 'schinese'),
         fetchSteamAppDetails(appId, 'english').catch(() => null)
@@ -143,32 +154,68 @@ export async function fetchSteamFullDetailsByAppId(appId) {
 
   // v6.4.19：Steam API 模块开关——关闭的模块不调用其接口（好评率/详情解析/
   // SteamSpy），对应字段置空；基础信息（meta）为必需项不参与开关。
+  // v14.29.x：部分刷新计划（refreshModules）进一步收窄出站面——未列入的模块
+  // 一个请求都不发（残缺缓存只补缺失模块）。
   // Per-module API toggles: disabled modules are not fetched (fields left empty).
+  // A refresh plan narrows the outbound surface to the modules being refreshed.
   const settings = await getSettings();
   const mods = settings.steamApiModules || {};
+  const need = (m) => !plan || plan.has(m);
+  const needDetail = need('detail');
+  const needRating = need('rating');
 
-  const storeHtml = mods.detail === false ? null : await fetchStorePageHtml(appId);
+  const storeHtml = needDetail && mods.detail !== false ? await fetchStorePageHtml(appId) : null;
   const [langInfo, userTags, reviews] = await Promise.all([
-    mods.detail === false
-      ? Promise.resolve({
+    needDetail && mods.detail !== false
+      ? Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData))
+      : Promise.resolve({
           chineseSupported: false,
           simplifiedChinese: false,
           chineseHasAudio: false,
           chineseHasSubtitles: false
-        })
-      : Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData)),
-    mods.detail === false ? Promise.resolve([]) : Promise.resolve(parseUserTags(storeHtml, gameData)),
-    mods.rating === false ? Promise.resolve(null) : fetchSteamReviews(appId)
+        }),
+    needDetail && mods.detail !== false ? Promise.resolve(parseUserTags(storeHtml, gameData)) : Promise.resolve([]),
+    // 评论：rating 需要好评率；detail 需要评论正文 + cnReviewsFetchedAt 回填标记。
+    // 二者任一在计划内都要取——否则"刷新 detail 却把标记写 0"会造成下次死循环。
+    // Reviews serve rating (positive rate) and detail (text + backfill marker).
+    (needRating || needDetail) && mods.rating !== false ? fetchSteamReviews(appId) : Promise.resolve(null)
   ]);
   // v3.3.6：SteamSpy 总是请求（详情页以 SteamSpy 为主数据）；最近更新日期
   // 用最新公告日期近似。v6.2.1：SteamDB 网页抓取移除（链接模板拼接即可）
   // v6.4.19：spy 开关关闭时跳过 SteamSpy；lastUpdate 属详情解析一并受控
   const [steamspyInfo, lastUpdate] = await Promise.all([
-    mods.spy === false ? Promise.resolve(null) : fetchSteamSpyInfo(appId).catch(() => null),
-    mods.detail === false ? Promise.resolve(null) : fetchLastUpdate(appId).catch(() => null)
+    need('spy') && mods.spy !== false ? fetchSteamSpyInfo(appId).catch(() => null) : Promise.resolve(null),
+    needDetail && mods.detail !== false ? fetchLastUpdate(appId).catch(() => null) : Promise.resolve(null)
   ]);
 
-  return buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamspyInfo, enGameData, lastUpdate);
+  const full = buildSteamResult(appId, gameData, langInfo, userTags, reviews, steamspyInfo, enGameData, lastUpdate);
+  // 部分刷新：只返回计划内模块的字段（写缓存时未涉及模块的字段与 ts 不动）
+  return plan ? pickFieldsForModules(full, [...plan]) : full;
+}
+
+// 详情缓存未命中时的模块级刷新计划：只补缺失/过期模块，有效模块不重拉。
+// meta 恒含（appId 校验 / DLC 解析 / 中英文名必需）；rating 在模块无效、需重取
+// 好评率或评价数倒挂时补；detail 在模块无效、完整性判定失败或缺评论回填标记时补；
+// spy 在模块无效时补。返回 undefined 表示无缓存条目（调用方按全量拉取处理）。
+// Module-level refresh plan for a detail cache miss: only missing/expired
+// modules are refetched. undefined = no cache entry (caller fetches fully).
+/**
+ * @param {import('../core/types.js').SteamCacheEntry|null|undefined} entry
+ * @param {Record<string, any>|null} [merged]
+ * @returns {string[]|undefined}
+ */
+export function planDetailRefresh(entry, merged) {
+  if (!entry || !entry.modules) return undefined;
+  const view = merged || getMergedData(entry) || {};
+  const plan = ['meta']; // appId 校验 / DLC 解析 / 中英文名必需
+  if (!isModuleValid(entry, 'rating') || needsRatingRefetch(view) || hasInvertedReviewCounts(view)) {
+    plan.push('rating');
+  }
+  if (!isModuleValid(entry, 'detail') || !isDetailCacheComplete(entry) || !view.cnReviewsFetchedAt) {
+    plan.push('detail');
+  }
+  if (!isModuleValid(entry, 'spy')) plan.push('spy');
+  return plan;
 }
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）

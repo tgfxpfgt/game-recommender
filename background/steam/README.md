@@ -19,9 +19,9 @@
 | ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
 | `api-search.js`（491）   | storesearch 检索：标题变体、候选打分（matchCandidateScore）、相关性校验（nameMatchesSearch 系）、Demo/附属识别、扩展组合搜索（噪声词自学习） |
 | `api-details.js`（222）  | appdetails：完整详情/按需语言详情、本体解析（baseAppIdFromDetails）、商店页 HTML 抓取、中文支持/用户标签解析                                 |
-| `api-reviews.js`(298)    | appreviews：好评率（总/近 30 天/简中）、最近更新日期（4s 硬帽）、缓存完整性判定（isCompleteCacheData/needsRatingRefetch）                    |
+| `api-reviews.js`(298)    | appreviews：好评率（总/近 30 天/简中）、最近更新日期（4s 硬帽）、好评率重取判定（needsRatingRefetch/倒挂指纹）                              |
 | `api-supplement.js`      | 补充获取（封面提取 appId、isDemoAppId 等）                                                                                                   |
-| `api-assemble.js`        | 详情装配（fetchSteamFullDetailsByAppId 多源合并）                                                                                            |
+| `api-assemble.js`        | 详情装配（fetchSteamFullDetailsByAppId 多源合并；planDetailRefresh 模块级部分刷新）                                                         |
 | `api-registry-heal.js`   | 注册表名称自愈（批量扫描修复，退避缓存）                                                                                                     |
 | `api.js`（15 行 barrel） | `export *` 装配入口——消费方一律 `from './api.js'`                                                                                            |
 

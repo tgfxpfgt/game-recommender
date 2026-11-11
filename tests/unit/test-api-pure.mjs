@@ -5,7 +5,7 @@ import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
  *
  * v4.2.0：由原 test-cleanup 拆分（0~0.14 节）——coverImageFor /
  * nameMatchesSearch / baseAppIdFromDetails / isFailedRatingEntry /
- * api-monitor / needsRatingRefetch / isCompleteCacheData / TTL /
+ * api-monitor / needsRatingRefetch / isDetailCacheComplete / TTL /
  * 模块化缓存（isModuleValid/getMergedData/setSteamCacheEntry 路由/migrateEntry）/
  * summarizeRecentReviews / calcLinkMatchScore / namesRelated。
  */
@@ -263,36 +263,68 @@ test('无重试记录立即重取', () => {
   expect(nr({ data: { positiveRate: null, ratingDesc: '无用户评测' } })).toEqual(true);
 });
 
-// ============ 0.10 详情页缓存完整性（v3.3.3）/ isCompleteCacheData ============
-const icd = apiMod.isCompleteCacheData;
-const fullData = {
+// ============ 0.10 详情页缓存完整性（v14.29.x）/ isDetailCacheComplete ============
+// 完整性判定已移入 steam-cache.js（按字段所属模块读，与 FIELD_MODULES 单源）；
+// 旧 isCompleteCacheData 在 detail 数据里找 meta 字段 name/headerImage 恒假。
+// 独立实例（?t=）避免与后部 cacheMod 的内存状态/声明顺序纠缠。
+const cacheMod010 = await import(
+  new URL('../../background/storage/steam-cache.js', import.meta.url).href + '?t=' + Date.now()
+);
+const idc = cacheMod010.isDetailCacheComplete;
+const entryNow = Date.now();
+const servableDetail = () => ({
   url: 'https://store.steampowered.com/app/1/',
-  name: 'Game',
   genres: ['RPG'],
   userTags: ['RPG'],
   developers: ['Dev'],
   chineseSupported: true,
   releaseDate: '2024-01-01',
-  description: 'desc',
-  headerImage: 'https://cdn/h.jpg'
-};
-test('完整数据判定通过', () => {
-  expect(icd(fullData)).toEqual(true);
+  description: 'desc'
 });
-test('轻量缓存（列表页写入）判定失败', () => {
-  expect(icd({ appId: '1', name: 'Game', positiveRate: 90, ratingDesc: 'x', headerImage: 'h' })).toEqual(false);
+// 模块化条目构造：name/headerImage 属 meta，其余可服务字段属 detail
+function makeEntry({ meta, detail, withDetail = true } = {}) {
+  const modules = {
+    meta: { data: { appId: '1', name: 'Game', headerImage: 'https://cdn/h.jpg', ...meta }, ts: entryNow },
+    rating: { data: { positiveRate: 90, totalReviews: 10 }, ts: entryNow }
+  };
+  if (withDetail) modules.detail = { data: { ...servableDetail(), ...detail }, ts: entryNow };
+  return { modules };
+}
+test('完整条目（name/headerImage 在 meta）判定通过——回归：旧判定恒假', () => {
+  expect(idc(makeEntry())).toEqual(true);
 });
-test('缺 userTags 判定失败', () => {
-  expect(icd({ ...fullData, userTags: undefined })).toEqual(false);
+test("空值为合法值（''/false/[] 不算缺失）判定通过", () => {
+  const entry = makeEntry({
+    meta: { name: '' },
+    detail: { chineseSupported: false, releaseDate: '', description: '', genres: [], userTags: [], developers: [] }
+  });
+  expect(idc(entry)).toEqual(true);
 });
-test('缺 genres 判定失败', () => {
-  expect(icd({ ...fullData, genres: null })).toEqual(false);
+test('轻量列表条目（仅 meta+rating，无 detail 模块）判定失败', () => {
+  expect(idc(makeEntry({ withDetail: false }))).toEqual(false);
 });
-test('缺 url 判定失败', () => {
-  expect(icd({ ...fullData, url: '' })).toEqual(false);
+test('meta 缺 name 判定失败（字段确实从 meta 读）', () => {
+  const entry = makeEntry();
+  delete entry.modules.meta.data.name;
+  expect(idc(entry)).toEqual(false);
+});
+test('detail 缺 userTags 判定失败', () => {
+  const entry = makeEntry();
+  delete entry.modules.detail.data.userTags;
+  expect(idc(entry)).toEqual(false);
+});
+test('url 为空串判定失败（string 类字段须非空）', () => {
+  expect(idc(makeEntry({ detail: { url: '' } }))).toEqual(false);
 });
 test('null 输入判定失败', () => {
-  expect(icd(null)).toEqual(false);
+  expect(idc(null)).toEqual(false);
+});
+test('pickFieldsForModules 只挑目标模块字段', () => {
+  const picked = cacheMod010.pickFieldsForModules(
+    { appId: '1', name: 'Game', url: 'u', genres: [], positiveRate: 90, steamspy: { ccu: 1 } },
+    ['meta']
+  );
+  expect(Object.keys(picked).sort()).toEqual(['appId', 'name']);
 });
 
 // ============ 0.11 详情页独立 TTL（v3.3.3）/ detailSteamCacheTtlMs ============

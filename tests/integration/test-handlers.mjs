@@ -15,6 +15,8 @@ import { test, expect, describe, beforeAll, afterAll, beforeEach } from 'vitest'
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
+import { resetAppDetailsDedupForTest } from '../../background/steam/api-details.js'; // 去重表（10s TTL）跨用例残留会造成出站断言假绿
+import { resetDomainStatus } from '../../background/core/api-monitor.js'; // 分域熔断跨用例残留会让公告请求短路面不发（出站断言假红）
 
 const storage = createStorageMock();
 installChromeStorageMock(storage);
@@ -347,6 +349,17 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
             type: 'game',
             genres: [{ id: 1, description: 'Action' }]
           }
+        },
+        // v14.29.x：部分刷新用例专用（3764201 的 lastUpdate 24h 模块缓存为冷，
+        // 公告出站断言不受前序用例预热影响 = 不依赖执行顺序）
+        3764201: {
+          success: true,
+          data: {
+            steam_appid: 3764201,
+            name: 'Resident Evil Requiem',
+            type: 'game',
+            genres: [{ id: 1, description: 'Action' }]
+          }
         }
       },
       '/appreviews': {
@@ -361,6 +374,17 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
   afterAll(async () => {
     restoreFetch();
     await urlIdx.resetUrlIndex();
+  });
+  // v14.29.x：appdetails 有 10s 去重表（in-flight + 已完成）——整文件跑时前序用例
+  // 已填充，后续"零出站/部分刷新"断言看到的 0 可能是去重造成而非缓存先行。
+  // 每例重置，让出站计数只反映本用例的真实行为。
+  // The appdetails dedup table (10s TTL) leaks across cases; reset per test so
+  // outbound counts reflect cache behaviour, not dedup suppression.
+  beforeEach(() => {
+    resetAppDetailsDedupForTest();
+    // 分域熔断/滑动窗口同样跨用例残留：/api 域连续失败（mock 404）熔断后公告请求
+    // 会短路面不发——重置让出站计数只看本用例行为（存储/索引 seed 不受影响）
+    resetDomainStatus();
   });
 
   test('SEARCH_STEAM：网址索引命中 → 直接使用索引 appId（不触发标题搜索）', async () => {
@@ -503,6 +527,72 @@ describe('详情页网址索引（URL 第一候选，统一列表页/详情页�
     expect(r2.data && String(r2.data.appId)).toEqual('3764200');
     const entry = await cacheMod.getSteamCacheEntry(3764200);
     expect(!!entry && !!entry.modules.detail.data.cnReviewsFetchedAt).toEqual(true);
+  });
+
+  // ============ v14.29.x：模块级部分刷新（残缺缓存只补缺失模块） ============
+  test('v14.29.x：detail 缺 userTags → 部分刷新（appdetails/商店页/评测/公告增加，SteamSpy 零新增）', async () => {
+    // 用独立 appId/URL：3764201 的 lastUpdate 24h 模块缓存为冷 → 公告出站断言
+    // 与用例顺序无关（3764200 已被前序用例预热）
+    const APP_ID = 3764201;
+    const URL2 = 'https://www.gamer520.com/109516.html';
+    await urlIdx.setUrlAppId(URL2, APP_ID);
+    // steamspy 字段路由到 spy 模块、ts=现在 → spy 模块有效，不该被重拉
+    await cacheMod.setSteamCacheEntry(APP_ID, {
+      ...completeEntry(),
+      appId: APP_ID,
+      url: `https://store.steampowered.com/app/${APP_ID}/`,
+      steamspy: { ccu: 123 }
+    });
+    await cacheMod.flushSteamCache();
+    // 直接改内存引用制造 detail 残缺（不再 set/flush，避免残缺状态被持久化）
+    const entry = await cacheMod.getSteamCacheEntry(APP_ID);
+    delete entry.modules.detail.data.userTags;
+    const count = (needle) => fetchMock._calls.filter((u) => u.includes(needle)).length;
+    // 公告 URL = https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/?appid={id}
+    const newsNeedle = `ISteamNews/GetNewsForApp/v2/?appid=${APP_ID}`;
+    const before = {
+      appdetails: count('/api/appdetails'),
+      store: count(`store.steampowered.com/app/${APP_ID}`),
+      reviews: count('/appreviews'),
+      news: count(newsNeedle),
+      spy: count('steamspy.com')
+    };
+    const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' }, { tab: { url: URL2 } });
+    const after = {
+      appdetails: count('/api/appdetails'),
+      store: count(`store.steampowered.com/app/${APP_ID}`),
+      reviews: count('/appreviews'),
+      news: count(newsNeedle),
+      spy: count('steamspy.com')
+    };
+    // meta 与 detail 在计划内 → 相关出站发生；detail 补齐
+    expect(resp.data && String(resp.data.appId)).toEqual(String(APP_ID));
+    expect(resp.data.name).toEqual('Resident Evil Requiem'); // meta 未被覆盖成空
+    expect(Array.isArray(resp.data.userTags)).toEqual(true); // detail 已补齐
+    expect(resp.data.steamspy && resp.data.steamspy.ccu).toEqual(123); // 旧合并视图保留未刷新模块
+    expect(after.appdetails > before.appdetails).toEqual(true);
+    expect(after.store > before.store).toEqual(true);
+    expect(after.reviews > before.reviews).toEqual(true);
+    expect(after.news > before.news).toEqual(true);
+    // 实现退化为"全量重拉"时本条必红
+    expect(after.spy).toEqual(before.spy);
+  });
+
+  test('v14.29.x：detail TTL 过期 → 仍重拉（完整性通过也必须重取过期模块）', async () => {
+    await urlIdx.setUrlAppId(TEST_URL, 3764200);
+    await cacheMod.setSteamCacheEntry(3764200, completeEntry());
+    await cacheMod.flushSteamCache();
+    const entry = await cacheMod.getSteamCacheEntry(3764200);
+    entry.modules.detail.ts = 0; // 直接改内存引用（不重新 set/flush，否则 ts 被刷新）
+    const before = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    const resp = await handleMessage(
+      { action: 'SEARCH_STEAM', gameName: '生化危机9 安魂曲' },
+      { tab: { url: TEST_URL } }
+    );
+    const after = fetchMock._calls.filter((u) => u.includes('/api/appdetails')).length;
+    // 去掉 TTL 判定时本条必红
+    expect(after > before).toEqual(true);
+    expect(resp.data && String(resp.data.appId)).toEqual('3764200');
   });
 });
 

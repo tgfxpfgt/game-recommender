@@ -68,7 +68,7 @@ COUNTER_KEYS）/`recordUsageDuration(key, ms)`（DURATION_KEYS）/`recordUsageEv
 
 **坑**：
 
-- **缓存命中判定五重口径必须同步**：isCompleteCacheData + needsRatingRefetch + hasInvertedReviewCounts + cnReviewsFetchedAt + namesRelated——orchestrator tryCacheServed 与 handlers 两处（URL 缓存先行/直取）三处同口径，漏一处=污染条目被该路径永久顶住。
+- **缓存命中判定五重口径必须同步**：isDetailCacheComplete（steam-cache 单源，按字段所属模块判定）+ needsRatingRefetch + hasInvertedReviewCounts + cnReviewsFetchedAt + namesRelated——orchestrator tryCacheServed 与 handlers 两处（URL 缓存先行/直取）三处同口径；未命中按 planDetailRefresh 只补缺失模块，漏一处=污染条目被该路径永久顶住。
 - **api-details 去重表**（in-flight+10s TTL）跨测试用例残留会吞出站计数断言 → `resetAppDetailsDedupForTest()`。
 - 404=空结果非失败 doctrine 逐路径审计；新端点先问"计入哪个熔断域"（不同主机不得连坐）。
 - fetchSteamAppDetails mock 形状 = 顶层 `{appid:{success,data}}` 无外层包裹。

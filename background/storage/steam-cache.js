@@ -17,6 +17,17 @@
  * Structure changes no longer invalidate whole entries — a missing/expired
  * module is refetched on use while the others stay. Legacy flat entries are
  * migrated on load and keep working.
+ *
+ * v14.29.x：详情页"可直返缓存"的字段契约（DETAIL_SERVABLE_FIELDS）与
+ * FIELD_MODULES 同源——判定按 moduleOf 取字段实际所属模块，调用方不得另抄
+ * 一份字段清单（旧 isCompleteCacheData 在 detail 模块里找 name/headerImage，
+ * 二者属 meta，判定恒假 → 缓存先行从未生效）。完整性 ≠ 永久缓存：命中仍
+ * 需各模块 TTL 有效；detail TTL 过期、字段缺失、缺 cnReviewsFetchedAt、
+ * 用户强制刷新时都会重拉（残缺时按模块级部分刷新，只补缺失模块）。
+ * The servable-detail field contract shares its single source with
+ * FIELD_MODULES (fields are read from their real module via moduleOf).
+ * Completeness is not permanence: module TTLs, the review-backfill marker and
+ * force-refresh still trigger refetches — partially, only for missing modules.
  */
 import { dataStore } from '../../data/data-store.js';
 import { createDebouncedStore } from './debounced-store.js';
@@ -79,6 +90,59 @@ const DEFAULT_MODULE = 'detail';
 // 字段归属（未知字段默认 detail）/ Field routing (default: detail)
 function moduleOf(field) {
   return FIELD_MODULES[field] || DEFAULT_MODULE;
+}
+
+// v14.29.x：详情页可服务字段契约（单源）——"一份可直返的详情缓存"由哪些模块的
+// 哪些字段构成只在此定义；命中判定经 moduleOf 取模块，判定处不得另抄字段清单。
+// 旧 isCompleteCacheData 在 detail 模块里找 name/headerImage（二者属 meta）恒假，
+// 导致 v14.24.0 的缓存先行零出站从未生效。
+// 值类型：'string'=非空字符串；'array'=数组（空数组合法）；'present'=own property
+// 且 !== undefined（''/0/false/null 均为合法值，只有"字段缺失"算不完整）。
+export const DETAIL_SERVABLE_FIELDS = Object.freeze({
+  url: 'string',
+  name: 'present',
+  headerImage: 'string',
+  genres: 'array',
+  userTags: 'array',
+  developers: 'array',
+  chineseSupported: 'present',
+  releaseDate: 'present',
+  description: 'present'
+});
+
+/**
+ * 详情缓存是否完整可直返（按字段所属模块读取，TTL 由调用方另行判定）。
+ * @param {import('../core/types.js').SteamCacheEntry|null|undefined} entry
+ * @returns {boolean}
+ */
+export function isDetailCacheComplete(entry) {
+  if (!entry || !entry.modules || typeof entry.modules !== 'object') return false;
+  for (const [field, rule] of Object.entries(DETAIL_SERVABLE_FIELDS)) {
+    const mod = entry.modules[moduleOf(field)];
+    if (!mod || !mod.data || typeof mod.data !== 'object') return false;
+    if (!Object.prototype.hasOwnProperty.call(mod.data, field)) return false;
+    const value = mod.data[field];
+    if (value === undefined) return false;
+    if (rule === 'string' && (typeof value !== 'string' || value === '')) return false;
+    if (rule === 'array' && !Array.isArray(value)) return false;
+  }
+  return true;
+}
+
+/**
+ * 按模块挑字段（部分刷新写缓存用；未知字段归 detail）。
+ * @param {Record<string, any>} data
+ * @param {string[]} modules
+ * @returns {Record<string, any>}
+ */
+export function pickFieldsForModules(data, modules) {
+  if (!data || typeof data !== 'object' || !Array.isArray(modules)) return {};
+  const allowed = new Set(modules);
+  const picked = {};
+  for (const [field, value] of Object.entries(data)) {
+    if (allowed.has(moduleOf(field))) picked[field] = value;
+  }
+  return picked;
 }
 
 /** @type {Map<string, import('../core/types.js').SteamCacheEntry>} */
