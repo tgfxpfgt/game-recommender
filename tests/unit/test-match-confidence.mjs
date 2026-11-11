@@ -56,7 +56,7 @@ beforeEach(async () => {
   await cacheMod.loadSteamCacheToMemory();
 });
 
-describe('三要素判定（纯函数）', () => {
+describe('置信度规则（纯函数，v14.28.7 二次校准）', () => {
   const base = {
     gameName: '艾尔登法环 2022 官方中文',
     resultName: '艾尔登法环',
@@ -64,38 +64,39 @@ describe('三要素判定（纯函数）', () => {
     source: 'storesearch'
   };
 
-  test('平台+标题+发行年份三者一致 → confirmed', () => {
+  test('平台+标题+发行年份一致 → confirmed', () => {
     const m = mc.rateMatchConfidence({ ...base, pageYear: 2022, steamYear: 2022 });
     expect(m.confidence).toEqual('confirmed');
     expect(m.reason).toEqual('all-match');
     expect(m.sourceLabel).toEqual('Steam 商店搜索');
+    expect(m.platformLabel).toEqual('PC');
   });
 
-  test('年份缺失按缺失处理 → suspected（禁止近似补齐）', () => {
-    const m = mc.rateMatchConfidence({ ...base, pageYear: null, steamYear: 2022 });
-    expect(m.confidence).toEqual('suspected');
-    expect(m.reason).toEqual('no-page-year');
+  test('一侧年份缺失不降级 → confirmed（year-unknown）', () => {
+    const noPage = mc.rateMatchConfidence({ ...base, pageYear: null, steamYear: 2022 });
+    expect(noPage.confidence).toEqual('confirmed');
+    expect(noPage.reason).toEqual('year-unknown');
+    const noSteam = mc.rateMatchConfidence({ ...base, pageYear: 2022, steamYear: null });
+    expect(noSteam.confidence).toEqual('confirmed');
+    expect(noSteam.reason).toEqual('year-unknown');
   });
 
-  test('Steam 年份缺失 → suspected', () => {
-    const m = mc.rateMatchConfidence({ ...base, pageYear: 2022, steamYear: null });
-    expect(m.confidence).toEqual('suspected');
-    expect(m.reason).toEqual('no-steam-year');
-  });
-
-  test('年份不一致 → suspected', () => {
-    const m = mc.rateMatchConfidence({
+  test('两侧年份都在且相差 ≤1 年 → confirmed；相差 >1 年 → suspected', () => {
+    const one = mc.rateMatchConfidence({ ...base, pageYear: 2022, steamYear: 2021 });
+    expect(one.confidence).toEqual('confirmed');
+    expect(one.reason).toEqual('all-match');
+    const two = mc.rateMatchConfidence({
       gameName: '某游戏 2024 官方中文',
       resultName: '某游戏',
       platform: 'pc',
       pageYear: 2024,
       steamYear: 2021
     });
-    expect(m.confidence).toEqual('suspected');
-    expect(m.reason).toEqual('year-mismatch');
+    expect(two.confidence).toEqual('suspected');
+    expect(two.reason).toEqual('year-mismatch');
   });
 
-  test('标题不一致 → suspected，且保留依据（匹配标题+来源）', () => {
+  test('标题相似度不足 → suspected，且保留依据（匹配标题+来源）', () => {
     const m = mc.rateMatchConfidence({
       gameName: '塞尔达传说：王国之泪 2023 官方中文',
       resultName: '塞尔达传说 旷野之息',
@@ -108,12 +109,39 @@ describe('三要素判定（纯函数）', () => {
     expect(m.reason).toEqual('title-mismatch');
     expect(m.resultName).toEqual('塞尔达传说 旷野之息');
     expect(m.sourceLabel).toEqual('名称索引缓存');
+    expect(m.similarity).toBeLessThan(mc.TITLE_SIMILARITY_THRESHOLD);
   });
 
-  test('平台未确认（主机）→ suspected', () => {
-    const m = mc.rateMatchConfidence({ ...base, platform: 'non-pc', pageYear: 2022, steamYear: 2022 });
+  test('平台不一致最优先 → suspected（即便标题完全一致）', () => {
+    const m = mc.rateMatchConfidence({
+      gameName: '战神：诸神黄昏 PS5|官方中文',
+      resultName: '',
+      platform: 'non-pc',
+      pageYear: 2022,
+      steamYear: 2022
+    });
     expect(m.confidence).toEqual('suspected');
     expect(m.reason).toEqual('platform-unconfirmed');
+    expect(m.platformLabel).toEqual('非 PC（主机/移动/云游戏）');
+  });
+
+  test('页面标题含英文并列段：英文 Steam 名可确认（逐段比对）', () => {
+    const m = mc.rateMatchConfidence({
+      gameName: '人类/Humankind - 咸鱼单机',
+      resultName: 'HUMANKIND™',
+      platform: 'pc',
+      pageYear: null,
+      steamYear: 2021
+    });
+    expect(m.confidence).toEqual('confirmed');
+    expect(m.reason).toEqual('year-unknown');
+  });
+
+  test('标题相似度门槛本身可测：包含/相等过门，续作序号不过门', () => {
+    expect(mc.titleSimilarity('艾尔登法环', '艾尔登法环 2022 官方中文')).toEqual(1);
+    expect(mc.titleSimilarity('HUMANKIND™', '人类/Humankind - 咸鱼单机')).toEqual(1);
+    expect(mc.titleMatches('赛博朋克2077', '赛博朋克2077：终极版|官方中文')).toBe(true);
+    expect(mc.titleMatches('塞尔达传说 旷野之息', '塞尔达传说：王国之泪|官方中文')).toBe(false);
   });
 
   test('页面年份只认独立段：游戏名数字不当年份', () => {
@@ -165,7 +193,7 @@ describe('第一波（零网络）：平台预检与置信度', () => {
       const hit = await orchestratorList.getSteamRatingsFromCacheOnly('塞尔达传说：王国之泪|官方中文', {});
       expect(hit && hit.positiveRate).toEqual(88);
       expect(hit && hit.matchConfidence).toEqual('suspected');
-      expect(hit && hit.matchNote).toEqual('匹配标题与页面标题不一致');
+      expect(hit && hit.matchNote).toEqual('匹配标题与页面标题相似度不足');
       expect(hit && hit.matchName).toEqual('塞尔达传说 旷野之息');
     } finally {
       restore();
@@ -179,21 +207,36 @@ describe('第一波（零网络）：平台预检与置信度', () => {
     try {
       const hit = await orchestratorList.getSteamRatingsFromCacheOnly('艾尔登法环 2022 官方中文', {});
       expect(hit && hit.matchConfidence).toEqual('confirmed');
-      expect(hit && hit.matchNote).toEqual('平台、标题、发行年份三项一致');
+      expect(hit && hit.matchNote).toEqual('标题一致，平台为 PC，发行年份相符');
+      expect(hit && hit.matchPlatform).toEqual('PC');
     } finally {
       restore();
     }
   });
 
-  test('页面无年份 → suspected（裁决 3 的直接后果，记录在案）', async () => {
+  test('页面无年份不降级 → confirmed（year-unknown，替换旧裁决 3）', async () => {
     await seed('1245620', { name: '艾尔登法环', releaseDate: '2022-02-25' });
     await nameIdx.recordNameIndex('艾尔登法环|官方中文', '1245620');
     const restore = noNetwork();
     try {
       const hit = await orchestratorList.getSteamRatingsFromCacheOnly('艾尔登法环|官方中文', {});
-      expect(hit && hit.matchConfidence).toEqual('suspected');
-      expect(hit && hit.matchNote).toEqual('页面标题未含发行年份，无法核对年份');
+      expect(hit && hit.matchConfidence).toEqual('confirmed');
+      expect(hit && hit.matchNote).toEqual('标题一致，平台为 PC；发行年份仅一侧可知（不降级）');
       expect(hit && hit.matchSource).toEqual('名称索引缓存');
+    } finally {
+      restore();
+    }
+  });
+
+  test('移动版标题命中同名 Steam 缓存 → suspected（平台最优先）', async () => {
+    await seed('1245620', { name: '艾尔登法环', releaseDate: '2022-02-25' });
+    await nameIdx.recordNameIndex('艾尔登法环 安卓版|官方中文', '1245620');
+    const restore = noNetwork();
+    try {
+      const hit = await orchestratorList.getSteamRatingsFromCacheOnly('艾尔登法环 安卓版|官方中文', {});
+      expect(hit && hit.matchConfidence).toEqual('suspected');
+      expect(hit && hit.matchNote).toEqual('未能确认是 PC 版本（主机/移动/云游戏同名条目）');
+      expect(hit && hit.matchPlatform).toEqual('非 PC（主机/移动/云游戏）');
     } finally {
       restore();
     }

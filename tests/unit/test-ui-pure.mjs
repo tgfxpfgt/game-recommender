@@ -254,6 +254,55 @@ test('steamSidebar 关闭 spy 模块仍输出 Steam250/系列/ITAD/收藏行锚�
   }
 });
 
+// ============ v14.28.7 R4-B3：详情/浮窗/内嵌卡挂匹配置信度（推测必须给依据） ============
+test('steamSidebar 推测匹配 → 徽章 + 依据（命中名/来源/平台/原因）', () => {
+  const html = detailTemplates.steamSidebar({
+    appId: '570',
+    name: 'Dota 2',
+    positiveRate: 82,
+    totalReviews: 1000,
+    matchConfidence: 'suspected',
+    matchName: 'Dota 2',
+    matchSource: '商店检索',
+    matchPlatform: '非 PC（主机/移动/云游戏）',
+    matchNote: '未能确认是 PC 版本（主机/移动/云游戏同名条目）'
+  });
+  expect(html).toContain('推测匹配');
+  expect(html).toContain('data-match-confidence="suspected"');
+  for (const frag of ['Steam 命中「Dota 2」', '来源：商店检索', '平台：非 PC', '未能确认是 PC 版本']) {
+    expect(html).toContain(frag);
+  }
+});
+
+test('steamSidebar 确认匹配低调展示；无置信度字段不渲染（旧缓存/直取路径）', () => {
+  const ok = detailTemplates.steamSidebar({
+    appId: '570',
+    name: 'Dota 2',
+    positiveRate: 82,
+    matchConfidence: 'confirmed',
+    matchNote: '标题一致，平台为 PC，发行年份相符'
+  });
+  expect(ok).toContain('data-match-confidence="confirmed"');
+  expect(ok).toContain('已确认');
+  const none = detailTemplates.steamSidebar({ appId: '570', name: 'Dota 2', positiveRate: 82 });
+  expect(none).not.toContain('gr-match-confidence');
+});
+
+test('steamInlineSection 推测匹配 → 依据行在复刻卡外层（卡结构不变）', () => {
+  const html = steamInlineSection({
+    appId: '570',
+    name: 'Dota 2',
+    positiveRate: 82,
+    totalReviews: 1000,
+    reviews: [{ text: '好玩', timestamp: Date.now() }],
+    matchConfidence: 'suspected',
+    matchName: 'Dota 2'
+  });
+  expect(html).toContain('data-match-confidence="suspected"');
+  expect(html.indexOf('gr-match-confidence')).toBeGreaterThanOrEqual(0);
+  expect(html.indexOf('gr-match-confidence')).toBeLessThan(html.indexOf('steam-review-card'));
+});
+
 // ============ v14.10.1：详情浮窗低/零评测原因行（用户需求） ============
 const { renderRatingRows } = await import('../../content/detail/render/rating-rows.js');
 

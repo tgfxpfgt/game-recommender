@@ -261,6 +261,52 @@ export function detectPlatform(rawName) {
   return { kind: 'pc', tag: '' };
 }
 
+// v14.28.7 R4-B2（用户裁决：平台不一致最优先判推测）：移动/云游戏标记——
+// **仅供置信度判定**，不参与 detectPlatform 的管线路由（移动条目仍按 PC 走
+// 检索，只是命中同名 Steam 条目时标推测）。移动/云游戏标记同样整段匹配。
+// Mobile/cloud markers used ONLY by match confidence (never by detectPlatform
+// routing); segment-exact like the console markers.
+const MOBILE_MARKERS = [
+  '安卓',
+  '安卓版',
+  'android',
+  'apk',
+  'apks',
+  '手机版',
+  '手游',
+  '移动版',
+  'ios',
+  'ipad',
+  'iphone'
+];
+const CLOUD_MARKERS = ['云游戏', '云版本', '云版', 'xcloud', 'geforcenow', 'cloudgaming'];
+
+/**
+ * 识别"Steam 无对等条目"的非 PC 平台（主机/模拟器/移动/云游戏）。纯函数。
+ * detectPlatform 的主机/模拟器分支原样复用；移动/云游戏为本次新增的置信度
+ * 专用识别（显式 PC 标记优先——"PC|安卓"双平台 Steam 有数据，不降级）。
+ * Off-Steam platform detection for match confidence: reuses detectPlatform's
+ * console/emulator result and adds mobile/cloud markers. An explicit PC marker
+ * always wins (dual-platform items still have a Steam counterpart).
+ * @param {string} rawName
+ * @returns {{kind: 'console'|'emulator'|'mobile'|'cloud', tag: string}|null}
+ *   null = PC（或无法认定非 PC）
+ */
+export function detectOffSteamPlatform(rawName) {
+  const segs = segmentsOf(rawName);
+  if (segs.some((seg) => segVariants(seg).some((v) => PC_MARKERS.includes(v)) || hasPcGuard(seg))) {
+    return null;
+  }
+  const p = detectPlatform(rawName);
+  if (p.kind !== 'pc') return { kind: p.kind, tag: p.tag };
+  for (const seg of segs) {
+    const variants = segVariants(seg);
+    if (variants.some((v) => MOBILE_MARKERS.includes(v))) return { kind: 'mobile', tag: '移动' };
+    if (variants.some((v) => CLOUD_MARKERS.includes(v))) return { kind: 'cloud', tag: '云游戏' };
+  }
+  return null;
+}
+
 // v14.17.0：EN 段尾平台词表（Metacritic slug 推导前剥离——"The Legend of
 // Zelda TotK NSP/Ryujinx"这类"英文名+平台标记"组合若不剥离，slug 必 404）。
 // 纯词尾剥离（拆词后从尾部逐个弹出），不碰标题主体。

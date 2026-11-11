@@ -12,6 +12,7 @@ import * as common from '../../core/common.js';
 import { heatLabelFor } from '../../core/steam-rating-logic.js';
 import { FM_KEYS, FM_DEFAULT_ORDER } from '../../../shared/fm-keys.js'; // v14.2.0：键序单源
 import { renderRatingRows, renderVerdictRow } from './rating-rows.js';
+import { renderMatchConfidenceRow } from './match-confidence-row.js'; // v14.28.7 R4-B3
 
 const esc = (text) => common.escapeHtml(text);
 
@@ -240,6 +241,8 @@ export function steamSidebar(data, cachedAt) {
   // v14.5.0 B6：评分区块（四重评价行 + 综合推荐行）由 render/rating-rows.js 提供
   const ratingRowsHtml = renderRatingRows(data, spy);
   const verdictRowHtml = renderVerdictRow(data, spy, spyHeatLabel);
+  // v14.28.7 R4-B3：匹配置信度行（推测态 → 徽章 + 依据；无字段 → 空串）
+  const confidenceHtml = renderMatchConfidenceRow(data);
 
   return `
       <!-- 头部图片 -->
@@ -263,6 +266,9 @@ export function steamSidebar(data, cachedAt) {
           }
           ${esc(data.name)}
         </div>
+
+        <!-- 匹配置信度（v14.28.7 R4-B3：推测态徽章 + 依据，紧贴标题） -->
+        ${confidenceHtml}
 
         <!-- 跳转Steam按钮 -->
         ${

@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 179，其中声明不变式 4。
+> 模块数 180，其中声明不变式 4。
 
 ## adapters/default.js
 
@@ -121,9 +121,9 @@
 | `background/steam/api-supplement.js` | Steam API 子模块：api-supplement.js | `background/core/constants`<br>`background/core/utils`<br>`background/storage/logger` | fetchSteamSpyInfo | — |
 | `background/steam/api.js` | Steam API 聚合入口 | `background/steam/api-assemble`<br>`background/steam/api-details`<br>`background/steam/api-registry-heal`<br>`background/steam/api-reviews`<br>`background/steam/api-search`<br>`background/steam/api-supplement` | — | — |
 | `background/steam/app-list-index.js` | Steam 全量目录离线索引 | `background/core/constants`<br>`background/core/metrics`<br>`background/core/settings`<br>`background/core/utils`<br>`background/steam/api-search`<br>`background/storage/logger`<br>`data/data-store` | normalizeTitle<br>ensureAppListIndex<br>matchAppListExact<br>refreshAppListIndex | — |
-| `background/steam/match-confidence.js` | 匹配置信度三态 | `background/steam/api-search`<br>`shared/platform-detect` | MATCH_CONFIRMED<br>MATCH_SUSPECTED<br>MATCH_SOURCE_LABELS<br>yearOfDateString<br>extractTitleYear<br>pageTitleCore<br>…+2 | — |
+| `background/steam/match-confidence.js` | 匹配置信度三态 | `background/steam/api-search`<br>`shared/platform-detect` | MATCH_CONFIRMED<br>MATCH_SUSPECTED<br>TITLE_SIMILARITY_THRESHOLD<br>MATCH_SOURCE_LABELS<br>yearOfDateString<br>extractTitleYear<br>…+5 | — |
 | `background/steam/mismatch-samples.js` | 错题样本采集 | `background/core/constants`<br>`background/core/title-parser`<br>`background/core/utils`<br>`background/storage/logger`<br>`background/storage/usage-evidence`<br>`data/data-store` | getWrongReportSamples<br>clearWrongReportSamples<br>captureMismatchSample | — |
-| `background/steam/orchestrator-detail.js` | 详情页搜索管线 | `background/core/api-monitor`<br>`background/core/constants`<br>`background/core/title-parser`<br>`background/steam/ai-fallback`<br>`background/steam/api`<br>`background/steam/app-list-index`<br>`background/steam/mismatch-samples`<br>`background/steam/orchestrator-shared`<br>…+7 | searchSteamGame | — |
+| `background/steam/orchestrator-detail.js` | 详情页搜索管线 | `background/core/api-monitor`<br>`background/core/constants`<br>`background/core/title-parser`<br>`background/steam/ai-fallback`<br>`background/steam/api`<br>`background/steam/app-list-index`<br>`background/steam/match-confidence`<br>`background/steam/mismatch-samples`<br>…+9 | searchSteamGame | — |
 | `background/steam/orchestrator-list.js` | 列表页好评率管线 | `background/core/api-monitor`<br>`background/core/title-parser`<br>`background/core/utils`<br>`background/steam/api`<br>`background/steam/api-metacritic`<br>`background/steam/api-search`<br>`background/steam/app-list-index`<br>`background/steam/match-confidence`<br>…+8 | getSteamRatingsFromCacheOnly<br>getSteamPositiveRate | 第一波 getSteamRatingsFromCacheOnly 零网络，且返回非 null 即终态（第二波不会纠错）——故平台预检必须发生在第一波内部<br>console 条目第一波一律返回 null 交第二波 phasePlatform（Metacritic）；emulator 返回 platformOnly 终态<br>缓存写入以 appId 为键、可重复覆盖（幂等）——看门狗放弃后迟到的结果允许覆盖旧值 |
 | `background/steam/orchestrator-shared.js` | Steam 编排共享件 | `background/steam/api`<br>`background/storage/logger` | isDemoCacheWithoutRating<br>NEW_RELEASE_WINDOW_DAYS<br>isNewReleaseDate<br>applyCacheHit<br>resolveDlcToBase<br>extractSteamAppIdSignals<br>…+2 | — |
 | `background/steam/orchestrator.js` | Steam API 编排器（装配壳）/ Steam API Orchestrator (shell) | `background/steam/orchestrator-detail`<br>`background/steam/orchestrator-list`<br>`background/steam/orchestrator-shared` | searchSteamGame<br>getSteamRatingsFromCacheOnly<br>getSteamPositiveRate<br>isDemoCacheWithoutRating<br>applyCacheHit | — |
@@ -200,9 +200,10 @@
 | `content/detail/detect-name.js` | 详情页游戏名提取（轻量单点）/ Page game-name detection | `content/core/common`<br>`shared/retrieval-vocab` | detectGameName | — |
 | `content/detail/inline-card.js` | 内嵌 Steam 信息卡 | `content/adapters/builder`<br>`content/core/debug`<br>`content/detail/detail-templates` | renderInlineSteamSection | — |
 | `content/detail/qr-unlock.js` | 二维码转链接 | `content/core/debug`<br>`content/core/timeouts` | init | — |
-| `content/detail/render/inline-html.js` | 内嵌 Steam 信息卡模板 | `content/core/common`<br>`content/core/steam-rating-logic` | steamInlineSection | — |
+| `content/detail/render/inline-html.js` | 内嵌 Steam 信息卡模板 | `content/core/common`<br>`content/core/steam-rating-logic`<br>`content/detail/render/match-confidence-row` | steamInlineSection | — |
+| `content/detail/render/match-confidence-row.js` | 匹配置信度行 | `content/core/common` | renderMatchConfidenceRow | — |
 | `content/detail/render/rating-rows.js` | 评分区块渲染器 | `content/core/common` | renderRatingRows<br>buildSparklineSvg<br>renderVerdictRow | — |
-| `content/detail/render/sidebar-html.js` | Steam 信息栏模板 | `content/core/common`<br>`content/core/steam-rating-logic`<br>`content/detail/render/rating-rows`<br>`shared/fm-keys` | steamSidebar | — |
+| `content/detail/render/sidebar-html.js` | Steam 信息栏模板 | `content/core/common`<br>`content/core/steam-rating-logic`<br>`content/detail/render/match-confidence-row`<br>`content/detail/render/rating-rows`<br>`shared/fm-keys` | steamSidebar | — |
 | `content/detail/sidebar-actions.js` | 浮窗回调工厂 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/timeouts`<br>`content/detail/candidates` | createSteamActions | — |
 | `content/detail/sidebar-rows.js` | 浮窗数据行填充 | `content/core/timeouts` | fillItadAndFavorites<br>fillSteam250Info<br>fillSeriesInfo | — |
 | `content/detail/sidebar.js` | Steam 信息浮窗模块（编排壳）/ Steam Info Float (orchestrator) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/detail/candidates`<br>`content/detail/detail-templates`<br>…+2 | createSteamFloat | — |
@@ -425,7 +426,7 @@
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
-| `shared/platform-detect.js` | 非 PC 平台识别（v14.10.0，用户需求：主机/模拟器条目） | — | detectPlatform<br>trimPlatformTokens<br>MANUAL_PLATFORM_OPTIONS<br>MANUAL_PLATFORM_BRANDS<br>resolveManualPlatformOption<br>extractEnNameSegment | — |
+| `shared/platform-detect.js` | 非 PC 平台识别（v14.10.0，用户需求：主机/模拟器条目） | — | detectPlatform<br>detectOffSteamPlatform<br>trimPlatformTokens<br>MANUAL_PLATFORM_OPTIONS<br>MANUAL_PLATFORM_BRANDS<br>resolveManualPlatformOption<br>…+1 | — |
 
 ## shared/retrieval-vocab.js
 

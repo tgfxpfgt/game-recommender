@@ -1,22 +1,28 @@
 /**
- * 游戏雷达 Game Radar - 匹配置信度三态 / Match Confidence (v14.28.6 R4-B)
+ * 游戏雷达 Game Radar - 匹配置信度三态 / Match Confidence (v14.28.7 R4-B2)
  *
- * 用户裁决（2026-11-11）：
- * 1. 确认的**唯一**条件 = 平台 + 标题 + 发行年份三者一致；缺任一 → 推测。
- *    发行年份缺失按缺失处理（禁止"取近似值"补齐）。
- * 2. 推测不得用符号（≈/虚线下划线）表达——徽章文字写「推测」，配色琥珀；
- *    悬停/详情必须给出依据（匹配到的标题 + 数据来源）。
- * 3. 因此"来源"（目录索引/商店搜索/详情页信号…）只作为依据展示，
- *    **不作为**确认条件；任何来源都走同一把尺子。
- * Confirmed requires platform + title + release-year all consistent; anything
- * missing downgrades to "suspected" (never approximated). The source is shown
- * as evidence only, never as a shortcut to "confirmed".
+ * 用户二次校准（2026-11-11，替换 v14.28.6 的"年份缺失即推测"）：
+ * 1. **平台不一致 → 推测**（含主机/移动/云游戏标题命中 Steam 同名条目）——
+ *    错配主因，必须最优先判；
+ * 2. **年份**：一侧缺失**不降级**；两侧都有且相差 **> 1 年** → 推测；
+ * 3. **标题相似度**是主门槛，达不到阈值 → 推测（确认必须有实际门槛）。
+ * 数据来源只作为"推测依据"展示，不作为确认捷径；任何来源走同一把尺子。
+ * Platform mismatch is judged first (console/mobile/cloud titles hitting a
+ * same-name Steam entry). A missing year never downgrades; only a gap of more
+ * than one year does. Title similarity is the main gate. Source is evidence
+ * only, never a confirmation shortcut.
  */
 import { trimPlatformTokens } from '../../shared/platform-detect.js';
-import { nameMatchesSearch } from './api-search.js';
+import { cjkBigramDice } from './api-search.js';
 
 export const MATCH_CONFIRMED = 'confirmed';
 export const MATCH_SUSPECTED = 'suspected';
+
+// 标题相似度门槛（用户裁决：确认必须有实际门槛）。达到即过标题门，否则一律
+// 推测。阈值不在业务代码本地放宽——分布实测若推测过半，报告数字由用户决定。
+// Title-similarity gate. Threshold is not loosened locally; if the measured
+// distribution has more than half suspected, report the numbers instead.
+export const TITLE_SIMILARITY_THRESHOLD = 0.75;
 
 // 数据来源标签（仅用于"推测依据"展示，不参与置信度判定）
 // Source labels: evidence only, never a gate.
@@ -24,6 +30,7 @@ export const MATCH_SOURCE_LABELS = {
   image: '页面封面图 appId',
   url: '详情页网址索引',
   index: '名称索引缓存',
+  correction: '用户报错纠正记录',
   directory: 'Steam 全量目录精确命中',
   storesearch: 'Steam 商店搜索',
   english: '英文名兜底搜索',
@@ -33,13 +40,12 @@ export const MATCH_SOURCE_LABELS = {
 };
 
 const REASON_TEXT = {
-  'all-match': '平台、标题、发行年份三项一致',
+  'all-match': '标题一致，平台为 PC，发行年份相符',
+  'year-unknown': '标题一致，平台为 PC；发行年份仅一侧可知（不降级）',
   'no-result-name': 'Steam 结果未返回标题，无法核对',
-  'platform-unconfirmed': '未能确认是 PC 版本',
-  'title-mismatch': '匹配标题与页面标题不一致',
-  'no-page-year': '页面标题未含发行年份，无法核对年份',
-  'no-steam-year': 'Steam 未返回发行日期，无法核对年份',
-  'year-mismatch': '页面年份与 Steam 发行年份不一致'
+  'platform-unconfirmed': '未能确认是 PC 版本（主机/移动/云游戏同名条目）',
+  'title-mismatch': '匹配标题与页面标题相似度不足',
+  'year-mismatch': '页面年份与 Steam 发行年份相差超过 1 年'
 };
 
 /**
@@ -58,7 +64,7 @@ export function yearOfDateString(value) {
 /**
  * 从页面标题提取发行年份（仅接受**独立段**的 4 位年份，1990-2035）。
  * 独立段 = 被括号/分隔符/空白包住，避免把游戏名里的数字（如"2077"）当年份。
- * 年份缺失 → null（调用方按"缺失即推测"处理，不做近似补齐）。
+ * 年份缺失 → null（新规则：一侧缺失不降级，调用方照常比对）。
  * Extract a release year only when it appears as a standalone segment.
  * @param {string} rawTitle
  * @returns {number|null}
@@ -75,50 +81,148 @@ export function extractTitleYear(rawTitle) {
 }
 
 /**
- * 页面标题的"身份段"：去掉站点分隔符后的后缀（|官方中文）、年份、平台标记。
- * 用于**身份核对**（不是检索）——检索候选（parseGameTitle 的删词变体）会把
- * "塞尔达传说：王国之泪"拆出"塞尔达传说"从而误配前作，不能拿来判同一性。
- * Identity segment of a page title: strip site suffixes, the year and platform
- * tokens. Search variants are intentionally NOT used here (too loose).
+ * 页面标题的**全部身份段**：按站点分隔符（| / 空格破折号）切段，逐段去掉
+ * 年份与平台标记。下载站常把官方中英文名并列（"人类/Humankind - 站名"），
+ * 逐段比对才能把 Steam 英文名与页面里的英文段对上。
+ * All identity segments of a page title: split on site separators (|, /, spaced
+ * dash) and strip the year and platform tokens from each. Download sites often
+ * list both the Chinese and English official names, so per-segment comparison
+ * can match an English Steam result against the page's English segment.
+ * @param {string} rawTitle
+ * @returns {string[]}
+ */
+export function pageTitleCores(rawTitle) {
+  const parts = String(rawTitle || '')
+    .split(/[|丨/／]+|\s+[-–—]\s+/)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  /** @type {string[]} */
+  const out = [];
+  for (const part of parts) {
+    let text = part;
+    const year = extractTitleYear(text);
+    if (year !== null) text = text.replace(String(year), ' ');
+    // 版本号不是身份（v1.6.155963 / 1.0.3）——先去掉，避免污染序号比对
+    // Version tags are not identity; strip them before number comparison.
+    text = text.replace(/\bv\d+(?:\.\d+)+\b/gi, ' ').replace(/\b\d+\.\d+(?:\.\d+)+\b/g, ' ');
+    // trimPlatformTokens 只用于英文名（它按非字母数字切词，会把 CJK 段吃掉）
+    // Only English segments go through trimPlatformTokens (it splits on
+    // non-alphanumerics and would otherwise drop CJK text).
+    if (!/[\u4e00-\u9fff]/.test(text)) text = trimPlatformTokens(text) || text;
+    // 语言标签不是身份（"官方中文/汉化版"等只影响可玩性，不影响是哪款游戏）
+    // Language tags are not identity; strip them from the trailing edge only.
+    text = text.replace(/(?:官方中文|简体中文|繁体中文|中文版|汉化版|汉化|中文|官中)\s*$/, '').trim();
+    text = text.replace(/\s{2,}/g, ' ').trim();
+    if (text) out.push(text);
+  }
+  return out;
+}
+
+/**
+ * 页面标题的"身份段"（第一段，保留旧导出语义）。身份核对不用检索候选
+ * （parseGameTitle 的删词变体会把"王国之泪"拆出"塞尔达传说"误配前作）。
+ * First identity segment (backward-compatible export).
  * @param {string} rawTitle
  * @returns {string}
  */
 export function pageTitleCore(rawTitle) {
-  const year = extractTitleYear(rawTitle);
-  let text = String(rawTitle || '').split(/[|丨/]/)[0];
-  if (year !== null) text = text.replace(String(year), ' ');
-  text = trimPlatformTokens(text) || text;
-  return text.replace(/\s{2,}/g, ' ').trim();
+  return pageTitleCores(rawTitle)[0] || '';
+}
+
+/** @param {string} s @returns {string} 归一化：小写、去空白与标点 */
+function normalizeTitle(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/[\s\-_:：|.'!！?？\[\]()（）×•·™®©]/g, '');
+}
+
+/** @param {string} s @returns {Set<string>} 拉丁/数字词元集合 */
+function latinTokens(s) {
+  return new Set(
+    String(s || '')
+      .toLowerCase()
+      .match(/[a-z0-9]+/g) || []
+  );
 }
 
 /**
- * 标题一致性：Steam 结果名 vs 页面标题身份段（复用检索同源判定，但输入是
- * 身份段，避免删词变体与"续作序号"误判）。
- * Title consistency on the identity segment (not the loose search variants).
+ * 单段相似度（0-1）：完全相等 1 → **序号护栏** → 包含 0.9+ → CJK 二元 Dice
+ * → 拉丁词元 Dice。序号护栏：页面身份段带数字时，结果名的数字必须被页面
+ * 覆盖（"黑色行动 6" vs "黑色行动 7" 判 0.4，防续作/版本串味）；页面无数字
+ * 而结果带数字 → 0.6（无法核对，交给其他段的最大值）。**不做跨语言无条件放行**
+ * ——确认必须有实际门槛（用户裁决）。
+ * Pairwise similarity: exact → numeric guard → containment → CJK bigram Dice
+ * → Latin token Dice. The numeric guard keeps sequel numbers apart. There is no
+ * unconditional cross-language pass: confirmation must clear a real threshold.
+ * @param {string} resultName
+ * @param {string} core
+ * @returns {number}
+ */
+function pairSimilarity(resultName, core) {
+  const rn = normalizeTitle(resultName);
+  const cn = normalizeTitle(core);
+  if (!rn || !cn || rn.length < 2 || cn.length < 2) return 0;
+  if (rn === cn) return 1;
+  // 序号护栏 / numeric guard
+  const nums = (s) => new Set(String(s).match(/\d+/g) || []);
+  const rNums = nums(resultName);
+  const cNums = nums(core);
+  if (cNums.size > 0) {
+    for (const n of rNums) if (!cNums.has(n)) return 0.4;
+    if (rNums.size === 0) return 0.6;
+  } else if (rNums.size > 0) {
+    return 0.6;
+  }
+  let best = 0;
+  if (rn.includes(cn)) best = Math.min(1, 0.9 + 0.1 * (cn.length / rn.length));
+  else if (cn.includes(rn)) best = Math.min(1, 0.9 + 0.1 * (rn.length / cn.length));
+  if (best >= TITLE_SIMILARITY_THRESHOLD) return best;
+  const dice = cjkBigramDice(resultName, core);
+  if (dice > best) best = dice;
+  if (best >= TITLE_SIMILARITY_THRESHOLD) return best;
+  const A = latinTokens(resultName);
+  const B = latinTokens(core);
+  if (A.size > 0 && B.size > 0) {
+    let shared = 0;
+    for (const t of A) if (B.has(t)) shared++;
+    const tokenDice = (2 * shared) / (A.size + B.size);
+    if (tokenDice > best) best = tokenDice;
+  }
+  return best;
+}
+
+/**
+ * 标题相似度（0-1）：取页面各身份段的最大值。
+ * Best similarity across the page title's identity segments.
+ * @param {string} resultName
+ * @param {string} gameName
+ * @returns {number}
+ */
+export function titleSimilarity(resultName, gameName) {
+  let best = 0;
+  for (const core of pageTitleCores(gameName)) {
+    const s = pairSimilarity(resultName, core);
+    if (s > best) best = s;
+  }
+  return Math.round(best * 100) / 100;
+}
+
+/**
+ * 标题是否过门槛（主门槛）。
+ * Whether the title clears the similarity gate.
  * @param {string} resultName
  * @param {string} gameName
  * @returns {boolean}
  */
 export function titleMatches(resultName, gameName) {
-  const core = pageTitleCore(gameName);
-  const norm = (s) =>
-    String(s || '')
-      .toLowerCase()
-      .replace(/[\s\-_:：|.'!！?？\[\]()（）×•·]/g, '');
-  const rn = norm(resultName);
-  const cn = norm(core);
-  if (!rn || !cn || rn.length < 2 || cn.length < 2) return false;
-  if (rn === cn) return true;
-  // 页面标题比 Steam 名长（带"豪华版/决定版"等后缀）→ 同一身份
-  if (rn.includes(cn)) return true;
-  // 反向：Steam 名比页面标题长——多出来的必须是纯修饰词，带序号即不同代
-  if (cn.includes(rn)) return !/\d/.test(cn.replace(rn, ''));
-  // 其余交检索同源判定（跨语言等语义规则单源）
-  return nameMatchesSearch(resultName, core, core);
+  return titleSimilarity(resultName, gameName) >= TITLE_SIMILARITY_THRESHOLD;
 }
 
 /**
- * 三要素打标。任一要素不成立/缺失 → suspected（并给出可直接展示的 reasonText）。
+ * 置信度打标：平台最优先 → 标题主门槛 → 年份（一侧缺失不降级，相差 >1 年
+ * 才降级）。返回可直接展示的依据（匹配标题/来源/平台/相似度/原因）。
+ * Rate a match: platform first, then the title gate, then the year rule (a
+ * missing year never downgrades; only a gap > 1 year does).
  * @param {{
  *   gameName: string,
  *   resultName?: string|null,
@@ -128,7 +232,8 @@ export function titleMatches(resultName, gameName) {
  *   source?: string
  * }} input
  * @returns {{confidence: 'confirmed'|'suspected', reason: string, reasonText: string,
- *   resultName: string, source: string, sourceLabel: string, pageYear: number|null, steamYear: number|null}}
+ *   resultName: string, source: string, sourceLabel: string, platformLabel: string,
+ *   similarity: number, pageYear: number|null, steamYear: number|null}}
  */
 export function rateMatchConfidence(input) {
   const gameName = String(input.gameName || '');
@@ -137,18 +242,24 @@ export function rateMatchConfidence(input) {
   const sourceKey = input.source && MATCH_SOURCE_LABELS[input.source] ? String(input.source) : 'unknown';
   const pageYear = Number.isFinite(input.pageYear) ? Number(input.pageYear) : null;
   const steamYear = Number.isFinite(input.steamYear) ? Number(input.steamYear) : null;
-  /** @type {{resultName: string, source: string, sourceLabel: string, pageYear: number|null, steamYear: number|null}} */
+  const platformOk = input.platform === 'pc';
+  const similarity = resultName ? titleSimilarity(resultName, gameName) : 0;
+  /** @type {{resultName: string, source: string, sourceLabel: string, platformLabel: string,
+   *   similarity: number, pageYear: number|null, steamYear: number|null}} */
   const base = {
     resultName,
     source: sourceKey,
     sourceLabel: MATCH_SOURCE_LABELS[sourceKey] || '未知来源',
+    platformLabel: platformOk ? 'PC' : '非 PC（主机/移动/云游戏）',
+    similarity,
     pageYear,
     steamYear
   };
   /**
    * @param {string} reason
    * @returns {{confidence: 'confirmed'|'suspected', reason: string, reasonText: string,
-   *   resultName: string, source: string, sourceLabel: string, pageYear: number|null, steamYear: number|null}}
+   *   resultName: string, source: string, sourceLabel: string, platformLabel: string,
+   *   similarity: number, pageYear: number|null, steamYear: number|null}}
    */
   const suspected = (reason) => ({
     ...base,
@@ -156,16 +267,22 @@ export function rateMatchConfidence(input) {
     reason,
     reasonText: REASON_TEXT[reason] || ''
   });
+  // 1) 平台最优先——错配主因 / platform mismatch comes first
+  if (!platformOk) return suspected('platform-unconfirmed');
+  // 2) 标题相似度主门槛 / the title gate
   if (!resultName) return suspected('no-result-name');
-  if (input.platform !== 'pc') return suspected('platform-unconfirmed');
-  if (!titleMatches(resultName, gameName)) return suspected('title-mismatch');
-  if (pageYear === null) return suspected('no-page-year');
-  if (steamYear === null) return suspected('no-steam-year');
-  if (pageYear !== steamYear) return suspected('year-mismatch');
+  if (similarity < TITLE_SIMILARITY_THRESHOLD) return suspected('title-mismatch');
+  // 3) 年份：一侧缺失不降级；两侧都有且相差 > 1 年才降级
+  //    Missing year on one side never downgrades; a gap > 1 year does.
+  let reason = 'year-unknown';
+  if (pageYear !== null && steamYear !== null) {
+    if (Math.abs(pageYear - steamYear) > 1) return suspected('year-mismatch');
+    reason = 'all-match';
+  }
   return {
     ...base,
     confidence: MATCH_CONFIRMED,
-    reason: 'all-match',
-    reasonText: REASON_TEXT['all-match']
+    reason,
+    reasonText: REASON_TEXT[reason]
   };
 }

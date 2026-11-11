@@ -19,6 +19,7 @@
  */
 import * as common from '../../core/common.js';
 import { adjustedReputation, ratingTextInfo, verdictFor } from '../../core/steam-rating-logic.js';
+import { renderMatchConfidenceRow } from './match-confidence-row.js'; // v14.28.7 R4-B3
 
 const esc = (text) => common.escapeHtml(text);
 
@@ -62,6 +63,7 @@ export function steamInlineSection(data, cachedAt) {
   }
 
   return `
+    ${renderMatchConfidenceRow(data)}
     <section class="steam-review-card" data-steam-appid="${common.escapeAttr(String(data.appId || ''))}" aria-label="Steam 玩家评价">
       <div class="steam-review-overview">
         <div class="steam-review-heading">

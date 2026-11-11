@@ -35,25 +35,31 @@ import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
 import { fetchWithTimeout } from '../core/utils.js'; // v14.8.2：详情页信号回捞
 import { appendRatingHistory, extractSteamAppIdSignals, isNewReleaseDate } from './orchestrator-shared.js'; // v14.8.2：盲区自愈；v14.9.1：新发售判定
-import { detectPlatform, trimPlatformTokens, extractEnNameSegment } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段剥离；v14.19.0：EN 段提取单源
+import {
+  detectPlatform,
+  detectOffSteamPlatform,
+  trimPlatformTokens,
+  extractEnNameSegment
+} from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段剥离；v14.19.0：EN 段提取单源；v14.28.7：置信度平台判定
 import { fetchMetacriticScore } from './api-metacritic.js'; // v14.10.0：主机条目评分源
 import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
-// v14.28.6 R4-B：三要素置信度（平台+标题+发行年份一致才 confirmed）
+// v14.28.7 R4-B2：置信度规则（平台最优先/年份 >1 年才降级/标题相似度主门槛）
 import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
 
-// v14.28.6 R4-B：把三要素置信度挂到结果上（确认/推测 + 依据串），内容侧据此
-// 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 缺哪一项）。
-// Attach the 3-factor confidence (and human-readable evidence) to a result.
+// v14.28.6 R4-B：把置信度挂到结果上（确认/推测 + 依据串），内容侧据此
+// 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 平台判定）。
+// v14.28.7 R4-B2：平台按标题识别（主机/移动/云游戏 → 非 PC，最优先降级）。
+// Attach the confidence (and human-readable evidence) to a result.
 function attachMatch(result, { gameName, resultName, source, steamYear }) {
   if (!result || typeof result !== 'object') return result;
   const m = rateMatchConfidence({
     gameName,
     resultName: resultName || result.name || '',
-    platform: 'pc',
+    platform: detectOffSteamPlatform(gameName) ? 'non-pc' : 'pc',
     pageYear: extractTitleYear(gameName),
     steamYear: steamYear !== null && steamYear !== undefined ? steamYear : yearOfDateString(result.releaseDate),
     source
@@ -61,6 +67,7 @@ function attachMatch(result, { gameName, resultName, source, steamYear }) {
   result.matchConfidence = m.confidence;
   result.matchName = m.resultName;
   result.matchSource = m.sourceLabel;
+  result.matchPlatform = m.platformLabel;
   result.matchNote = m.reasonText;
   return result;
 }

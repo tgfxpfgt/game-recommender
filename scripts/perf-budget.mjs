@@ -85,7 +85,14 @@ export const BUDGETS = {
   // ratings-batch / mechanisms / badge-base），SW 图 +1,197B 全为文档注释、零运行时
   // 代码；按实测重锁。
   // v14.28.6 (R4-C): @invariant header comments only (no runtime code); re-locked.
-  swGraphBytes: 871522,
+  // v14.28.7（R4-B2/B3 口径校准）：置信度规则重写（平台最优先/年份 >1 年才降级/
+  // 标题相似度主门槛 + 序号护栏）+ 详情管线挂置信度（来源链/页面标题身份）+
+  // platform-detect 移动/云标记；SW 图 881,676B/106 文件（+10,154B，主体为
+  // 双语根因注释）。工作区含用户侧未提交 adapter 改动（不计入本批语义）。
+  // 按实测重锁——新增能力，无冗余代码。
+  // v14.28.7 (R4-B2/B3): recalibrated confidence rules + detail-side evidence,
+  // re-locked to the measured graph size.
+  swGraphBytes: 881676,
   swGraphFiles: 106,
   staticInjectionBytes: 38663,
   closureBytes: 294466

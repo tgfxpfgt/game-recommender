@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "14.28.6",
+  "version": "14.28.7",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -189,6 +189,7 @@
           "content/detail/inline-card.js",
           "content/detail/qr-unlock.js",
           "content/detail/render/inline-html.js",
+          "content/detail/render/match-confidence-row.js",
           "content/detail/render/rating-rows.js",
           "content/detail/render/sidebar-html.js",
           "content/detail/sidebar-actions.js",

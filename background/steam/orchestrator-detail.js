@@ -51,6 +51,44 @@ import { appendRatingHistory, isDemoCacheWithoutRating, resolveDlcToBase } from 
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 15：未命中自动采集
+import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js'; // v14.28.7 R4-B3
+import { detectOffSteamPlatform } from '../../shared/platform-detect.js'; // v14.28.7 R4-B3
+
+// ============ 匹配置信度打标（v14.28.7 R4-B3）/ Match confidence ============
+// 用户裁决：详情面板与浮窗必须与列表徽章同尺子标推测——"只在列表标推测等于
+// 没修，用户看到错配的地方就是详情"。页面身份取 rawTitle（document.title，
+// 平台/年份标记都在这里），标题比对用 Steam 命中名；字段随响应下发不落缓存
+//（规则升级后旧缓存不会被旧判定钉死）。
+// Same ruler as the list badge; the page identity comes from rawTitle (platform
+// and year live there). Fields ride the response only, never the cache.
+/**
+ * @template {Record<string, any>} T
+ * @param {T} result
+ * @param {string} gameName
+ * @param {string} pageTitle
+ * @param {string} source
+ * @returns {T}
+ */
+function attachMatch(result, gameName, pageTitle, source) {
+  if (!result || typeof result !== 'object') return result;
+  const page = pageTitle || gameName;
+  const m = rateMatchConfidence({
+    gameName: page,
+    resultName: result.name || '',
+    platform: detectOffSteamPlatform(page) ? 'non-pc' : 'pc',
+    pageYear: extractTitleYear(page),
+    steamYear: yearOfDateString(result.releaseDate),
+    source
+  });
+  /** @type {any} */
+  const out = result;
+  out.matchConfidence = m.confidence;
+  out.matchName = m.resultName;
+  out.matchSource = m.sourceLabel;
+  out.matchPlatform = m.platformLabel;
+  out.matchNote = m.reasonText;
+  return out;
+}
 
 /**
  * 搜索游戏并获取完整 Steam 详情（详情页/浮窗使用）
@@ -86,15 +124,22 @@ export async function searchSteamGame(gameName, options = {}) {
   }
   // v14.3.2：Phase 0 — 元素直取 appId + DLC 解析（内容侧封面图提取的 appId 作为起点，
   // 经 resolveDlcToBase 解析后与名称索引/纠正路径汇合——统一入口消 aside 双管线分叉）
+  // v14.28.7 R4-B3：页面身份 = rawTitle（含平台/年份标记），无则退 gameName
+  const pageTitle = options.rawTitle || gameName;
   /** @type {string|number|null} */
   let appId = null;
+  // v14.28.7 R4-B3：appId 来源链（文案证据，仅随响应展示）
+  /** @type {string} */
+  let appIdSource = 'unknown';
   if (options.appId) {
     appId = await resolveDlcToBase(String(options.appId));
+    if (appId) appIdSource = 'image';
   }
 
   // 1. 通过名称索引查找 appId / Lookup appId via name index
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
+    if (appId) appIdSource = 'index';
   }
 
   // 1.5 人工纠正知识库优先（v3.3.13）：该标题曾报错并手动确认了正确 appid——
@@ -104,6 +149,7 @@ export async function searchSteamGame(gameName, options = {}) {
   let excludeAppId = null;
   if (correction) {
     appId = correction.correctAppId;
+    appIdSource = 'correction';
     excludeAppId = correction.wrongAppId;
     await deleteNameIndexEntry(gameName);
   }
@@ -116,7 +162,8 @@ export async function searchSteamGame(gameName, options = {}) {
   if (appId) {
     // v14.14.0（重构序 6b）：命中判定/Demo 自愈/注册表补写提取为 tryCacheServed
     const hit = await tryCacheServed(gameName, appId);
-    if (hit.served && hit.merged) return hit.merged;
+    // v14.28.7 R4-B3：命中同样标置信度（来源链 = 上图取/名称索引/人工纠正）
+    if (hit.served && hit.merged) return attachMatch(hit.merged, gameName, pageTitle, appIdSource);
     appId = hit.appId ?? null;
   } else if (!options.ignoreNegativeCache && (await isRecentlySearchedNotFound(gameName))) {
     // 3. 无 appId 时，检查负缓存（v10.9.2：ignoreNegativeCache 可穿透——详情页
@@ -138,8 +185,10 @@ export async function searchSteamGame(gameName, options = {}) {
     /** @type {boolean} */
     let appIdTrusted = false;
     if (!appId) {
-      appId = await searchAppIdFlow(gameName, options, excludeAppId);
-      if (!appId) return null;
+      const flow = await searchAppIdFlow(gameName, options, excludeAppId);
+      if (!flow) return null;
+      appId = flow.appId;
+      appIdSource = flow.source;
       appIdTrusted = true;
     }
     const first = await fetchDetailsResolveDlc(appId);
@@ -156,8 +205,10 @@ export async function searchSteamGame(gameName, options = {}) {
           'Steam',
           `相关性护栏: 直取/索引 appId ${appId} ("${result.name}") 与标题 "${gameName}" 不相关，转标题重搜`
         );
-        appId = await searchAppIdFlow(gameName, options, excludeAppId);
-        if (!appId) return null;
+        const again = await searchAppIdFlow(gameName, options, excludeAppId);
+        if (!again) return null;
+        appId = again.appId;
+        appIdSource = again.source;
         appIdTrusted = true;
         const second = await fetchDetailsResolveDlc(appId);
         if (!second) return null;
@@ -170,7 +221,8 @@ export async function searchSteamGame(gameName, options = {}) {
     // 提取为 writeSearchCaches
     await writeSearchCaches(appId, result, gameName);
 
-    return result;
+    // v14.28.7 R4-B3：置信度在缓存写入之后打标——不落盘（规则升级即生效）
+    return attachMatch(result, gameName, pageTitle, appIdSource);
   } catch (error) {
     console.error('Steam API 调用失败:', error);
     return null;
@@ -186,7 +238,7 @@ export async function searchSteamGame(gameName, options = {}) {
  * @param {string} gameName
  * @param {{[k: string]: any}} options
  * @param {string|number|null} excludeAppId
- * @returns {Promise<string|number|null>}
+ * @returns {Promise<{appId: string|number, source: string}|null>}
  */
 async function searchAppIdFlow(gameName, options, excludeAppId) {
   // v14.3.2：rawTitle 三阶段匹配（franchise 区分策略，审查报告 P1-A）
@@ -215,11 +267,16 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
   //（阶段 2 交叉验证照常运行防 franchise 误配）；目录未命中走在线检索。
   /** @type {import('../core/types.js').SteamSearchResult|null} */
   let searchResult = null;
+  // v14.28.7 R4-B3：命中来源（目录/商店检索/英文重搜/社区/兜底）
+  /** @type {string} */
+  let source = 'unknown';
   const dirHit = await matchAppListExact(gameName, excludeAppId);
   if (dirHit) {
     searchResult = { appId: dirHit.appId, name: dirHit.name, englishName: dirHit.name };
+    source = 'directory';
   } else {
     searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, excludeAppId);
+    if (searchResult) source = 'storesearch';
   }
   // 阶段 2：内容词覆盖交叉验证
   if (searchResult && enSegment) {
@@ -240,6 +297,7 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
         if (enCover > hitCover) {
           Logger.info('Steam', `交叉验证升级: "${enResult.name}" 覆盖 ${enCover}/${rawWords.length}，替换`);
           searchResult = enResult;
+          source = 'english';
         }
         // 等覆盖/更差 → 保留中文命中（防英文段拼写噪声抖动）
       }
@@ -248,10 +306,12 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
   // 阶段 3：中文全空 → raw 标题英文段兜底
   if (!searchResult && enSegment) {
     searchResult = await searchSteamAppId([enSegment], options.rawTitle, excludeAppId, 'english');
+    if (searchResult) source = 'english';
     // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）——英文
     // storesearch 未命中时的轻量补充，结果经同一相关性校验
     if (!searchResult) {
       searchResult = await searchCommunityApps(enSegment, options.rawTitle, excludeAppId);
+      if (searchResult) source = 'community';
     }
   }
   if (!searchResult) {
@@ -260,7 +320,7 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
     // 错配比未找到更糟——兜底均失败时返回 null（显示"未找到"，可走报错纠正黑名单）
     const fallback = (await webSearchFallback(gameName, excludeAppId)) || (await llmMatchGame(gameName, excludeAppId));
     if (fallback) {
-      return fallback.appId;
+      return { appId: fallback.appId, source: 'unknown' };
     } else {
       // 记录负缓存 / Record negative cache
       // v9.7.0：网络故障期不做负缓存固化——searchSteamAppId 吞掉网络异常
@@ -287,7 +347,7 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
       return null;
     }
   }
-  return searchResult.appId;
+  return { appId: searchResult.appId, source };
 }
 // 详情获取 + DLC→本体解析（v14.3.2 逻辑抽取为局部函数——护栏重搜路径
 // 复用；返回 {appId, detail}，appId 更新为本体 id）。fetchSteamFullDetails

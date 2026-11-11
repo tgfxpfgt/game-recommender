@@ -35,7 +35,8 @@ function suspectTitleLine(rating) {
   const why = rating.matchNote || '信息不足，无法核对平台/标题/发行年份';
   const which = rating.matchName ? `匹配到「${rating.matchName}」` : '未返回匹配标题';
   const from = rating.matchSource ? ` · 来源：${rating.matchSource}` : '';
-  return `推测匹配（未达确认条件）：${why}\n${which}${from}`;
+  const plat = rating.matchPlatform ? ` · 平台：${rating.matchPlatform}` : '';
+  return `推测匹配（未达确认条件）：${why}\n${which}${from}${plat}`;
 }
 
 // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
