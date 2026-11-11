@@ -84,6 +84,29 @@ test('content 静态 import 的 shared 模块均在 WAR 覆盖内', () => {
   expect(uncovered, 'WAR 未覆盖的内容侧共享依赖:\n  ' + uncovered.join('\n  ')).toEqual([]);
 });
 
+// v14.28.5（第三轮）：WAR 门禁从"shared 静态依赖"扩展到"全部页面侧动态入口"——
+// module-manifest 声明的 CORE/OPTIONAL 模块 + content/** 里 getURL('…​.js') 字面量。
+// 依据：MV3 只有列入 web_accessible_resources 的资源才能被页面隔离世界导入
+//（developer.chrome.com/docs/extensions/develop/concepts/manifest，
+//  WAR 形态自 Chrome 88 起为对象数组 {resources, matches, use_dynamic_url}）。
+// 盲区实证：v14.2.0 前 spy-scales/fm-keys 下沉 shared 后漏进 WAR，真机 import 全链
+// 失败而单测全绿——新增模块漏登记 WAR 是同类风险，故改为清单驱动而非 import 驱动。
+test('内容动态 import 入口（module-manifest + getURL 字面量）均在 WAR 覆盖内', () => {
+  const warRes = (manifest.web_accessible_resources || []).flatMap((w) => w.resources || []);
+  const hit = (res) => warRes.includes(res) || warRes.some((w) => w.endsWith('*') && res.startsWith(w.slice(0, -1)));
+  const mmSrc = fs.readFileSync(path.join(ROOT, 'content/module-manifest.js'), 'utf-8');
+  const declared = [...mmSrc.matchAll(/file:\s*'([^']+)'/g)].map((m) => m[1]);
+  const viaGetUrl = [];
+  for (const f of collectJs(path.join(ROOT, 'content'), [])) {
+    const src = fs.readFileSync(f, 'utf-8');
+    for (const m of src.matchAll(/getURL\(\s*'([^']+\.js)'/g)) viaGetUrl.push(m[1]);
+  }
+  const needed = [...new Set([...declared, ...viaGetUrl])];
+  expect(needed.length, '未解析到内容模块入口（断言已失去意义，需更新提取规则）').toBeGreaterThan(10);
+  const missing = needed.filter((r) => !hit(r));
+  expect(missing, 'WAR 未覆盖的内容侧动态入口:\n  ' + missing.join('\n  ')).toEqual([]);
+});
+
 // ============ 14. 主题文件一致性（v14.3.0 B10 引入；v14.3.2 改扫描拆分文件） ============
 // styles/themes/<name>.css 每主题一文件（applyTheme 动态加载）。四重守护：
 // ①文件集合与 settings-utils 的 VALID_THEMES 全等（steam 为默认主题，定义于
