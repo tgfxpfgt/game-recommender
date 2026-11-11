@@ -628,11 +628,11 @@ simTest('13. 断网故障渲染为「网络异常」而非「未找到」', asyn
     { 断网游戏: { failed: true, errorType: 'network', appId: null, positiveRate: null, name: '断网游戏' } },
     'first'
   );
-  await waitForSignal(
-    () => a.children.some((c) => (c.className || '').includes('gr-badge-network-error')),
-    '节13: 断网条目应渲染网络异常徽章'
-  );
+  // applyRatingsResponse 内的徽章渲染是同步的——直接断言，不用 waitForSignal：
+  // 断网徽章缺失时同步失败（毫秒级），否则会空等信号超时（变异验证 240s 的成因）。
   const text = a.children.map((c) => c.textContent || '').join(' ');
+  const hasNetworkBadge = a.children.some((c) => (c.className || '').includes('gr-badge-network-error'));
+  expect(hasNetworkBadge, `节13: 断网条目应渲染网络异常徽章，实际徽章=${JSON.stringify(text)}`).toBe(true);
   expect(text).toContain('网络异常');
   expect(text).not.toContain('未找到');
   expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);

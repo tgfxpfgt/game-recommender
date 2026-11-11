@@ -1,0 +1,45 @@
+{
+  "_comment": "缺陷回放（变异）清单：每条把某个已修复的历史缺陷'放回去'，跑对应门禁/套件，必须变红。红=门禁有效；绿=门禁失效。命令：npm run verify:mutations",
+  "mutations": [
+    {
+      "id": "applist-branch-main",
+      "class": "A/G",
+      "defect": "外部引用写死错误分支：appListIndex 的 dump URL 写 main，仓库默认分支是 master → 404 五个月零运行且全绿",
+      "file": "background/core/constants.js",
+      "find": "@master/data/games_appid.json",
+      "replace": "@main/data/games_appid.json",
+      "check": "node scripts/check-external-refs.mjs",
+      "caughtBy": "脚本：外部引用锁（未登记 URL / 分支结构不一致）"
+    },
+    {
+      "id": "network-rendered-as-notfound",
+      "class": "B",
+      "defect": "网络/限流失败被渲染成「未找到」：错误语义复用'不存在'的文案与样式，用户以为 Steam 没有该游戏",
+      "file": "content/list/badges/core.js",
+      "find": "if (rating && rating.failed && !rating.appId) {",
+      "replace": "if (false && rating && rating.failed && !rating.appId) {",
+      "check": "npx vitest run tests/sim/sim-list.mjs",
+      "caughtBy": "sim：节 13 断网渲染断言（必须出现 gr-badge-network-error 且不含「未找到」）"
+    },
+    {
+      "id": "stall-heartbeat-log-only",
+      "class": "C",
+      "defect": "停滞只写日志、进度 UI 不动：看门狗/停滞机制空转，用户看到的是'一直在跑'却无反馈",
+      "file": "background/steam/ratings-batch.js",
+      "find": "await push({ ratings: null, ...progressPayload() });",
+      "replace": "await Promise.resolve();",
+      "check": "npx vitest run tests/unit/test-ratings-resume.mjs",
+      "caughtBy": "unit：停滞边沿心跳用例（必须收到 progress.stalled 且 ratings===null）"
+    },
+    {
+      "id": "corpus-without-denominator",
+      "class": "E",
+      "defect": "验收无分母：名称级语料样本缺 expectedName，回放只能说'appid 对了'，名字错配无据可查",
+      "file": "tests/fixtures/mismatch-samples.json",
+      "find": "\"expectedName\": \"Call of Duty: Black Ops 7\",",
+      "replace": "\"expectedNameDropped\": \"Call of Duty: Black Ops 7\",",
+      "check": "node scripts/check-match-corpus.mjs",
+      "caughtBy": "脚本：匹配语料分母门禁（名称级样本缺 expectedName）"
+    }
+  ]
+}

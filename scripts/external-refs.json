@@ -1,0 +1,43 @@
+{
+  "_comment": "外部引用锁文件：所有代码内第三方托管 URL（GitHub raw / jsDelivr）必须在此登记，且 branch 必须等于仓库真实默认分支。漂移/超期/未登记 = 门禁红。刷新命令：npm run check:ext-refs -- --refresh",
+  "maxAgeDays": 30,
+  "refs": [
+    {
+      "id": "steam-app-list-dump-jsdelivr",
+      "url": "https://cdn.jsdelivr.net/gh/jsnli/steamappidlist@master/data/games_appid.json",
+      "repo": "jsnli/steamappidlist",
+      "branch": "master",
+      "path": "data/games_appid.json",
+      "usedBy": ["background/core/constants.js ENDPOINTS.steamAppListDump"],
+      "validatedAt": "2026-11-11",
+      "httpStatus": 200,
+      "bytes": 20247815,
+      "note": "全量目录 dump 主源。原实现写死 main（仓库默认分支 master）→ 404 从未生效；本条 lock 即该缺陷的回归防线。"
+    },
+    {
+      "id": "steam-app-list-dump-raw",
+      "url": "https://raw.githubusercontent.com/jsnli/steamappidlist/master/data/games_appid.json",
+      "repo": "jsnli/steamappidlist",
+      "branch": "master",
+      "path": "data/games_appid.json",
+      "usedBy": ["background/core/constants.js ENDPOINTS.steamAppListDumpFallback"],
+      "validatedAt": "2026-11-11",
+      "httpStatus": 200,
+      "bytes": 20247815,
+      "note": "raw 备源（部分网络 jsDelivr 不可达）。"
+    },
+    {
+      "id": "userscript-update-url",
+      "url": "https://raw.githubusercontent.com/tgfxpfgt/game-recommender/main/userscript/game-radar.user.js",
+      "repo": "tgfxpfgt/game-recommender",
+      "branch": "main",
+      "path": "userscript/game-radar.user.js",
+      "usedBy": ["userscript/game-radar.user.js @updateURL/@downloadURL"],
+      "validatedAt": "2026-11-11",
+      "httpStatus": null,
+      "bytes": null,
+      "note": "油猴自动更新源；本仓库默认分支 main。发布后才可达，--refresh 离线失败不算漂移（见脚本说明）。"
+    }
+  ],
+  "allow": []
+}

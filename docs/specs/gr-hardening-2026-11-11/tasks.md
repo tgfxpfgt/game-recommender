@@ -10,11 +10,11 @@
 - [x] T7 提交 1。
 
 ## L2 A–G 门禁
-- [ ] T8 `scripts/external-refs.json` + `scripts/check-external-refs.mjs`（离线比对 + `--refresh` + 30 天保鲜）。
-- [ ] T9 `scripts/check-match-corpus.mjs`（expectedName 分母强制）。
-- [ ] T10 `scripts/mutations.json` + `scripts/mutation-check.mjs`（突变→测试必须红→还原）。
-- [ ] T11 package.json 接线 `check:ext-refs`/`check:corpus`/`verify:mutations`（`check:refs` 已被 check-referenced-paths 占用）；gate:fast 纳入。
-- [ ] T12 逐条反向验证并记录命令与结果。
+- [x] T8 `scripts/external-refs.json` + `scripts/check-external-refs.mjs`（离线比对 + `--refresh` + 30 天保鲜）。
+- [x] T9 `scripts/check-match-corpus.mjs`（expectedName 分母强制）。
+- [x] T10 `scripts/mutations.json` + `scripts/mutation-check.mjs`（突变→测试必须红→还原）。
+- [x] T11 package.json 接线 `check:ext-refs`/`check:corpus`/`verify:mutations`（`check:refs` 已被 check-referenced-paths 占用）；gate:fast 纳入。
+- [x] T12 逐条反向验证并记录命令与结果（4/4 变红：97ms / 2,663ms / 11,878ms / 70ms）。
 - [ ] T13 提交 2。
 
 ## L3 测试体系

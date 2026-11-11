@@ -665,7 +665,8 @@
           ]
         }
       },
-      "skipVerify": true
+      "skipVerify": true,
+      "skipReason": "元素直取可达：站点详情页直接给出 appid，列表页搜索路径不可判定（非能力缺陷，见 tests/unit/test-baseline-firstpage.mjs 注释）"
     },
     {
       "id": "xdgame-2482760-1",
@@ -2093,7 +2094,8 @@
           "items": []
         }
       },
-      "skipVerify": true
+      "skipVerify": true,
+      "skipReason": "元素直取可达：站点详情页直接给出 appid，列表页搜索路径不可判定（非能力缺陷，见 tests/unit/test-baseline-firstpage.mjs 注释）"
     }
   ]
 }

@@ -3127,7 +3127,8 @@
           ]
         }
       },
-      "skipVerify": true
+      "skipVerify": true,
+      "skipReason": "元素直取可达：站点详情页直接给出 appid，列表页搜索路径不可判定（非能力缺陷，见 tests/unit/test-baseline-firstpage.mjs 注释）"
     },
     {
       "id": "gamer520-1154030-22",
@@ -3328,7 +3329,8 @@
           ]
         }
       },
-      "skipVerify": true
+      "skipVerify": true,
+      "skipReason": "元素直取可达：站点详情页直接给出 appid，列表页搜索路径不可判定（非能力缺陷，见 tests/unit/test-baseline-firstpage.mjs 注释）"
     },
     {
       "id": "gamer520-1909950-23",
@@ -4073,7 +4075,8 @@
           ]
         }
       },
-      "skipVerify": true
+      "skipVerify": true,
+      "skipReason": "元素直取可达：站点详情页直接给出 appid，列表页搜索路径不可判定（非能力缺陷，见 tests/unit/test-baseline-firstpage.mjs 注释）"
     },
     {
       "id": "gamer520-2456740-25",

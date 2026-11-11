@@ -65,6 +65,12 @@ step('check:docs（文档版本/索引一致性）', 'node scripts/check-doc-ver
 step('check:modules（模块索引/豁免登记）', 'node scripts/check-module-index.mjs');
 // v14.28.6 R4-D：占位实现 + 契约→handler 缺口——"看着像做完了"的两类假完成。
 step('check:stubs（占位实现/契约缺口）', 'node scripts/check-stubs.mjs');
+// v14.29.0（A 类根治）：外部引用锁——代码里的 GitHub raw/jsDelivr URL 必须登记，
+// 且 URL 分支必须等于登记默认分支（appListIndex 写死 main → 404 五个月零运行）。
+step('check:ext-refs（外部引用锁）', 'node scripts/check-external-refs.mjs');
+// v14.29.0（E 类根治）：匹配语料分母——回放样本必须有 ground truth，
+// 禁止"缺 expectedName / recorded 全 0 命中 / 豁免不写原因"的真空通过。
+step('check:corpus（匹配语料分母）', 'node scripts/check-match-corpus.mjs');
 step('lint', 'npm run lint');
 step('typecheck', 'npm run typecheck');
 const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };
@@ -74,6 +80,10 @@ if (fast) {
   step('vitest（全量两阶段）', 'npm test', GATE_VITEST_ENV);
 }
 step('lint-ratchet（类型债棘轮）', 'node scripts/lint-ratchet.mjs');
+// v14.29.0（D/C/F 类根治）：缺陷回放验证——把 4 类历史缺陷放回去，对应门禁
+// 必须变红；绿 = 门禁失效即红。跑在 vitest 之后（需要先确认基线本身是绿的），
+// 耗时约 15s；变异只作用于工作副本并按字节还原（不碰 git 状态）。
+step('verify:mutations（缺陷回放：放回必须变红）', 'node scripts/mutation-check.mjs');
 // v14.26.0（优化方案 P1-2 后半 + P2-12）：体积预算——SW 静态图/静态注入/内容
 // 闭包三项按实测基线锁定，任何增长即红（真机冷启动断言在 E2E，fast 模式不做）。
 step('perf-budget（体积预算）', 'node scripts/perf-budget.mjs --assert');

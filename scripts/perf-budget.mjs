@@ -102,10 +102,17 @@ export const BUDGETS = {
   // Adapter lazy-assembly batch: the registry is built on first read; measured
   // graph shrinks by 4,790B net. The remaining +8,670B above the old lock is
   // pre-existing debt from 3fcf6c4, not attributed to this batch.
-  swGraphBytes: 890346,
+  // v14.28.8（三修复批次 e4ac881）：ratings-batch 停滞边沿心跳（+49 行）、
+  // orchestrator-list 网络故障哨兵（+41 行）、app-list-index 多源装载/解析
+  // 抽取（+47 行）、content 侧故障徽章分支（+22/+19 行）——SW 图 +5,698B、
+  // 内容闭包 list +596B，主体是双语根因注释；按实测重锁（新增能力，无冗余
+  // 代码）。静态注入未变（38,663B）。
+  // v14.28.8 (three-fix batch): stall heartbeat, network-failure sentinel and
+  // multi-source dump loader; re-locked to the measured values.
+  swGraphBytes: 896044,
   swGraphFiles: 106,
   staticInjectionBytes: 38663,
-  closureBytes: 294466
+  closureBytes: 295062
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;
