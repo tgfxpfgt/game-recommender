@@ -604,6 +604,19 @@ test('manifest content_scripts js 清单 = SITE_SCRIPT_FILES（顺序敏感单�
   expect(JSON.stringify(manifestJs)).toEqual(JSON.stringify(siteScriptsMod.SITE_SCRIPT_FILES));
 });
 
+// v14.28.5：注册时机收敛——registerContentScripts 的 persistAcrossSessions
+// 默认 true（注册项跨 SW/浏览器重启保留），故 SW 顶层每次唤醒重扫是纯开销
+// （一次规则存储读 + 一次 getRegisteredContentScripts IPC，对已注册站点必然空转）。
+// 调用点必须锚定 onInstalled / onStartup / 规则保存三处。
+test('站点脚本同步不在 SW 顶层，锚定 onInstalled/onStartup', () => {
+  const sw = fs.readFileSync(path.join(BG, 'service-worker.js'), 'utf-8');
+  expect(/^syncSiteScripts\(\)/m.test(sw), 'SW 顶层不应再直接调用 syncSiteScripts()').toBe(false);
+  expect(sw.includes('chrome.runtime.onStartup.addListener(syncSiteScriptsSafe)')).toBe(true);
+  const installedAt = sw.indexOf('chrome.runtime.onInstalled.addListener');
+  expect(installedAt >= 0).toBe(true);
+  expect(sw.slice(installedAt, installedAt + 600).includes('syncSiteScriptsSafe()')).toBe(true);
+});
+
 // v14.11 B5（报告 B/C/D 三报共振）：扩展页 HTML 重复 id 门禁——getElementById
 // 恒取首个，重复 id 即"后写控件永久死亡"（ruleList 双写曾致规则管理面板恒空
 // 24 天无人发现，HTML 层此前零自动化校验）。扫描全部页面目录的 *.html。

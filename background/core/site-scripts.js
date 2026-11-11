@@ -6,9 +6,11 @@
  * 动态注册（MV3 持久化，浏览器重启后保留）。这样扩展绝不注入无关网站
  * （性能 + 隐私观感），同时保留自定义站点的完整能力。
  *
- * 幂等策略：SW 启动与适配规则保存后调用 syncSiteScripts()——遍历规则 domains，
- * 对不在内置清单（manifest 已静态注入，无需注册）的域名补齐注册；已注册的
- * 跳过（getRegisteredContentScripts 比对 id）。移除站点不做 unregister——
+ * 幂等策略：安装/更新、浏览器启动（onStartup）与适配规则保存后调用
+ * syncSiteScripts()——遍历规则 domains，对不在内置清单（manifest 已静态注入，
+ * 无需注册）的域名补齐注册；已注册的跳过（getRegisteredContentScripts 比对 id）。
+ * v14.28.5：不再随每次 SW 冷启动调用（persistAcrossSessions 默认 true，
+ * 注册项跨会话保留——冷启动重扫是纯开销）。移除站点不做 unregister——
  * tracker 按规则早退兜底（不再追踪的站点零工作）。
  */
 import { getSiteRules, isValidSiteDomain } from './rules.js';

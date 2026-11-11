@@ -106,12 +106,22 @@ restoreLatestIfFresh()
 Logger.info('Perf', `SW 启动耗时: ${Date.now() - BOOT_START}ms (冷启动)`);
 Logger.info('Perf', `SW 模块图就绪: ${GRAPH_READY_MS}ms (冷启动→消息可用)`);
 
-// v7.4.0：自定义站点内容脚本动态注册（SW 启动时补齐；规则保存后由 handlers 再触发）
-// Custom-site content scripts (registered on startup; re-synced after rule saves)
-syncSiteScripts().catch((e) => {
-  Logger.error('Boot', '站点脚本同步失败', { message: String(e) });
-  metricInc('boot.sitescripts.fail');
-});
+// v14.28.5：自定义站点内容脚本动态注册不再随每次 SW 冷启动执行。
+// registerContentScripts 的 persistAcrossSessions 默认 true（注册项跨 SW 重启与
+// 浏览器重启保留），故顶层重扫是纯开销：每次唤醒都会多一次 getSiteRules 存储读
+// + 一次 getRegisteredContentScripts IPC，而对已注册站点必然空转。
+// 覆盖时机：安装/更新（onInstalled）+ 浏览器启动（onStartup）+ 规则保存后
+// （handlers/adapter-rules.js）。三处覆盖了注册集合可能变化或丢失的全部场景。
+// 参考：developer.chrome.com/docs/extensions/reference/api/scripting（RegisteredContentScript）
+// Custom-site scripts are no longer re-synced on every SW wake: registrations
+// persist across sessions by default, so the boot-time rescan was pure overhead.
+function syncSiteScriptsSafe() {
+  syncSiteScripts().catch((e) => {
+    Logger.error('Boot', '站点脚本同步失败', { message: String(e) });
+    metricInc('boot.sitescripts.fail');
+  });
+}
+chrome.runtime.onStartup.addListener(syncSiteScriptsSafe);
 
 // v7.4.0：安装/更新欢迎页（首次安装显示功能导览；更新显示版本更新记录）
 // v14.6.1：更新分流收紧——update 但用户从未使用过（无任何注入痕迹，如装完
@@ -120,6 +130,9 @@ syncSiteScripts().catch((e) => {
 // Welcome page: fresh installs get the tour; updates get release notes —
 // except never-used installs (no injection footprint) which get the tour.
 chrome.runtime.onInstalled.addListener((details) => {
+  // v14.28.5：安装/更新时补齐自定义站点脚本注册（取代原顶层调用——
+  // 更新可能携带新的 SITE_SCRIPT_FILES 清单，此时必须重跑同步）
+  syncSiteScriptsSafe();
   if (details.reason === 'install') {
     chrome.tabs.create({ url: chrome.runtime.getURL('welcome/welcome.html?source=install') });
   } else if (details.reason === 'update') {
