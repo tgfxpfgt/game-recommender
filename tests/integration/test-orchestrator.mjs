@@ -194,3 +194,34 @@ test('负缓存分级退避：首次 miss 仅 cap/8（15min），连续 miss 指
   vi.useRealTimers();
   nameIdx.resetNameIndex();
 });
+
+// ===== v14.28.9 L4：运行期诊断轨迹录制证明（真实管线 + 全网络失败） =====
+// 真实驱动 getSteamPositiveRate（fetch 全部 reject），从真实事件流中读 fail/
+// 卡点判定。夹具 tests/fixtures/diag-trace-network.json 由本用例一次录制后
+// 落盘；测试本身只读夹具做回放（不写夹具）。
+// Recording proof: drive the real pipeline with every fetch rejecting, then
+// assert the produced trace exposes fail(network) and the stuck stage. The
+// fixture was recorded once from this case; the test only reads it back.
+const diagMod = await import(new URL('../../background/storage/diag-trace.js', import.meta.url).href);
+const traceBaseline = (await diagMod.getTrace()).events.length;
+const networkFailFetch = async (url) => {
+  networkFailFetch._calls.push(String(url));
+  throw new Error('network down');
+};
+networkFailFetch._calls = [];
+const restoreNetworkFail = installFetchMock(networkFailFetch);
+const failedResult = await getSteamPositiveRate('断网诊断样本', { ignoreNegativeCache: true });
+restoreNetworkFail();
+await diagMod.flushDiagTrace();
+const recorded = (await diagMod.getTrace()).events.slice(traceBaseline);
+
+test('全网络失败：轨迹含 fail(network)，classifyTrace 指出卡在 search', () => {
+  expect(failedResult && failedResult.failed).toEqual(true);
+  expect(failedResult && failedResult.errorType).toEqual('network');
+  const networkFails = recorded.filter((e) => e.event === 'fail' && e.failKind === 'network');
+  expect(networkFails.length > 0).toEqual(true);
+  const verdict = diagMod.classifyTrace(recorded);
+  expect(verdict.verdict).toEqual('network');
+  expect(verdict.stuckStage).toEqual('search');
+  expect(verdict.lastFailKind).toEqual('network');
+});

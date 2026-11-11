@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "recordedAt": 1794396794642,
+  "events": [
+    {
+      "stage": "cache",
+      "event": "miss",
+      "cacheLayer": "miss",
+      "gameKey": "09t8gt",
+      "seq": 7,
+      "t": 1794396794187,
+      "swWakeId": 1794396793338
+    },
+    {
+      "stage": "search",
+      "event": "enter",
+      "gameKey": "09t8gt",
+      "seq": 8,
+      "t": 1794396794187,
+      "swWakeId": 1794396793338
+    },
+    {
+      "stage": "search",
+      "event": "fail",
+      "durMs": 455,
+      "failKind": "network",
+      "gameKey": "09t8gt",
+      "seq": 9,
+      "t": 1794396794642,
+      "swWakeId": 1794396793338
+    }
+  ]
+}

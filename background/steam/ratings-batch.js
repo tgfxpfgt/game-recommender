@@ -26,6 +26,7 @@ import { getSteamApiStatus } from '../core/api-monitor.js';
 import { metricInc, metricObserve } from '../core/metrics.js'; // v10.7.0：运行指标
 import { withWatchdog } from '../core/mechanisms.js'; // v14.28.6 R4-A：单条目两级看门狗
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：a-b 徽章数据并入 ratings
+import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9：运行期诊断轨迹
 
 // v10.1.0：把 AppID 行为统计（a 下载 / b 详情页打开）并入 rating 条目——
 // wave 1 / 推送 / 刷新全链路自动携带，内容侧 prependBadge 直接渲染 "a-b" 徽章
@@ -345,6 +346,12 @@ async function runRatingJob(job) {
   job.deadlineAt = deadlineAt;
   let totalPauseMs = 0;
   let tabDead = false;
+  // v14.28.9：任务级轨迹（enter/exit/stall/push/fail + 波次 counts）
+  const traceStartedAt = Date.now();
+  let traceTotal = 0;
+  let traceDone = 0;
+  let failedCount = 0;
+  let waveSeq = 0;
   // v14.28.6 R4-A：任务心跳定时器（finally 统一清理，防 try 内声明后被 finally 丢失）
   /** @type {ReturnType<typeof setInterval>|null} */
   let heartbeatTimer = null;
@@ -388,6 +395,13 @@ async function runRatingJob(job) {
     // limit still paces slots, waits overlap across names.
     const concurrency = Math.max(1, Number(PERF_CONFIG.steamFetchConcurrency) || 3);
     const totalNames = allNames.length;
+    traceTotal = totalNames;
+    recordTrace({
+      stage: 'ratings',
+      event: 'enter',
+      wave: 0,
+      counts: { total: totalNames, done: 0, failed: 0 }
+    });
     let doneCount = 0;
     let consecutiveAnomaly = 0;
     /** @type {Map<string, any>} */
@@ -478,6 +492,15 @@ async function runRatingJob(job) {
           const key = `${info.name}|${info.phase}|${Math.floor(info.elapsedMs / STALL_BUCKET_MS)}`;
           if (key !== lastStallKey) {
             lastStallKey = key;
+            // v14.28.9：停滞边沿进入轨迹（durMs = 最慢在途条目已等待时长）
+            recordTrace({
+              stage: 'ratings',
+              event: 'stall',
+              durMs: info.elapsedMs,
+              gameKey: gameKeyOf(info.name),
+              wave: waveSeq,
+              counts: { total: traceTotal, done: Math.min(traceDone, traceTotal), failed: failedCount }
+            });
             await push({ ratings: null, ...progressPayload() });
           }
           scheduleStallCheck();
@@ -500,6 +523,14 @@ async function runRatingJob(job) {
       await flushAllCaches();
       // v14.17.0：推送感知成功（死 tab → tabDead → worker 循环与后续波次中止）
       await push({ ratings: wave, ...progressPayload() });
+      waveSeq++;
+      recordTrace({
+        stage: 'ratings',
+        event: 'push',
+        wave: waveSeq,
+        durMs: Date.now() - batchT0,
+        counts: { total: traceTotal, done: Math.min(traceDone, traceTotal), failed: failedCount }
+      });
       // v14.8.1：波次推送日志（排查推送丢失——tab 关闭时 sendMessage 静默失败）
       Logger.info('Steam', `评分波次推送: ${Object.keys(wave).length} 项 → tab=${job.tabId}`);
       job.queue = passNames.filter((n) => !completedInPass.has(n));
@@ -557,6 +588,8 @@ async function runRatingJob(job) {
           await maybePause();
           /** @type {any} */
           let r = null;
+          let watchdogHit = false;
+          let fetchError = false;
           const itemMeta = { startedAt: Date.now(), phase: 'start' };
           inFlight.set(name, itemMeta);
           scheduleStallCheck(); // v14.29.0：排到该条目越过软阈值的时刻
@@ -607,14 +640,39 @@ async function runRatingJob(job) {
               }
             );
             // 硬阈值放弃：让出队列继续下一条（结果迟到由缓存幂等写入承接）
-            if (r && r.__watchdogTimeout) r = null;
+            if (r && r.__watchdogTimeout) {
+              r = null;
+              watchdogHit = true;
+            }
           } catch {
             r = null;
+            fetchError = true;
           } finally {
             inFlight.delete(name);
           }
           completedInPass.add(name);
           doneCount++;
+          traceDone++;
+          // v14.28.9：单条失败入轨迹（failKind 由既有故障语义推导——超时/异常/
+          // 显式 failed/确定性未找到），counts.failed 只计真实故障（notfound 不算）
+          /** @type {string|null} */
+          let failKind = null;
+          if (watchdogHit) failKind = 'timeout';
+          else if (fetchError) failKind = 'network';
+          else if (r && r.failed) failKind = r.errorType || (getSteamApiStatus().anomaly ? 'ratelimit' : 'network');
+          else if (!r) failKind = 'notfound';
+          if (failKind) {
+            if (failKind !== 'notfound') failedCount++;
+            recordTrace({
+              stage: 'ratings',
+              event: 'fail',
+              failKind,
+              durMs: Date.now() - itemMeta.startedAt,
+              gameKey: gameKeyOf(name),
+              wave: waveSeq,
+              counts: { total: traceTotal, done: Math.min(traceDone, traceTotal), failed: failedCount }
+            });
+          }
           pendingWave.set(name, r ? mergeAppStat(r, statsMap) : null);
           // v14.29.0：**只重试明确标记为失败的结果**（网络/限流/超时 →
           // orchestrator-list 置 failed:true）。此前 `!r` 也入重试队列，而
@@ -683,6 +741,15 @@ async function runRatingJob(job) {
     // v14.17.0：任务体异常同样推 done 终态（tab 已死时推送自然失败即弃）
     pushToTab(job.tabId, { ratings: null, done: true });
   } finally {
+    // v14.28.9：任务级 exit（正常/异常/死 tab 都关闭 ratings 阶段——只有真正
+    // 未走完的任务才在轨迹里留下"有 enter 无 exit"）
+    recordTrace({
+      stage: 'ratings',
+      event: 'exit',
+      durMs: Date.now() - traceStartedAt,
+      wave: waveSeq,
+      counts: { total: traceTotal, done: Math.min(traceDone, traceTotal), failed: failedCount }
+    });
     clearInterval(keepAlive);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
     if (stallTimer) clearTimeout(stallTimer); // v14.29.0：任务收尾清停滞推送定时器

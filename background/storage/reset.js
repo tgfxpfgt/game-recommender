@@ -21,6 +21,7 @@ import { resetLearnedNoise } from './learned-noise.js';
 import { resetWrongReports } from './wrong-reports.js';
 import { resetManualPlatforms } from './manual-platforms.js'; // v14.19.0
 import { resetUsageEvidence } from './usage-evidence.js'; // v14.25.0：使用证据档案
+import { resetDiagTrace } from './diag-trace.js'; // v14.28.9：诊断轨迹
 import { resetBehaviorState } from './behavior.js';
 import { resetOutboundAudit } from '../core/outbound-audit.js';
 import { resetSearchCache } from './search-cache.js';
@@ -46,6 +47,7 @@ export function resetInMemoryCaches() {
   resetWrongReports(); // v3.4.0：导入/恢复后纠正知识库内存与存储保持一致
   resetManualPlatforms(); // v14.19.0：手动平台映射内存与存储保持一致
   resetUsageEvidence(); // v14.25.0：使用证据档案（clearOnDataReset 语义对齐）
+  resetDiagTrace(); // v14.28.9：诊断轨迹（clearOnDataReset 语义对齐）
   resetBehaviorState(); // v5.0.0：偏好模型节流状态一并重置（此前遗漏）
   resetOutboundAudit(); // v3.4.1：出站请求审计缓冲随清理一并清空
   resetSearchCache(); // v6.4.3：下载站搜索缓存

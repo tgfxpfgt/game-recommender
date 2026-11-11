@@ -3,7 +3,8 @@
   "maxAgeDays": 30,
   "refs": [
     {
-      "id": "steam-app-list-dump-jsdelivr",
+      "id": "app-list-dump",
+      "requiresFirstRun": true,
       "url": "https://cdn.jsdelivr.net/gh/jsnli/steamappidlist@master/data/games_appid.json",
       "repo": "jsnli/steamappidlist",
       "branch": "master",
@@ -15,7 +16,8 @@
       "note": "全量目录 dump 主源。原实现写死 main（仓库默认分支 master）→ 404 从未生效；本条 lock 即该缺陷的回归防线。"
     },
     {
-      "id": "steam-app-list-dump-raw",
+      "id": "app-list-dump-fallback",
+      "requiresFirstRun": true,
       "url": "https://raw.githubusercontent.com/jsnli/steamappidlist/master/data/games_appid.json",
       "repo": "jsnli/steamappidlist",
       "branch": "master",

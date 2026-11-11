@@ -64,6 +64,7 @@ export default defineConfig({
       'tests/unit/test-ratings-resume.mjs',
       'tests/unit/test-manual-platforms.mjs',
       'tests/unit/test-usage-evidence.mjs',
+      'tests/unit/test-diag-trace.mjs', // v14.28.9 L4：诊断轨迹（环形/白名单/判读/夹具回放）
       'tests/unit/test-match-consensus.mjs',
       'tests/unit/test-match-confidence.mjs', // v14.28.6 R4-B：三要素置信度 + 第一波平台预检
       'tests/unit/test-check-stubs.mjs', // v14.28.6 R4-D：占位实现/契约→handler 缺口门禁

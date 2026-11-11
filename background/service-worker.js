@@ -58,6 +58,7 @@ import { refreshFreeGames, getLastNotifyGames, watchFavoritePrices } from './fre
 import { createBackup, restoreLatestIfFresh } from './storage/backups.js';
 import { syncSiteScripts } from './core/site-scripts.js';
 import { flushAllCaches } from './storage/flush.js';
+import { recordTrace } from './storage/diag-trace.js'; // v14.28.9：boot 轨迹（swWakeId/耗时）
 
 // v14.5.0 B2：预热/续跑目标模块改静态导入（此前动态 import 全部静默失效）——
 // 这些模块本就经 handlers 图在冷启动加载，静态导入零新增文件，只修好"调用"
@@ -105,6 +106,9 @@ restoreLatestIfFresh()
 // 诊断卡与自动化分析读取；v14.5.0 B2 增加模块图就绪耗时（冷启动→消息可用）
 Logger.info('Perf', `SW 启动耗时: ${Date.now() - BOOT_START}ms (冷启动)`);
 Logger.info('Perf', `SW 模块图就绪: ${GRAPH_READY_MS}ms (冷启动→消息可用)`);
+// v14.28.9：boot 轨迹（本次唤醒 id 由 recordTrace 统一注入；durMs = 模块图就绪
+// 耗时，与 Perf 日志同源——诊断包可统计唤醒次数与冷启动成本）
+recordTrace({ stage: 'boot', event: 'exit', durMs: GRAPH_READY_MS });
 
 // v14.28.5：自定义站点内容脚本动态注册不再随每次 SW 冷启动执行。
 // registerContentScripts 的 persistAcrossSessions 默认 true（注册项跨 SW 重启与

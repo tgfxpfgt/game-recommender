@@ -24,6 +24,7 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { metricInc } from '../core/metrics.js';
 import { Logger } from '../storage/logger.js';
 import { coreTokensOf } from './api-search.js'; // v14.16.0 O2：查询噪声剥离（重制/版等词不入覆盖判据）
+import { recordTrace } from '../storage/diag-trace.js'; // v14.28.9：首次运行证据（dump 装载轨迹）
 
 // v14.6.2：刷新失败退避窗口（PERF_CONFIG 单源别名——本文件多处消费）
 const APP_LIST_REFRESH_BACKOFF_MS = PERF_CONFIG.appListRefreshBackoffMs;
@@ -502,21 +503,68 @@ async function fetchDumpPayload() {
   /** @type {any} */
   let lastErr = null;
   for (const url of sources) {
+    const t0 = Date.now();
+    const source = url.includes('jsdelivr') ? 'jsdelivr' : 'raw';
+    /** @type {string} */
+    let host = '';
+    try {
+      host = new URL(url).hostname;
+    } catch {
+      /* URL 解析失败则不记 host */
+    }
+    let httpStatus = 0;
     try {
       const resp = await fetchWithTimeout(url, {}, PERF_CONFIG.appListDumpTimeoutMs);
+      httpStatus = resp.status;
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const raw = await resp.text();
       const entries = await parseDumpEntries(raw, PERF_CONFIG.appListStreamYieldEvery);
       if (!Array.isArray(entries) || entries.length < 10000) {
         throw new Error(`dump 条目过少（${entries.length}），疑似异常数据`);
       }
-      return { entries, source: url.includes('jsdelivr') ? 'jsdelivr' : 'raw' };
+      // v14.28.9：dump 装载结果（主/备源、host、bytes、entries、耗时）——
+      // 首次运行证据门禁（scripts/first-run.json）的数据来源
+      const contentLength = Number(resp.headers && resp.headers.get && resp.headers.get('content-length'));
+      recordTrace({
+        stage: 'applist',
+        event: 'dump',
+        source,
+        host,
+        bytes: Number.isFinite(contentLength) && contentLength > 0 ? contentLength : raw.length,
+        entries: entries.length,
+        durMs: Date.now() - t0
+      });
+      return { entries, source };
     } catch (e) {
       lastErr = e;
+      recordTrace({
+        stage: 'applist',
+        event: 'fail',
+        failKind: classifyDumpFailure(e, httpStatus),
+        source,
+        host,
+        httpStatus: httpStatus || undefined,
+        durMs: Date.now() - t0
+      });
       Logger.warn('AppListIndex', `dump 源失败（${url.slice(0, 56)}…）: ${String(e).slice(0, 100)}`);
     }
   }
   throw lastErr || new Error('dump 源均不可用');
+}
+
+/**
+ * dump 失败分类（诊断轨迹 failKind；与重试/退避语义无关）。
+ * @param {any} e
+ * @param {number} httpStatus
+ * @returns {'network'|'timeout'|'ratelimit'|'empty'|'parse'}
+ */
+function classifyDumpFailure(e, httpStatus) {
+  const msg = String((e && e.message) || e || '');
+  if (httpStatus === 429 || /429|rate.?limit/i.test(msg)) return 'ratelimit';
+  if (/abort|timeout|超时/i.test(msg)) return 'timeout';
+  if (/条目过少|empty/i.test(msg)) return 'empty';
+  if (/parse|JSON/i.test(msg)) return 'parse';
+  return 'network';
 }
 
 /**

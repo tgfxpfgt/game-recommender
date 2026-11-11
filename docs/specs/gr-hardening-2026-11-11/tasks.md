@@ -28,11 +28,11 @@
 
 ## L4 运行期录制
 
-- [ ] T18 `background/storage/diag-trace.js` + storage-registry 登记 + 采集点接线。
-- [ ] T19 `GET_DIAG_TRACE` 契约与 handler。
-- [ ] T20 `classifyTrace()` 纯函数 + 回放夹具 + 测试。
-- [ ] T21 断网/停滞场景录制证明。
-- [ ] T22 提交 4。
+- [x] T18 `background/storage/diag-trace.js` + storage-registry 登记 + 采集点接线。
+- [x] T19 `GET_DIAG_TRACE` 契约与 handler。
+- [x] T20 `classifyTrace()` 纯函数 + 回放夹具 + 测试。
+- [x] T21 断网/停滞场景录制证明。
+- [x] T22 提交 4。
 
 ## 交付
 

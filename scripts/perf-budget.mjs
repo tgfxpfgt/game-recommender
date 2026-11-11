@@ -109,8 +109,15 @@ export const BUDGETS = {
   // 代码）。静态注入未变（38,663B）。
   // v14.28.8 (three-fix batch): stall heartbeat, network-failure sentinel and
   // multi-source dump loader; re-locked to the measured values.
-  swGraphBytes: 896044,
-  swGraphFiles: 106,
+  // v14.28.9（L4 运行期诊断轨迹）：新增 background/storage/diag-trace.js（环形/
+  // 白名单/判读纯函数 + 双语注释）+ 五处采集点接线（ratings-batch / orchestrator-list /
+  // app-list-index / service-worker）+ logs 诊断包字段——SW 图 915,674B / 107 文件
+  // （+19,630B，主体是新增模块与双语文档注释），静态注入 38,663B 未变、内容闭包
+  // 288.1KB 未超。按实测重锁（新增诊断能力，无冗余代码）。
+  // v14.28.9 (L4 runtime trace): new diag-trace module + five instrumentation points;
+  // re-locked to the measured graph size (static injection and closures unchanged).
+  swGraphBytes: 915674,
+  swGraphFiles: 107,
   staticInjectionBytes: 38663,
   closureBytes: 295062
 };

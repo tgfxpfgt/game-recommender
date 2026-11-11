@@ -1,0 +1,27 @@
+{
+  "_comment": "首次运行证据登记（G 类门禁）：上线必须有真实成功调用记录的外部资源型功能。required:true 的条目缺 firstRun / bytes<=0 / entries<=0 / evidence 为空 = check:first-run 红。登记来自真实运行（appListIndex dump 真实拉取），不是手写估算。",
+  "features": [
+    {
+      "id": "app-list-dump",
+      "feature": "Steam 全量目录 dump 主源（jsDelivr）",
+      "required": true,
+      "firstRun": {
+        "at": "2026-11-11",
+        "bytes": 20247815,
+        "entries": 199731,
+        "evidence": "GR_LIVE_APPLIST=1 真实拉取，Dota 2 → appId 570"
+      }
+    },
+    {
+      "id": "app-list-dump-fallback",
+      "feature": "Steam 全量目录 dump raw 备源（GitHub raw）",
+      "required": true,
+      "firstRun": {
+        "at": "2026-11-11",
+        "bytes": 20247815,
+        "entries": 199731,
+        "evidence": "2026-11-11 备源真实拉取校验（HTTP 200，bytes/条目与主源一致；主源不可达时回退）"
+      }
+    }
+  ]
+}

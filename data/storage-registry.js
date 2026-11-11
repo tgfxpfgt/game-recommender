@@ -139,6 +139,13 @@ export const STORAGE_MODULES = {
     backup: true,
     clearOnDataReset: true
   }, // v14.25.0：本地使用记录（计数/耗时/事件，有界——后续优化依据）
+  diagTrace: {
+    file: 'diag-trace.json',
+    format: 'json',
+    name: '诊断轨迹',
+    desc: 'Diagnostic Trace',
+    clearOnDataReset: true
+  }, // v14.28.9：运行期阶段/失败/缓存轨迹（500 条环形，本地有界，不进备份）
   searchCache: { file: 'search-cache.json', format: 'json', name: '下载站搜索缓存', desc: 'Search Cache' }, // v6.4.3
   llmScore: { file: 'llm-score.json', format: 'json', name: 'LLM 评分缓存', desc: 'LLM Score Cache' }, // v6.4.3
   urlAppIdIndex: { file: 'url-appid-index.json', format: 'json', name: '详情页网址索引', desc: 'Detail URL Index' }, // v7.0.2

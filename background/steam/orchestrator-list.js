@@ -49,6 +49,7 @@ import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
 // v14.28.7 R4-B2：置信度规则（平台最优先/年份 >1 年才降级/标题相似度主门槛）
 import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
+import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9：运行期诊断轨迹
 
 // v14.28.6 R4-B：把置信度挂到结果上（确认/推测 + 依据串），内容侧据此
 // 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 平台判定）。
@@ -268,6 +269,10 @@ async function phasePlatform(gameName, options) {
  *   source = 命中来源（v14.28.6 R4-B，仅作推测依据展示，不参与置信度判定）
  */
 async function phaseSearch(gameName, options, corr, usableAppId) {
+  // v14.28.9：search 阶段轨迹（enter 无 exit / fail 即"未完成"，供离线定位卡点）
+  const traceT0 = Date.now();
+  const traceGameKey = gameKeyOf(gameName);
+  recordTrace({ stage: 'search', event: 'enter', gameKey: traceGameKey });
   let foundAppId = usableAppId;
   let foundName = gameName;
   /** @type {string} */
@@ -325,13 +330,37 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
           'Steam',
           `列表页搜索未命中且窗口内 ${apiStatus.failed} 次 API 失败（疑似网络问题），跳过负缓存: "${gameName}"`
         );
+        // v14.28.9：网络故障 → fail 且不补 exit（该阶段未完成 = 轨迹卡点）
+        recordTrace({
+          stage: 'search',
+          event: 'fail',
+          failKind: 'network',
+          durMs: Date.now() - traceT0,
+          gameKey: traceGameKey
+        });
         return { networkFailed: true };
       }
+      // 确定性未找到是正常终态：fail(notfound) + exit 关闭阶段
+      recordTrace({
+        stage: 'search',
+        event: 'fail',
+        failKind: 'notfound',
+        durMs: Date.now() - traceT0,
+        gameKey: traceGameKey
+      });
+      recordTrace({ stage: 'search', event: 'exit', durMs: Date.now() - traceT0, source: 'notfound' });
       return null;
     }
     foundAppId = searchResult.appId; // v14.13 B1：Phase2 摘取时补回（appId/name 赋值）
     foundName = searchResult.name;
   }
+  recordTrace({
+    stage: 'search',
+    event: 'exit',
+    durMs: Date.now() - traceT0,
+    source: searchSource,
+    gameKey: traceGameKey
+  });
   // searched=false = 已知 appId 路径（englishName 由调用方 5.5 步补齐）
   return {
     appId: foundAppId,
@@ -406,9 +435,14 @@ export async function getSteamPositiveRate(gameName, options = {}) {
 
   // 2. 若有 appId，检查 Steam 动态缓存（含 Demo 自愈；v3.3.7：rating 模块有效判定）
   phase('cache');
+  // v14.28.9：缓存读点轨迹（最小两处——正缓存命中 / 负缓存命中；其余记 miss）
+  const cacheGameKey = gameKeyOf(gameName);
+  /** @type {string} */
+  let cacheLayer = 'miss';
   let usableAppId = appId;
   if (appId) {
     const cached = await readCachedOnce(appId);
+    if (cached) cacheLayer = 'opfs'; // 条目存在但未命中有效 → 盘上缓存层
     const merged = getMergedData(cached) || {};
     if (
       isModuleValid(cached, 'rating') &&
@@ -418,6 +452,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     ) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(merged)) {
+        recordTrace({ stage: 'cache', event: 'hit', cacheLayer: 'memory', gameKey: cacheGameKey });
         // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
         // v14.28.6 R4-B：附三要素置信度（确认/推测 + 依据）
         return attachMatch(await applyCacheHit(merged, appId, gameName), {
@@ -436,9 +471,11 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     // 3. 无 appId 时，检查负缓存（列表页批量场景可忽略）
     if (await isRecentlySearchedNotFound(gameName)) {
       Logger.debug('Steam', `负缓存命中，跳过: ${gameName}`);
+      recordTrace({ stage: 'cache', event: 'hit', cacheLayer: 'negative', gameKey: cacheGameKey });
       return null;
     }
   }
+  recordTrace({ stage: 'cache', event: 'miss', cacheLayer, gameKey: cacheGameKey });
 
   try {
     // 4. 搜索 appId（v14.13 B1：Phase 2 步函数——目录/检索/EN 兜底/回捞/

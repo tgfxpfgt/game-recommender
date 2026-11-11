@@ -40,6 +40,16 @@
       "replace": "\"expectedNameDropped\": \"Call of Duty: Black Ops 7\",",
       "check": "node scripts/check-match-corpus.mjs",
       "caughtBy": "脚本：匹配语料分母门禁（名称级样本缺 expectedName）"
+    },
+    {
+      "id": "first-run-evidence-missing",
+      "class": "G",
+      "defect": "外部资源'登记了 URL'却没有真实首次运行记录：appList dump 主源被删掉 firstRun 块（bytes/entries/evidence 全缺）仍全绿",
+      "file": "scripts/first-run.json",
+      "find": "\"firstRun\": {\n        \"at\": \"2026-11-11\",\n        \"bytes\": 20247815,\n        \"entries\": 199731,\n        \"evidence\": \"GR_LIVE_APPLIST=1 真实拉取，Dota 2 → appId 570\"\n      }",
+      "replace": "\"firstRunRemoved\": true",
+      "check": "node scripts/check-first-run.mjs",
+      "caughtBy": "脚本：首次运行证据门禁（required:true 缺 firstRun）"
     }
   ]
 }

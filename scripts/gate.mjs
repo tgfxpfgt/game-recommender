@@ -165,6 +165,9 @@ await step('check:stubs（占位实现/契约缺口）', 'node scripts/check-stu
 // v14.29.0（A 类根治）：外部引用锁——代码里的 GitHub raw/jsDelivr URL 必须登记，
 // 且 URL 分支必须等于登记默认分支（appListIndex 写死 main → 404 五个月零运行）。
 await step('check:ext-refs（外部引用锁）', 'node scripts/check-external-refs.mjs');
+// v14.28.9（G 类）：首次运行证据——外部资源"登记了 URL"不等于"真的跑通过"，
+// required:true 必须有真实 bytes/entries/evidence，且与 ext-refs 交叉校验。
+await step('check:first-run（首次运行证据）', 'node scripts/check-first-run.mjs');
 // v14.29.0（E 类根治）：匹配语料分母——回放样本必须有 ground truth，
 // 禁止"缺 expectedName / recorded 全 0 命中 / 豁免不写原因"的真空通过。
 await step('check:corpus（匹配语料分母）', 'node scripts/check-match-corpus.mjs');

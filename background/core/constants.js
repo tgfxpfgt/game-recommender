@@ -37,6 +37,7 @@ export const DB_KEYS = {
   WRONG_REPORTS: 'wrongReports', // 详情页报错重检索记录（v3.3.13，长期有效，含人工纠正知识库）
   MANUAL_PLATFORMS: 'manualPlatforms', // v14.19.0：手动主机机型映射（用户声明的平台终态 + Metacritic 分）
   USAGE_EVIDENCE: 'usageEvidence', // v14.25.0：使用证据档案（计数/耗时环形/高信号事件，全本地有界）
+  DIAG_TRACE: 'diagTrace', // v14.28.9：运行期诊断轨迹（阶段/失败/缓存，500 条环形，全本地）
   SEARCH_CACHE: 'searchCache', // 下载站搜索结果缓存（v6.4.3，24h TTL）
   LLM_SCORE: 'llmScore', // LLM 推荐评分缓存（v6.4.3，7d TTL）
   URL_APPID_INDEX: 'urlAppIdIndex', // 详情页网址 → appId 索引（v7.0.2，检索第一候选）

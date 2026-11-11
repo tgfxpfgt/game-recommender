@@ -195,3 +195,65 @@ failed:true, errorType:'network'}`。
 `chore(release)` 类发版提交（触发全量门禁），其余 16 次为功能/修复/文档批次。
 按提交粒度推断「每完成一次改动平均跑全量门禁约 0.25 次、跑 gate:fast 约 1–2 次」——
 **这是从提交序列推断，仓库内无 CI 日志/无门禁运行记录可查，非实测**。
+
+## L4 运行期轨迹（落地）
+
+> 实现：`background/storage/diag-trace.js`（`SCHEMA_VERSION=1`、`MAX_EVENTS=500`
+> 环形、2s 防抖落盘 `diagTrace`），存储注册表一行登记（`clearOnDataReset:true`、
+> 不进备份），随 `GET_DIAGNOSTIC_BUNDLE` 导出 `trace + traceVerdict`，另有只读
+> `GET_DIAG_TRACE`（零参、扩展页专用）。不新增导出 UI。
+
+### a) 数据点表（事件白名单字段）
+
+| 字段         | 能回答什么                                    | 取值/约束                                                  |
+| ------------ | --------------------------------------------- | ---------------------------------------------------------- |
+| `seq`        | 事件先后与丢失边界                            | 单调递增（由写入端分配）                                   |
+| `t`          | 各阶段时间线，算停滞/卡点持续时长             | epoch ms                                                   |
+| `stage`      | 卡在哪个环节                                  | `search`/`ratings`/`detail`/`cache`/`applist`/`boot`       |
+| `event`      | 该环节发生了什么                              | `enter`/`exit`/`fail`/`stall`/`push`/`hit`/`miss`/`dump`   |
+| `durMs`      | 阶段/单条/停滞/冷启动耗时                     | 整数 ms                                                    |
+| `failKind`   | 最近失败类别（网络/超时/限流/空/未找到/解析） | `network`/`timeout`/`ratelimit`/`empty`/`notfound`/`parse` |
+| `httpStatus` | 外部调用是否被 429/5xx 拒绝                   | 整数状态码（可选）                                         |
+| `host`       | 失败发生在哪个域名（排 CDN/API 侧）           | **仅 hostname**（路径/查询串被丢弃）                       |
+| `cacheLayer` | 躲过网络靠哪层缓存                            | `memory`/`session`/`opfs`/`negative`/`miss`                |
+| `source`     | 搜索/目录数据来自主源还是备源                 | `jsdelivr`/`raw`/`notfound` 等短标签                       |
+| `confidence` | 匹配结论可信度（预留，匹配层可选写入）        | 短字符串                                                   |
+| `wave`       | 第几波推送/进度                               | 整数（0 = 任务级）                                         |
+| `counts`     | 波次进度（总数/完成/真实失败）                | `{total,done,failed}`                                      |
+| `bytes`      | dump 首次运行证据（下载体量）                 | 整数（applist dump）                                       |
+| `entries`    | dump 首次运行证据（解析条目数）               | 整数（applist dump）                                       |
+| `swWakeId`   | SW 唤醒次数/冷启动成本归组                    | 每次 boot 一个单调时间戳                                   |
+| `gameKey`    | 同一游戏在同一会话内跨事件关联                | 游戏名 DJB2 → base36 取 6 位（不可逆）                     |
+
+### b) 判据（一句话）
+
+**一份轨迹若能回答「最后一个有 `enter` 无 `exit` 的 stage」「该 stage 的 `durMs` 与
+最近 `failKind`」「波次 `counts`」「哪一层缓存命中」，就能在不复现的前提下指出卡点。**
+
+`classifyTrace(events)` 的返回正好是这几项：
+`{ verdict, stuckStage, stuckDurMs, lastFailKind, cacheLayer, counts, summary }`。
+失败/停滞不关闭 `enter`（它们没有"完成退出"）；后续成功 `exit` 会清除卡点，
+避免一次瞬时失败把整段会话误判为卡死。
+
+### c) 隐私约束（硬约束）
+
+- 白名单键守卫：`assertAllowedKeys()`（测试期抛错）+ 运行时 `sanitizeTraceEvent()`
+  剔除未知键；`url`/`name`/`appId` 等字段在单元测试中已断言不落盘。
+- 不记录完整 URL（仅 hostname）、页面正文、游戏名（仅 6 位哈希）、用户标识、appId 明文。
+- 纯本地、有界、零出站；`clearOnDataReset:true` 随"清除数据"清理，不进默认备份。
+
+### d) 数据量与性能
+
+- **估算**：典型每次会话 100–300 条事件（每游戏 search/cache + 波次 push + 少量 fail），
+  单条 JSON 约 150–200B；环形上限 500 条 ≈ 100KB。落盘 2s 防抖且仅 `dirty` 时写，
+  空闲零 I/O。
+- **性能上限（估算，未做基准）**：每事件一次对象分配 + 一次数组 push/shift，
+  无同步 I/O；量级为 <1ms/百事件。超过 500 条仅丢最旧，O(1) 摊还。
+
+### e) 回放与夹具保鲜
+
+- `tests/unit/test-diag-trace.mjs`：环形轮转、白名单、四类判读、录制夹具回放。
+- `tests/integration/test-orchestrator.mjs`：真实管线 + fetch 全失败录制证明；
+  夹具 `tests/fixtures/diag-trace-network.json` 由该用例一次录制落盘，测试只读不写。
+- 保鲜门禁：夹具 `schemaVersion` 必须等于当前 `SCHEMA_VERSION`，否则红——
+  防止"录制过期后测历史行为"；业务版本升级不会自动让夹具失效。
