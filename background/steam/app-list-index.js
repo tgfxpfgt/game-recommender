@@ -362,12 +362,12 @@ export async function refreshAppListIndex(force = false) {
       }
       refreshAttempted = true;
       const t0 = Date.now();
-      /** @type {{entries: Array<{appId: string, name: string}>}|null} */
+      /** @type {{entries: Array<{appId: string, name: string}>, source?: string}|null} */
       let payload = null;
       let source = '';
       try {
         payload = await fetchDumpPayload();
-        source = 'jsnli-dump';
+        source = `jsnli-dump-${payload.source || 'unknown'}`; // v14.29.0：记录实际生效源
       } catch (e) {
         Logger.warn('AppListIndex', `镜像 dump 拉取失败: ${String(e).slice(0, 120)}`);
       }
@@ -438,13 +438,12 @@ export async function refreshAppListIndex(force = false) {
  * 总耗时相近，但消息处理不再被长任务阻塞。
  * Streamed parse: split top-level objects (depth counter, string-escape
  * aware) and yield the event loop every N entries — no long task.
- * @returns {Promise<{entries: Array<{appId: string, name: string}>}>}
+ * v14.29.0：抽为导出纯函数——离线夹具与真实网络用例共用同一解析路径。
+ * @param {string} raw
+ * @param {number} [yieldEvery]
+ * @returns {Promise<Array<{appId: string, name: string}>>}
  */
-async function fetchDumpPayload() {
-  const resp = await fetchWithTimeout(ENDPOINTS.steamAppListDump, {}, PERF_CONFIG.appListDumpTimeoutMs);
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-  const raw = await resp.text();
-  const yieldEvery = PERF_CONFIG.appListStreamYieldEvery;
+export async function parseDumpEntries(raw, yieldEvery = PERF_CONFIG.appListStreamYieldEvery) {
   /** @type {Array<{appId: string, name: string}>} */
   const entries = [];
   let depth = 0;
@@ -488,10 +487,36 @@ async function fetchDumpPayload() {
       }
     }
   }
-  if (!Array.isArray(entries) || entries.length < 10000) {
-    throw new Error(`dump 条目过少（${entries.length}），疑似异常数据`);
+  return entries;
+}
+
+/**
+ * v14.29.0：多源拉取——主源 jsDelivr（CDN 可达性优于 raw），备源
+ * raw.githubusercontent（master）。任一成功即用；全部失败才抛错（上层
+ * 走 6h 退避 + 回退在线管线）。首次成功实证见 tests/unit/test-app-list-index.mjs
+ * 的 GR_LIVE_APPLIST=1 用例与 scripts/check-external-refs.mjs --refresh。
+ * @returns {Promise<{entries: Array<{appId: string, name: string}>, source: string}>}
+ */
+async function fetchDumpPayload() {
+  const sources = [ENDPOINTS.steamAppListDump, ENDPOINTS.steamAppListDumpFallback].filter(Boolean);
+  /** @type {any} */
+  let lastErr = null;
+  for (const url of sources) {
+    try {
+      const resp = await fetchWithTimeout(url, {}, PERF_CONFIG.appListDumpTimeoutMs);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const raw = await resp.text();
+      const entries = await parseDumpEntries(raw, PERF_CONFIG.appListStreamYieldEvery);
+      if (!Array.isArray(entries) || entries.length < 10000) {
+        throw new Error(`dump 条目过少（${entries.length}），疑似异常数据`);
+      }
+      return { entries, source: url.includes('jsdelivr') ? 'jsdelivr' : 'raw' };
+    } catch (e) {
+      lastErr = e;
+      Logger.warn('AppListIndex', `dump 源失败（${url.slice(0, 56)}…）: ${String(e).slice(0, 100)}`);
+    }
   }
-  return { entries };
+  throw lastErr || new Error('dump 源均不可用');
 }
 
 /**

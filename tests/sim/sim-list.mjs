@@ -602,3 +602,38 @@ simTest('12. 收尾后迟到推送补真实徽章（P1-6 超时未返回项）',
   expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
   expect(a.children.some((c) => (c.className || '').includes('gr-working-badge'))).toEqual(false);
 });
+
+// v14.29.0：故障语义分离（B 类门禁）——断网/限流导致的检索失败必须渲染
+// 「网络异常·点击重查」，不得复用「未找到」的文案与类名。
+// 缺陷样本：网络黑洞下 42.4s 后三项全部显示「未找到」。
+// Network/ratelimit failure must never render as "not found".
+simTest('13. 断网故障渲染为「网络异常」而非「未找到」', async () => {
+  // 单独运行本用例（-t 过滤）时前序节的 bootstrap 未执行——显式补一次，
+  // 避免用例依赖文件内执行顺序（D 类"单跑红、整文件绿"的成因之一）。
+  let GR = getGR();
+  if (!GR) {
+    await loadModules();
+    await resetSiteRulesForTests();
+    loadClassicScripts();
+    GR = getGR();
+  }
+  expect(GR).toBeTruthy();
+  const { li, a } = makeItem('断网游戏', 902);
+  li.isConnected = true;
+  const item = { element: li, link: a, name: '断网游戏', url: 'https://www.xianyudanji.gg/902.html', titleEl: a };
+  // 直接驱动评分状态机（不经过消息/批次调度）：本用例的契约是"失败结果
+  // 如何映射到徽章"，而非"消息是否送达"。
+  GR.list._internal.createRatingsJob([item], DEFAULT_SETTINGS, ['断网游戏']);
+  GR.list._internal.applyRatingsResponse(
+    { 断网游戏: { failed: true, errorType: 'network', appId: null, positiveRate: null, name: '断网游戏' } },
+    'first'
+  );
+  await waitForSignal(
+    () => a.children.some((c) => (c.className || '').includes('gr-badge-network-error')),
+    '节13: 断网条目应渲染网络异常徽章'
+  );
+  const text = a.children.map((c) => c.textContent || '').join(' ');
+  expect(text).toContain('网络异常');
+  expect(text).not.toContain('未找到');
+  expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
+});

@@ -91,6 +91,7 @@ export function formatQueueStatusText(prog, qs) {
  * @property {number} filtered
  * @property {Array<string>} filteredNames
  * @property {Array<string>} notFoundNames
+ * @property {Array<string>} failedNames - v14.29.0：网络/限流故障（非"Steam 无此游戏"）
  * @property {Array<any>} urlEntries
  * @property {boolean} finished
  * @property {any} forceTimer
@@ -113,6 +114,7 @@ function createRatingsJob(processItems, settings, uniqueNames) {
     filtered: 0,
     filteredNames: [], // v7.4.0：被过滤游戏名（状态浮窗可恢复）/ filtered names
     notFoundNames: [],
+    failedNames: [], // v14.29.0：网络/限流故障（非"Steam 无此游戏"）/ network-failed names
     urlEntries: [], // appId → 下载页地址批量写入 / download-URL batch entries
     finished: false,
     domOrder: null, // v14.0.0：原始顺序基线（首次排序前捕获）/ original DOM order baseline
@@ -178,6 +180,17 @@ export function applyRatingsResponse(ratings, mode) {
       badges.removeWorkingBadge(item);
       badges.prependPlatformBadge(item, rating);
       job.shown++;
+      return;
+    }
+    // v14.29.0：网络/限流故障（无 appId）——与"确认未找到"分离：独立徽章 +
+    // 独立计数，绝不落入下面的未找到分支（此前断网与"Steam 无此游戏"同形）。
+    // Network/ratelimit failure without appId must never render as "not found".
+    if (rating && rating.failed && !rating.appId) {
+      job.processed.add(item.name);
+      job.failedNames.push(item.name);
+      changed = true;
+      badges.removeWorkingBadge(item);
+      badges.prependBadge(item, rating, job.settings);
       return;
     }
     if (rating && rating.appId) {
@@ -262,13 +275,17 @@ export function finishRatings() {
   dbg(
     `列表页: 显示 ${job.shown} 个好评率, 过滤 ${job.filtered} 个, 未找到 ${job.notFoundNames.length} 个` +
       (job.notFoundNames.length > 0 ? ` [${job.notFoundNames.slice(0, 5).join('、')}]` : '') +
+      (job.failedNames.length > 0 ? `, 网络异常 ${job.failedNames.length} 个` : '') +
       (unresolved > 0 ? `, 未返回 ${unresolved} 个` : '')
   );
   status.showStats({
     title: 'Steam 好评率获取完成',
-    summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（点击条目旁徽章可重查）` : ''}`,
+    summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${job.failedNames.length > 0 ? ` · ${job.failedNames.length} 个网络异常（点击徽章可重查）` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（点击条目旁徽章可重查）` : ''}`,
     rows: [
       `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
+      job.failedNames.length > 0
+        ? `网络异常: ${job.failedNames.slice(0, 3).join('、')}${job.failedNames.length > 3 ? '...' : ''}（非 Steam 无此游戏）`
+        : '',
       job.notFoundNames.length > 0
         ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}`
         : '',

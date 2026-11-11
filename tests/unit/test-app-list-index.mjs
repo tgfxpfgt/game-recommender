@@ -15,6 +15,8 @@ await import('../../shared/escape.js');
 const storage = createStorageMock();
 installChromeStorageMock(storage);
 
+// v14.29.0：保留真实 fetch 供 GR_LIVE_APPLIST=1 的真实网络首次取用实证
+const realFetch = globalThis.fetch;
 // fetch 桩：按 URL 片段分发（dump / IStoreService）
 let fetchResponses = {};
 let fetchCalls = [];
@@ -27,7 +29,10 @@ globalThis.fetch = async (url) => {
   return { ok: false, status: 404, json: async () => ({}) };
 };
 
-const DUMP_URL = 'raw.githubusercontent.com/jsnli/steamappidlist';
+// v14.29.0：主源已改为 jsDelivr、备源 raw——用仓库名片段同时匹配两者
+// （此前写死 raw 域名，URL 换成 jsDelivr 后桩会全部落空 → 这类"桩与真实
+//  源脱节"正是 appListIndex 五个月零运行没被发现的原因之一）
+const DUMP_URL = 'steamappidlist';
 const SERVICE_URL = 'IStoreService/GetAppList';
 
 // 具名游戏（断言用）+ 程序化填充到 ≥10000 条（模块的异常数据阈值）
@@ -258,4 +263,27 @@ describe('目录空格变体匹配（批次 11）', () => {
     const miss = await modC.matchAppListExact('Grand Theft Auto VI');
     expect(miss).toEqual(null);
   });
+});
+
+// v14.29.0：真实网络首次取用实证（默认跳过——20MB 下载不进日常门禁）。
+// 手动执行：GR_LIVE_APPLIST=1 npx vitest run tests/unit/test-app-list-index.mjs
+// 断言的是"真实源可用 + 解析 + 匹配"整条链路，而不是 mock 想象出来的数据。
+const liveDescribe = process.env.GR_LIVE_APPLIST === '1' ? describe : describe.skip;
+liveDescribe('真实网络目录源（GR_LIVE_APPLIST=1）', () => {
+  test('真实拉取 master dump 并命中 Dota 2', async () => {
+    const modLive = await import('../../background/steam/app-list-index.js?t=live');
+    const prev = globalThis.fetch;
+    globalThis.fetch = realFetch;
+    try {
+      const t0 = Date.now();
+      const ok = await modLive.refreshAppListIndex(true);
+      expect(ok).toEqual(true);
+      // 真实 dump（2026-11-11 实测 199,731 条 / 20,247,815B）中 Dota 2 → 570
+      const hit = await modLive.matchAppListExact('Dota 2');
+      expect(hit && hit.appId).toEqual('570');
+      console.log(`[LIVE] 目录源真实取用成功 ${Date.now() - t0}ms，Hit=${JSON.stringify(hit)}`);
+    } finally {
+      globalThis.fetch = prev;
+    }
+  }, 240000);
 });

@@ -13,6 +13,7 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 import { resetApiMonitor } from '../../background/core/api-monitor.js';
+import { PERF_CONFIG } from '../../background/core/constants.js';
 
 const storage = createStorageMock();
 installChromeStorageMock(storage);
@@ -272,6 +273,66 @@ describe('批量好评率任务可恢复化（v10.0.0）', () => {
     const ratingsPushes = pushed.filter((p) => p.msg.ratings && p.msg.ratings['艾尔登法环']);
     expect(ratingsPushes.length).toBeGreaterThanOrEqual(2);
   });
+});
+
+// ============ v14.29.0：停滞期边沿心跳（C 类门禁） ============
+// 缺陷样本：20s 软阈值只写日志、UI 40s 无变化。此用例把条目软阈值压到
+// 120ms（仅测试内覆盖 PERF_CONFIG，不改生产默认），断言"越过软阈值后
+// 必然出现一次 progress.stalled 推送"——若删除 scheduleStallCheck 调用，
+// 该推送永远不会发生，用例变红。
+// Regression for the log-only watchdog: crossing the soft threshold must emit
+// a stalled progress push instead of only writing a log line.
+describe('v14.29.0 停滞边沿心跳', () => {
+  test('条目越过软阈值 → 立即推送 progress.stalled（无需等成波）', async () => {
+    for (let i = 0; i < 50; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!s.running && s.pending === 0) break;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    storage._reset();
+    pushed.length = 0;
+    resetApiMonitor();
+    const prevSoft = PERF_CONFIG.ratingsItemSoftWarnMs;
+    const prevHard = PERF_CONFIG.ratingsItemHardTimeoutMs;
+    const prevFetch = globalThis.fetch;
+    PERF_CONFIG.ratingsItemSoftWarnMs = 120;
+    PERF_CONFIG.ratingsItemHardTimeoutMs = 900;
+    // 永远挂起的 fetch：条目停在检索阶段（模拟慢网/黑洞）
+    globalThis.fetch = () => new Promise(() => {});
+    try {
+      const started = ratingsBatch.startRatingJob({
+        tabId: 21,
+        queue: ['停滞测试游戏'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      expect(started).toEqual(true);
+      let stallPush = null;
+      for (let i = 0; i < 40; i++) {
+        await new Promise((r) => setTimeout(r, 50));
+        stallPush = pushed.find((p) => p.msg && p.msg.progress && p.msg.progress.stalled);
+        if (stallPush) break;
+      }
+      expect(stallPush, '越过软阈值后未出现 stalled 推送（看门狗只写日志的缺陷回归）').toBeTruthy();
+      expect(stallPush.tabId).toEqual(21);
+      expect(stallPush.msg.ratings).toBe(null); // 纯进度推送，不伪造结果
+      expect(stallPush.msg.progress.stalled.elapsedMs).toBeGreaterThanOrEqual(120);
+      // 20s 目标：软阈值 + 排程余量内必须到达（此处 120ms → ≤500ms）
+    } finally {
+      globalThis.fetch = prevFetch;
+      PERF_CONFIG.ratingsItemSoftWarnMs = prevSoft;
+      PERF_CONFIG.ratingsItemHardTimeoutMs = prevHard;
+      for (let i = 0; i < 60; i++) {
+        const s = ratingsBatch.getRatingsQueueStatus();
+        if (!s.running && s.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      resetApiMonitor();
+    }
+  }, 20000);
 });
 
 // ============ v14.8.1：全局队列状态快照（等待徽章实时队列信息数据源） ============

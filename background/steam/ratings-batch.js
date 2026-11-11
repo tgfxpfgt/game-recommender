@@ -348,6 +348,9 @@ async function runRatingJob(job) {
   // v14.28.6 R4-A：任务心跳定时器（finally 统一清理，防 try 内声明后被 finally 丢失）
   /** @type {ReturnType<typeof setInterval>|null} */
   let heartbeatTimer = null;
+  // v14.29.0：停滞边沿推送定时器（单次 setTimeout，非轮询；finally 清理）
+  /** @type {ReturnType<typeof setTimeout>|null} */
+  let stallTimer = null;
   try {
     // v14.17.0：推送改感知成功——失败置 tabDead（无接收端 = tab 关闭/导航中）
     const push = async (payload) => {
@@ -443,6 +446,46 @@ async function runRatingJob(job) {
       };
     };
 
+    // v14.29.0：停滞期**边沿**推送——进度此前只挂载在成波推送（flushWave）上，
+    // 停滞时 pendingWave 不满 → 一次推送都不发；20s 软阈值只落日志，用户看到的
+    // UI 从 0.4s 到 40s 完全静止（实测 40.3s 才见"限流降速"）。
+    // 做法：单次 setTimeout 精确排在"最早在途条目越过软阈值"的时刻（+20ms），
+    // 仅在停滞签名（条目|阶段|5s 桶）变化时推送一次，之后每 5s 桶续一次；
+    // 不引入高频轮询（条目完成由 flushWave 正常推送）。
+    // Edge-triggered stall push: a single timeout fires when the earliest
+    // in-flight item crosses the soft threshold; pushes only when the stall
+    // signature (item|phase|5s bucket) changes. No polling loop.
+    const STALL_BUCKET_MS = 5000;
+    /** @type {string} */
+    let lastStallKey = '';
+    const scheduleStallCheck = () => {
+      if (tabDead || stallTimer) return;
+      if (inFlight.size === 0) return;
+      const now = Date.now();
+      let earliest = Infinity;
+      for (const v of inFlight.values()) earliest = Math.min(earliest, v.startedAt + itemSoftMs);
+      // 尚未越过软阈值 → 精确排到该时刻；已越过（重排/多条目）→ 下一个 5s 桶
+      const delay = earliest > now ? earliest - now + 20 : STALL_BUCKET_MS;
+      stallTimer = setTimeout(
+        async () => {
+          stallTimer = null;
+          if (tabDead) return;
+          const info = stalledInfo();
+          if (!info) {
+            lastStallKey = ''; // 停滞解除：下一条目开始时重新排程
+            return;
+          }
+          const key = `${info.name}|${info.phase}|${Math.floor(info.elapsedMs / STALL_BUCKET_MS)}`;
+          if (key !== lastStallKey) {
+            lastStallKey = key;
+            await push({ ratings: null, ...progressPayload() });
+          }
+          scheduleStallCheck();
+        },
+        Math.max(20, delay)
+      );
+    };
+
     // 成波推送 + 检查点（SW 被杀后从当前 pass 未完成处续跑——比旧实现多覆盖
     // 在途项，耐久性更好）/ Flush a wave + checkpoint (also covers in-flight).
     /** @param {string[]} passNames @param {Set<string>} completedInPass @param {boolean} force */
@@ -516,6 +559,7 @@ async function runRatingJob(job) {
           let r = null;
           const itemMeta = { startedAt: Date.now(), phase: 'start' };
           inFlight.set(name, itemMeta);
+          scheduleStallCheck(); // v14.29.0：排到该条目越过软阈值的时刻
           try {
             const urlAppId = job.urlAppIds && job.urlAppIds[name] ? job.urlAppIds[name] : null;
             const img =
@@ -580,7 +624,9 @@ async function runRatingJob(job) {
           // 徽章承接，不牺牲失败统计准确性。
           // Only explicitly-failed results are retried (network/ratelimit/timeout);
           // deterministic misses (null) no longer trigger a full second pass.
-          if (r && r.failed) retryNames.push(name);
+          // v14.29.0：noRetry（整窗网络故障且无 appId）不再自动重试——全站
+          // 不可达时重试只是把同一超时再跑一遍；用户点击重查可随时再试。
+          if (r && r.failed && !r.noRetry) retryNames.push(name);
           metricInc('batch.items', 1);
           await flushWave(passNames, completedInPass, false);
         }
@@ -639,6 +685,7 @@ async function runRatingJob(job) {
   } finally {
     clearInterval(keepAlive);
     if (heartbeatTimer) clearInterval(heartbeatTimer);
+    if (stallTimer) clearTimeout(stallTimer); // v14.29.0：任务收尾清停滞推送定时器
   }
 }
 

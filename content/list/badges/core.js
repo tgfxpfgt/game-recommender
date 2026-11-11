@@ -59,7 +59,27 @@ export function prependBadge(item, rating, settings) {
   const rate = rating ? rating.positiveRate : null;
 
   const badges = [];
-  if (isNotFound) {
+  // v14.29.0：网络/限流故障（未能解析出 appId）——独立语义与样式，绝不与
+  // "未找到"混用。断网时后台返回 {failed:true,errorType:'network',appId:null}，
+  // 此前落入 isNotFound 分支被渲染成「未找到」，误导用户以为 Steam 没有该游戏。
+  // Network/ratelimit failure without appId gets its own badge (never "not found").
+  if (rating && rating.failed && !rating.appId) {
+    badges.push(
+      createBadge(link, {
+        text: '⚠️ 网络异常·点击重查',
+        color: '#b8860b',
+        bg: 'rgba(184,134,11,0.12)',
+        cls: 'gr-badge-network-error',
+        title:
+          'Steam 网络/限流故障，本次未能完成检索（并非 Steam 无此游戏）\n点击立即重查 · 网络恢复后刷新页面也会自动重试',
+        dashed: true,
+        onClick: () => {
+          const retry = getBadgeRetryHandler();
+          if (retry) retry(item);
+        }
+      })
+    );
+  } else if (isNotFound) {
     badges.push(
       createBadge(link, {
         text: '未找到',

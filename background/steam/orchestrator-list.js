@@ -261,9 +261,10 @@ async function phasePlatform(gameName, options) {
  * @param {Object} options
  * @param {{correctAppId: string, wrongAppId: string|null}|null} corr
  * @param {string|number|null} usableAppId 已知 appId（缓存过期/Demo 重搜场景跳过搜索）
- * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean, source: string}|null>}
- *   null = 确认未找到（负缓存已按守卫语义处理）；englishName 在 usableAppId
- *   直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）；
+ * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean, source: string}|{networkFailed: true}|null>}
+ *   null = 确认未找到（负缓存已按守卫语义处理）；`{networkFailed:true}` =
+ *   窗口内有 API 失败，无法区分"未找到"与"网络故障"（v14.29.0 故障语义分离）；
+ *   englishName 在 usableAppId 直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）；
  *   source = 命中来源（v14.28.6 R4-B，仅作推测依据展示，不参与置信度判定）
  */
 async function phaseSearch(gameName, options, corr, usableAppId) {
@@ -317,10 +318,14 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
       if (apiStatus.failed === 0) {
         await recordNameIndex(gameName, null);
       } else {
+        // v14.29.0：故障语义分离——窗口内有 API 失败时，不能把"没查到"当成
+        // "确认 Steam 无此游戏"（此前返回 null，内容侧一律渲染「未找到」，
+        // 断网与"游戏不在 Steam"完全同形）。返回哨兵由调用方转成 errorType。
         Logger.warn(
           'Steam',
           `列表页搜索未命中且窗口内 ${apiStatus.failed} 次 API 失败（疑似网络问题），跳过负缓存: "${gameName}"`
         );
+        return { networkFailed: true };
       }
       return null;
     }
@@ -450,10 +455,30 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       phase('search');
       const hit = await phaseSearch(gameName, options, corr, usableAppId);
       if (!hit) return null;
-      foundAppId = hit.appId;
-      foundName = hit.name;
-      searchResult = hit.searched ? { appId: hit.appId, name: hit.name, englishName: hit.englishName } : null;
-      searchSource = hit.source || null;
+      // v14.29.0：网络/限流故障 ≠ 未找到——显式标记 errorType，内容侧据此渲染
+      // 「网络异常·点击重查」而不是「未找到」；noRetry 避免全站不可达时批内
+      // 每个条目再陪跑一轮重试（总量有界，用户可点击重查）。
+      if (/** @type {any} */ (hit).networkFailed) {
+        return {
+          positiveRate: null,
+          ratingDesc: null,
+          appId: null,
+          name: gameName,
+          failed: true,
+          errorType: 'network',
+          noRetry: true
+        };
+      }
+      const resolved =
+        /** @type {{appId: string|number, name: string, englishName: string|null, searched: boolean, source: string}} */ (
+          hit
+        );
+      foundAppId = resolved.appId;
+      foundName = resolved.name;
+      searchResult = resolved.searched
+        ? { appId: resolved.appId, name: resolved.name, englishName: resolved.englishName }
+        : null;
+      searchSource = resolved.source || null;
     }
 
     // 4.5 appId 校验（v3.2.6，v3.3.2 按需化）：DLC 等非游戏本体 → 自动解析为
@@ -622,7 +647,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     await setSteamCacheEntry(foundAppId, mergedData);
 
     // 7. 同步更新游戏注册表和名称索引：官方中英文名 + 封面图 + 标题变体 + type
-    await recordGameInRegistry(foundAppId, {
+    await recordGameInRegistry(/** @type {string|number} */ (foundAppId), {
       cnName: officialCn,
       enName: officialEn,
       gameName,

@@ -180,7 +180,13 @@ export const ENDPOINTS = {
   // host_permissions 已为 cn.bing.com 声明，属正式出站依赖）
   bingSearch: 'https://cn.bing.com/search?q=',
   // v14.6：标题检索目录层数据源（调研 docs/标题检索AppID-准确率与效率调研-2026-10.md）
-  steamAppListDump: 'https://raw.githubusercontent.com/jsnli/steamappidlist/main/data/games_appid.json', // 每日全量镜像（免 key）
+  // v14.29.0 修复：原 URL 写死 `main` 分支，而仓库默认分支是 `master`
+  // （GitHub API 实测 default_branch=master）→ v14.6 起该功能 404 从未生效。
+  // 现主源改 jsDelivr（实测 200 / 20,247,815B，raw 域名在部分网络不可达），
+  // 备源保留 raw master。两条引用的有效性由 scripts/check-external-refs.mjs
+  // 对照 scripts/external-refs.json 锁定（漂移/超 30 天未复核 = 门禁红）。
+  steamAppListDump: 'https://cdn.jsdelivr.net/gh/jsnli/steamappidlist@master/data/games_appid.json',
+  steamAppListDumpFallback: 'https://raw.githubusercontent.com/jsnli/steamappidlist/master/data/games_appid.json',
   steamStoreServiceList: 'https://api.steampowered.com/IStoreService/GetAppList/v1/', // 官方替代（需用户 key）
   steamCommunitySearch: 'https://steamcommunity.com/actions/SearchApps/', // 社区搜索（免 key，仅英文）
   // v14.21.2：社区评论浏览页（免登录 keyless 评论文本源——appreviews 端点 302

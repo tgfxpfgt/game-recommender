@@ -68,6 +68,7 @@ function makeJob(parent, items, ratingMap, settings = {}) {
     filtered: 0,
     filteredNames: [],
     notFoundNames: [],
+    failedNames: [],
     urlEntries: [],
     finished: false,
     domOrder: null,

@@ -45,8 +45,10 @@ const FIXTURES_DIR = path.join(TESTS_DIR, 'fixtures', 'http');
 // (previously only /api/ was intercepted; accidental real-network success died
 // with Steam's appreviews 302 change → anomaly cascade → no badges) and
 // cn.bing.com (Bing fallback). Misses now render "未找到" badges deterministically.
+// v14.29.0: cdn.jsdelivr.net 是目录 dump 主源（20MB）——必须拦截为未命中 404，
+// 否则 E2E 在 miss 路径上真下载整包（耗时/抖动）且结果随上游漂移。
 export const MOCK_RE =
-  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com)\/api\/|^https?:\/\/steamspy\.com\/api\.php|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|(www\.)?gog\.com|(www\.)?gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|steamcommunity\.com|api\.steampowered\.com)\/|^https?:\/\/store\.steampowered\.com\/(appreviews|app)\/|^https?:\/\/cn\.bing\.com\/|^https?:\/\/api\.isthereanydeal\.com\/|^https?:\/\/www\.metacritic\.com\/|^https?:\/\/steam250\.com\//;
+  /^https?:\/\/(store\.steampowered\.com|api\.steampowered\.com)\/api\/|^https?:\/\/steamspy\.com\/api\.php|^https?:\/\/(store-site-backend-official\.ak\.epicgames\.com|(www\.)?gog\.com|(www\.)?gamerpower\.com)\/|^https?:\/\/(shared\.akamai\.steamstatic\.com|cdn\.akamai\.steamstatic\.com|cdn\.cloudflare\.steamstatic\.com|media\.steampowered\.com|shared\.cloudflare\.steamstatic\.com)\/|^https?:\/\/(raw\.githubusercontent\.com|cdn\.jsdelivr\.net|steamcommunity\.com|api\.steampowered\.com)\/|^https?:\/\/store\.steampowered\.com\/(appreviews|app)\/|^https?:\/\/cn\.bing\.com\/|^https?:\/\/api\.isthereanydeal\.com\/|^https?:\/\/www\.metacritic\.com\/|^https?:\/\/steam250\.com\//;
 
 // fixture 文件名：host + pathname（转下划线）+ 规范化 query（排序后截断）
 export function fixtureKey(urlStr) {
