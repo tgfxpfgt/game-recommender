@@ -92,7 +92,17 @@ export const BUDGETS = {
   // 按实测重锁——新增能力，无冗余代码。
   // v14.28.7 (R4-B2/B3): recalibrated confidence rules + detail-side evidence,
   // re-locked to the measured graph size.
-  swGraphBytes: 881676,
+  // adapter 延迟装配批次（未 bump 版本）：8 个 adapter 顶层只注册工厂/懒 getter，
+  // 注册表首次读取才装配——SW 图 895,136B → 890,346B（净 −4,790B = 装配代码
+  // +415B − 注释/空行收敛 5,205B），静态注入 41,197B → 38,663B（−2,534B），
+  // 内容闭包 297,720B → 292,930B（−4,790B）。
+  // 注意：3fcf6c4（详情缓存完整性修复）当时未重锁，HEAD 本身已 895,136B >
+  // 881,676B；本值只是按实测重锁，仍包含该批 +8,670B 待后续批次回收，
+  // 不计入本批收益。
+  // Adapter lazy-assembly batch: the registry is built on first read; measured
+  // graph shrinks by 4,790B net. The remaining +8,670B above the old lock is
+  // pre-existing debt from 3fcf6c4, not attributed to this batch.
+  swGraphBytes: 890346,
   swGraphFiles: 106,
   staticInjectionBytes: 38663,
   closureBytes: 294466

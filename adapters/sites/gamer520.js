@@ -2,25 +2,15 @@
  * 游戏雷达 Game Radar - Gamer520 下载站规则 / Gamer520 Site Rules
  *
  * WordPress 主题，封面图引用 Steam CDN（queniuqe），列表页可 appId 直取。
+ * 字段见 xdgame.js 对照表。
  * WordPress theme; covers reference the Steam CDN (queniuqe), so list pages
  * can resolve appIds directly from images.
- *
- * 字段说明 / Field reference:
- *   key/name/domains/base/searchUrl  见 xdgame.js 说明 /
- *                                   see xdgame.js field reference
- *   detailUrlPatterns  详情页 URL 特征（数字.html 或含数字的一级路径）/
- *                      detail patterns (digits.html or digit-bearing 1-level path)
- *   imageAppId         封面 appId 直取开关：封面引用 Steam CDN，优先直取 /
- *                      cover-appId lookup: covers reference the Steam CDN
- *   listPage.urlPatterns  列表页识别：首页/分页/分类/搜索 /
- *                      list detection: home/pagination/category/search
- *   listItem.containers   游戏卡片容器 / game-card containers
- *   listItem.titleEls     标题元素选择器 / title-element selectors
  */
 (function (global) {
   'use strict';
 
-  global.__GAME_RECOMMENDER_SITE_GAMER520__ = {
+  // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
+  global.__GAME_RECOMMENDER_SITE_GAMER520__ = () => ({
     // v10.7.0 批次4：内嵌 Steam 评价卡（原 detail-page INLINE_SECTION_SITES 硬编码）
     features: { inlineSteamCard: true },
     key: 'gamer520',
@@ -43,5 +33,5 @@
       minLen: 2,
       maxLen: 100
     }
-  };
+  });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

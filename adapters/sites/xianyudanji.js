@@ -2,28 +2,15 @@
  * 游戏雷达 Game Radar - 咸鱼单机 下载站规则 / Xianyudanji Site Rules
  *
  * WordPress 主题，文章卡片 class="post post-grid"，标题在 h2.entry-title。
- * 详情页 URL：/数字.html 或 /xxx数字xxx/ 一级路径。
+ * 详情页 URL：/数字.html 或 /xxx数字xxx/ 一级路径。字段见 xdgame.js 对照表。
  * WordPress theme; article cards use .post, titles live in h2.entry-title.
  * Detail pages: /{digits}.html or digit-bearing one-level paths.
- *
- * 字段说明 / Field reference:
- *   key/name/domains/base/searchUrl  见 xdgame.js 说明 /
- *                                   see xdgame.js field reference
- *   detailUrlPatterns  详情页 URL 特征（数字.html 或含数字的一级路径）/
- *                      detail patterns (digits.html or digit-bearing 1-level path)
- *   imageAppId         封面 appId 直取开关（本地图，无 appId 时标题搜索兜底）/
- *                      cover-appId lookup (local covers → title search fallback)
- *   listPage.urlPatterns  列表页识别：首页/分页/分类/标签/搜索 /
- *                      list detection: home/pagination/category/tag/search
- *   listItem.containers   文章卡片容器 / article-card containers
- *   listItem.titleEls     标题元素选择器 / title-element selectors
- *   listItem.fallbackLinks 容器无结果时回退全页面链接 /
- *                      whole-page fallback when containers fail
  */
 (function (global) {
   'use strict';
 
-  global.__GAME_RECOMMENDER_SITE_XIANYUDANJI__ = {
+  // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
+  global.__GAME_RECOMMENDER_SITE_XIANYUDANJI__ = () => ({
     // v10.7.0 批次4：内嵌 Steam 评价卡（原 detail-page INLINE_SECTION_SITES 硬编码）
     features: { inlineSteamCard: true },
     key: 'xianyudanji',
@@ -57,5 +44,5 @@
     // title on this category's cards, so title-level detection never fires;
     // matching pages inject the hint into the ratings batch.
     listPlatformHints: [{ urlPattern: '/pcdj/mnqzh', hint: '模拟器版' }]
-  };
+  });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
