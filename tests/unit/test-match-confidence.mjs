@@ -9,7 +9,7 @@ import { test, expect, describe, beforeEach } from 'vitest';
  */
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
-import { installFetchMock } from '../helpers/fetch-mock.mjs';
+import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
 
 const storage = createStorageMock();
 installChromeStorageMock(storage);
@@ -28,6 +28,16 @@ const orchestratorList = await import(
 // 不带 ?t=：与 orchestrator 的静态 import 共享实例（状态互不可见的教训见 test-orchestrator）
 const cacheMod = await import(new URL('../../background/storage/steam-cache.js', import.meta.url).href);
 const nameIdx = await import(new URL('../../background/storage/name-index.js', import.meta.url).href);
+// v14.28.7 R4 补测：详情链路（浮窗/详情面板的真实挂点）与平台判定纯函数
+const orchestratorDetail = await import(
+  new URL('../../background/steam/orchestrator-detail.js', import.meta.url).href + '?t=' + Date.now()
+);
+const { detectOffSteamPlatform } = await import(new URL('../../shared/platform-detect.js', import.meta.url).href);
+// 测试隔离：appdetails 有 10s 去重表（跨用例复用会串味），注册表内存同为单例
+const { resetAppDetailsDedupForTest } = await import(
+  new URL('../../background/steam/api-details.js', import.meta.url).href
+);
+const { resetRegistry } = await import(new URL('../../background/storage/registry.js', import.meta.url).href);
 
 // 第一波是零网络语义：任何 fetch 都是缺陷（mock 直接抛错暴露）
 const noNetwork = () =>
@@ -49,9 +59,51 @@ async function seed(appId, fields) {
   await cacheMod.flushSteamCache();
 }
 
+// v14.28.7 R4 补测：详情链路的 Steam 出站替身。名称索引命中错误 appId 后，
+// 管线真实执行「检索 → 详情组装 → 置信度打标」——这正是用户症状
+// 「一直去匹配 appid 结果错误」所走的路径。不用缓存 seed：详情缓存命中判定
+// 要求 detail 模块含 name，而 name 按 FIELD_MODULES 落在 meta 模块（恒不命中）。
+// Steam API stand-in for the detail pipeline (mirrors the reported symptom path).
+function mockSteam(appId, name, englishName, releaseDate) {
+  const mock = createFetchMock({
+    '/api/storesearch': { items: [{ id: Number(appId), name: englishName, type: 'app' }] },
+    '/api/appdetails': (u) => {
+      const id = (String(u).match(/appids=(\d+)/) || [])[1] || appId;
+      return {
+        [id]: {
+          success: true,
+          data: {
+            steam_appid: Number(id),
+            name,
+            type: 'game',
+            genres: [{ id: 1, description: '动作' }],
+            release_date: { date: releaseDate },
+            supported_languages: '<strong>简体中文</strong><br>界面、完全音频、字幕'
+          }
+        }
+      };
+    },
+    '/appreviews': {
+      success: 1,
+      query_summary: {
+        total_reviews: 1000,
+        total_positive: 900,
+        total_negative: 100,
+        review_score: 9,
+        review_score_desc: '特别好评'
+      },
+      reviews: []
+    },
+    '/api/ISteamNews': { appnews: { newsitems: [{ date: 1754900000 }] } }
+  });
+  return installFetchMock(mock);
+}
+
 beforeEach(async () => {
   storage._reset();
   nameIdx.resetNameIndex();
+  resetRegistry();
+  resetAppDetailsDedupForTest();
   if (typeof cacheMod.resetSteamCache === 'function') cacheMod.resetSteamCache();
   await cacheMod.loadSteamCacheToMemory();
 });
@@ -240,5 +292,170 @@ describe('第一波（零网络）：平台预检与置信度', () => {
     } finally {
       restore();
     }
+  });
+});
+
+// ============ v14.28.7 R4 补测：平台误配主路径 ============
+// 用户指出的缺口：既有 42 条夹具里 platform-unconfirmed 一次都没触发——修复针对的
+// 主路径（主机/移动/云游戏标题命中 Steam 同名条目）无覆盖。本组逐条锁定
+// 「判定 + 命中条目（appId/标题）+ 平台字段 + 理由文案」，任一判 confirmed 即缺陷。
+// Regression fixtures for the platform-mismatch main path (previously untested).
+describe('平台误配夹具：判定 + 命中条目 + 平台字段 + 理由', () => {
+  const FIXTURES = [
+    {
+      id: '主机独占·同名不同游戏',
+      page: '猎天使魔女3 Switch|官方中文',
+      appId: '460790',
+      steamName: '猎天使魔女',
+      englishName: 'Bayonetta',
+      releaseDate: '2017-04-11',
+      kind: 'console'
+    },
+    {
+      id: '同系列·差 1 代',
+      page: '斯普拉遁3 Switch|官方中文',
+      appId: '900101',
+      steamName: '斯普拉遁2',
+      englishName: 'Splatoon 2',
+      releaseDate: '2017-07-21',
+      kind: 'console'
+    },
+    {
+      id: '同系列·差 2 代',
+      page: '生化危机9 Switch|官方中文',
+      appId: '900102',
+      steamName: '生化危机7',
+      englishName: 'Resident Evil 7',
+      releaseDate: '2017-01-24',
+      kind: 'console'
+    },
+    {
+      id: '重制版/决定版（Steam 只有重制）',
+      page: '恶魔之魂 PS5|官方中文',
+      appId: '900103',
+      steamName: '恶魔之魂：重制版',
+      englishName: 'Demon\u2019s Souls Remake',
+      releaseDate: '2020-11-12',
+      kind: 'console'
+    },
+    {
+      id: '云游戏标题命中同名条目',
+      page: '赛博朋克2077 云游戏|官方中文',
+      appId: '1091500',
+      steamName: '赛博朋克2077',
+      englishName: 'Cyberpunk 2077',
+      releaseDate: '2020-12-10',
+      kind: 'cloud'
+    },
+    {
+      id: '移动端标题命中同名条目',
+      page: '死亡细胞 安卓版|官方中文',
+      appId: '588650',
+      steamName: '死亡细胞',
+      englishName: 'Dead Cells',
+      releaseDate: '2018-08-07',
+      kind: 'mobile'
+    }
+  ];
+
+  for (const fx of FIXTURES) {
+    test(`${fx.id} → 推测（命中 ${fx.steamName} / ${fx.appId}）`, async () => {
+      await nameIdx.recordNameIndex(fx.page, fx.appId);
+      const restore = mockSteam(fx.appId, fx.steamName, fx.englishName, fx.releaseDate);
+      let r;
+      try {
+        r = await orchestratorDetail.searchSteamGame(fx.page, { rawTitle: fx.page, ignoreNegativeCache: true });
+      } finally {
+        restore();
+      }
+      // 平台判定字段
+      const off = detectOffSteamPlatform(fx.page);
+      expect(off && off.kind).toEqual(fx.kind);
+      // 判定 + 理由文案
+      expect(r).toBeTruthy();
+      expect(r.matchConfidence).toEqual('suspected');
+      expect(r.matchNote).toEqual('未能确认是 PC 版本（主机/移动/云游戏同名条目）');
+      expect(r.matchPlatform).toEqual('非 PC（主机/移动/云游戏）');
+      // 命中条目（appId + 标题）
+      expect(String(r.appId)).toEqual(fx.appId);
+      expect(r.name).toEqual(fx.steamName);
+      expect(r.matchName).toEqual(fx.steamName);
+    });
+  }
+
+  test('第一波：主机三例 → 未找到（null，不得返回可展示条目）', async () => {
+    const restore = noNetwork();
+    try {
+      for (const fx of FIXTURES.filter((f) => f.kind === 'console')) {
+        storage._reset();
+        nameIdx.resetNameIndex();
+        cacheMod.resetSteamCache();
+        await cacheMod.loadSteamCacheToMemory();
+        await seed(fx.appId, { name: fx.steamName, releaseDate: fx.releaseDate });
+        await nameIdx.recordNameIndex(fx.page, fx.appId);
+        const hit = await orchestratorList.getSteamRatingsFromCacheOnly(fx.page, {});
+        expect(hit).toEqual(null);
+      }
+    } finally {
+      restore();
+    }
+  });
+
+  test('第一波：云游戏/移动 → 命中但推测（不得 confirmed）', async () => {
+    const restore = noNetwork();
+    try {
+      for (const fx of FIXTURES.filter((f) => f.kind !== 'console')) {
+        storage._reset();
+        nameIdx.resetNameIndex();
+        cacheMod.resetSteamCache();
+        await cacheMod.loadSteamCacheToMemory();
+        await seed(fx.appId, { name: fx.steamName, releaseDate: fx.releaseDate });
+        await nameIdx.recordNameIndex(fx.page, fx.appId);
+        const hit = await orchestratorList.getSteamRatingsFromCacheOnly(fx.page, {});
+        expect(hit && hit.matchConfidence).toEqual('suspected');
+        expect(hit && hit.matchNote).toEqual('未能确认是 PC 版本（主机/移动/云游戏同名条目）');
+        expect(String(hit && hit.appId)).toEqual(fx.appId);
+      }
+    } finally {
+      restore();
+    }
+  });
+});
+
+// 对照：多平台作品不得被平台规则误伤（避免"正常情况也打成推测"）
+describe('对照：多平台作品保持确认', () => {
+  test('多平台同时发售、页面无主机标记 → confirmed', async () => {
+    await nameIdx.recordNameIndex('艾尔登法环|官方中文', '1245620');
+    const restore = mockSteam('1245620', '艾尔登法环', 'Elden Ring', '2022-02-25');
+    let r;
+    try {
+      r = await orchestratorDetail.searchSteamGame('艾尔登法环|官方中文', {
+        rawTitle: '艾尔登法环|官方中文',
+        ignoreNegativeCache: true
+      });
+    } finally {
+      restore();
+    }
+    expect(detectOffSteamPlatform('艾尔登法环|官方中文')).toEqual(null);
+    expect(r && r.matchConfidence).toEqual('confirmed');
+    expect(r && r.matchPlatform).toEqual('PC');
+    expect(r && r.matchNote).toEqual('标题一致，平台为 PC；发行年份仅一侧可知（不降级）');
+  });
+
+  test('页面显式 PC 标记 + 主机标记（PC|PS5）→ PC 优先，confirmed', async () => {
+    await nameIdx.recordNameIndex('艾尔登法环 PC|PS5 官方中文', '1245620');
+    const restore = mockSteam('1245620', '艾尔登法环', 'Elden Ring', '2022-02-25');
+    let r;
+    try {
+      r = await orchestratorDetail.searchSteamGame('艾尔登法环 PC|PS5 官方中文', {
+        rawTitle: '艾尔登法环 PC|PS5 官方中文',
+        ignoreNegativeCache: true
+      });
+    } finally {
+      restore();
+    }
+    expect(detectOffSteamPlatform('艾尔登法环 PC|PS5 官方中文')).toEqual(null);
+    expect(r && r.matchConfidence).toEqual('confirmed');
+    expect(r && r.matchPlatform).toEqual('PC');
   });
 });
