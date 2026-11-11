@@ -248,6 +248,12 @@
 .gr-badge-dashed {
   border-style: dashed;
 }
+/* v14.30.0 R4-B：推测匹配徽章——双线边框 + 琥珀色（确认=实线 / 推测=双线 /
+   未找到=虚线，三者边框形状不同；文字与配色也各自区分）*/
+.gr-badge-suspected {
+  border-style: double;
+  border-width: 3px;
+}
 /* v10.1.0：a-b 徽章（AppID 行为统计）——标题绿色警示（a=0 且 b>0 只看不下）*/
 
 .gr-title-green,

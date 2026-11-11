@@ -38,6 +38,28 @@ import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2�
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
+// v14.30.0 R4-B：三要素置信度（平台+标题+发行年份一致才 confirmed）
+import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
+
+// v14.30.0 R4-B：把三要素置信度挂到结果上（确认/推测 + 依据串），内容侧据此
+// 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 缺哪一项）。
+// Attach the 3-factor confidence (and human-readable evidence) to a result.
+function attachMatch(result, { gameName, resultName, source, steamYear }) {
+  if (!result || typeof result !== 'object') return result;
+  const m = rateMatchConfidence({
+    gameName,
+    resultName: resultName || result.name || '',
+    platform: 'pc',
+    pageYear: extractTitleYear(gameName),
+    steamYear: steamYear !== null && steamYear !== undefined ? steamYear : yearOfDateString(result.releaseDate),
+    source
+  });
+  result.matchConfidence = m.confidence;
+  result.matchName = m.resultName;
+  result.matchSource = m.sourceLabel;
+  result.matchNote = m.reasonText;
+  return result;
+}
 
 /**
  * 仅缓存命中查询（列表页第一波，无网络请求）。
@@ -65,16 +87,25 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
     }
     return { platformOnly: true, platformTag: manual0.tag, appId: null, name: gameName };
   }
+  // v14.30.0 R4-B：首波必须做**标题级**平台预检（此前仅在分类页提示词存在时
+  // 才判模拟器）——主机独占标题若被 URL/名称索引钉住一个无关 Steam appId，
+  // 首波缓存命中即返回"看起来成功"的错误徽章，第二波永远不会纠正（第一波
+  // 结果是终态）。主机条目首波保持零网络：不抓分，返回 null 交第二波
+  // phasePlatform（Metacritic）。
+  // Wave 1 must run a title-level platform pre-check: a console-only title pinned
+  // to an unrelated Steam appId would otherwise return a wrong badge as final.
   const hint0 = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
-  if (hint0) {
-    const plat0 = detectPlatform(`${gameName}|${hint0}`);
-    if (plat0.kind === 'emulator') {
-      return { platformOnly: true, platformTag: plat0.tag, appId: null, name: gameName };
-    }
+  const plat0 = detectPlatform(hint0 ? `${gameName}|${hint0}` : gameName);
+  if (plat0.kind === 'emulator') {
+    return { platformOnly: true, platformTag: plat0.tag, appId: null, name: gameName };
   }
+  if (plat0.kind === 'console') return null;
+  /** @type {string} */
+  let appSource = options.appId ? 'image' : 'unknown';
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
+    if (appId) appSource = 'index';
   }
   // v14.6.2 修复（审查 A3）：首波缓存命中同样校验纠正黑名单——封面直取的
   // 错 appId 命中错误缓存时不再返回（该名进入 pending 走重搜纠正）
@@ -98,7 +129,13 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (isDemoCacheWithoutRating(merged)) return null;
 
   // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
-  return applyCacheHit(merged, appId, gameName);
+  // v14.30.0 R4-B：附三要素置信度（确认/推测 + 依据）
+  return attachMatch(await applyCacheHit(merged, appId, gameName), {
+    gameName,
+    resultName: merged.name,
+    source: appSource,
+    steamYear: yearOfDateString(merged.releaseDate)
+  });
 }
 
 /**
@@ -213,13 +250,16 @@ async function phasePlatform(gameName, options) {
  * @param {Object} options
  * @param {{correctAppId: string, wrongAppId: string|null}|null} corr
  * @param {string|number|null} usableAppId 已知 appId（缓存过期/Demo 重搜场景跳过搜索）
- * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean}|null>}
+ * @returns {Promise<{appId: string|number, name: string, englishName: string|null, searched: boolean, source: string}|null>}
  *   null = 确认未找到（负缓存已按守卫语义处理）；englishName 在 usableAppId
- *   直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）
+ *   直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）；
+ *   source = 命中来源（v14.30.0 R4-B，仅作推测依据展示，不参与置信度判定）
  */
 async function phaseSearch(gameName, options, corr, usableAppId) {
   let foundAppId = usableAppId;
   let foundName = gameName;
+  /** @type {string} */
+  let searchSource = 'unknown';
   /** @type {import('../core/types.js').SteamSearchResult|null} */
   let searchResult = null;
   if (!foundAppId) {
@@ -227,16 +267,20 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
     const dirHit = await matchAppListExact(gameName, corr ? corr.wrongAppId : null);
     if (dirHit) {
       searchResult = { appId: dirHit.appId, name: dirHit.name, englishName: dirHit.name };
+      searchSource = 'directory';
     } else {
       searchResult = await searchSteamAppId(parseGameTitle(gameName), gameName, corr ? corr.wrongAppId : null);
+      if (searchResult) searchSource = 'storesearch';
       // v14.3.2（P2-1）：中文检索未命中 → raw 标题英文段兜底（同 detail 管线）
       if (!searchResult && options.rawTitle) {
         const enSeg = (options.rawTitle.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 ®™©:&.'\-]{5,}/) || [''])[0].trim();
         if (enSeg) {
           searchResult = await searchSteamAppId([enSeg], options.rawTitle, corr ? corr.wrongAppId : null, 'english');
+          if (searchResult) searchSource = 'english';
           // v14.6：社区搜索端点兜底（调研建议 3，免 key 仅英文）
           if (!searchResult) {
             searchResult = await searchCommunityApps(enSeg, options.rawTitle, corr ? corr.wrongAppId : null);
+            if (searchResult) searchSource = 'community';
           }
         }
       }
@@ -253,6 +297,7 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
       if (probe) {
         Logger.info('Steam', `详情页信号回捞命中: "${gameName}" → ${probe.appId} (${probe.name})`);
         searchResult = probe;
+        searchSource = 'probe';
       }
     }
     if (!searchResult) {
@@ -276,7 +321,8 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
     appId: foundAppId,
     name: foundName,
     englishName: searchResult ? searchResult.englishName || searchResult.name : null,
-    searched: !!searchResult
+    searched: !!searchResult,
+    source: searchSource
   };
 }
 
@@ -297,9 +343,12 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   const corr = await lookupWrongReportCorrection(gameName);
 
   // 0. appId 优先（列表页封面图提取），否则名称索引
+  // v14.30.0 R4-B：记录 appId 来源（推测依据展示用）
+  let idSource = options.appId ? 'image' : 'unknown';
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
+    if (appId) idSource = 'index';
   }
   // 纠正黑名单命中（封面直取/索引粘性条目钉住的错 appId）→ 视为 miss 走重搜
   if (appId && corr && String(appId) === String(corr.wrongAppId)) {
@@ -340,7 +389,13 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(merged)) {
         // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
-        return applyCacheHit(merged, appId, gameName);
+        // v14.30.0 R4-B：附三要素置信度（确认/推测 + 依据）
+        return attachMatch(await applyCacheHit(merged, appId, gameName), {
+          gameName,
+          resultName: merged.name,
+          source: idSource,
+          steamYear: yearOfDateString(merged.releaseDate)
+        });
       }
       usableAppId = null;
     } else if (await isDemoAppId(appId)) {
@@ -363,12 +418,16 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     let foundName = gameName;
     /** @type {import('../core/types.js').SteamSearchResult|null} */
     let searchResult = null;
+    // v14.30.0 R4-B：本次命中的搜索来源（未搜索时回落到 appId 来源）
+    /** @type {string|null} */
+    let searchSource = null;
     if (!foundAppId) {
       const hit = await phaseSearch(gameName, options, corr, usableAppId);
       if (!hit) return null;
       foundAppId = hit.appId;
       foundName = hit.name;
       searchResult = hit.searched ? { appId: hit.appId, name: hit.name, englishName: hit.englishName } : null;
+      searchSource = hit.source || null;
     }
 
     // 4.5 appId 校验（v3.2.6，v3.3.2 按需化）：DLC 等非游戏本体 → 自动解析为
@@ -542,24 +601,32 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     });
     await recordNameIndex(gameName, foundAppId);
 
-    return {
-      positiveRate,
-      ratingDesc,
-      appId: foundAppId,
-      name: foundName,
-      // v10.5.3：好评/差评原始条数随返回（列表页综合评分徽章数据源；
-      // finalSummary 同 mergedData——重搜后以新 appId 统计为准）
-      totalReviews: finalSummary ? finalSummary.total : 0,
-      positiveReviews: finalSummary ? finalSummary.positive : null,
-      negativeReviews: finalSummary ? finalSummary.negative : null,
-      recentPositiveRate: recentRate,
-      recentTotalReviews: recentTotal,
-      lastUpdate: lastUpdate || existing.lastUpdate || null,
-      // v14.9.1：发售日期/新发售标记随返回（徽章"新游/未发售"标签 + 悬停展示）
-      releaseDate: fetchedReleaseDate || existing.releaseDate || '',
-      comingSoon: fetchedComingSoon || !!existing.comingSoon,
-      isNewRelease: !fetchedComingSoon && isNewReleaseDate(fetchedReleaseDate || existing.releaseDate || '')
-    };
+    return attachMatch(
+      {
+        positiveRate,
+        ratingDesc,
+        appId: foundAppId,
+        name: foundName,
+        // v10.5.3：好评/差评原始条数随返回（列表页综合评分徽章数据源；
+        // finalSummary 同 mergedData——重搜后以新 appId 统计为准）
+        totalReviews: finalSummary ? finalSummary.total : 0,
+        positiveReviews: finalSummary ? finalSummary.positive : null,
+        negativeReviews: finalSummary ? finalSummary.negative : null,
+        recentPositiveRate: recentRate,
+        recentTotalReviews: recentTotal,
+        lastUpdate: lastUpdate || existing.lastUpdate || null,
+        // v14.9.1：发售日期/新发售标记随返回（徽章"新游/未发售"标签 + 悬停展示）
+        releaseDate: fetchedReleaseDate || existing.releaseDate || '',
+        comingSoon: fetchedComingSoon || !!existing.comingSoon,
+        isNewRelease: !fetchedComingSoon && isNewReleaseDate(fetchedReleaseDate || existing.releaseDate || '')
+      },
+      {
+        gameName,
+        resultName: foundName,
+        source: searchSource || idSource,
+        steamYear: yearOfDateString(fetchedReleaseDate || existing.releaseDate || '')
+      }
+    );
   } catch (e) {
     Logger.warn('Steam', `获取好评率异常: ${gameName}`, String(e));
     Logger.debug('Steam', '获取Steam好评率失败:', String(e));

@@ -70,9 +70,15 @@ export const BUDGETS = {
   // 不再把全部条目的并集（任何单页都不会全量加载）当作"每页必付"。
   // v14.28.5: budgets re-locked after the per-site content_scripts split; the
   // static-injection metric now measures the worst single page, not the union.
-  swGraphBytes: 847145,
-  swGraphFiles: 105,
-  staticInjectionBytes: 38407,
+  // v14.30.0（第四轮 R4-B）：新增 background/steam/match-confidence.js（三要素
+  // 置信度 + 身份段标题核对，~4.0KB，主体是双语根因注释）+ 徽章推测样式
+  // （styles/content.css +256B）；SW 图 857,074B/106 文件、静态注入 38,663B，
+  // 按实测重锁（新增模块，无冗余代码）。
+  // v14.30.0 (R4-B): new match-confidence module + suspected-badge CSS; re-locked
+  // to the measured values.
+  swGraphBytes: 857074,
+  swGraphFiles: 106,
+  staticInjectionBytes: 38663,
   closureBytes: 294466
 };
 

@@ -24,6 +24,20 @@ export {
 export { prependRecBadge } from './rec.js';
 export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v14.7 批次 3
 
+// v14.30.0 R4-B：推测匹配的视觉与依据串——用户裁决：不用符号表达推测，
+// 徽章文字直接写「推测」+ 琥珀配色 + 双线边框；悬停给出匹配标题与数据来源。
+// Confirmed/suspected/not-found differ in text, color and border shape.
+const SUSPECT_STYLE = { color: '#b8860b', bg: 'rgba(184,134,11,0.12)' };
+function isSuspected(rating) {
+  return !!(rating && rating.matchConfidence === 'suspected');
+}
+function suspectTitleLine(rating) {
+  const why = rating.matchNote || '信息不足，无法核对平台/标题/发行年份';
+  const which = rating.matchName ? `匹配到「${rating.matchName}」` : '未返回匹配标题';
+  const from = rating.matchSource ? ` · 来源：${rating.matchSource}` : '';
+  return `推测匹配（未达确认条件）：${why}\n${which}${from}`;
+}
+
 // 在游戏标题前插入徽章（v3.3.6 三段式：近30天好评率 → 全部好评率 → 最近更新；
 // 悬停显示评论数/发行日期；未找到/合集type/无评测保持单徽章；全部徽章可点击跳转）
 // v3.3.8：徽章显示开关（badgeVisibility）——关闭某徽章仅跳过渲染，
@@ -84,15 +98,18 @@ export function prependBadge(item, rating, settings) {
             ? '评测少'
             : '';
     const relNote = rating.releaseDate ? `，发售于 ${rating.releaseDate}` : '';
+    const suspected2 = isSuspected(rating);
     badges.push(
       createBadge(link, {
-        text: rating.appId ? (relTag ? `#${rating.appId}·${relTag}` : `#${rating.appId}`) : '暂无',
-        color: '#8f98a0',
-        bg: 'rgba(143,152,160,0.15)',
-        cls: 'gr-rating-badge',
-        title: rating.failed
-          ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），稍后自动重试`
-          : `Steam 已匹配 (AppID ${rating.appId})${relNote}，${rating.ratingDesc || '暂无评测'}\n点击跳转 Steam 详情页`,
+        text: `${suspected2 ? '推测 ' : ''}${rating.appId ? (relTag ? `#${rating.appId}·${relTag}` : `#${rating.appId}`) : '暂无'}`,
+        color: suspected2 ? SUSPECT_STYLE.color : '#8f98a0',
+        bg: suspected2 ? SUSPECT_STYLE.bg : 'rgba(143,152,160,0.15)',
+        cls: suspected2 ? 'gr-rating-badge gr-badge-suspected' : 'gr-rating-badge',
+        title:
+          (suspected2 ? suspectTitleLine(rating) + '\n' : '') +
+          (rating.failed
+            ? `Steam 已匹配 (AppID ${rating.appId})，好评率获取失败（网络/限流），稍后自动重试`
+            : `Steam 已匹配 (AppID ${rating.appId})${relNote}，${rating.ratingDesc || '暂无评测'}\n点击跳转 Steam 详情页`),
         clickable: true,
         appId: rating.appId
       })
@@ -171,18 +188,22 @@ export function prependBadge(item, rating, settings) {
     // v10.7.0：删除字面量 fallback——patterns.js 与内容脚本同注入必在，假单源是漂移温床）
     if (showAll) {
       const P = globalThis.__GR_PATTERNS__;
-      const color = P.ratingColorFor(rate);
-      const bg = P.ratingBgFor(rate);
+      const suspected = isSuspected(rating);
+      const color = suspected ? SUSPECT_STYLE.color : P.ratingColorFor(rate);
+      const bg = suspected ? SUSPECT_STYLE.bg : P.ratingBgFor(rate);
       // v7.4.0：色盲友好——符号前缀（✓ ≥80 / ▲ ≥60 / ✕ <60，与分级色一致）
       // Color-blind friendly: symbol prefix matching the grade colors
       const sym = rate >= 80 ? '✓ ' : rate >= 60 ? '▲ ' : '✕ ';
+      // v14.30.0 R4-B：推测匹配→文字前缀「推测」+ 琥珀 + 双线边框（确认态保持原样）
       badges.push(
         createBadge(link, {
-          text: `${sym}${rate}%`,
+          text: `${suspected ? '推测 ' : ''}${sym}${rate}%`,
           color,
           bg,
-          cls: 'gr-rating-badge',
-          title: `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
+          cls: suspected ? 'gr-rating-badge gr-badge-suspected' : 'gr-rating-badge',
+          title:
+            (suspected ? suspectTitleLine(rating) + '\n' : '') +
+            `全部好评率: ${rate}%${rating.ratingDesc ? ' (' + rating.ratingDesc + ')' : ''} · ${(rating.totalReviews || 0).toLocaleString()} 条评测\n点击跳转 Steam 详情页`,
           clickable: true,
           appId: rating.appId
         })

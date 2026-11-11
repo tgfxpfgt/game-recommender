@@ -65,6 +65,7 @@ export default defineConfig({
       'tests/unit/test-manual-platforms.mjs',
       'tests/unit/test-usage-evidence.mjs',
       'tests/unit/test-match-consensus.mjs',
+      'tests/unit/test-match-confidence.mjs', // v14.30.0 R4-B：三要素置信度 + 第一波平台预检
       'tests/unit/test-health.mjs',
       'tests/unit/test-wiring.mjs',
       'tests/unit/test-settings-sync.mjs',
