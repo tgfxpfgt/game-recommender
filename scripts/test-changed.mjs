@@ -11,12 +11,15 @@
  *   3) 其余按变更面：unit/integration 走 `vitest related`（静态 import 图）；
  *      sim 走显式路径映射——sim 套件经 __grImport eval 装载 content 模块，
  *      不在静态 import 图上（vitest.config.js v6.0.0 同源原因）；
- *   4) 变更的测试文件自身直跑（related 只覆盖"引用方"，不覆盖文件本身）。
+ *   4) 变更的测试文件自身直跑（related 只覆盖"引用方"，不覆盖文件本身）；
+ *   5) 非测试文件（tests/fixtures/*.json 等）经 FIXTURE_MAP 映射到消费套件——
+ *      未登记即红；不允许把夹具路径直接交给 vitest（"No test files found" 假绿）。
  * 兜底：git 不可用/异常 → 全量 npm test（保守方向）。
  * Affected-test selection for gate:fast; git failure degrades to full npm test.
- * Run: node scripts/test-changed.mjs [--base <ref>] [--to <ref>]
+ * Run: node scripts/test-changed.mjs [--base <ref>] [--to <ref>] [<file...>]
  *   --base：对指定基线（如 origin/main）校验，默认含工作区变更；配 --to 则为纯提交区间
  *   --to：与 --base 连用，校验已提交区间（base..to），不含工作区（历史批次补验）
+ *   <file...>：显式文件清单（自测/复现），跳过 git 变更检测
  */
 import { execSync, spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -81,6 +84,49 @@ const SIM_MAP = [
 // 特例映射：不在静态 import 图上的定向回归（userscript 纯函数防漂移门禁）
 const EXTRA_MAP = [{ prefix: 'userscript/', suites: ['tests/unit/test-userscript-pure.mjs'] }];
 
+// v14.29.1（L3 D 类假绿修复）：非测试文件（夹具 JSON）→ 消费它的测试套件。
+// 此前把 fixtures 路径直接传给 vitest，vitest 报 "No test files found"，脚本
+// 按"空匹配"判绿——夹具改了却没有任何断言跑过。**未登记的非 .mjs 变更直接红**
+// （拒绝空匹配通过），映射缺失即要求补这一行。
+// Fixture → consumer-suite map; unmapped non-test files under tests/ are a hard fail.
+const FIXTURE_MAP = [
+  {
+    file: 'tests/fixtures/mismatch-samples.json',
+    // 直读：test-mismatch-samples；锚点表：test-mismatch-anchors；回放运行器（helpers/mismatch-replay）：test-vocab-pack-gate
+    suites: [
+      'tests/unit/test-mismatch-samples.mjs',
+      'tests/unit/test-mismatch-anchors.mjs',
+      'tests/unit/test-vocab-pack-gate.mjs'
+    ]
+  },
+  {
+    file: 'tests/fixtures/baseline-firstpage.json',
+    // 直读：test-baseline-firstpage；回放运行器（helpers/mismatch-replay）第三源之外的第二源
+    suites: ['tests/unit/test-baseline-firstpage.mjs', 'tests/unit/test-vocab-pack-gate.mjs']
+  },
+  // xd3 只被 test-baseline-firstpage 以双基准形式直读（NOT in helpers/mismatch-replay）
+  { file: 'tests/fixtures/baseline-xd3.json', suites: ['tests/unit/test-baseline-firstpage.mjs'] },
+  // 仅经 helpers/mismatch-replay 的第三源进入回放池
+  { file: 'tests/fixtures/wrong-report-samples.json', suites: ['tests/unit/test-vocab-pack-gate.mjs'] }
+];
+
+// 显式文件清单（自测/复现）：`node scripts/test-changed.mjs <file...>`——
+// 跳过 git 变更检测，直接用给定文件走同一套选择逻辑（gate 调用不带该参数）。
+const explicitFiles = (() => {
+  const args = process.argv.slice(2);
+  const out = [];
+  for (let i = 0; i < args.length; i++) {
+    const a = args[i];
+    if (a === '--base' || a === '--to') {
+      i++; // 跳过选项值
+      continue;
+    }
+    if (a.startsWith('--')) continue;
+    out.push(a.replace(/\\/g, '/'));
+  }
+  return out;
+})();
+
 function git(cmd) {
   return execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
 }
@@ -93,6 +139,10 @@ function changedFiles() {
       .split('\n')
       .map((f) => f.trim().replace(/\\/g, '/'))
       .filter(Boolean);
+  if (explicitFiles.length > 0) {
+    console.log(`ℹ️ 显式文件清单（自测/复现，${explicitFiles.length} 个）：${explicitFiles.join(', ')}`);
+    return [...new Set(explicitFiles)];
+  }
   const baseIdx = process.argv.indexOf('--base');
   const base = baseIdx > 0 ? process.argv[baseIdx + 1] : null;
   const toIdx = process.argv.indexOf('--to');
@@ -196,17 +246,24 @@ if (whitelistHits.length > 0) {
 }
 if (relevant.length > 15) runFull(`相关文件 ${relevant.length} 个（大批次整体验证）`);
 
-// 变更面分类：related 集（静态图）+ sim 映射 + 变更测试文件直跑
+// 变更面分类：related 集（静态图）+ sim 映射 + 变更测试文件直跑 + 夹具映射
 const related = [];
-const directUnit = []; // 变更的 unit/integration 套件自身 + userscript 特例映射
+const directUnit = []; // 变更的 unit/integration 套件自身 + userscript 特例映射 + 夹具消费方
 const simSet = new Set();
+const unmappedFixtures = []; // 非 .mjs 测试资产但无消费方映射（必须红，不许假绿）
 for (const f of relevant) {
   if (f.startsWith('tests/sim/')) {
     simSet.add(f);
     continue;
   }
   if (f.startsWith('tests/')) {
-    directUnit.push(f);
+    if (f.endsWith('.mjs')) {
+      directUnit.push(f); // 只把真实测试文件交给 vitest
+      continue;
+    }
+    const mapped = FIXTURE_MAP.find((m) => m.file === f);
+    if (mapped) mapped.suites.forEach((s) => directUnit.push(s));
+    else unmappedFixtures.push(f);
     continue;
   }
   if (existsSync(path.join(ROOT, f))) related.push(f); // 已删除文件不进 related
@@ -221,11 +278,25 @@ for (const f of relevant) {
   }
 }
 
+if (unmappedFixtures.length > 0) {
+  console.error('\n❌ 非测试文件变更缺少"消费套件"映射（拒绝空匹配通过，夹具改了必须有断言跑）：');
+  for (const f of unmappedFixtures) console.error(`  - ${f}`);
+  console.error('  修法：在 scripts/test-changed.mjs 的 FIXTURE_MAP 补一行 { file, suites:[消费它的 tests/**/*.mjs] }');
+  process.exit(1);
+}
+
 console.log(
   `📦 变更 ${files.length} 文件（相关 ${relevant.length}）→ related ${related.length} 源文件 / 直跑 ${directUnit.length} 套件 / sim ${simSet.size} 套件`
 );
 const onlyStyles = related.length === 0 && directUnit.length === 0 && simSet.size === 0;
 if (onlyStyles) {
+  // "空匹配通过"只允许出现在**变更根本没碰测试面**的批次（docs/scripts/页面层）；
+  // 测试文件或夹具变更映射后仍为空 = 选择器漏配，必须红。
+  const testSide = relevant.filter((f) => f.startsWith('tests/'));
+  if (testSide.length > 0) {
+    console.error(`\n❌ 变更含测试面但未匹配到可运行套件（选择器漏配）：${testSide.join(', ')}`);
+    process.exit(1);
+  }
   console.log('✅ 无受影响测试（页面层/样式变更由 visual 步覆盖），跳过');
   process.exit(0);
 }

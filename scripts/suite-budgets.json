@@ -1,0 +1,48 @@
+{
+  "generatedAt": "2026-11-11T10:51:54Z",
+  "note": "套件墙钟预算单源（L3）。measuredMs = 2026-11-11 本机实测（Windows/PowerShell，串行无并行负载）；capMs = ceil(measuredMs*1.5/5000)*5000。gateFast 为**组合实测**：全链 136.69s（当次仅 docs/scripts 变更 → vitest 步跳过、visual 跳过）+ L1 批次受影响测试步 102.45s（content/background 修复，5 related + 扫描器套件）= 238.9s，即「含受影响测试的普通批次」口径；无受影响测试的批次实测 136.5~136.7s。gateFull 实测 409.6s（全量 vitest 两阶段 + coverage:gate + coverage:snapshot + E2E + visual + 打包）。数值口径见 docs/specs/gr-hardening-2026-11-11/spec.md「L3 分层与最小门禁集合」。超预算先复跑排除机器负载（并行编译/杀毒/争核），仍超才调整基线。",
+  "budgets": [
+    {
+      "id": "unit",
+      "label": "npx vitest run tests/unit（unit 全量）",
+      "measuredMs": 81230,
+      "capMs": 125000
+    },
+    {
+      "id": "sim",
+      "label": "npm run test:sim（sim 4 套件 + integration 5 套件）",
+      "measuredMs": 29300,
+      "capMs": 45000
+    },
+    {
+      "id": "e2eMock",
+      "label": "E2E_MOCK=1 npm run e2e（离线 E2E 冒烟）",
+      "measuredMs": 66530,
+      "capMs": 100000
+    },
+    {
+      "id": "visual",
+      "label": "npm run visual（视觉回归 11 张基线）",
+      "measuredMs": 12510,
+      "capMs": 20000
+    },
+    {
+      "id": "coverageGate",
+      "label": "npm run coverage:gate（新增文件行覆盖）",
+      "measuredMs": 112270,
+      "capMs": 170000
+    },
+    {
+      "id": "gateFast",
+      "label": "npm run gate:fast（整条快速门，含受影响测试口径）",
+      "measuredMs": 238900,
+      "capMs": 360000
+    },
+    {
+      "id": "gateFull",
+      "label": "npm run gate（整条全量门）",
+      "measuredMs": 409590,
+      "capMs": 615000
+    }
+  ]
+}
