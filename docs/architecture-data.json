@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-11T17:46:34.322Z",
-  "version": "14.28.10",
+  "generatedAt": "2026-11-12T14:01:43.216Z",
+  "version": "14.28.13",
   "nodes": [
     {
       "dir": "background",
@@ -56,7 +56,7 @@
       "color": "#e67e22",
       "desc": "限免页 — Epic/GOG/Steam/GamerPower",
       "files": 3,
-      "lines": 640
+      "lines": 666
     },
     {
       "dir": "shared",
@@ -87,7 +87,7 @@
     "actionCount": 79,
     "storageCount": 32,
     "testCount": 0,
-    "suiteCount": 77
+    "suiteCount": 78
   },
   "flows": [
     {

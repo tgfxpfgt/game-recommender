@@ -152,7 +152,12 @@ for (const m of PLAN.mutations) {
       detail: `缺陷放回后门禁仍绿（${m.check}，${r.ms}ms）——该类型未被拦截；${m.caughtBy} 需加强`
     });
   } else if (r.code === 124) {
-    results.push({ id: m.id, status: 'FAIL', detail: `门禁超时（${r.ms}ms）——判为未拦截（无法区分卡死与拦截）` });
+    // v14.28.13：超时附输出尾——楔死现场自诊断（卡在 vitest 启动/测试体/收尾）
+    results.push({
+      id: m.id,
+      status: 'FAIL',
+      detail: `门禁超时（${r.ms}ms）——判为未拦截（无法区分卡死与拦截）· 输出尾: ${r.tail.slice(0, 200) || '（无输出=子进程未启动/输出未流回）'}`
+    });
   } else {
     results.push({ id: m.id, status: 'PASS', detail: `变红 ${r.code}（${r.ms}ms）· ${r.tail.slice(0, 160)}` });
   }
