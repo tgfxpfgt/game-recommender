@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.28.13',
+        date: '2026-11-12',
+        items: [
+          'E-3 落地：node scripts/test-cost-history.mjs --report 出门禁执行历史战果报告（各步骤次数/失败率/耗时分布——执行分母）',
+          'coverage:gate 空集跳过（gate:fast 推送后确定性空转 112s→0；computeNewFiles 单源导出，行为保持非削弱断言）',
+          'P1-2：人工纠正来源强制 confirmed（rateMatchConfidence 单源分支——用户确认优先于相似度/平台/年份门，两管线同覆盖）',
+          'G-2 收窄：raw 备源真实校验 HEAD 200/20,247,815B 与主源一致（first-run 注记更新；产品回退路径取证仍待真实故障）'
+        ]
+      },
+      {
         ver: '14.28.12',
         date: '2026-11-12',
         items: [

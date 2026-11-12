@@ -16,7 +16,7 @@
       "id": "app-list-dump-fallback",
       "feature": "Steam 全量目录 dump raw 备源（GitHub raw）",
       "required": false,
-      "pending": "备源只在主源失败时触发，尚未有过真实回退取用；首次回退成功后把 firstRun 回填并把 required 改回 true（已知缺口，见交付报告 G-2）",
+      "pending": "备源只在主源失败时触发。2026-11-12 真实校验：HEAD 200 / Content-Length 20,247,815B（与主源逐字节一致）；完整下载与 Range 在本机网络间歇重置（GFW 抖动——主源 jsDelivr 优先的布局依据）。URL 可达性已实证；产品回退路径首次真实触发仍待真实故障，届时回填 firstRun 并把 required 改回 true（G-2 余项收窄为产品路径取证）",
       "firstRun": null
     }
   ]

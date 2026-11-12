@@ -14,7 +14,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const HISTORY_PATH = path.join(ROOT, 'scripts', '.gate-costs.jsonl');
@@ -116,4 +116,56 @@ export function reportCostAnomalies(mode, currentRuns, skipSteps = new Set(), fi
     console.log(`\n📊 测试开销异常（历史 ${history.length} 条，scripts/.gate-costs.jsonl）:`);
     for (const l of lines) console.log(l);
   }
+}
+
+/**
+ * v14.28.13（E-3 挂账落地）：门禁执行历史战果报告——执行分母（各步骤跑过
+ * 多少次）+ 失败率（真问题拦截的代理指标）+ 耗时分布。数据源 =
+ * scripts/.gate-costs.jsonl（v14.28.11 起自动记录，gitignored 本地历史）。
+ * 局限（诚实声明）：步骤级失败 ≠ 套件级战果归因；本地历史不跨机器/CI。
+ * E-3 deliverable: execution-history denominator (runs per step) + failure
+ * rate (proxy for real catches) + duration distribution from the local log.
+ * @param {string} [filePath]
+ */
+export function printExecutionHistoryReport(filePath = HISTORY_PATH) {
+  const history = readCostHistory(filePath);
+  if (history.length === 0) {
+    console.log('📭 无执行历史（scripts/.gate-costs.jsonl 不存在或为空——v14.28.11 起自动记录）');
+    return;
+  }
+  const byStep = new Map();
+  for (const e of history) {
+    if (!byStep.has(e.step)) byStep.set(e.step, []);
+    byStep.get(e.step).push(e);
+  }
+  const fmtMs = (ms) => `${(ms / 1000).toFixed(1)}s`;
+  /** @param {number[]} arr */
+  const p90 = (arr) => {
+    const s = [...arr].sort((a, b) => a - b);
+    return s[Math.min(s.length - 1, Math.floor(s.length * 0.9))] || 0;
+  };
+  console.log(
+    `\n📋 门禁执行历史报告（${history.length} 条 · ${new Date(history[0].ts).toLocaleDateString('zh-CN')} 起 · scripts/.gate-costs.jsonl）`
+  );
+  console.log('步骤 | 次数 | 失败 | 失败率 | 中位耗时 | p90 | 最近失败');
+  const rows = [...byStep.entries()].sort((a, b) => b[1].length - a[1].length);
+  for (const [step, entries] of rows) {
+    const fails = entries.filter((e) => e.code !== 0);
+    const lastFailTs = fails.length ? new Date(fails[fails.length - 1].ts).toLocaleDateString('zh-CN') : '-';
+    const durs = entries.map((e) => e.ms).filter((ms) => Number.isFinite(ms));
+    const med = median(durs);
+    console.log(
+      `  ${step} | ${entries.length} | ${fails.length} | ${entries.length ? Math.round((fails.length / entries.length) * 100) : 0}% | ${fmtMs(med)} | ${fmtMs(p90(durs))} | ${lastFailTs}`
+    );
+  }
+  const totalFails = history.filter((e) => e.code !== 0).length;
+  console.log(
+    `\n  合计：${history.length} 步执行 / ${totalFails} 次失败（失败率 ${Math.round((totalFails / history.length) * 100)}%）——失败≠抖动，处置按 AGENTS 已知噪声/隔离复跑纪律`
+  );
+  console.log('  局限：步骤级失败≠套件级战果归因（E-3 完整分母需套件执行历史，本地历史不跨机器）');
+}
+
+// CLI 入口：node scripts/test-cost-history.mjs --report
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  printExecutionHistoryReport();
 }

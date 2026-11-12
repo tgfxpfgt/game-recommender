@@ -45,7 +45,8 @@ const REASON_TEXT = {
   'no-result-name': 'Steam 结果未返回标题，无法核对',
   'platform-unconfirmed': '未能确认是 PC 版本（主机/移动/云游戏同名条目）',
   'title-mismatch': '匹配标题与页面标题相似度不足',
-  'year-mismatch': '页面年份与 Steam 发行年份相差超过 1 年'
+  'year-mismatch': '页面年份与 Steam 发行年份相差超过 1 年',
+  'user-correction': '用户已确认的映射（人工纠正记录）'
 };
 
 /**
@@ -267,6 +268,14 @@ export function rateMatchConfidence(input) {
     reason,
     reasonText: REASON_TEXT[reason] || ''
   });
+  // 0) v14.28.13（三目标审查 P1-2）：人工纠正来源强制 confirmed——用户手动确认
+  //    的映射优先于自动相似度/平台/年份判定（纠正后仍标「推测」语义不合理；
+  //    相似度等字段随 base 携带仅作展示）。单源落点：列表/详情两条管线同函数。
+  //    Human correction forces confirmed — user judgment outranks the gates;
+  //    single source covers both list and detail pipelines.
+  if (sourceKey === 'correction') {
+    return { ...base, confidence: 'confirmed', reason: 'user-correction', reasonText: REASON_TEXT['user-correction'] };
+  }
   // 1) 平台最优先——错配主因 / platform mismatch comes first
   if (!platformOk) return suspected('platform-unconfirmed');
   // 2) 标题相似度主门槛 / the title gate

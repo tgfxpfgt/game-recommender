@@ -116,6 +116,31 @@ describe('置信度规则（纯函数，v14.28.7 二次校准）', () => {
     source: 'storesearch'
   };
 
+  // v14.28.13（三目标审查 P1-2）：人工纠正来源强制 confirmed——用户确认的映射
+  // 优先于相似度/平台/年份自动判定（纠正后仍标「推测」语义不合理）。
+  test('P1-2：correction 来源强制 confirmed（相似度不足也不降级）', () => {
+    const m = mc.rateMatchConfidence({
+      gameName: '生化危机4 重制版',
+      resultName: 'Resident Evil 4', // 跨语言相似度低——storesearch 来源会判 title-mismatch
+      platform: 'pc',
+      source: 'correction'
+    });
+    expect(m.confidence).toEqual('confirmed');
+    expect(m.reason).toEqual('user-correction');
+    expect(m.sourceLabel).toEqual('用户报错纠正记录');
+  });
+
+  test('P1-2：correction 且页面判非 PC 也 confirmed（用户判断优先于平台门）', () => {
+    const m = mc.rateMatchConfidence({
+      gameName: '某主机同名游戏',
+      resultName: 'Some Game',
+      platform: 'non-pc',
+      source: 'correction'
+    });
+    expect(m.confidence).toEqual('confirmed');
+    expect(m.reason).toEqual('user-correction');
+  });
+
   test('平台+标题+发行年份一致 → confirmed', () => {
     const m = mc.rateMatchConfidence({ ...base, pageYear: 2022, steamYear: 2022 });
     expect(m.confidence).toEqual('confirmed');

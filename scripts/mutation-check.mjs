@@ -23,7 +23,9 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const PLAN = JSON.parse(fs.readFileSync(path.join(ROOT, 'scripts', 'mutations.json'), 'utf-8'));
 const onlyArg = process.argv.find((a) => a.startsWith('--only='));
 const only = onlyArg ? onlyArg.slice('--only='.length) : '';
-const CHECK_TIMEOUT_MS = 240000;
+// v14.28.13：240s→90s——健康红实测上限 14s（stall/review 变异），90s = 6× 余量；
+// 配合超时单次重试，楔死最坏代价 240s→180s 且大概率自愈，不再判「未拦截」。
+const CHECK_TIMEOUT_MS = 90000;
 
 const sha = (s) => crypto.createHash('sha1').update(s).digest('hex');
 
@@ -122,6 +124,15 @@ for (const m of PLAN.mutations) {
   try {
     fs.writeFileSync(abs, mutated, 'utf-8');
     r = await runCheck(m.check); // v14.28.11：异步 + 进程树击杀
+    // v14.28.13：124（超时楔死）自动重试**一次**——楔死是间歇性的（Vitest4
+    // worker fork 竞态，健康红 ≤14s、超时 90s 上限），新进程大概率自愈；
+    // 只对超时重试（绿/红结果不复跑，语义保持：绿仍=门禁失效判红）。
+    // Single retry on timeout wedges only (intermittent Vitest4 fork race);
+    // green/red results are never re-run, so semantics are unchanged.
+    if (r && r.code === 124) {
+      console.warn(`⚠️ ${m.id} 门禁超时（疑似楔死），新进程重试一次…`);
+      r = await runCheck(m.check);
+    }
   } finally {
     fs.writeFileSync(abs, original, 'utf-8');
     const idx = pending.findIndex((p) => p.id === m.id);

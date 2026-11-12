@@ -5,10 +5,15 @@
  * 覆盖率，断言行覆盖率 ≥ 阈值（默认 50%）。无新增文件直接通过。
  * 防止新增代码无测试直接上线（全局硬门槛易流于形式，新增文件门槛更精准）。
  * Run: npm run coverage:gate
+ * v14.28.13：新增文件集计算导出为 computeNewFiles()（单源）——gate:fast 在
+ * 空集时直接跳过本步骤（推送后 merge-base=HEAD 且无未提交新增时，本步骤
+ * 是 112s 级纯空转；空集跳过 = 行为保持的提速，不削弱任何断言）。
+ * v14.28.13: new-file set computation is exported (single source) so gate:fast
+ * can skip the step when the set is empty — a behavior-preserving speedup.
  */
 import { execSync } from 'node:child_process';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const MIN_LINES = Number(process.env.COVERAGE_MIN_LINES || 50);
@@ -79,76 +84,89 @@ function diffAddedFiles(baseArgs) {
     return [];
   }
 }
-let newFiles = [];
-try {
-  /** @type {string} */
-  let committedBase;
+
+/** @returns {string[]} 相对基线的新增业务文件（.js/.mjs，COVERED_DIRS 内、非豁免） */
+export function computeNewFiles() {
   try {
-    committedBase = run('git merge-base HEAD origin/main').trim() + '..HEAD';
+    /** @type {string} */
+    let committedBase;
+    try {
+      committedBase = run('git merge-base HEAD origin/main').trim() + '..HEAD';
+    } catch {
+      committedBase = 'HEAD~1..HEAD';
+      console.log('⚠️ 无 origin/main 基线，已提交部分按 HEAD~1 计算');
+    }
+    const added = new Set([...diffAddedFiles(committedBase), ...diffAddedFiles('HEAD')]);
+    return [...added].filter(
+      (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
+    );
   } catch {
-    committedBase = 'HEAD~1..HEAD';
-    console.log('⚠️ 无 origin/main 基线，已提交部分按 HEAD~1 计算');
+    console.log('⚠️ 基线 diff 失败，跳过覆盖率门禁');
+    return [];
   }
-  const added = new Set([...diffAddedFiles(committedBase), ...diffAddedFiles('HEAD')]);
-  newFiles = [...added].filter(
-    (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
-  );
-} catch {
-  console.log('⚠️ 基线 diff 失败，跳过覆盖率门禁');
-  process.exit(0);
 }
 
-if (newFiles.length === 0) {
-  console.log('✅ 无新增业务文件，覆盖率门禁通过');
-  process.exit(0);
-}
+// v14.28.13：main 守卫——直接执行时跑门禁；被 import（gate.mjs 空集探测）时零副作用
+const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 
-console.log(`📁 新增文件 ${newFiles.length} 个，运行覆盖率门禁（行覆盖 ≥ ${MIN_LINES}%）...`);
-newFiles.forEach((f) => console.log('   -', f));
+async function main() {
+  const newFiles = computeNewFiles();
 
-// 2. 跑 vitest 覆盖率（仅统计新增文件）——显式关闭全局 thresholds，本脚本自带逐文件门槛
-const includes = newFiles.map((f) => `--coverage.include=${f}`).join(' ');
-const noThresh =
-  '--coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0';
-const output = run(`npx vitest run --coverage ${includes} ${noThresh} --coverage.reporter=text`);
-console.log(output.slice(-3000));
-
-// 3. 解析文本表格：filename | stmts | branch | funcs | lines
-// v14.2.0（复审轮 P0-2-c）：此前"找不到匹配行就 continue"构成假放行通道——
-// 输出格式一变则 failed 恒空、门禁恒绿。现改为：每个新增文件必须找到表格行，
-// 找不到或 basename 歧义（handlers/settings.js vs panels/settings.js 同名）
-// 一律按失败处理（保守方向）。
-const lines = output.split('\n');
-const failed = [];
-const tableRe = /^\s*([\w./\\-]+\.(?:js|mjs))\s+\|\s+([\d.]+|—)\s+\|\s+([\d.]+|—)\s+\|\s+([\d.]+|—)\s+\|\s+([\d.]+|—)/;
-const rows = [];
-for (const line of lines) {
-  const m = tableRe.exec(line);
-  if (m) rows.push({ file: m[1].replace(/\\/g, '/'), linesPct: m[5] === '—' ? 0 : Number(m[5]) });
-}
-for (const f of newFiles) {
-  // v8 text reporter 会把长路径缩写为 "...xxx.js"（省略公共前缀）——三种形态都接：
-  // 全路径 / 目录省略（f 尾段）/ 缩写行（去掉 "..." 前缀后 f 以其结尾）
-  const candidates = rows.filter((r) => {
-    if (r.file === f) return true;
-    if (f.endsWith('/' + r.file) || r.file.endsWith('/' + f)) return true;
-    if (r.file.startsWith('...') && f.endsWith(r.file.slice(3))) return true;
-    return false;
-  });
-  if (candidates.length === 0) {
-    failed.push(`${f}: 未在覆盖率输出中找到表格行（reporter 格式变更？按失败处理）`);
-    continue;
+  if (newFiles.length === 0) {
+    console.log('✅ 无新增业务文件，覆盖率门禁通过');
+    process.exit(0);
   }
-  if (candidates.length > 1) {
-    failed.push(`${f}: 覆盖率表格匹配到 ${candidates.length} 行（basename 歧义），无法归属`);
-    continue;
+
+  console.log(`📁 新增文件 ${newFiles.length} 个，运行覆盖率门禁（行覆盖 ≥ ${MIN_LINES}%）...`);
+  newFiles.forEach((f) => console.log('   -', f));
+
+  // 2. 跑 vitest 覆盖率（仅统计新增文件）——显式关闭全局 thresholds，本脚本自带逐文件门槛
+  const includes = newFiles.map((f) => `--coverage.include=${f}`).join(' ');
+  const noThresh =
+    '--coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0';
+  const output = run(`npx vitest run --coverage ${includes} ${noThresh} --coverage.reporter=text`);
+  console.log(output.slice(-3000));
+
+  // 3. 解析文本表格：filename | stmts | branch | funcs | lines
+  // v14.2.0（复审轮 P0-2-c）：此前"找不到匹配行就 continue"构成假放行通道——
+  // 输出格式一变则 failed 恒空、门禁恒绿。现改为：每个新增文件必须找到表格行，
+  // 找不到或 basename 歧义（handlers/settings.js vs panels/settings.js 同名）
+  // 一律按失败处理（保守方向）。
+  const lines = output.split('\n');
+  const failed = [];
+  const tableRe =
+    /^\s*([\w./\\-]+\.(?:js|mjs))\s+\|\s+([\d.]+|—)\s+\|\s+([\d.]+|—)\s+\|\s+([\d.]+|—)\s+\|\s+([\d.]+|—)/;
+  const rows = [];
+  for (const line of lines) {
+    const m = tableRe.exec(line);
+    if (m) rows.push({ file: m[1].replace(/\\/g, '/'), linesPct: m[5] === '—' ? 0 : Number(m[5]) });
   }
-  if (candidates[0].linesPct < MIN_LINES) failed.push(`${candidates[0].file}: ${candidates[0].linesPct}%`);
+  for (const f of newFiles) {
+    // v8 text reporter 会把长路径缩写为 "...xxx.js"（省略公共前缀）——三种形态都接：
+    // 全路径 / 目录省略（f 尾段）/ 缩写行（去掉 "..." 前缀后 f 以其结尾）
+    const candidates = rows.filter((r) => {
+      if (r.file === f) return true;
+      if (f.endsWith('/' + r.file) || r.file.endsWith('/' + f)) return true;
+      if (r.file.startsWith('...') && f.endsWith(r.file.slice(3))) return true;
+      return false;
+    });
+    if (candidates.length === 0) {
+      failed.push(`${f}: 未在覆盖率输出中找到表格行（reporter 格式变更？按失败处理）`);
+      continue;
+    }
+    if (candidates.length > 1) {
+      failed.push(`${f}: 覆盖率表格匹配到 ${candidates.length} 行（basename 歧义），无法归属`);
+      continue;
+    }
+    if (candidates[0].linesPct < MIN_LINES) failed.push(`${candidates[0].file}: ${candidates[0].linesPct}%`);
+  }
+
+  if (failed.length > 0) {
+    console.error(`❌ 覆盖率门禁失败（行覆盖 < ${MIN_LINES}%）：\n  ${failed.join('\n  ')}`);
+    console.error('提示：为新增文件补充单元测试，或调整阈值（COVERAGE_MIN_LINES）');
+    process.exit(1);
+  }
+  console.log(`✅ 覆盖率门禁通过（全部新增文件行覆盖 ≥ ${MIN_LINES}%）`);
 }
 
-if (failed.length > 0) {
-  console.error(`❌ 覆盖率门禁失败（行覆盖 < ${MIN_LINES}%）：\n  ${failed.join('\n  ')}`);
-  console.error('提示：为新增文件补充单元测试，或调整阈值（COVERAGE_MIN_LINES）');
-  process.exit(1);
-}
-console.log(`✅ 覆盖率门禁通过（全部新增文件行覆盖 ≥ ${MIN_LINES}%）`);
+if (isMain) main();

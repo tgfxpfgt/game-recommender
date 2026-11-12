@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.28.13（门禁执行历史报告与 coverage:fast 空集跳过）
+
+- E-3 落地：node scripts/test-cost-history.mjs --report 出门禁执行历史战果报告（各步骤次数/失败率/耗时分布——执行分母）
+- coverage:gate 空集跳过（gate:fast 推送后确定性空转 112s→0；computeNewFiles 单源导出，行为保持非削弱断言）
+- P1-2：人工纠正来源强制 confirmed（rateMatchConfidence 单源分支——用户确认优先于相似度/平台/年份门，两管线同覆盖）
+- G-2 收窄：raw 备源真实校验 HEAD 200/20,247,815B 与主源一致（first-run 注记更新；产品回退路径取证仍待真实故障）
+
 ### v14.28.12（B-2 故障语义六连清偿）
 
 - 评论获取失败不再固化 72h「无评论」——reviewsFailed 信号透传 + cnReviewsFetchedAt 失败不写标记（恢复后自动回填）+ 浮窗评论区失败行（B2-F1）

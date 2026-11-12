@@ -19,6 +19,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { evaluateStep } from './check-suite-budget.mjs';
 import { recordStepCost, reportCostAnomalies } from './test-cost-history.mjs'; // v14.28.11：开销历史与异常发现
+import { computeNewFiles } from './coverage-gate.mjs'; // v14.28.13：fast 空集跳过（单源）
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const fast = process.argv.includes('--fast');
@@ -197,7 +198,17 @@ await step('perf-budget（体积预算）', 'node scripts/perf-budget.mjs --asse
 // v14.27.0（优化方案 P2-6）：WAR 从 module-manifest 派生——手工往 manifest 加
 // 资源（或新增内容模块忘了重生成）在此处打回，`npm run war:gen` 一键修复。
 await step('gen-war（WAR 派生一致性）', 'node scripts/gen-war.mjs --check');
-await step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
+// v14.28.13：fast 模式新增文件集为空时跳过 coverage:gate——推送后
+// merge-base(HEAD, origin/main)=HEAD 且无未提交新增时，该步骤是 112s 级纯
+// 空转（空集 = 门禁空洞通过）。单源 computeNewFiles() 与脚本本体同一实现。
+// fast-only: skip the 112s coverage step when the new-file set is empty.
+if (fast && computeNewFiles().length === 0) {
+  console.log(
+    `\n===== coverage:gate（新增文件行覆盖）=====\n⏭️ 跳过：相对基线无新增业务文件（computeNewFiles 空集——推送后确定性空转）`
+  );
+} else {
+  await step('coverage:gate（新增文件行覆盖）', 'npm run coverage:gate');
+}
 // v14.11 B10（报告 B P1-01）：全局覆盖率快照棘轮——coverage:gate 只查新增
 // 文件（push 后 diff-filter=A 恒空 = 恒绿），存量改动无约束；快照补全局
 if (!fast) {

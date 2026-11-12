@@ -174,7 +174,12 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
   `scripts/.gate-costs.jsonl`（gitignored 本地历史），收尾对固定口径步骤做滚动
   中位数对比——超 1.5× 中位数打印 ⚠️（拦静态预算 cap 之下的缓慢漂移）。收到
   告警先隔离复跑排环境负载，再查套件膨胀或重测基线；`npm run test:timed` 看
-  全量 vitest 长期趋势。
+  全量 vitest 长期趋势；`node scripts/test-cost-history.mjs --report` 出执行
+  历史战果报告（各步骤次数/失败率/耗时分布——E-3 分母，v14.28.13）。
+- **coverage:fast 空集跳过（v14.28.13）**：gate:fast 在相对基线无新增业务文件时
+  跳过 coverage:gate 步骤（computeNewFiles() 空集 = 推送后确定性空转 112s；
+  行为保持的提速，非削弱断言）。新增文件集计算单源 = scripts/coverage-gate.mjs
+  的 computeNewFiles()（导出 + main 守卫，勿在 gate.mjs 复制 git 逻辑）。
 - **分层门禁**：日常批次 `npm run gate:fast`——vitest 按变更面选择（单源规则在
   `scripts/test-changed.mjs`：宽爆炸半径单源白名单触碰即升级**定向验证**（related +
   扫描器套件；测试基建例外仍全量）；相关文件 >15 → 全量；sim 不在静态 import 图上

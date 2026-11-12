@@ -133,7 +133,10 @@ export const BUDGETS = {
   // reason + 内容侧保底行（sidebar-rows/rating-rows/sidebar-html）——SW 图
   // 923,152B（+2,951B，全为双语文档注释与失败分支），静态注入/闭包未超。按实测重锁。
   // v14.28.12 (B-2 six fixes): failure-semantics alignment; re-locked (+2,951B).
-  swGraphBytes: 923152,
+  // v14.28.13：+701B = P1-2 correction 强制 confirmed（match-confidence 单源分支
+  // + 双语文档注释）——静态注入/闭包未超。按实测重锁。
+  // v14.28.13: +701B = P1-2 correction-forces-confirmed branch (bilingual docs).
+  swGraphBytes: 923853,
   swGraphFiles: 107,
   staticInjectionBytes: 38663,
   closureBytes: 295062
