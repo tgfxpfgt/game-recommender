@@ -27,4 +27,16 @@
     if (isNaN(r)) return 'rgba(143,152,160,0.15)';
     return r >= 80 ? 'rgba(102,192,244,0.15)' : r >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
   };
+
+  // MC（Metacritic Metascore）分级色（v14.31.0 单源化：列表 gr-mc-badge 与
+  // 详情浮窗 MC 视图此前各持一份字面量（≥75 绿 / 50-74 黄 / <50 红）——
+  // 阈值调整需两处同步 = 脱节温床。色带同 MC 惯例，与 Steam 好评率分级
+  //（ratingColorFor）**有意不同**（分值语义不同源，勿合并为一把尺）。
+  // MC graded colors, single source for the list gr-mc-badge and the detail
+  // float's MC view (intentionally NOT merged with the Steam rating scale).
+  global.__GR_PATTERNS__.mcColorFor = (score) => {
+    const s = Number(score);
+    if (isNaN(s)) return '#555';
+    return s >= 75 ? '#66cc33' : s >= 50 ? '#ffcc33' : '#ff4444';
+  };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

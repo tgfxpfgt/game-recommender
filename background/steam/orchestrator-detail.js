@@ -52,7 +52,7 @@ import { appendRatingHistory, isDemoCacheWithoutRating, resolveDlcToBase } from 
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 15：未命中自动采集
-import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js'; // v14.28.7 R4-B3
+import { attachMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js'; // v14.28.7 R4-B3；v14.31.0 字段装配单源
 import {
   detectOffSteamPlatform,
   detectPlatform,
@@ -79,7 +79,11 @@ import { fetchMetacriticScore } from './api-metacritic.js'; // v14.29.2：详情
 function attachMatch(result, gameName, pageTitle, source) {
   if (!result || typeof result !== 'object') return result;
   const page = pageTitle || gameName;
-  const m = rateMatchConfidence({
+  // v14.31.0：字段装配单源化至 attachMatchConfidence（与列表管线同一函数——
+  // 五字段集/matchConflict 语义防两位置漂移；本包装只保留详情特有的输入：
+  // 页面身份 = rawTitle 回退 gameName）
+  /** @type {any} */
+  return attachMatchConfidence(result, {
     gameName: page,
     resultName: result.name || '',
     platform: detectOffSteamPlatform(page) ? 'non-pc' : 'pc',
@@ -87,14 +91,6 @@ function attachMatch(result, gameName, pageTitle, source) {
     steamYear: yearOfDateString(result.releaseDate),
     source
   });
-  /** @type {any} */
-  const out = result;
-  out.matchConfidence = m.confidence;
-  out.matchName = m.resultName;
-  out.matchSource = m.sourceLabel;
-  out.matchPlatform = m.platformLabel;
-  out.matchNote = m.reasonText;
-  return out;
 }
 
 // ============ 平台预检（v14.29.2，用户报告：主机/模拟器详情页仍走 PC 流程）============

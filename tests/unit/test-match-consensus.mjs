@@ -952,3 +952,91 @@ describe('hasInvertedReviewCounts（v14.21.0 倒挂污染指纹）', () => {
     expect(reviews.hasInvertedReviewCounts('garbage')).toBe(false);
   });
 });
+
+// ============ v14.31.0：双管线一致性（列表/详情防脱节门禁） ============
+// 用户指令：列表页与详情页设计/功能统一、资源共享复用，并加规则防脱节。
+// 本组锁三件单源事实——任一被绕过即红：
+// ①置信度字段装配单源（attachMatchConfidence）：两管线同输入同输出，
+//   conflictReason 强制降级语义单点实现；
+// ②MC 分级色单源（__GR_PATTERNS__.mcColorFor）：列表 gr-mc-badge 与详情
+//   MC 视图同一把尺（两处字面量副本退场）；
+// ③故障三态结构化（errorType）：详情 SEARCH_STEAM 响应与列表 networkFailed
+//   哨兵同名同义（network=失败未知 / notfound=确认无值）。
+// 有意差异登记（不算脱节）：MC 视图不显示「新游/未发售」标签（数据源为
+// MC 页面非 Steam releaseDate，语义属 Steam 条目域）；列表 matchConflict
+// 检测（claimOrDetectMatch）仅列表接线（详情无 pageUrl 冲突检测路径）。
+describe('双管线一致性门禁（v14.31.0 列表/详情防脱节）', () => {
+  test('①attachMatchConfidence：confirmed 输出五字段齐全（两管线同函数装配）', async () => {
+    const { attachMatchConfidence } = await import('../../background/steam/match-confidence.js');
+    const a = attachMatchConfidence(
+      { name: 'Elden Ring', releaseDate: '2022-02-25' },
+      { gameName: '艾尔登法环|Elden Ring', source: 'storesearch' }
+    );
+    expect(a.matchConfidence).toEqual('confirmed');
+    expect(a.matchName).toEqual('Elden Ring');
+    expect(a.matchSource).toEqual('Steam 商店搜索');
+    expect(a.matchPlatform).toEqual('PC');
+    expect(typeof a.matchNote).toEqual('string');
+    expect(a.matchConflict).toBeUndefined(); // 无冲突时不得携带该标记
+  });
+
+  test('①attachMatchConfidence：conflictReason 强制 suspected + matchConflict（列表 v14.29.0 语义单点实现）', async () => {
+    const { attachMatchConfidence } = await import('../../background/steam/match-confidence.js');
+    const a = attachMatchConfidence(
+      { name: 'Elden Ring' },
+      { gameName: '艾尔登法环|Elden Ring', source: 'storesearch', conflictReason: '同站点另一页面已命中同一游戏' }
+    );
+    expect(a.matchConfidence).toEqual('suspected');
+    expect(a.matchConflict).toBe(true);
+    expect(a.matchNote).toEqual('同站点另一页面已命中同一游戏');
+    // 平台不一致也强制推测（non-pc 输入）
+    const b = attachMatchConfidence(
+      { name: '某游戏' },
+      { gameName: '某游戏|Switch', platform: 'non-pc', source: 'storesearch' }
+    );
+    expect(b.matchConfidence).toEqual('suspected');
+  });
+
+  test('①attachMatchConfidence：纠正来源强制 confirmed（v14.28.13 P1-2 经共享函数不回归）', async () => {
+    const { attachMatchConfidence } = await import('../../background/steam/match-confidence.js');
+    const a = attachMatchConfidence({ name: '某个完全不相关的名字' }, { gameName: '页面标题', source: 'correction' });
+    expect(a.matchConfidence).toEqual('confirmed');
+  });
+
+  test('②mcColorFor：与旧色带字面量等价（≥75 绿/50-74 黄/<50 红/NaN 灰）+ 源码无双副本', async () => {
+    const { attachMatchConfidence } = await import('../../background/steam/match-confidence.js'); // 保证模块图已装
+    expect(typeof attachMatchConfidence).toEqual('function');
+    await import('../../shared/patterns.js');
+    const f = globalThis.__GR_PATTERNS__.mcColorFor;
+    expect(typeof f).toEqual('function');
+    expect(f(96)).toEqual('#66cc33');
+    expect(f(75)).toEqual('#66cc33');
+    expect(f(74)).toEqual('#ffcc33');
+    expect(f(50)).toEqual('#ffcc33');
+    expect(f(49)).toEqual('#ff4444');
+    expect(f('x')).toEqual('#555');
+    // 防新副本：两消费方源码不得再持 MC 色值字面量（单源纪律）
+    const fs = await import('node:fs');
+    const workingSrc = fs.readFileSync(new URL('../../content/list/badges/working.js', import.meta.url), 'utf8');
+    const detailSrc = fs.readFileSync(new URL('../../content/detail/render/sidebar-html.js', import.meta.url), 'utf8');
+    expect(workingSrc.includes('mcColorFor')).toBe(true);
+    expect(workingSrc.includes('#66cc33')).toBe(false);
+    expect(detailSrc.includes('mcColorFor')).toBe(true);
+    expect(detailSrc.includes('#66cc33')).toBe(false);
+    // 单源定义处恰好一份（patterns.js）
+    const patternsSrc = fs.readFileSync(new URL('../../shared/patterns.js', import.meta.url), 'utf8');
+    expect(patternsSrc.split('#66cc33').length - 1).toEqual(1);
+  });
+
+  test('③errorType 三态：详情 SEARCH_STEAM 未命中结构化（network/notfound 与列表哨兵同名同义）+ 源码守卫', async () => {
+    const fs = await import('node:fs');
+    const handlerSrc = fs.readFileSync(new URL('../../background/handlers/steam.js', import.meta.url), 'utf8');
+    expect(handlerSrc.includes("errorType = 'network'")).toBe(true);
+    expect(handlerSrc.includes("errorType = 'notfound'")).toBe(true);
+    expect(handlerSrc.includes('errorType')).toBe(true); // 响应下发
+    const sidebarSrc = fs.readFileSync(new URL('../../content/detail/sidebar.js', import.meta.url), 'utf8');
+    // 内容侧优先消费结构化字段（正则保留兼容旧响应）
+    expect(sidebarSrc.includes("missErrorType === 'network'")).toBe(true);
+    expect(sidebarSrc.includes('/steam-api-unreachable|circuit/i')).toBe(true);
+  });
+});

@@ -233,8 +233,11 @@ function handleLookupMiss(gameName, response, io) {
   }
   // v14.7 批次 9：网络故障/熔断期未命中 → 30s 后静默自动重查一次
   //（正常未找到 not-found 不浪费请求）
+  // v14.31.0（双管线一致性）：优先消费结构化 errorType（与列表 networkFailed
+  // 哨兵同名同义——铁律 14 故障三态），reason 正则保留兼容旧响应形状。
+  const missErrorType = String((response && response.errorType) || '');
   const missReasonAuto = String((response && response.reason) || '');
-  if (/steam-api-unreachable|circuit/i.test(missReasonAuto)) {
+  if (missErrorType === 'network' || /steam-api-unreachable|circuit/i.test(missReasonAuto)) {
     scheduleAutoRetry(gameName);
   }
   dbg('Steam: 自动搜索未找到，显示手动选择浮窗');

@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.31.0',
+        date: '2026-11-14',
+        items: [
+          '置信度字段装配单源 attachMatchConfidence（match-confidence.js——列表 matchConflict 强制降级内聚，两管线同函数装配，新增字段只改一处）',
+          'MC 分级色单源 __GR_PATTERNS__.mcColorFor（列表 gr-mc-badge 与详情 MC 视图同一把尺，两处字面量副本退场）',
+          '详情 SEARCH_STEAM 未命中响应补结构化 errorType（network/notfound，与列表 networkFailed 哨兵同名同义）——内容侧优先消费结构化字段，reason 正则兼容保留',
+          '防脱节规则：铁律 18 登记 + playbooks 配方 + test-match-consensus 一致性门禁组（5 用例：同输出/冲突降级/纠正强制确认/色带等价+无双副本/三态源码守卫）；有意差异登记（MC 视图无新游标签、matchConflict 仅列表接线）'
+        ]
+      },
+      {
         ver: '14.30.0',
         date: '2026-11-14',
         items: [

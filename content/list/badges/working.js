@@ -95,7 +95,9 @@ export function prependPlatformBadge(item, rating) {
   const target = item.titleEl || link;
   if (rating.mcScore != null) {
     const score = rating.mcScore;
-    const color = score >= 75 ? '#66cc33' : score >= 50 ? '#ffcc33' : '#ff4444';
+    // v14.31.0：MC 分级色单源化 __GR_PATTERNS__.mcColorFor（与详情浮窗 MC 视图
+    // 同一把尺——阈值调整单点改动，防两处脱节）
+    const color = globalThis.__GR_PATTERNS__.mcColorFor(score);
     const badge = document.createElement('span');
     badge.className = 'gr-rating-badge gr-mc-badge';
     badge.textContent = `MC ${score}`;

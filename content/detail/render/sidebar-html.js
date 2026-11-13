@@ -52,7 +52,9 @@ export function steamSidebar(data, cachedAt) {
   // 平台标签 + Metacritic 页面链接。数据经 normalize（reviews 等）不影响。
   if (data.platformOnly || data.mcScore != null) {
     const mcScore = typeof data.mcScore === 'number' ? data.mcScore : null;
-    const mcColor = mcScore != null ? (mcScore >= 75 ? '#66cc33' : mcScore >= 50 ? '#ffcc33' : '#ff4444') : '';
+    // v14.31.0：MC 分级色单源化 __GR_PATTERNS__.mcColorFor（与列表 gr-mc-badge
+    // 同一把尺——阈值调整单点改动，防两处脱节）
+    const mcColor = P.mcColorFor(mcScore);
     const mcSlug = common.escapeAttr(
       data.mcName ? 'https://www.metacritic.com/game/' + encodeURIComponent(data.mcName) + '/' : ''
     );
@@ -60,7 +62,7 @@ export function steamSidebar(data, cachedAt) {
       <div class="gr-detail-content">
         <div class="gr-detail-title">${esc(data.name)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap;">
-          <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${mcColor || '#555'};border-radius:3px;">${mcScore != null ? `MC ${mcScore}` : 'MC —'}</span>
+          <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${mcColor};border-radius:3px;">${mcScore != null ? `MC ${mcScore}` : 'MC —'}</span>
           <span style="padding:3px 10px;font-size:12px;background:rgba(143,152,160,0.15);color:#c7d5e0;border:1px dashed #555;border-radius:3px;">🎮 ${esc(data.platformTag || '主机')}</span>
         </div>
         <div style="font-size:12px;color:#8f98a0;line-height:1.7;margin-bottom:12px;">

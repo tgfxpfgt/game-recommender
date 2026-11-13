@@ -79,6 +79,7 @@ stage + 最近失败类别 + 波次进度 + 缓存命中层）。断网场景判
 **坑**：
 
 - **缓存命中判定五重口径必须同步**：isDetailCacheComplete（steam-cache 单源，按字段所属模块判定）+ needsRatingRefetch + hasInvertedReviewCounts + cnReviewsFetchedAt + namesRelated——orchestrator tryCacheServed 与 handlers 两处（URL 缓存先行/直取）三处同口径；未命中按 planDetailRefresh 只补缺失模块，漏一处=污染条目被该路径永久顶住。
+- **双管线一致性（铁律 18，v14.31.0）**：列表/详情共语义逻辑禁止两份实现——置信度装配 `attachMatchConfidence` 单源 / MC 色 `__GR_PATTERNS__.mcColorFor` 单源 / errorType 三态同名同义 / 平台预检与映射消费同优先序（映射>模拟器>主机MC>PC）；有意差异须在 test-match-consensus「双管线一致性门禁」组注释登记；改单源后必跑该组。
 - **api-details 去重表**（in-flight+10s TTL）跨测试用例残留会吞出站计数断言 → `resetAppDetailsDedupForTest()`。
 - 404=空结果非失败 doctrine 逐路径审计；新端点先问"计入哪个熔断域"（不同主机不得连坐）。
 - fetchSteamAppDetails mock 形状 = 顶层 `{appid:{success,data}}` 无外层包裹。

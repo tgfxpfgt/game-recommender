@@ -295,3 +295,49 @@ export function rateMatchConfidence(input) {
     reasonText: REASON_TEXT[reason]
   };
 }
+
+// ============ v14.31.0：置信度字段附加单源（双管线防脱节） ============
+// 列表（orchestrator-list attachMatch）与详情（orchestrator-detail attachMatch）
+// 此前各持一份字段装配（matchConfidence/matchName/matchSource/matchPlatform/
+// matchNote 五字段）——新增字段只改一侧 = 两位置渲染脱节（v14.28.6 R4-B 列表
+// 加 matchConflict 时详情侧缺失即该形态）。字段装配单源于此：两管线同函数
+// 装配；列表侧的 conflictReason 强制降级（v14.29.0）在本函数内统一实现——
+// 详情管线暂无冲突检测（claimOrDetectMatch 仅列表接线），传入即同语义降级，
+// 未来详情接线冲突检测时零改动获得同一行为。
+// Single source for attaching confidence fields to a result. The list-side
+// conflict override is unified here so a future detail-side wiring gets the
+// same behavior with zero changes.
+/**
+ * @param {Record<string, any>|null} result - 命中条目（原地附加字段）
+ * @param {{gameName: string, resultName?: string|null, source?: string,
+ *   steamYear?: number|null, pageYear?: number|null, conflictReason?: string|null,
+ *   platform?: 'pc'|'non-pc'}} opts
+ * @returns {Record<string, any>|null} result
+ */
+export function attachMatchConfidence(result, opts) {
+  if (!result || typeof result !== 'object') return result;
+  const m = rateMatchConfidence({
+    gameName: opts.gameName,
+    resultName: opts.resultName || result.name || '',
+    platform: opts.platform || 'pc',
+    pageYear: opts.pageYear !== undefined ? opts.pageYear : null,
+    steamYear:
+      opts.steamYear !== null && opts.steamYear !== undefined ? opts.steamYear : yearOfDateString(result.releaseDate),
+    source: opts.source
+  });
+  if (opts.conflictReason) {
+    result.matchConfidence = MATCH_SUSPECTED;
+    result.matchName = m.resultName;
+    result.matchSource = m.sourceLabel;
+    result.matchPlatform = m.platformLabel;
+    result.matchNote = opts.conflictReason;
+    result.matchConflict = true;
+    return result;
+  }
+  result.matchConfidence = m.confidence;
+  result.matchName = m.resultName;
+  result.matchSource = m.sourceLabel;
+  result.matchPlatform = m.platformLabel;
+  result.matchNote = m.reasonText;
+  return result;
+}

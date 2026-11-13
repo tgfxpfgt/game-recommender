@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.31.0（列表/详情双管线一致性统一：单源化共享层 + 三态结构化 + 防脱节门禁）
+
+- 置信度字段装配单源 attachMatchConfidence（match-confidence.js——列表 matchConflict 强制降级内聚，两管线同函数装配，新增字段只改一处）
+- MC 分级色单源 __GR_PATTERNS__.mcColorFor（列表 gr-mc-badge 与详情 MC 视图同一把尺，两处字面量副本退场）
+- 详情 SEARCH_STEAM 未命中响应补结构化 errorType（network/notfound，与列表 networkFailed 哨兵同名同义）——内容侧优先消费结构化字段，reason 正则兼容保留
+- 防脱节规则：铁律 18 登记 + playbooks 配方 + test-match-consensus 一致性门禁组（5 用例：同输出/冲突降级/纠正强制确认/色带等价+无双副本/三态源码守卫）；有意差异登记（MC 视图无新游标签、matchConflict 仅列表接线）
+
 ### v14.30.0（主机游戏检索三连修复：MC 域权限根治/详情页平台预检/手动面板机型入口）
 
 - MC 评分根治：manifest 补 metacritic.com host_permissions（缺失致 MV3 SW fetch 被 CORS 静默拦截，v14.10.0 起功能从未生效）+ 失败 Logger.warn 可诊断 + 超时单源新键 fetchTimeoutMetacriticMs + first-run 真实证据回填

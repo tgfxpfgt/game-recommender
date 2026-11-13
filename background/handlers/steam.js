@@ -196,10 +196,16 @@ async function doHandleSearchSteam(message, sender) {
   // v10.9.2：ignoreNegativeCache 穿透（详情页对未命中自动重试一次）
   // v10.9.3：reason 诊断——未命中时区分"确认不在 Steam"与"Steam 接口不可达/
   // 网络异常"，透传给详情页候选浮窗展示（此前静默弹候选，用户无从判断）
+  // v14.31.0（双管线一致性）：errorType 结构化三态语义与列表徽章对齐（铁律 14
+  // 故障三态：有值/确认无值/失败未知——列表 networkFailed 哨兵 → gr-badge-
+  // network-error；详情此前仅 reason 字符串正则判定，消费方无法结构化区分）。
+  // failed+errorType 随未命中响应下发；reason 文案保持兼容（现有正则判定不改）。
   /** @type {import('../core/types.js').GameResult|null} */
   let steamResult = null;
   /** @type {string|null} */
   let reason = null;
+  /** @type {string|null} */
+  let errorType = null;
   try {
     steamResult = await searchSteamGame(message.gameName, {
       ignoreNegativeCache: message.ignoreNegativeCache === true,
@@ -208,6 +214,7 @@ async function doHandleSearchSteam(message, sender) {
     });
   } catch (e) {
     reason = 'error: ' + String((e && /** @type {Error} */ (e).message) || e).slice(0, 120);
+    errorType = 'network';
   }
   // v14.15.0 O3：负缓存剩余时间随响应下发（候选面板展示真实自动重查等待）
   let negativeCacheMs = 0;
@@ -217,10 +224,15 @@ async function doHandleSearchSteam(message, sender) {
   if (!steamResult && !reason) {
     const api = getSteamApiStatus();
     const negNote = negativeCacheMs > 0 ? `，负缓存 ${Math.ceil(negativeCacheMs / 60000)} 分钟后自动重查` : '';
-    reason =
-      api.failed > 0
-        ? `steam-api-unreachable（窗口内 ${api.failed} 次 Steam 接口失败——请检查网络/加速器后点重试）`
-        : 'not-found（Steam 商店检索无匹配' + negNote + '）';
+    // v14.31.0：三态结构化（与列表 networkFailed 哨兵同语义）——network =
+    // 失败未知（可重试）；notfound = 确认无值（负缓存兜底）
+    if (api.failed > 0) {
+      reason = `steam-api-unreachable（窗口内 ${api.failed} 次 Steam 接口失败——请检查网络/加速器后点重试）`;
+      errorType = 'network';
+    } else {
+      reason = 'not-found（Steam 商店检索无匹配' + negNote + '）';
+      errorType = 'notfound';
+    }
     Logger.warn('Steam', `未命中原因: ${reason} — "${message.gameName}"`);
   }
   if (steamResult) {
@@ -255,7 +267,15 @@ async function doHandleSearchSteam(message, sender) {
   // 返回缓存时间戳供详情页浮窗显示"缓存于 xx 分钟前"（模块化：取最近模块时间）
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   noteResolvedGame(sender, steamResult); // v14.1.0：SidePanel 联动
-  return { data: steamResult, cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null, reason, negativeCacheMs };
+  return {
+    data: steamResult,
+    cachedAt: cachedEntry ? latestModuleTs(cachedEntry) : null,
+    reason,
+    negativeCacheMs,
+    // v14.31.0：三态结构化随响应（未命中时 = 'network'|'notfound'|'error' 同源
+    // reason；命中时 null）。列表徽章 errorType 同名同义——消费方跨页面可统一判定
+    errorType
+  };
 }
 
 export async function handleRefreshSteamCache(message) {

@@ -123,6 +123,16 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 17. **缺陷回放登记**：修过的结构级缺陷（放回后门禁应红）进 `scripts/mutations.json`，
     `verify:mutations` 在 gate:fast 兜底；修复类批次可用 `--only <id>` 快速复核。
     测试桩必须断言入参 URL——桩只模拟响应内容，不模拟"URL 是否正确"。
+18. **列表/详情双管线一致性（v14.31.0 用户指令：防脱节）**：两管线共语义的逻辑
+    **禁止各持一份实现**——置信度字段装配走 `match-confidence.attachMatchConfidence`
+    单源（新增字段只改一处，列表 matchConflict 强制降级已内聚）；MC 分级色走
+    `__GR_PATTERNS__.mcColorFor`（勿再写 ≥75/50 色值字面量副本）；故障三态
+    errorType（network/notfound）与列表 networkFailed 哨兵同名同义，详情响应
+    未命中必带结构化 errorType（reason 字符串正则仅兼容保留）。平台预检/手动
+    映射消费两管线同优先序（映射>模拟器>主机MC>PC）。**有意差异须登记**
+    （现两项：MC 视图无「新游/未发售」标签——数据源属 Steam 条目域；
+    matchConflict 冲突检测仅列表接线）。门禁：test-match-consensus「双管线
+    一致性门禁」组——新增共享语义先入单源再接两侧，改动单源必跑该组。
 
 ## 文档同步（默认启用）
 

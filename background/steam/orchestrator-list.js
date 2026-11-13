@@ -48,7 +48,7 @@ import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
 import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
 // v14.28.7 R4-B2：置信度规则（平台最优先/年份 >1 年才降级/标题相似度主门槛）
-import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
+import { attachMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js'; // v14.31.0：字段装配单源（rateMatchConfidence 直调退场）
 import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9：运行期诊断轨迹
 import { recordUsageCounter, recordUsageEvent } from '../storage/usage-evidence.js'; // v14.28.10 P1-1：首波 miss 分桶
 import { claimOrDetectMatch } from './match-conflicts.js'; // v14.29.0：同站 appId 冲突防线
@@ -62,6 +62,8 @@ const HOST_CONFLICT_NOTE = '同站点另一页面已命中同一游戏，至少�
 // v14.28.7 R4-B2：平台按标题识别（主机/移动/云游戏 → 非 PC，最优先降级）。
 // v14.29.0：conflictReason 在场 = 同站 appId 冲突 → 强制「推测」并注明依据
 // （逻辑不变式：同站两页至多一侧指向同一游戏）。
+// v14.31.0：字段装配单源化至 match-confidence.attachMatchConfidence（防两管线
+// 字段集漂移——本包装只保留列表特有的输入推导：platform 判定 + 年份回退序）。
 // Attach the confidence (and human-readable evidence) to a result.
 /**
  * @param {any} result
@@ -71,29 +73,15 @@ const HOST_CONFLICT_NOTE = '同站点另一页面已命中同一游戏，至少�
  */
 function attachMatch(result, { gameName, resultName, source, steamYear, conflictReason = null }) {
   if (!result || typeof result !== 'object') return result;
-  const m = rateMatchConfidence({
+  return attachMatchConfidence(result, {
     gameName,
     resultName: resultName || result.name || '',
     platform: detectOffSteamPlatform(gameName) ? 'non-pc' : 'pc',
     pageYear: extractTitleYear(gameName),
     steamYear: steamYear !== null && steamYear !== undefined ? steamYear : yearOfDateString(result.releaseDate),
-    source
+    source,
+    conflictReason
   });
-  if (conflictReason) {
-    result.matchConfidence = 'suspected';
-    result.matchName = m.resultName;
-    result.matchSource = m.sourceLabel;
-    result.matchPlatform = m.platformLabel;
-    result.matchNote = conflictReason;
-    result.matchConflict = true;
-    return result;
-  }
-  result.matchConfidence = m.confidence;
-  result.matchName = m.resultName;
-  result.matchSource = m.sourceLabel;
-  result.matchPlatform = m.platformLabel;
-  result.matchNote = m.reasonText;
-  return result;
 }
 
 // v14.28.10 P1-1（热载 1/4 条目未命中定位，审查报告 P1-1）：首波 miss 分桶

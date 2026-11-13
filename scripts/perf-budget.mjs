@@ -149,15 +149,18 @@ export const BUDGETS = {
   // v14.29.2 (platform pre-check on the detail pipeline + MC diagnosability):
   // phaseDetailPlatform + URL-first platform guard (handlers/steam.js) +
   // api-metacritic warn-on-failure + new timeout key — +5,707B, no dead code.
-  swGraphBytes: 949511,
+  // v14.31.0 (list/detail unification, user-directed): attachMatchConfidence
+  // single source in match-confidence.js + structured errorType in
+  // handlers/steam.js + shared mcColorFor — +3,192B, no dead code.
+  swGraphBytes: 952703,
   swGraphFiles: 108,
-  staticInjectionBytes: 38663,
+  staticInjectionBytes: 39382,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
   // +312B = forceTimer identity guard + three-state queue-aware finish
   // (finish only when this tab's job is confirmed running); re-locked.
-  closureBytes: 298497
+  closureBytes: 299365
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;
