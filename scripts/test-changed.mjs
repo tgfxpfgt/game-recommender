@@ -303,10 +303,20 @@ if (onlyStyles) {
 
 // B8 两阶段纪律：unit/integration 先行，sim 独立新进程批次收尾
 //（pool 级 isolate:true 强制每文件新进程，unit 与 integration 同批安全）
+// v14.29.0（整批门禁恒红根治）：related 阶段显式排除 sim 套件——sim-list
+// 等静态 import 了 content 模块，`vitest related` 会把它们卷进 unit/
+// integration 同进程（AGENTS B8 明载跨文件同进程连跑推送丢失 20-50%；
+// 本次升级面 9 套件连跑 sim-list 节 2/2b/12 五连恒红实证）。sim 套件由
+// SIM_MAP 显式映射进下方独立 fresh 进程批次——不丢覆盖，只归位纪律。
+// Related phase excludes sim suites (they run isolated in the sim phase
+// below) — restores the designed B8 two-phase discipline.
 let ok = true;
 if (related.length > 0) {
   const quoted = related.map((f) => `"${f}"`).join(' ');
-  ok = runVitest('vitest related（静态 import 图受影响套件）', `npx vitest related ${quoted} --run`);
+  ok = runVitest(
+    'vitest related（静态 import 图受影响套件，sim 归独立批次）',
+    `npx vitest related ${quoted} --run --exclude "tests/sim/**"`
+  );
 }
 if (ok && directUnit.length > 0) {
   const quoted = [...new Set(directUnit)].map((f) => `"${f}"`).join(' ');

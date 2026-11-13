@@ -133,20 +133,32 @@ const JOB_SESSION_KEY = 'grRatingsBatchJob';
 const JOB_MAX_AGE_MS = 60 * 60 * 1000; // 超过 1h 的任务视为陈旧丢弃
 const RESUME_ALARM = 'ratingsBatchResume';
 
-async function persistJob(job) {
+// v14.29.0（多下载站同时打开排队丢失根因）：检查点从"单槽只存运行任务"升级为
+// **整条队列信封** {v:2, jobs:[运行中, ...排队...]}——此前排队任务只存在于内存
+// jobQueue.pending，SW 被杀（Chrome 110+ 保活失效后）全部蒸发，对应 tab 只能
+// 等 45s 强制收尾转"未返回"。activeJob 模块级引用供信封捕获运行中任务。
+// Checkpoint upgraded from a single running-job slot to a full-queue envelope:
+// previously pending jobs lived only in memory and evaporated with the SW.
+/** @type {any|null} */
+let activeJob = null;
+
+/** 信封写入：运行中任务 + 全部排队任务（空队列 → 删除键）/ write the envelope */
+async function persistQueueState() {
+  const jobs = [];
+  if (activeJob) jobs.push(activeJob);
+  for (const j of jobQueue.pending) jobs.push(j);
   try {
-    await chrome.storage.session.set({ [JOB_SESSION_KEY]: job });
+    if (jobs.length === 0) await chrome.storage.session.remove(JOB_SESSION_KEY);
+    else await chrome.storage.session.set({ [JOB_SESSION_KEY]: { v: 2, jobs } });
   } catch {
     /* session 不可用（极旧 Chrome）→ 退化为不可恢复模式 */
   }
 }
 
+// 清运行任务（任务收尾/死 tab 中止调用）——排队任务保留在信封中
 async function clearPersistedJob() {
-  try {
-    await chrome.storage.session.remove(JOB_SESSION_KEY);
-  } catch {
-    /* ignore */
-  }
+  activeJob = null;
+  await persistQueueState();
 }
 
 function setupResumeAlarm() {
@@ -205,14 +217,40 @@ async function pushToTab(tabId, payload) {
 }
 
 // v14.8.1：全局评分队列状态快照（等待徽章"当前队列信息"的数据源）
-// Queue status snapshot: source of truth for the waiting-badge queue info.
-export function getRatingsQueueStatus() {
-  return {
+// v14.29.0：可选 senderTabId → 附 `you`（本页视角：排队位置/前方条目/本页
+// 条目数）——此前快照只有全局任务数，等待徽章无法表达"本页排第几位、还有
+// 多少项在自己前面"。position = 前方任务数（0 = 下一个就轮到/正在跑），
+// running 标记本页任务是否正在运行；aheadItems 含运行中任务的剩余条目。
+// Queue status snapshot; with senderTabId it carries `you` — this tab's live
+// queue position, items ahead and own total (the old snapshot had no per-tab
+// view at all).
+export function getRatingsQueueStatus(senderTabId) {
+  /** @type {{running: boolean, pending: number, current: any, degraded: boolean, you?: {position: number, running: boolean, total: number, aheadItems: number}}} */
+  const status = {
     running: jobQueue.running,
     pending: jobQueue.pending.length,
     current: currentRun ? { ...currentRun } : null,
     degraded: getSteamApiStatus().anomaly
   };
+  if (senderTabId !== null && senderTabId !== undefined) {
+    const idx = jobQueue.pending.findIndex((j) => j && j.tabId === senderTabId);
+    if (idx !== -1) {
+      const job = jobQueue.pending[idx];
+      const aheadJobs = jobQueue.pending.slice(0, idx);
+      const aheadItems =
+        aheadJobs.reduce((n, j) => n + (Array.isArray(j.queue) ? j.queue.length : 0), 0) +
+        (currentRun ? Math.max(0, (currentRun.total || 0) - (currentRun.done || 0)) : 0);
+      status.you = {
+        position: idx, // 前方任务数（0 = 自己是下一个）
+        running: false,
+        total: Array.isArray(job.queue) ? job.queue.length : 0,
+        aheadItems
+      };
+    } else if (currentRun && currentRun.tabId === senderTabId) {
+      status.you = { position: 0, running: true, total: currentRun.total, aheadItems: 0 };
+    }
+  }
+  return status;
 }
 
 function runNextGlobal() {
@@ -222,10 +260,14 @@ function runNextGlobal() {
     return;
   }
   jobQueue.running = true;
+  activeJob = job; // v14.29.0：信封捕获运行中任务（flush/收尾按整队持久化）
   // v14.8.1：任务开跑即时推送（此前首个波次可能数分钟后——限流降速期间
   // 等待徽章一直静态"等待检索"，用户无从判断卡在哪）
   const totalAtStart = Array.isArray(job.queue) ? job.queue.length : 0;
   currentRun = { tabId: job.tabId ?? null, total: totalAtStart, done: 0 };
+  // v14.29.0：出队后其余排队任务位置前移——即时推送新位置（等待徽章不再
+  // 依赖 5s 轮询才知道自己前进了）
+  pushQueuePositions();
   // v14.17.0：任务硬截止预置（续跑任务继承原值——"总时长有界"语义不随 SW
   // 重启重置）；测试可预置过去时刻注入截止路径
   if (!job.deadlineAt) job.deadlineAt = Date.now() + PERF_CONFIG.ratingsJobMaxRuntimeMs;
@@ -246,12 +288,12 @@ function runNextGlobal() {
         Logger.info('Steam', `评分任务跳过（tab 无接收端，疑似已关闭/导航中）: tab=${job.tabId}`);
         job.queue = [];
         await clearPersistedJob();
-        teardownResumeAlarm();
+        if (jobQueue.pending.length === 0) teardownResumeAlarm();
         return;
       }
       // v14.8.1：任务生命周期日志（E2E/线上排查"停在待检测"的关键观测点）
       Logger.info('Steam', `评分任务开始: ${job.queue ? job.queue.length : '?'} 项 → tab=${job.tabId}`);
-      await persistJob(job);
+      await persistQueueState();
       setupResumeAlarm();
       await runRatingJob(job);
     } catch (e) {
@@ -262,35 +304,56 @@ function runNextGlobal() {
     } finally {
       Logger.info('Steam', `评分任务结束: tab=${job.tabId}`);
       currentRun = null;
+      activeJob = null; // v14.29.0：信封随任务生命周期复位
       jobQueue.running = false;
       runNextGlobal();
     }
   })();
 }
 
-// 发起任务（fire-and-forget；全局 FIFO 串行，永不丢弃）
-// start a job (fire-and-forget; single global FIFO chain, never dropped)
-// v14.8.1：链忙时即时推送排队位置（"排队中·前方 N 项"），不再静默等首波
-export function startRatingJob(job) {
-  jobQueue.pending.push(job);
-  if (jobQueue.running) {
-    const position = jobQueue.pending.length - 1; // 前方任务数（不含自己）
-    // v14.17.0：排队位置推送失败（tab 已关/无接收端）→ 就地出队——死 tab 任务
-    // 不再占全局链一位陪跑，后开 tab 的等待直接缩短一个任务位
-    pushToTab(job.tabId, {
+// v14.29.0：排队位置广播——向所有排队任务推送实时位置（位置推送失败的 tab
+// 就地出队：死 tab 任务不占全局链位，后开 tab 等待直接缩短）
+function pushQueuePositions() {
+  jobQueue.pending.forEach((j, i) => {
+    pushToTab(j.tabId, {
       progress: {
         done: 0,
-        total: Array.isArray(job.queue) ? job.queue.length : 0,
+        total: Array.isArray(j.queue) ? j.queue.length : 0,
         degraded: getSteamApiStatus().anomaly,
         queued: jobQueue.pending.length,
-        position
+        position: i
       }
     }).then((ok) => {
       if (ok) return;
-      const idx = jobQueue.pending.indexOf(job);
+      const idx = jobQueue.pending.indexOf(j);
       if (idx !== -1) jobQueue.pending.splice(idx, 1);
-      Logger.info('Steam', `排队任务剔除（tab 无接收端）: tab=${job.tabId}`);
+      Logger.info('Steam', `排队任务剔除（tab 无接收端）: tab=${j.tabId}`);
+      persistQueueState().catch(() => {});
     });
+  });
+}
+
+// 发起任务（fire-and-forget；全局 FIFO 串行，永不丢弃）
+// start a job (fire-and-forget; single global FIFO chain, never dropped)
+// v14.8.1：链忙时即时推送排队位置（"排队中·前方 N 项"），不再静默等首波
+// v14.29.0：同 tab 旧任务替换——页面刷新/翻页后旧任务的页面上下文已失效，
+// 保留它会让旧推送与新批次交错且多占一个队列位；最新入队者顶替同 tab 旧任务。
+export function startRatingJob(job) {
+  if (job.tabId !== null && job.tabId !== undefined) {
+    const dupIdx = jobQueue.pending.findIndex((j) => j && j.tabId === job.tabId);
+    if (dupIdx !== -1) {
+      Logger.info('Steam', `排队任务替换（同 tab 旧任务过时）: tab=${job.tabId}`);
+      jobQueue.pending[dupIdx] = job;
+      pushQueuePositions();
+      persistQueueState().catch(() => {});
+      return true;
+    }
+  }
+  jobQueue.pending.push(job);
+  if (jobQueue.running) {
+    // v14.29.0：入队即整队持久化（排队任务不再只存在于内存）+ 全体位置广播
+    persistQueueState().catch(() => {});
+    pushQueuePositions();
   } else {
     runNextGlobal();
   }
@@ -305,29 +368,35 @@ export function startRatingJob(job) {
 // Resume the checkpointed job after a SW cold start or alarm wake; the job
 // re-enters the per-tab queue so repeated alarm wakes stay serialized.
 export async function resumeRatingsBatch() {
-  /** @type {{queue?: Array<Object>, startedAt?: number}|null} */
-  let job = null;
+  /** @type {any|null} */
+  let envelope = null;
   try {
     const data = await chrome.storage.session.get(JOB_SESSION_KEY);
-    job = (data && data[JOB_SESSION_KEY]) || null;
+    envelope = (data && data[JOB_SESSION_KEY]) || null;
   } catch {
     return { resumed: false, reason: 'no-session' };
   }
-  if (!job || !Array.isArray(job.queue)) return { resumed: false, reason: 'no-job' };
-  if (!job.startedAt || Date.now() - job.startedAt > JOB_MAX_AGE_MS) {
+  // v14.29.0：信封形态 {v:2, jobs:[...]}；兼容 v14 旧单槽形态（单任务对象）。
+  // Envelope form since v14.29.0; the legacy single-job object is still accepted.
+  /** @type {Array<any>} */
+  let jobs = [];
+  if (envelope && Array.isArray(envelope.jobs)) jobs = envelope.jobs.filter((j) => j && Array.isArray(j.queue));
+  else if (envelope && Array.isArray(envelope.queue)) jobs = [envelope];
+  if (jobs.length === 0) return { resumed: false, reason: 'no-job' };
+  // 陈旧过滤：超龄任务丢弃；全部超龄 → stale（同步拆除 1min resume alarm，
+  // 防 SW 之后无限每分钟唤醒——v14.11 B8）
+  const now = Date.now();
+  jobs = jobs.filter((j) => j.startedAt && now - j.startedAt <= JOB_MAX_AGE_MS);
+  if (jobs.length === 0) {
     await clearPersistedJob();
-    // v14.11 B8（报告 C P1-05）：stale 分支同步拆除 resume alarm——此前只清
-    // 任务不拆 1min alarm，SW 之后无限每分钟唤醒（资源泄漏）
-    teardownResumeAlarm();
+    if (jobQueue.pending.length === 0) teardownResumeAlarm();
     return { resumed: false, reason: 'stale' };
   }
-  // v14.6.2 修复（审查 A4）：经 startRatingJob 重新入该 tab 队列——原实现
-  // 直接 runRatingJob 绕过 jobQueues，SW 重启后同 tab 新 job（用户翻页/刷新
-  // 触发）与续跑 job 并发，两路推送交错破坏"同 tab 串行 + done 衔接"契约
-  // （旧 job 先推 done:true 会截断新 job 的增量）。入队即返回（队列
-  // fire-and-forget 串行消化；persistJob 由队列首步负责）。
-  startRatingJob(job);
-  return { resumed: true, remaining: job.queue.length };
+  // v14.6.2 修复（审查 A4）：经 startRatingJob 重新入队串行消化（保持全局
+  // FIFO 次序：运行中任务在前，排队任务按原顺序跟随）。入队即返回（队列
+  // fire-and-forget 串行消化；持久化由队列首步负责）。
+  for (const j of jobs) startRatingJob(j);
+  return { resumed: true, remaining: jobs.reduce((n, j) => n + (j.queue ? j.queue.length : 0), 0) };
 }
 
 // 任务主循环（批次边界推进 job.queue 并持久化；SW 被杀后从最后边界续跑）
@@ -535,7 +604,7 @@ async function runRatingJob(job) {
       Logger.info('Steam', `评分波次推送: ${Object.keys(wave).length} 项 → tab=${job.tabId}`);
       job.queue = passNames.filter((n) => !completedInPass.has(n));
       job.retried = retried;
-      await persistJob(job);
+      await persistQueueState(); // v14.29.0：整队信封（含排队任务）替代单槽检查点
       metricObserve('batch.ms', Date.now() - batchT0);
       // 限流降速：异常时收缩波次阈值，恢复后回基础批大小
       batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
@@ -728,11 +797,11 @@ async function runRatingJob(job) {
       // alarm（防 SW 下次唤醒空转续跑），finally 复位全局链衔接下一任务
       Logger.info('Steam', `评分任务中止（tab 无接收端）: tab=${job.tabId}`);
       await clearPersistedJob();
-      teardownResumeAlarm();
+      if (jobQueue.pending.length === 0) teardownResumeAlarm(); // v14.29.0：仍有排队任务时保留 alarm
       return;
     }
     await clearPersistedJob();
-    teardownResumeAlarm();
+    if (jobQueue.pending.length === 0) teardownResumeAlarm(); // v14.29.0：仍有排队任务时保留 alarm
     // v14.17.0：截止丢项也照常推 done——内容侧立即收尾并给出"未返回·点击重查"
     // 徽章（不再等到 45s 强制收尾，多标签页排队视觉即"卡住"的主因之一）
     push({ ratings: null, done: true, ...progressPayload() });

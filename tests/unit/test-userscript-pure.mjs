@@ -77,8 +77,8 @@ function loadScript(locationStub) {
 }
 
 describe('油猴脚本：头部元数据', () => {
-  it('版本号与移植基线（扩展 v14.14.0 功能口径）一致', () => {
-    expect(SRC).toMatch(/@version\s+14\.14\.0/);
+  it('版本号与移植基线（扩展 v14.29.0 功能口径——匹配管线与徽章核心同步）一致', () => {
+    expect(SRC).toMatch(/@version\s+14\.29\.0/);
   });
   it('@match 覆盖三核心站（xdgame/xianyudanji/gamer520 双域名）', () => {
     expect(SRC).toMatch(/@match\s+\*:\/\/\*\.xdgame\.com\/\*/);
@@ -95,7 +95,7 @@ describe('油猴脚本：头部元数据', () => {
   it('装载即通过词表防损坏护栏（快照完整）', () => {
     const gr = loadScript();
     expect(gr).toBeTruthy();
-    expect(gr.version).toEqual('14.14.0');
+    expect(gr.version).toEqual('14.29.0');
   });
 });
 
@@ -286,5 +286,48 @@ describe('O8 双侧 golden 对齐（扩展 vs 油猴快照）', () => {
         }
       }
     }
+  });
+});
+
+// ============ v14.29.0 同步：同站冲突防线 + 置信度门（油猴侧锚点） ============
+// 逻辑不变式：同站点两个不同页面在逻辑上至多一侧指向同一款游戏（扩展实证
+// xianyudanji.gg/107968.html 与 /107966.html）。油猴侧同防线：urlIndex 查询
+// + 置信度门纯函数。经 gmStore 直写预置绑定（keys() 并集后枚举可见）。
+describe('油猴脚本：v14.29.0 同站冲突防线（url-index 仲裁）', () => {
+  const gr3 = loadScript();
+  const setBinding = (url, appId, name, titleHash) => {
+    gr3.store.set('url:' + url, {
+      v: 1,
+      ts: Date.now(),
+      ttl: 0,
+      d: { appId: String(appId), name: name || '', ts: Date.now(), titleHash: titleHash || '' }
+    });
+  };
+  it('同站不同页同 appId → 冲突（107968/107966 实证锚点）', () => {
+    setBinding('https://www.xianyudanji.gg/107968.html', 1245620, '游戏甲', 'aaaaaa');
+    const c = gr3.pure.urlIndexFindHostConflict('https://www.xianyudanji.gg/107966.html', 1245620, 'bbbbbb');
+    expect(c).not.toEqual(null);
+    expect(c.url).toEqual('https://www.xianyudanji.gg/107968.html');
+  });
+  it('同标题哈希转载豁免 + 跨站同 appId 非冲突', () => {
+    expect(gr3.pure.urlIndexFindHostConflict('https://www.xianyudanji.gg/107966.html', 1245620, 'aaaaaa')).toEqual(
+      null
+    );
+    expect(gr3.pure.urlIndexFindHostConflict('https://www.gamer520.com/107966.html', 1245620, 'bbbbbb')).toEqual(null);
+  });
+  it('rateMatchConfidenceLite：标题相似度门与年份门（推测/确认两态）', () => {
+    expect(
+      gr3.pure.rateMatchConfidenceLite({ gameName: '死亡空间2 Dead Space 2', resultName: 'Dead Space 2' }).confidence
+    ).toEqual('confirmed');
+    expect(
+      gr3.pure.rateMatchConfidenceLite({ gameName: '死亡空间2 Dead Space 2', resultName: '植物大战僵尸' }).confidence
+    ).toEqual('suspected');
+    expect(
+      gr3.pure.rateMatchConfidenceLite({
+        gameName: '某游戏 2019|Game Z',
+        resultName: 'Game Z',
+        releaseDate: '2024-03-01'
+      }).confidence
+    ).toEqual('suspected');
   });
 });

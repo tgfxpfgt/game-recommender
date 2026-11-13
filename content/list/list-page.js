@@ -504,7 +504,7 @@ const QUEUE_POLL_INTERVAL_MS = 5000;
 const QUEUE_POLL_MAX_MS = 600000;
 /** @type {ReturnType<typeof setTimeout>|null} */
 let queuePollTimer = null;
-/** @type {{running: boolean, pending: number, current: {tabId: number|null, total: number, done: number}|null, degraded: boolean}|null} */
+/** @type {{running: boolean, pending: number, current: {tabId: number|null, total: number, done: number}|null, degraded: boolean, you?: {position: number, running?: boolean, total?: number, aheadItems?: number}|null}|null} */
 let lastQueueStatus = null;
 function ensureQueueInfoPolling() {
   if (queuePollTimer) return;

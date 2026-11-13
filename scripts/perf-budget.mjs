@@ -136,10 +136,25 @@ export const BUDGETS = {
   // v14.28.13：+701B = P1-2 correction 强制 confirmed（match-confidence 单源分支
   // + 双语文档注释）——静态注入/闭包未超。按实测重锁。
   // v14.28.13: +701B = P1-2 correction-forces-confirmed branch (bilingual docs).
-  swGraphBytes: 923853,
-  swGraphFiles: 107,
+  // v14.29.0（多站排队 + 同站冲突防线）：新增 background/steam/match-conflicts.js
+  //（会话级声明表 + 冲突检测，+1 文件）+ ratings-batch 整队信封/同 tab 替换/边界
+  // 位置推送 + orchestrator-list 冲突降级接线 + url-index 反向索引/仲裁写入 +
+  // content list-state 排队视角文本/排队感知顺延——SW 图 943,804B / 108 文件
+  //（+19,951B，主体为新模块与双语文档注释）、内容闭包 list 297,812B（+2,750B），
+  // 静态注入 38,663B 未变。按实测重锁（新增防线能力，无冗余代码）。
+  // v14.29.0 (multi-tab queue + host-conflict guards): new match-conflicts module
+  // (+1 file), queue-envelope persistence, same-tab replacement, boundary position
+  // pushes, arbitrated URL-index writes and queue-aware force-finish; re-locked
+  // to the measured graph size.
+  swGraphBytes: 943804,
+  swGraphFiles: 108,
   staticInjectionBytes: 38663,
-  closureBytes: 295062
+  // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
+  // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
+  // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
+  // +312B = forceTimer identity guard + three-state queue-aware finish
+  // (finish only when this tab's job is confirmed running); re-locked.
+  closureBytes: 298497
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

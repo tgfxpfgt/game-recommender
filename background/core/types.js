@@ -225,6 +225,12 @@
  * @property {string} description
  * @property {string} headerImage
  * @property {Object|null} steamspy - SteamSpy 补充数据
+ * @property {string} [matchConfidence] - v14.28.6：匹配置信度（confirmed/suspected，详情管线附）
+ * @property {string} [matchName] - 匹配到的 Steam 标题
+ * @property {string} [matchSource] - 匹配来源标签
+ * @property {string} [matchPlatform] - 平台判定标签
+ * @property {string} [matchNote] - 置信度依据说明
+ * @property {boolean} [matchConflict] - v14.29.0：同站 appId 冲突标记（降级推测 + 不回写 URL 索引）
  */
 
 /**

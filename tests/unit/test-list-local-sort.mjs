@@ -24,7 +24,13 @@ vi.mock('../../content/core/debug.js', () => ({
   dbg: vi.fn()
 }));
 
-import { applyLocalSort, finishRatings, _state, formatQueueStatusText } from '../../content/list/list-state.js';
+import {
+  applyLocalSort,
+  applyRatingsResponse,
+  finishRatings,
+  _state,
+  formatQueueStatusText
+} from '../../content/list/list-state.js';
 
 // 最小父容器模拟：appendChild 从旧父摘除后追加到末尾（真实 DOM 语义）
 function makeParent() {
@@ -185,5 +191,62 @@ describe('formatQueueStatusText（等待徽章实时队列信息）', () => {
     expect(formatQueueStatusText({ done: 0, total: 60, degraded: false, position: 0 }, qs)).toBe(
       '⏳ 检索中 0/130 · 排队 1 · 限流降速'
     );
+  });
+
+  // v14.29.0：本页视角（快照 you 在场且非运行中 = 本页还在排队）——此前等待
+  // 徽章只能显示别的页面的"检索中 x/y"，本页排第几位、前方多少项毫无信息
+  it('本页排队视角：you 在场（非运行中）→ 排队位置/前方条目/本页条目', () => {
+    const qs = {
+      running: true,
+      pending: 1,
+      current: { tabId: 9, total: 60, done: 12 },
+      degraded: false,
+      you: { position: 1, running: false, total: 60, aheadItems: 45 }
+    };
+    expect(formatQueueStatusText(null, qs)).toBe('⏳ 排队中·前方 1 页 · 前方约 45 项 · 本页 60 项');
+  });
+
+  it('本页运行中（you.running）→ 仍走全局检索进度视图', () => {
+    const qs = {
+      running: true,
+      pending: 0,
+      current: { tabId: 9, total: 60, done: 30 },
+      degraded: false,
+      you: { position: 0, running: true, total: 60, aheadItems: 0 }
+    };
+    expect(formatQueueStatusText(null, qs)).toBe('⏳ 检索中 30/60');
+  });
+
+  it('旧形态快照（无 you）→ 行为不变', () => {
+    const qs = { running: true, pending: 2, current: { tabId: 1, total: 60, done: 12 }, degraded: false };
+    expect(formatQueueStatusText(null, qs)).toBe('⏳ 检索中 12/60 · 排队 2');
+  });
+});
+
+// ============ v14.29.0：同站冲突条目不回写 URL 索引（matchConflict） ============
+describe('applyRatingsResponse：matchConflict 条目跳过 urlEntries', () => {
+  it('冲突条目：徽章照常渲染，但不入 urlEntries（不固化冲突绑定）', () => {
+    const parent = makeParent();
+    const items = [makeItem('游戏A', parent), makeItem('游戏B', parent)];
+    items[0].url = 'https://www.xianyudanji.gg/107968.html';
+    items[1].url = 'https://www.xianyudanji.gg/107966.html';
+    _state.ratingsJob = {
+      ...makeJob(parent, items, {}),
+      processed: new Set(),
+      urlEntries: []
+    };
+    applyRatingsResponse(
+      {
+        游戏A: { appId: '1245620', positiveRate: 90, matchConfidence: 'confirmed' },
+        游戏B: { appId: '1245620', positiveRate: 90, matchConfidence: 'suspected', matchConflict: true }
+      },
+      'final'
+    );
+    const job = _state.ratingsJob;
+    // 冲突条目不回写；正常条目携带 confidence/name（后台仲裁依据）
+    expect(job.urlEntries).toEqual([
+      { appId: '1245620', url: 'https://www.xianyudanji.gg/107968.html', confidence: 'confirmed', name: '游戏A' }
+    ]);
+    expect(job.processed.has('游戏B')).toEqual(true); // 徽章照常出（推测级）
   });
 });

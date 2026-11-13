@@ -5,7 +5,8 @@ import { searchDownloadSites, extractDetailMeta } from '../sites/search.js';
 import { recordDownloadUrl, recordDownloadUrlsBatch, getDownloadUrls } from '../storage/download-urls.js';
 import { recordAppDetailView } from '../storage/app-stats.js'; // v10.1.0：详情页打开计数 b
 import { getDownloadHistory, inferSiteFromDomain } from '../storage/history.js';
-import { setUrlAppId } from '../storage/url-index.js'; // v7.0.2：列表页匹配后记录网址索引
+import { setUrlAppIdArbitrated } from '../storage/url-index.js'; // v7.0.2：列表页匹配后记录网址索引
+import { gameKeyOf } from '../storage/diag-trace.js'; // v14.29.0：标题哈希（同站冲突豁免判定）
 import { Logger } from '../storage/logger.js';
 import { getGameRegistryEntry } from '../storage/registry.js';
 
@@ -150,6 +151,10 @@ export async function handleTrackDownloadSiteVisit(message) {
 }
 
 // 列表页批量记录下载页地址
+// v14.29.0：URL 索引写入改走仲裁——①同站冲突（另一页已绑定同一 appId 且
+// 标题不同 = 至少一侧错配，用户实证 107968/107966 同命中）不固化第二侧；
+// ②推测级匹配不覆盖已有不同绑定（防漂移钉死）。entries 携带 confidence/name
+//（matchConflict 条目在内容侧已被剔除，此处为双保险）。
 export async function handleRecordDownloadUrlsBatch(message) {
   const data = message.data || {};
   const siteInfo = await inferSite(data.domain || '');
@@ -157,10 +162,21 @@ export async function handleRecordDownloadUrlsBatch(message) {
   await recordDownloadUrlsBatch(siteInfo.key, siteInfo.name, data.entries || []);
   // v7.0.2：列表页匹配成功后记录 详情页网址 → appId（详情页检索第一候选）
   const entries = data.entries || [];
+  let bound = 0;
+  let skipped = 0;
   for (const e of entries) {
-    if (e && e.url && e.appId) await setUrlAppId(e.url, e.appId);
+    if (!e || !e.url || !e.appId) continue;
+    const arb = await setUrlAppIdArbitrated(e.url, e.appId, {
+      confidence: e.confidence || null,
+      titleHash: gameKeyOf(String(e.name || ''))
+    });
+    if (arb.written) bound++;
+    else skipped++;
   }
-  return { success: true };
+  if (skipped > 0) {
+    Logger.warn('DownloadSites', `网址索引仲裁: 写入 ${bound} 条，跳过 ${skipped} 条（同站冲突/推测不覆盖）`);
+  }
+  return { success: true, bound, skipped };
 }
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）

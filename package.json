@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "14.28.13",
+  "version": "14.29.0",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -9,7 +9,7 @@
   },
   "scripts": {
     "test": "vitest run tests/unit && npm run test:sim",
-    "test:sim": "vitest run tests/sim/sim-list.mjs tests/sim/sim-badges.mjs tests/sim/sim-detail.mjs tests/sim/sim-float-menu.mjs tests/integration",
+    "test:sim": "vitest run tests/sim/sim-list.mjs tests/sim/sim-badges.mjs tests/sim/sim-detail.mjs tests/sim/sim-float-menu.mjs && vitest run tests/integration",
     "e2e": "node tests/e2e-smoke.mjs",
     "bench": "node scripts/perf-bench.mjs",
     "verify:match": "node scripts/verify-match.mjs",

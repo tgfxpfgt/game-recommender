@@ -207,14 +207,19 @@ async function fireBatch(names) {
       // v9.7.0：修正参数错位——第 3 参是数字 total，描述文本应传第 4 参 detail
       //（此前文本传给 total 导致 NaN 比较，进度行与描述文案都不渲染）
       // v14.7 批次 5：状态行附条目进度与降速提示（payload.progress）
+      // v14.29.0：排队视角——本页任务仍在全局链排队时不再显示别的页面的
+      // "Steam 检索 x/y"（误导），改显示自己的排队位置
       const prog = _state.ratingsProgress;
-      const progText = prog && prog.total > 0 ? ` · Steam 检索 ${Math.min(prog.done, prog.total)}/${prog.total}` : '';
+      const queuedText =
+        prog && typeof prog.position === 'number' && prog.position > 0 ? ` · 全局排队中·前方 ${prog.position} 页` : '';
+      const progText =
+        !queuedText && prog && prog.total > 0 ? ` · Steam 检索 ${Math.min(prog.done, prog.total)}/${prog.total}` : '';
       const degradedText = prog && prog.degraded ? ' · Steam 访问受限，自动恢复中' : '';
       status.showStatus(
         '正在从 Steam 更新缓存',
         job.processed.size,
         _state.batchState.processItems.length,
-        `${pendingCount} 个未命中缓存，后台拉取中${progText}${degradedText}`
+        `${pendingCount} 个未命中缓存，后台拉取中${queuedText}${progText}${degradedText}`
       );
       _internal.scheduleFallbacks();
     } else {

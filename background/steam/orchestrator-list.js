@@ -51,12 +51,25 @@ import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.j
 import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js';
 import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9：运行期诊断轨迹
 import { recordUsageCounter, recordUsageEvent } from '../storage/usage-evidence.js'; // v14.28.10 P1-1：首波 miss 分桶
+import { claimOrDetectMatch } from './match-conflicts.js'; // v14.29.0：同站 appId 冲突防线
+
+// v14.29.0：同站冲突降级说明（matchNote 悬停依据 + matchConflict 标记供
+// 内容侧跳过 URL 索引回写——冲突两侧不固化绑定）
+const HOST_CONFLICT_NOTE = '同站点另一页面已命中同一游戏，至少一侧匹配可能有误';
 
 // v14.28.6 R4-B：把置信度挂到结果上（确认/推测 + 依据串），内容侧据此
 // 渲染「推测」徽章与悬停依据（匹配标题 / 数据来源 / 平台判定）。
 // v14.28.7 R4-B2：平台按标题识别（主机/移动/云游戏 → 非 PC，最优先降级）。
+// v14.29.0：conflictReason 在场 = 同站 appId 冲突 → 强制「推测」并注明依据
+// （逻辑不变式：同站两页至多一侧指向同一游戏）。
 // Attach the confidence (and human-readable evidence) to a result.
-function attachMatch(result, { gameName, resultName, source, steamYear }) {
+/**
+ * @param {any} result
+ * @param {{gameName: string, resultName?: string, source?: string, steamYear?: number|null,
+ *   conflictReason?: string|null}} opts
+ * @returns {any} result
+ */
+function attachMatch(result, { gameName, resultName, source, steamYear, conflictReason = null }) {
   if (!result || typeof result !== 'object') return result;
   const m = rateMatchConfidence({
     gameName,
@@ -66,6 +79,15 @@ function attachMatch(result, { gameName, resultName, source, steamYear }) {
     steamYear: steamYear !== null && steamYear !== undefined ? steamYear : yearOfDateString(result.releaseDate),
     source
   });
+  if (conflictReason) {
+    result.matchConfidence = 'suspected';
+    result.matchName = m.resultName;
+    result.matchSource = m.sourceLabel;
+    result.matchPlatform = m.platformLabel;
+    result.matchNote = conflictReason;
+    result.matchConflict = true;
+    return result;
+  }
   result.matchConfidence = m.confidence;
   result.matchName = m.resultName;
   result.matchSource = m.sourceLabel;
@@ -463,13 +485,30 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       // 自愈：命中 Demo 版且无评测的缓存 → 视为无效，重新搜索完整版
       if (!isDemoCacheWithoutRating(merged)) {
         recordTrace({ stage: 'cache', event: 'hit', cacheLayer: 'memory', gameKey: cacheGameKey });
+        // v14.29.0：同站冲突检查（URL 索引来源写入时已仲裁，名称索引来源
+        // **从未仲裁过**——被污染的名称→appId 映射同样会钉住错误缓存；检查为
+        // 零网络内存查，不改变命中语义，只降级置信度标注）
+        /** @type {{source: string, existingUrl: string}|null} */
+        let conflictHit = null;
+        if (options.pageUrl) {
+          conflictHit = await claimOrDetectMatch(gameName, options.pageUrl, appId);
+          if (conflictHit) {
+            recordUsageCounter('match.hostConflict'); // v14.29.0：冲突拦截计数（缓存命中路径同样落账）
+            recordUsageEvent('match', 'hostConflict', { kind: conflictHit.source });
+            Logger.warn(
+              'Steam',
+              `同站 appId 冲突（缓存命中，${conflictHit.source}）: "${gameName}" → ${appId}，降级推测标注`
+            );
+          }
+        }
         // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
         // v14.28.6 R4-B：附三要素置信度（确认/推测 + 依据）
         return attachMatch(await applyCacheHit(merged, appId, gameName), {
           gameName,
           resultName: merged.name,
           source: idSource,
-          steamYear: yearOfDateString(merged.releaseDate)
+          steamYear: yearOfDateString(merged.releaseDate),
+          conflictReason: conflictHit ? HOST_CONFLICT_NOTE : null
         });
       }
       usableAppId = null;
@@ -540,6 +579,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     // shows no add-on hints — saves 1 request per game (~20% fewer in batch).
     /** @type {string|null} */
     let appType = null;
+    // v14.29.0：DLC→本体折叠标记——资料片/附属内容页合法地解析到本体 appId
+    //（同站"本体页 + 资料片页"命中同一 appId 是正确行为），冲突检查豁免
+    let dlcCollapsed = false;
     if (foundAppId) {
       phase('validate');
       // v3.3.7：缓存 type 从合并视图读取（meta 模块）
@@ -559,6 +601,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
             );
             foundAppId = baseId;
             foundName = (baseCheck.fullgame && baseCheck.fullgame.name) || foundName;
+            dlcCollapsed = true; // v14.29.0：本体折叠 → 同站冲突豁免
           } else if (!baseId) {
             // bundle/mod/music 等非本体且无法解析：返回 type 标记（徽章显示 type 值而非"未找到"）
             Logger.warn('Steam', `appId ${foundAppId} 类型 ${baseCheck.type} 非游戏本体且无法解析，返回 type 标记`);
@@ -694,14 +737,33 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     await setSteamCacheEntry(foundAppId, mergedData);
 
     // 7. 同步更新游戏注册表和名称索引：官方中英文名 + 封面图 + 标题变体 + type
-    await recordGameInRegistry(/** @type {string|number} */ (foundAppId), {
-      cnName: officialCn,
-      enName: officialEn,
-      gameName,
-      coverImage: headerImage,
-      type: appType || 'game'
-    });
-    await recordNameIndex(gameName, foundAppId);
+    //    v14.29.0：同站 appId 冲突 → 本次映射疑似错配，**不写**名称索引与
+    //    注册表变体（防错误一侧固化），结果强制「推测」并带 matchConflict 标记
+    //    （内容侧跳过该条 URL 索引回写；双保险：RECORD_DOWNLOAD_URLS_BATCH
+    //    侧仲裁同样拒写冲突绑定）。
+    /** @type {{source: string, existingUrl: string}|null} */
+    let conflictHit = null;
+    if (options.pageUrl && !dlcCollapsed) {
+      conflictHit = await claimOrDetectMatch(gameName, options.pageUrl, foundAppId);
+      if (conflictHit) {
+        recordUsageCounter('match.hostConflict'); // v14.29.0：冲突拦截计数
+        recordUsageEvent('match', 'hostConflict', { kind: conflictHit.source });
+        Logger.warn(
+          'Steam',
+          `同站 appId 冲突（${conflictHit.source}）: "${gameName}" → ${foundAppId}，另一页已绑定；降级推测且不写名称索引`
+        );
+      }
+    }
+    if (!conflictHit) {
+      await recordGameInRegistry(/** @type {string|number} */ (foundAppId), {
+        cnName: officialCn,
+        enName: officialEn,
+        gameName,
+        coverImage: headerImage,
+        type: appType || 'game'
+      });
+      await recordNameIndex(gameName, foundAppId);
+    }
 
     return attachMatch(
       {
@@ -726,7 +788,8 @@ export async function getSteamPositiveRate(gameName, options = {}) {
         gameName,
         resultName: foundName,
         source: searchSource || idSource,
-        steamYear: yearOfDateString(fetchedReleaseDate || existing.releaseDate || '')
+        steamYear: yearOfDateString(fetchedReleaseDate || existing.releaseDate || ''),
+        conflictReason: conflictHit ? HOST_CONFLICT_NOTE : null
       }
     );
   } catch (e) {

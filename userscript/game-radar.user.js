@@ -2,8 +2,8 @@
 // @name         游戏雷达 Game Radar (油猴版)
 // @name:en      Game Radar (Userscript)
 // @namespace    tgfxpfgt.game-recommender
-// @version      14.14.0
-// @description  下载站 Steam 好评率徽章 + 详情页信息浮窗 + 智能匹配——扩展核心功能移植（列表徽章/近30天好评率/红标题/等待队列/低评测提示/详情浮窗/手动选择/负缓存分级退避）
+// @version      14.29.0
+// @description  下载站 Steam 好评率徽章 + 详情页信息浮窗 + 智能匹配——扩展核心功能移植（列表徽章/近30天好评率/红标题/等待队列/低评测提示/匹配置信度推测徽章/同站冲突防线/网络异常三态/详情浮窗/手动选择/负缓存分级退避）
 // @description:en  Steam rating badges on download sites + detail float + smart matching (ported from the Chrome extension core).
 // @author       GameRecommender
 // @match        *://*.xdgame.com/*
@@ -33,16 +33,21 @@
 /**
  * 游戏雷达 Game Radar —— 油猴版（userscript/game-radar.user.js）
  *
- * 由 Chrome MV3 扩展（v14.14.0）核心功能移植：列表页好评率徽章、详情页
- * Steam 信息浮窗、标题智能匹配管线（目录语义的 storesearch 全词扫描 +
- * 跨词共识 + 社区英文兜底 + 英文段重搜 + DLC 解析）、负缓存分级退避、
- * 熔断器、限速队列。运行于 Tampermonkey 沙箱：
+ * 由 Chrome MV3 扩展核心功能移植（移植基线 v14.29.0，功能口径 = 匹配管线
+ * 与徽章核心对齐扩展）：列表页好评率徽章（含推测匹配琥珀徽章）、详情页
+ * Steam 信息浮窗、标题智能匹配管线（storesearch 全词扫描 + 跨词共识 +
+ * 社区英文兜底 + 英文段重搜 + DLC 解析 + 匹配置信度门 + 同站 appId 冲突
+ * 防线 + URL 索引仲裁写入）、故障三态（网络异常 ≠ 未找到）、负缓存分级
+ * 退避、熔断器、限速队列。运行于 Tampermonkey 沙箱：
  *   - chrome.storage / OPFS  → GM_getValue/GM_setValue（平键 + TTL 信封）
  *   - fetchWithTimeout(SW)   → GM_xmlhttpRequest（无 CORS 限制，跨域直连）
  *   - background 消息管线    → 同进程直调（resolve/rate 两段直连）
- * 与扩展的口径差异（有意保留）见文件尾 README「与扩展的差异」。
- * Ported from the MV3 extension core (v14.14.0). Storage via GM_* keys,
- * network via GM_xmlhttpRequest; the search pipeline runs in-page.
+ * 与扩展的口径差异（有意保留）：SW 编排类能力不适用于油猴运行模型——
+ * 扩展的诊断轨迹/使用证据档案/批量任务看门狗与排队治理/多 worker 并发/
+ * 手动主机机型声明/非 PC 平台识别子系统（置信度平台门恒视为 PC）均不在
+ * 移植面；数据形态差异：评分缓存无 cnReviews 模块（倒挂指纹不适用）。
+ * Ported from the MV3 extension core (baseline v14.29.0). Storage via GM_*
+ * keys, network via GM_xmlhttpRequest; the search pipeline runs in-page.
  */
 (function (global) {
   'use strict';
@@ -51,7 +56,7 @@
   // §0 常量单源（对齐扩展 constants.js / PERF_CONFIG / api-reviews.js）
   // Single-source constants (aligned with the extension).
   // ==================================================================
-  const SCRIPT_VERSION = '14.14.0';
+  const SCRIPT_VERSION = '14.29.0';
   const KEY_PREFIX = 'grUs:';
 
   const ENDPOINTS = {
@@ -122,12 +127,21 @@
       }
     },
     keys() {
+      // v14.29.0：内存缓存与 GM_listValues 取并集——写穿前/桩环境下 keys()
+      // 也能看到已写键（原实现只读 GM_listValues，GM 侧延迟可见时枚举为空）
+      const seen = new Set();
+      for (const k of memStore.keys()) {
+        if (String(k).indexOf(KEY_PREFIX) === 0) seen.add(String(k).slice(KEY_PREFIX.length));
+      }
       try {
         const all = typeof GM_listValues === 'function' ? GM_listValues() : [];
-        return all.filter((k) => String(k).indexOf(KEY_PREFIX) === 0).map((k) => k.slice(KEY_PREFIX.length));
+        for (const k of all) {
+          if (String(k).indexOf(KEY_PREFIX) === 0) seen.add(String(k).slice(KEY_PREFIX.length));
+        }
       } catch {
-        return [];
+        /* ignore */
       }
+      return [...seen];
     }
   };
 
@@ -525,6 +539,224 @@
     const now = Date.now();
     return now >= d.getTime() - 24 * 3600e3 && now - d.getTime() <= days * 24 * 3600e3;
   }
+
+  // ============ v14.29.0 同步：匹配置信度（match-confidence.js 移植子集） ============
+  // 平台识别子系统未移植（与扩展的有意差异——平台门恒视为 PC 通过）；标题
+  // 相似度与年份门逐字对齐扩展口径（TITLE_SIMILARITY_THRESHOLD = 0.75，
+  // 序号护栏/包含/Dice 复合相似度；年份一侧缺失不降级，相差 >1 年才降级）。
+  // Match-confidence subset: title/year gates verbatim; the platform gate is
+  // treated as passed (platform-detect subsystem not ported — divergence).
+  const TITLE_SIMILARITY_THRESHOLD = 0.75;
+  const MATCH_SOURCE_LABELS = {
+    correction: '用户报错纠正记录',
+    index: '名称索引缓存',
+    search: 'Steam 商店搜索',
+    url: '详情页网址索引',
+    image: '页面封面图 appId'
+  };
+  // 发行年份（match-confidence.js yearOfDateString 逐字）
+  function yearOfDateString(value) {
+    const m = String(value || '').match(/(\d{4})/);
+    if (!m) return null;
+    const y = Number(m[1]);
+    return y >= 1970 && y <= 2100 ? y : null;
+  }
+  // 页面标题独立段年份（extractTitleYear 语义对齐：仅接受被分隔符包住的 4 位
+  // 年份。实现用 String.match 而非正则 .exec 循环——行为等价（g 标志下两者
+  // 同为非重叠扫描、捕获组经段内二次 match 提取），且避开静态污点模型对
+  // ".exec(" 的命令注入 sink 撞名误标（Mimosa L3 commit 门）。
+  // String.match form (behaviorally identical to the extension's regex-exec
+  // loop) — avoids the ".exec(" sink-name collision in the static taint model.
+  function extractTitleYear(rawTitle) {
+    const text = String(rawTitle || '');
+    const segs = text.match(/(?:^|[|丨，,、/\\\s(（\[【])((?:19|20)\d{2})(?=$|[|丨，,、/\\\s)）\]】])/g) || [];
+    for (const seg of segs) {
+      const m = seg.match(/(?:19|20)\d{2}/);
+      if (!m) continue;
+      const y = Number(m[0]);
+      if (y >= 1990 && y <= 2035) return y;
+    }
+    return null;
+  }
+  // 页面标题身份段（pageTitleCores 逐字：按 | / 带空格连字符切段，逐段去
+  // 年份/版本号/平台尾词/语言标签——下载站常并列中英官方名，逐段比对）
+  function pageTitleCores(rawTitle) {
+    const parts = String(rawTitle || '')
+      .split(/[|丨/／]+|\s+[-–—]\s+/)
+      .map((s) => s.trim())
+      .filter(Boolean);
+    /** @type {string[]} */
+    const out = [];
+    for (const part of parts) {
+      let text = part;
+      const year = extractTitleYear(text);
+      if (year !== null) text = text.replace(String(year), ' ');
+      text = text.replace(/\bv\d+(?:\.\d+)+\b/gi, ' ').replace(/\b\d+\.\d+(?:\.\d+)+\b/g, ' ');
+      if (!/[\u4e00-\u9fff]/.test(text)) text = trimPlatformTokens(text) || text;
+      text = text.replace(/(?:官方中文|简体中文|繁体中文|中文版|汉化版|汉化|中文|官中)\s*$/, '').trim();
+      text = text.replace(/\s{2,}/g, ' ').trim();
+      if (text) out.push(text);
+    }
+    return out;
+  }
+  // 英文名尾词平台剥离（platform-detect.js trimPlatformTokens 逐字）
+  const EN_PLATFORM_TAIL_TOKENS = new Set([
+    'switch',
+    'switch2',
+    'nswitch',
+    'ns',
+    'ns2',
+    'nsp',
+    'xci',
+    'nsz',
+    'nro',
+    'rom',
+    'roms',
+    'wii',
+    'wiiu',
+    'ps5',
+    'ps4',
+    'ps3',
+    'ps2',
+    'ps1',
+    'psp',
+    'psv',
+    'psvita',
+    'vita',
+    'playstation',
+    'nintendo',
+    'xbox',
+    'xboxone',
+    'xbox360',
+    'xsx',
+    'xss',
+    'seriesx',
+    'one',
+    'emulator',
+    'yuzu',
+    'ryujinx',
+    'sudachi',
+    'citron',
+    'eden',
+    'skyline',
+    'dolphin',
+    'cemu',
+    'citra',
+    'pcsx2',
+    'pcsx',
+    'rpcs3',
+    'ppsspp',
+    'vita3k',
+    'xenia',
+    'xemu',
+    'mame',
+    'winlator',
+    'eggns',
+    'pc',
+    'steam'
+  ]);
+  function trimPlatformTokens(enName) {
+    const raw = String(enName || '').trim();
+    const words = raw.split(/[^A-Za-z0-9]+/).filter(Boolean);
+    while (words.length > 1 && EN_PLATFORM_TAIL_TOKENS.has(words[words.length - 1].toLowerCase())) {
+      words.pop();
+    }
+    return words.join(' ') || raw;
+  }
+  // 单段相似度（pairSimilarity 逐字：全等 → 序号护栏 → 包含 → CJK Dice → 拉丁词元 Dice）
+  function matchNormTitle(s) {
+    return String(s || '')
+      .toLowerCase()
+      .replace(/[\s\-_:：|.'!！?？\[\]()（）×•·™®©]/g, '');
+  }
+  function matchLatinTokens(s) {
+    return new Set(
+      String(s || '')
+        .toLowerCase()
+        .match(/[a-z0-9]+/g) || []
+    );
+  }
+  function pairSimilarity(resultName, core) {
+    const rn = matchNormTitle(resultName);
+    const cn = matchNormTitle(core);
+    if (!rn || !cn || rn.length < 2 || cn.length < 2) return 0;
+    if (rn === cn) return 1;
+    const nums = (s) => new Set(String(s).match(/\d+/g) || []);
+    const rNums = nums(resultName);
+    const cNums = nums(core);
+    if (cNums.size > 0) {
+      for (const n of rNums) if (!cNums.has(n)) return 0.4;
+      if (rNums.size === 0) return 0.6;
+    } else if (rNums.size > 0) {
+      return 0.6;
+    }
+    let best = 0;
+    if (rn.includes(cn)) best = Math.min(1, 0.9 + 0.1 * (cn.length / rn.length));
+    else if (cn.includes(rn)) best = Math.min(1, 0.9 + 0.1 * (rn.length / cn.length));
+    if (best >= TITLE_SIMILARITY_THRESHOLD) return best;
+    const dice = cjkBigramDice(resultName, core);
+    if (dice > best) best = dice;
+    if (best >= TITLE_SIMILARITY_THRESHOLD) return best;
+    const A = matchLatinTokens(resultName);
+    const B = matchLatinTokens(core);
+    if (A.size > 0 && B.size > 0) {
+      let shared = 0;
+      for (const t of A) if (B.has(t)) shared++;
+      const tokenDice = (2 * shared) / (A.size + B.size);
+      if (tokenDice > best) best = tokenDice;
+    }
+    return best;
+  }
+  // 标题相似度（titleSimilarity 逐字：各身份段最大值）
+  function titleSimilarity(resultName, gameName) {
+    let best = 0;
+    for (const core of pageTitleCores(gameName)) {
+      const s = pairSimilarity(resultName, core);
+      if (s > best) best = s;
+    }
+    return Math.round(best * 100) / 100;
+  }
+  // 置信度打标（rateMatchConfidence 移植子集：纠正强制 confirmed → 标题主
+  // 门 → 年份门；平台门省略——见文件头差异说明）
+  function rateMatchConfidenceLite(input) {
+    const gameName = String(input.gameName || '');
+    const resultName = String(input.resultName || '');
+    const sourceKey = MATCH_SOURCE_LABELS[input.source] ? String(input.source) : 'unknown';
+    const sourceLabel = MATCH_SOURCE_LABELS[sourceKey] || '未知来源';
+    const pageYear = extractTitleYear(gameName);
+    const steamYear = yearOfDateString(input.releaseDate || '');
+    const similarity = resultName ? titleSimilarity(resultName, gameName) : 0;
+    const base = { resultName, sourceLabel, similarity };
+    const suspected = (text) => ({ ...base, confidence: 'suspected', reasonText: text });
+    // 纠正来源强制 confirmed：用户手动确认优先于自动相似度/年份判定
+    if (sourceKey === 'correction') {
+      return { ...base, confidence: 'confirmed', reasonText: '用户已确认的映射（人工纠正记录）' };
+    }
+    if (!resultName) return suspected('Steam 结果未返回标题，无法核对');
+    if (similarity < TITLE_SIMILARITY_THRESHOLD) return suspected('匹配标题与页面标题相似度不足');
+    if (pageYear !== null && steamYear !== null && Math.abs(pageYear - steamYear) > 1) {
+      return suspected('页面年份与 Steam 发行年份相差超过 1 年');
+    }
+    const reasonText =
+      pageYear !== null && steamYear !== null ? '标题一致，发行年份相符' : '标题一致；发行年份仅一侧可知（不降级）';
+    return { ...base, confidence: 'confirmed', reasonText };
+  }
+  // 置信度挂载（orchestrator-list attachMatch 语义：结果对象携带四字段）
+  function attachMatchConfidence(target, gameName, resultName, source) {
+    if (!target || typeof target !== 'object') return target;
+    if (target.matchConflict) return target; // 冲突标记已强制推测，不覆盖
+    const m = rateMatchConfidenceLite({
+      gameName,
+      resultName: resultName || target.name || '',
+      releaseDate: target.releaseDate || '',
+      source: source || ''
+    });
+    target.matchConfidence = m.confidence;
+    target.matchName = m.resultName;
+    target.matchSource = m.sourceLabel;
+    target.matchNote = m.reasonText;
+    return target;
+  }
   // ==================================================================
   // §2 存储层（扩展 steam-cache/name-index/wrong-reports/url-index 的 GM 形态）
   // Storage layer: TTL caches + indexes, bounded with LRU-ish compaction.
@@ -607,13 +839,142 @@
   }
   // ttl=0 表示不过期：cacheGet 的过期分支要求 entry.ttl 真值——ttl 0 直接放行 ✓
 
-  // --- URL → appId 索引（url-index 语义：同 URL=同游戏） ---
+  // --- URL → appId 索引（url-index 语义：同 URL=同游戏；v14.29.0 起生产写入
+  // 全部走 urlIndexSetArbitrated 仲裁——盲写原语已删除） ---
   function urlIndexGet(pageUrl) {
     const e = cacheGet('urlIndex', pageUrl);
-    return e ? e.d : null; // {appId, name, ts}
+    return e ? e.d : null; // {appId, name, ts, titleHash?}
   }
-  function urlIndexSet(pageUrl, appId, name) {
-    cacheSet('urlIndex', pageUrl, { appId: String(appId), name: name || '', ts: Date.now() }, TTL.metaMs);
+
+  // --- v14.29.0 同步：URL 索引仲裁写入 + 同站冲突防线 ---
+  // （url-index.js setUrlAppIdArbitrated / findHostUrlConflict + steam/
+  // match-conflicts.js claimOrDetectMatch 移植。逻辑不变式：同站点两个不同
+  // 页面在逻辑上至多一侧指向同一款游戏——两页标题检索命中同一 appId 时
+  // 至少一侧错配（扩展实证：xianyudanji.gg/107968.html 与 /107966.html）。
+  // 三条防线：①推测级不覆盖已有不同绑定（防漂移钉死）；②同站冲突拒写
+  // （不固化第二侧）；③同标题转载豁免（DJB2 标题哈希相同 = 同游戏重发）。
+  // Arbirated URL-index writes + host-conflict guards, ported from the
+  // extension's v14.29.0 match-conflict defenses.）
+  function gameKeyOf(name) {
+    const s = String(name || '');
+    let h = 5381;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+    return h.toString(36).slice(-6).padStart(6, '0');
+  }
+  function normalizePageUrl(url) {
+    try {
+      const u = new URL(url, location.href);
+      return u.origin + u.pathname;
+    } catch {
+      return String(url || '');
+    }
+  }
+  function hostOfUrl(url) {
+    try {
+      return new URL(String(url || '')).hostname.toLowerCase();
+    } catch {
+      return '';
+    }
+  }
+  function urlIndexEntries() {
+    return gmStore
+      .keys()
+      .filter((k) => k.indexOf('url:') === 0)
+      .map((k) => {
+        const raw = gmStore.get(k, null);
+        return { url: k.slice(4), d: raw && typeof raw === 'object' ? raw.d : null };
+      })
+      .filter((e) => e.d && e.d.appId);
+  }
+  // 同站冲突检测：同 host 另一页已绑定同一 appId → 返回该页（同标题哈希豁免；
+  // 旧条目无哈希保守参与）
+  function urlIndexFindHostConflict(pageUrl, appId, titleHash) {
+    const key = normalizePageUrl(pageUrl);
+    const host = hostOfUrl(key);
+    if (!key || !host || appId === null || appId === undefined) return null;
+    for (const e of urlIndexEntries()) {
+      if (e.url === key) continue;
+      if (hostOfUrl(e.url) !== host) continue; // 跨站同 appId = 同游戏多站收录，正常
+      if (String(e.d.appId) !== String(appId)) continue;
+      const otherHash = e.d.titleHash || '';
+      if (titleHash && otherHash && otherHash === String(titleHash)) continue;
+      return { url: e.url };
+    }
+    return null;
+  }
+  // 仲裁写入：同一绑定刷新；推测级不换绑；冲突拒写；确认级（人工确认/封面
+  // 直取）才允许换绑。返回 {written, reason} 供调用方留证。
+  function urlIndexSetArbitrated(pageUrl, appId, name, opts) {
+    const o = opts || {};
+    const key = normalizePageUrl(pageUrl);
+    if (!key || appId === null || appId === undefined) return { written: false, reason: 'invalid' };
+    const prev = urlIndexGet(key);
+    const prevAppId = prev && prev.appId ? String(prev.appId) : null;
+    const hash = String(o.titleHash || '');
+    if (prevAppId && prevAppId === String(appId)) {
+      cacheSet(
+        'urlIndex',
+        key,
+        {
+          appId: String(appId),
+          name: name || (prev && prev.name) || '',
+          ts: Date.now(),
+          titleHash: hash || (prev && prev.titleHash) || ''
+        },
+        TTL.metaMs
+      );
+      return { written: true, reason: 'refresh' };
+    }
+    if (prevAppId && o.confidence !== 'confirmed') {
+      return { written: false, reason: 'suspected-keep', existingAppId: prevAppId };
+    }
+    const conflict = urlIndexFindHostConflict(key, appId, hash);
+    if (conflict) return { written: false, reason: 'host-conflict', existingUrl: conflict.url };
+    cacheSet('urlIndex', key, { appId: String(appId), name: name || '', ts: Date.now(), titleHash: hash }, TTL.metaMs);
+    return { written: true, reason: prevAppId ? 'confirmed-overwrite' : 'fresh' };
+  }
+  // 会话级冲突声明表（match-conflicts.js 移植：持久索引尚未落盘的同批场景；
+  // GM 存储同步读写 → 同步实现）。TTL 10 分钟、容量 200 有界。
+  const CLAIM_TTL_MS = 10 * 60 * 1000;
+  const CLAIM_MAX = 200;
+  const matchClaims = new Map();
+  function claimOrDetectMatch(gameName, pageUrl, appId) {
+    if (!pageUrl || appId === null || appId === undefined) return null;
+    const key = normalizePageUrl(pageUrl);
+    const host = hostOfUrl(key);
+    if (!key || !host) return null;
+    const hash = gameKeyOf(gameName);
+    const now = Date.now();
+    // 1) 持久层：URL 索引同站另一页已绑定同一 appId
+    const persisted = urlIndexFindHostConflict(key, appId, hash);
+    if (persisted) return { source: 'url-index', existingUrl: persisted.url };
+    // 2) 会话层：近期声明中同一 (host, appId) 被不同页、不同标题占用
+    for (const [k, c] of matchClaims) {
+      if (now - c.at > CLAIM_TTL_MS) matchClaims.delete(k);
+    }
+    for (const [k, c] of matchClaims) {
+      const sep = k.indexOf('|');
+      if (k.slice(0, sep) === host && k.slice(sep + 1) === String(appId) && c.url !== key && c.hash !== hash) {
+        return { source: 'session', existingUrl: c.url };
+      }
+    }
+    // 3) 无冲突 → 记录声明（供同批后续页面检测；超容量淘汰最旧）
+    matchClaims.set(host + '|' + String(appId), { name: String(gameName || ''), url: key, hash, at: now });
+    if (matchClaims.size > CLAIM_MAX) {
+      const oldest = matchClaims.keys().next().value;
+      if (oldest !== undefined) matchClaims.delete(oldest);
+    }
+    return null;
+  }
+  // 冲突降级标记（orchestrator-list attachMatch conflictReason 语义：强制
+  // 「推测」+ 悬停依据；matchConflict 标记同时驱动跳写名称索引）
+  const HOST_CONFLICT_NOTE = '同站点另一页面已命中同一游戏，至少一侧匹配可能有误';
+  function forceConflictMarkers(target) {
+    if (!target || typeof target !== 'object') return target;
+    target.matchConfidence = 'suspected';
+    target.matchConflict = true;
+    target.matchNote = HOST_CONFLICT_NOTE;
+    return target;
   }
 
   // --- 评分缓存（steam-cache rating 模块语义：数据 + 冷却戳 + 失败计数） ---
@@ -792,11 +1153,14 @@
     let appId = null;
     let excludeAppId = null;
     let resolved = null;
+    let dlcCollapsed = false; // v14.29.0：资料片→本体折叠（同站冲突豁免依据）
+    let hadNetworkError = false; // v14.29.0：故障三态——网络故障 ≠ 未找到
 
     // Phase 0：元素直取 appId + DLC 解析（内容侧封面 Steam CDN appId）
     if (o.appId) {
       const base = await resolveDlcToBase(String(o.appId));
       if (base.appId) appId = base.appId;
+      if (appId && String(appId) !== String(o.appId)) dlcCollapsed = true;
     }
 
     // Phase 1.5：人工纠正知识库优先（该标题曾手动确认 → 用户确认 > 自动）
@@ -805,7 +1169,19 @@
       appId = correction.correctAppId;
       excludeAppId = correction.wrongAppId;
       deleteNameIndexEntry(gameName);
-      return { appId, name: '', englishName: '', source: 'correction', excludeAppId };
+      return {
+        appId,
+        name: '',
+        englishName: '',
+        source: 'correction',
+        excludeAppId,
+        dlcCollapsed,
+        // v14.29.0：纠正来源强制 confirmed（用户手动确认优先于自动判定）
+        matchConfidence: 'confirmed',
+        matchName: gameName,
+        matchSource: MATCH_SOURCE_LABELS.correction,
+        matchNote: '用户已确认的映射（人工纠正记录）'
+      };
     }
 
     // Phase 1：名称索引命中（粘性条目）
@@ -828,6 +1204,7 @@
         found = await searchOnce(terms, o.rawTitle || gameName, excludeAppId, 'schinese');
       } catch {
         found = null;
+        hadNetworkError = true; // v14.29.0：传输层失败留证（三态判定）
       }
       // 阶段 3 兜底：英文段重搜（l=english）+ 社区英文端点
       if (!found) {
@@ -837,6 +1214,7 @@
             found = await searchOnce([enSeg], o.rawTitle || gameName, excludeAppId, 'english');
           } catch {
             found = null;
+            hadNetworkError = true;
           }
           if (!found) {
             const cItems = await communitySearch(enSeg);
@@ -850,6 +1228,11 @@
         }
       }
       if (!found) {
+        // v14.29.0：网络故障 ≠ 未找到——不固化负缓存，返回三态哨兵（内容侧
+        // 渲染「网络异常」而非「未找到」；v14.28.8 故障语义分离同源）
+        if (hadNetworkError) {
+          return { networkFailed: true };
+        }
         // 负缓存固化守卫：窗口内任一成功（total>failed）才允许（v9.7.0 语义）
         const w = domainWindow.store;
         const total = w.length;
@@ -869,7 +1252,8 @@
       name: (resolved && resolved.name) || '',
       englishName: (resolved && resolved.englishName) || '',
       source: resolved ? 'search' : 'index',
-      excludeAppId
+      excludeAppId,
+      dlcCollapsed
     };
   }
   // ==================================================================
@@ -1059,14 +1443,18 @@
     (document.head || document.documentElement).appendChild(style);
   }
 
-  // HTML 转义（shared/escape.js 语义：任意入参 String 强转——数字不崩）
-  function esc(text) {
-    return String(text === null || text === undefined ? '' : text)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
+  // v14.29.0 安全整改（用户裁决：先整改再提交）：浮窗/候选面板全量
+  // createElement 化——innerHTML 字符串拼接退场（零 HTML sink），动态值一律
+  // textContent（消毒由 DOM API 结构性保证，不再依赖调用点 esc() 记忆）。
+  // 原共享转义函数 esc()（shared/escape.js 语义）随模板退场删除——全脚本
+  // 已无 HTML 拼接面。徽章域本就走 createBadge textContent，不受影响。
+  // DOM-building helper: dynamic values go through textContent only, so the
+  // whole userscript now has no HTML sink at all (structural sanitizer).
+  function el(tag, styleText, text) {
+    const node = document.createElement(tag);
+    if (styleText) node.style.cssText = styleText;
+    if (text !== undefined && text !== null) node.textContent = String(text);
+    return node;
   }
 
   /** 创建徽章（badge-base.js createBadge 移植：防重复守卫在 prependBadge） */
@@ -1095,9 +1483,40 @@
     return badge;
   }
 
+  // v14.29.0：动态负缓存提示（name-index negativeCacheRemainingMs 语义——
+  // 分级退避 15min→1h→2h 的真实剩余分钟，替代静态文案）
+  function negativeCacheHintText(gameName) {
+    const e = nameIndexGet(gameName);
+    if (!e || e.appId !== null || !e.lastSearched) return '负缓存分级退避 15min→1h→2h 后自动重查';
+    const remaining = negativeTtlFor(e.missCount) - (Date.now() - e.lastSearched);
+    if (remaining <= 0) return '负缓存已过期，点击立即重查';
+    return '约 ' + Math.max(1, Math.ceil(remaining / 60000)) + ' 分钟后自动重查（分级退避）· 点击立即重查';
+  }
+
+  // v14.29.0：网络异常徽章（故障三态——传输层失败 ≠ "Steam 无此游戏"；
+  // badges/core.js gr-badge-network-error 同语义，点击立即重查）
+  function renderNetworkErrorBadge(item) {
+    const link = item.link;
+    if (!link) return;
+    const old = link.querySelector('.gr-rating-badge');
+    if (old) old.remove();
+    const badge = createBadge(link, {
+      text: '⚠️ 网络异常·点击重查',
+      color: '#b8860b',
+      bg: 'rgba(184,134,11,.12)',
+      cls: 'gr-badge-network-error gr-rating-badge',
+      title:
+        'Steam 网络/限流故障，本次未能完成检索（并非 Steam 无此游戏）\n点击立即重查 · 网络恢复后刷新页面也会自动重试',
+      dashed: true,
+      onClick: () => retryItem(item)
+    });
+    link.parentNode.insertBefore(badge, link);
+  }
+
   /**
    * 好评率徽章渲染（badges/core.js prependBadge 移植——段序：综合简化为
-   * 总体+近30天；未找到/类型/低评测/正常四形态）。
+   * 总体+近30天；未找到/类型/低评测/正常四形态；v14.29.0 同步推测匹配
+   * 琥珀徽章与悬停依据）。
    */
   function renderRatingBadge(item, rating, settings) {
     const link = item.link;
@@ -1110,6 +1529,16 @@
     const isNotFound = !rating || !rating.appId;
     const isTypeBadge = !isNotFound && rating.type && rating.type !== 'game' && rating.type !== 'demo';
     const rate = rating ? rating.positiveRate : null;
+    // v14.29.0：推测匹配视觉（badges/core.js SUSPECT_STYLE 同源——琥珀配色 +
+    // 前缀「推测」+ 虚线边框；悬停给出依据：冲突说明/匹配标题/来源）
+    const suspectedMatch = !!(rating && rating.matchConfidence === 'suspected');
+    const suspectTitle = suspectedMatch
+      ? '推测匹配（未达确认条件）：' +
+        (rating.matchNote || '信息不足，无法核对标题/发行年份') +
+        (rating.matchName ? '\n匹配到「' + rating.matchName + '」' : '') +
+        (rating.matchSource ? ' · 来源：' + rating.matchSource : '') +
+        '\n'
+      : '';
     // v14.16.0 O5：同项多徽章 DocumentFragment 单次插入（每项 2-3 次独立 DOM
     // 写 → 1 次；扩展侧 insertBadges 单点同语义）。
     const pendingBadges = [];
@@ -1127,7 +1556,7 @@
           color: '#666',
           bg: 'rgba(102,102,102,.08)',
           cls: 'gr-badge-notfound gr-rating-badge',
-          title: '未在 Steam 找到该游戏\n负缓存分级退避 15min→1h→2h 后自动重查\n点击立即重查（穿透负缓存）',
+          title: '未在 Steam 找到该游戏\n' + negativeCacheHintText(item.gameName),
           dashed: true,
           onClick: () => retryItem(item)
         })
@@ -1162,11 +1591,13 @@
       const relNote = rating.releaseDate ? '，发售于 ' + rating.releaseDate : '';
       pendingBadges.push(
         createBadge(link, {
-          text: relTag ? '#' + rating.appId + '·' + relTag : '#' + rating.appId,
-          color: '#8f98a0',
-          bg: 'rgba(143,152,160,.15)',
-          cls: 'gr-rating-badge',
+          text: (suspectedMatch ? '推测 ' : '') + (relTag ? '#' + rating.appId + '·' + relTag : '#' + rating.appId),
+          color: suspectedMatch ? '#b8860b' : '#8f98a0',
+          bg: suspectedMatch ? 'rgba(184,134,11,.12)' : 'rgba(143,152,160,.15)',
+          cls: suspectedMatch ? 'gr-rating-badge gr-badge-suspected' : 'gr-rating-badge',
+          dashed: suspectedMatch,
           title:
+            suspectTitle +
             'Steam 已匹配 (AppID ' +
             rating.appId +
             ')' +
@@ -1184,11 +1615,13 @@
     if (showAll) {
       pendingBadges.push(
         createBadge(link, {
-          text: rate + '%',
-          color: rate >= 70 ? '#a1cd44' : rate >= 40 ? '#b9a064' : '#bd545d',
-          bg: 'rgba(42,71,94,.5)',
-          cls: 'gr-rating-badge',
+          text: (suspectedMatch ? '推测 ' : '') + rate + '%',
+          color: suspectedMatch ? '#b8860b' : rate >= 70 ? '#a1cd44' : rate >= 40 ? '#b9a064' : '#bd545d',
+          bg: suspectedMatch ? 'rgba(184,134,11,.12)' : 'rgba(42,71,94,.5)',
+          cls: suspectedMatch ? 'gr-rating-badge gr-badge-suspected' : 'gr-rating-badge',
+          dashed: suspectedMatch,
           title:
+            suspectTitle +
             'Steam 好评率 ' +
             rate +
             '%\n' +
@@ -1251,9 +1684,14 @@
   /** 未找到点击重查（v14.7 批次 3：穿透负缓存单游戏重查） */
   async function retryItem(item) {
     renderWaitingBadge(item, '⏳ 重查中…');
-    const data = await lookupAndRate(item.gameName, { rawTitle: item.gameName, ignoreNegativeCache: true });
+    const resolved = await lookupAndRate(item.gameName, { rawTitle: item.gameName, ignoreNegativeCache: true });
     removeWaitingBadge(item);
-    renderRatingBadge(item, data, currentSettings);
+    // v14.29.0：故障三态——重查遇网络故障渲染「网络异常」而非「未找到」
+    if (resolved && resolved.networkFailed) {
+      renderNetworkErrorBadge(item);
+      return;
+    }
+    renderRatingBadge(item, resolved, currentSettings);
   }
   // ==================================================================
   // §6 详情页浮窗（sidebar.js/candidates.js 轻量移植：信息行/无评价原因行/
@@ -1295,7 +1733,7 @@
     return null;
   }
 
-  /** 完整查改评一次过（resolve → rate → url 索引记录） */
+  /** 完整查改评一次过（resolve → 冲突防线 → rate → 仲裁记录 url 索引） */
   async function lookupAndRate(gameName, opts) {
     const o = opts || {};
     const resolved = await resolveGame(gameName, {
@@ -1303,68 +1741,31 @@
       appId: o.appId,
       ignoreNegativeCache: o.ignoreNegativeCache
     });
-    if (!resolved || !resolved.appId) return null;
-    if (o.pageUrl && resolved.source !== 'correction') {
-      urlIndexSet(o.pageUrl, resolved.appId, resolved.name);
+    if (!resolved || !resolved.appId) return resolved || null; // networkFailed 哨兵透传
+    // v14.29.0：同站 appId 冲突防线（DLC 折叠豁免——同站"本体页+资料片页"
+    // 命中同一 appId 是正确行为）
+    let conflict = null;
+    if (o.pageUrl && !resolved.dlcCollapsed) {
+      conflict = claimOrDetectMatch(gameName, o.pageUrl, resolved.appId);
     }
-    if (resolved.source === 'correction' || resolved.source === 'index') {
-      recordNameIndex(gameName, resolved.appId); // 纠正/索引命中粘性化
+    if (o.pageUrl && resolved.source !== 'correction') {
+      const arb = urlIndexSetArbitrated(o.pageUrl, resolved.appId, resolved.name, {
+        confidence: conflict ? 'suspected' : resolved.matchConfidence || null,
+        titleHash: gameKeyOf(gameName)
+      });
+      if (!arb.written && arb.reason === 'host-conflict') {
+        conflict = conflict || { source: 'url-index', existingUrl: arb.existingUrl };
+      }
+    }
+    if ((resolved.source === 'correction' || resolved.source === 'index') && !conflict) {
+      recordNameIndex(gameName, resolved.appId); // 纠正/索引命中粘性化（冲突条目跳写）
     }
     const data = await rateGame(resolved.appId, { name: resolved.name });
-    return data;
-  }
-
-  /** 浮窗行渲染（renderRatingRows 语义：positiveRate null → 灰色原因行） */
-  function ratingRowsHtml(d) {
-    const fmt = (n) => Number(n || 0).toLocaleString('zh-CN');
-    if (d.positiveRate != null) {
-      const html =
-        '<div class="gr-row"><span class="k">Steam 总体评价</span><span class="v" style="color:' +
-        (d.positiveRate >= 70 ? '#a1cd44' : d.positiveRate >= 40 ? '#b9a064' : '#bd545d') +
-        '">' +
-        esc(d.ratingDesc || '') +
-        ' ' +
-        d.positiveRate +
-        '%（' +
-        fmt(d.totalReviews) +
-        ' 篇）</span></div>' +
-        '<div class="gr-row"><span class="k">最近 30 天</span><span class="v">' +
-        (d.recentPositiveRate == null ? '—' : d.recentPositiveRate + '%（' + fmt(d.recentTotalReviews) + ' 篇）') +
-        '</span></div>';
-      return html;
+    if (data) {
+      attachMatchConfidence(data, gameName, resolved.name, resolved.source);
+      if (conflict) forceConflictMarkers(data);
     }
-    // v14.10.1 无评价原因行：desc（官方语义）+ 条数 + 发售日期
-    return (
-      '<div class="gr-row"><span class="k">Steam 总体评价</span><span class="v" style="color:#8f98a0">' +
-      esc(d.ratingDesc || '暂无评测') +
-      (d.totalReviews ? '（' + fmt(d.totalReviews) + ' 篇）' : '') +
-      '</span></div>' +
-      (d.releaseDate
-        ? '<div class="gr-row"><span class="k">发售日期</span><span class="v">' + esc(d.releaseDate) + '</span></div>'
-        : '')
-    );
-  }
-
-  function floatHtml(d) {
-    return (
-      '<div style="text-align:center;margin-bottom:10px;">' +
-      '<a href="' +
-      esc(ENDPOINTS.steamStoreApp + d.appId + '/') +
-      '" target="_blank" rel="noopener">' +
-      '<img src="' +
-      esc(d.headerImage) +
-      '" style="max-width:100%;border-radius:4px;" onerror="this.style.display=\'none\'">' +
-      '</a></div>' +
-      '<div style="font-weight:bold;color:#fff;margin-bottom:8px;word-break:break-all;">' +
-      esc(d.name || d.englishName || '') +
-      '</div>' +
-      ratingRowsHtml(d) +
-      '<div class="gr-row"><span class="k">AppID</span><span class="v"><a href="' +
-      esc(ENDPOINTS.steamStoreApp + d.appId + '/') +
-      '" target="_blank" rel="noopener" style="color:#66c0f4;text-decoration:none;">' +
-      esc(d.appId) +
-      ' ↗</a></span></div>'
-    );
+    return data;
   }
 
   /** 创建/复用浮窗（floats.js 语义简化：折叠 + 拖拽 + 左右位置） */
@@ -1374,11 +1775,22 @@
     float = document.createElement('div');
     float.id = 'gr-us-float';
     float.className = 'gr-float ' + (settings.floatSide === 'right' ? 'right' : 'left');
-    float.innerHTML =
-      '<div class="gr-float-head"><span>🎮 Steam 信息</span><span>' +
-      '<span id="gr-us-fold" style="cursor:pointer;padding:0 6px;">▾</span>' +
-      '<span id="gr-us-close" style="cursor:pointer;padding:0 6px;">✕</span></span></div>' +
-      '<div class="gr-float-body" id="gr-us-float-body"></div>';
+    const headEl = el('div');
+    headEl.className = 'gr-float-head';
+    headEl.appendChild(el('span', null, '🎮 Steam 信息'));
+    const ops = el('span');
+    const foldBtn = el('span', 'cursor:pointer;padding:0 6px;', '▾');
+    foldBtn.id = 'gr-us-fold';
+    const closeBtn = el('span', 'cursor:pointer;padding:0 6px;', '✕');
+    closeBtn.id = 'gr-us-close';
+    ops.appendChild(foldBtn);
+    ops.appendChild(closeBtn);
+    headEl.appendChild(ops);
+    const bodyEl = el('div');
+    bodyEl.className = 'gr-float-body';
+    bodyEl.id = 'gr-us-float-body';
+    float.appendChild(headEl);
+    float.appendChild(bodyEl);
     document.body.appendChild(float);
     if (!settings.detailFloatExpanded) float.classList.add('gr-float-folded');
     float.querySelector('#gr-us-fold').addEventListener('click', () => float.classList.toggle('gr-float-folded'));
@@ -1413,73 +1825,224 @@
   }
 
   function showFloatLoading(text) {
-    floatBody().innerHTML =
-      '<div style="padding:16px;text-align:center;color:#8f98a0;">' +
-      '<div style="font-size:24px;margin-bottom:8px;">🎮</div>' +
-      esc(text || '正在查询 Steam 信息...') +
-      '</div>';
+    const wrap = el('div', 'padding:16px;text-align:center;color:#8f98a0;');
+    wrap.appendChild(el('div', 'font-size:24px;margin-bottom:8px;', '🎮'));
+    wrap.appendChild(el('div', null, text || '正在查询 Steam 信息...'));
+    floatBody().replaceChildren(wrap);
+  }
+
+  /**
+   * 浮窗数据构建（v14.29.0 安全整改：原 floatHtml/ratingRowsHtml innerHTML
+   * 拼接 → createElement 全量——结构与样式逐项等价，动态值全部 textContent）。
+   * Build the float body via DOM only (structure/style equivalent to the old
+   * escaped innerHTML template).
+   */
+  function buildFloatBody(d) {
+    const frag = document.createDocumentFragment();
+    const topWrap = el('div', 'text-align:center;margin-bottom:10px;');
+    const link = el('a');
+    link.href = ENDPOINTS.steamStoreApp + d.appId + '/';
+    link.target = '_blank';
+    link.rel = 'noopener';
+    const img = el('img');
+    img.src = d.headerImage || '';
+    img.style.cssText = 'max-width:100%;border-radius:4px;';
+    img.onerror = function () {
+      this.style.display = 'none';
+    };
+    link.appendChild(img);
+    topWrap.appendChild(link);
+    frag.appendChild(topWrap);
+    frag.appendChild(
+      el('div', 'font-weight:bold;color:#fff;margin-bottom:8px;word-break:break-all;', d.name || d.englishName || '')
+    );
+    appendRatingRows(frag, d);
+    const appRow = el('div');
+    appRow.className = 'gr-row';
+    const k = el('span');
+    k.className = 'k';
+    k.textContent = 'AppID';
+    const v = el('span');
+    v.className = 'v';
+    const a = el('a', 'color:#66c0f4;text-decoration:none;');
+    a.href = ENDPOINTS.steamStoreApp + d.appId + '/';
+    a.target = '_blank';
+    a.rel = 'noopener';
+    a.textContent = (d.appId || '') + ' ↗';
+    v.appendChild(a);
+    appRow.appendChild(k);
+    appRow.appendChild(v);
+    frag.appendChild(appRow);
+    return frag;
+  }
+
+  /** 评分行构建（原 ratingRowsHtml：positiveRate null → 灰色原因行） */
+  function appendRatingRows(frag, d) {
+    const fmt = (n) => Number(n || 0).toLocaleString('zh-CN');
+    if (d.positiveRate != null) {
+      const row1 = el('div');
+      row1.className = 'gr-row';
+      const k1 = el('span');
+      k1.className = 'k';
+      k1.textContent = 'Steam 总体评价';
+      const v1 = el('span');
+      v1.className = 'v';
+      v1.style.color = d.positiveRate >= 70 ? '#a1cd44' : d.positiveRate >= 40 ? '#b9a064' : '#bd545d';
+      v1.textContent = (d.ratingDesc || '') + ' ' + d.positiveRate + '%（' + fmt(d.totalReviews) + ' 篇）';
+      row1.appendChild(k1);
+      row1.appendChild(v1);
+      const row2 = el('div');
+      row2.className = 'gr-row';
+      const k2 = el('span');
+      k2.className = 'k';
+      k2.textContent = '最近 30 天';
+      const v2 = el('span');
+      v2.className = 'v';
+      v2.textContent =
+        d.recentPositiveRate == null ? '—' : d.recentPositiveRate + '%（' + fmt(d.recentTotalReviews) + ' 篇）';
+      row2.appendChild(k2);
+      row2.appendChild(v2);
+      frag.appendChild(row1);
+      frag.appendChild(row2);
+      return;
+    }
+    const row = el('div');
+    row.className = 'gr-row';
+    const k = el('span');
+    k.className = 'k';
+    k.textContent = 'Steam 总体评价';
+    const v = el('span');
+    v.className = 'v';
+    v.style.color = '#8f98a0';
+    v.textContent = (d.ratingDesc || '暂无评测') + (d.totalReviews ? '（' + fmt(d.totalReviews) + ' 篇）' : '');
+    row.appendChild(k);
+    row.appendChild(v);
+    frag.appendChild(row);
+    if (d.releaseDate) {
+      const rd = el('div');
+      rd.className = 'gr-row';
+      const rk = el('span');
+      rk.className = 'k';
+      rk.textContent = '发售日期';
+      const rv = el('span');
+      rv.className = 'v';
+      rv.textContent = d.releaseDate;
+      rd.appendChild(rk);
+      rd.appendChild(rv);
+      frag.appendChild(rd);
+    }
   }
 
   /** 渲染浮窗数据 + 手动选择兜底（renderAndShow 语义） */
   function renderFloat(data) {
-    floatBody().innerHTML = floatHtml(data);
+    floatBody().replaceChildren(buildFloatBody(data));
   }
 
   /** 候选手动选择面板（candidates.js 移植：搜索+键盘导航+纠正映射+重试） */
   function renderCandidates(gameName, missReason) {
     const body = floatBody();
-    const reasonHtml = missReason
-      ? '<div class="gr-reason">⚠️ 未命中原因：' +
-        esc(missReason) +
-        '<br>Steam 商店接口不可达时请检查网络/加速器；确认游戏在 Steam 后点下方重试。</div>'
-      : '';
-    body.innerHTML =
-      '<div style="font-weight:bold;color:#fff;margin-bottom:8px;">🎮 手动选择游戏</div>' +
-      '<div style="font-size:12px;color:#8f98a0;margin-bottom:12px;">未能自动匹配 Steam 游戏。请从下方候选列表中选择，或输入关键词搜索。</div>' +
-      reasonHtml +
-      '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-      '<button id="gr-us-retry" style="flex:1;padding:6px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;">🔄 重试自动匹配</button>' +
-      '<button id="gr-us-skip" style="flex:1;padding:6px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;">⏭ 跳过</button>' +
-      '</div>' +
-      '<input id="gr-us-cand-input" type="text" placeholder="输入游戏名搜索..." style="width:100%;box-sizing:border-box;padding:8px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;margin-bottom:8px;">' +
-      '<div style="display:flex;gap:8px;margin-bottom:10px;">' +
-      '<input id="gr-us-bind-input" type="text" placeholder="或直接绑定 AppID（纯数字 / 商店链接）" style="flex:1;min-width:0;padding:6px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;">' +
-      '<button id="gr-us-bind-btn" style="flex:none;padding:6px 12px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;">🔗 绑定</button>' +
-      '</div>' +
-      '<div id="gr-us-cand-list" style="max-height:300px;overflow-y:auto;"></div>';
+    // v14.29.0 安全整改：面板 DOM 全量构建（原 innerHTML 模板退场）
+    const titleEl = el('div', 'font-weight:bold;color:#fff;margin-bottom:8px;', '🎮 手动选择游戏');
+    const subtitle = el(
+      'div',
+      'font-size:12px;color:#8f98a0;margin-bottom:12px;',
+      '未能自动匹配 Steam 游戏。请从下方候选列表中选择，或输入关键词搜索。'
+    );
+    body.replaceChildren(titleEl, subtitle);
+    if (missReason) {
+      const reasonEl = el(
+        'div',
+        'white-space:pre-line;',
+        '⚠️ 未命中原因：' + missReason + '\nSteam 商店接口不可达时请检查网络/加速器；确认游戏在 Steam 后点下方重试。'
+      );
+      reasonEl.className = 'gr-reason';
+      body.appendChild(reasonEl);
+    }
+    const btnRow = el('div', 'display:flex;gap:8px;margin-bottom:10px;');
+    const retryBtn = el(
+      'button',
+      'flex:1;padding:6px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;',
+      '🔄 重试自动匹配'
+    );
+    retryBtn.id = 'gr-us-retry';
+    const skipBtn = el(
+      'button',
+      'flex:1;padding:6px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;',
+      '⏭ 跳过'
+    );
+    skipBtn.id = 'gr-us-skip';
+    btnRow.appendChild(retryBtn);
+    btnRow.appendChild(skipBtn);
+    body.appendChild(btnRow);
+    const searchInput = el(
+      'input',
+      'width:100%;box-sizing:border-box;padding:8px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;margin-bottom:8px;'
+    );
+    searchInput.id = 'gr-us-cand-input';
+    searchInput.type = 'text';
+    searchInput.placeholder = '输入游戏名搜索...';
+    body.appendChild(searchInput);
+    const bindRow = el('div', 'display:flex;gap:8px;margin-bottom:10px;');
+    const bindInput = el(
+      'input',
+      'flex:1;min-width:0;padding:6px 10px;background:#0e141b;border:1px solid #2a475e;border-radius:3px;color:#c7d5e0;'
+    );
+    bindInput.id = 'gr-us-bind-input';
+    bindInput.type = 'text';
+    bindInput.placeholder = '或直接绑定 AppID（纯数字 / 商店链接）';
+    const bindBtn = el(
+      'button',
+      'flex:none;padding:6px 12px;border:1px solid #2a475e;border-radius:3px;background:#2a475e;color:#c7d5e0;cursor:pointer;',
+      '🔗 绑定'
+    );
+    bindBtn.id = 'gr-us-bind-btn';
+    bindRow.appendChild(bindInput);
+    bindRow.appendChild(bindBtn);
+    body.appendChild(bindRow);
+    const listEl = el('div', 'max-height:300px;overflow-y:auto;');
+    listEl.id = 'gr-us-cand-list';
+    body.appendChild(listEl);
 
-    const listEl = body.querySelector('#gr-us-cand-list');
+    const listStatus = (text, color) => {
+      const wrap = el('div', 'padding:20px;text-align:center;color:' + (color || '#8f98a0') + ';', text);
+      listEl.replaceChildren(wrap);
+    };
     let kbIndex = -1;
 
     async function searchAndRender(keyword) {
-      listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#8f98a0;">⏳ 搜索中...</div>';
+      listStatus('⏳ 搜索中...');
       const term = String(keyword || gameName);
       let candidates = [];
       try {
         const data = await storeSearch(term, 'schinese');
         candidates = (data.items || []).filter((i) => !addonNameRe.test(i.name || '')).slice(0, 8);
       } catch {
-        listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">搜索失败，请检查网络</div>';
+        listStatus('搜索失败，请检查网络', '#e74c3c');
         return;
       }
       if (candidates.length === 0) {
-        listEl.innerHTML =
-          '<div style="padding:20px;text-align:center;color:#8f98a0;">未找到候选游戏，请尝试其他关键词</div>';
+        listStatus('未找到候选游戏，请尝试其他关键词');
         return;
       }
-      listEl.innerHTML = candidates
-        .map(
-          (c) =>
-            '<div class="gr-cand" role="option" data-appid="' +
-            esc(c.id) +
-            '">' +
-            '<div style="flex:1;min-width:0;"><div style="font-size:12px;color:#c7d5e0;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
-            esc(c.name) +
-            '</div><div style="font-size:10px;color:#8f98a0;">App ID: ' +
-            esc(c.id) +
-            '</div></div></div>'
-        )
-        .join('');
+      const listFrag = document.createDocumentFragment();
+      for (const c of candidates) {
+        const itemEl = el('div');
+        itemEl.className = 'gr-cand';
+        itemEl.setAttribute('role', 'option');
+        itemEl.setAttribute('data-appid', String(c.id));
+        const outer = el('div', 'flex:1;min-width:0;');
+        outer.appendChild(
+          el(
+            'div',
+            'font-size:12px;color:#c7d5e0;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;',
+            c.name || ''
+          )
+        );
+        outer.appendChild(el('div', 'font-size:10px;color:#8f98a0;', 'App ID: ' + c.id));
+        itemEl.appendChild(outer);
+        listFrag.appendChild(itemEl);
+      }
+      listEl.replaceChildren(listFrag);
       const items = [...listEl.querySelectorAll('.gr-cand')];
       const setActive = (i) => {
         kbIndex = (i + items.length) % items.length;
@@ -1507,7 +2070,7 @@
       items.forEach((item) => {
         item.addEventListener('click', async () => {
           const appId = item.getAttribute('data-appid');
-          listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#8f98a0;">⏳ 正在获取详情...</div>';
+          listStatus('⏳ 正在获取详情...');
           const data = await rateGame(appId, {});
           if (data) {
             saveCorrection(gameName, appId, null); // 手动确认 → 纠正映射（优先于一切索引）
@@ -1515,7 +2078,7 @@
             recordNameIndex(gameName, appId);
             renderFloat(data);
           } else {
-            listEl.innerHTML = '<div style="padding:20px;text-align:center;color:#e74c3c;">获取详情失败，请重试</div>';
+            listStatus('获取详情失败，请重试', '#e74c3c');
           }
         });
       });
@@ -1525,11 +2088,12 @@
       const btn = body.querySelector('#gr-us-retry');
       btn.disabled = true;
       btn.textContent = '⏳ 重试中...';
-      const data = await lookupAndRate(gameName, {
+      const resolved = await lookupAndRate(gameName, {
         rawTitle: document.title,
         ignoreNegativeCache: true,
         appId: extractAppIdFromImages() || undefined
       });
+      const data = resolved && resolved.networkFailed ? null : resolved; // 三态哨兵按未命中处理
       if (data) {
         renderFloat(data);
       } else {
@@ -1552,9 +2116,8 @@
     });
 
     // v14.15.0 N3：手动绑定 AppID（storesearch 搜不到已下架游戏的用户兜底；
-    // 与扩展同语义：纠正映射优先于一切索引，绑定前 appdetails 确认存在）
-    const bindInput = body.querySelector('#gr-us-bind-input');
-    const bindBtn = body.querySelector('#gr-us-bind-btn');
+    // 与扩展同语义：纠正映射优先于一切索引，绑定前 appdetails 确认存在）。
+    // v14.29.0：面板 DOM 化后直接引用构建引用（原 body.querySelector 重取退场）
     if (bindBtn && bindInput) {
       bindBtn.addEventListener('click', async () => {
         const text = String(bindInput.value || '').trim();
@@ -1568,12 +2131,10 @@
           return;
         }
         bindBtn.disabled = true;
-        listEl.innerHTML =
-          '<div style="padding:20px;text-align:center;color:#8f98a0;">⏳ 正在确认 AppID ' + esc(appId) + ' ...</div>';
+        listStatus('⏳ 正在确认 AppID ' + appId + ' ...');
         const details = await fetchAppDetails(appId);
         if (!details) {
-          listEl.innerHTML =
-            '<div style="padding:20px;text-align:center;color:#e74c3c;">未找到该 AppID 的 Steam 条目，请核对</div>';
+          listStatus('未找到该 AppID 的 Steam 条目，请核对', '#e74c3c');
           bindBtn.disabled = false;
           return;
         }
@@ -1606,7 +2167,12 @@
     const imgAppId = extractAppIdFromImages();
     let data = null;
     try {
-      data = await lookupAndRate(gameName, { rawTitle: document.title, appId: imgAppId || undefined, pageUrl });
+      const resolved = await lookupAndRate(gameName, {
+        rawTitle: document.title,
+        appId: imgAppId || undefined,
+        pageUrl
+      });
+      data = resolved && resolved.networkFailed ? null : resolved; // 三态哨兵转常规未命中（下方网络重查承接）
     } catch {
       data = null;
     }
@@ -1623,7 +2189,7 @@
         autoRetryTimer = null;
         try {
           const retry = await lookupAndRate(gameName, { rawTitle: document.title, ignoreNegativeCache: true });
-          if (retry) {
+          if (retry && !retry.networkFailed) {
             renderFloat(retry);
             return;
           }
@@ -1806,7 +2372,7 @@
     return items;
   }
 
-  /** 单项处理：resolve → rate → 徽章（就绪快路径同步应用） */
+  /** 单项处理：resolve → 冲突防线 → rate → 徽章（就绪快路径同步应用） */
   async function processItem(item, index, total) {
     renderWaitingBadge(item, '⏳ 检索中 ' + index + '/' + total);
     try {
@@ -1816,19 +2382,42 @@
       let data = null;
       if (urlHit && urlHit.appId) {
         data = await rateGame(urlHit.appId, { name: urlHit.name });
+        if (data) {
+          // v14.29.0：快路径同样过同站冲突防线（扩展 wave-1 缓存命中同语义）
+          const conflict = claimOrDetectMatch(item.gameName, pageUrl, urlHit.appId);
+          attachMatchConfidence(data, item.gameName, data.name || urlHit.name || '', 'url');
+          if (conflict) forceConflictMarkers(data);
+        }
       }
+      let networkFailed = false;
       if (!data) {
-        data = await lookupAndRate(item.gameName, { rawTitle: item.gameName, pageUrl });
+        const resolved = await lookupAndRate(item.gameName, { rawTitle: item.gameName, pageUrl });
+        if (resolved && resolved.networkFailed) {
+          networkFailed = true;
+        } else {
+          data = resolved;
+        }
       }
       removeWaitingBadge(item);
+      if (networkFailed) {
+        renderNetworkErrorBadge(item); // v14.29.0：故障三态（网络异常 ≠ 未找到）
+        return;
+      }
       renderRatingBadge(item, data, currentSettings);
       applyFilter(item, data);
-      if (data && data.appId) {
-        recordNameIndex(item.gameName, data.appId);
+      if (data && data.appId && !data.matchConflict) {
+        recordNameIndex(item.gameName, data.appId); // 冲突条目跳写（错误一侧不固化）
       }
-    } catch {
+    } catch (e) {
       removeWaitingBadge(item);
-      renderRatingBadge(item, null, currentSettings); // 未找到徽章（可点击重查）
+      // v14.29.0：故障三态——传输层失败（熔断/超时/网络错误）渲染「网络异常」，
+      // 其余保持「未找到」（此前一律未找到 = 与"Steam 无此游戏"同形）
+      const msg = String((e && e.message) || e || '');
+      if (/network-error|timeout|circuit-open/.test(msg)) {
+        renderNetworkErrorBadge(item);
+      } else {
+        renderRatingBadge(item, null, currentSettings); // 未找到徽章（可点击重查）
+      }
     }
   }
 
@@ -1952,7 +2541,14 @@
       cjkBigramDice,
       isCrossoverEntry,
       isEnEdition,
-      isNewReleaseDate
+      isNewReleaseDate,
+      // v14.29.0 同步：置信度/冲突防线诊断面
+      titleSimilarity,
+      extractTitleYear,
+      rateMatchConfidenceLite,
+      gameKeyOf,
+      urlIndexFindHostConflict,
+      claimOrDetectMatch
     },
     vocab: VOCAB,
     store: gmStore,

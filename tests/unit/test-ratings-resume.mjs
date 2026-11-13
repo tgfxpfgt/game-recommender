@@ -346,6 +346,186 @@ describe('getRatingsQueueStatus（v14.8.1 等待检测队列信息）', () => {
   });
 });
 
+// ============ v14.29.0：整队信封持久化 + 同 tab 任务替换 + 本页视角快照 ============
+// 缺陷 1（检查点单槽）：多 tab 排队时只有运行中任务被持久化，SW 被杀后排队
+// 任务全部蒸发 → 对应页面全部等 45s 强制收尾转"未返回"。修复 = 信封
+// {v:2, jobs:[运行中, ...排队...]}，恢复时按序重入全局链。
+// 缺陷 2（同 tab 旧任务不替换）：页面刷新/翻页后旧任务占位跑完，旧推送与
+// 新批次交错。修复 = 同 tab 最新任务顶替旧任务。
+describe('v14.29.0 整队持久化 + 同 tab 替换 + 本页视角快照', () => {
+  /** 等待全局链空闲 / wait for the global chain to idle */
+  async function waitForIdle() {
+    for (let i = 0; i < 50; i++) {
+      const s = ratingsBatch.getRatingsQueueStatus();
+      if (!s.running && s.pending === 0) return;
+      await new Promise((r) => setTimeout(r, 50));
+    }
+  }
+
+  test('信封恢复：排队任务随运行任务一起续跑（SW 重启不再丢队）', async () => {
+    await waitForIdle();
+    storage._reset();
+    pushed.length = 0;
+    const fetchMock = createFetchMock({
+      '/api/storesearch': { items: [{ id: 1245620, name: '艾尔登法环', type: 'game' }] },
+      '/api/appdetails': {
+        1245620: {
+          success: true,
+          data: { steam_appid: 1245620, name: '艾尔登法环', type: 'game', genres: [{ id: 1, description: 'RPG' }] }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 100, total_positive: 90, total_negative: 10, review_score_desc: '特别好评' },
+        reviews: []
+      }
+    });
+    const restore = installFetchMock(fetchMock);
+    try {
+      // 模拟上个 SW 实例留下的整队信封：tab41 运行中 + tab42 排队
+      await chrome.storage.session.set({
+        [JOB_KEY]: {
+          v: 2,
+          jobs: [
+            {
+              tabId: 41,
+              queue: ['艾尔登法环'],
+              retried: false,
+              urlAppIds: {},
+              imageData: {},
+              appIds: {},
+              startedAt: Date.now()
+            },
+            {
+              tabId: 42,
+              queue: ['艾尔登法环'],
+              retried: false,
+              urlAppIds: {},
+              imageData: {},
+              appIds: {},
+              startedAt: Date.now()
+            }
+          ]
+        }
+      });
+      const resp = await ratingsBatch.resumeRatingsBatch();
+      expect(resp.resumed).toEqual(true);
+      expect(resp.remaining).toEqual(2);
+      for (let i = 0; i < 80; i++) {
+        const s = ratingsBatch.getRatingsQueueStatus();
+        if (!sessionGet(JOB_KEY) && !s.running && s.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      expect(sessionGet(JOB_KEY)).toEqual(undefined);
+      // 两个 tab 各自收到评分与 done；全局 FIFO 次序：tab41 先于 tab42
+      const p41 = pushed.findIndex((p) => p.tabId === 41 && p.msg.ratings && p.msg.ratings['艾尔登法环']);
+      const p42 = pushed.findIndex((p) => p.tabId === 42 && p.msg.ratings && p.msg.ratings['艾尔登法环']);
+      expect(p41).toBeGreaterThanOrEqual(0);
+      expect(p42).toBeGreaterThan(p41);
+      expect(!!pushed.find((p) => p.tabId === 41 && p.msg.done)).toEqual(true);
+      expect(!!pushed.find((p) => p.tabId === 42 && p.msg.done)).toEqual(true);
+    } finally {
+      restore();
+      await waitForIdle();
+    }
+  });
+
+  test('同 tab 排队任务替换：最新任务顶替旧任务（刷新/翻页后不占位）', async () => {
+    await waitForIdle();
+    storage._reset();
+    pushed.length = 0;
+    resetApiMonitor();
+    const prevFetch = globalThis.fetch;
+    const base = createFetchMock({
+      '/api/storesearch': { items: [{ id: 1245620, name: '艾尔登法环', type: 'game' }] },
+      '/api/appdetails': {
+        1245620: {
+          success: true,
+          data: { steam_appid: 1245620, name: '艾尔登法环', type: 'game', genres: [{ id: 1, description: 'RPG' }] }
+        }
+      },
+      '/appreviews': {
+        success: 1,
+        query_summary: { total_reviews: 100, total_positive: 90, total_negative: 10, review_score_desc: '特别好评' },
+        reviews: []
+      }
+    });
+    // 挂起门：首个任务占住运行位（fetch 挂起），排队语义在确定性冻结下断言
+    let release = () => {};
+    const gate = new Promise((res) => {
+      release = res;
+    });
+    globalThis.fetch = async (/** @type {any} */ url, /** @type {any} */ opts) => {
+      await gate;
+      return base(url, opts);
+    };
+    try {
+      ratingsBatch.startRatingJob({
+        tabId: 51,
+        queue: ['挂起占位游戏'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      for (let i = 0; i < 40; i++) {
+        const s = ratingsBatch.getRatingsQueueStatus();
+        if (s.running && s.current && s.current.tabId === 51) break;
+        await new Promise((r) => setTimeout(r, 25));
+      }
+      // 同 tab 连入两个任务 → 第二个顶替第一个（旧任务不占队列位）
+      ratingsBatch.startRatingJob({
+        tabId: 51,
+        queue: ['游戏甲'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      ratingsBatch.startRatingJob({
+        tabId: 51,
+        queue: ['游戏乙', '游戏丙'],
+        retried: false,
+        urlAppIds: {},
+        imageData: {},
+        appIds: {},
+        startedAt: Date.now()
+      });
+      const s = ratingsBatch.getRatingsQueueStatus(51);
+      expect(s.pending).toEqual(1); // 只剩最新任务一个排队位
+      expect(s.you).toBeTruthy();
+      expect(s.you.position).toEqual(0); // 前方排队任务 0 个（旧任务已被顶替）
+      expect(s.you.running).toEqual(false);
+      expect(s.you.total).toEqual(2); // 保留的是最新任务的队列
+      expect(s.you.aheadItems).toBeGreaterThanOrEqual(1); // 运行中任务剩余条目计入前方
+      release();
+      for (let i = 0; i < 100; i++) {
+        const s2 = ratingsBatch.getRatingsQueueStatus();
+        if (!sessionGet(JOB_KEY) && !s2.running && s2.pending === 0) break;
+        await new Promise((r) => setTimeout(r, 50));
+      }
+      // 最新任务的条目照常推送到同 tab（含确定性 miss 的 null 值条目）；
+      // 被顶替的旧任务条目无推送
+      const ethas = pushed.some(
+        (p) => p.tabId === 51 && p.msg.ratings && Object.prototype.hasOwnProperty.call(p.msg.ratings, '游戏乙')
+      );
+      expect(ethas).toEqual(true);
+      const jiaLeak = pushed.some(
+        (p) => p.tabId === 51 && p.msg.ratings && Object.prototype.hasOwnProperty.call(p.msg.ratings, '游戏甲')
+      );
+      expect(jiaLeak).toEqual(false);
+      expect(!!pushed.find((p) => p.tabId === 51 && p.msg.done)).toEqual(true);
+    } finally {
+      release();
+      globalThis.fetch = prevFetch;
+      await waitForIdle();
+      resetApiMonitor();
+    }
+  }, 20000);
+});
+
 // ============ v14.17.0：任务时长治理（硬截止 + 死 tab 中止——多标签页排队卡死修复） ============
 // v14.17.0: job runtime governance. A preset/past deadlineAt drops remaining
 // names and pushes done immediately; a dead tab (push fails) skips/aborts its

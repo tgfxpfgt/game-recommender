@@ -251,3 +251,78 @@ test('P1-1：残缺缓存 miss 分桶（cache-* 类）', async () => {
   const kind = (mem.events.find((e) => e.k === 'wave1Miss' && String(e.kind).startsWith('cache-')) || {}).kind || '';
   expect(kind.startsWith('cache-')).toEqual(true);
 });
+
+// ===== v14.29.0：同站 appId 冲突防线（逻辑不变式：同站两页至多一侧同游戏） =====
+// 用户实证：xianyudanji.gg/107968.html 与 /107966.html 是两篇不同游戏帖，
+// 标题检索把两页匹配到同一 appId = 至少一侧错配。防线：冲突命中 → 结果强制
+// 「推测」+ matchConflict 标记 + 不写名称索引/注册表变体（防错误一侧固化；
+// 跳写以证据档案 match.hostConflict 计数佐证）；会话声明表补足持久索引尚未
+// 落盘的同批场景。密封性：前序用例留下熔断/名称索引污染——本节显式重置
+// api-monitor 并预写名称索引（usableAppId 直取路径，零搜索/零出站依赖）。
+const urlIdx = await import(new URL('../../background/storage/url-index.js', import.meta.url).href);
+const conflictsMod = await import(new URL('../../background/steam/match-conflicts.js', import.meta.url).href);
+const apiMon = await import(new URL('../../background/core/api-monitor.js', import.meta.url).href);
+
+test('v14.29.0：同站另一页已绑定同一 appId → 降级推测 + 拦截计数', async () => {
+  apiMon.resetApiMonitor();
+  await urlIdx.resetUrlIndex();
+  conflictsMod.resetMatchConflictsForTest();
+  evMod.resetUsageEvidence();
+  await nameIdx.recordNameIndex('艾尔登法环', '1245620'); // 显式预写（防前序污染）
+  // 预置：107968 页已绑定 1245620（先前的匹配写入，标题哈希不同）
+  await urlIdx.setUrlAppIdArbitrated('https://www.xianyudanji.gg/107968.html', 1245620, {
+    confidence: 'confirmed',
+    titleHash: 'aaaaaa'
+  });
+  const r = await getSteamPositiveRate('艾尔登法环', {
+    pageUrl: 'https://www.xianyudanji.gg/107966.html',
+    ignoreNegativeCache: true
+  });
+  expect(String(r && r.appId)).toEqual('1245620');
+  expect(r && r.matchConflict).toEqual(true);
+  expect(r && r.matchConfidence).toEqual('suspected');
+  await evMod.flushUsageEvidence();
+  const mem = evMod.getUsageEvidenceMemory();
+  expect(mem.counters['match.hostConflict'] || 0).toBeGreaterThan(0);
+  expect(mem.events.some((e) => e.k === 'hostConflict' && e.kind === 'url-index')).toEqual(true);
+});
+
+test('v14.29.0：无冲突页面同链路 → 照常出结果（无冲突标记）', async () => {
+  apiMon.resetApiMonitor();
+  await urlIdx.resetUrlIndex();
+  conflictsMod.resetMatchConflictsForTest();
+  evMod.resetUsageEvidence();
+  await nameIdx.recordNameIndex('艾尔登法环', '1245620');
+  const r = await getSteamPositiveRate('艾尔登法环', {
+    pageUrl: 'https://www.xianyudanji.gg/107970.html',
+    ignoreNegativeCache: true
+  });
+  expect(String(r && r.appId)).toEqual('1245620');
+  expect(r && r.matchConflict).toEqual(undefined);
+});
+
+test('v14.29.0：同批次会话级冲突（持久索引尚未落盘也能拦）', async () => {
+  apiMon.resetApiMonitor();
+  await urlIdx.resetUrlIndex();
+  conflictsMod.resetMatchConflictsForTest();
+  evMod.resetUsageEvidence();
+  await nameIdx.recordNameIndex('艾尔登法环', '1245620');
+  // 同名异名双预写（第二个标题走精确键，零搜索依赖）
+  await nameIdx.recordNameIndex('艾尔登法环 官方中文版', '1245620');
+  const first = await getSteamPositiveRate('艾尔登法环', {
+    pageUrl: 'https://www.xianyudanji.gg/107980.html',
+    ignoreNegativeCache: true
+  });
+  expect(first && first.matchConflict).toEqual(undefined); // 首个命中方正常
+  // 同批另一页（不同标题 → 哈希不同，不触发同标题转载豁免）命中同一 appId
+  const second = await getSteamPositiveRate('艾尔登法环 官方中文版', {
+    pageUrl: 'https://www.xianyudanji.gg/107981.html',
+    ignoreNegativeCache: true
+  });
+  expect(second && second.matchConflict).toEqual(true);
+  expect(second && second.matchConfidence).toEqual('suspected');
+  await evMod.flushUsageEvidence();
+  const mem = evMod.getUsageEvidenceMemory();
+  expect(mem.events.some((e) => e.k === 'hostConflict' && e.kind === 'session')).toEqual(true);
+  conflictsMod.resetMatchConflictsForTest();
+});

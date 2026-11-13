@@ -45,23 +45,33 @@ const PHASE_LABELS = {
  *   phase?: string, stalled?: {name?: string, phase?: string, elapsedMs?: number}|null}|null} prog
  * @param {{running?: boolean, pending?: number,
  *   current?: {done: number, total: number, phase?: string, stalled?: {name?: string, phase?: string, elapsedMs?: number}|null}|null,
- *   degraded?: boolean}|null} qs
+ *   degraded?: boolean,
+ *   you?: {position: number, running?: boolean, total?: number, aheadItems?: number}|null}|null} qs
  * @returns {string}
  */
 export function formatQueueStatusText(prog, qs) {
   const parts = [];
   const cur = qs && qs.current;
-  if (cur && typeof cur.total === 'number' && cur.total > 0) {
-    const curTotal = cur.total; // v14.8.1：局部常量——TS 收窄不穿模板串内重复属性读
-    parts.push(`检索中 ${Math.min(cur.done ?? 0, curTotal)}/${curTotal}`);
-  } else if (prog && typeof prog.total === 'number' && prog.total > 0) {
-    const progTotal = prog.total;
-    parts.push(`检索中 ${Math.min(prog.done ?? 0, progTotal)}/${progTotal}`);
-  }
-  if (qs && typeof qs.pending === 'number' && qs.pending > 0) {
-    parts.push(`排队 ${qs.pending}`);
-  } else if (prog && typeof prog.position === 'number' && prog.position > 0) {
-    parts.push(`排队中·前方 ${prog.position} 项`);
+  const you = qs && qs.you;
+  if (you && !you.running) {
+    // v14.29.0：本页视角（快照 you 在场且非运行中 = 本页还在排队）——此前
+    // 等待徽章只能显示别的页面的"检索中 x/y"，本页排第几位毫无信息
+    parts.push(`排队中·前方 ${you.position} 页`);
+    if (typeof you.aheadItems === 'number' && you.aheadItems > 0) parts.push(`前方约 ${you.aheadItems} 项`);
+    if (typeof you.total === 'number' && you.total > 0) parts.push(`本页 ${you.total} 项`);
+  } else {
+    if (cur && typeof cur.total === 'number' && cur.total > 0) {
+      const curTotal = cur.total; // v14.8.1：局部常量——TS 收窄不穿模板串内重复属性读
+      parts.push(`检索中 ${Math.min(cur.done ?? 0, curTotal)}/${curTotal}`);
+    } else if (prog && typeof prog.total === 'number' && prog.total > 0) {
+      const progTotal = prog.total;
+      parts.push(`检索中 ${Math.min(prog.done ?? 0, progTotal)}/${progTotal}`);
+    }
+    if (qs && typeof qs.pending === 'number' && qs.pending > 0) {
+      parts.push(`排队 ${qs.pending}`);
+    } else if (prog && typeof prog.position === 'number' && prog.position > 0) {
+      parts.push(`排队中·前方 ${prog.position} 项`);
+    }
   }
   // v14.28.6 R4-A：软阈值超时 → 明确告知"卡在哪一步、已等多久"（只展示不放弃；
   // 硬阈值放弃由后台继续队列，前端看到的是该项最终为未找到）
@@ -95,9 +105,10 @@ export function formatQueueStatusText(prog, qs) {
  * @property {Array<any>} urlEntries
  * @property {boolean} finished
  * @property {any} forceTimer
+ * @property {number} [forceDeadlineAt] - v14.29.0：排队感知顺延的绝对帽（首查时预置）
  * @property {Array<any>|null} domOrder - v14.0.0：原始 DOM 顺序基线（本地排序"恢复原顺序"用）
  */
-/** @type {{ ratingsJob: RatingsJob|null, batchState: any, ratingsProgress: {done:number,total:number,degraded:boolean}|null }} */
+/** @type {{ ratingsJob: RatingsJob|null, batchState: any, ratingsProgress: {done:number,total:number,degraded:boolean,queued?:number,position?:number,phase?:string,stalled?:{name:string,phase:string,elapsedMs:number}|null}|null }} */
 export const _state = { ratingsJob: null, batchState: null, ratingsProgress: null };
 
 function createRatingsJob(processItems, settings, uniqueNames) {
@@ -200,8 +211,17 @@ export function applyRatingsResponse(ratings, mode) {
       if (!job.container && item.element && item.element.parentNode) job.container = item.element.parentNode;
       changed = true;
       // 合集等 type 徽章：appId 非本体，不写入下载站网址缓存
+      // v14.29.0：同站冲突条目（matchConflict）不回写 URL 索引——冲突两侧
+      // 至多一侧正确，先不固化任何一侧的新绑定（已有绑定不受影响）
       const isTypeBadge = rating.type && rating.type !== 'game' && rating.type !== 'demo';
-      if (item.url && !isTypeBadge) job.urlEntries.push({ appId: rating.appId, url: item.url });
+      if (item.url && !isTypeBadge && !rating.matchConflict) {
+        job.urlEntries.push({
+          appId: rating.appId,
+          url: item.url,
+          confidence: rating.matchConfidence || null, // v14.29.0：仲裁写入依据
+          name: item.name // v14.29.0：标题哈希（同标题转载豁免冲突判定）
+        });
+      }
       // 好评率过滤（v6.4.4：总 + 30 天 + 与/或/非）：不达标的从 DOM 移除
       // v6.4.10 修复：30 天过滤（enableRecentFilter）在 positiveRate 为 null 时
       // 被外层检查跳过——过滤判定独立于 positiveRate（任一过滤启用即判定）
@@ -382,12 +402,36 @@ export function sortItemsByRating(job) {
 // 兜底：45 秒强制收尾。未返回的游戏保持空白（后台已逐批落盘缓存，
 // 刷新页面第一波即命中），**不误标"未找到"**；收尾后迟到的推送仍会应用徽章。
 // v4.0.0：批次多次调度，forceTimer 逐批重置（最后一批发起 +45s 起算）。
+// v14.29.0：排队感知——本页任务仍在全局链排队（前面还有其他下载站页面）时
+// 不强制收尾（条目被误转"未返回·点击重查"、真徽章到达又替换 = 闪烁误导），
+// 顺延下一轮检查；顺延帽 10 分钟有界（后台单任务另有 300s 硬截止，排队总时长
+// 有界）。队列查询失败按原行为立即收尾（安全侧）。
+const FORCE_FINISH_MAX_MS = 10 * 60 * 1000;
 function scheduleFallbacks() {
   const job = _state.ratingsJob;
   if (!job) return;
   clearTimeout(job.forceTimer);
-  job.forceTimer = setTimeout(() => {
-    if (!_state.ratingsJob || _state.ratingsJob.finished) return;
+  if (!job.forceDeadlineAt) job.forceDeadlineAt = Date.now() + FORCE_FINISH_MAX_MS;
+  job.forceTimer = setTimeout(async () => {
+    // v14.29.0：身份校验 + 队列状态三态感知——只有确认"本页任务正在运行"
+    // 才 45s 强制收尾；排队中（前方还有任务）或状态不可知（SW 重启窗口/
+    // 无快照形态/查询失败）一律顺延到绝对帽（10 分钟）。不可知时贸然收尾
+    // 是破坏性动作：会把慢载下仍在推进的正常推送掐死（45s 硬杀定时器正是
+    // sim 节 2/2b 负载下偶发失败的根源——收尾守卫丢推送，重试轮照样撞墙）。
+    // Identity + queue-state gating: only finish when THIS tab's job is
+    // confirmed running; queued/unknown states defer (bounded by the cap).
+    if (!_state.ratingsJob || _state.ratingsJob !== job || _state.ratingsJob.finished) return;
+    let running = false;
+    try {
+      const resp = await chrome.runtime.sendMessage({ action: 'GET_RATINGS_QUEUE_STATUS' });
+      running = !!(resp && resp.you && resp.you.running);
+    } catch {
+      running = false; // 查询失败 = 不可知 → 顺延（非收尾）
+    }
+    if (!running && Date.now() < (job.forceDeadlineAt || 0)) {
+      scheduleFallbacks(); // 排队/不可知 → 顺延（帽内有界）
+      return;
+    }
     finishRatings();
   }, FORCE_FINISH_MS);
 }

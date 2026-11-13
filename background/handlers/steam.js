@@ -35,9 +35,10 @@ import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.j
 import { setManualPlatform, flushManualPlatforms } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
 import { resolveManualPlatformOption, extractEnNameSegment, trimPlatformTokens } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源
 import { fetchMetacriticScore } from '../steam/api-metacritic.js'; // v14.19.0：主机条目评分
-import { getAppIdByUrl, setUrlAppId, deleteUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
+import { getAppIdByUrl, setUrlAppIdArbitrated, deleteUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 import { noteTabGame, getTabGame } from '../core/tab-game.js'; // v14.1.0：SidePanel 当前页联动
 import { recordUsageCounter, recordUsageDuration, recordUsageEvent } from '../storage/usage-evidence.js'; // v14.25.0：使用证据档案
+import { gameKeyOf } from '../storage/diag-trace.js'; // v14.29.0：标题哈希（同站冲突豁免判定）
 
 /**
  * 游戏雷达 Game Radar - 消息处理：Steam 查询 / Steam Message Handlers
@@ -216,7 +217,17 @@ async function doHandleSearchSteam(message, sender) {
     recordUsageCounter('match.searchOk'); // v14.25.0：标题检索命中
     recordUsageDuration('search', Date.now() - t0);
     // 记录 URL → appId（详情页网址作为后续检索第一候选）
-    if (pageUrl) await setUrlAppId(pageUrl, steamResult.appId);
+    // v14.29.0：仲裁写入——推测级不覆盖已有不同绑定（防漂移钉死），同站
+    // 冲突（另一页已绑定同一 appId）不固化第二侧
+    if (pageUrl) {
+      const arb = await setUrlAppIdArbitrated(pageUrl, steamResult.appId, {
+        confidence: steamResult.matchConfidence || null,
+        titleHash: gameKeyOf(message.gameName || '')
+      });
+      if (!arb.written && arb.reason === 'host-conflict') {
+        Logger.warn('Steam', `网址索引写入跳过（同站冲突）: ${steamResult.appId} 已绑定另一页`);
+      }
+    }
   } else {
     Logger.warn('Steam', `未找到"${message.gameName}"`);
     recordUsageCounter('match.miss'); // v14.25.0：检索未命中（原因随事件流）
@@ -367,7 +378,14 @@ export async function handleGetSteamByAppId(message, sender) {
     });
     if (gameName) await recordNameIndex(gameName, target.appId);
     // v7.0.3：直取匹配成功也回写网址索引（统一详情页/列表页/Steam 页匹配）
-    if (pageUrl) await setUrlAppId(pageUrl, target.appId);
+    // v14.29.0：仲裁写入——直取 appId 来自页面封面而非相似度猜测，且已过
+    // namesRelated 门 → 确认级（版本后缀补搜升级同强度）
+    if (pageUrl) {
+      await setUrlAppIdArbitrated(pageUrl, target.appId, {
+        confidence: 'confirmed',
+        titleHash: gameKeyOf(gameName || '')
+      });
+    }
 
     await flushAllCaches();
     const newEntry = await getSteamCacheEntry(target.appId);
@@ -615,7 +633,8 @@ export const steamHandlers = {
   GET_STEAM_RATINGS: handleGetSteamRatings,
   PREFETCH_STEAM_RATINGS: handlePrefetchSteamRatings,
   // v14.8.1：等待检测徽章实时队列信息（内容侧 5s 轮询消费）
-  GET_RATINGS_QUEUE_STATUS: () => getRatingsQueueStatus(),
+  // v14.29.0：透传 sender tabId → 快照附 `you`（本页排队位置/前方条目数）
+  GET_RATINGS_QUEUE_STATUS: (m, sender) => getRatingsQueueStatus(sender && sender.tab ? sender.tab.id : null),
   CLEAR_CACHE_FOR_PAGE: handleClearCacheForPage,
   CACHE_STEAM_PAGE: handleCacheSteamPage,
   REPORT_WRONG_APPID: handleReportWrongAppId,

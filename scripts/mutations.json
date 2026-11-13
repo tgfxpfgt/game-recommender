@@ -60,6 +60,46 @@
       "replace": "cnReviewsFetchedAt: reviews ? Date.now() : 0,",
       "check": "npx vitest run tests/integration/test-handlers.mjs",
       "caughtBy": "integration：B2-F1 用例（失败后标记必须为 0，恢复后重取回填）"
+    },
+    {
+      "id": "ratings-checkpoint-single-slot",
+      "class": "B",
+      "defect": "多 tab 排队任务蒸发：检查点单槽只存运行中任务，SW 被杀后排队任务（内存 pending）全部丢失，对应页面全部等 45s 强制收尾转「未返回·点击重查」（v14.29.0 整队信封修复）",
+      "file": "background/steam/ratings-batch.js",
+      "find": "for (const j of jobs) startRatingJob(j);",
+      "replace": "if (jobs.length > 0) startRatingJob(jobs[0]);",
+      "check": "npx vitest run tests/unit/test-ratings-resume.mjs",
+      "caughtBy": "unit：整队信封恢复用例（SW 重启后两 tab 必须都收到评分推送，只恢复首个即红）"
+    },
+    {
+      "id": "same-tab-queued-job-not-replaced",
+      "class": "B",
+      "defect": "同 tab 旧任务不替换：页面刷新/翻页后旧任务占队列位跑完，旧推送与新批次交错且多占一位（v14.29.0 最新顶替修复）",
+      "file": "background/steam/ratings-batch.js",
+      "find": "if (dupIdx !== -1) {",
+      "replace": "if (false && dupIdx !== -1) {",
+      "check": "npx vitest run tests/unit/test-ratings-resume.mjs",
+      "caughtBy": "unit：同 tab 排队任务替换用例（pending 必须为 1 且旧任务条目零推送）"
+    },
+    {
+      "id": "suspected-overwrites-url-binding",
+      "class": "B",
+      "defect": "推测级匹配无条件覆盖 URL→appId 绑定：错误推测顶掉正确绑定后被详情页「URL 第一候选」永久钉死，只能人工报错解绑（v14.29.0 仲裁写入修复）",
+      "file": "background/storage/url-index.js",
+      "find": "if (prevAppId !== null && options.confidence !== 'confirmed') {",
+      "replace": "if (false && prevAppId !== null && options.confidence !== 'confirmed') {",
+      "check": "npx vitest run tests/unit/test-storage.mjs",
+      "caughtBy": "unit：仲裁写入用例（suspected-keep 必须拒绝且旧绑定保持）"
+    },
+    {
+      "id": "host-conflict-binding-fixture",
+      "class": "B",
+      "defect": "同站不同页命中同一 appId 无防线：两页绑定全部固化（至少一侧错配，107968/107966 实证），错误映射经 URL 第一候选反复复用（v14.29.0 同站冲突拦截修复）",
+      "file": "background/storage/url-index.js",
+      "find": "if (conflict) return { written: false, reason: 'host-conflict', existingUrl: conflict.url };",
+      "replace": "if (false && conflict) return { written: false, reason: 'host-conflict', existingUrl: conflict.url };",
+      "check": "npx vitest run tests/unit/test-storage.mjs",
+      "caughtBy": "unit：同站冲突写入用例（107960 页命中已绑定 appId 必须拒写）"
     }
   ]
 }

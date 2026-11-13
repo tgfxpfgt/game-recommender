@@ -333,6 +333,95 @@ describe('url-index 详情页网址索引（v7.0.2，v7.0.5 合并自 test-url-i
   });
 });
 
+// ============ v14.29.0：同站冲突检测 + 仲裁写入（逻辑不变式防线） ============
+// 不变式：同站点两个不同页面在逻辑上至多一侧指向同一款游戏——两页标题检索
+// 命中同一 appId 时至少一侧错配（用户实证：xianyudanji.gg/107968.html 与
+// /107966.html 被匹配到同一 appId）。防线 = 冲突检测（findHostUrlConflict）
+// + 仲裁写入（推测不覆盖已有不同绑定；冲突不固化第二侧；确认级才允许换绑）。
+describe('url-index 同站冲突检测 + 仲裁写入（v14.29.0）', () => {
+  const H = (s) => s; // 测试内直接用可读哈希串（生产侧传 gameKeyOf 产物）
+
+  beforeAll(async () => {
+    storage._reset({});
+    await idxMod.resetUrlIndex();
+    // 预置：xianyudanji 107968 → 1245620（哈希 hA）；gamer520 109515 → 3764200
+    await idxMod.setUrlAppIdArbitrated('https://www.xianyudanji.gg/107968.html', 1245620, {
+      confidence: 'confirmed',
+      titleHash: H('hA')
+    });
+    await idxMod.setUrlAppIdArbitrated('https://www.gamer520.com/109515.html', 3764200, {
+      confidence: 'confirmed',
+      titleHash: H('hB')
+    });
+  });
+
+  test('同站不同页同 appId → 冲突（用户实证 107968/107966 场景）', async () => {
+    const c = await idxMod.findHostUrlConflict('https://www.xianyudanji.gg/107966.html', 1245620, H('hC'));
+    expect(c).not.toEqual(null);
+    expect(c.url).toEqual('https://www.xianyudanji.gg/107968.html');
+  });
+
+  test('同标题哈希（同站转载重发）→ 豁免不判冲突', async () => {
+    expect(await idxMod.findHostUrlConflict('https://www.xianyudanji.gg/107966.html', 1245620, H('hA'))).toEqual(null);
+  });
+
+  test('不同 appId / 同一页 / 跨站同 appId → 均非冲突', async () => {
+    expect(await idxMod.findHostUrlConflict('https://www.xianyudanji.gg/107966.html', 999999, H('hC'))).toEqual(null);
+    expect(await idxMod.findHostUrlConflict('https://www.xianyudanji.gg/107968.html', 1245620, H('hC'))).toEqual(null);
+    // 跨站：同一游戏在另一站有页面是正常收录，不是冲突
+    expect(await idxMod.findHostUrlConflict('https://www.gamer520.com/107966.html', 1245620, H('hC'))).toEqual(null);
+  });
+
+  test('仲裁写入：fresh 落对象形态，getAppIdByUrl 读回纯 appId', async () => {
+    // 4021140 在该 host 无其他页面绑定 → 非冲突，允许首次落绑
+    const r = await idxMod.setUrlAppIdArbitrated('https://www.xianyudanji.gg/107966.html', 4021140, {
+      confidence: 'confirmed',
+      titleHash: H('hC')
+    });
+    expect(r.written).toEqual(true);
+    expect(r.reason).toEqual('fresh');
+    expect(await idxMod.getAppIdByUrl('https://www.xianyudanji.gg/107966.html')).toEqual(4021140);
+  });
+
+  test('仲裁写入：同站冲突 → 拒绝写入（不固化第二侧）', async () => {
+    // 同站另一页也命中 1245620（107968 已绑）→ 冲突拒写
+    const r = await idxMod.setUrlAppIdArbitrated('https://www.xianyudanji.gg/107960.html', 1245620, {
+      confidence: 'confirmed',
+      titleHash: H('hD')
+    });
+    expect(r.written).toEqual(false);
+    expect(r.reason).toEqual('host-conflict');
+    expect(await idxMod.getAppIdByUrl('https://www.xianyudanji.gg/107960.html')).toEqual(null);
+  });
+
+  test('仲裁写入：推测级不得覆盖已有不同绑定（防漂移钉死）', async () => {
+    // gamer520 109515 已绑 3764200；推测级换绑 4021140 → 拒绝且旧绑定保持
+    const r = await idxMod.setUrlAppIdArbitrated('https://www.gamer520.com/109515.html', 4021140, {
+      confidence: 'suspected',
+      titleHash: H('hE')
+    });
+    expect(r.written).toEqual(false);
+    expect(r.reason).toEqual('suspected-keep');
+    expect(await idxMod.getAppIdByUrl('https://www.gamer520.com/109515.html')).toEqual(3764200);
+    // 确认级（人工确认/更强证据）→ 允许换绑
+    const ok = await idxMod.setUrlAppIdArbitrated('https://www.gamer520.com/109515.html', 4021140, {
+      confidence: 'confirmed',
+      titleHash: H('hE')
+    });
+    expect(ok.written).toEqual(true);
+    expect(ok.reason).toEqual('confirmed-overwrite');
+    expect(await idxMod.getAppIdByUrl('https://www.gamer520.com/109515.html')).toEqual(4021140);
+  });
+
+  test('旧形态兼容：纯值条目读取正常，冲突判定保守参与（无哈希不豁免）', async () => {
+    await idxMod.setUrlAppId('https://www.gamer520.com/107960.html', 4021140); // 原语 = 纯值
+    expect(await idxMod.getAppIdByUrl('https://www.gamer520.com/107960.html')).toEqual(4021140);
+    // 另一 gamer520 页命中 4021140（无哈希可豁免）→ 保守判冲突
+    const c = await idxMod.findHostUrlConflict('https://www.gamer520.com/107961.html', 4021140, H('hF'));
+    expect(c).not.toEqual(null);
+  });
+});
+
 // ============ 并入：备份管理（v6.3.0，v7.0.5 合并自 test-backups） ============
 const backups = await import(new URL('../../background/storage/backups.js', import.meta.url).href);
 
