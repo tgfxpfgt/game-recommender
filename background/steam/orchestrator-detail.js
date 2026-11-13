@@ -53,7 +53,13 @@ import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 15：未命中自动采集
 import { rateMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js'; // v14.28.7 R4-B3
-import { detectOffSteamPlatform } from '../../shared/platform-detect.js'; // v14.28.7 R4-B3
+import {
+  detectOffSteamPlatform,
+  detectPlatform,
+  trimPlatformTokens,
+  extractEnNameSegment
+} from '../../shared/platform-detect.js'; // v14.28.7 R4-B3；v14.29.2 平台预检
+import { fetchMetacriticScore } from './api-metacritic.js'; // v14.29.2：详情页主机条目 MC 评分（与列表 phasePlatform 同语义）
 
 // ============ 匹配置信度打标（v14.28.7 R4-B3）/ Match confidence ============
 // 用户裁决：详情面板与浮窗必须与列表徽章同尺子标推测——"只在列表标推测等于
@@ -91,6 +97,69 @@ function attachMatch(result, gameName, pageTitle, source) {
   return out;
 }
 
+// ============ 平台预检（v14.29.2，用户报告：主机/模拟器详情页仍走 PC 流程）============
+// 列表页 phasePlatform（v14.10.0 起）在任何 Steam 检索前做平台识别——详情页
+// 管线此前缺这一步：主机整合/模拟器/移植版条目照样发 storesearch/目录检索
+//（模拟器 ROM 包检索必错配，主机独占 Steam 无数据），浪费整套检索预算后才
+// 落到手动面板。此处与列表页同语义补齐，优先序与 phasePlatform 一致：
+// 手动映射 > 模拟器（platformOnly 零网络终态）> 主机（Metacritic 优先，
+// 预算单次）> PC（返回 null 继续常规管线）。
+// PC guard 优先由 detectPlatform 内部保证（"PC|Xbox"双平台条目不误入）。
+// Detail-page platform pre-check, same semantics and priority order as the
+// list pipeline's phasePlatform: manual mapping > emulator (zero-network
+// platformOnly) > console (Metacritic first) > PC (null = regular pipeline).
+/** MC 形态统一构造（浮窗 MC 视图模板所需字段；数组字段按模板归一化语义补空） */
+/** @param {string} gameName @param {string} tag @param {number|null} mcScore @param {string|null} mcName @returns {Record<string, any>} */
+function platformOnlyResult(gameName, tag, mcScore, mcName) {
+  return {
+    appId: null,
+    name: gameName,
+    platformOnly: true,
+    platformTag: tag,
+    mcScore,
+    mcName,
+    genres: [],
+    userTags: [],
+    developers: [],
+    description: '',
+    reviews: []
+  };
+}
+
+/**
+ * @param {string} gameName
+ * @param {{[k: string]: any}} [options]
+ * @returns {Promise<Record<string, any>|null>} 非平台终态返回 null（继续常规管线）
+ */
+async function phaseDetailPlatform(gameName, options = {}) {
+  // 手动映射优先于一切识别与索引（与列表 phasePlatform 同语义——映射 mcScore
+  // 缺失的主机条目按主机条目走 MC 预算补查一次，而非固化"MC —"）
+  const manual = await getManualPlatform(gameName);
+  if (manual) {
+    if (manual.kind === 'console' && manual.mcScore != null) {
+      return platformOnlyResult(gameName, manual.tag, manual.mcScore, manual.mcName);
+    }
+    if (manual.kind === 'console') {
+      const enSegManual = trimPlatformTokens(extractEnNameSegment(manual.mcName || gameName));
+      if (enSegManual) {
+        const mcRetry = await fetchMetacriticScore(enSegManual).catch(() => null);
+        if (mcRetry != null) return platformOnlyResult(gameName, manual.tag, mcRetry, enSegManual);
+      }
+    }
+    return platformOnlyResult(gameName, manual.tag, null, null);
+  }
+  // 标题级平台识别（详情页 SEARCH_STEAM 消息契约未声明 platformHint——仅
+  // 标题级识别；分类页提示词仅列表批量链消费）
+  const plat = detectPlatform(gameName);
+  if (plat.kind === 'pc') return null;
+  if (plat.kind === 'emulator') return platformOnlyResult(gameName, plat.tag, null, null);
+  // 主机条目：Metacritic 优先（EN 段剥平台词后推 slug；预算 = 单次，与列表
+  // phasePlatform 一致——详情页访问语义是单条目，无需批量预算对象）
+  const enSeg = trimPlatformTokens(extractEnNameSegment(gameName));
+  const mcScore = enSeg ? await fetchMetacriticScore(enSeg).catch(() => null) : null;
+  return platformOnlyResult(gameName, plat.tag, mcScore, mcScore != null ? enSeg : null);
+}
+
 /**
  * 搜索游戏并获取完整 Steam 详情（详情页/浮窗使用）
  * 流程：名称索引 → 动态缓存（含 Demo 自愈）→ 搜索 → 完整详情 → 三层缓存。
@@ -104,25 +173,12 @@ function attachMatch(result, gameName, pageTitle, source) {
  * @param {{[k: string]: any}} [options]
  */
 export async function searchSteamGame(gameName, options = {}) {
-  // v14.19.0（用户需求：详情页手动主机机型声明）：手动映射优先于一切检索——
-  // 声明过的条目返回 MC 形态数据（浮窗 MC 视图渲染；数组字段按模板归一化
-  // 语义补空），不再走 Steam 检索（错误 Steam 条目不再出现）。
-  const manual = await getManualPlatform(gameName);
-  if (manual) {
-    return {
-      appId: null,
-      name: gameName,
-      platformOnly: true,
-      platformTag: manual.tag,
-      mcScore: manual.mcScore,
-      mcName: manual.mcName,
-      genres: [],
-      userTags: [],
-      developers: [],
-      description: '',
-      reviews: []
-    };
-  }
+  // v14.19.0 手动映射 + v14.29.2 平台预检（模拟器/主机条目）统一在
+  // phaseDetailPlatform 短路——优先序与列表页 phasePlatform 一致（映射 >
+  // 模拟器 > 主机 > PC），主机整合/移植版条目不再先发整套 Steam 检索后才
+  // 落到手动面板。返回 null = PC 条目，继续常规管线。
+  const platResult = await phaseDetailPlatform(gameName, options);
+  if (platResult) return platResult;
   // v14.3.2：Phase 0 — 元素直取 appId + DLC 解析（内容侧封面图提取的 appId 作为起点，
   // 经 resolveDlcToBase 解析后与名称索引/纠正路径汇合——统一入口消 aside 双管线分叉）
   // v14.28.7 R4-B3：页面身份 = rawTitle（含平台/年份标记），无则退 gameName

@@ -18,6 +18,17 @@
       "required": false,
       "pending": "备源只在主源失败时触发。2026-11-12 真实校验：HEAD 200 / Content-Length 20,247,815B（与主源逐字节一致）；完整下载与 Range 在本机网络间歇重置（GFW 抖动——主源 jsDelivr 优先的布局依据）。URL 可达性已实证；产品回退路径首次真实触发仍待真实故障，届时回填 firstRun 并把 required 改回 true（G-2 余项收窄为产品路径取证）",
       "firstRun": null
+    },
+    {
+      "id": "metacritic-score",
+      "feature": "Metacritic 主机条目评分（MC 徽章——v14.10.0 上线，v14.29.2 修复 host_permissions 缺失导致的 CORS 静默全灭）",
+      "required": true,
+      "firstRun": {
+        "at": "2026-11-14",
+        "bytes": 605298,
+        "entries": 1,
+        "evidence": "真实网络 elden-ring 页 200 / ratingValue=96（slug 推导+提取语义与 fetchMetacriticScore 同构）；根因修复：manifest 补 metacritic.com 域 + 失败 Logger.warn 可诊断"
+      }
     }
   ]
 }

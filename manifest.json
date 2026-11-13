@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "14.29.1",
+  "version": "14.30.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -41,6 +41,7 @@
     "https://www.gog.com/*",
     "https://www.gamerpower.com/*",
     "https://api.isthereanydeal.com/*",
+    "https://www.metacritic.com/*",
     "https://cn.bing.com/*"
   ],
   "optional_host_permissions": ["http://*/*", "https://*/*"],

@@ -384,7 +384,7 @@ describe('平台误配夹具：判定 + 命中条目 + 平台字段 + 理由', (
   ];
 
   for (const fx of FIXTURES) {
-    test(`${fx.id} → 推测（命中 ${fx.steamName} / ${fx.appId}）`, async () => {
+    test(`${fx.id} → ${fx.kind === 'console' ? '预检短路 platformOnly（v14.29.2）' : '推测（命中 ' + fx.steamName + ' / ' + fx.appId + '）'}`, async () => {
       await nameIdx.recordNameIndex(fx.page, fx.appId);
       const restore = mockSteam(fx.appId, fx.steamName, fx.englishName, fx.releaseDate);
       let r;
@@ -396,6 +396,16 @@ describe('平台误配夹具：判定 + 命中条目 + 平台字段 + 理由', (
       // 平台判定字段
       const off = detectOffSteamPlatform(fx.page);
       expect(off && off.kind).toEqual(fx.kind);
+      // v14.29.2（用户报告：主机条目先走 PC 流程）：带主机段的标题在详情页
+      // 预检即短路——不再发 Steam 检索（错误 Steam 条目不再出现，置信度
+      // 「推测」降级让位于更正确的平台终态）。移动/云游戏标题不在预检范围
+      //（detectPlatform 只认主机/模拟器），仍走常规管线标「推测」。
+      if (fx.kind === 'console') {
+        expect(r).toBeTruthy();
+        expect(r.platformOnly).toEqual(true);
+        expect(r.appId).toEqual(null);
+        return;
+      }
       // 判定 + 理由文案
       expect(r).toBeTruthy();
       expect(r.matchConfidence).toEqual('suspected');

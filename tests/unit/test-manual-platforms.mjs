@@ -274,8 +274,8 @@ describe('MANUAL_PLATFORM_OPTIONS 全主机名册（v14.20.0）', () => {
 // "🎮 选择主机机型"经 openPlatformView 直达专页（sidebar.js 装配单源）。
 // UI 交互无法以现有 DOM 桩行为级驱动（FakeEl 不支持 #id 选择器）——按项目
 // 源码守卫惯例（sim-detail detailSrc.includes 同风格）锁定结构要素。
-describe('候选浮窗主机机型专页（v14.22.2/v14.24.0 源码守卫）', () => {
-  test('双视图结构四要素 + 键盘护栏 + Esc 自清理 + 菜单直达', async () => {
+describe('候选浮窗主机机型专页（v14.22.2/v14.24.0/v14.29.2 源码守卫）', () => {
+  test('双视图结构要素 + 键盘护栏 + Esc 自清理 + 菜单直达 + 主视图入口', async () => {
     const fs = await import('node:fs');
     const src = fs.readFileSync(new URL('../../content/detail/candidates.js', import.meta.url), 'utf8');
     expect(src.includes('id="gr-platform-view"')).toBe(true); // 机型专页容器（默认隐藏）
@@ -288,9 +288,11 @@ describe('候选浮窗主机机型专页（v14.22.2/v14.24.0 源码守卫）', (
     expect(src.includes("kbNav = '1'")).toBe(true);
     // Esc 监听自清理：面板重渲染后自摘（v14.13 B6 kbHandler 同款防泄漏模式）
     expect(src.includes('panel.contains(platformView)')).toBe(true);
-    // 旧的内联平铺形态与主视图入口按钮均已移除（⚙ 菜单直达取代——防双入口并存）
-    expect(src.includes('这是主机 / 模拟器游戏？选择机型后转')).toBe(false);
-    expect(src.includes('id="gr-platform-entry"')).toBe(false);
+    // v14.29.2（用户需求）：主视图入口按钮恢复——"手动选择游戏"面板内可直接
+    // 转机型专页（v14.24.0 曾移除，用户在面板内无出口，须先关面板再找菜单）。
+    // 点击绑定同一 showPlatformView 路径（与菜单直达单源）
+    expect(src.includes('id="gr-platform-entry"')).toBe(true);
+    expect(src.includes("querySelector('#gr-platform-entry')")).toBe(true);
     const sidebarSrc = fs.readFileSync(new URL('../../content/detail/sidebar.js', import.meta.url), 'utf8');
     expect(sidebarSrc.includes("'steam-platform'")).toBe(true); // ⚙ 菜单机型入口
   });
@@ -301,5 +303,91 @@ describe('候选浮窗主机机型专页（v14.22.2/v14.24.0 源码守卫）', (
     const actionsSrc = fs.readFileSync(new URL('../../content/detail/sidebar-actions.js', import.meta.url), 'utf8');
     expect(sidebarSrc.includes('renderManualSelectPanel')).toBe(true); // 未命中路径
     expect(actionsSrc.includes('renderManualSelectPanel')).toBe(true); // 报错重检索路径
+  });
+});
+
+// ============ v14.29.2（用户报告三连）：详情页平台预检 / manifest MC 权限 / 词表 ============
+describe('详情页平台预检（v14.29.2）', () => {
+  beforeEach(() => {
+    storage._reset();
+    manualPlatforms.resetManualPlatforms();
+  });
+
+  test('模拟器标题：searchSteamGame 零 Steam 检索直达 platformOnly 终态', async () => {
+    const restore = installFetchMock(async (url) => {
+      throw new Error('模拟器条目不应发起任何网络请求: ' + String(url));
+    });
+    try {
+      const r = await orchestratorDetail.searchSteamGame('宝可梦 朱紫|NSP|模拟器|整合包', {
+        ignoreNegativeCache: true
+      });
+      expect(r && r.platformOnly).toBe(true);
+      expect(r && r.platformTag).toEqual('模拟器');
+      expect(r && r.appId).toEqual(null);
+    } finally {
+      restore();
+    }
+  });
+
+  test('主机标题（带 EN 段）：Metacritic 优先取分（MC 视图数据形态）', async () => {
+    const seenUrls = [];
+    const restore = installFetchMock(async (url) => {
+      seenUrls.push(String(url));
+      if (String(url).includes('metacritic.com/game/')) {
+        return { ok: true, status: 200, text: async () => MC_PAGE_HTML };
+      }
+      throw new Error('主机条目仅应请求 Metacritic: ' + String(url));
+    });
+    try {
+      const r = await orchestratorDetail.searchSteamGame('塞尔达传说 王国之泪|The Legend of Zelda|Switch移植版', {
+        ignoreNegativeCache: true
+      });
+      expect(r && r.platformOnly).toBe(true);
+      expect(r && r.platformTag).toEqual('主机');
+      expect(r && r.mcScore).toEqual(91);
+      expect(r && r.mcName).toBe('The Legend of Zelda');
+      expect(seenUrls.some((u) => u.includes('steampowered.com'))).toBe(false); // 零 Steam 请求
+    } finally {
+      restore();
+    }
+  });
+
+  test('PC 标题不受预检影响（无平台标记 → 常规管线）', async () => {
+    // 常规管线在此桩下自然失败——只断言"发起了 Steam 检索"（预检放行）
+    const restore = installFetchMock(async (url) => {
+      if (String(url).includes('steampowered.com')) return { ok: false, status: 404, text: async () => '' };
+      throw new Error('PC 条目不应请求其他域: ' + String(url));
+    });
+    try {
+      const r = await orchestratorDetail.searchSteamGame('完全虚构的PC游戏名', { ignoreNegativeCache: true });
+      expect(r).toEqual(null); // 检索未命中（预检已放行——走到了 Steam 检索）
+    } finally {
+      restore();
+    }
+  });
+});
+
+describe('manifest MC 域权限 + 词表「移植」标记（v14.29.2 门禁）', () => {
+  test('manifest host_permissions 含 metacritic.com（缺权限 = CORS 拦截，MC 功能静默全灭）', async () => {
+    const fs = await import('node:fs');
+    const manifest = JSON.parse(fs.readFileSync(new URL('../../manifest.json', import.meta.url), 'utf8'));
+    const hosts = manifest['host_permissions'] || [];
+    expect(hosts.some((h) => /(^|\.)metacritic\.com/.test(h))).toBe(true);
+  });
+
+  test('MC fetch 超时走单源新键 fetchTimeoutMetacriticMs（语义错配回归：曾借 LastUpdate 4s）', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync(new URL('../../background/steam/api-metacritic.js', import.meta.url), 'utf8');
+    expect(src.includes('PERF_CONFIG.fetchTimeoutMetacriticMs')).toBe(true);
+    expect(src.includes('fetchTimeoutLastUpdateMs')).toBe(false); // 借用键退场
+  });
+
+  test('裸「移植」段命中主机；PC guard 优先（PC移植版 仍判 PC）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('女神异闻录5|移植版').kind).toEqual('console');
+    expect(detectPlatform('大镖客|移植').kind).toEqual('console');
+    expect(detectPlatform('艾尔登法环|PC移植版').kind).toEqual('pc'); // 段首 pc 守卫优先
+    expect(detectPlatform('GTA5|PC版').kind).toEqual('pc'); // 既有护栏不回归
+    expect(detectPlatform('PC装机模拟器').kind).toEqual('pc'); // 游戏名内含标记词不误判
   });
 });

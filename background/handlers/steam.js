@@ -33,7 +33,12 @@ import {
 } from '../storage/steam-cache.js';
 import { recordWrongReport, flushWrongReports } from '../storage/wrong-reports.js';
 import { setManualPlatform, flushManualPlatforms } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
-import { resolveManualPlatformOption, extractEnNameSegment, trimPlatformTokens } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源
+import {
+  resolveManualPlatformOption,
+  extractEnNameSegment,
+  trimPlatformTokens,
+  detectPlatform
+} from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源；v14.29.2：URL 先行平台守卫
 import { fetchMetacriticScore } from '../steam/api-metacritic.js'; // v14.19.0：主机条目评分
 import { getAppIdByUrl, setUrlAppIdArbitrated, deleteUrlAppId } from '../storage/url-index.js'; // v7.0.2：详情页网址第一候选
 import { noteTabGame, getTabGame } from '../core/tab-game.js'; // v14.1.0：SidePanel 当前页联动
@@ -106,18 +111,27 @@ export async function handleSearchSteam(message, sender) {
 async function doHandleSearchSteam(message, sender) {
   const t0 = Date.now(); // v14.25.0：证据档案——检索耗时样本
   const pageUrl = sender && sender.tab ? sender.tab.url : '';
-  // 第一候选：URL 索引命中 → 直接用该 appId 获取详情（不再标题搜索）
-  // v14.24.0（用户报告：详情页浮窗有缓存也慢）：URL 命中路径此前**直接全量拉取**
-  //（appdetails×2+商店页+评测+spy+公告 ~6 出站请求），缓存完全被绕过——每次
-  // 打开详情页都慢。现缓存先行：有效完整条目（含好评率重取/倒挂自愈/评论回填
-  // 标记/名称相关性四重判定，与 orchestrator tryCacheServed 同口径）直接合并
-  // 返回零出站；未命中才刷新——v14.28.8 起按模块级计划只补残缺模块。
-  // v14.24.0: cache-first on the URL-index hit — the path used to bypass the
-  // cache entirely (~6 outbound requests every visit). A valid complete entry
-  // (same guard set as orchestrator tryCacheServed) is served with zero
-  // outbound requests; otherwise fall through to a (partial) refresh.
-  if (pageUrl) {
+  // v14.29.2（用户报告：主机/模拟器详情页仍走 PC 流程）：URL 索引先行路径的
+  // 平台守卫——主机整合/移植版/模拟器标题若被 URL 索引钉住一个错误 appId，
+  // 此前会先发整套详情拉取（~6 出站请求）后才被 namesRelated 推翻。非 PC
+  // 标题跳过 URL 先行，落回 searchSteamGame（其 phaseDetailPlatform 在一切
+  // 检索前单源短路：映射 > 模拟器 > 主机 MC > PC）。
+  // URL-index shortcut guard: non-PC titles skip the URL-first path entirely
+  // and fall through to searchSteamGame, whose platform pre-check short-circuits
+  // before ANY lookup (manual mapping > emulator > console MC > PC).
+  if (detectPlatform(String(message.gameName || '')).kind !== 'pc') {
+    Logger.info('Steam', `非 PC 标题跳过 URL 索引先行: "${String(message.gameName || '').slice(0, 40)}"`);
+  } else if (pageUrl) {
     const urlAppId = await getAppIdByUrl(pageUrl);
+    // v14.24.0（用户报告：详情页浮窗有缓存也慢）：URL 命中路径此前**直接全量拉取**
+    //（appdetails×2+商店页+评测+spy+公告 ~6 出站请求），缓存完全被绕过——每次
+    // 打开详情页都慢。现缓存先行：有效完整条目（含好评率重取/倒挂自愈/评论回填
+    // 标记/名称相关性四重判定，与 orchestrator tryCacheServed 同口径）直接合并
+    // 返回零出站；未命中才刷新——v14.28.8 起按模块级计划只补残缺模块。
+    // v14.24.0: cache-first on the URL-index hit — the path used to bypass the
+    // cache entirely (~6 outbound requests every visit). A valid complete entry
+    // (same guard set as orchestrator tryCacheServed) is served with zero
+    // outbound requests; otherwise fall through to a (partial) refresh.
     if (urlAppId) {
       const cachedEntry = await getSteamCacheEntry(urlAppId);
       const cachedDetail = isModuleValid(cachedEntry, 'detail', detailSteamCacheTtlMs())

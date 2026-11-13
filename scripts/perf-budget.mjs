@@ -146,7 +146,10 @@ export const BUDGETS = {
   // (+1 file), queue-envelope persistence, same-tab replacement, boundary position
   // pushes, arbitrated URL-index writes and queue-aware force-finish; re-locked
   // to the measured graph size.
-  swGraphBytes: 943804,
+  // v14.29.2 (platform pre-check on the detail pipeline + MC diagnosability):
+  // phaseDetailPlatform + URL-first platform guard (handlers/steam.js) +
+  // api-metacritic warn-on-failure + new timeout key — +5,707B, no dead code.
+  swGraphBytes: 949511,
   swGraphFiles: 108,
   staticInjectionBytes: 38663,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

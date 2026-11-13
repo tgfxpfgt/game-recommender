@@ -146,6 +146,19 @@ export function renderManualSelectPanel(
             return `<a href="${common.escapeAttr(issueUrl)}" target="_blank" rel="noopener" style="font-size:11px;color:#8f98a0;text-decoration:none;">💬 反馈问题 ↗</a>`;
           })()}
         </div>
+        ${
+          // v14.29.2（用户需求：手动选择面板内可直接转主机机型选择）——v14.24.0
+          // 曾把主视图入口移除（⚙ 菜单直达），但用户在"手动选择游戏"状态下面板
+          // 内无出口（须先关面板再找菜单）。恢复入口按钮（onPickPlatform 在场
+          // 才渲染，与机型专页同一开关），切 showPlatformView 与菜单直达同路径。
+          // Main-view entry button restored: switch to the platform picker view
+          // from inside the manual-select panel (same path as the menu shortcut).
+          onPickPlatform
+            ? `<div style="margin-bottom:10px;">
+          <button id="gr-platform-entry" class="gr-btn" style="width:100%;padding:7px 0;font-size:12px;">🎮 这是主机 / 模拟器游戏？选择机型转 Metacritic 评分</button>
+        </div>`
+            : ''
+        }
         <div id="gr-candidates-list" role="listbox" aria-label="候选游戏列表" style="max-height:300px;overflow-y:auto;">
           <div style="padding:20px;text-align:center;color:#8f98a0;font-size:12px;">
             <div style="font-size:20px;margin-bottom:6px;">⏳</div>
@@ -339,6 +352,10 @@ export function renderManualSelectPanel(
     };
     const backBtn = panel.querySelector('#gr-platform-back');
     if (backBtn) backBtn.addEventListener('click', showMainView);
+    // v14.29.2：主视图入口按钮 → 机型专页（与 ⚙ 菜单直达同一 showPlatformView
+    // 路径；按钮在主视图 innerHTML 内，专页切换后随 mainView 隐藏）
+    const entryBtn = panel.querySelector('#gr-platform-entry');
+    if (entryBtn) entryBtn.addEventListener('click', showPlatformView);
     escBackHandler = (ev) => {
       // 面板重渲染（MC 视图/重检索）后 platformView 已脱文档——自摘防泄漏
       if (!panel.contains(platformView)) {

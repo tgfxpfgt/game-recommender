@@ -50,10 +50,15 @@ export async function fetchMetacriticScore(enName) {
     const resp = await fetchWithTimeout(
       `${ENDPOINTS.metacritic}/game/${slug}/`,
       {},
-      PERF_CONFIG.fetchTimeoutLastUpdateMs
+      PERF_CONFIG.fetchTimeoutMetacriticMs
     );
     if (!resp.ok) {
+      // v14.29.2（用户报告：主机游戏 MC 评分不显示）：失败必须可诊断——
+      // 根因实证：manifest host_permissions 缺 metacritic.com 时 MV3 SW fetch
+      // 被 CORS 拦截（TypeError Failed to fetch），旧实现静默进负缓存 =
+      // "功能从未生效但零日志"（铁律 15 同类：只吞错不落账的机制等于不存在）。
       mcMissCache.set(slug, null);
+      Logger.warn('Steam', `Metacritic 请求失败: ${slug} → HTTP ${resp.status}`);
       return null;
     }
     const html = await resp.text();
@@ -68,8 +73,12 @@ export async function fetchMetacriticScore(enName) {
     mcCache.set(slug, score);
     Logger.info('Steam', `Metacritic 命中: ${slug} → ${score}`);
     return score;
-  } catch {
+  } catch (e) {
+    // v14.29.2：网络异常落 warn（CORS 拦截/超时/DNS——此前静默吞错，
+    // 主机条目 MC 评分功能失效五个月不可见，first-run 门禁即为此类事故设）
     mcMissCache.set(slug, null);
+    const msg = e instanceof Error ? e.message : String(e);
+    Logger.warn('Steam', `Metacritic 异常: ${slug} → ${msg.slice(0, 120)}`);
     return null;
   }
 }

@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.30.0（主机游戏检索三连修复：MC 域权限根治/详情页平台预检/手动面板机型入口）
+
+- MC 评分根治：manifest 补 metacritic.com host_permissions（缺失致 MV3 SW fetch 被 CORS 静默拦截，v14.10.0 起功能从未生效）+ 失败 Logger.warn 可诊断 + 超时单源新键 fetchTimeoutMetacriticMs + first-run 真实证据回填
+- 详情页平台预检：searchSteamGame 接入 phaseDetailPlatform（与列表 phasePlatform 同优先序：映射>模拟器>主机MC>PC），主机整合/模拟器/移植版条目不再先发整套 Steam 检索；URL 索引先行加平台守卫
+- 词表补「移植版/移植」裸段（PC guard 优先不变）；手动选择面板恢复「主机/模拟器」入口按钮（面板内直达机型专页，与 ⚙ 菜单同路径）
+
 ### v14.29.1（门禁变更面化提速）
 
 - coverage:gate 改 vitest related（117.7s→24s，补 untracked 漏检）；verify:mutations 按变更面选异（76.9s→0.2-15s，STALE 恒检，full 开关保留）；pre-push 降为 lint+typecheck+test:changed（去与 gate:fast 的重复全量）

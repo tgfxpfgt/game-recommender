@@ -120,6 +120,7 @@ export const PERF_CONFIG = {
   fetchTimeoutCommunitySearchMs: 8000, // 社区搜索兜底（SearchApps 轻量响应快）
   fetchTimeoutCommunityReviewsMs: 12000, // 社区评论浏览页 HTML（v14.21.2，~150KB 较重但非主链阻塞）
   fetchTimeoutLastUpdateMs: 4000, // "最近更新"徽章硬帽（v10.9.2：api 域不可达时不得拖爆搜索主预算）
+  fetchTimeoutMetacriticMs: 8000, // Metacritic 游戏页 HTML（v14.29.2：~600KB 较重页面；此前借 LastUpdate 4s 语义错配且偶发不够）
   // LLM 兜底（ai-fallback，生成较慢；v14.7 批次 1 入单源）。
   // v14.28.5：30000→25000——Chrome 规定 fetch 响应超过 30s 未到达即终止 SW
   // （裸的 30s 客户端超时与终止阈值同时到达，实际先被杀、消息无应答）；
