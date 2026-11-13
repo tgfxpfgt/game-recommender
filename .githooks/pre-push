@@ -1,16 +1,24 @@
 #!/bin/sh
-# Game Recommender pre-push 钩子（v7.0.7）
-# push 前运行完整门禁（lint + typecheck + vitest）——坏提交在本地拦截，
-# 避免触发远端 CI 红灯。E2E/覆盖率门禁由发布流程负责（本地可另行执行）。
-# pre-push hook: full check gate (lint + typecheck + vitest) before pushing.
-
-echo "⏳ pre-push: 运行 npm run check（lint + typecheck + vitest）..."
-# v7.3.0：首次失败输出完整日志（此前静默失败无法诊断——check 偶发非零退出）
+# Game Recommender pre-push 钩子（v7.0.7；v14.29.1 变更面化）
+# push 前快速校验（lint + typecheck + 受影响测试）——坏提交在本地拦截，
+# 避免触发远端 CI 红灯。v14.29.1 起不再重复跑全量 npm test：推送前批次
+# 已经过 gate:fast（含受影响测试/四门禁/mutations/coverage），pre-push 的
+# 全量是纯重复（中位 +113s/次）；降级为静态门禁 + 变更面测试选择（与
+# gate:fast 的 vitest 步同源 single source：scripts/test-changed.mjs）。
+# 工作区干净（批次已提交）时 test-changed 自动回退校验 HEAD~1 变更面。
+# E2E/coverage/visual 全量仍由发布流程 npm run gate 负责。
+# pre-push hook: fast gate (lint + typecheck + changed-surface tests).
+echo "⏳ pre-push: lint + typecheck + 受影响测试（变更面）..."
 CHECK_LOG="${TMPDIR:-/tmp}/gr-pre-push-check.log"
-if ! npm run check >"$CHECK_LOG" 2>&1; then
-  echo "❌ pre-push 门禁失败（npm run check）——详见下方日志：" >&2
+{
+  npm run lint &&
+  npm run typecheck &&
+  node scripts/test-changed.mjs
+} >"$CHECK_LOG" 2>&1
+if [ $? -ne 0 ]; then
+  echo "❌ pre-push 门禁失败——详见下方日志：" >&2
   tail -40 "$CHECK_LOG" >&2
   exit 1
 fi
-echo "✅ pre-push 门禁通过"
+echo "✅ pre-push 门禁通过（变更面）"
 exit 0

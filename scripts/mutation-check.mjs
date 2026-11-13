@@ -99,8 +99,72 @@ process.on('SIGINT', () => {
 });
 
 const results = [];
+// v14.29.1（变更面自动触发）：默认只跑「目标文件被本批改动命中」的变异——
+// 回放的价值在批次上下文（改了某文件才需要验证该文件的缺陷防线仍有效）。
+// 全量回放保留在：①发布触发点 npm run gate ②--only 单条 ③--scope=full 显式
+// ④变更面不可知（git 异常/干净且无上一提交）。STALE 检查仍覆盖全部清单
+// （锚点漂移是清单级健康度，只读文件零成本——在过滤前先扫一遍）。
+// Default scope = mutations whose target file is touched by this batch;
+// full scope stays on release gates / explicit flags.
+function collectTouchedFiles() {
+  const set = new Set();
+  const outs = [
+    spawnSync('git', ['diff', '--name-only', 'HEAD'], { cwd: ROOT, encoding: 'utf-8' }),
+    spawnSync('git', ['diff', '--cached', '--name-only'], { cwd: ROOT, encoding: 'utf-8' }),
+    spawnSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf-8' })
+  ];
+  for (const out of outs) {
+    for (const line of String(out.stdout || '').split('\n')) {
+      const f = line.trim();
+      if (f) set.add(f.replace(/\\/g, '/'));
+    }
+  }
+  // 工作区干净 → 本批已提交，回退上一个提交的变更面（gate:fast 提交前语义：
+  // 验证"刚写完的这批"的缺陷防线）
+  if (set.size === 0) {
+    const last = spawnSync('git', ['diff', '--name-only', 'HEAD~1', 'HEAD'], { cwd: ROOT, encoding: 'utf-8' });
+    for (const line of String(last.stdout || '').split('\n')) {
+      const f = line.trim();
+      if (f) set.add(f.replace(/\\/g, '/'));
+    }
+  }
+  return set;
+}
+const scopeFull = !!onlyArg || process.env.GR_MUTATIONS_SCOPE === 'full' || process.argv.includes('--scope=full');
+let touchedFiles = null;
+if (!scopeFull) {
+  try {
+    touchedFiles = collectTouchedFiles();
+  } catch {
+    touchedFiles = null;
+  }
+  if (!touchedFiles || touchedFiles.size === 0) {
+    touchedFiles = null; // 变更面不可知 → 全量（保守）
+    console.log('ℹ️ 变更面不可知 → 全量回放');
+  } else {
+    console.log(
+      `ℹ️ 变更面过滤：本批 ${touchedFiles.size} 文件——只回放目标文件命中的变异（全量在 npm run gate / --scope=full）`
+    );
+  }
+}
+// 锚点漂移检查恒全量（零测试成本）+ 变异执行按变更面过滤
+const staleChecks = [];
 for (const m of PLAN.mutations) {
   if (only && m.id !== only) continue;
+  const abs0 = path.join(ROOT, m.file);
+  const src0 = fs.readFileSync(abs0, 'utf-8');
+  const occurrences0 = src0.split(m.find).length - 1;
+  if (occurrences0 !== 1) {
+    staleChecks.push(
+      `  ❌ ${m.id} [STALE] 变异锚点在 ${m.file} 出现 ${occurrences0} 次（必须恰好 1 次）——清单与代码已漂移`
+    );
+  }
+}
+for (const m of PLAN.mutations) {
+  if (only && m.id !== only) continue;
+  if (!scopeFull && !touchedFiles.has(m.file.replace(/\\/g, '/'))) {
+    continue;
+  }
   const abs = path.join(ROOT, m.file);
   const original = fs.readFileSync(abs, 'utf-8');
   const occurrences = original.split(m.find).length - 1;
@@ -169,8 +233,21 @@ for (const r of results) {
   const icon = r.status === 'PASS' ? '✅' : '❌';
   console.log(`  ${icon} ${r.id} [${r.status}] ${r.detail}`);
 }
+if (staleChecks.length > 0) {
+  console.log('\n锚点漂移检查（全量，零成本）:');
+  for (const line of staleChecks) console.log(line);
+}
 if (bad.length > 0) {
   console.error(`\n❌ ${bad.length} 条缺陷无法被自动拦截（共 ${results.length} 条）——门禁无效，禁止合入`);
   process.exit(1);
 }
-console.log(`\n✅ ${results.length} 条历史缺陷全部被门禁抓住（放回即红，还原即绿）`);
+if (staleChecks.length > 0) {
+  console.error(`\n❌ ${staleChecks.length} 条变异锚点漂移——清单与代码脱节，先修复 mutations.json`);
+  process.exit(1);
+}
+console.log(
+  `\n✅ ${results.length} 条历史缺陷全部被门禁抓住（放回即红，还原即绿）` +
+    (scopeFull
+      ? ''
+      : ` · 变更面外 ${PLAN.mutations.length - results.length - staleChecks.length} 条已跳过（全量在 npm run gate）`)
+);

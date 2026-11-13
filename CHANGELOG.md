@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.29.1（门禁变更面化提速）
+
+- coverage:gate 改 vitest related（117.7s→24s，补 untracked 漏检）；verify:mutations 按变更面选异（76.9s→0.2-15s，STALE 恒检，full 开关保留）；pre-push 降为 lint+typecheck+test:changed（去与 gate:fast 的重复全量）
+- sim-list 节 12 纳入 retry 绷带口径（节 2/2b 同签名竞态）
+
 ### v14.29.0（多站排队整队持久化 + 同站 appId 冲突防线）
 
 - 排队检查点升级整队信封：SW 被杀不再丢排队任务（多下载站同开丢队根治）；同 tab 旧任务自动顶替；任务边界实时推送排队位置

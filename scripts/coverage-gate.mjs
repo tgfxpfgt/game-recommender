@@ -96,7 +96,16 @@ export function computeNewFiles() {
       committedBase = 'HEAD~1..HEAD';
       console.log('⚠️ 无 origin/main 基线，已提交部分按 HEAD~1 计算');
     }
-    const added = new Set([...diffAddedFiles(committedBase), ...diffAddedFiles('HEAD')]);
+    // v14.29.1：未跟踪新增（git add 前）此前不进集合——`--diff-filter=A`
+    // 只覆盖已跟踪 diff，新建文件在 gate:fast 提交前窗口被静默跳过（漏检）。
+    // 并入 ls-files --others（排除 gitignored），补齐变更面。
+    // Untracked new files were silently skipped before (diff-filter=A only
+    // sees tracked adds); merge ls-files --others to close the gap.
+    const untracked = run('git ls-files --others --exclude-standard')
+      .split('\n')
+      .map((f) => f.trim())
+      .filter(Boolean);
+    const added = new Set([...diffAddedFiles(committedBase), ...diffAddedFiles('HEAD'), ...untracked]);
     return [...added].filter(
       (f) => /\.(js|mjs)$/.test(f) && COVERED_DIRS.some((d) => f.startsWith(d + '/')) && !COVERAGE_EXEMPT.includes(f)
     );
@@ -120,11 +129,22 @@ async function main() {
   console.log(`📁 新增文件 ${newFiles.length} 个，运行覆盖率门禁（行覆盖 ≥ ${MIN_LINES}%）...`);
   newFiles.forEach((f) => console.log('   -', f));
 
-  // 2. 跑 vitest 覆盖率（仅统计新增文件）——显式关闭全局 thresholds，本脚本自带逐文件门槛
-  const includes = newFiles.map((f) => `--coverage.include=${f}`).join(' ');
+  // 2. 跑 vitest 覆盖率——**只跑消费新增文件的套件**（v14.29.1 变更面自动
+  //    触发）：此前此步是 `vitest run --coverage` 全量（中位实测 117.7s——
+  //    全部 unit/integration/sim 套件 × V8 插桩），而 coverage 数据只看
+  //    --coverage.include 的新增文件，其余套件的执行纯属陪跑。改为
+  //    `vitest related <newFiles>`（vitest 自带静态引用方算法，零复制）+
+  //    排除 sim 装载域（__grImport eval 不在静态图上，B8 纪律归独立车道）。
+  //    空匹配 = 新增文件无静态消费者（需补测试的信号），按既有"找不到表格
+  //    行即失败"的保守语义自然变红，无假绿口子。
+  //    Coverage now runs only suites statically related to the new files
+  //    instead of the whole suite list instrumented (~117s → ~15s typical).
+  const includeArgs = newFiles.map((f) => `"${f}"`).join(' ');
   const noThresh =
     '--coverage.thresholds.lines=0 --coverage.thresholds.statements=0 --coverage.thresholds.functions=0 --coverage.thresholds.branches=0';
-  const output = run(`npx vitest run --coverage ${includes} ${noThresh} --coverage.reporter=text`);
+  const output = run(
+    `npx vitest related ${includeArgs} --run --coverage --coverage.reporter=text ${noThresh} --exclude "tests/sim/**"`
+  );
   console.log(output.slice(-3000));
 
   // 3. 解析文本表格：filename | stmts | branch | funcs | lines

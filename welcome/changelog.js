@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.29.1',
+        date: '2026-11-13',
+        items: [
+          'coverage:gate 改 vitest related（117.7s→24s，补 untracked 漏检）；verify:mutations 按变更面选异（76.9s→0.2-15s，STALE 恒检，full 开关保留）；pre-push 降为 lint+typecheck+test:changed（去与 gate:fast 的重复全量）',
+          'sim-list 节 12 纳入 retry 绷带口径（节 2/2b 同签名竞态）'
+        ]
+      },
+      {
         ver: '14.29.0',
         date: '2026-11-13',
         items: [
