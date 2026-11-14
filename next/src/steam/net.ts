@@ -120,7 +120,40 @@ export function createNet(deps: NetDeps) {
     }
   }
 
-  return { getJson };
+  /** 同守卫的 GET 文本（HTML 页面——如 Metacritic 游戏页） */
+  async function getText(url: string, opts: NetOptions = {}): Promise<string> {
+    const host = hostOf(url);
+    const st = hostState(host);
+    if (now() < st.openUntil) throw new NetError('circuit-open', `${host} 熔断中`);
+    const slot = Math.max(st.lastCallAt + interval, now());
+    st.lastCallAt = slot;
+    const wait = slot - now();
+    if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), opts.timeoutMs ?? timeoutMs);
+    try {
+      const resp = await deps.fetchImpl(url, { signal: ctl.signal });
+      if (!resp.ok) {
+        st.consecutiveFails++;
+        if (st.consecutiveFails >= threshold) st.openUntil = now() + openMs;
+        throw new NetError('network', `${host} HTTP ${resp.status}`);
+      }
+      st.consecutiveFails = 0;
+      return await resp.text();
+    } catch (e) {
+      const code = e instanceof DOMException && e.name === 'AbortError' ? 'timeout' : 'network';
+      if (code !== 'timeout') {
+        st.consecutiveFails++;
+        if (st.consecutiveFails >= threshold) st.openUntil = now() + openMs;
+      }
+      if (e instanceof NetError) throw e;
+      throw new NetError(code, `${host} ${String(e).slice(0, 120)}`);
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return { getJson, getText };
 }
 
 export type Net = ReturnType<typeof createNet>;

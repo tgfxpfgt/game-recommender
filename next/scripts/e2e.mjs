@@ -25,9 +25,15 @@ if (!fs.existsSync(path.join(DIST, 'manifest.json'))) {
   process.exit(1);
 }
 
-// fixture HTTP 服务（localhost 列表页）
+// fixture HTTP 服务（localhost 列表页 + 详情页）
 const server = createServer((req, res) => {
-  const file = req.url === '/listing' ? 'fixture-listing.html' : (req.url?.replace(/^\//, '') ?? '');
+  console.log(`[fixture-req] ${req.url}`);
+  const file =
+    req.url === '/listing'
+      ? 'fixture-listing.html'
+      : req.url === '/detail'
+        ? 'fixture-detail.html'
+        : (req.url?.replace(/^\//, '') ?? '');
   const abs = path.join(FIXTURE, file);
   if (fs.existsSync(abs)) {
     res.writeHead(200, {
@@ -120,6 +126,60 @@ check('主题 token 注入', themeApplied, '');
 
 const consoleClean = failures.length === 0;
 check('页面零 JS 错误', consoleClean, failures.join(' | ').slice(0, 200));
+
+// ===== 路线 3：详情浮窗 + 声明流（fixture-detail 页） =====
+const detailUrl = `http://www.xianyudanji.gg:${port}/detail`;
+// 独立新页（与 probe 同形态——同 page 二次导航的浮窗挂载竞态规避）
+const detailPage = await ctx.newPage();
+detailPage.on(`pageerror`, (e) => failures.push(`pageerror(detail): ${String(e).slice(0, 120)}`));
+await detailPage.goto(detailUrl);
+const diags = [];
+detailPage.on('console', (m) => diags.push(`[${m.type()}] ${m.text().slice(0, 120)}`));
+await detailPage.waitForSelector('.gr2-float-host', { timeout: 20000, state: 'attached' }).catch(() => {});
+const diagDom = await detailPage.evaluate(() => ({
+  bodyPrefix: document.body.innerHTML.slice(0, 150),
+  title: document.title,
+  markers: document.querySelectorAll('[data-gr-detail]').length,
+  hosts: document.querySelectorAll('.gr2-float-host').length,
+  url: location.href
+}));
+console.log('detail diags:', JSON.stringify(diagDom), diags.slice(0, 6));
+await new Promise((r) => setTimeout(r, 800));
+
+const floatHosts = await detailPage.$$('.gr2-float-host');
+const steamHost = floatHosts[0];
+const notFoundHost = floatHosts[1] ?? floatHosts[0];
+
+const steamDetailText = await steamHost.textContent();
+check('浮窗 steam 详情渲染（94% + 近期 92%）', steamDetailText.includes('94%') && steamDetailText.includes('92%'));
+check('浮窗评测列表（fixture 样例）', steamDetailText.includes('好评样例'));
+check('商店页链接在位', (await steamHost.$('a[href*="store.steampowered.com"]')) !== null);
+
+const nfText = await notFoundHost.textContent();
+const hasDeclare = (await notFoundHost.$('#gr2-declare-select')) !== null;
+check('未知标题浮窗 = not-found + 声明栏', nfText.includes('未找到') && hasDeclare);
+
+if (hasDeclare) {
+  await notFoundHost.$eval(
+    '#gr2-declare-select',
+    (el, v) => {
+      el.value = v;
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    },
+    'switch'
+  );
+  await notFoundHost.$eval('#gr2-declare-btn', (el) => el.click());
+  // 声明终态：浮窗重渲染为平台视图（MC 85 = fixture 变体确定性评分）
+  await page.waitForFunction(() => document.body.textContent?.includes('MC 85'), { timeout: 10000 }).catch(() => {});
+  const stateDiag = await notFoundHost.$eval('#gr2-declare-select', (el) => ({
+    value: el.value,
+    options: el.options?.length
+  }));
+  console.log('declare-state:', JSON.stringify(stateDiag));
+  const declaredText = await notFoundHost.textContent();
+  console.log('declared-text:', declaredText.slice(0, 200));
+  check('声明 switch → MC 85 平台视图（声明终态）', declaredText.includes('MC 85') && declaredText.includes('Switch'));
+}
 
 const passed = checks.filter((c) => c.ok).length;
 console.log(`\n${passed}/${checks.length} 通过`);

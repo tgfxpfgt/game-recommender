@@ -84,3 +84,15 @@ export function titleSimilarity(resultName: string, rawTitle: string): number {
   const hit = rt.filter((t) => tt.has(t)).length;
   return hit / rt.length;
 }
+
+/** 从标题提取英文段（MC slug 推导的输入——取最长匹配而非首个，
+ * "xxx|v1.1.1|官方中文|English Name" 类标题首匹配可能是版本号） */
+export function extractEnSegment(rawTitle: string): string {
+  const matches = String(rawTitle || '').match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9&:.'\- ]{3,}/g) || [];
+  let best = '';
+  for (const m of matches) {
+    const t = m.trim();
+    if (t.length > best.length) best = t;
+  }
+  return best;
+}

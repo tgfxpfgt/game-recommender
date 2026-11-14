@@ -24,7 +24,17 @@ describe('Pipeline', () => {
         return t.map((title) => {
           flip = !flip;
           return flip
-            ? { kind: 'steam', title, appId: 1, name: 'X', positiveRate: 90, totalReviews: 10, recent: null, confidence: 'confirmed', reason: '' }
+            ? {
+                kind: 'steam',
+                title,
+                appId: 1,
+                name: 'X',
+                positiveRate: 90,
+                totalReviews: 10,
+                recent: null,
+                confidence: 'confirmed',
+                reason: ''
+              }
             : { kind: 'failed', title, error: 'network' };
         });
       }

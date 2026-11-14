@@ -4,7 +4,7 @@
  * 垂直切片用它端到端验证新栈；真源接入后此文件仅供 e2e 复用。
  */
 import { normalizeTitleKey, titleSimilarity } from '../titles.js';
-import type { RatingProvider, TitleResolution } from '../types.js';
+import type { DetailData, RatingProvider, TitleResolution } from '../types.js';
 
 interface FixtureEntry {
   appId: number;
@@ -87,6 +87,32 @@ export const fixtureProvider: RatingProvider = {
       }
       return { kind: 'not-found', title } as TitleResolution;
     });
+  },
+
+  /** 详情：由 resolve 命中扩展构造（确定性——E2E 断言的数据面） */
+  async detail(title: string): Promise<DetailData> {
+    const key = normalizeTitleKey(title);
+    const entry = TABLE[key] ?? matchByFuzzy(key);
+    if (!entry) return { kind: 'not-found', title };
+    const similarity = titleSimilarity(entry.name, title);
+    return {
+      kind: 'steam',
+      title,
+      appId: entry.appId,
+      name: entry.name,
+      headerImage: '',
+      positiveRate: entry.positiveRate,
+      totalReviews: entry.totalReviews,
+      recent: entry.recent ?? null,
+      confidence: similarity >= CONFIRM_THRESHOLD ? 'confirmed' : 'suspected',
+      reason: similarity >= CONFIRM_THRESHOLD ? '标题强匹配' : `弱匹配（相似度 ${similarity.toFixed(2)}）`,
+      description: `fixture 确定性详情——${entry.name} 的占位简介（垂直切片验收数据面）。`,
+      releaseDate: '2026-01-01',
+      reviews: [
+        { recommended: true, content: 'fixture 好评样例（确定性 E2E 数据）', date: '2026-11-01' },
+        { recommended: false, content: 'fixture 差评样例', date: '2026-11-02' }
+      ]
+    };
   }
 };
 

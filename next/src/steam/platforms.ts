@@ -139,3 +139,95 @@ export function detectPlatform(rawTitle: string): PlatformVerdict | null {
   if (console_) return { platform: 'console', tag: TAGS.console };
   return null;
 }
+
+// ============ 手动机型名册（声明 UI 数据源；id 全小写 ASCII） ============
+
+export interface PlatformOption {
+  id: string;
+  label: string;
+  kind: PlatformKind;
+}
+
+export interface PlatformGroup {
+  brand: string;
+  label: string;
+  options: PlatformOption[];
+}
+
+/** 名册（对照旧 MANUAL_PLATFORM_OPTIONS 全主机集合——缺一字段即 E2E 红） */
+export const PLATFORM_GROUPS: PlatformGroup[] = [
+  {
+    brand: 'nintendo',
+    label: '任天堂',
+    options: [
+      { id: 'switch', label: 'Switch', kind: 'console' },
+      { id: 'switch2', label: 'Switch 2', kind: 'console' },
+      { id: 'wiiu', label: 'Wii U', kind: 'console' },
+      { id: 'wii', label: 'Wii', kind: 'console' },
+      { id: 'ngc', label: 'NGC', kind: 'console' },
+      { id: 'n64', label: 'N64', kind: 'console' },
+      { id: 'sfc', label: 'SFC', kind: 'console' },
+      { id: 'fc', label: 'FC', kind: 'console' },
+      { id: '3ds', label: '3DS', kind: 'console' },
+      { id: 'nds', label: 'NDS', kind: 'console' },
+      { id: 'gba', label: 'GBA', kind: 'console' }
+    ]
+  },
+  {
+    brand: 'sony',
+    label: '索尼',
+    options: [
+      { id: 'ps5', label: 'PS5', kind: 'console' },
+      { id: 'ps4', label: 'PS4', kind: 'console' },
+      { id: 'ps3', label: 'PS3', kind: 'console' },
+      { id: 'ps2', label: 'PS2', kind: 'console' },
+      { id: 'ps1', label: 'PS1', kind: 'console' },
+      { id: 'psp', label: 'PSP', kind: 'console' },
+      { id: 'psv', label: 'PSV', kind: 'console' }
+    ]
+  },
+  {
+    brand: 'microsoft',
+    label: '微软',
+    options: [
+      { id: 'xbox-series', label: 'Xbox Series X|S', kind: 'console' },
+      { id: 'xboxone', label: 'Xbox One', kind: 'console' },
+      { id: 'xbox360', label: 'Xbox 360', kind: 'console' },
+      { id: 'xbox', label: 'Xbox', kind: 'console' }
+    ]
+  },
+  {
+    brand: 'sega',
+    label: '世嘉',
+    options: [
+      { id: 'dc', label: 'DC', kind: 'console' },
+      { id: 'ss', label: 'SS', kind: 'console' },
+      { id: 'md', label: 'MD', kind: 'console' },
+      { id: 'gg', label: 'GG', kind: 'console' }
+    ]
+  },
+  {
+    brand: 'generic',
+    label: '通用',
+    options: [
+      { id: 'gb', label: 'GB', kind: 'console' },
+      { id: 'gbc', label: 'GBC', kind: 'console' },
+      { id: 'neogeo', label: 'Neo Geo', kind: 'console' },
+      { id: 'pce', label: 'PC Engine', kind: 'console' },
+      { id: 'segacd', label: 'Mega CD', kind: 'console' },
+      { id: 'atari2600', label: 'Atari 2600', kind: 'console' },
+      { id: 'wonderswan', label: 'WonderSwan', kind: 'console' },
+      { id: 'console', label: '其他主机', kind: 'console' },
+      { id: 'emu', label: '模拟器 ROM', kind: 'emulator' }
+    ]
+  }
+];
+
+/** 机型 id → 选项（非法 id 返回 null——协议守卫） */
+export function resolvePlatformOption(id: string): PlatformOption | null {
+  for (const g of PLATFORM_GROUPS) {
+    const hit = g.options.find((o) => o.id === id);
+    if (hit) return hit;
+  }
+  return null;
+}

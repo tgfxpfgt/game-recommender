@@ -22,6 +22,13 @@ export interface RecentReviews {
   total: number;
 }
 
+/** 单条用户评测（浮窗评测列表项） */
+export interface UserReview {
+  recommended: boolean;
+  content: string;
+  date: string;
+}
+
 /** 命中 Steam 条目 */
 export interface SteamHit {
   kind: 'steam';
@@ -62,9 +69,46 @@ export type TitleResolution = (SteamHit | PlatformEntry | NotFound | LookupFaile
   title: string;
 };
 
+// ============ 详情浮窗数据（比徽章多：图/简介/评测/发售日） ============
+
+/** 命中 Steam 的详情 */
+export interface SteamDetail {
+  kind: 'steam';
+  appId: AppId;
+  name: string;
+  headerImage: string;
+  positiveRate: number | null;
+  totalReviews: number;
+  recent: RecentReviews | null;
+  confidence: MatchConfidence;
+  reason: string;
+  description: string;
+  releaseDate: string;
+  reviews: UserReview[];
+}
+
+/** 非 PC 平台详情（声明/自动识别共用——metascore 可能来自 MC 拉取） */
+export interface PlatformDetail {
+  kind: 'platform';
+  platform: PlatformKind;
+  tag: string;
+  metascore: number | null;
+  /** MC slug（悬停链接用；无 EN 段 = null） */
+  mcName: string | null;
+  /** 评分来源：declared = 用户声明（长期）；detected = 标题自动识别 */
+  source: 'declared' | 'detected';
+}
+
+/** 详情浮窗终态（与徽章同三态） */
+export type DetailData = (SteamDetail | PlatformDetail | NotFound | LookupFailed) & {
+  title: string;
+};
+
 /** 评价提供方接口——fixture（确定性）与 Steam 真源同签名 */
 export interface RatingProvider {
   readonly id: string;
   /** 按规范标题批量解析（管线内部自行处理并发/缓存/预算） */
   resolve(titles: string[]): Promise<TitleResolution[]>;
+  /** 单标题详情（浮窗用；可选——无实现时管线由 resolve 降级构造） */
+  detail?(title: string): Promise<DetailData>;
 }

@@ -5,7 +5,7 @@
  * 与旧版差异：SCREAMING_CASE 散动作 → 命名空间化动作 + MessageMap 双端类型绑定；
  * 未知 action 默认拒绝（fail-closed）语义保留。
  */
-import type { TitleResolution } from '../steam/types.js';
+import type { DetailData, TitleResolution } from '../steam/types.js';
 
 /** 命名空间化动作（domains/action） */
 export interface MessageMap {
@@ -13,6 +13,16 @@ export interface MessageMap {
   'badges/resolve': {
     req: { titles: string[] };
     res: { results: Record<string, TitleResolution> };
+  };
+  /** 详情浮窗数据 */
+  'detail/get': {
+    req: { title: string };
+    res: { detail: DetailData };
+  };
+  /** 手动机型声明（长期终态 + MC 评分拉取） */
+  'platform/declare': {
+    req: { title: string; platformId: string };
+    res: { kind: string; tag: string; metascore: number | null };
   };
   /** 设置读取 */
   'settings/get': {
@@ -42,4 +52,9 @@ export interface AnyMessage {
 }
 
 /** 内容脚本（http 源）可发送的动作白名单——特权动作仅扩展页 */
-export const CONTENT_ALLOWED: readonly ActionName[] = ['badges/resolve', 'settings/get'];
+export const CONTENT_ALLOWED: readonly ActionName[] = [
+  'badges/resolve',
+  'detail/get',
+  'platform/declare',
+  'settings/get'
+];

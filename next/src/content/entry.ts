@@ -6,6 +6,7 @@
  */
 import { themeCss } from '../ui/tokens.js';
 import { runBadgeScan } from './features/badges/scan.js';
+import { runFloatScan } from './features/float/scan.js';
 
 function injectTheme(): void {
   const style = document.createElement('style');
@@ -16,7 +17,10 @@ function injectTheme(): void {
 
 function start(): void {
   injectTheme();
-  const run = () => void runBadgeScan();
+  const run = () => {
+    void runBadgeScan();
+    void runFloatScan();
+  };
   if (document.readyState === 'complete' || document.readyState === 'interactive') {
     setTimeout(run, 0);
   } else {
