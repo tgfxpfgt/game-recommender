@@ -4,14 +4,14 @@
  * Old world: three badge families + inline styles; new world: one component,
  * tokens from CSS custom properties, text via locale dict.
  */
-import { h } from 'preact';
+import type { JSX } from 'preact'; // preact 11：JSX 命名空间（Element 类型）；运行时走 automatic JSX 无需 h
 import type { TitleResolution } from '../../../steam/types.js';
 import { palette } from '../../../ui/tokens.js';
 import { t } from '../../../locales/zh-CN.js';
 
-export function Badge(props: { resolution: TitleResolution; onRetry: () => void }): h.JSX.Element {
+export function Badge(props: { resolution: TitleResolution; onRetry: () => void }): JSX.Element {
   const { resolution: r } = props;
-  const base: h.JSX.CSSProperties = {
+  const base = {
     display: 'inline-block',
     padding: '2px 6px',
     marginRight: '4px',
@@ -19,7 +19,7 @@ export function Badge(props: { resolution: TitleResolution; onRetry: () => void 
     borderRadius: '2px',
     verticalAlign: 'middle',
     fontFamily: 'inherit'
-  };
+  } as const;
 
   switch (r.kind) {
     case 'steam': {

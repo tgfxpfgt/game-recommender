@@ -44,13 +44,17 @@ async function buildOne(entry, outfile, format, extra = {}) {
 }
 
 async function main() {
+  const variant = process.argv.includes('--variant') ? process.argv[process.argv.indexOf('--variant') + 1] : 'steam';
+  if (variant !== 'steam' && variant !== 'fixture') throw new Error(`未知 variant: ${variant}`);
   const pkg = JSON.parse(fs.readFileSync(path.join(ROOT, 'package.json'), 'utf-8'));
   // Chrome manifest version 只接受 1-4 段纯整数（semver 预发布后缀非法）
   const version = pkg.version.split('-')[0];
   fs.rmSync(DIST, { recursive: true, force: true });
   fs.mkdirSync(DIST, { recursive: true });
 
-  await buildOne('src/background/entry.ts', 'background/service-worker.js', 'esm');
+  await buildOne('src/background/entry.ts', 'background/service-worker.js', 'esm', {
+    define: { __GR_PROVIDER__: JSON.stringify(variant) }
+  });
   await buildOne('src/content/entry.ts', 'content/content.js', 'iife');
   await buildOne('src/pages/popup/main.tsx', 'pages/popup/popup.js', 'iife');
 
@@ -121,7 +125,7 @@ async function main() {
   ];
   const missing = must.filter((f) => !fs.existsSync(path.join(ROOT, f)));
   if (missing.length > 0) throw new Error('dist 缺产物: ' + missing.join(', '));
-  console.log(`✅ v2 build 完成 → dist/`);
+  console.log(`✅ v2 build 完成（provider=${variant}）→ dist/`);
 }
 
 await main();

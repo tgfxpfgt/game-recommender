@@ -2,7 +2,7 @@
  * game-radar v2 — Popup 页（Preact 函数组件）
  * Popup: live pipeline stats over the typed messaging channel.
  */
-import { h } from 'preact';
+import type { JSX } from 'preact';
 import { useEffect, useState } from 'preact/hooks';
 import { send } from '../../messaging/client.js';
 import { t } from '../../locales/zh-CN.js';
@@ -13,7 +13,7 @@ interface Stats {
   provider: string;
 }
 
-export function Popup(): h.JSX.Element {
+export function Popup(): JSX.Element {
   const [stats, setStats] = useState<Stats | null>(null);
 
   useEffect(() => {
@@ -36,7 +36,7 @@ export function Popup(): h.JSX.Element {
   );
 }
 
-function Row(props: { label: string; value: string }): h.JSX.Element {
+function Row(props: { label: string; value: string }): JSX.Element {
   return (
     <tr>
       <td style={{ color: 'var(--gr-text-muted)', padding: '3px 0' }}>{props.label}</td>

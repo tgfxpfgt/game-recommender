@@ -6,6 +6,7 @@
  * render with expected three-state semantics.
  */
 import { chromium } from 'playwright-core';
+import { execSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -14,6 +15,10 @@ import { fileURLToPath } from 'node:url';
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const DIST = path.join(ROOT, 'dist');
 const FIXTURE = path.join(ROOT, 'e2e');
+
+// 前置构建：e2e 变体（fixture 供配商）——确定性徽章断言的前提
+console.log('build (variant=fixture)…');
+execSync('node scripts/build.mjs --variant fixture', { cwd: ROOT, stdio: 'inherit' });
 
 if (!fs.existsSync(path.join(DIST, 'manifest.json'))) {
   console.error('❌ 缺 dist——先 npm run build');

@@ -4,14 +4,16 @@
  * search candidates. Fresh implementation — same observable behavior contract.
  */
 
-/** 括号内容（版本/平台注记）与噪声段剔除后按分隔符拆分 */
+/** 括号注记剔除；分隔符对齐旧 parseGameTitle：仅管道/带空格连字符/点分隔——
+ * 段内空格保留（"Elden Ring" 是一个候选，而非 "Elden"+"Ring" 两段） */
 export function parseTitleCandidates(rawTitle: string): string[] {
   const cleaned = rawTitle
     .replace(/《([^》]*)》/g, '$1') // 书名号保留内容
     .replace(/（[^）]*）/g, ' ') // 全角括号注记剔除
-    .replace(/\([^)]*\)/g, ' '); // 半角括号注记剔除
+    .replace(/\([^)]*\)/g, ' ') // 半角括号注记剔除
+    .replace(/\bv?\d+(?:\.\d+)+\b/gi, ' '); // 版本号段（v1.10 形态，非身份）
   const segs = cleaned
-    .split(/[|丨/／,，、;；:：\s\-—_·×•]+/)
+    .split(/[|丨]+|\s+[-–—]\s+|[×•·:：]/)
     .map((s) => s.trim())
     .filter((s) => s.length > 1);
   const noise = getNoiseSegments();
@@ -59,12 +61,11 @@ function getNoiseSegments(): Set<string> {
   return NOISE;
 }
 
-/** 规范化标题键（供缓存/fixture 匹配：去空白/全角转半角/小写） */
+/** 规范化标题键（供缓存/fixture 匹配：全角→ASCII/空白归一/小写） */
 export function normalizeTitleKey(title: string): string {
   return title
+    .replace(/[\uFF01-\uFF5E]/g, (c) => String.fromCharCode(c.charCodeAt(0) - 0xfee0)) // 全角→半角
     .replace(/\u3000/g, ' ')
-    .replace(/[（(]/g, '(')
-    .replace(/[）)]/g, ')')
     .replace(/\s+/g, ' ')
     .trim()
     .toLowerCase();

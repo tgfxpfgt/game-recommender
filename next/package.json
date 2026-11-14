@@ -8,15 +8,16 @@
     "build": "node scripts/build.mjs",
     "e2e": "node scripts/e2e.mjs",
     "typecheck": "tsc --noEmit",
-    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" "
-  },
-  "dependencies": {
-    "preact": "^10.24.0"
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" ",
+    "test": "vitest run",
+    "build:e2e": "node scripts/build.mjs --variant fixture"
   },
   "devDependencies": {
     "esbuild": "^0.24.0",
     "happy-dom": "^15.0.0",
     "playwright-core": "^1.62.1",
-    "typescript": "^5.6.0"
+    "preact": "^11.2.0",
+    "typescript": "^5.6.0",
+    "vitest": "^5.1.0"
   }
 }
