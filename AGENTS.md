@@ -244,8 +244,14 @@ job 同源调用——漂移即红）。
    发布前先 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜 + 真实默认分支）
 2. bump manifest+package+CHANGELOG.md → `npm run package` → `npm run release:smoke`；
    新增外部资源型功能须已回填 first-run.json 真实证据（check:first-run 在 gate 内兜底）
-3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + Mimosa seal）
-4. 深度扫描（security_scan，focusFiles=改动文件）→ seal 补入 release notes
+3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + seal）
+4. 深度扫描 → seal 补入 release notes。**扫描链路（2026-11-14 用户裁决 B+C）**：
+   主源 = **Semgrep OSS**（`semgrep scan --config p/javascript --config p/owasp-top-ten
+--config p/secrets --json`，焦点 = 发版改动文件 + 全库一轮）+ **eslint-plugin-security**
+   （已常态入 lint 门禁）。报告落 `docs/reports/security-scan-<版本>/`（REPORT.md +
+   原始 JSON），**seal = REPORT.md 的 sha256**，`gh release edit` 补入 notes + CHANGELOG
+   条目补记。Mimosa MCP 可用时仍可用（保留接口）；全库 findings 必须逐条人工定性
+   （转义链核对——参照 security-scan-v14.31.0 §3 形态），误报归档报告、真问题挂账修复。
 5. 油猴脚本更新（v14.15.0 N8）：@updateURL/@downloadURL 指向 raw.githubusercontent
    （Tampermonkey 自动探测，jsDelivr 备源为用户侧手动替换）——发版时油猴 @version
    仅在功能口径同步后递增（≠扩展 patch 联动，语义 = 移植基线版本）

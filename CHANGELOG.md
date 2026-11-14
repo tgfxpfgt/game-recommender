@@ -2,12 +2,19 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.31.1（安全扫描链路替代：Semgrep+ESLint security 双工具链（Mimosa 断连期 seal 证据源））
+
+- eslint-plugin-security 4.2.1 常态入 lint 门禁（精选 10 条 error 规则；object-injection/non-literal-regexp/unsafe-regex 三条 off 理由登记）
+- Semgrep OSS 1.185.0 出具 v14.31.0 发版深度扫描报告（焦点 31 文件 0 findings/全库 3 findings 全数定性误报）——seal sha256:e0a98c4d…fab11 补入 release notes 与 CHANGELOG
+- AGENTS.md 发布流程第 4 步改写：扫描链路主源改双工具链（Mimosa MCP 可用时保留）；detect-unsafe-regex 13 处有界量词误报挂账择批 ReDoS 复核
+
 ### v14.31.0（列表/详情双管线一致性统一：单源化共享层 + 三态结构化 + 防脱节门禁）
 
 - 置信度字段装配单源 attachMatchConfidence（match-confidence.js——列表 matchConflict 强制降级内聚，两管线同函数装配，新增字段只改一处）
-- MC 分级色单源 __GR_PATTERNS__.mcColorFor（列表 gr-mc-badge 与详情 MC 视图同一把尺，两处字面量副本退场）
+- MC 分级色单源 **GR_PATTERNS**.mcColorFor（列表 gr-mc-badge 与详情 MC 视图同一把尺，两处字面量副本退场）
 - 详情 SEARCH_STEAM 未命中响应补结构化 errorType（network/notfound，与列表 networkFailed 哨兵同名同义）——内容侧优先消费结构化字段，reason 正则兼容保留
 - 防脱节规则：铁律 18 登记 + playbooks 配方 + test-match-consensus 一致性门禁组（5 用例：同输出/冲突降级/纠正强制确认/色带等价+无双副本/三态源码守卫）；有意差异登记（MC 视图无新游标签、matchConflict 仅列表接线）
+- **完整发版（2026-11-14，tag+release，zip 上线）**：触发线（v14.28.10 后插入 +3255 行）→ gate 全量等效全绿（sim-list 满载竞态隔离 3 连绿定性）→ ext-refs --refresh 3 条真实校验。**安全深度扫描 seal `sha256:e0a98c4d5b45c066b80718a8a89a0bd4e408427e3b74c881bab23263168fab11`**（Semgrep OSS 1.185.0 + eslint-plugin-security 4.2.1 双工具链出具——Mimosa 钩子禁用与 MCP 断连后经用户裁决改链；焦点集 31 文件 0 findings / 全库 3 findings 全数定性误报，报告 docs/reports/security-scan-v14.31.0/）
 
 ### v14.30.0（主机游戏检索三连修复：MC 域权限根治/详情页平台预检/手动面板机型入口）
 

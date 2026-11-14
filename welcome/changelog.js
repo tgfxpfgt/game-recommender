@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.31.1',
+        date: '2026-11-14',
+        items: [
+          'eslint-plugin-security 4.2.1 常态入 lint 门禁（精选 10 条 error 规则；object-injection/non-literal-regexp/unsafe-regex 三条 off 理由登记）',
+          'Semgrep OSS 1.185.0 出具 v14.31.0 发版深度扫描报告（焦点 31 文件 0 findings/全库 3 findings 全数定性误报）——seal sha256:e0a98c4d…fab11 补入 release notes 与 CHANGELOG',
+          'AGENTS.md 发布流程第 4 步改写：扫描链路主源改双工具链（Mimosa MCP 可用时保留）；detect-unsafe-regex 13 处有界量词误报挂账择批 ReDoS 复核'
+        ]
+      },
+      {
         ver: '14.31.0',
         date: '2026-11-14',
         items: [

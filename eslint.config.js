@@ -138,5 +138,48 @@ export default [
       ...baseRules,
       'no-unused-vars': ['warn', { args: 'none', varsIgnorePattern: '^_', argsIgnorePattern: '^_' }]
     }
+  },
+  {
+    // v14.31.1（安全扫描链路替代，用户裁决 B+C）：eslint-plugin-security 接入
+    // ——Mimosa 钩子禁用（2026-11-14）后的日常安全面门禁，与 Semgrep 发版深度
+    // 扫描互补。**精选低误报规则集**而非 recommended 全开：
+    // - detect-object-injection off——动态属性访问在本库是常态模式
+    //  （steam-cache 字段路由/模块注册表/缓存键），误报淹没真实信号；
+    // - detect-non-literal-regexp off——词表编译（retrieval-vocab）受控输入
+    //   构造正则是设计用途，非注入面。
+    // 其余 recommended 规则全开（eval/new Function/子进程/fs 路径/定时攻击/
+    // 伪随机/不安全正则）。零警告纪律：新增告警 = 门禁红。
+    // Security plugin with a curated low-noise rule set (object-injection and
+    // non-literal-regexp are off with rationale — legit patterns in this repo).
+    files: [
+      'background/**/*.js',
+      'content/**/*.js',
+      'shared/**/*.js',
+      'popup/**/*.js',
+      'options/**/*.js',
+      'dashboard/**/*.js',
+      'hub/**/*.js',
+      'freegames/**/*.js',
+      'welcome/**/*.js',
+      'adapters/**/*.js',
+      'data/**/*.js'
+    ],
+    plugins: {
+      security: (await import('eslint-plugin-security')).default // CJS 插件——ESM namespace 需取 default（否则 rules 表挂不上）
+    },
+    rules: {
+      'security/detect-bidi-characters': 'error',
+      'security/detect-invisible-characters': 'error',
+      'security/detect-child-process': 'error',
+      'security/detect-eval-with-expression': 'error',
+      'security/detect-new-buffer': 'error',
+      'security/detect-non-literal-fs-filename': 'error',
+      'security/detect-non-literal-require': 'error',
+      'security/detect-possible-timing-attacks': 'error',
+      'security/detect-pseudoRandomBytes': 'error',
+      'security/detect-object-injection': 'off', // 动态键访问为本库常态（字段路由/注册表）——误报大户，见块注释
+      'security/detect-non-literal-regexp': 'off', // 词表编译受控输入构造正则=设计用途（retrieval-vocab），见块注释
+      'security/detect-unsafe-regex': 'off' // v14.31.1 初装实测 13 处全为有界量词保守误报（{1,3}/{0,61} 线性形态）——逐条定性已登记 docs/reports/security-scan-v14.31.0；择批经 Semgrep ReDoS 规则复核后决定是否局部启用
+    }
   }
 ];
