@@ -1,0 +1,22 @@
+{
+  "name": "game-radar",
+  "version": "15.0.0-alpha.1",
+  "private": true,
+  "description": "游戏雷达 Game Radar v2 — 绿地重写（约束仅一条：功能等价）",
+  "type": "module",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "e2e": "node scripts/e2e.mjs",
+    "typecheck": "tsc --noEmit",
+    "clean": "node -e \"fs.rmSync('dist',{recursive:true,force:true})\" "
+  },
+  "dependencies": {
+    "preact": "^10.24.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.24.0",
+    "happy-dom": "^15.0.0",
+    "playwright-core": "^1.62.1",
+    "typescript": "^5.6.0"
+  }
+}

@@ -73,3 +73,4 @@ tests/visual/diff/
 comm-probe.html
 gh-probe.html
 scripts/.gate-costs.jsonl
+next/node_modules/
