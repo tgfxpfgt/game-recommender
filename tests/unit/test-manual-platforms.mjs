@@ -9,7 +9,6 @@ import { test, expect, describe, beforeEach } from 'vitest';
  * handler chain (option resolve → Metacritic fetch → persist → index clear),
  * and consumption by the three pipelines (list wave-1/wave-2, detail search).
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { installFetchMock } from '../helpers/fetch-mock.mjs';

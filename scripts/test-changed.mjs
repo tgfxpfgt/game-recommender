@@ -21,7 +21,7 @@
  *   --to：与 --base 连用，校验已提交区间（base..to），不含工作区（历史批次补验）
  *   <file...>：显式文件清单（自测/复现），跳过 git 变更检测
  */
-import { execSync, spawnSync } from 'node:child_process';
+import { spawnSync, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -127,8 +127,20 @@ const explicitFiles = (() => {
   return out;
 })();
 
-function git(cmd) {
-  return execSync(cmd, { cwd: ROOT, encoding: 'utf-8' });
+// v14.31.3（CodeQL indirect-command-line-injection）：execSync 字符串拼接改
+// execFileSync 数组参数（不经 shell）；--base/--to 为 CLI 输入，git ref 字符集
+// 白名单校验（拒 -- 开头参数注入与 shell 元字符）。
+// execFileSync with array args (no shell); CLI-provided refs are charset-validated.
+function git(args) {
+  return execFileSync('git', args, { cwd: ROOT, encoding: 'utf-8' });
+}
+
+/** git ref 白名单校验（纯函数，防 -- 参数注入）/ charset-validate a git ref */
+function safeRef(ref) {
+  if (!/^[A-Za-z0-9][A-Za-z0-9._/~^-]*$/.test(String(ref || ''))) {
+    throw new Error(`非法 git ref: ${ref}（仅允许字母数字._/~^-，且不以 - 开头）`);
+  }
+  return ref;
 }
 
 // 变更文件：默认工作区（含暂存+未跟踪）优先，全净时回退校验上一个提交；
@@ -149,15 +161,18 @@ function changedFiles() {
   const to = toIdx > 0 ? process.argv[toIdx + 1] : null;
   let files;
   if (base && to) {
-    files = [...norm(git(`git diff --name-only ${base} ${to}`))];
+    files = [...norm(git(['diff', '--name-only', safeRef(base), safeRef(to)]))];
     console.log(`ℹ️ 校验提交区间 ${base}..${to}（不含工作区）`);
   } else if (base) {
-    files = [...norm(git(`git diff --name-only ${base}`))];
+    files = [...norm(git(['diff', '--name-only', safeRef(base)]))];
     console.log(`ℹ️ 校验基线 ${base}（已提交+工作区合并视图）`);
   } else {
-    files = [...norm(git('git diff --name-only HEAD')), ...norm(git('git ls-files --others --exclude-standard'))];
+    files = [
+      ...norm(git(['diff', '--name-only', 'HEAD'])),
+      ...norm(git(['ls-files', '--others', '--exclude-standard']))
+    ];
     if (files.length === 0) {
-      files = norm(git('git diff --name-only HEAD~1 HEAD'));
+      files = norm(git(['diff', '--name-only', 'HEAD~1', 'HEAD']));
       if (files.length > 0) console.log('ℹ️ 工作区干净，回退校验上一个提交（HEAD~1）');
     }
   }

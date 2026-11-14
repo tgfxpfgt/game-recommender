@@ -5,7 +5,6 @@
  * 供主册（test-integrity.mjs）与安全分册（test-integrity-security.mjs）
  * 共享。非 vitest 套件（不匹配 test-*.mjs，include 自检不涉及）。
  */
-('use strict');
 
 import fs from 'node:fs';
 import path from 'node:path';

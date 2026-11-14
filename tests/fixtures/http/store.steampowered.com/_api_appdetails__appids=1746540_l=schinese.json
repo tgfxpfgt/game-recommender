@@ -1,1 +1,5 @@
-{"status": 200, "contentType": "application/json", "body": "{\"1746540\": {\"success\": true, \"data\": {\"steam_appid\": 1746540, \"name\": \"\\u6e38\\u620f\\uff1a\\u5f02\\u661f\", \"type\": \"game\"}}}"}
+{
+  "status": 200,
+  "contentType": "application/json",
+  "body": "{\"1746540\": {\"success\": true, \"data\": {\"steam_appid\": 1746540, \"name\": \"\\u6e38\\u620f\\uff1a\\u5f02\\u661f\", \"type\": \"game\"}}}"
+}

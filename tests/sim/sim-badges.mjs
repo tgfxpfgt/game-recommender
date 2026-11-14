@@ -13,7 +13,6 @@ import { expect } from 'vitest';
  * Bootstraps its own module registry (first test) instead of inheriting
  * section 1's file-level GR.
  */
-('use strict');
 
 import {
   simTest,

@@ -15,7 +15,6 @@ import { expect } from 'vitest';
  * Each flow test reloads content scripts (page-reload simulation, as before);
  * the sync template test relies on the instance loaded by the prior test.
  */
-('use strict');
 
 import fs from 'fs';
 import path from 'path';

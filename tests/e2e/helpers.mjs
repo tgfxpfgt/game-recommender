@@ -11,7 +11,6 @@ import { fileURLToPath } from 'node:url';
  * Split from e2e-smoke.mjs: network record/replay, fixture page + local HTTP
  * server, launch args and the check-counter factory. Sections: section-*.mjs.
  */
-('use strict');
 
 const SECTION_DIR = path.dirname(fileURLToPath(import.meta.url)); // tests/e2e/
 export const TESTS_DIR = path.resolve(SECTION_DIR, '..'); // tests/

@@ -1,1 +1,1 @@
-{"status": 200, "contentType": "application/json", "body": "{\"appnews\": {\"appid\": 900033, \"newsitems\": []}}"}
+{ "status": 200, "contentType": "application/json", "body": "{\"appnews\": {\"appid\": 900033, \"newsitems\": []}}" }

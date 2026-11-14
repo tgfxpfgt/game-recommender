@@ -7,7 +7,6 @@ import { test, expect } from 'vitest';
  * 排名/评分/评价数；数量下限哨兵（结构变更弃用）在 ensureLoaded。
  * 合成样本对齐 2026-11 真实页面快照（含排名变化指示 span 变体）。
  */
-('use strict');
 
 const mod = await import(new URL('../../background/steam/steam250.js', import.meta.url).href + '?t=' + Date.now());
 const { parseSteam250Html } = mod;

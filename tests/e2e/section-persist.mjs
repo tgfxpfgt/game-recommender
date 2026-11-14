@@ -10,7 +10,6 @@ import { chromium } from 'playwright-core';
  * reassigning state.context/state.extId for the sections that follow.
  * state: { context, extId, check, userDataDir } — 由 run.mjs 注入。
  */
-('use strict');
 
 import { launchOpts } from './helpers.mjs';
 

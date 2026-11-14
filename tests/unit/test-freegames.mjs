@@ -5,7 +5,6 @@ import { test, expect } from 'vitest';
  * v4.2.0：classifyGamerPowerGiveaway（官方直领 vs 第三方 key 领取）与
  * extractThirdPartySource（来源识别）——v4.1.0 起已导出纯函数。
  */
-('use strict');
 
 const mod = await import(new URL('../../background/freegames/manager.js', import.meta.url).href + '?t=' + Date.now());
 const { classifyGamerPowerGiveaway, extractThirdPartySource } = mod;

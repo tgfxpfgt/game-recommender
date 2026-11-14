@@ -8,7 +8,6 @@ import { test, expect, describe, beforeEach } from 'vitest';
  * Usage evidence ledger: bounded recording (counter allowlist, duration ring,
  * event FIFO), pure report aggregation, flush roundtrip.
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 

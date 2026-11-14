@@ -5,7 +5,6 @@
  * + v14.2.0 分步引导假绿修复 + v8.2.0 update 模式 What's new）。
  * state: { context, extId, check } — 由 run.mjs 注入。
  */
-('use strict');
 
 export async function runInstall(state) {
   const { context, extId, check } = state;

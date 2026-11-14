@@ -4,7 +4,6 @@
  * 第五轮 B9 自 e2e-smoke.mjs 拆出（5b：趋势图 SVG 渲染 + v10.8 E1 运行指标卡）。
  * state: { context, extId, check } — 由 run.mjs 注入。
  */
-('use strict');
 
 import { withTimeout, isTimeout } from './helpers.mjs';
 

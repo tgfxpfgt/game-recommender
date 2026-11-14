@@ -7,7 +7,6 @@ import { test, expect } from 'vitest';
  * 中位数 / 可判定条件（样本数、噪声下限、失败运行排除）/ 1.5× 异常阈值 /
  * 记录写入（可注入路径）。
  */
-('use strict');
 import {
   median,
   analyzeStepCost,
@@ -55,7 +54,8 @@ test('analyzeStepCost：中位数低于 10s 噪声下限不判定', () => {
 });
 
 test('recordStepCost/readCostHistory：追加可读回 + 损坏行容错', () => {
-  const tmp = path.join(os.tmpdir(), `gr-costs-test-${Date.now()}.jsonl`);
+  // v14.31.3（CodeQL insecure-temporary-file）：可预测文件名加随机段防碰撞/劫持
+  const tmp = path.join(os.tmpdir(), `gr-costs-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jsonl`);
   try {
     fs.writeFileSync(tmp, '{"broken json\n', 'utf-8'); // 预置损坏行
     recordStepCost('fast', 'lint', 1234, 0, tmp);

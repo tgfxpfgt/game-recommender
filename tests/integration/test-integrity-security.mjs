@@ -6,7 +6,6 @@ import { test, expect } from 'vitest';
  * content ESM 链 WAR 覆盖、主题变量键集合一致性。结构/清单/契约检查在
  * test-integrity.mjs 主册；共享工具在 integrity-helpers.mjs。
  */
-('use strict');
 
 import fs from 'node:fs';
 import path from 'node:path';

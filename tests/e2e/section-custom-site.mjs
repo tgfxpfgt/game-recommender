@@ -6,7 +6,6 @@
  *（随后删除恢复）。注册域名须有 host permission——用 manifest 已含的 localhost。
  * state: { context, extId, check } — 由 run.mjs 注入（重启后新实例）。
  */
-('use strict');
 
 export async function runCustomSite(state) {
   const { context, extId, check } = state;

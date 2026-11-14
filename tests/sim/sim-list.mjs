@@ -11,7 +11,6 @@ import { expect } from 'vitest';
  * 文件内顺序状态（原文件级 let GR/itemA-C 显式化）：节 1 装载 → 后续节
  * 经 getGR() 取模块句柄；itemA-C 为节 2 构建、节 3/6/7 读取的本文件状态。
  */
-('use strict');
 
 import {
   simTest,

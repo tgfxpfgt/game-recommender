@@ -6,7 +6,6 @@ import { test, expect } from 'vitest';
  * 白名单/函数拒绝/规模上限/正则试编译）+ sanitizeImportedModule（导入限额）
  * + 三类过期缓存清理纯函数。
  */
-('use strict');
 
 const rulesMod = await import(new URL('../../background/core/rules.js', import.meta.url).href + '?t=' + Date.now());
 const cleanupMod = await import(

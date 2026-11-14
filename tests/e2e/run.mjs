@@ -12,7 +12,6 @@ import { chromium } from 'playwright-core';
  * Boot + section pipeline; per-section logic lives in section-*.mjs modules.
  * Run: npm run e2e （需本机 Chromium/Chrome；E2E_MOCK=1 离线回放）
  */
-('use strict');
 
 import {
   createChecks,

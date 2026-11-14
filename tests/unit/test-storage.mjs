@@ -10,7 +10,6 @@ import { test, expect, describe, beforeAll } from 'vitest';
  *（check 线性脚本的顶层流程在 vitest 收集阶段全部提前执行，断言运行阶段
  * 读到最终状态；准备移入各 test 后检查点语义恢复）。
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 

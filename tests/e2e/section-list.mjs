@@ -6,7 +6,6 @@
  * 原位于详情节之后——run.mjs 保持原执行位次）。
  * state: { context, extId, check, FIXTURE_URL, FIXTURE_ROOT } — 由 run.mjs 注入。
  */
-('use strict');
 
 import { withTimeout, isTimeout } from './helpers.mjs';
 

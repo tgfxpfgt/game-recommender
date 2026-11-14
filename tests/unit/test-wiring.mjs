@@ -7,7 +7,6 @@ import { test, expect, describe, beforeAll } from 'vitest';
  * Wiring-layer tests: data-modules handlers, dynamic site-script
  * registration, site inference and stats fallbacks.
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 

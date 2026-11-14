@@ -9,7 +9,6 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
  * Verifies the audit ring buffer, stats, rate-limit window, and the four
  * fetchWithTimeout audit paths (ok / network error / blocked / rate-limited).
  */
-('use strict');
 
 // 注意：outbound-audit 必须不带查询参数导入——utils.js 内部以静态 import
 // 引用它（无参数 URL），带 ?t= 会生成独立模块实例，审计状态互不可见。

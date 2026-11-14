@@ -7,7 +7,6 @@
  * Drives the add-site click handler with a minimal fake DOM and asserts the
  * requested origins plus the denial degradation path.
  */
-('use strict');
 
 import { test, expect } from 'vitest';
 

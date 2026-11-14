@@ -7,7 +7,6 @@
  * Returns false to stop the pipeline (was: return inside runChecks).
  * state: { context, extId, check, MOCK, FAST, FIXTURE_ROOT } — 由 run.mjs 注入。
  */
-('use strict');
 
 import { withTimeout, isTimeout } from './helpers.mjs';
 

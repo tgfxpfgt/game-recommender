@@ -273,7 +273,8 @@ export async function searchSteamGame(gameName, options = {}) {
         if (!again) return null;
         appId = again.appId;
         appIdSource = again.source;
-        appIdTrusted = true;
+        // （v14.31.3）原此处重复赋值 appIdTrusted = true——重搜路径后续无读取
+        //（护栏判断消费的是首次赋值），CodeQL useless-assignment 标记后删除
         const second = await fetchDetailsResolveDlc(appId); // 重搜后 appId 已变，plan 必须丢弃
         if (!second) return null;
         appId = second.appId;

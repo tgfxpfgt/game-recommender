@@ -7,7 +7,6 @@ import { test, expect } from 'vitest';
  * 版本断言改为 manifest 为唯一权威 + 与 package.json 互比（去硬编码——
  * 发版不再需要改测试）。
  */
-('use strict');
 
 import fs from 'node:fs';
 import path from 'node:path';

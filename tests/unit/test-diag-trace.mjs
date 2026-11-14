@@ -8,7 +8,6 @@ import { test, expect, describe, beforeEach } from 'vitest';
  * Runtime diagnostic trace: ring rotation, whitelist key guard, classification
  * scenarios, recorded-fixture replay gated by schemaVersion freshness.
  */
-('use strict');
 
 import fs from 'node:fs';
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';

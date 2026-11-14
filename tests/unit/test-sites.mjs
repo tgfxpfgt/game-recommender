@@ -5,7 +5,6 @@ import { test, expect } from 'vitest';
  * v4.2.0：extractDetailMeta（更新日期/版本/大小/百度网盘链接与提取码），
  * 覆盖 sites/search.js 的 HTML 解析纯函数（fixture HTML 驱动）。
  */
-('use strict');
 
 const mod = await import(new URL('../../background/sites/search.js', import.meta.url).href + '?t=' + Date.now());
 const { extractDetailMeta } = mod;

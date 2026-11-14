@@ -12,7 +12,6 @@ import { test, expect } from 'vitest';
  *   4) JSON 损坏文件 → 读回 null 且生成 .corrupt-* 备份并重置。
  * An in-memory fake OPFS exercises the production write path end to end.
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 

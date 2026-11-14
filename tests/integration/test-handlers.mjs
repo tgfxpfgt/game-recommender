@@ -11,7 +11,6 @@ import { test, expect, describe, beforeAll, afterAll, beforeEach } from 'vitest'
  * 注意：fetch mock 按 describe 作用域安装/卸载（顶层多 mock 后装覆盖前者）；
  * 名称索引删除断言依赖 v6.2.0 修复（deleteNameIndexEntry 对称删除清理名变体）。
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';

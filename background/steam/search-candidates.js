@@ -393,7 +393,9 @@ export async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, l
     // 网络失败（两次尝试均未返回）：抛错 → 外层重试一次（抗瞬时抖动）
     if (!cnData) throw new Error('Steam 搜索网络失败');
 
-    const cnItems = (cnData && cnData.items) || [];
+    // （v14.31.3）cnData 恒真（394 行 throw 兜底）——去掉 CodeQL trivial-conditional
+    // 标记的冗余判断
+    const cnItems = cnData.items || [];
     if (cnItems.length > 0) {
       // 名称相关性校验：优先非 Demo/附属且与搜索词相关的项；无相关项则尝试下一词
       // v3.3.13：排除曾报错的错误 appid（人工纠正知识库的"黑名单"项）

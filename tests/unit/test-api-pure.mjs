@@ -9,7 +9,6 @@ import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';
  * 模块化缓存（isModuleValid/getMergedData/setSteamCacheEntry 路由/migrateEntry）/
  * summarizeRecentReviews / calcLinkMatchScore / namesRelated。
  */
-('use strict');
 
 const apiMod = await import(new URL('../../background/steam/api.js', import.meta.url).href + '?t=' + Date.now());
 test('已有 http 封面保留', () => {

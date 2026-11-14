@@ -5,7 +5,6 @@ import { test, expect, describe } from 'vitest';
  * siteHealth（告警 upsert/上限淘汰/重置）与 flushHealth（写失败计数/重置）。
  * Site-health alerts (upsert/cap-evict/reset) and flush-health counters.
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 

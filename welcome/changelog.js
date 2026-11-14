@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.31.3',
+        date: '2026-11-14',
+        items: [
+          "43 个测试文件删除 ('use strict') 无用表达式（ESM 惰性指令）；orchestrator-detail 删重搜路径无用 appIdTrusted 赋值；search-candidates 去冗余恒真条件；detect-name/search 字符类双单引号 ×4",
+          'test-changed.mjs git() execSync 拼接改 execFileSync 数组参数 + git ref 白名单校验（CLI 注入面消除）；coverage-snapshot TOCTOU 改 try/catch 直读；test-cost-history 临时文件名加随机段',
+          '52 处误报 dismiss 带理由归档（dashboard 经典脚本跨文件全局 ×19/URL 子串防御检查 ×15/油猴 textContent 边界 ×3/实体单遍解码等）——Security 面板 open 告警清零'
+        ]
+      },
+      {
         ver: '14.31.2',
         date: '2026-11-14',
         items: [

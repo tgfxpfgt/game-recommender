@@ -8,7 +8,6 @@ import { test, expect, beforeEach } from 'vitest';
  * → 正文；含引用块重复日期行与官方公告卡两类结构噪声）。
  * fetchCommunityChineseReviews：死旗标/会话去重/熔断三层护栏 + 空产出哨兵。
  */
-('use strict');
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { installFetchMock } from '../helpers/fetch-mock.mjs';
 

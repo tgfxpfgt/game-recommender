@@ -7,7 +7,6 @@
  * Frozen snapshot taken BEFORE the P2-10 file split; re-running after the split
  * must produce identical values (byte-identical output requirement).
  */
-('use strict');
 
 import { test, expect } from 'vitest';
 

@@ -20,7 +20,7 @@ function extractEnglishFromSteamImage() {
     const match = alt.match(/^(.+?)\s+on\s+Steam$/i);
     if (match) {
       const name = match[1].trim();
-      if (name.length > 3 && name.length < 200 && /^[A-Za-z0-9][A-Za-z0-9\s'':&.!\-×x]*$/i.test(name)) {
+      if (name.length > 3 && name.length < 200 && /^[A-Za-z0-9][A-Za-z0-9\s':&.!\-×x]*$/i.test(name)) {
         return name;
       }
     }
@@ -46,7 +46,7 @@ export function detectGameName() {
     const enChild = h1Clone.querySelector('span, div, p, em, strong, small');
     if (enChild) {
       const enText = (enChild.textContent || '').trim();
-      if (enText.length > 3 && enText.length < 200 && /^[A-Za-z0-9][A-Za-z0-9\s'':&.!\-×x]*$/i.test(enText)) {
+      if (enText.length > 3 && enText.length < 200 && /^[A-Za-z0-9][A-Za-z0-9\s':&.!\-×x]*$/i.test(enText)) {
         return enText;
       }
     }
@@ -77,7 +77,7 @@ export function detectGameName() {
     }
 
     // 策略3：清理后为空，回退到 textContent 中提取英文子串
-    const enMatch = h1Clone.textContent.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9\s'':&.!\-×x]{5,}/);
+    const enMatch = h1Clone.textContent.match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9\s':&.!\-×x]{5,}/);
     if (enMatch && enMatch[0].length > 3 && enMatch[0].length < 200) return enMatch[0].trim();
   }
   // 从 title 获取

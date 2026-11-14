@@ -5,7 +5,6 @@ import { test, expect } from 'vitest';
  * v4.2.0：aggregateTrends（day/week 粒度）——周桶键=周一、无效时间戳忽略、
  * 转化率计算、排序。background/core/trends.js 为零依赖纯函数。
  */
-('use strict');
 
 const mod = await import(new URL('../../background/core/trends.js', import.meta.url).href + '?t=' + Date.now());
 const { aggregateDailyTrends, aggregateTrends } = mod;

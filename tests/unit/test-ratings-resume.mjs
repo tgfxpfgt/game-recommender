@@ -8,7 +8,6 @@ import { test, expect, describe, beforeAll, afterAll } from 'vitest';
  * Resumable rating job: session checkpoint, cold-start resume, stale-job
  * discard and no-job no-op, driven through the real orchestrator pipeline.
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';

@@ -5,7 +5,6 @@ import { test, expect } from 'vitest';
  * 验证 parseGameTitle / cleanGameName / pickRegistryEnName 的核心行为：
  * 噪声移除、分段（|/×•·）、中英文子串、优先级排序、两字游戏名。
  */
-('use strict');
 
 // 通过动态 import 加载真实模块（纯逻辑无 chrome 依赖）
 const mod = await import(new URL('../../background/core/title-parser.js', import.meta.url).href + '?t=' + Date.now());

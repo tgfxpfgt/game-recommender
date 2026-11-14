@@ -152,7 +152,10 @@ export const BUDGETS = {
   // v14.31.0 (list/detail unification, user-directed): attachMatchConfidence
   // single source in match-confidence.js + structured errorType in
   // handlers/steam.js + shared mcColorFor — +3,192B, no dead code.
-  swGraphBytes: 952703,
+  // v14.31.3 (CodeQL useless-assignment cleanup): removed the dead appIdTrusted
+  // re-assignment in orchestrator-detail's relevance-guard re-search path
+  // (+282B net from the accompanying comment — code bytes shrank).
+  swGraphBytes: 952985,
   swGraphFiles: 108,
   staticInjectionBytes: 39382,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

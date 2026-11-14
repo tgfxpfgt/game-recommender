@@ -7,7 +7,6 @@ import { test, expect } from 'vitest';
  * 已并入 integration/test-integrity.mjs；findVersionVariant 并入
  * unit/test-api-pure.mjs。
  */
-('use strict');
 
 // 1. SSRF 校验（加载真实 utils 模块）
 const utils = await import(new URL('../../background/core/utils.js', import.meta.url).href + '?t=' + Date.now());

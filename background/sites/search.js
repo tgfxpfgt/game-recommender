@@ -18,7 +18,7 @@ import { Logger } from '../storage/logger.js';
 // 链接匹配度评分（0-100）：规范化后全等/包含/分段/跨语言独立比较
 // Link match score (0-100): normalized equality/inclusion/segments/cross-language
 export function calcLinkMatchScore(linkText, searchName) {
-  const norm = (s) => (s || '').toLowerCase().replace(/[\s\-_:：|\/\.''!！?？\[\]()（）]/g, '');
+  const norm = (s) => (s || '').toLowerCase().replace(/[\s\-_:：|\/'!！?？\[\]()（）]/g, '');
   const nt = norm(linkText);
   const ns = norm(searchName);
   if (!nt || !ns || nt.length < 2 || ns.length < 2) return 0;

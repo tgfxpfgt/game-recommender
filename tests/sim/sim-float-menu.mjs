@@ -20,7 +20,6 @@ import { expect } from 'vitest';
  * regression fix, menu items, width drag, zoom persistence, cache info rows,
  * outside-close, restore clamps, reset, and teardown.
  */
-('use strict');
 
 import {
   simTest,

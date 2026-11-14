@@ -7,7 +7,6 @@ import { test, expect } from 'vitest';
  * Verifies validateMessage for the 9 high-risk actions (type whitelist,
  * required fields, numeric appId, type constraints); uncovered actions pass.
  */
-('use strict');
 
 const mod = await import(
   new URL('../../background/core/message-contract.js', import.meta.url).href + '?t=' + Date.now()

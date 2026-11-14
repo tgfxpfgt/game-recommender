@@ -10,7 +10,6 @@ import { test, expect } from 'vitest';
  * Static scan enforcing that every settings key is referenced by the
  * settings UI layer; adding a key without UI sync fails the check.
  */
-('use strict');
 
 import fs from 'node:fs';
 import path from 'node:path';

@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.31.3（CodeQL 106 条告警全清零：43 处测试桩清理 + 52 处误报 dismiss + 11 处实修）
+
+- 43 个测试文件删除 ('use strict') 无用表达式（ESM 惰性指令）；orchestrator-detail 删重搜路径无用 appIdTrusted 赋值；search-candidates 去冗余恒真条件；detect-name/search 字符类双单引号 ×4
+- test-changed.mjs git() execSync 拼接改 execFileSync 数组参数 + git ref 白名单校验（CLI 注入面消除）；coverage-snapshot TOCTOU 改 try/catch 直读；test-cost-history 临时文件名加随机段
+- 52 处误报 dismiss 带理由归档（dashboard 经典脚本跨文件全局 ×19/URL 子串防御检查 ×15/油猴 textContent 边界 ×3/实体单遍解码等）——Security 面板 open 告警清零
+
 ### v14.31.2（安全基建增强：CodeQL workflow + ReDoS 实证复核 + gate 信号提额）
 
 - CodeQL 深度分析（javascript-typescript security-and-quality）随 push/PR/每周自动跑——结果进 GitHub Security 面板，与本地双工具链互补

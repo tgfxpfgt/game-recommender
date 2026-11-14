@@ -7,7 +7,6 @@ import { test, expect, vi } from 'vitest';
  * 驱动 getSteamRatingsFromCacheOnly（缓存命中/过期）与 getSteamPositiveRate
  * （缓存优先 → 搜索 → 写缓存链路）。
  */
-('use strict');
 
 import { createStorageMock, installChromeStorageMock } from '../helpers/storage-mock.mjs';
 import { createFetchMock, installFetchMock } from '../helpers/fetch-mock.mjs';

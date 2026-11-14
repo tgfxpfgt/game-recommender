@@ -51,7 +51,14 @@ const update = process.argv.includes('--update');
 const current = await runCoverage();
 
 if (update || !fs.existsSync(BASELINE)) {
-  const prev = fs.existsSync(BASELINE) ? JSON.parse(fs.readFileSync(BASELINE, 'utf-8')) : null;
+  // v14.31.3（CodeQL file-system-race）：existsSync→read 的 TOCTOU 形态改为
+  // try/catch 直读——缺文件/损坏 JSON 都归 null（原损坏 JSON 会抛崩，顺带更稳）
+  let prev = null;
+  try {
+    prev = JSON.parse(fs.readFileSync(BASELINE, 'utf-8'));
+  } catch {
+    prev = null;
+  }
   fs.writeFileSync(
     BASELINE,
     JSON.stringify(

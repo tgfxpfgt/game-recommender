@@ -18,7 +18,6 @@ import { test } from 'vitest';
  * State model: the old single-file sequential state machine is replaced by
  * explicit accessor functions; cross-file isolation comes from vitest isolate.
  */
-('use strict');
 
 import fs from 'fs';
 import path from 'path';

@@ -6,7 +6,6 @@
  * 系统（2c）、设置中心 hub（2d）。
  * state: { context, extId, check } — 由 run.mjs 注入。
  */
-('use strict');
 
 export async function runPages(state) {
   const { context, extId, check } = state;

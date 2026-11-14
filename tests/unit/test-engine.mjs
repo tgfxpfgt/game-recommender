@@ -8,7 +8,6 @@ import { test, expect } from 'vitest';
  * v10.5.3 任务3：新增销量/评论数分量（salesScore/reviewScore），热度 heat
  * 改 CCU（当前在线）口径——owners 口径移交销量信号。
  */
-('use strict');
 
 const mod = await import(new URL('../../background/recommend/engine.js', import.meta.url).href + '?t=' + Date.now());
 const { computeGameScore, findProfile, calculateKeywordScore, steamspyScores } = mod;
