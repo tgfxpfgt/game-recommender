@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 182，其中声明不变式 4。
+> 模块数 183，其中声明不变式 4。
 
 ## adapters/default.js
 
@@ -208,7 +208,7 @@
 | `content/detail/render/sidebar-html.js` | Steam 信息栏模板 | `content/core/common`<br>`content/core/steam-rating-logic`<br>`content/detail/render/match-confidence-row`<br>`content/detail/render/rating-rows`<br>`shared/fm-keys` | steamSidebar | — |
 | `content/detail/sidebar-actions.js` | 浮窗回调工厂 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/timeouts`<br>`content/detail/candidates` | createSteamActions | — |
 | `content/detail/sidebar-rows.js` | 浮窗数据行填充 | `content/core/timeouts` | fillItadAndFavorites<br>fillSteam250Info<br>fillSeriesInfo | — |
-| `content/detail/sidebar.js` | Steam 信息浮窗模块（编排壳）/ Steam Info Float (orchestrator) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/detail/candidates`<br>`content/detail/detail-templates`<br>…+2 | createSteamFloat | — |
+| `content/detail/sidebar.js` | Steam 信息浮窗模块（编排壳）/ Steam Info Float (orchestrator) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/detail/candidates`<br>`content/detail/detail-templates`<br>…+4 | createSteamFloat | — |
 | `content/detail/tracking.js` | 下载追踪面板模块 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/status-bar` | injectDownloadSitePanel<br>injectDownloadHistoryPanel<br>steam250AppIdFromUrl<br>steam250NameFromTitle<br>injectSteam250Panel<br>trackSteamTagsUpdate | — |
 
 ## content/list
@@ -227,6 +227,12 @@
 | `content/list/xdgrid-layout.js` | 列表布局引擎 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug` | STORE_KEY<br>DEFAULTS<br>MIN_ITEMS<br>clampInt<br>computeContainerStyle<br>migrateLegacy<br>…+7 | — |
 | `content/list/xdgrid-panel.js` | 列表工具面板 | `content/adapters/builder`<br>`content/core/debug`<br>`content/list/filter-presets`<br>`content/list/list-state`<br>`content/list/xdgrid-layout` | buildUI | — |
 | `content/list/xdgrid.js` | 下载站列表布局定制（装配壳）/ Grid Customizer (shell) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/list/xdgrid-layout`<br>`content/list/xdgrid-panel` | init<br>computeContainerStyle<br>migrateLegacy<br>commonAncestor<br>isXdgameFallback | — |
+
+## content/module-loaders.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `content/module-loaders.js` | 内容模块装载桥（AUTO-GENERATED，勿手改） | — | MODULE_LOADERS | — |
 
 ## content/module-manifest.js
 

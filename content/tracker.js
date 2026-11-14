@@ -59,6 +59,28 @@
   let manifestCache = null;
   let settingsCache = null;
 
+  // v15 重构（绿地阶段 0）：装载桥单源——content/module-loaders.js（构建器生成，
+  // 相对路径动态 import 映射）优先；打包模式 esbuild 内联（content/tracker.js 单
+  // 文件），源模式相对路径解析到 chrome-extension://<id>/content/**。getURL 直连
+  // import 仅作桥缺失时的回退（旧构建兼容）。
+  // Loader bridge: generated module-loaders.js preferred (works bundled AND
+  // unpacked); direct getURL import kept only as a defensive fallback.
+  // 双模式开关：bundle 模式由 esbuild banner 注入 `const __GR_BUNDLE__ = true;`
+  //（typeof 检查安全——banner 非 define，不做 token 替换）；源模式未定义 → falsy
+  // → getURL 分支。
+  /** @type {Record<string, () => Promise<any>>|null} */
+  let loaders = null;
+  const loadersPromise = (
+    typeof __GR_BUNDLE__ !== 'undefined' && __GR_BUNDLE__
+      ? import('./module-loaders.js') // bundle：相对 tracker.js 静态解析 → esbuild 内联
+      : import(chrome.runtime.getURL('content/module-loaders.js'))
+  ) // 源模式：绝对 URL
+    .then((m) => {
+      loaders = m.MODULE_LOADERS;
+      return loaders;
+    })
+    .catch(() => null); // 桥缺失（旧 dist/异常）→ 回退 getURL 直连
+
   /** 全键空壳（未装载的键 = null，便于调用方判存在）@returns {GRModules} */
   function emptyModules() {
     MODULES = /** @type {GRModules} */ (Object.fromEntries(MODULE_KEYS.map((k) => [k, null])));
@@ -69,7 +91,7 @@
   function loadOne(file) {
     let p = loadPromises.get(file);
     if (!p) {
-      p = import(chrome.runtime.getURL(file));
+      p = loadersPromise.then((map) => (map && map[file] ? map[file]() : import(chrome.runtime.getURL(file))));
       loadPromises.set(file, p);
     }
     return p;
@@ -81,9 +103,7 @@
    */
   async function loadScope(scope) {
     const mods0 = MODULES || emptyModules();
-    const { CORE_MODULES, OPTIONAL_MODULES } = (manifestCache ??= await import(
-      chrome.runtime.getURL('content/module-manifest.js')
-    ));
+    const { CORE_MODULES, OPTIONAL_MODULES } = (manifestCache ??= await loadOne('content/module-manifest.js'));
     const targets = [...CORE_MODULES, ...OPTIONAL_MODULES].filter((mod) => {
       if (mods0[mod.key]) return false;
       // 可选模块开关关闭 → 代码零加载（settings 缺失视为开）
@@ -116,7 +136,7 @@
     /** @type {{MSG_TIMEOUT_SHORT_MS?: number}|null} */
     let timeouts = null;
     try {
-      timeouts = await import(chrome.runtime.getURL('content/core/timeouts.js'));
+      timeouts = await loadOne('content/core/timeouts.js');
     } catch {
       /* 常量模块不可达 → 用 msg.js 默认超时 */
     }
@@ -136,7 +156,7 @@
     // v14.26.0 P1-3：URL 粗判场景 → 只装载该侧模块集（未知结构 = both）
     let scope = /** @type {'list'|'detail'|'both'} */ ('both');
     try {
-      const pageUrl = await import(chrome.runtime.getURL('content/core/page-url.js'));
+      const pageUrl = await loadOne('content/core/page-url.js');
       scope = pageUrl.detectPageScope(location.hostname, location.pathname, location.search);
     } catch {
       /* 判定失败 → both（与旧全量装载等价） */
@@ -257,8 +277,7 @@
     try {
       const ver = (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || '';
       if (!ver) return;
-      const m = (p) => chrome.runtime.getURL(p);
-      const common = await import(m('content/core/common.js'));
+      const common = await loadOne('content/core/common.js');
       const last = await common.storageLocalGet(EXT_VER_KEY);
       if (last && last !== ver) showUpdateToast(ver);
       if (last !== ver) await common.storageLocalSet(EXT_VER_KEY, ver);

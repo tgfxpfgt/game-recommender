@@ -27,6 +27,10 @@ declare global {
   var escapeHtml: (text: string) => string; // shared/escape.js 经典注入
   var __GR_SETTINGS_UTILS__: any; // shared/settings-utils.js（补丁保存/主题/跳转）
   var escapeAttr: (text: string) => string;
+  // v15 构建器 banner 注入（dist 产物专用；源码模式未定义——typeof 保护访问）
+  // Builder banner-injected globals (dist only; typeof-guarded in source mode)
+  var __GR_BUNDLE__: boolean | undefined;
+  var __GR_SITE_SCRIPTS__: string[] | undefined;
   // UI 层 DOM 访问宽松化（v6.3.2 决策）：UI 脚本风格代码中元素存在性/具体
   // 类型由浏览器运行时保证，此处降级 any 消除噪音——类型化价值聚焦业务
   // 字段与消息形状（DOM 语义检查放弃，注释记录决策）

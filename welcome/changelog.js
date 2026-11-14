@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.32.0',
+        date: '2026-11-14',
+        items: [
+          'scripts/build.mjs 双策略构建器：页面顺序 concat（classic 全局语义 100% 保真）+ content ESM 模块图 esbuild bundle（module-loaders 装载桥 19 条相对 import）+ background ESM 单文件；构建 277ms',
+          'dist 镜像：manifest 模板化（WAR 43→1、content_scripts 7×7 文件→7×1）+ HTML script 折叠单 tag + 静态资产镜像；e2e:dist 51/51 全绿（GR_EXTENSION_DIR 参数化 helpers/visual）',
+          'tracker 装载桥单点收敛（5 处 getURL import→loadOne）；sidebar 两处按需 getURL 改静态 import；site-scripts 双模式清单（banner 注入）',
+          '门禁适配：gen-war 派生含装载桥单源、coverage 豁免生成桥、perf-budget 四处实测重锁、visual 基线重钉、eslint/globals.d.ts 补 banner 全局声明'
+        ]
+      },
+      {
         ver: '14.31.3',
         date: '2026-11-14',
         items: [

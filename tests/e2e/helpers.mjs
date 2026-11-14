@@ -14,7 +14,11 @@ import { fileURLToPath } from 'node:url';
 
 const SECTION_DIR = path.dirname(fileURLToPath(import.meta.url)); // tests/e2e/
 export const TESTS_DIR = path.resolve(SECTION_DIR, '..'); // tests/
-export const EXTENSION_DIR = path.resolve(TESTS_DIR, '..'); // 项目根（manifest 所在）
+// v15 绿地阶段 0：扩展根路径可被 GR_EXTENSION_DIR 覆盖（默认项目根 = 源模式；
+// e2e:dist 传 'dist' = 构建产物被测）。
+// Extension root override: GR_EXTENSION_DIR (e.g. 'dist') selects the built
+// output as the extension under test; default stays the unpacked source root.
+export const EXTENSION_DIR = path.resolve(TESTS_DIR, '..', process.env.GR_EXTENSION_DIR || '.');
 export const FIXTURE = path.join(TESTS_DIR, 'fixtures', 'list-page.html');
 export const USER_DATA_DIR = path.join(TESTS_DIR, '.e2e-profile');
 

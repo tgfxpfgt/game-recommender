@@ -155,15 +155,23 @@ export const BUDGETS = {
   // v14.31.3 (CodeQL useless-assignment cleanup): removed the dead appIdTrusted
   // re-assignment in orchestrator-detail's relevance-guard re-search path
   // (+282B net from the accompanying comment — code bytes shrank).
-  swGraphBytes: 952985,
+  // v14.31.3 stage-0 (greenfield bundler): module-loaders.js bridge joins the
+  // static graph (+427B SW), sidebar.js adopts static imports pulling
+  // inline-card/sidebar-rows into the detail closure (+21,525B — previously
+  // runtime getURL-loaded), tracker loader bridge + site-scripts dual-mode
+  // (+1,197B static injection). No dead code; detail closure now matches the
+  // true injected surface (bundler makes the runtime-loaded tail visible).
+  swGraphBytes: 953412,
   swGraphFiles: 108,
-  staticInjectionBytes: 39382,
+  staticInjectionBytes: 40579,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
   // +312B = forceTimer identity guard + three-state queue-aware finish
   // (finish only when this tab's job is confirmed running); re-locked.
-  closureBytes: 299365
+  // v14.31.3 stage-0: detail closure re-locked at true injected surface
+  // (sidebar static imports made the runtime tail visible to the meter).
+  closureBytes: 320890
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

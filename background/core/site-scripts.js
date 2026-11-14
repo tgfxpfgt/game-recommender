@@ -34,7 +34,11 @@ export const BUILTIN_DOMAINS = [
 // 与 manifest content_scripts 相同的注入清单（动态注册用）。
 // v14.2.0：export 单源化——manifest js 清单由 test-integrity 深度相等断言守护
 //（此前为两份手工副本，内置站与自定义规则站可能一半失灵且 check 全绿）
-export const SITE_SCRIPT_FILES = [
+// v15 绿地阶段 0：打包模式由 esbuild banner 注入 __GR_SITE_SCRIPTS__ = 单文件
+// bundle（content/tracker.js 已内联全部注入序列）；源模式回退本清单。
+// Bundled mode registers the single tracker bundle (all injection files
+// inlined); unpacked-source mode falls back to the per-file list.
+export const SITE_SCRIPT_FILES = (typeof __GR_SITE_SCRIPTS__ !== 'undefined' && __GR_SITE_SCRIPTS__) || [
   'shared/patterns.js',
   'shared/msg.js',
   'shared/escape.js',

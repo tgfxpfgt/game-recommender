@@ -48,6 +48,9 @@ const baseGlobals = {
   Buffer: 'readonly', // v14.5.1：e2e helpers 图片占位（node 环境）
   // 扩展 API / extension APIs
   chrome: 'readonly',
+  // v15 构建器 banner 注入的全局（dist 产物专用，源码模式未定义——typeof 保护）
+  __GR_BUNDLE__: 'readonly',
+  __GR_SITE_SCRIPTS__: 'readonly',
   // 内容脚本全局命名空间 / content-script namespaces
   __GR__: 'readonly',
   __OPTS__: 'readonly',

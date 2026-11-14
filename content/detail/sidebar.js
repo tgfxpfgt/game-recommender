@@ -64,21 +64,16 @@ function buildMenuCacheInfo() {
 // Lazy loaders (promise singletons): concurrent renders share one fetch; the
 // sim getURL mock resolves to the same file URL, so instances match the
 // static-import era exactly.
-/** @type {Promise<any>|null} */
-let sidebarRowsMod = null;
-/** @type {Promise<any>|null} */
-let inlineCardMod = null;
+// v15 绿地阶段 0：getURL 动态装载改静态相对 import（sidebar.js 本身是 ESM，
+// 源/包双模式皆成立；scope 层面的按需语义由 tracker 的分域装载保留——本文件
+// 只在 detail 域被装载，静态依赖随本域一同内联）。
+import * as sidebarRowsNs from './sidebar-rows.js';
+import * as inlineCardNs from './inline-card.js';
 function loadSidebarRows() {
-  if (!sidebarRowsMod) {
-    sidebarRowsMod = /** @type {Promise<any>} */ (import(chrome.runtime.getURL('content/detail/sidebar-rows.js')));
-  }
-  return sidebarRowsMod;
+  return Promise.resolve(sidebarRowsNs);
 }
 function loadInlineCard() {
-  if (!inlineCardMod) {
-    inlineCardMod = /** @type {Promise<any>} */ (import(chrome.runtime.getURL('content/detail/inline-card.js')));
-  }
-  return inlineCardMod;
+  return Promise.resolve(inlineCardNs);
 }
 
 /**

@@ -16,7 +16,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-const EXTENSION_DIR = path.resolve(ROOT, '..');
+// v15：GR_EXTENSION_DIR 覆盖（e2e:dist 同语义——被测扩展可选 dist 产物）
+const EXTENSION_DIR = path.resolve(ROOT, '..', process.env.GR_EXTENSION_DIR || '.');
 const BASELINE_DIR = path.join(ROOT, 'visual', 'baseline');
 const DIFF_DIR = path.join(ROOT, 'visual', 'diff');
 // 超过 0.5% 像素差异视为回归（抗字体抗锯齿/亚像素抖动）

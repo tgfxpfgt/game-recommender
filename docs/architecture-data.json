@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-14T07:21:06.871Z",
-  "version": "14.31.2",
+  "generatedAt": "2026-11-14T14:43:52.969Z",
+  "version": "14.31.3",
   "nodes": [
     {
       "dir": "background",
@@ -15,8 +15,8 @@
       "label": "Content Scripts",
       "color": "#a3cf06",
       "desc": "内容脚本 — 徽章注入/浮窗/行为采集",
-      "files": 2,
-      "lines": 345
+      "files": 3,
+      "lines": 395
     },
     {
       "dir": "options",

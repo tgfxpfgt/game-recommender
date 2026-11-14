@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "__MSG_extName__",
-  "version": "14.31.3",
+  "version": "14.32.0",
   "description": "__MSG_extDescription__",
   "default_locale": "zh_CN",
   "minimum_chrome_version": "109",
@@ -208,6 +208,7 @@
         "content/list/xdgrid-layout.js",
         "content/list/xdgrid-panel.js",
         "content/list/xdgrid.js",
+        "content/module-loaders.js",
         "content/module-manifest.js",
         "content/tracking/download-tracking.js",
         "lib/vendor/qrcode-reader.js",

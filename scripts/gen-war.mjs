@@ -27,9 +27,14 @@ const WAR_PREFIXES = ['content/', 'shared/', 'lib/'];
 async function computeWar() {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf-8'));
   const mod = await import(new URL('../content/module-manifest.js', import.meta.url).href);
+  const modLoaders = await import(new URL('../content/module-loaders.js', import.meta.url).href);
   const entries = [
     ...mod.CORE_MODULES.map((m) => m.file),
     ...mod.OPTIONAL_MODULES.map((m) => m.file),
+    // v15 绿地阶段 0：tracker 动态装载收敛到 module-loaders.js 桥后，getURL
+    // 字面量不再覆盖直引文件（manifest/timeouts/page-url/loaders 本身）——
+    // 桥的装载映射单源即派生补集。
+    ...Object.keys(modLoaders.MODULE_LOADERS),
     ...trackerDynamicTargets()
   ];
   // 闭包内任何文件里的 getURL('…js') 动态装载目标都要并入（如 qr-unlock 的
