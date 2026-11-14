@@ -43,7 +43,11 @@ export function isHomePageUrl(pathname = window.location.pathname || '/', search
  * @returns {'list'|'detail'|'both'}
  */
 export function detectPageScope(host, pathname, search) {
-  if (host.includes('store.steampowered.com') || host.endsWith('steam250.com')) return 'detail';
+  // v14.31.3：includes 子串改精确等值/点边界（CodeQL incomplete-url-substring-
+  // sanitization；语义更严谨——"xstore.steampowered.com.evil" 类 host 不再命中）
+  if (host === 'store.steampowered.com' || host.endsWith('.store.steampowered.com') || host.endsWith('steam250.com')) {
+    return 'detail';
+  }
   if (isDetailPageByUrl(pathname)) return 'detail';
   if (isHomePageUrl(pathname, search) || isListPageByUrl(pathname)) return 'list';
   return 'both';

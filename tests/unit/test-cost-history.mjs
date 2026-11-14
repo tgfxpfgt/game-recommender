@@ -54,8 +54,10 @@ test('analyzeStepCost：中位数低于 10s 噪声下限不判定', () => {
 });
 
 test('recordStepCost/readCostHistory：追加可读回 + 损坏行容错', () => {
-  // v14.31.3（CodeQL insecure-temporary-file）：可预测文件名加随机段防碰撞/劫持
-  const tmp = path.join(os.tmpdir(), `gr-costs-test-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jsonl`);
+  // v14.31.3（CodeQL insecure-temporary-file）：mkdtempSync 唯一目录（crypto 级
+  // 随机后缀）——Math.random 仍被判定不可预测性不足，改 fs 标准临时目录原语
+  const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gr-costs-test-'));
+  const tmp = path.join(tmpDir, 'costs.jsonl');
   try {
     fs.writeFileSync(tmp, '{"broken json\n', 'utf-8'); // 预置损坏行
     recordStepCost('fast', 'lint', 1234, 0, tmp);
@@ -65,6 +67,6 @@ test('recordStepCost/readCostHistory：追加可读回 + 损坏行容错', () =>
     expect(rows[0]).toEqual({ ts: expect.any(Number), mode: 'fast', step: 'lint', ms: 1234, code: 0 });
     expect(rows[1].code).toEqual(1);
   } finally {
-    fs.rmSync(tmp, { force: true });
+    fs.rmSync(tmpDir, { recursive: true, force: true });
   }
 });
