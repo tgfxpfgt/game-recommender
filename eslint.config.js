@@ -109,7 +109,13 @@ export default [
     // 源码风格规则（no-var/eqeqeq 等）
     // v14.22.2：dist/** 本地构建产物（外部工具链输出，git-ignored）豁免 lint——
     // 压缩包体不适用源码规则，存在即把错误计数冲至上万
-    ignores: ['lib/vendor/**', 'dist/**']
+    // v10.2.0：第三方 vendored 库（lib/vendor/**）豁免 lint——压缩产物不适用
+    // 源码风格规则（no-var/eqeqeq 等）
+    // v14.22.2：dist/** 本地构建产物（外部工具链输出，git-ignored）豁免 lint——
+    // 压缩包体不适用源码规则，存在即把错误计数冲至上万
+    // v15：next/**（game-radar v2 绿地树，TS strict 自治）豁免根 lint——其质量
+    // 门禁 = 自带 tsc --noEmit strict（根配置无 TS parser，强扫必 133 错）
+    ignores: ['lib/vendor/**', 'dist/**', 'next/dist/**', 'next/node_modules/**', 'next/**']
   },
   {
     files: ['**/*.js'],
