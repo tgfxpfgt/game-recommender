@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.31.2',
+        date: '2026-11-14',
+        items: [
+          'CodeQL 深度分析（javascript-typescript security-and-quality）随 push/PR/每周自动跑——结果进 GitHub Security 面板，与本地双工具链互补',
+          'detect-unsafe-regex 13 处实证复核：对抗输入实测 11/11 全 SAFE（最坏 0.3ms/446KB，有界量词线性形态）——redos-review.md 入库，规则维持 off 证据在案',
+          'gate GATE_VITEST_ENV 信号超时 20000→30000（满载竞态绷带加固，仍低于 harness 默认 60s）'
+        ]
+      },
+      {
         ver: '14.31.1',
         date: '2026-11-14',
         items: [

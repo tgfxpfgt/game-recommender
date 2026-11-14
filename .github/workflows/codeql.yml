@@ -1,0 +1,42 @@
+# CodeQL 深度安全分析（v14.31.2，用户裁决"后续全做"方案 D）
+# Deep security analysis via GitHub CodeQL — free for public repos, runs on
+# every push/PR plus a weekly sweep; results land in the Security tab.
+#
+# 定位：与本地双工具链（Semgrep + eslint-plugin-security，见 AGENTS.md 发布流程
+# 第 4 步 / docs/reports/security-scan-v14.31.0/）互补的第三方持续扫描——
+# 不阻塞 push（结果进 Security 面板），供发版 seal 报告引用交叉验证。
+# Complements the local scanner chain; advisory (results in Security tab).
+name: CodeQL
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 3 * * 1' # 每周一 03:00 UTC 周扫 / weekly sweep
+
+# v14.31.2：重复推送自动取消旧运行（与 ci.yml 同策略）
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+          # security-and-quality：安全 + 质量双查询套件（比 default 套件面更宽，
+          # 与 Semgrep 焦点互补；误报在 Security 面板 dismiss 并留注释）
+          queries: security-and-quality
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

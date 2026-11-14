@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.31.2（安全基建增强：CodeQL workflow + ReDoS 实证复核 + gate 信号提额）
+
+- CodeQL 深度分析（javascript-typescript security-and-quality）随 push/PR/每周自动跑——结果进 GitHub Security 面板，与本地双工具链互补
+- detect-unsafe-regex 13 处实证复核：对抗输入实测 11/11 全 SAFE（最坏 0.3ms/446KB，有界量词线性形态）——redos-review.md 入库，规则维持 off 证据在案
+- gate GATE_VITEST_ENV 信号超时 20000→30000（满载竞态绷带加固，仍低于 harness 默认 60s）
+
 ### v14.31.1（安全扫描链路替代：Semgrep+ESLint security 双工具链（Mimosa 断连期 seal 证据源））
 
 - eslint-plugin-security 4.2.1 常态入 lint 门禁（精选 10 条 error 规则；object-injection/non-literal-regexp/unsafe-regex 三条 off 理由登记）

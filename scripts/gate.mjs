@@ -181,7 +181,12 @@ await step('check:first-run（首次运行证据）', 'node scripts/check-first-
 await step('check:corpus（匹配语料分母）', 'node scripts/check-match-corpus.mjs');
 await step('lint', 'npm run lint');
 await step('typecheck', 'npm run typecheck');
-const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '20000' };
+// v14.31.2：信号超时 20000→30000——全量 gate 满载上下文 sim-list 节 2/2b/12
+// retry:2 绷带用尽仍红（v14.31.0 发版实测，隔离 3 连绿定性满载竞态），20s 上限
+// 在高压恢复期不够用；30s 仍低于 sim-harness 默认 60s（保持快速失败语义）。
+// Raised 20000→30000: the full-gate context needs more headroom than the
+// bandaged 20s under machine-load contention (isolated runs stay green).
+const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '30000' };
 if (fast) {
   await step('vitest（受影响套件，白名单单源触碰自动升级全量）', 'node scripts/test-changed.mjs', GATE_VITEST_ENV);
 } else {
