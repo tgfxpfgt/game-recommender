@@ -9,10 +9,12 @@
       "repo": "jsnli/steamappidlist",
       "branch": "master",
       "path": "data/games_appid.json",
-      "usedBy": ["background/core/constants.js ENDPOINTS.steamAppListDump"],
-      "validatedAt": "2026-11-11",
+      "usedBy": [
+        "background/core/constants.js ENDPOINTS.steamAppListDump"
+      ],
+      "validatedAt": "2026-11-13",
       "httpStatus": 200,
-      "bytes": 20247815,
+      "bytes": 4508636,
       "note": "全量目录 dump 主源。原实现写死 main（仓库默认分支 master）→ 404 从未生效；本条 lock 即该缺陷的回归防线。"
     },
     {
@@ -22,10 +24,12 @@
       "repo": "jsnli/steamappidlist",
       "branch": "master",
       "path": "data/games_appid.json",
-      "usedBy": ["background/core/constants.js ENDPOINTS.steamAppListDumpFallback"],
-      "validatedAt": "2026-11-11",
+      "usedBy": [
+        "background/core/constants.js ENDPOINTS.steamAppListDumpFallback"
+      ],
+      "validatedAt": "2026-11-13",
       "httpStatus": 200,
-      "bytes": 20247815,
+      "bytes": 4964642,
       "note": "raw 备源（部分网络 jsDelivr 不可达）。"
     },
     {
@@ -34,10 +38,12 @@
       "repo": "tgfxpfgt/game-recommender",
       "branch": "main",
       "path": "userscript/game-radar.user.js",
-      "usedBy": ["userscript/game-radar.user.js @updateURL/@downloadURL"],
-      "validatedAt": "2026-11-11",
-      "httpStatus": null,
-      "bytes": null,
+      "usedBy": [
+        "userscript/game-radar.user.js @updateURL/@downloadURL"
+      ],
+      "validatedAt": "2026-11-13",
+      "httpStatus": 200,
+      "bytes": 34508,
       "note": "油猴自动更新源；本仓库默认分支 main。发布后才可达，--refresh 离线失败不算漂移（见脚本说明）。"
     }
   ],
