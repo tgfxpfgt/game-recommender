@@ -183,21 +183,23 @@ const dirtyRatingEntries = new Map(); // 本轮脏 rating 条目（追加成功�
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
 // Is one module valid? (exists and not past its own TTL)
-export function isModuleValid(
-  /** @type {SteamCacheEntryShape|null|undefined} */ entry,
-  /** @type {string} */ moduleKey,
-  /** @type {number|undefined} */ ttlMs
-) {
+/**
+ * @param {SteamCacheEntryShape|import('../core/types.js').SteamCacheEntry|null|undefined} entry
+ * @param {string} moduleKey
+ * @param {number} [ttlMs] - 缺省用 moduleTtlMs(moduleKey)
+ */
+export function isModuleValid(entry, moduleKey, ttlMs) {
   const mod = entry && entry.modules && entry.modules[moduleKey];
   if (!mod || !mod.data) return false;
   return Date.now() - (mod.ts || 0) < (ttlMs !== undefined ? ttlMs : moduleTtlMs(moduleKey));
 }
 
 // 获取模块数据（无模块返回 null）/ Get a module's data (null when absent)
-export function getModuleData(
-  /** @type {SteamCacheEntryShape|null|undefined} */ entry,
-  /** @type {string} */ moduleKey
-) {
+/**
+ * @param {SteamCacheEntryShape|import('../core/types.js').SteamCacheEntry|null|undefined} entry
+ * @param {string} moduleKey
+ */
+export function getModuleData(entry, moduleKey) {
   const mod = entry && entry.modules && entry.modules[moduleKey];
   return (mod && mod.data) || null;
 }
@@ -393,10 +395,11 @@ const cacheStats = {
 
 // 读取缓存条目（返回模块结构；moduleKey 传入时按模块计数命中率）
 // Read a cache entry; pass moduleKey to record per-module hit/miss.
-export async function getSteamCacheEntry(
-  /** @type {string|number} */ cacheKey,
-  /** @type {string|undefined} */ moduleKey
-) {
+/**
+ * @param {string|number} cacheKey
+ * @param {string} [moduleKey] - 传入时按模块计数命中率
+ */
+export async function getSteamCacheEntry(cacheKey, moduleKey) {
   await loadSteamCacheToMemory();
   const entry = steamCacheMemory.get(String(cacheKey)) || null;
   const statsModules = cacheStats.modules;
