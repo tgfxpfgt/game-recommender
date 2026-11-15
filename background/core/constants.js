@@ -416,7 +416,8 @@ const TTL_UNITS = {
 /** @param {number} value @param {string} unit */
 function toMs(value, unit) {
   if (value === 0) return Infinity; // 0 = 长期有效 / 0 = keep forever
-  return value * /** @type {Record<string, number>} */ (UNIT_MS[unit] || UNIT_MS.hours);
+  const unitMs = /** @type {Record<string, number>} */ (UNIT_MS)[/** @type {string} */ (unit)] || UNIT_MS.hours;
+  return value * unitMs;
 }
 
 // 解析某缓存类型的 TTL 为毫秒（支持 {value, unit} 与旧数字格式；0 = 长期）
