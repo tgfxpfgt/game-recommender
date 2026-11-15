@@ -30,6 +30,7 @@ const noisePatternOf = () => retrievalRules().noisePattern;
 const noisePatternAllOf = () => retrievalRules().noisePatternAll;
 const junkPatternOf = () => retrievalRules().junkCandidatePattern;
 // 判断整段是否仅由噪声词组成 / Is a segment pure noise?
+/** @param {string} text */
 function isPureNoise(text) {
   const stripped = text.replace(noisePatternAllOf(), '').replace(/[\s\|\-:：、]+/g, '');
   return stripped.length === 0;
@@ -41,6 +42,7 @@ function isPureNoise(text) {
 // Split a title into segments (brackets removed; |, spaced dashes, ×•· and
 // colons split — CN names are often "English: 中文" like "Windrose: 风启之旅",
 // and download sites only match either half, so colons must split).
+/** @param {string} rawName */
 function splitTitleSegments(rawName) {
   if (!rawName) return [];
   if (typeof rawName !== 'string') rawName = String(rawName); // v10.9：边界防御
@@ -60,13 +62,16 @@ function splitTitleSegments(rawName) {
  * Parse a title into search candidates (max 5, priority-ordered).
  * Segmentation: |, spaced dashes and CN separators ×•·.
  */
+/** @param {string} rawName @returns {string[]} */
 export function parseGameTitle(rawName) {
   if (!rawName) return [];
 
   const rawParts = splitTitleSegments(rawName);
 
+  /** @type {string[]} */
   const candidates = [];
   const seen = new Set();
+  /** @param {string} text */
   function addCandidate(text) {
     const t = text.trim().replace(/\s+/g, ' ');
     if (t.length >= 2 && !seen.has(t.toLowerCase())) {
@@ -127,7 +132,7 @@ export function parseGameTitle(rawName) {
 
   // v14.6.3 R1：junk 单 token 过滤词表单源 = shared/retrieval-vocab.js
   //（junkCandidatePattern，^锚定形态由词表模块编译）
-  const filtered = candidates.filter((c) => !junkPatternOf().test(c.trim()));
+  const filtered = candidates.filter((/** @type {string} */ c) => !junkPatternOf().test(c.trim()));
   const finalCandidates = filtered.length > 0 ? filtered : candidates;
 
   // 无任何有效候选时返回空数组 / Return [] when no valid candidates exist
@@ -148,6 +153,7 @@ export function parseGameTitle(rawName) {
 }
 
 // 清洗游戏名（取第一个候选）/ Clean a game name (first candidate)
+/** @param {string} name */
 export function cleanGameName(name) {
   const candidates = parseGameTitle(name);
   return candidates[0] || name || '';
@@ -157,6 +163,7 @@ export function cleanGameName(name) {
 // 回退 Steam 官方英文名（可能为全大写形式）。
 // Pick the registry EN name: the EN segment from the download-site title first,
 // falling back to the Steam official EN name (may be ALL-CAPS).
+/** @param {string} gameName @param {string} steamEnName */
 export function pickRegistryEnName(gameName, steamEnName) {
   const enFromTitle = parseGameTitle(gameName || '').find((t) => /^[A-Za-z]/.test(t));
   return enFromTitle || steamEnName || '';
@@ -170,12 +177,15 @@ export function pickRegistryEnName(gameName, steamEnName) {
 // Generate extended search variants (used when all static candidates fail):
 // tail-word removal (≤3), head-word removal, dynamic-noise removal; cleaned &
 // deduped; ≤4 per segment, ≤8 in total.
+/** @param {string} rawName @param {string[]} [extraNoiseWords] */
 export function generateSearchVariants(rawName, extraNoiseWords = []) {
   const extra = (extraNoiseWords || [])
     .filter((w) => typeof w === 'string' && w.length >= 2)
     .map((w) => w.toLowerCase());
+  /** @type {string[]} */
   const variants = [];
   const seen = new Set();
+  /** @param {string} text */
   const add = (text) => {
     const cleaned = text.replace(noisePatternAllOf(), ' ').replace(/\s+/g, ' ').trim();
     const key = cleaned.toLowerCase();
@@ -207,8 +217,10 @@ export function generateSearchVariants(rawName, extraNoiseWords = []) {
 // Extract candidate noise words from the gap between the raw title and the
 // successful search term (words in the same segment, excluding known static
 // noise). Counted over time; only recurring words become active.
+/** @param {string} rawName @param {string} successTerm */
 export function extractNoiseCandidates(rawName, successTerm) {
   if (!rawName || !successTerm) return [];
+  /** @type {string[]} */
   const found = [];
   for (const seg of splitTitleSegments(rawName)) {
     if (!seg.includes(successTerm) || seg.length <= successTerm.length) continue;

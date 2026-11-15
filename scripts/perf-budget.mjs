@@ -172,7 +172,8 @@ export const BUDGETS = {
   // stage-1 slice-8 (behavior.js 25→0): +1,027B; 120 tests green.
   // stage-1 slice-9 (search-candidates 25→0): +882B; 223 tests green.
   // stage-1 slice-10 (cache-manager 25→0 + MessagePayload page/pageSize): +715B; 181 tests green.
-  swGraphBytes: 968962,
+  // stage-1 slice-11 (title-parser 25→0): +484B; 41 tests green.
+  swGraphBytes: 969446,
   swGraphFiles: 108,
   staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
