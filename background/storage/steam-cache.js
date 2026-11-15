@@ -41,8 +41,20 @@ import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败�
 // v10.6.0 C1: persistence split into 4 per-module files; flush writes only
 // dirty modules. The unified in-memory Map and all readers stay unchanged.
 
+// ============ 条目形状类型（v15 阶段 1 隐式 any 还债——单源） ============
+/**
+ * @typedef {Object} CacheModuleEntry
+ * @property {Record<string, any>} data - 模块字段集
+ * @property {number} [ts] - 模块写入时间
+ */
+/**
+ * @typedef {Object} SteamCacheEntryShape
+ * @property {Record<string, CacheModuleEntry>} [modules] - 模块 → 条目
+ */
+
 // 字段 → 模块归属映射（v3.3.7 模块化；未知新字段默认进 detail）
 // Field → module routing (modular since v3.3.7; unknown fields go to detail)
+/** @type {Record<string, string>} */
 const FIELD_MODULES = {
   // meta：基础信息（几乎不变）
   appId: 'meta',
@@ -88,7 +100,7 @@ const FIELD_MODULES = {
 const DEFAULT_MODULE = 'detail';
 
 // 字段归属（未知字段默认 detail）/ Field routing (default: detail)
-function moduleOf(field) {
+function moduleOf(/** @type {string} */ field) {
   return FIELD_MODULES[field] || DEFAULT_MODULE;
 }
 
@@ -115,10 +127,11 @@ export const DETAIL_SERVABLE_FIELDS = Object.freeze({
  * @param {import('../core/types.js').SteamCacheEntry|null|undefined} entry
  * @returns {boolean}
  */
-export function isDetailCacheComplete(entry) {
+export function isDetailCacheComplete(/** @type {import('../core/types.js').SteamCacheEntry|null|undefined} */ entry) {
   if (!entry || !entry.modules || typeof entry.modules !== 'object') return false;
+  const /** @type {Record<string, any>} */ modulesAny = /** @type {any} */ (entry.modules);
   for (const [field, rule] of Object.entries(DETAIL_SERVABLE_FIELDS)) {
-    const mod = entry.modules[moduleOf(field)];
+    const mod = modulesAny[moduleOf(field)];
     if (!mod || !mod.data || typeof mod.data !== 'object') return false;
     if (!Object.prototype.hasOwnProperty.call(mod.data, field)) return false;
     const value = mod.data[field];
@@ -138,6 +151,7 @@ export function isDetailCacheComplete(entry) {
 export function pickFieldsForModules(data, modules) {
   if (!data || typeof data !== 'object' || !Array.isArray(modules)) return {};
   const allowed = new Set(modules);
+  /** @type {Record<string, any>} */
   const picked = {};
   for (const [field, value] of Object.entries(data)) {
     if (allowed.has(moduleOf(field))) picked[field] = value;
@@ -150,6 +164,7 @@ let steamCacheMemory = new Map(); // Map: appId -> entry（modules 结构）
 let steamCacheMemoryLoaded = false;
 let steamCacheDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
 // v10.6.0 C1：脏模块集合（flush 只写脏模块文件）
+/** @type {Record<string, string>} */
 const CACHE_PART_KEYS = {
   meta: DB_KEYS.STEAM_CACHE_META,
   rating: DB_KEYS.STEAM_CACHE_RATING,
@@ -168,21 +183,28 @@ const dirtyRatingEntries = new Map(); // 本轮脏 rating 条目（追加成功�
 
 // 判断某模块是否有效（存在且未超过该模块 TTL）
 // Is one module valid? (exists and not past its own TTL)
-export function isModuleValid(entry, moduleKey, ttlMs) {
+export function isModuleValid(
+  /** @type {SteamCacheEntryShape|null|undefined} */ entry,
+  /** @type {string} */ moduleKey,
+  /** @type {number|undefined} */ ttlMs
+) {
   const mod = entry && entry.modules && entry.modules[moduleKey];
   if (!mod || !mod.data) return false;
   return Date.now() - (mod.ts || 0) < (ttlMs !== undefined ? ttlMs : moduleTtlMs(moduleKey));
 }
 
 // 获取模块数据（无模块返回 null）/ Get a module's data (null when absent)
-export function getModuleData(entry, moduleKey) {
+export function getModuleData(
+  /** @type {SteamCacheEntryShape|null|undefined} */ entry,
+  /** @type {string} */ moduleKey
+) {
   const mod = entry && entry.modules && entry.modules[moduleKey];
   return (mod && mod.data) || null;
 }
 
 // 合并视图：所有模块字段合并为一个对象（兼容旧字段访问；后写的模块覆盖先写的）
 // Merged view: all modules' fields combined into one object (legacy access)
-export function getMergedData(entry) {
+export function getMergedData(/** @type {SteamCacheEntryShape|null|undefined} */ entry) {
   if (!entry || !entry.modules) return null;
   /** @type {Object|null} */
   let merged = null;
@@ -197,12 +219,15 @@ export function getMergedData(entry) {
 
 // 最近模块写入时间（cachedAt 展示用；无模块返回 null）
 // Latest module write time (for cachedAt display; null when empty)
-export function latestModuleTs(entry) {
-  if (!entry || !entry.modules) return null;
+export function latestModuleTs(
+  /** @type {SteamCacheEntryShape|import('../core/types.js').SteamCacheEntry|null|undefined} */ entry
+) {
+  const mods = /** @type {Record<string, CacheModuleEntry> | undefined} */ (entry && entry.modules);
+  if (!mods) return null;
   /** @type {number|null} */
   let latest = null;
-  for (const key of Object.keys(entry.modules)) {
-    const ts = entry.modules[key] && entry.modules[key].ts;
+  for (const key of Object.keys(mods)) {
+    const ts = mods[key] && mods[key].ts;
     if (ts && (latest === null || ts > latest)) latest = ts;
   }
   return latest;
@@ -210,7 +235,7 @@ export function latestModuleTs(entry) {
 
 // 条目是否仍有效（存在且任一模块未过期；全部过期视为无效，供清理/命中判定）
 // Is the entry still usable? (any module not expired)
-export function isSteamCacheValid(entry) {
+export function isSteamCacheValid(/** @type {SteamCacheEntryShape|null|undefined} */ entry) {
   if (!entry || !entry.modules) return false;
   const now = Date.now();
   for (const key of Object.keys(entry.modules)) {
@@ -247,6 +272,7 @@ async function mergePartsIntoMemory(partNames) {
     if (m === 'rating') ratingLineCount = Object.keys(part).length; // v14 B7
     for (const [key, mod] of Object.entries(part)) {
       if (!mod || !mod.data) continue;
+      /** @type {{modules: Record<string, any>}} */
       const entry = steamCacheMemory.get(String(key)) || { modules: {} };
       entry.modules[m] = mod; // {data, ts}
       steamCacheMemory.set(String(key), entry);
@@ -289,9 +315,10 @@ export async function loadSteamCacheToMemory(opts = {}) {
           const migrated = migrateEntry(entry);
           if (!migrated) continue;
           const id = String(key);
+          /** @type {{modules: Record<string, any>}} */
           const existing = steamCacheMemory.get(id) || { modules: {} };
           // 旧模块让位于分模块文件中更新的同名字段（按 ts 比较）
-          for (const [m, mod] of Object.entries(migrated.modules)) {
+          for (const [m, mod] of Object.entries(/** @type {Record<string, any>} */ (migrated.modules))) {
             const cur = existing.modules[m];
             if (!cur || (mod.ts || 0) >= (cur.ts || 0)) existing.modules[m] = mod;
           }
@@ -320,7 +347,7 @@ export async function loadSteamCacheToMemory(opts = {}) {
 // 消除冷启动首屏空转等二波（SW 启动预热在途时，首波读缓存必然空转）。
 // v14.7 批次 10：首波只需热层（meta+rating）——等待 hotOnly 装载即可。
 // Wait for the HOT tier (first wave never needs detail/spy).
-export async function waitForSteamCacheWarmup(timeoutMs) {
+export async function waitForSteamCacheWarmup(/** @type {number} */ timeoutMs) {
   if (steamCacheHotLoaded || steamCacheMemoryLoaded) return;
   await Promise.race([
     loadSteamCacheToMemory({ hotOnly: true }).catch(() => {}),
@@ -332,11 +359,12 @@ export async function waitForSteamCacheWarmup(timeoutMs) {
 // 旧缓存迁移后继续使用、不立即失效（v3.3.7：字段调整不再整体失效）。
 // Migrate a legacy flat entry into the modular structure (ts = old timestamp).
 // Legacy entries keep working after migration (no whole-entry invalidation).
-export function migrateEntry(entry) {
+export function migrateEntry(/** @type {any} */ entry) {
   if (!entry) return null;
   if (entry.modules) return entry; // 已是模块结构 / already modular
   if (entry.data && typeof entry.data === 'object') {
     const ts = entry.timestamp || Date.now();
+    /** @type {Record<string, {data: Record<string, any>, ts: number}>} */
     const modules = {};
     for (const [field, value] of Object.entries(entry.data)) {
       const key = moduleOf(field);
@@ -351,6 +379,7 @@ export function migrateEntry(entry) {
 // 缓存命中率统计（v6.3.2 B3 可观测；v7.1.0 分模块：meta/rating/detail/spy）
 // cache hit stats (global + per-module; module key recorded at read sites)
 /** @type {{hits: number, misses: number, modules: Object}} */
+/** @type {{hits: number, misses: number, modules: Record<string, {hits: number, misses: number}>}} */
 const cacheStats = {
   hits: 0,
   misses: 0,
@@ -364,12 +393,17 @@ const cacheStats = {
 
 // 读取缓存条目（返回模块结构；moduleKey 传入时按模块计数命中率）
 // Read a cache entry; pass moduleKey to record per-module hit/miss.
-export async function getSteamCacheEntry(cacheKey, moduleKey) {
+export async function getSteamCacheEntry(
+  /** @type {string|number} */ cacheKey,
+  /** @type {string|undefined} */ moduleKey
+) {
   await loadSteamCacheToMemory();
   const entry = steamCacheMemory.get(String(cacheKey)) || null;
-  if (moduleKey && cacheStats.modules[moduleKey]) {
-    const m = cacheStats.modules[moduleKey];
-    if (entry && entry.modules && entry.modules[moduleKey] && entry.modules[moduleKey].data) m.hits++;
+  const statsModules = cacheStats.modules;
+  if (moduleKey && statsModules[moduleKey]) {
+    const m = statsModules[moduleKey];
+    const mods = entry && /** @type {Record<string, any> | undefined} */ (entry.modules);
+    if (mods && mods[moduleKey] && mods[moduleKey].data) m.hits++;
     else m.misses++;
   } else {
     if (entry) cacheStats.hits++;
@@ -379,15 +413,13 @@ export async function getSteamCacheEntry(cacheKey, moduleKey) {
 }
 
 // 缓存命中率统计（只读快照，含分模块）/ cache hit-rate snapshot (global + modules)
+/** @returns {{hits: number, misses: number, modules: Record<string, {hits: number, misses: number}>}} */
 export function getCacheStats() {
   return {
     hits: cacheStats.hits,
     misses: cacheStats.misses,
     modules: {
-      meta: { ...cacheStats.modules.meta },
-      rating: { ...cacheStats.modules.rating },
-      detail: { ...cacheStats.modules.detail },
-      spy: { ...cacheStats.modules.spy }
+      ...cacheStats.modules
     }
   };
 }
@@ -395,13 +427,17 @@ export function getCacheStats() {
 // 写入缓存条目（按 FIELD_MODULES 自动路由拆分到各模块；签名不变，调用方零改动）
 // Write a cache entry (fields routed into modules by FIELD_MODULES; signature
 // unchanged so callers stay untouched)
-export async function setSteamCacheEntry(cacheKey, data) {
+export async function setSteamCacheEntry(
+  /** @type {string|number} */ cacheKey,
+  /** @type {Record<string, any>} */ data
+) {
   await loadSteamCacheToMemory();
   cacheKey = String(cacheKey);
   const now = Date.now();
+  /** @type {{modules: Record<string, any>}} */
   const existing = steamCacheMemory.get(cacheKey) || { modules: {} };
-  const modules = existing.modules || {};
-  /** @type {{meta?: Object, rating?: Object, detail?: Object, spy?: Object}} */
+  const modules = /** @type {Record<string, any>} */ (existing.modules || {});
+  /** @type {Record<string, any>} */
   const nextModules = {};
   // 保留未涉及的模块（部分更新） / keep untouched modules (partial update)
   for (const key of Object.keys(modules)) nextModules[key] = modules[key];
@@ -460,9 +496,10 @@ export async function flushSteamCache() {
   cleanupSteamCacheMemory(); // 写入前清理过期和超量条目 / Purge before persisting
   try {
     for (const m of flushing) {
+      /** @type {Record<string, any>} */
       const subset = {};
       for (const [id, entry] of steamCacheMemory) {
-        const mod = entry.modules && entry.modules[m];
+        const mod = entry.modules && /** @type {Record<string, any>} */ (entry.modules)[m];
         if (mod && mod.data) subset[id] = mod; // {data, ts}
       }
       // v14 B7：rating 追加式落盘——无重写需求且未超 compaction 阈值（行数
@@ -498,12 +535,13 @@ export async function flushSteamCache() {
     // 此处保留标记即可被其收走（无重排循环——标记只随真实数据更新保留）。
     for (const m of flushing) {
       const updatedDuringFlush = [...steamCacheMemory.values()].some(
-        (entry) => entry.modules && entry.modules[m] && (entry.modules[m].ts || 0) > flushStartTs
+        (/** @type {{modules?: Record<string, {ts?: number}>}} */ entry) =>
+          entry.modules && entry.modules[m] && (entry.modules[m].ts || 0) > flushStartTs
       );
       if (!updatedDuringFlush) dirtyModules.delete(m);
     }
     for (const k of flushingRatingEntries) {
-      const entry = steamCacheMemory.get(k);
+      const entry = /** @type {{modules?: Record<string, {ts?: number}>} | undefined} */ (steamCacheMemory.get(k));
       if (!(entry && entry.modules && entry.modules.rating && (entry.modules.rating.ts || 0) > flushStartTs)) {
         dirtyRatingEntries.delete(k);
       }
@@ -525,7 +563,7 @@ export async function flushSteamCache() {
 function cleanupSteamCacheMemory() {
   if (!steamCacheMemory) return;
   const now = Date.now();
-  const purge = (key, entry) => {
+  const purge = (/** @type {string} */ key, /** @type {any} */ entry) => {
     // v14 B7：被清理条目的模块文件需同步移除——标记相关模块重写（追加式
     // rating 尤其如此：append 无法表达删除，不标记会复活僵尸条目）
     for (const m of Object.keys(entry.modules || {})) {
@@ -551,7 +589,7 @@ function cleanupSteamCacheMemory() {
 }
 
 // 所有模块均过期？（无模块/空条目也视为过期）/ all modules expired?
-export function allModulesExpired(entry, now = Date.now()) {
+export function allModulesExpired(/** @type {any} */ entry, /** @type {number} */ now = Date.now()) {
   if (!entry || !entry.modules) return true;
   for (const key of Object.keys(entry.modules)) {
     const mod = entry.modules[key];
@@ -567,7 +605,7 @@ export function getSteamCacheMemory() {
 }
 
 // 删除单个缓存条目（缓存管理页删除用）/ Delete a single cache entry
-export async function deleteSteamCacheEntry(appId) {
+export async function deleteSteamCacheEntry(/** @type {string|number} */ appId) {
   await loadSteamCacheToMemory();
   if (steamCacheMemory && steamCacheMemory.delete(String(appId))) {
     steamCacheDirty = true; // v3.4.1：dirty 检查下必须显式标记，否则 flush 会跳过
