@@ -54,6 +54,7 @@ import { gameKeyOf } from '../storage/diag-trace.js'; // v14.29.0：标题哈希
 // v14.1.0：解析成功 → 记录 {tabId → 游戏} 快照（SidePanel"当前页游戏"
 // 联动数据源；无 tab 上下文的列表页批量检索 sender 无 tab，自动忽略）
 // Record a per-tab snapshot after a successful resolution (SidePanel mirror).
+/** @param {any} [sender] @param {any} [data] */
 function noteResolvedGame(sender, data) {
   const tabId = sender && sender.tab ? sender.tab.id : undefined;
   if (data && data.appId) {
@@ -74,6 +75,7 @@ function noteResolvedGame(sender, data) {
 // 不再各自全链搜索 3 倍 Steam 请求）
 const inFlightSearches = new Map();
 
+/** @param {import('../core/types.js').MessagePayload} message @param {any} [sender] */
 export async function handleSearchSteam(message, sender) {
   // v14.7 批次 1（A-P3）：key 纳入语义参数——仅按 gameName 去重会让
   // ignoreNegativeCache/rawTitle/appId 语义被首次请求合并（"穿透负缓存的重试"
@@ -108,6 +110,7 @@ export async function handleSearchSteam(message, sender) {
   return job;
 }
 
+/** @param {import('../core/types.js').MessagePayload} message @param {any} [sender] */
 async function doHandleSearchSteam(message, sender) {
   const t0 = Date.now(); // v14.25.0：证据档案——检索耗时样本
   const pageUrl = sender && sender.tab ? sender.tab.url : '';
@@ -137,7 +140,8 @@ async function doHandleSearchSteam(message, sender) {
       const cachedDetail = isModuleValid(cachedEntry, 'detail', detailSteamCacheTtlMs())
         ? getModuleData(cachedEntry, 'detail')
         : null;
-      const cachedMerged = getMergedData(cachedEntry) || null;
+      /** @type {Record<string, any>|null} */
+      const cachedMerged = /** @type {Record<string, any>|null} */ (getMergedData(cachedEntry) || null);
       if (
         cachedEntry && // TS 收窄：latestModuleTs(cachedEntry) 需非空 / TS narrowing
         cachedDetail &&
@@ -200,14 +204,14 @@ async function doHandleSearchSteam(message, sender) {
   // 故障三态：有值/确认无值/失败未知——列表 networkFailed 哨兵 → gr-badge-
   // network-error；详情此前仅 reason 字符串正则判定，消费方无法结构化区分）。
   // failed+errorType 随未命中响应下发；reason 文案保持兼容（现有正则判定不改）。
-  /** @type {import('../core/types.js').GameResult|null} */
+  /** @type {Record<string, any>|null} */
   let steamResult = null;
   /** @type {string|null} */
   let reason = null;
   /** @type {string|null} */
   let errorType = null;
   try {
-    steamResult = await searchSteamGame(message.gameName, {
+    steamResult = await searchSteamGame(/** @type {string} */ (message.gameName), {
       ignoreNegativeCache: message.ignoreNegativeCache === true,
       rawTitle: message.rawTitle, // v14.3.1：原始标题透传（扩展搜索英文变体）
       appId: message.appId // v14.3.2：元素直取 appId（统一入口）
@@ -278,6 +282,7 @@ async function doHandleSearchSteam(message, sender) {
   };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleRefreshSteamCache(message) {
   recordUsageCounter('refresh.named'); // v14.25.0：无 appId 的名称刷新（证据档案）
   // 通过名称索引查找 appId，以 appId 为键删除缓存
@@ -286,7 +291,7 @@ export async function handleRefreshSteamCache(message) {
     await deleteSteamCacheEntry(appId);
   }
   // v10.9.2：手动刷新强制穿透负缓存（刷新语义 = 不接受历史未命中结论）
-  const steamResult = await searchSteamGame(message.gameName, { ignoreNegativeCache: true });
+  const steamResult = await searchSteamGame(/** @type {string} */ (message.gameName), { ignoreNegativeCache: true });
   await flushAllCaches();
   const cachedEntry = steamResult ? await getSteamCacheEntry(steamResult.appId) : null;
   if (steamResult) {
@@ -310,8 +315,9 @@ export async function handleRefreshSteamCache(message) {
 // 拒绝并转标题搜索；manual=true（手动选择候选）跳过校验（用户主动确认）。
 // v7.0.3：检索顺序统一为「网址索引 → 封面直取 → 标题搜索 → 搜索引擎」——
 // 直取（GET_STEAM_BY_APPID）也先查网址索引；manual（用户手动选择）优先于一切
+/** @param {import('../core/types.js').MessagePayload} message @param {any} [sender] */
 export async function handleGetSteamByAppId(message, sender) {
-  let appId = message.appId;
+  let appId = /** @type {string|number} */ (message.appId);
   const gameName = message.gameName || '';
   const manual = message.manual === true;
   // v14.24.0（用户需求：手动更新/重新检索必须真实刷新）：forceRefresh=true 时
@@ -341,7 +347,8 @@ export async function handleGetSteamByAppId(message, sender) {
   const cached = forceRefresh ? null : await getSteamCacheEntry(appId);
   const detailData =
     cached && isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
-  const cachedMerged = cached ? getMergedData(cached) : null;
+  /** @type {Record<string, any>|null} */
+  const cachedMerged = /** @type {Record<string, any>|null} */ (cached ? getMergedData(cached) : null);
   if (detailData && cachedMerged) {
     // v14.25.0：缓存直返路径计数（在守卫判定前落账 = 直取流量分布证据）
     recordUsageCounter('direct.cacheServe');
@@ -435,6 +442,7 @@ export async function handleGetSteamByAppId(message, sender) {
 // 保存用户手动选择的"游戏名→appId"映射
 
 // 保存用户手动选择的"游戏名→appId"映射
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleSaveManualMapping(message) {
   const gameName = (message.gameName || '').trim();
   const appId = message.appId;
@@ -465,9 +473,10 @@ export async function handleSaveManualMapping(message) {
 // 终态，列表/详情两管线优先于一切索引消费——错误 Steam 徽章随映射消失）；
 // ③清该名名称索引（错误 Steam 条目的粘性钉住解除）。响应携带 MC 数据供
 // 浮窗即时渲染 MC 视图。
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleSetManualPlatform(message) {
   const gameName = (message.gameName || '').trim();
-  const option = resolveManualPlatformOption(message.platform);
+  const option = resolveManualPlatformOption(/** @type {string} */ (message.platform));
   if (!gameName || !option) return { success: false, error: '参数缺失或机型不合法' };
   recordUsageEvent('platform', 'declared', { kind: option.kind }); // v14.25.0：机型声明落账
   // EN 段：标题优先（详情页标题常带"中文名|版本|英文名"多段），游戏名兜底
@@ -503,6 +512,7 @@ export async function handleSetManualPlatform(message) {
 }
 
 // 搜索候选游戏列表（手动选择浮窗）
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleSearchSteamCandidates(message) {
   const searchTerms = parseGameTitle(message.gameName || '');
   const candidates = [];
@@ -531,10 +541,12 @@ export async function handleSearchSteamCandidates(message) {
 // Force-refresh the current page's Steam cache (popup button): deletes cache and
 // name-index entries (negative ones included); the reload then fetches
 // everything fresh from Steam, ignoring cache TTLs and the zero-review cooldown.
+/** @param {import('../core/types.js').MessagePayload} message */
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleClearCacheForPage(message) {
   recordUsageCounter('cache.forceClearPage'); // v14.25.0：popup 强制刷新当前页
-  const names = message.names || [];
-  const appIds = message.appIds || [];
+  const names = /** @type {string[]} */ (message.names || []);
+  const appIds = /** @type {string[]} */ (message.appIds || []);
   const seen = new Set();
   let cleared = 0;
   for (const id of appIds) {
@@ -567,6 +579,7 @@ export async function handleClearCacheForPage(message) {
 // Steam-store-page cache warm-up: prefetch the game's full data while browsing
 // its store page (skipped when the detail module is still valid); the name
 // index entry makes download-site list badges hit instantly afterwards.
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleCacheSteamPage(message) {
   const appId = String(message.appId || '');
   const gameName = message.gameName || '';
@@ -576,7 +589,9 @@ export async function handleCacheSteamPage(message) {
     const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
     if (detail && isDetailCacheComplete(cached)) return { success: true, cached: true };
     // v14.28.8：残缺缓存只补缺失模块（无条目 → 全量）
-    const plan = cached ? planDetailRefresh(cached, getMergedData(cached)) : undefined;
+    const plan = cached
+      ? planDetailRefresh(cached, /** @type {Record<string, any>} */ (getMergedData(cached)))
+      : undefined;
     const result = await fetchSteamFullDetailsByAppId(appId, { refreshModules: plan });
     if (!result) return { success: false };
     await setSteamCacheEntry(appId, result);
@@ -602,6 +617,7 @@ export async function handleCacheSteamPage(message) {
 // entries (both signs, so the negative cache can't block the re-search),
 // download-URL mappings and the page's URL-index binding; the registry is kept
 // (it holds official Steam info, only the title→appId mapping was wrong).
+/** @param {import('../core/types.js').MessagePayload} message @param {any} [sender] */
 export async function handleReportWrongAppId(message, sender) {
   const appId = String(message.appId || '');
   const gameName = message.gameName || '';
@@ -633,6 +649,7 @@ export async function handleReportWrongAppId(message, sender) {
 // --- 缓存过期清理（v3.0.0）---
 
 // --- 名称批量自愈（v3.1.0）---
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleHealRegistryNames(message) {
   const result = await scanAndHealRegistry(Math.min(50, (message && message.limit) || 20));
   Logger.info(
@@ -650,6 +667,7 @@ import { handleGetSteamRatings, handlePrefetchSteamRatings, getRatingsQueueStatu
 // searchSteamGame（URL 索引只在 handleSearchSteam 记录，本路径不写——列表页
 // sender URL 是列表页，写入会污染 URL→appId 缓存）。 Throttling is on the
 // content side (10s/game).
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleRetryGameLookup(message) {
   recordUsageCounter('retry.lookup'); // v14.25.0：未找到徽章点击重查
   const result = await searchSteamGame(String(message.gameName || ''), { ignoreNegativeCache: true });
@@ -668,12 +686,13 @@ export const steamHandlers = {
   PREFETCH_STEAM_RATINGS: handlePrefetchSteamRatings,
   // v14.8.1：等待检测徽章实时队列信息（内容侧 5s 轮询消费）
   // v14.29.0：透传 sender tabId → 快照附 `you`（本页排队位置/前方条目数）
-  GET_RATINGS_QUEUE_STATUS: (m, sender) => getRatingsQueueStatus(sender && sender.tab ? sender.tab.id : null),
+  GET_RATINGS_QUEUE_STATUS: (/** @type {any} */ m, /** @type {any} */ sender) =>
+    getRatingsQueueStatus(sender && sender.tab ? sender.tab.id : null),
   CLEAR_CACHE_FOR_PAGE: handleClearCacheForPage,
   CACHE_STEAM_PAGE: handleCacheSteamPage,
   REPORT_WRONG_APPID: handleReportWrongAppId,
   HEAL_REGISTRY_NAMES: handleHealRegistryNames,
-  GET_TAB_GAME: (m) => ({ game: getTabGame(m && m.tabId) }) // v14.1.0：SidePanel 当前页游戏
+  GET_TAB_GAME: (/** @type {any} */ m) => ({ game: getTabGame(m && m.tabId) }) // v14.1.0：SidePanel 当前页游戏
 };
 
 // --- Steam API 状态监测（v3.3.0）---

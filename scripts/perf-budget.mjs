@@ -164,7 +164,9 @@ export const BUDGETS = {
   // v15 stage-1 (implicit-any repayment, user-directed): JSDoc typedefs +
   // param annotations in orchestrator-list/steam-cache/ratings-batch/types.js
   // — +8,466B SW (双语注释主体), no behavior change; 206+141 tests green.
-  swGraphBytes: 961878,
+  // stage-1 slice-4 (handlers/steam 38→0 + searchSteamGame return shape +
+  // MessagePayload fields): +1,841B more (注释主体); 225 tests green.
+  swGraphBytes: 963719,
   swGraphFiles: 108,
   staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

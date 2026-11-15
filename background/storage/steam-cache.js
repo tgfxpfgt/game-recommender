@@ -206,7 +206,9 @@ export function getModuleData(entry, moduleKey) {
 
 // 合并视图：所有模块字段合并为一个对象（兼容旧字段访问；后写的模块覆盖先写的）
 // Merged view: all modules' fields combined into one object (legacy access)
-export function getMergedData(/** @type {SteamCacheEntryShape|null|undefined} */ entry) {
+export function getMergedData(
+  /** @type {SteamCacheEntryShape|import('../core/types.js').SteamCacheEntry|null|undefined} */ entry
+) {
   if (!entry || !entry.modules) return null;
   /** @type {Object|null} */
   let merged = null;
@@ -237,7 +239,9 @@ export function latestModuleTs(
 
 // 条目是否仍有效（存在且任一模块未过期；全部过期视为无效，供清理/命中判定）
 // Is the entry still usable? (any module not expired)
-export function isSteamCacheValid(/** @type {SteamCacheEntryShape|null|undefined} */ entry) {
+export function isSteamCacheValid(
+  /** @type {SteamCacheEntryShape|import('../core/types.js').SteamCacheEntry|null|undefined} */ entry
+) {
   if (!entry || !entry.modules) return false;
   const now = Date.now();
   for (const key of Object.keys(entry.modules)) {

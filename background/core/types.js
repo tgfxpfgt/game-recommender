@@ -34,6 +34,11 @@
  * @property {boolean} [cacheOnly] - v7.0.3：仅查缓存不搜索（SEARCH_DOWNLOAD_SITES）
  * @property {Record<string, string>} [covers] - v14.8.2：批量封面 URL（名称 → cover，PREFETCH_STEAM_RATINGS）
  * @property {any} [sender] - v15：消息发送方（isTrustedSender 判定） - v15：消息发送方（isTrustedSender 判定；JSDoc 引 chrome 命名空间）
+ * @property {boolean} [ignoreNegativeCache] - v10.9.2：穿透负缓存（SEARCH_STEAM/RETRY_GAME_LOOKUP）
+ * @property {string} [rawTitle] - v14.3.1：原始页面标题（EN 变体检索/置信度页面身份/EN 段提取）
+ * @property {boolean} [manual] - v3.3.14：用户主动确认（GET_STEAM_BY_APPID 跳过名称相关性）
+ * @property {boolean} [forceRefresh] - v14.24.0：强制刷新（跳缓存+先删后拉）
+ * @property {string} [platform] - v14.19.0：机型声明（SET_MANUAL_PLATFORM，≤20 字符）
  * @property {string} [platformHint] - v14.18.0：分类页平台提示（GET_STEAM_RATINGS/PREFETCH_STEAM_RATINGS——规则 listPlatformHints 声明、内容侧按 URL 注入，phasePlatform 与标题拼接参与平台识别）
  * @property {Object} [entries] - RECORD_DOWNLOAD_URLS_BATCH 条目（{appId, url}[]）
  * @property {Array<string>} [moduleKeys] - 备份/导出勾选模块

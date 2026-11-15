@@ -168,6 +168,13 @@ async function phaseDetailPlatform(gameName, options = {}) {
  * @param {string} gameName
  * @param {{[k: string]: any}} [options]
  */
+/**
+ * @param {string} gameName
+ * @param {{[k: string]: any}} [options]
+ * @returns {Promise<Record<string, any>|null>} GameResult 形态（动态多面：
+ *   Steam 命中 / platformOnly+mcScore 平台终态 / null）——类型化收口随
+ *   GameResult 重写切片（本切片仅消除隐式 any，不改返回形状）
+ */
 export async function searchSteamGame(gameName, options = {}) {
   // v14.19.0 手动映射 + v14.29.2 平台预检（模拟器/主机条目）统一在
   // phaseDetailPlatform 短路——优先序与列表页 phasePlatform 一致（映射 >

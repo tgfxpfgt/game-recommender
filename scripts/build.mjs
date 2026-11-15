@@ -62,7 +62,8 @@ function generateModuleLoaders() {
   }
   const rows = LOADER_FILES.map((f) => {
     const rel = './' + f.replace(/^content\//, '');
-    return `  ${JSON.stringify(f)}: () => import(${JSON.stringify(rel)}),`;
+    // 单引号形态（prettier 单引号纪律——否则生成器与格式化器打架循环）
+    return `  '${f}': () => import('${rel}'),`;
   }).join('\n');
   const head =
     '/**\n' +
