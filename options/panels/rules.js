@@ -62,11 +62,22 @@
     ['detailMetaVersion', '版本号解析']
   ];
   /** @param {any} merged */
+  // v15 阶段 3：规则面板状态区块 Preact 组件（按需装载一次）
+  /** @type {{mountAt: (v: any, el: HTMLElement) => void, NoRules: any, HealthHeader: any}|null} */
+  let rulesPreact = null;
+  async function ensureRulesPreact() {
+    if (rulesPreact) return rulesPreact;
+    rulesPreact = await import(chrome.runtime.getURL('options/panels/rules-status.preact.mjs'));
+    return rulesPreact;
+  }
   function renderRuleList(merged) {
     const el = document.getElementById('ruleList');
     const sites = (merged && merged.sites) || [];
     if (sites.length === 0) {
-      el.innerHTML = '<div class="no-data">无规则</div>';
+      // 异步装载（首次）后渲染——同步函数内 fire-and-forget（无后续 DOM 断言依赖）
+      void ensureRulesPreact().then((P) => {
+        P.mountAt(P.NoRules({}), el);
+      });
       return;
     }
     el.innerHTML = sites

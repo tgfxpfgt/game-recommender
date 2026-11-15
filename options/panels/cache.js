@@ -154,6 +154,19 @@
     });
   }
 
+  // v15 阶段 3：缓存面板状态区块 Preact 组件（按需装载一次）
+  /** @type {{mountAt: (v: any, el: HTMLElement) => void, CacheEmptyRow: any, HealStats: any, h: any}|null} */
+  let cachePreact = null;
+  async function ensureCachePreact() {
+    if (cachePreact) return cachePreact;
+    cachePreact = await import(chrome.runtime.getURL('options/panels/cache-status.preact.mjs'));
+    return cachePreact;
+  }
+  /** @param {HTMLElement} tbody @param {string} msg */
+  async function mountCacheEmpty(tbody, msg) {
+    const P = await ensureCachePreact();
+    P.mountAt(P.CacheEmptyRow({ msg }), tbody);
+  }
   // 加载游戏缓存列表
   async function loadGameCache() {
     const keyword = document.getElementById('cacheSearchInput').value.trim();
@@ -164,7 +177,7 @@
     const tbody = document.getElementById('cacheTableBody');
     const statsEl = document.getElementById('cacheStats');
 
-    tbody.innerHTML = '<tr><td colspan="11" class="cache-empty">加载中...</td></tr>';
+    await mountCacheEmpty(tbody, '加载中...');
     statsEl.textContent = '';
 
     try {
@@ -180,7 +193,7 @@
       });
 
       if (!resp || !resp.games) {
-        tbody.innerHTML = '<tr><td colspan="11" class="cache-empty">加载失败，请重试</td></tr>';
+        await mountCacheEmpty(tbody, '加载失败，请重试');
         return;
       }
 
@@ -201,7 +214,7 @@
           : '');
 
       if (resp.games.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="11" class="cache-empty">暂无缓存数据</td></tr>';
+        await mountCacheEmpty(tbody, '暂无缓存数据');
         renderPagination(0, 1);
         return;
       }
@@ -256,7 +269,7 @@
 
       renderPagination(resp.total, resp.totalPages);
     } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="11" class="cache-empty">加载失败: ${escapeHtml(String(e))}</td></tr>`;
+      await mountCacheEmpty(tbody, '加载失败: ' + escapeHtml(String(e)));
     }
   }
 
