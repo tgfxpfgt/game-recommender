@@ -30,6 +30,57 @@ import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9�
 
 // v10.1.0：把 AppID 行为统计（a 下载 / b 详情页打开）并入 rating 条目——
 // wave 1 / 推送 / 刷新全链路自动携带，内容侧 prependBadge 直接渲染 "a-b" 徽章
+// ============ 类型（v15 阶段 1 隐式 any 还债——job/条目形状单源） ============
+/**
+ * @typedef {Object} RatingJob
+ * @property {number|null} [tabId] - 目标 tab
+ * @property {string[]} [queue] - 待处理标题
+ * @property {number} [deadlineAt] - 看门狗截止
+ * @property {number} [totalAtStart]
+ * @property {Record<string, any>} [ratingsByName]
+ * @property {Set<string>} [processed]
+ * @property {{left: number}} [mcBudget]
+ * @property {{left: number}} [probeBudget]
+ * @property {string} [platformHint]
+ * @property {string} [pageUrl]
+ * @property {string} [rawTitle]
+ * @property {Record<string, string>} [urlAppIds] - URL 索引第一候选
+ * @property {Record<string, string>} [covers]
+ * @property {number} [total] - 运行中任务的总数视角（进度推送）
+ * @property {number} [done] - 已完成数
+ * @property {boolean} [retried]
+ * @property {string} [phase] - 阶段回调透传（看门狗展示）
+ * @property {{name: string, phase: string, elapsedMs: number}|null} [stalled]
+ * @property {string[]} [allNames]
+ * @property {boolean} [ignoreNegativeCache]
+ * @property {Record<string, string>} [urls]
+ * @property {Record<string, string>} [appIds]
+ * @property {Record<string, {appId: string, cover: string}>} [imageData]
+ */
+/**
+ * @typedef {Object} CachedMerged
+ * @property {string|number} [appId]
+ * @property {string} [name]
+ * @property {string} [englishName]
+ * @property {number|null} [positiveRate]
+ * @property {string|null} [ratingDesc]
+ * @property {number} [totalReviews]
+ * @property {number|null} [positiveReviews]
+ * @property {number|null} [negativeReviews]
+ * @property {number|null} [recentPositiveRate]
+ * @property {number} [recentTotalReviews]
+ * @property {string|null} [lastUpdate]
+ * @property {string} [releaseDate]
+ * @property {boolean} [comingSoon]
+ * @property {number} [ratingRetriedAt]
+ * @property {string} [type]
+ * @property {string} [headerImage]
+ * @property {string} [cnReviewsFetchedAt]
+ * @property {number} [ratingFailCount]
+ * @property {Array<{t: number, r: number}>} [ratingHistory]
+ * @property {{mac?: boolean, linux?: boolean}} [platforms]
+ */
+/** @param {any} r @param {Record<string, {downloads: number, detailViews: number}>|null|undefined} statsMap */
 function mergeAppStat(r, statsMap) {
   if (!r || !r.appId || !statsMap) return r;
   const stat = statsMap[String(r.appId)];
@@ -41,14 +92,23 @@ function mergeAppStat(r, statsMap) {
 // Two-phase list-page rating lookup: cached hits return immediately; misses are
 // fetched from Steam in the background and pushed back via STEAM_RATINGS_UPDATE.
 /** @param {import('../core/types.js').MessagePayload} message */
+/**
+ * @param {import('../core/types.js').MessagePayload} message
+ * @param {any} [sender] - chrome.runtime.MessageSender（types 命名空间在该 tsc
+ *   项目此处解析不稳，宽松标注；sender 仅透传不消费敏感字段）
+ */
 export async function handleGetSteamRatings(message, sender) {
-  const ratingNames = message.names || [];
-  const imageData = message.imageData || {};
-  const appIds = message.appIds || {};
-  const urls = message.urls || {}; // v7.0.2：name → 详情页网址（URL 索引第一候选）
+  const ratingNames = /** @type {string[]} */ (message.names || []);
+  /** @type {Record<string, {appId: string, cover?: string}>} */
+  const imageData = /** @type {any} */ (message.imageData) || {};
+  /** @type {Record<string, string>} */
+  const appIds = /** @type {any} */ (message.appIds) || {};
+  /** @type {Record<string, string>} */
+  const urls = /** @type {any} */ (message.urls) || {}; // v7.0.2：name → 详情页网址（URL 索引第一候选）
   const cacheOnly = message.cacheOnly === true; // 兜底重试：只查缓存，不触发后台拉取
   // v14.19.0：分类页平台提示（首波预检与任务创建共用——声明须在首波之前）
   const platformHint = typeof message.platformHint === 'string' ? message.platformHint.trim().slice(0, 24) : '';
+  /** @type {Record<string, any>} */
   const ratings = {};
   const pending = [];
 
@@ -60,6 +120,7 @@ export async function handleGetSteamRatings(message, sender) {
   // 阶段0（v7.0.2）：详情页网址索引第一候选——同 URL 已匹配过 appId 的
   // 直接按该 appId 查缓存（统一列表页/详情页匹配结果）
   // Phase 0: detail-URL index as the first candidate.
+  /** @type {Record<string, string|number>} */
   const urlAppIds = {};
   for (const name of ratingNames) {
     const u = urls[name];
@@ -82,8 +143,8 @@ export async function handleGetSteamRatings(message, sender) {
           const urlAppId = urlAppIds[name] || null;
           const img = imageData[name] || (appIds[name] ? { appId: appIds[name] } : null);
           const r = await getSteamRatingsFromCacheOnly(name, {
-            appId: urlAppId || (img ? img.appId : null),
-            cover: img ? img.cover : null,
+            appId: urlAppId || (img ? img.appId : undefined),
+            cover: img ? img.cover || undefined : undefined,
             // v14.19.0：首波平台预检（提示词/映射——错误 Steam 缓存不再先于识别返回）
             platformHint: platformHint
           });
@@ -121,7 +182,7 @@ export async function handleGetSteamRatings(message, sender) {
       platformHint, // v14.18.0：分类页平台提示（空串 = 无提示）
       startedAt: Date.now()
     };
-    startRatingJob(job);
+    startRatingJob(/** @type {RatingJob} */ (job));
   }
 
   return { ratings, pending: pending.length };
@@ -188,6 +249,7 @@ function teardownResumeAlarm() {
 // the failure rate inside the rate-limit window → anomaly cascade → stuck
 // badges); phase-1 cache hits still return instantly for later tabs.
 /** @type {{running: boolean, pending: Array<Object>}} */
+/** @type {{running: boolean, pending: RatingJob[]}} */
 const jobQueue = { running: false, pending: [] };
 
 // v14.8.1（用户反馈：等待检测徽章看不到进展）：全局链运行态快照——当前任务
@@ -196,7 +258,7 @@ const jobQueue = { running: false, pending: [] };
 // Global-chain run snapshot since v14.8.1: the waiting badges show live queue
 // info ("检索中 N/M · 排队 X") from pushes + GET_RATINGS_QUEUE_STATUS polling.
 /** @type {{tabId: number|null, total: number, done: number, phase?: string, stalled?: {name: string, phase: string, elapsedMs: number}|null}|null} */
-let currentRun = null;
+let /** @type {RatingJob|null} */ currentRun = null;
 
 // v14.8.1：模块级推送器（runRatingJob 内的 push 与入队/开跑即时进度共用）
 // v14.17.0：返回推送是否成功——tab 已关闭/导航中（无接收端）时调用方据此
@@ -224,6 +286,7 @@ async function pushToTab(tabId, payload) {
 // Queue status snapshot; with senderTabId it carries `you` — this tab's live
 // queue position, items ahead and own total (the old snapshot had no per-tab
 // view at all).
+/** @param {number} senderTabId */
 export function getRatingsQueueStatus(senderTabId) {
   /** @type {{running: boolean, pending: number, current: any, degraded: boolean, you?: {position: number, running: boolean, total: number, aheadItems: number}}} */
   const status = {
@@ -247,7 +310,7 @@ export function getRatingsQueueStatus(senderTabId) {
         aheadItems
       };
     } else if (currentRun && currentRun.tabId === senderTabId) {
-      status.you = { position: 0, running: true, total: currentRun.total, aheadItems: 0 };
+      status.you = { position: 0, running: true, total: currentRun.total || 0, aheadItems: 0 };
     }
   }
   return status;
@@ -338,6 +401,7 @@ function pushQueuePositions() {
 // v14.8.1：链忙时即时推送排队位置（"排队中·前方 N 项"），不再静默等首波
 // v14.29.0：同 tab 旧任务替换——页面刷新/翻页后旧任务的页面上下文已失效，
 // 保留它会让旧推送与新批次交错且多占一个队列位；最新入队者顶替同 tab 旧任务。
+/** @param {RatingJob} job */
 export function startRatingJob(job) {
   if (job.tabId !== null && job.tabId !== undefined) {
     const dupIdx = jobQueue.pending.findIndex((j) => j && j.tabId === job.tabId);
@@ -380,7 +444,8 @@ export async function resumeRatingsBatch() {
   // Envelope form since v14.29.0; the legacy single-job object is still accepted.
   /** @type {Array<any>} */
   let jobs = [];
-  if (envelope && Array.isArray(envelope.jobs)) jobs = envelope.jobs.filter((j) => j && Array.isArray(j.queue));
+  if (envelope && Array.isArray(envelope.jobs))
+    jobs = envelope.jobs.filter((/** @type {any} */ j) => j && Array.isArray(j.queue));
   else if (envelope && Array.isArray(envelope.queue)) jobs = [envelope];
   if (jobs.length === 0) return { resumed: false, reason: 'no-job' };
   // 陈旧过滤：超龄任务丢弃；全部超龄 → stale（同步拆除 1min resume alarm，
@@ -402,6 +467,7 @@ export async function resumeRatingsBatch() {
 // 任务主循环（批次边界推进 job.queue 并持久化；SW 被杀后从最后边界续跑）
 // Job main loop: job.queue advances per batch and is checkpointed; a killed SW
 // resumes from the last boundary.
+/** @param {RatingJob} job */
 async function runRatingJob(job) {
   const keepAlive = setInterval(() => {
     chrome.runtime.getPlatformInfo().catch(() => {});
@@ -429,6 +495,7 @@ async function runRatingJob(job) {
   let stallTimer = null;
   try {
     // v14.17.0：推送改感知成功——失败置 tabDead（无接收端 = tab 关闭/导航中）
+    /** @param {Record<string, any>} payload */
     const push = async (payload) => {
       const ok = await pushToTab(job.tabId, payload);
       if (!ok) tabDead = true;
@@ -455,7 +522,7 @@ async function runRatingJob(job) {
     // 软阈值必须严格小于硬阈值（误配成"软即硬"会让软阈值失去留证意义）
     if (itemHardMs > 0 && itemSoftMs >= itemHardMs) itemSoftMs = Math.floor(itemHardMs / 2);
     let batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
-    const allNames = job.queue;
+    const allNames = job.queue || [];
     let retried = job.retried === true;
     // v14.7 批次 6：worker pool——N 并发消费名字队列。150ms 全局限速不变
     //（steamRateLimit 按 slot 串行放行），网络等待跨名字重叠（60 游戏纯限速
@@ -475,6 +542,7 @@ async function runRatingJob(job) {
     let consecutiveAnomaly = 0;
     /** @type {Map<string, any>} */
     const pendingWave = new Map(); // 未推送结果（≥ batchSize 或收尾时成波推送）
+    /** @type {string[]} */
     const retryNames = []; // 网络失败/限流（null 或 failed 标记）
     /** @type {{done: boolean, promise: Promise<void>}|null} */
     let anomalyGate = null; // 共享暂停门（所有 worker 等同一窗口，防 N 个独立定时器）
@@ -584,8 +652,9 @@ async function runRatingJob(job) {
     const flushWave = async (passNames, completedInPass, force) => {
       if (pendingWave.size === 0 || tabDead) return;
       if (!force && pendingWave.size < batchSize) return;
+      /** @type {Record<string, any>} */
       const wave = {};
-      for (const [n, r] of pendingWave) wave[n] = r;
+      for (const [n, r] of /** @type {Array<[string, any]>} */ (/** @type {unknown} */ (pendingWave))) wave[n] = r;
       pendingWave.clear();
       const batchT0 = Date.now();
       // v9.7.0：每波落盘（原每 5 批）——SW 被杀时损失限单波
@@ -610,6 +679,7 @@ async function runRatingJob(job) {
       batchSize = getSteamApiStatus().anomaly ? PERF_CONFIG.ratingsBatchSizeAnomaly : baseBatch;
     };
 
+    /** @param {string[]} passNames @param {{concurrency?: number}} [poolOpts] */
     /** @param {string[]} passNames @param {{concurrency?: number}} [poolOpts] */
     const runPool = async (passNames, poolOpts = {}) => {
       if (passNames.length === 0) return;
@@ -664,6 +734,7 @@ async function runRatingJob(job) {
           scheduleStallCheck(); // v14.28.8：排到该条目越过软阈值的时刻
           try {
             const urlAppId = job.urlAppIds && job.urlAppIds[name] ? job.urlAppIds[name] : null;
+            /** @type {{appId: string, cover?: string}|null} */
             const img =
               (job.imageData && job.imageData[name]) ||
               (job.appIds && job.appIds[name] ? { appId: job.appIds[name] } : null);
@@ -673,13 +744,13 @@ async function runRatingJob(job) {
               () =>
                 getSteamPositiveRate(name, {
                   ignoreNegativeCache: true,
-                  appId: urlAppId || (img ? img.appId : null),
-                  cover: img ? img.cover : null,
+                  appId: urlAppId || (img ? img.appId : undefined),
+                  cover: img ? img.cover || undefined : undefined,
                   // v14.8.2：盲区自愈——miss 时按任务预算回捞站点详情页 appid 信号
-                  pageUrl: job.urls && job.urls[name] ? job.urls[name] : null,
-                  probeBudget: job.probeBudget || null,
+                  pageUrl: job.urls && job.urls[name] ? job.urls[name] : undefined,
+                  probeBudget: job.probeBudget || undefined,
                   // v14.10.0：主机条目 Metacritic 查询预算
-                  mcBudget: job.mcBudget || null,
+                  mcBudget: job.mcBudget || undefined,
                   // v14.18.0：分类页平台提示（规则 listPlatformHints，空串 = 无）
                   platformHint: job.platformHint || '',
                   // v14.28.6 R4-A：阶段回调（告警留证 / 状态栏 stalled 用）
@@ -826,10 +897,14 @@ async function runRatingJob(job) {
 }
 
 // 预热下一页 Steam 缓存（仅填充缓存不返回数据）
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handlePrefetchSteamRatings(message) {
-  const ratingNames = message.names || [];
-  const imageData = message.imageData || {};
-  const appIds = message.appIds || {};
+  const ratingNames = /** @type {string[]} */ (message.names || []);
+  /** @type {Record<string, {appId: string, cover?: string}>} */
+  const imageData = /** @type {any} */ (message.imageData) || {};
+  /** @type {Record<string, string>} */
+  const appIds = /** @type {any} */ (message.appIds) || {};
+  /** @type {Record<string, string>} */
   const covers = message.covers || {};
   if (ratingNames.length === 0) return { success: true };
 
@@ -872,13 +947,13 @@ export async function handlePrefetchSteamRatings(message) {
       for (let i = 0; i < needsPrefetch.length; i += batchSize) {
         const batch = needsPrefetch.slice(i, i + batchSize);
         await Promise.all(
-          batch.map(async (name) => {
+          batch.map(async (/** @type {string} */ name) => {
             try {
               const img = imageData[name] || (appIds[name] ? { appId: appIds[name], cover: covers[name] } : null);
               await getSteamPositiveRate(name, {
                 ignoreNegativeCache: true,
-                appId: img ? img.appId : null,
-                cover: img ? img.cover : null,
+                appId: img ? img.appId : undefined,
+                cover: img ? img.cover || undefined : undefined,
                 // v14.18.0：分类页平台提示（下一页预载与主流程同语义）
                 platformHint: prefetchHint
               });

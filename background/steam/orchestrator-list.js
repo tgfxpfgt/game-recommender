@@ -106,7 +106,7 @@ function recordWave1Miss(/** @type {string} */ kind) {
  * @property {string} [platformHint] - 分类页平台提示（listPlatformHints 注入）
  * @property {string} [pageUrl] - 页面 URL（URL 索引/详情页信号回捞/同站冲突）
  * @property {boolean} [ignoreNegativeCache] - 批量场景跳过负缓存
- * @property {number} [cover] - 封面覆盖值
+ * @property {string} [cover] - 封面 URL（steam CDN 覆盖判定）
  * @property {{left: number}} [mcBudget] - MC 查询预算（批量链分摊）
  * @property {{left: number}} [probeBudget] - 详情页信号回捞预算
  * @property {(p: string) => void} [onPhase] - 阶段回调（看门狗/状态栏）

@@ -161,9 +161,12 @@ export const BUDGETS = {
   // runtime getURL-loaded), tracker loader bridge + site-scripts dual-mode
   // (+1,197B static injection). No dead code; detail closure now matches the
   // true injected surface (bundler makes the runtime-loaded tail visible).
-  swGraphBytes: 953412,
+  // v15 stage-1 (implicit-any repayment, user-directed): JSDoc typedefs +
+  // param annotations in orchestrator-list/steam-cache/ratings-batch/types.js
+  // — +8,466B SW (双语注释主体), no behavior change; 206+141 tests green.
+  swGraphBytes: 961878,
   swGraphFiles: 108,
-  staticInjectionBytes: 40579,
+  staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
@@ -171,7 +174,7 @@ export const BUDGETS = {
   // (finish only when this tab's job is confirmed running); re-locked.
   // v14.31.3 stage-0: detail closure re-locked at true injected surface
   // (sidebar static imports made the runtime tail visible to the meter).
-  closureBytes: 320890
+  closureBytes: 320899
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

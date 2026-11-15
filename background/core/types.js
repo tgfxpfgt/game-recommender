@@ -32,6 +32,8 @@
  * @property {string} [backupId] - 备份 ID（RESTORE_BACKUP / DELETE_BACKUP）
  * @property {Object} [urls] - v7.0.2：批量详情页网址（名称 → url，GET_STEAM_RATINGS 网址索引第一候选）
  * @property {boolean} [cacheOnly] - v7.0.3：仅查缓存不搜索（SEARCH_DOWNLOAD_SITES）
+ * @property {Record<string, string>} [covers] - v14.8.2：批量封面 URL（名称 → cover，PREFETCH_STEAM_RATINGS）
+ * @property {any} [sender] - v15：消息发送方（isTrustedSender 判定） - v15：消息发送方（isTrustedSender 判定；JSDoc 引 chrome 命名空间）
  * @property {string} [platformHint] - v14.18.0：分类页平台提示（GET_STEAM_RATINGS/PREFETCH_STEAM_RATINGS——规则 listPlatformHints 声明、内容侧按 URL 注入，phasePlatform 与标题拼接参与平台识别）
  * @property {Object} [entries] - RECORD_DOWNLOAD_URLS_BATCH 条目（{appId, url}[]）
  * @property {Array<string>} [moduleKeys] - 备份/导出勾选模块
