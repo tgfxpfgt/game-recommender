@@ -15,7 +15,7 @@ const SERIES_MAX = 6;
 
 /**
  * 聚合与基准名同系列的其他条目。
- * @param {string} baseName - 当前浮窗游戏名
+ * @param {string} [baseName] - 当前浮窗游戏名（可空——空名返回 []）
  * @param {string|number|null} [excludeAppId] - 基准自身
  * @returns {Promise<Array<{name: string, appId: string}>>}
  */

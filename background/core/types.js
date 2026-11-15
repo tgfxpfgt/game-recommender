@@ -40,7 +40,7 @@
  * @property {boolean} [forceRefresh] - v14.24.0：强制刷新（跳缓存+先删后拉）
  * @property {string} [platform] - v14.19.0：机型声明（SET_MANUAL_PLATFORM，≤20 字符）
  * @property {string} [platformHint] - v14.18.0：分类页平台提示（GET_STEAM_RATINGS/PREFETCH_STEAM_RATINGS——规则 listPlatformHints 声明、内容侧按 URL 注入，phasePlatform 与标题拼接参与平台识别）
- * @property {Object} [entries] - RECORD_DOWNLOAD_URLS_BATCH 条目（{appId, url}[]）
+ * @property {any} [entries] - RECORD_DOWNLOAD_URLS_BATCH 条目（{appId, url}[]）/ IMPORT_WRONG_REPORTS 纠正映射
  * @property {Array<string>} [moduleKeys] - 备份/导出勾选模块
  * @property {string} [gameId] - 限免游戏 ID（CLAIM_FREE_GAME）
  * @property {number} [limit] - 日志/审计条数上限
@@ -50,6 +50,12 @@
  * @property {string} [keyword] - GET_GAME_CACHE_LIST 过滤词
  * @property {string} [tag] - GET_GAME_CACHE_LIST 标签过滤
  * @property {string} [siteKey] - GET_GAME_CACHE_LIST 站点过滤
+ * @property {string} [host] - SITE_ADAPTER_ALERT 站点 host
+ * @property {string} [source] - LOG_PERF 上报来源（content/page）
+ * @property {string} [metric] - LOG_PERF 指标名
+ * @property {number} [durationMs] - LOG_PERF 耗时毫秒
+ * @property {string} [detail] - LOG_PERF 附加明细
+ * @property {string|number} [excludeAppId] - 检索排除 appId（GET_SERIES_ENTRIES/系列聚合）
  * @property {string} [typeFilter] - GET_GAME_CACHE_LIST 类型过滤
  * @property {number} [minRating] - GET_GAME_CACHE_LIST 最低好评率
  * @property {string} [granularity] - GET_TRENDS 聚合粒度 day|week

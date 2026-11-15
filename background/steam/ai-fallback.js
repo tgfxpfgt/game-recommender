@@ -34,6 +34,7 @@ const LLM_FETCH_TIMEOUT = PERF_CONFIG.fetchTimeoutLlmMs; // LLM 生成较慢 / L
 
 // 解析 Bing 搜索结果 HTML → Steam appid 列表（去重保序）。纯函数，可单测。
 // Parse Bing results HTML for store.steampowered.com/app/{id} links.
+/** @param {string} html */
 export function parseBingSearchAppIds(html) {
   const ids = [];
   const seen = new Set();
@@ -65,7 +66,7 @@ export async function webSearchFallback(rawName, excludeAppId) {
     const settings = await getSettings();
     const sources = settings.dataSources || {};
     if (sources.bing === false) return null;
-    const cached = await getWebMatch(rawName);
+    const cached = /** @type {{ok: boolean, appId: string|number, name: string}|null} */ (await getWebMatch(rawName));
     if (cached) {
       if (cached.ok && cached.appId) {
         return { appId: cached.appId, name: cached.name, englishName: cached.name, aiFallback: true };
@@ -114,7 +115,7 @@ export async function llmMatchGame(rawName, excludeAppId) {
   if (!settings.useLLM || !cfg || !cfg.endpoint) return null;
   try {
     // 缓存：成功 7d / 失败 24h（llm-cache 按 ok 区分 TTL）
-    const cached = await getLlmMatch(rawName);
+    const cached = /** @type {{ok: boolean, appId: string|number, name: string}|null} */ (await getLlmMatch(rawName));
     if (cached) {
       if (cached.ok && cached.appId) {
         return { appId: cached.appId, name: cached.name, englishName: cached.name, aiFallback: true };
@@ -195,6 +196,7 @@ async function askLlmForOfficialName(rawName, cfg) {
 
 // 解析 LLM 响应（防御：JSON 包裹/散落文本/引号污染）。纯函数，可单测。
 // Parse the LLM response defensively (JSON block, stray text, quoting).
+/** @param {string} text */
 export function parseLlmMatchResponse(text) {
   const raw = String(text || '');
   const m = raw.match(/\{[\s\S]*?\}/);

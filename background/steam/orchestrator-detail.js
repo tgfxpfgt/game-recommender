@@ -354,7 +354,7 @@ async function searchAppIdFlow(gameName, options, excludeAppId) {
   // 阶段 2：内容词覆盖交叉验证
   if (searchResult && enSegment) {
     const rawWords = [...enWordsOf(enSegment)].filter((w) => !EDITION_WORDS.has(w));
-    const coverOf = (name) => rawWords.filter((w) => enWordsOf(name).has(w)).length;
+    const coverOf = (/** @type {string} */ name) => rawWords.filter((w) => enWordsOf(name).has(w)).length;
     const hitCover = coverOf(searchResult.name);
     // rawWords ≥ 2 护栏：单词段区分度不足，不触发
     const needEn = rawWords.length >= 2 && (hitCover === 0 || hitCover < rawWords.length);
@@ -478,6 +478,7 @@ async function fetchDetailsResolveDlc(id, refreshModules) {
 async function tryCacheServed(gameName, appId) {
   const cached = await getSteamCacheEntry(appId, 'detail');
   const detail = isModuleValid(cached, 'detail', detailSteamCacheTtlMs()) ? getModuleData(cached, 'detail') : null;
+  /** @type {Record<string, any>} */
   const merged = getMergedData(cached) || {};
   // 无好评率条目（0 评测/失败固化）按冷却期重新获取
   // v14.21.0：评价数倒挂条目（cnTotalReviews > totalReviews，旧商店页回退

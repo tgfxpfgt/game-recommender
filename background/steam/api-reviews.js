@@ -16,6 +16,7 @@ import { recordUsageCounter, recordUsageEvent } from '../storage/usage-evidence.
 // 网络失败/限流时若把 null 写入缓存会固化"只显示 AppID"，命中时需重新获取。
 // Is a cached entry a "failed-rating snapshot" (both positiveRate and ratingDesc
 // empty)? Such entries must be re-fetched instead of served from cache.
+/** @param {any} cachedData */
 export function isFailedRatingEntry(cachedData) {
   return !!cachedData && cachedData.positiveRate === null && !cachedData.ratingDesc;
 }
@@ -28,6 +29,7 @@ export function isFailedRatingEntry(cachedData) {
 // Poisoned-entry fingerprint: simplified-Chinese count can never exceed the
 // all-time total; an inversion proves the entry was written by the old
 // recent-row-as-alltime fallback and must be refetched.
+/** @param {any} cachedData */
 export function hasInvertedReviewCounts(cachedData) {
   if (!cachedData || typeof cachedData !== 'object') return false;
   // 仅认数值型（缓存写入侧恒为 Math.round 数值；null/字符串 = 字段未知 → 不判污染）
@@ -72,6 +74,7 @@ const RATING_RETRY_LONG_COOLDOWN_MS = 60 * 60 * 1000;
 // Cache-hit check: a cache entry without a positive rate is refetched — failed
 // snapshots immediately, confirmed zero-review entries after the cooldown.
 // Accepts both a legacy entry ({data}) and the merged-view data object.
+/** @param {any} cached */
 export function needsRatingRefetch(cached) {
   if (!cached) return true;
   const d = cached.data || cached;
@@ -141,6 +144,7 @@ export function summarizeRecentReviews(reviews, cutoffSec = Date.now() / 1000 - 
 // after which fetchReviewSummary goes straight to the store-page fallback.
 let appreviewsDead = false;
 
+/** @param {string|number} appId */
 export async function fetchReviewSummary(appId) {
   // 网络失败/限流时重试一次（列表页批量场景 Steam API 限流常见）。
   // v3.3.6：filter=recent&num_per_page=100——一次请求同时拿到全时段
@@ -371,6 +375,7 @@ export async function fetchReviewSummary(appId) {
 // GetNewsForApp calls on cache rebuilds and repeated resolutions.
 const lastUpdateCache = createTtlCache({ ttlMs: 24 * 3600e3, max: STORAGE_CAPS.itadPriceCache }); // v14.2.0：补 max
 
+/** @param {string|number} appId */
 export async function fetchLastUpdate(appId) {
   const key = String(appId);
   const cached = lastUpdateCache.peek(key);
@@ -416,9 +421,11 @@ export async function fetchLastUpdate(appId) {
   }
 }
 
+/** @param {string|number} appId */
 async function fetchChineseReviews(appId) {
   /** @type {{total: number, positive: number, negative: number, score: number|null, desc: string|null, positiveRate: number|null}|null} */
   let cnReviewSummary = null;
+  /** @type {Array<{recommended: boolean, text: string, author: string, language: string}>} */
   let chineseReviews = [];
   // v14.28.12（B-2 审计 B2-F1）：失败信号——true = 网络失败/熔断/结构漂移，
   // 区别于"成功但确实无评论"（两者此前同形，失败被缓存标记固化为 72h"无评论"）。
@@ -465,7 +472,7 @@ async function fetchChineseReviews(appId) {
     const data = await resp.json();
     if (data.success === 1) {
       if (data.reviews && data.reviews.length > 0) {
-        chineseReviews = data.reviews.slice(0, 5).map((r) => ({
+        chineseReviews = data.reviews.slice(0, 5).map((/** @type {any} */ r) => ({
           recommended: r.voted_up === true,
           text: r.review.substring(0, 200),
           author: r.author?.steamid || '匿名',
@@ -493,6 +500,7 @@ async function fetchChineseReviews(appId) {
   return { cnReviewSummary, chineseReviews, reviewsFailed };
 }
 
+/** @param {string|number} appId */
 export async function fetchSteamReviews(appId) {
   const [reviewSummary, cnData] = await Promise.all([fetchReviewSummary(appId), fetchChineseReviews(appId)]);
   // v14.19.0：appreviews 死亡期的中文摘要回退——商店页解析的"您语言"摘要行

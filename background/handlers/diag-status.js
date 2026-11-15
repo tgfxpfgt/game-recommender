@@ -20,7 +20,7 @@ import { getSeriesEntries } from '../steam/series.js'; // v14.16.0 N10：系列�
 
 // --- Steam API 状态监测（v3.3.0）+ 分域名可达性（v11.0 B2）---
 export async function handleGetApiStatus() {
-  const status = getSteamApiStatus();
+  const status = /** @type {Record<string, any>} */ (getSteamApiStatus());
   status.domains = getDomainStatus();
   return status;
 }
@@ -28,6 +28,7 @@ export async function handleGetApiStatus() {
 // v10.4.4：Steam250 排名查询（appId → {rank, score, votes}；无记录 null）
 // v14.21.0：响应补 loaded（快照是否可用）——内容侧据此区分"未入榜"与"快照
 // 不可用"（前者显示提示行，后者整行隐藏）
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleGetSteam250Rank(message) {
   const appId = message && message.appId;
   if (!appId) return { info: null, loaded: false };
@@ -41,9 +42,11 @@ const siteAlertPersist = createSessionPersist('grSiteAlertLast', { initial: {} }
 export async function warmupSiteAlertPersist() {
   await siteAlertPersist.load();
 }
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleSiteAdapterAlert(message) {
   const siteKey = String(message.siteKey || 'unknown');
   const now = Date.now();
+  /** @type {Record<string, number>} */
   const lastMap = siteAlertPersist.peek();
   const last = lastMap[siteKey] || 0;
   if (now - last < 24 * 60 * 60 * 1000) return { success: true, throttled: true };
@@ -65,6 +68,7 @@ export function handleGetStorageHealth() {
 }
 
 // v9.1.0：性能上报（内容脚本 boot 耗时等 → Perf 日志落盘）
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleLogPerf(message) {
   const source = (message && message.source) || 'content';
   const metric = (message && message.metric) || '';
@@ -91,6 +95,7 @@ export async function handleGetRuntimeMetrics() {
   return { metrics: metricsSnapshot() };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleGetOutboundAudit(message) {
   return getOutboundAudit(message && message.limit);
 }
@@ -107,21 +112,24 @@ export const diagStatusHandlers = {
   LOG_PERF: handleLogPerf,
   SITE_ADAPTER_ALERT: handleSiteAdapterAlert,
   GET_STEAM250_RANK: handleGetSteam250Rank,
-  GET_SERIES_ENTRIES: (m) => getSeriesEntries(m && m.gameName, m && m.excludeAppId), // v14.16.0 N10
+  GET_SERIES_ENTRIES: (/** @type {import('../core/types.js').MessagePayload|undefined} */ m) =>
+    getSeriesEntries(m && m.gameName, m && m.excludeAppId), // v14.16.0 N10
   GET_SITE_HEALTH: handleGetSiteHealth,
   GET_STORAGE_HEALTH: handleGetStorageHealth,
   GET_RUNTIME_METRICS: handleGetRuntimeMetrics,
   GET_OUTBOUND_AUDIT: handleGetOutboundAudit,
   CLEAR_OUTBOUND_AUDIT: handleClearOutboundAudit,
-  GET_WRONG_REPORT_SAMPLES: (m) => getWrongReportSamples(),
-  CLEAR_WRONG_REPORT_SAMPLES: (m) => clearWrongReportSamples(),
+  GET_WRONG_REPORT_SAMPLES: (/** @type {import('../core/types.js').MessagePayload|undefined} */ m) =>
+    getWrongReportSamples(),
+  CLEAR_WRONG_REPORT_SAMPLES: (/** @type {import('../core/types.js').MessagePayload|undefined} */ m) =>
+    clearWrongReportSamples(),
   // v14.15.0 N5：纠正映射独立导出/导入（用户劳动成果可迁移；导入逐条校验+合并）
   GET_WRONG_REPORTS_EXPORT: async () => {
     const entries = exportAllCorrections();
     await flushWrongReports();
     return { success: true, entries };
   },
-  IMPORT_WRONG_REPORTS: async (m) => {
+  IMPORT_WRONG_REPORTS: async (/** @type {import('../core/types.js').MessagePayload|undefined} */ m) => {
     const r = importCorrections(m && m.entries);
     await flushWrongReports();
     return { success: true, imported: r.imported, rejected: r.rejected };

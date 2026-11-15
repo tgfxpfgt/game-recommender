@@ -21,6 +21,15 @@ import { isModuleValid, getMergedData, isDetailCacheComplete, pickFieldsForModul
 
 // --- 组装最终结果对象 ---
 
+/**
+ * @param {string|number} appId
+ * @param {any} gameData
+ * @param {any} langInfo
+ * @param {any} userTags
+ * @param {any} reviews
+ * @param {any} steamspyInfo
+ * @param {any} enGameData
+ */
 export function buildSteamResult(
   appId,
   gameData,
@@ -95,7 +104,7 @@ export function buildSteamResult(
     // === null means the module is disabled — not a failure.)
     reviewsFailed: !!(reviews && reviewsFailed),
     ratingFailed: !!(reviews && !reviewSummary),
-    genres: (gameData.genres || []).map((g) => g.description),
+    genres: (gameData.genres || []).map((/** @type {{description: string}} */ g) => g.description),
     userTags,
     chineseSupported,
     simplifiedChinese,
@@ -171,21 +180,23 @@ export async function fetchSteamFullDetailsByAppId(appId, options = {}) {
   // A refresh plan narrows the outbound surface to the modules being refreshed.
   const settings = await getSettings();
   const mods = settings.steamApiModules || {};
-  const need = (m) => !plan || plan.has(m);
+  const need = (/** @type {string} */ m) => !plan || plan.has(m);
   const needDetail = need('detail');
   const needRating = need('rating');
 
   const storeHtml = needDetail && mods.detail !== false ? await fetchStorePageHtml(appId) : null;
   const [langInfo, userTags, reviews] = await Promise.all([
     needDetail && mods.detail !== false
-      ? Promise.resolve(parseChineseLanguageSupport(storeHtml, gameData))
+      ? Promise.resolve(parseChineseLanguageSupport(/** @type {string} */ (storeHtml), gameData))
       : Promise.resolve({
           chineseSupported: false,
           simplifiedChinese: false,
           chineseHasAudio: false,
           chineseHasSubtitles: false
         }),
-    needDetail && mods.detail !== false ? Promise.resolve(parseUserTags(storeHtml, gameData)) : Promise.resolve([]),
+    needDetail && mods.detail !== false
+      ? Promise.resolve(parseUserTags(/** @type {string} */ (storeHtml), gameData))
+      : Promise.resolve([]),
     // 评论：rating 需要好评率；detail 需要评论正文 + cnReviewsFetchedAt 回填标记。
     // 二者任一在计划内都要取——否则"刷新 detail 却把标记写 0"会造成下次死循环。
     // Reviews serve rating (positive rate) and detail (text + backfill marker).
@@ -217,6 +228,7 @@ export async function fetchSteamFullDetailsByAppId(appId, options = {}) {
  */
 export function planDetailRefresh(entry, merged) {
   if (!entry || !entry.modules) return undefined;
+  /** @type {Record<string, any>} */
   const view = merged || getMergedData(entry) || {};
   const plan = ['meta']; // appId 校验 / DLC 解析 / 中英文名必需
   if (!isModuleValid(entry, 'rating') || needsRatingRefetch(view) || hasInvertedReviewCounts(view)) {

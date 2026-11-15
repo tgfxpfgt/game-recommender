@@ -58,6 +58,7 @@ export async function itadFetch(apiKey, query, timeoutMs) {
   return fetchWithTimeout(retry.url, retry.init, timeoutMs);
 }
 
+/** @param {string|number} appId */
 export async function checkItadFree(appId) {
   try {
     // v6.4.19：多套配置——使用激活配置的 key；旧 itadApiKey 兼容为隐式配置
@@ -92,6 +93,7 @@ export async function checkItadFree(appId) {
 // v14.2.0：补 max（复审轮 P2-4——无界缓存 SW 长驻无保障）
 const itadLowestCache = createTtlCache({ ttlMs: 12 * 3600 * 1000, max: STORAGE_CAPS.itadPriceCache });
 
+/** @param {string|number} appId */
 export async function getItadLowest(appId) {
   // v14.28.12（B-2 审计 B2-F3）：返回 {info, reason}——未配置 Key/凭证失效/
   // 网络失败/无记录四态此前同形为 null（内容侧整行隐藏，四态不可区分）。
@@ -142,6 +144,7 @@ export async function getItadLowest(appId) {
 // v14.2.0：补 max（复审轮 P2-4）
 const favPriceCache = createTtlCache({ ttlMs: 24 * 3600e3, max: STORAGE_CAPS.itadPriceCache }); // 现价（number|null = 负缓存）
 
+/** @param {string} appId @param {string} apiKey */
 async function fetchFavoriteCurrentPrice(appId, apiKey) {
   const cached = favPriceCache.peek(String(appId));
   if (cached !== undefined) return cached;
@@ -171,6 +174,7 @@ export async function watchFavoritePrices() {
   if (settings.favoritePriceWatch === false) return { skipped: true, notified: 0 };
   const apiKey = activeItadKey(settings);
   if (!apiKey) return { skipped: true, notified: 0 }; // 无 Key 零请求
+  /** @type {Record<string, any>} */
   const favorites = await getFavorites();
   const keys = Object.keys(favorites).slice(0, 50); // 上限 50（防无界轮询）
   const threshold = Number(settings.favoriteDiscountThreshold) || 0.8; // 现价 ≤ 最低 × 阈值
@@ -226,7 +230,7 @@ export async function watchFavoritePrices() {
       try {
         chrome.storage.local
           .get(markKey)
-          .then((d) => res(!!(d && d[markKey])))
+          .then((/** @type {Record<string, boolean>} */ d) => res(!!(d && d[markKey])))
           .catch(() => res(false));
       } catch {
         res(true);
@@ -265,6 +269,7 @@ export async function getFavoritePrices() {
   const settings = await getSettings();
   const apiKey = activeItadKey(settings);
   if (!apiKey) return { configured: false, prices: {} };
+  /** @type {Record<string, any>} */
   const favorites = await getFavorites();
   const keys = Object.keys(favorites).slice(0, 50);
   /** @type {Record<string, {current: number|null, lowest: number|null, shop: string}>} */
@@ -283,11 +288,12 @@ export async function getFavoritePrices() {
 
 // v6.4.19：解析当前激活的 ITAD key（profiles 优先，旧 itadApiKey 兼容）
 // Resolve the active ITAD key (profiles first; legacy itadApiKey as fallback)
+/** @param {Record<string, any>} settings */
 function activeItadKey(settings) {
   const profiles = Array.isArray(settings.itadProfiles) ? settings.itadProfiles : [];
-  const active = profiles.find((p) => p && String(p.id) === String(settings.itadActiveProfileId));
+  const active = profiles.find((/** @type {any} */ p) => p && String(p.id) === String(settings.itadActiveProfileId));
   if (active && active.key) return active.key;
-  const first = profiles.find((p) => p && p.key);
+  const first = profiles.find((/** @type {any} */ p) => p && p.key);
   if (first) return first.key;
   return settings.itadApiKey || '';
 }

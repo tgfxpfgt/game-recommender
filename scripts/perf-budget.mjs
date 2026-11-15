@@ -180,7 +180,10 @@ export const BUDGETS = {
   // stage-1 slice-16 (adapter-rules 17→0 + llm-cache 16→0): +692B; 47 tests green.
   // stage-1 slice-17 (utils 16→0 + api-details 15→0): +896B; 170 tests green.
   // stage-1 slice-18 (constants TTL 组 15→0 + adapter-rules 余 6): +657B; 134 tests green.
-  swGraphBytes: 975237,
+  // stage-1 slice-19~22 (service-worker/orchestrator-detail/app-stats/ai-fallback/
+  // api-assemble/api-monitor/itad/diag-status/api-reviews/types/series 68→0): +3,156B;
+  // 全量 vitest（unit+sim+integration）绿 + 普通 typecheck 三配置 0 + lint 0。
+  swGraphBytes: 978441,
   swGraphFiles: 108,
   staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

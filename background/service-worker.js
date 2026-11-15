@@ -133,7 +133,7 @@ chrome.runtime.onStartup.addListener(syncSiteScriptsSafe);
 // 页（welcome/changelog.js 单源渲染，非旧版硬编码欢迎页）。
 // Welcome page: fresh installs get the tour; updates get release notes —
 // except never-used installs (no injection footprint) which get the tour.
-chrome.runtime.onInstalled.addListener((details) => {
+chrome.runtime.onInstalled.addListener((/** @type {{reason: string}} */ details) => {
   // v14.28.5：安装/更新时补齐自定义站点脚本注册（取代原顶层调用——
   // 更新可能携带新的 SITE_SCRIPT_FILES 清单，此时必须重跑同步）
   syncSiteScriptsSafe();
@@ -156,7 +156,7 @@ chrome.runtime.onInstalled.addListener((details) => {
 
 // v7.4.0：限免通知点击 → 打开对应商店页（最近一次通知内容）
 // Notification click → open the store page of the latest free-game batch
-chrome.notifications.onClicked.addListener((notificationId) => {
+chrome.notifications.onClicked.addListener((/** @type {string} */ notificationId) => {
   if (notificationId !== 'gr-free-games') return;
   // v9.7.0：getLastNotifyGames 已改 async（内容持久化在 chrome.storage.session，
   // SW 冷启动后仍可读取——此前纯内存在 30s SW 生命周期下点击必然为空）
@@ -186,15 +186,17 @@ function setupContextMenu() {
     Logger.warn('Menu', '右键菜单创建失败', { message: String(e) });
   }
 }
-chrome.contextMenus.onClicked.addListener((info, tab) => {
-  if (info.menuItemId !== 'gr-search-steam' || !info.selectionText) return;
-  const url = `https://store.steampowered.com/search/?term=${encodeURIComponent(info.selectionText.trim())}`;
-  chrome.tabs.create({ url });
-});
+chrome.contextMenus.onClicked.addListener(
+  (/** @type {{menuItemId: string|number, selectionText: string}} */ info, /** @type {any} */ tab) => {
+    if (info.menuItemId !== 'gr-search-steam' || !info.selectionText) return;
+    const url = `https://store.steampowered.com/search/?term=${encodeURIComponent(info.selectionText.trim())}`;
+    chrome.tabs.create({ url });
+  }
+);
 setupContextMenu();
 
 // v7.4.0：键盘快捷键——强制刷新当前页评分 / Command: force-refresh ratings
-chrome.commands.onCommand.addListener((command, tab) => {
+chrome.commands.onCommand.addListener((/** @type {string} */ command, /** @type {{id: number}|undefined} */ tab) => {
   if (command === 'gr-force-refresh' && tab && tab.id != null) {
     chrome.tabs
       .sendMessage(tab.id, { action: 'FORCE_REFRESH_PAGE' })
@@ -230,6 +232,7 @@ setWriteMetricsHook(trackOpfsWrite);
 // Idempotent alarm creation: MV3 SW top-level re-runs on every cold start and
 // `alarms.create` REPLACES an existing alarm (restarts its period), so naive
 // re-creation meant the daily tasks never fired. Skip when already present.
+/** @param {string} name @param {number} periodInMinutes */
 async function ensureAlarm(name, periodInMinutes) {
   try {
     const existing = await chrome.alarms.get(name);
@@ -263,7 +266,7 @@ setupBackupAlarm().catch((e) => Logger.error('Backup', '自动备份定时器初
 // so the floor only needs to cover pathological cases.
 ensureAlarm('grPeriodicFlush', 30);
 
-chrome.alarms.onAlarm.addListener((alarm) => {
+chrome.alarms.onAlarm.addListener((/** @type {{name: string}} */ alarm) => {
   if (alarm.name === 'refreshFreeGames') {
     refreshFreeGames(true).catch((e) => Logger.error('FreeGames', '限免刷新失败', { message: String(e) }));
   }
@@ -277,9 +280,13 @@ chrome.alarms.onAlarm.addListener((alarm) => {
       const settings = await getSettings();
       if (settings.weeklyDigestEnabled === false) return; // v13 B9：用户可关
       const stats = await handleGetStats();
-      const games = (stats && stats.gameList) || [];
-      const views = games.reduce((a, g) => a + (Number(g.views) || 0), 0);
-      const downloads = games.reduce((a, g) => a + (Number(g.downloads) || 0), 0);
+      const statsAny = /** @type {any} */ (stats);
+      const games = (statsAny && statsAny.gameList) || [];
+      const views = games.reduce((/** @type {number} */ a, /** @type {any} */ g) => a + (Number(g.views) || 0), 0);
+      const downloads = games.reduce(
+        (/** @type {number} */ a, /** @type {any} */ g) => a + (Number(g.downloads) || 0),
+        0
+      );
       chrome.notifications
         .create({
           type: 'basic',

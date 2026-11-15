@@ -53,6 +53,7 @@ async function dedupWindowMs() {
 const SITES_PER_ENTRY_MAX = 24;
 
 /** @type {Record<string, {downloads: number, detailViews: number, updatedAt: number, dlSites: Object, viewSites: Object}>|null} */
+/** @type {Record<string, any>|null} */
 let statsMemory = null;
 let statsLoaded = false;
 // v10.5.0 P1-B：脏标记——无变更时 flush/save 不写盘（防写放大，且让 flushAllCaches
@@ -101,6 +102,7 @@ function enforceLimit() {
 }
 
 // 站点去重表 LRU 淘汰（超限时删最旧时间戳的站点）/ evict oldest site keys
+/** @param {Record<string, number>} siteMap */
 function enforceSiteLimit(siteMap) {
   const keys = Object.keys(siteMap);
   if (keys.length <= SITES_PER_ENTRY_MAX) return;
@@ -114,6 +116,7 @@ function enforceSiteLimit(siteMap) {
  * Deduped increment: same app+site within the window is a no-op; a different
  * site counts afresh (per-site maps live on the entry, never expire).
  */
+/** @param {string|number} appId @param {string} field @param {string} siteKey */
 async function incrementDeduped(appId, field, siteKey) {
   const key = String(appId || '').trim();
   if (!key || (field !== 'downloads' && field !== 'detailViews')) return false;
@@ -127,6 +130,7 @@ async function incrementDeduped(appId, field, siteKey) {
     await load();
     if (!statsMemory) statsMemory = {};
     const now = Date.now();
+    /** @type {Record<string, any>} */
     const entry = statsMemory[key] || {
       downloads: 0,
       detailViews: 0,
@@ -155,11 +159,13 @@ async function incrementDeduped(appId, field, siteKey) {
 }
 
 // 记录一次下载（跨站点聚合到 appId；同站 24h 去重）/ Record one download
+/** @param {string|number} appId @param {string} siteKey */
 export function recordAppDownload(appId, siteKey) {
   return incrementDeduped(appId, 'downloads', siteKey);
 }
 
 // 记录一次详情页打开（跨站点分别计数）/ Record one detail-page open
+/** @param {string|number} appId @param {string} siteKey */
 export function recordAppDetailView(appId, siteKey) {
   return incrementDeduped(appId, 'detailViews', siteKey);
 }
@@ -173,8 +179,10 @@ export async function getAppStats(appIds) {
   // v10.3.0：总开关关闭 → 返回空表（徽章无数据不渲染、推荐信号中性）
   if (!(await isEnabled())) return {};
   await load();
+  /** @type {Record<string, any>} */
   const mem = statsMemory || {};
   if (!Array.isArray(appIds)) return mem;
+  /** @type {Record<string, any>} */
   const out = {};
   for (const id of appIds) {
     const key = String(id || '');

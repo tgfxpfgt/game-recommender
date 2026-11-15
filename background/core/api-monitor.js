@@ -42,6 +42,7 @@ export async function warmupApiMonitor() {
 /** @param {boolean} ok @param {number} [status] */
 export function recordSteamCall(ok, status = 0) {
   const now = Date.now();
+  /** @type {Array<{t: number, ok: boolean, status: number}>} */
   const calls = persist.peek();
   calls.push({ t: now, ok: !!ok, status: status || 0 });
   if (calls.length > MAX_SAMPLES + 64) {
@@ -62,6 +63,7 @@ export function recordSteamCall(ok, status = 0) {
 // Current API status (pure; unit-testable)
 export function getSteamApiStatus() {
   const now = Date.now();
+  /** @type {Array<{t: number, ok: boolean, status: number}>} */
   const recent = persist.peek();
   if (recent.length > 0 && now - recent[0].t >= WINDOW_MS) {
     const kept = recent.filter((c) => now - c.t < WINDOW_MS);
@@ -74,6 +76,7 @@ export function getSteamApiStatus() {
   const limited = recent.filter((c) => c.status === 429 || c.status === 503).length;
   const failRate = total >= MIN_SAMPLES ? failed / total : 0;
   const anomaly = total >= MIN_SAMPLES && failRate > FAIL_RATE_THRESHOLD;
+  /** @type {number|null} */
   let lastFailedAt = null;
   for (let i = recent.length - 1; i >= 0; i--) {
     if (!recent[i].ok) {
@@ -105,6 +108,7 @@ export function getSteamApiStatus() {
 // Per-domain circuit breaker with half-open probe.
 const CIRCUIT_THRESHOLD = 5;
 const CIRCUIT_OPEN_MS = 60000;
+/** @type {Record<string, {fails: number, openUntil: number, probing: boolean}>} */
 const domainBreakers = {};
 // v14.7 批次 1（A-P3）：半开单探测令牌——到期时仅首个调用者转半开放行，
 // 其余并发调用者在探测期间视为仍熔断（此前全部放行 = 批次场景一次放行 N 个）。
@@ -142,6 +146,7 @@ export function circuitState(domain) {
 // v11.0 B2：分域名可达性——store / api 两域最近 N 次请求的成功率（会话级）。
 // recordSteamCall 调用方按域名传入；失败判定沿用 HTTP 语义（404=空结果非失败）。
 // Per-domain reachability: rolling success over recent calls per domain.
+/** @type {Record<string, {ok: number, total: number, recent: boolean[]}>} */
 const domainStats = {
   store: { ok: 0, total: 0, recent: [] },
   api: { ok: 0, total: 0, recent: [] },
@@ -182,6 +187,7 @@ export function recordDomainCall(domain, ok) {
 }
 
 export function getDomainStatus() {
+  /** @type {Record<string, any>} */
   const out = {};
   for (const [d, st] of Object.entries(domainStats)) {
     out[d] = st.total === 0 ? 'unknown' : st.ok > 0 ? 'ok' : 'down';
