@@ -41,7 +41,7 @@ export async function getDownloadSites() {
     .map((s) => ({
       key: s.key,
       name: s.name,
-      searchUrl: (q) => s.searchUrl.replace('{q}', encodeURIComponent(q)),
+      searchUrl: (/** @type {string} */ q) => s.searchUrl.replace('{q}', encodeURIComponent(q)),
       base: s.base,
       features: s.features || {} // v10.7.0 批次4：feature 声明随规则透传
     }));
@@ -91,12 +91,20 @@ const RULE_LIMITS = {
 // Bare-hostname validator: imported domains become chrome.scripting match
 // patterns, so wildcards / scheme / path must be rejected (fleet-level guard).
 const SITE_DOMAIN_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+/** @param {string} d */
 export function isValidSiteDomain(d) {
   return typeof d === 'string' && d.length > 0 && d.length <= RULE_LIMITS.maxFieldLen && SITE_DOMAIN_RE.test(d);
 }
 
 // 校验嵌套对象（listPage/listItem 等）：类型白名单 + 深度限制 + 数组条目检查
 // Validate nested objects: type whitelist + depth limit + array-item checks
+/**
+ * @param {string} siteKey
+ * @param {string} field
+ * @param {any} obj
+ * @param {number} depth
+ * @returns {string|null} 错误消息或 null
+ */
 function validateNestedObject(siteKey, field, obj, depth) {
   if (depth > RULE_LIMITS.maxDepth) return `站点 "${siteKey}" 嵌套过深`;
   for (const [k, v] of Object.entries(obj)) {
@@ -125,6 +133,7 @@ function validateNestedObject(siteKey, field, obj, depth) {
 // v7.0.5：轻量 ReDoS 风险启发式——嵌套量词（(a+)+ 类灾难性回溯）与超长正则
 // 拒绝；正常站点正则（/\/\d+\.html$/ 等）不受影响。纯函数，可单测。
 // Lightweight ReDoS heuristic: nested quantifiers ((a+)+) and over-long regexes.
+/** @param {string} pattern */
 export function hasReDoSRisk(pattern) {
   const src = String(pattern || '');
   if (src.length > 200) return true;
@@ -140,6 +149,7 @@ export function hasReDoSRisk(pattern) {
   return false;
 }
 
+/** @param {any} site @param {number} depth */
 function validateSiteRule(site, depth) {
   if (!isPlainObject(site)) return '站点规则必须是对象 (site rule must be an object)';
   if (depth > RULE_LIMITS.maxDepth) return '规则嵌套过深 (nesting too deep)';
@@ -185,8 +195,8 @@ function validateSiteRule(site, depth) {
       return `站点 "${site.key}" 正则存在灾难性回溯风险（ReDoS）: ${String(p).substring(0, 60)}`;
     }
   }
-  for (const [field, value] of Object.entries(site)) {
-    const allowed = SITE_FIELD_TYPES[field];
+  for (const [field, value] of Object.entries(/** @type {Record<string, any>} */ (site))) {
+    const allowed = /** @type {Record<string, string>} */ (SITE_FIELD_TYPES)[field];
     if (!allowed) continue; // 未知字段忽略（前向兼容）/ unknown fields ignored
     if (allowed === 'object') {
       if (!isPlainObject(value)) return `站点 "${site.key}" 字段 ${field} 类型错误（应为对象）`;
@@ -224,6 +234,7 @@ function validateSiteRule(site, depth) {
 
 // 校验适配规则整体结构（可单测纯函数）
 // Validate the whole adapter-rules payload (pure, unit-testable)
+/** @param {any} rules */
 export function validateAdapterRules(rules) {
   if (!isPlainObject(rules)) return { ok: false, error: '规则必须是 JSON 对象 (rules must be a JSON object)' };
   if (typeof rules.version !== 'number') return { ok: false, error: '缺少 version 字段（数字）' };
@@ -250,6 +261,7 @@ export function validateAdapterRules(rules) {
 // v10.0.0：导入前做格式化升级（normalizeImportedRules）+ 返回逐站诊断
 // v14.8 批次 1（R2）：retrievalVocab 段**剥离**返回（词表单独存储于
 // retrievalVocabOverride——混入 ADAPTER_RULES 会让站点回退内置时连坐词表）
+/** @param {any} rules */
 export async function saveAdapterRules(rules) {
   const result = validateAdapterRules(rules);
   if (!result.ok) return result;
@@ -277,9 +289,10 @@ export const RULES_FORMAT_VERSION = 2;
 // 消除"规则包随版本演进必须手工改字段"的迁移负担
 // Import-side format upgrade (pure): backfill displayName from name for
 // pre-v9.3.0 packs and stamp the current format version.
+/** @param {any} rules */
 export function normalizeImportedRules(rules) {
   if (!isPlainObject(rules) || !Array.isArray(rules.sites)) return rules;
-  const sites = rules.sites.map((s) => {
+  const sites = rules.sites.map((/** @type {any} */ s) => {
     if (!isPlainObject(s)) return s;
     const out = { ...s };
     if (!out.displayName && out.name) out.displayName = out.name;
@@ -292,6 +305,7 @@ export function normalizeImportedRules(rules) {
 // 供保存后提示与规则面板自检展示（level: warn/info）
 // Per-site diagnostics (pure): structurally valid but function-affecting
 // config issues, surfaced after save and in the rules panel self-check.
+/** @param {any} rules */
 export function diagnoseAdapterRules(rules) {
   const diagnostics = [];
   const sites = rules && Array.isArray(rules.sites) ? rules.sites : [];
@@ -316,7 +330,7 @@ export function diagnoseAdapterRules(rules) {
       s.listItem &&
       s.listItem.fallbackLinks === true &&
       Array.isArray(s.detailUrlPatterns) &&
-      s.detailUrlPatterns.some((p) => p === '/[^/]+/?$')
+      s.detailUrlPatterns.some((/** @type {string} */ p) => p === '/[^/]+/?$')
     ) {
       diagnostics.push({
         site: s.key,
@@ -364,6 +378,7 @@ export async function getAllRules() {
 export const IMPORT_MODULE_BYTES_LIMIT = 16 * 1024 * 1024; // 单模块 16MB
 export const IMPORT_TOTAL_BYTES_LIMIT = 64 * 1024 * 1024; // 总量 64MB
 
+/** @param {any} value */
 function isPureJsonSafe(value) {
   if (value === null || value === undefined) return false;
   if (typeof value !== 'object') {
@@ -381,8 +396,10 @@ function isPureJsonSafe(value) {
 
 // settings 模块清洗：已知字段白名单 + 密钥清空 + endpoint 协议校验
 // Settings sanitization: known-key whitelist, blanked secrets, http(s) endpoint
+/** @param {any} raw */
 function sanitizeImportedSettings(raw) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  /** @type {Record<string, any>} */
   const out = {};
   for (const [key, def] of Object.entries(DEFAULT_SETTINGS)) {
     const v = raw[key];
@@ -398,10 +415,11 @@ function sanitizeImportedSettings(raw) {
     }
     if (key === 'llmConfig') {
       if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      /** @type {Record<string, any>} */
       const llm = {};
       const defEntries = Object.entries(/** @type {Record<string, unknown>} */ (def));
       for (const [lk, ld] of defEntries) {
-        const lv = v[lk];
+        const lv = /** @type {any} */ (/** @type {Record<string, any>} */ (v))[lk];
         if (lv === undefined) continue;
         if (lk === 'apiKey') {
           llm.apiKey = '';
@@ -423,6 +441,7 @@ function sanitizeImportedSettings(raw) {
 
 // 按模块 key 校验并清洗导入值；非法输入返回 null（调用方跳过该模块）
 // Validate & sanitize one module's imported value; null = reject this module
+/** @param {string} key @param {any} value */
 export function sanitizeImportedModule(key, value) {
   if (key === 'settings') return sanitizeImportedSettings(value);
   if (key === 'adapterRules') {
