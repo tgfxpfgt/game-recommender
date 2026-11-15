@@ -166,7 +166,8 @@ export const BUDGETS = {
   // — +8,466B SW (双语注释主体), no behavior change; 206+141 tests green.
   // stage-1 slice-4 (handlers/steam 38→0 + searchSteamGame return shape +
   // MessagePayload fields): +1,841B more (注释主体); 225 tests green.
-  swGraphBytes: 963719,
+  // stage-1 slice-5 (engine-signals 30→21→9): +876B (注释主体); 47 tests green.
+  swGraphBytes: 964595,
   swGraphFiles: 108,
   staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

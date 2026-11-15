@@ -63,8 +63,8 @@ function generateModuleLoaders() {
   const rows = LOADER_FILES.map((f) => {
     const rel = './' + f.replace(/^content\//, '');
     // 单引号形态（prettier 单引号纪律——否则生成器与格式化器打架循环）
-    return `  '${f}': () => import('${rel}'),`;
-  }).join('\n');
+    return `  '${f}': () => import('${rel}')`;
+  }).join(',\n');
   const head =
     '/**\n' +
     ' * 游戏雷达 Game Radar - 内容模块装载桥（AUTO-GENERATED，勿手改）\n' +
@@ -74,7 +74,7 @@ function generateModuleLoaders() {
     ' * Auto-generated loader bridge: relative dynamic imports work in both the\n' +
     ' * unpacked-source mode (module loaded via getURL) and the bundled iife.\n' +
     ' */\n' +
-    `'use strict';\n\nexport const MODULE_LOADERS = {\n${rows}\n};\n`;
+    `'use strict';\n\nexport const MODULE_LOADERS = {\n${rows.replace(/,\n$/, '\n').replace(/\n$/, '')}\n};\n`;
   fs.writeFileSync(path.join(ROOT, 'content/module-loaders.js'), head, 'utf-8');
   console.log(`✓ content/module-loaders.js（${LOADER_FILES.length} 条装载映射）`);
 }

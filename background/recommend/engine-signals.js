@@ -13,6 +13,11 @@ import { SPY_SCALES } from '../core/constants.js'; // v10.7.0：信号刻度单�
 import { cleanGameName } from '../core/title-parser.js';
 
 // 关键词评分计算 / Keyword-score calculation
+/**
+ * @param {string[]} keywords
+ * @param {Record<string, number>} keywordWeights
+ * @returns {number|null} 关键词权重均值（无匹配 = null）
+ */
 export function calculateKeywordScore(keywords, keywordWeights) {
   if (!keywords || keywords.length === 0) return null;
   let matchScore = 0;
@@ -32,6 +37,12 @@ export function calculateKeywordScore(keywords, keywordWeights) {
 // 查找游戏画像：精确名 → 清洗名 → 注册表名称变体 → 模糊包含（取行为量最高）
 // Find the game profile by exact name, cleaned name, registry variants or a
 // fuzzy containment match (picking the most active one).
+/**
+ * @param {Record<string, any>} profiles
+ * @param {string} name
+ * @param {{names?: string[]}|null} [registryEntry]
+ * @returns {any|null}
+ */
 export function findProfile(profiles, name, registryEntry) {
   if (!profiles || !name) return null;
   const key = name.toLowerCase().trim();
@@ -73,6 +84,10 @@ export function findProfile(profiles, name, registryEntry) {
 /**
  * SteamSpy 时长/热度/销量/评论数归一化信号（纯函数，可单测）
  * @param {Object|null|undefined} spy - SteamSpy 原始数据（averageForeverMin/ccu/ownersLow/ownersHigh/totalReviews）
+ * @returns {{playTimeScore: number, heatScore: number, salesScore: number, reviewScore: number}}
+ */
+/**
+ * @param {{averageForeverMin?: number, ccu?: number, ownersLow?: number, ownersHigh?: number, totalReviews?: number}|null} [spy]
  * @returns {{playTimeScore: number, heatScore: number, salesScore: number, reviewScore: number}}
  */
 export function steamspyScores(spy) {
@@ -118,7 +133,17 @@ export function steamspyScores(spy) {
  */
 /**
  * ...
- * @param {{downloadCap?: number, viewCap?: number}|null} [caps] - 饱和封顶（可由设置覆盖）
+ * @param {{downloadCap?: number, viewCap?: number}|null|undefined} [caps] - 饱和封顶（可由设置覆盖）
+ */
+/**
+ * @param {number} a
+ * @param {number} b
+ * @param {{downloadCap?: number, viewCap?: number}|null} [caps]
+ */
+/**
+ * @param {number|null} a - 下载计数（null = 未知）
+ * @param {number|null} b - 详情打开计数（null = 未知）
+ * @param {{downloadCap?: number, viewCap?: number}|null|undefined} [caps]
  */
 export function appStatScores(a, b, caps = null) {
   // v10.3.0：饱和封顶可调（appStatDownloadCap/appStatDetailViewCap，默认 100）——
