@@ -270,7 +270,7 @@ export async function fetchAllFreeGames() {
   // 无法自愈）。
   const sources = [epic, gog, steam, gamerpower];
   const failedCount = sources.filter((r) => r === null).length;
-  const items = (r) => r || [];
+  const items = (/** @type {any} */ r) => r || [];
 
   const merged = [...items(epic), ...items(gog), ...items(steam)];
   const seenNames = new Set(merged.map((g) => normalizeGameName(g.name)));
@@ -313,6 +313,7 @@ function normalizeGameName(name) {
 // v14.2.0：补 max（复审轮 P2-4——无界缓存 SW 长驻无保障）
 const steamTypeCache = createTtlCache({ ttlMs: 12 * 3600e3, max: 500 });
 
+/** @param {string|number} appId */
 export async function determineSteamFreeType(appId) {
   // 缓存命中（含 null 结果）→ 直接返回
   const hit = steamTypeCache.peek(String(appId));
@@ -357,6 +358,7 @@ export async function determineSteamFreeType(appId) {
 
 // 商店页按钮复核：Add to Cart（入库）vs Play Now（免费周末）
 // Store-page button check: Add to Cart (claimable) vs Play Now (weekend)
+/** @param {string|number} appId */
 async function verifyStorePageButtons(appId) {
   try {
     const resp = await fetchWithTimeout(`${ENDPOINTS.steamStoreApp}${appId}/?l=schinese`, {

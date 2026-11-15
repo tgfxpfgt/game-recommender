@@ -16,6 +16,7 @@ import '../../shared/msg.js'; // v14.0.0：统一错误归一（classic IIFE 挂
 // v14.0.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
 const { toUserMessage } = /** @type {any} */ (globalThis).__GR_MSG__;
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleFetchImageDataUrl(message) {
   const url = String((message && message.url) || '');
   if (!/^https:\/\//i.test(url)) return { success: false, error: '仅接受 https 图片 URL' };

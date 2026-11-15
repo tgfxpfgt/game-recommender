@@ -37,8 +37,10 @@ export { searchCommunityApps } from './search-fallback.js';
 // v5.0.0：偏好标签推荐（由 handlers/stats.js 内嵌裸 fetch 下沉）——按用户
 // 偏好关键词在 Steam 商店搜索 + 取价格概览，返回候选游戏列表
 // Tag-based Steam store recommendations (sunk from the stats handler).
+/** @param {Array<string>} tags @param {number} [limit] */
 export async function fetchSteamTagRecommendations(tags, limit = 9) {
   if (isCircuitOpen('store')) return []; // v14.7 批次 13：熔断短路（与其他 store 路径对齐）
+  /** @type {any[]} */
   const recGames = [];
   for (const tag of tags.slice(0, 3)) {
     const searchUrl = `${ENDPOINTS.steamSearch}?term=${encodeURIComponent(tag)}&l=schinese&cc=cn`;
@@ -50,9 +52,11 @@ export async function fetchSteamTagRecommendations(tags, limit = 9) {
     if (data.total > 0 && data.items) {
       // v9.3.0：条目详情并发拉取（此前逐个串行——3 标签 × 4 条目 = 15 次串行请求，
       // 标签推荐长尾明显；改为每批 4 并发，标签间保持串行（storesearch 单在途）
-      const items = data.items.slice(0, 4).filter((item) => !recGames.some((g) => g.appId === item.id));
+      const items = data.items
+        .slice(0, 4)
+        .filter((/** @type {any} */ item) => !recGames.some((/** @type {any} */ g) => g.appId === item.id));
       const details = await Promise.all(
-        items.map(async (item) => {
+        items.map(async (/** @type {any} */ item) => {
           /** @type {{name?: string, header_image?: string, price_overview?: {final_formatted?: string}}|null} */
           let detail = null;
           try {
@@ -128,6 +132,7 @@ export async function searchSteamAppId(searchTerms, rawName, excludeAppId, lang 
 // must carry the EN suffix and pass the name-relevance check.
 // v14.7 批次 12：VERSION_SUFFIX_PAIRS 改用时取用（versionSuffixesOf）。
 
+/** @param {string|number} appId @param {string} title */
 export async function findVersionVariant(appId, title) {
   if (!title) return null;
   const pair = versionSuffixesOf().find(([cn]) => title.includes(cn));

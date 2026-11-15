@@ -38,7 +38,9 @@ let loading = null;
 // </span>`，一并兼容），行段内提取：排名（rank 容器文本）/评分（score stat
 // 首个 span）/评价数（votes span，无则 0）/appId（行段内唯一商店链接）。结构
 // 变更时条目数不足 MIN_ENTRIES 由调用方弃用。
+/** @param {string} html */
 export function parseSteam250Html(html) {
+  /** @type {Record<string, any>} */
   const games = {};
   if (typeof html !== 'string' || html.length < 200) return games;
   const ROW_RE =
@@ -61,6 +63,7 @@ export function parseSteam250Html(html) {
   return games;
 }
 
+/** @param {Record<string, any>} games */
 function buildMap(games) {
   rankMap = new Map();
   for (const [id, info] of Object.entries(games || {})) rankMap.set(String(id), info);

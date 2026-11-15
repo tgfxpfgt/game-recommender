@@ -64,6 +64,7 @@ export async function getActiveNoiseWords() {
 
 // 记录候选噪声词（每次"成功删除"计数 +1）
 // Record noise candidates (each confirmed skip increments the counter)
+/** @param {string[]} words */
 export async function recordNoiseCandidates(words) {
   await load();
   let changed = false;

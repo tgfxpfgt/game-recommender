@@ -166,6 +166,7 @@ export async function flushRegistry() {
 // 删除单个注册条目（缓存管理页删除用）/ Delete a single registry entry
 // v9.7.0：delete 只改内存引用，必须显式置 dirty 并调度写入，否则 flush 会
 // 跳过、删除在 SW 重启后"复活"（与 deleteSteamCacheEntry 同理）
+/** @param {string} appId */
 export async function deleteGameRegistryEntry(appId) {
   await loadRegistryToMemory();
   if (appId && delete registryMemory[String(appId)]) {

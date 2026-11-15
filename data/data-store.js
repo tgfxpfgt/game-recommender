@@ -138,7 +138,7 @@ class DataStore {
    */
   async _writeHandle(fileHandle, value, format) {
     let text;
-    if (format === 'ndjson') text = NDJSON.encode(value);
+    if (format === 'ndjson') text = NDJSON.encode(/** @type {any[]} */ (value));
     else if (format === 'ndjson-map') {
       // v14 B7：键值映射 → 逐行 {key, value}（追加式落盘格式）
       text = NDJSON.encode(Object.entries(value || {}).map(([key, v]) => ({ key, value: v })));

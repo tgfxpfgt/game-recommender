@@ -96,6 +96,7 @@ export const flushUrlIndex = writer.flush;
 
 // 规范化详情页 URL（去掉 hash/query 尾参——同一页面对应同一缓存）
 // v14.29.0：导出（冲突检测/会话级声明复用同一规范化单源）
+/** @param {string} url */
 export function normalizeUrl(url) {
   const u = String(url || '');
   return u.split('#')[0].split('?')[0];
@@ -118,6 +119,7 @@ export async function warmupUrlIndex() {
 }
 
 // 按网址查 appId（第一候选；无记录返回 null）
+/** @param {string} url */
 export async function getAppIdByUrl(url) {
   const key = normalizeUrl(url);
   if (!key) return null;
@@ -127,6 +129,7 @@ export async function getAppIdByUrl(url) {
 
 // 记录网址 → appId（防抖落盘；v14.29.0 起生产写入走 setUrlAppIdArbitrated，
 // 本函数保留为原语 + 旧调用兼容）
+/** @param {string} url @param {string|number} appId */
 export async function setUrlAppId(url, appId) {
   const key = normalizeUrl(url);
   if (!key || appId === null || appId === undefined) return;
@@ -215,6 +218,7 @@ export async function setUrlAppIdArbitrated(url, appId, options = {}) {
 
 // 删除单条网址映射（v9.7.0：人工报错/名称校验不相关时清除错误绑定——
 // 否则 URL 索引命中无校验短路返回，错误 appId 被永久固化）
+/** @param {string} url */
 export async function deleteUrlAppId(url) {
   const key = normalizeUrl(url);
   if (!key) return;

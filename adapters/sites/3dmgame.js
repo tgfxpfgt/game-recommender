@@ -8,7 +8,7 @@
   'use strict';
 
   // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
-  global.__GAME_RECOMMENDER_SITE_3DMGAME__ = () => ({
+  /** @type {any} */ (global).__GAME_RECOMMENDER_SITE_3DMGAME__ = () => ({
     key: '3dmgame',
     name: '3DM',
     domains: ['3dmgame.com'],

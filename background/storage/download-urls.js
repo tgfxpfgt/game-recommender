@@ -49,10 +49,12 @@ export function resetDownloadUrlsMemory() {
 
 // 获取某 appId 的所有下载站网址（合并各站点桶；Steam 页检索缓存优先用）
 // Get all download-site URLs for an appId (merged across buckets)
+/** @param {string|number} appId */
 export async function getDownloadUrls(appId) {
   if (!appId) return {};
-  const store = await readDownloadUrlsStore();
+  const store = /** @type {any} */ (await readDownloadUrlsStore());
   const key = String(appId);
+  /** @type {Record<string, any>} */
   const result = {};
   for (const [siteKey, bucket] of Object.entries(store.sites)) {
     if (bucket[key]) result[siteKey] = bucket[key];
@@ -102,6 +104,7 @@ export async function recordDownloadUrl(appId, siteKey, siteName, url, meta) {
 
 // 批量记录某站点下多个 appId 的详情页地址（列表页调用，一次读写）
 // Batch-record many appIds at one site (single read + write)
+/** @param {string} siteKey @param {string} siteName @param {any[]} entries */
 export async function recordDownloadUrlsBatch(siteKey, siteName, entries) {
   if (!siteKey || !entries || entries.length === 0) return;
   return withStoreLock(async () => {

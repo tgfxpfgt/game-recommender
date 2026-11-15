@@ -27,6 +27,7 @@ import { imageFetchHandlers } from './handlers/image-fetch.js';
 
 // 消息分发映射表（领域段聚合；契约规则在 core/message-contract.js RULES）
 // Aggregated dispatch map; contract rules live in message-contract RULES.
+/** @type {Record<string, any>} */
 export const MESSAGE_HANDLERS = {
   ...trackEventHandlers,
   ...recommendHandlers,
@@ -57,6 +58,7 @@ function extensionOrigin() {
 }
 
 // 消息统一入口 / Message entry
+/** @param {import('./core/types.js').MessagePayload} message @param {any} sender */
 export async function handleMessage(message, sender) {
   if (!message || !message.action) return { error: 'missing action' };
   // v4.0.0：消息契约校验（高风险 action 入参白名单，违规直接拒绝）

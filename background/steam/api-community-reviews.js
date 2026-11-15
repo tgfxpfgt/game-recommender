@@ -44,6 +44,7 @@ const FETCH_CACHE_MAX = 24;
  * @returns {Array<{recommended: boolean, text: string, date: string}>} 无产出 = 空数组
  */
 export function parseCommunityReviewsHtml(html) {
+  /** @type {any[]} */
   const reviews = [];
   if (typeof html !== 'string' || html.length < 200) return reviews;
   // 卡片 = vote_header（含 thumb 图）… apphub_CardTextContent（含正文） 的顺序块。

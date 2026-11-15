@@ -15,10 +15,12 @@
 // Aggregate by granularity ('day' = calendar day, 'week' = ISO-ish week keyed
 // by its Monday). Pure, zero-dependency, unit-testable.
 // 便捷别名：按天聚合（test-trends 直接消费）
+/** @param {any[]} log */
 export function aggregateDailyTrends(log) {
   return aggregateTrends(log, 'day');
 }
 
+/** @param {any[]} log @param {'day'|'week'} [granularity] */
 export function aggregateTrends(log, granularity = 'day') {
   const byBucket = new Map();
   for (const e of log || []) {
@@ -44,11 +46,13 @@ export function aggregateTrends(log, granularity = 'day') {
     }));
 }
 
+/** @param {Date} d */
 function dayKey(d) {
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 }
 
 // 该日期所在周的周一日期（周桶键）/ Monday of the week containing d
+/** @param {Date} d */
 function mondayKey(d) {
   const m = new Date(d.getFullYear(), d.getMonth(), d.getDate());
   const dow = (m.getDay() + 6) % 7; // 周一=0 ... 周日=6
@@ -60,6 +64,7 @@ function mondayKey(d) {
 // 数据的利用：负反馈总量、按游戏聚合的 top 负反馈与 top 下载（dashboard
 // 「推荐反馈信号」区块渲染）。
 // Feedback-signal aggregation (pure): dislike totals plus per-game top lists.
+/** @param {any[]} log @param {number} [topN] */
 export function aggregateFeedback(log, topN = 5) {
   const perGame = new Map();
   let dislikeTotal = 0;

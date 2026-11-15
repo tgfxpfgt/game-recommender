@@ -22,6 +22,7 @@ import { allModulesExpired, migrateEntry } from './steam-cache.js';
 // comes from its own config (0=forever modules never expire); partly-valid
 // entries stay and refresh per-module on use. Legacy flat entries are migrated
 // first so their still-valid modules survive (no whole-entry invalidation).
+/** @param {Record<string, any>} entries */
 export function collectExpiredSteamCache(entries) {
   const map = new Map(Object.entries(entries || {}));
   const now = Date.now();
@@ -38,6 +39,7 @@ export function collectExpiredSteamCache(entries) {
 
 // 清理名称索引中的过期负缓存条目（appId=null 且超 TTL）
 // Purge expired negative-cache entries in the name index (appId=null, beyond TTL)
+/** @param {Record<string, any>} entries @param {number} ttlMs */
 export function collectExpiredNegativeNames(entries, ttlMs) {
   const map = new Map(Object.entries(entries || {}));
   const now = Date.now();
@@ -57,11 +59,14 @@ export function collectExpiredNegativeNames(entries, ttlMs) {
 
 // 清理下载站网址缓存：lastRefreshed 超 TTL 的条目（空桶一并移除）
 // Purge expired download-URL entries (lastRefreshed beyond TTL; empty buckets dropped)
+/** @param {{sites?: Record<string, any>, v?: number}|null} store @param {number} ttlMs */
 export function collectExpiredDownloadUrls(store, ttlMs) {
   const now = Date.now();
   let removed = 0;
+  /** @type {Record<string, any>} */
   const sites = {};
   for (const [siteKey, bucket] of Object.entries((store && store.sites) || {})) {
+    /** @type {Record<string, any>} */
     const kept = {};
     for (const [appId, entry] of Object.entries(bucket || {})) {
       const expired = ttlMs !== Infinity && now - ((entry && entry.lastRefreshed) || 0) >= ttlMs;

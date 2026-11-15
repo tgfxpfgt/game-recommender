@@ -11,9 +11,9 @@ import { getFreeGamesData, claimFreeGame, getItadLowest, getFreeGameMissStats } 
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const freegamesHandlers = {
-  GET_FREE_GAMES: async (msg) => getFreeGamesData(msg.force === true),
-  CLAIM_FREE_GAME: async (msg) => claimFreeGame(msg.gameId),
-  GET_ITAD_LOWEST: async (msg) => {
+  GET_FREE_GAMES: async (/** @type {Record<string, any>} */ msg) => getFreeGamesData(msg.force === true),
+  CLAIM_FREE_GAME: async (/** @type {Record<string, any>} */ msg) => claimFreeGame(msg.gameId),
+  GET_ITAD_LOWEST: async (/** @type {Record<string, any>} */ msg) => {
     // v14.28.12（B2-F3）：透传 reason——内容侧据此区分"未配置/失效/暂不可用/无记录"
     const r = await getItadLowest(msg && msg.appId);
     return { info: r.info, reason: r.reason };

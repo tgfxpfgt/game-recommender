@@ -26,6 +26,7 @@ export async function warmupTabGames() {
  */
 export function noteTabGame(tabId, game) {
   if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId < 0 || !game || !game.appId) return;
+  /** @type {Record<string, any>} */
   const all = persist.peek();
   all[String(tabId)] = {
     // 截断长度：appId 12（数字 appId ≤10 位留余量）、URL 类 500（Steam 头图
@@ -56,5 +57,5 @@ export function noteTabGame(tabId, game) {
  */
 export function getTabGame(tabId) {
   if (typeof tabId !== 'number' || !Number.isInteger(tabId) || tabId < 0) return null;
-  return persist.peek()[String(tabId)] || null;
+  return /** @type {Record<string, any>} */ (persist.peek())[String(tabId)] || null;
 }

@@ -29,7 +29,7 @@ function safeData(raw) {
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const logsHandlers = {
-  GET_RUNTIME_LOGS: async (msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
+  GET_RUNTIME_LOGS: async (/** @type {Record<string, any>} */ msg) => ({ logs: await getRuntimeLogs(msg.limit) }),
   CLEAR_RUNTIME_LOGS: async () => {
     await clearRuntimeLogs();
     return { success: true };

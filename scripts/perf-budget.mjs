@@ -183,9 +183,9 @@ export const BUDGETS = {
   // stage-1 slice-19~22 (service-worker/orchestrator-detail/app-stats/ai-fallback/
   // api-assemble/api-monitor/itad/diag-status/api-reviews/types/series 68→0): +3,156B;
   // 全量 vitest（unit+sim+integration）绿 + 普通 typecheck 三配置 0 + lint 0。
-  swGraphBytes: 981666,
+  swGraphBytes: 985278,
   swGraphFiles: 108,
-  staticInjectionBytes: 40588,
+  staticInjectionBytes: 40698,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
@@ -193,7 +193,7 @@ export const BUDGETS = {
   // (finish only when this tab's job is confirmed running); re-locked.
   // v14.31.3 stage-0: detail closure re-locked at true injected surface
   // (sidebar static imports made the runtime tail visible to the meter).
-  closureBytes: 320899
+  closureBytes: 320988
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

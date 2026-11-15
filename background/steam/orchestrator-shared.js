@@ -18,6 +18,7 @@ import { Logger } from '../storage/logger.js';
 
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
+/** @param {any} cachedData */
 export function isDemoCacheWithoutRating(cachedData) {
   if (!cachedData) return false;
   if (cachedData.positiveRate !== null && cachedData.positiveRate !== undefined) return false;
@@ -40,6 +41,7 @@ export function isNewReleaseDate(dateStr, withinDays = NEW_RELEASE_WINDOW_DAYS) 
   return now >= d.getTime() - 24 * 3600e3 && now - d.getTime() <= withinDays * 24 * 3600e3;
 }
 
+/** @param {any} merged @param {string|number} appId @param {string} gameName */
 export async function applyCacheHit(merged, appId, gameName) {
   await ensureRegistryEntry(
     merged.appId || appId,

@@ -67,7 +67,8 @@ export function findProfile(profiles, name, registryEntry) {
           !best ||
           /** @type {{views: number, downloads: number}} */ (p).views +
             /** @type {{downloads: number}} */ (p).downloads >
-            best.views + best.downloads
+            /** @type {{views: number, downloads: number}} */ (best).views +
+              /** @type {{views: number, downloads: number}} */ (best).downloads
         )
           best = p;
       }

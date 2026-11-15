@@ -11,6 +11,7 @@ import { readProfiles, readKeywordWeights } from '../storage/behavior.js';
 import { calculateRecommendation } from '../recommend/engine.js';
 import { getAppStats } from '../storage/app-stats.js'; // v10.1.0：批量共享读
 
+/** @param {import('../core/types.js').MessagePayload} message */
 async function handleGetRecommendations(message) {
   // v10.3.0：推荐功能独立开关——关闭后返回空结果（内容侧不渲染推荐徽章，
   // 列表页其余流程/显示不受影响）
@@ -42,10 +43,14 @@ async function handleGetRecommendations(message) {
     // v10.0.0：per-game 防御——单个游戏画像/数据畸形（如历史坏数据）
     // 导致 calculateRecommendation 抛错时，跳过该游戏而非炸掉整批推荐
     try {
-      const score = await calculateRecommendation(game, useBuiltinOnly, shared);
+      const score = await calculateRecommendation(game, useBuiltinOnly, /** @type {any} */ (shared));
       results.push({ ...game, recommendation: score });
     } catch (e) {
-      Logger.warn('Recommend', `推荐计算失败（跳过）: ${String((game && game.name) || '?')}`, String(e));
+      Logger.warn(
+        'Recommend',
+        `推荐计算失败（跳过）: ${String((game && /** @type {any} */ (game).name) || '?')}`,
+        String(e)
+      );
     }
   }
   return { results };

@@ -24,5 +24,5 @@ export const FM_DEFAULT_ORDER = FM_KEYS.slice();
 // classic 消费通道（options.html 以 <script type="module"> 加载本文件后，
 // panels/settings.js 等经典脚本在运行期读此全局——模块先于 DCL 执行）
 if (typeof globalThis !== 'undefined') {
-  globalThis.__GR_FM_KEYS__ = { keys: FM_KEYS, labels: FM_LABELS, defaultOrder: FM_DEFAULT_ORDER };
+  /** @type {any} */ (globalThis).__GR_FM_KEYS__ = { keys: FM_KEYS, labels: FM_LABELS, defaultOrder: FM_DEFAULT_ORDER };
 }

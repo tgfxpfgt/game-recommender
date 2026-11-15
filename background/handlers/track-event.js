@@ -11,6 +11,7 @@ import { recordAppDownload } from '../storage/app-stats.js';
 import { inferSiteFromDomain, recordDownloadHistory } from '../storage/history.js';
 import { Logger } from '../storage/logger.js';
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleTrackEvent(message) {
   return applyTrackEvent(message.data);
 }
@@ -18,10 +19,11 @@ export async function handleTrackEvent(message) {
 // v14 B10：批量追踪（TRACK_EVENT_BATCH）——内容侧 v12 B3 攒批（500ms 窗口或
 // 满 10 条一次性送达），此前无 handler 且契约默认拒绝，批量事件被整批丢弃；
 // 逐条走与单发完全相同的管线，单条失败不丢整批
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleTrackEventBatch(message) {
   const events = Array.isArray(message && message.events) ? message.events : [];
   let applied = 0;
-  for (const data of events) {
+  for (const data of /** @type {any[]} */ (events)) {
     try {
       await applyTrackEvent(data);
       applied++;
@@ -33,6 +35,7 @@ export async function handleTrackEventBatch(message) {
 }
 
 // 单事件管线（单发与批量共用）/ one-event pipeline (shared by single & batch)
+/** @param {any} data */
 async function applyTrackEvent(data) {
   await addBehaviorLog(data);
 

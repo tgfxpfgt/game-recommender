@@ -10,7 +10,7 @@
   'use strict';
 
   // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
-  global.__GAME_RECOMMENDER_SITE_GAMER520__ = () => ({
+  /** @type {any} */ (global).__GAME_RECOMMENDER_SITE_GAMER520__ = () => ({
     // v10.7.0 批次4：内嵌 Steam 评价卡（原 detail-page INLINE_SECTION_SITES 硬编码）
     features: { inlineSteamCard: true },
     key: 'gamer520',

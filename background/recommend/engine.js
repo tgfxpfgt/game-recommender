@@ -100,7 +100,7 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
   return computeGameScore({
     profile,
     globalStats,
-    tags: registryEntry ? registryEntry.tags : null,
+    tags: registryEntry ? /** @type {any} */ (registryEntry).tags : null,
     keywordWeights,
     positiveRate: steamData ? steamData.positiveRate : null,
     chineseSupported: steamData ? !!steamData.chineseSupported : false,
@@ -188,6 +188,7 @@ Steam好评率：${gameInfo.positiveRate || '未知'}%
 请返回JSON格式：{"score": 数值, "reason": "理由"}`;
 }
 
+/** @param {string} text */
 function parseLLMResponse(text) {
   try {
     const jsonMatch = text.match(/\{[\s\S]*?"score"[\s\S]*?\}/);

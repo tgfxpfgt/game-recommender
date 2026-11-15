@@ -15,6 +15,7 @@ const MAX_HISTORY_ENTRIES = STORAGE_CAPS.downloadHistory; // v10.7.0：单源 ST
 // recordDownloadHistory 的 siteKey 缺失兜底路径会把这三站记为 unknown）。
 // 下载站网址缓存写入的权威推断在 handlers/download-sites.js 的 inferSite()
 // （按适配规则 domains 动态匹配，含自定义站点；storage 层不得反向依赖 core）
+/** @param {string} domain */
 export function inferSiteFromDomain(domain) {
   if (!domain) return { key: 'unknown', name: '未知站点' };
   if (domain.includes('xdgame')) return { key: 'xdgame', name: 'XDGame' };
@@ -38,10 +39,12 @@ export async function getDownloadHistory() {
 // v10.7.0：锁实现收敛至 core/mechanisms.js 工厂（原手写 promise 链同构 ×5）
 const withHistoryLock = withLock();
 
+/** @param {any} data */
 export function recordDownloadHistory(data) {
   return withHistoryLock(() => doRecordDownloadHistory(data));
 }
 
+/** @param {any} data */
 async function doRecordDownloadHistory(data) {
   if (!data.gameName) return;
   const gameName = data.gameName.trim();

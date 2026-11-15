@@ -26,6 +26,7 @@ export const TITLE_SIMILARITY_THRESHOLD = 0.75;
 
 // 数据来源标签（仅用于"推测依据"展示，不参与置信度判定）
 // Source labels: evidence only, never a gate.
+/** @type {Record<string, string>} */
 export const MATCH_SOURCE_LABELS = {
   image: '页面封面图 appId',
   url: '详情页网址索引',
@@ -39,6 +40,7 @@ export const MATCH_SOURCE_LABELS = {
   unknown: '未知来源'
 };
 
+/** @type {Record<string, string>} */
 const REASON_TEXT = {
   'all-match': '标题一致，平台为 PC，发行年份相符',
   'year-unknown': '标题一致，平台为 PC；发行年份仅一侧可知（不降级）',
@@ -165,7 +167,7 @@ function pairSimilarity(resultName, core) {
   if (!rn || !cn || rn.length < 2 || cn.length < 2) return 0;
   if (rn === cn) return 1;
   // 序号护栏 / numeric guard
-  const nums = (s) => new Set(String(s).match(/\d+/g) || []);
+  const nums = (/** @type {unknown} */ s) => new Set(String(s).match(/\d+/g) || []);
   const rNums = nums(resultName);
   const cNums = nums(core);
   if (cNums.size > 0) {

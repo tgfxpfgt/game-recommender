@@ -53,6 +53,7 @@ export const SITE_SCRIPT_FILES = (typeof __GR_SITE_SCRIPTS__ !== 'undefined' && 
   'content/tracker.js'
 ];
 
+/** @param {string} domain */
 const scriptId = (domain) => `gr-site-${domain.replace(/[^a-z0-9.-]/gi, '_')}`;
 
 /** @type {Promise<void>|null} */
@@ -76,7 +77,7 @@ export async function syncSiteScripts() {
         .filter((d) => isValidSiteDomain(d) && !BUILTIN_DOMAINS.includes(d));
       if (customDomains.length === 0) return;
       const registered = await chrome.scripting.getRegisteredContentScripts().catch(() => []);
-      const registeredIds = new Set((registered || []).map((s) => s.id));
+      const registeredIds = new Set((registered || []).map((/** @type {any} */ s) => s.id));
       const toRegister = customDomains
         .filter((d) => !registeredIds.has(scriptId(d)))
         .map((d) => ({

@@ -23,7 +23,7 @@
  * @typedef {Object} MessagePayload
  * @property {string} action - action 名（MESSAGE_HANDLERS 键）
  * @property {Object} [data] - TRACK_EVENT / RECORD_DOWNLOAD_URLS_BATCH / TRACK_DOWNLOAD_SITE_VISIT 负载
- * @property {Object} [settings] - SAVE_SETTINGS 携带的设置
+ * @property {Record<string, any>} [settings] - SAVE_SETTINGS 携带的设置
  * @property {Array<string>} [names] - 批量名称（GET_STEAM_RATINGS 等）
  * @property {Object} [appIds] - 批量 appId（名称 → appId，列表页封面直取）
  * @property {Object} [imageData] - 批量封面（名称 → {appId, cover}）
@@ -51,6 +51,9 @@
  * @property {string} [tag] - GET_GAME_CACHE_LIST 标签过滤
  * @property {string} [siteKey] - GET_GAME_CACHE_LIST 站点过滤
  * @property {string} [query] - searchCachedGames 跨缓存搜索过滤词
+ * @property {Array<Object>} [events] - TRACK_EVENT_BATCH 批量事件
+ * @property {string} [url] - FETCH_IMAGE_DATA_URL 单个详情页地址
+ * @property {number} [maxKb] - FETCH_IMAGE_DATA_URL 压缩上限 KB
  * @property {string} [host] - SITE_ADAPTER_ALERT 站点 host
  * @property {string} [source] - LOG_PERF 上报来源（content/page）
  * @property {string} [metric] - LOG_PERF 指标名

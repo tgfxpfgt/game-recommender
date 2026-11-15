@@ -21,6 +21,7 @@ const SETTINGS_CACHE_TTL = 5000; // 5秒缓存
 // defaults so stale stored settings never crash the UI; malformed values with
 // a mismatched type fall back to the default.
 // v4.2.0：导出供单测（纯函数）
+/** @param {Record<string, any>} base @param {Record<string, any>} stored */
 export function deepMergeSettings(base, stored) {
   // v4.2.0：null 存储同样回退默认（此前仅 undefined 回退，直接调用方传
   // null 会得到 null；getSettings 内部有 `|| {}` 保护，此处更健壮）
@@ -64,7 +65,7 @@ export async function getSettings() {
     return settingsCache;
   }
   const stored = await dataStore.readModule(DB_KEYS.SETTINGS);
-  settingsCache = deepMergeSettings(DEFAULT_SETTINGS, stored || {});
+  settingsCache = /** @type {any} */ (deepMergeSettings(DEFAULT_SETTINGS, stored || {}));
   settingsCacheTime = now;
   return /** @type {import('./types.js').AppSettings} */ (settingsCache);
 }
@@ -128,10 +129,11 @@ function broadcastSettingsChanged() {
 }
 
 // 保存设置（同步刷新 TTL 配置）/ Save settings (refresh TTL config)
+/** @param {Record<string, any>} [settings] - 缺省按空覆盖合并（deepMergeSettings 空安全） */
 export async function saveSettings(settings) {
   const clamped = clampNumericSettings(settings); // v10.8 B-2
   await dataStore.writeModule(DB_KEYS.SETTINGS, clamped);
-  settingsCache = deepMergeSettings(DEFAULT_SETTINGS, clamped || {});
+  settingsCache = /** @type {any} */ (deepMergeSettings(DEFAULT_SETTINGS, clamped || {}));
   settingsCacheTime = Date.now();
   await refreshTtlConfig();
   broadcastSettingsChanged(); // v14.3.2：通知常驻页（SAVE/RESET/窄化持久化的单点写入）
@@ -140,6 +142,7 @@ export async function saveSettings(settings) {
 // v10.9：xdgrid 过滤滑块窄化持久化——内容侧 sender 门禁不允许全量 SAVE_SETTINGS，
 // 此 action 只落这两个键（钳制后经 saveSettings 全流程含数值范围表）
 // Narrow persistence for the float filter controls (content-safe action).
+/** @param {boolean} enabled @param {number} minRating */
 export async function saveRatingFilterCfg(enabled, minRating) {
   const s = await getSettings();
   s.enableRatingFilter = enabled === true;

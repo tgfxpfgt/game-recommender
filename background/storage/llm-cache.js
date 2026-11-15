@@ -102,13 +102,14 @@ export async function setWebMatch(gameName, value) {
 }
 
 /** @param {string} prefix @param {string} gameName */
+/** @param {string} prefix @param {string} gameName */
 async function getMatchFallback(prefix, gameName) {
   await load();
   const key = prefix + keyOf(gameName);
   if (!key) return null;
   const entry = llmCacheMemory.get(key);
   if (!entry) return null;
-  const value = entry.score;
+  const value = /** @type {any} */ (entry.score);
   if (!value) return null;
   const ttl = value.ok ? LLM_SCORE_TTL : LLM_MATCH_FAIL_TTL;
   if (Date.now() - entry.ts > ttl) {
@@ -118,6 +119,7 @@ async function getMatchFallback(prefix, gameName) {
   return value;
 }
 
+/** @param {string} prefix @param {string} gameName @param {any} value */
 async function setMatchFallback(prefix, gameName, value) {
   await load();
   const key = prefix + keyOf(gameName);

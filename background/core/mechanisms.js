@@ -124,7 +124,7 @@ export function withWatchdog(task, opts = {}) {
       softTimer = null;
       hardTimer = null;
     };
-    const settle = (fn, value) => {
+    const settle = (/** @type {any} */ fn, /** @type {any} */ value) => {
       if (settled) return;
       settled = true;
       clearTimers();
@@ -234,7 +234,7 @@ export function createTtlCache({ ttlMs, max = 0, now = () => Date.now() }) {
   }
   return {
     /** 存在且未过期 → 值（可为 null）；否则 undefined 并惰性清除 */
-    peek(key) {
+    peek(/** @type {string} */ key) {
       const e = map.get(key);
       if (!e) return undefined;
       if (now() - e.t >= ttlMs) {
@@ -246,12 +246,12 @@ export function createTtlCache({ ttlMs, max = 0, now = () => Date.now() }) {
       map.set(key, e);
       return e.v;
     },
-    set(key, value) {
+    set(/** @type {string} */ key, /** @type {any} */ value) {
       map.delete(key);
       map.set(key, { v: value, t: now() });
       evictIfNeeded();
     },
-    delete(key) {
+    delete(/** @type {string} */ key) {
       map.delete(key);
     },
     clear() {

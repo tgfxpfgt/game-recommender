@@ -13,6 +13,7 @@ async function handleGetSettings() {
   return { settings: await getSettings() };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 async function handleSaveSettings(message) {
   await saveSettings(message.settings);
   return { success: true };
@@ -39,5 +40,5 @@ export const settingsHandlers = {
   SAVE_SETTINGS: handleSaveSettings,
   RESET_SETTINGS: handleResetSettings,
   GET_DEFAULT_SETTINGS: handleGetDefaultSettings, // v14.1.0：单条恢复默认数据源
-  SAVE_RATING_FILTER_CFG: (m) => saveRatingFilterCfg(m.enabled, m.minRating) // v10.9：xdgrid 过滤滑块
+  SAVE_RATING_FILTER_CFG: (/** @type {Record<string, any>} */ m) => saveRatingFilterCfg(m.enabled, m.minRating) // v10.9：xdgrid 过滤滑块
 };

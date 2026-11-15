@@ -30,6 +30,7 @@ import { Logger } from '../storage/logger.js';
 // Field fix: the real SteamSpy payload exposes positive/negative/ccu/owners/
 // average_forever; the previously-read players_2weeks/players_forever never
 // exist and were always null.
+/** @param {string|number} appId */
 export async function fetchSteamSpyInfo(appId) {
   try {
     const resp = await fetchWithTimeout(`${ENDPOINTS.steamSpy}?request=appdetails&appid=${appId}`);

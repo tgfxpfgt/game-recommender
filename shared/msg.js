@@ -26,7 +26,7 @@
     const isObject = typeof action === 'object' && action !== null;
     const actionName = isObject ? String(/** @type {{action: unknown}} */ (action).action) : String(action);
     const msg = isObject ? action : { action, ...(payload || {}) };
-    const p = chrome.runtime.sendMessage(msg).catch((e) => {
+    const p = chrome.runtime.sendMessage(msg).catch((/** @type {any} */ e) => {
       throw new Error(`消息失败 ${actionName}: ${String((e && e.message) || e)}`);
     });
     if (!timeout) return p;
@@ -48,9 +48,10 @@
   // 超时消息翻译为用户可读文案；其余类型 String 化。
   // Format an error for user display: strip "Error: " prefix, translate
   // common patterns, always return a non-empty string.
+  /** @param {unknown} e */
   function toUserMessage(e) {
     if (!e) return '未知错误';
-    let msg = typeof e === 'string' ? e : e.message || String(e);
+    let msg = typeof e === 'string' ? e : /** @type {any} */ (e).message || String(e);
     msg = msg.replace(/^Error:\s*/i, '');
     msg = msg.replace(/^消息失败\s*/, '');
     msg = msg.replace(/^消息超时:\s*/, '操作超时（');

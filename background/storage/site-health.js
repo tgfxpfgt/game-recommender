@@ -35,6 +35,7 @@ async function load() {
 }
 
 // 记录一次站点告警（幂等 upsert）/ Record one site alert (idempotent upsert)
+/** @param {string} siteKey @param {string} host */
 export async function recordSiteAlert(siteKey, host) {
   const key = String(siteKey || '').slice(0, 32);
   if (!key) return;

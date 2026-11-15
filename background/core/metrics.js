@@ -31,6 +31,7 @@ export async function warmupMetrics() {
 }
 
 /** 计数器递增 / increment a counter */
+/** @param {string} name @param {number} [by] */
 export function metricInc(name, by = 1) {
   const s = persist.peek();
   const counters = s.counters;
@@ -41,6 +42,7 @@ export function metricInc(name, by = 1) {
 }
 
 /** 耗时样本（ms）/ record a duration sample */
+/** @param {string} name @param {number} ms */
 export function metricObserve(name, ms) {
   const s = persist.peek();
   const hist = s.hist;
@@ -58,6 +60,7 @@ export function metricObserve(name, ms) {
  */
 export function metricsSnapshot() {
   const { counters, hist } = persist.peek();
+  /** @type {Record<string, any>} */
   const histOut = {};
   for (const [name, arr] of Object.entries(hist || {})) {
     if (!Array.isArray(arr) || arr.length === 0) continue;
@@ -76,6 +79,7 @@ export function metricsSnapshot() {
 
 // v10.7.0 批次5：OPFS 写指标聚合（data-store 钩子消费）——按模块计数与字节
 // （计数键有界由 metricInc 保证；模块名聚合为 opfs.<file>）
+/** @param {string} fileName @param {number} bytes */
 export function trackOpfsWrite(fileName, bytes) {
   const mod = String(fileName || 'unknown').replace(/\.(json|ndjson)(\.corrupt-.*)?$/, '');
   metricInc('opfs.writeCount.' + mod);

@@ -275,7 +275,7 @@ export function parseUserTags(storeHtml, gameData) {
   // 降级：官方分类（Single-player/多人等）作为标签兜底 / fallback: official categories
   return gameData && Array.isArray(gameData.categories)
     ? gameData.categories
-        .map((c) => c.description)
+        .map((/** @type {any} */ c) => c.description)
         .filter(Boolean)
         .slice(0, 10)
     : [];

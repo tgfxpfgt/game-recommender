@@ -14,7 +14,7 @@
   'use strict';
 
   // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
-  global.__GAME_RECOMMENDER_DEFAULT_RULES__ = () => ({
+  /** @type {any} */ (global).__GAME_RECOMMENDER_DEFAULT_RULES__ = () => ({
     detailUrlPatterns: ['/\\d+\\.html?$', '/game/\\d+\\.html?$'],
     listPage: {
       urlPatterns: ['^(/|$)', '/page/\\d+', '/category/', '/tag/'],

@@ -194,7 +194,7 @@ export function durationStats(ring) {
     .sort((a, b) => a - b);
   const n = list.length;
   if (n === 0) return { n: 0, p50: null, p90: null, max: null };
-  const at = (q) => list[Math.min(n - 1, Math.floor(q * n))];
+  const at = (/** @type {number} */ q) => list[Math.min(n - 1, Math.floor(q * n))];
   return { n, p50: at(0.5), p90: at(0.9), max: list[n - 1] };
 }
 
@@ -205,6 +205,7 @@ export function durationStats(ring) {
  * @param {number} [now] - 当前时间（默认 Date.now()；测试注入）
  */
 export function buildEvidenceReport(store, now = Date.now()) {
+  /** @type {Record<string, any>} */
   const durations = {};
   for (const [k, ring] of Object.entries(store.durations || {})) durations[k] = durationStats(ring);
   // 事件近 7 天分布：cat.k（含 kind）→ 计数（优化关注的"最近发生了什么"）

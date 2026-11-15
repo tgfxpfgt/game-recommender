@@ -24,7 +24,9 @@ const FLUSH_HEALTH_INITIAL = {
 const persist = createSessionPersist('grFlushHealth', { initial: FLUSH_HEALTH_INITIAL });
 
 // 记录一次 flush 写失败 / Record one flush write failure
+/** @param {string} moduleName */
 export function recordFlushFailure(moduleName) {
+  /** @type {Record<string, any>} */
   const counters = persist.peek();
   const key = String(moduleName || '').replace(/WriteFails$/, '') + 'WriteFails';
   if (key in counters) counters[key] = (counters[key] || 0) + 1;

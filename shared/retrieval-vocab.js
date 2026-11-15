@@ -262,12 +262,12 @@ function entrySource([kind, value]) {
  * 词表校验（结构/类型/去重/正则片段可编译）。返回错误消息数组，空 = 合法。
  * v14.7 批次 12（R2）：参数化——内置词表与规则包覆盖数据共用同一校验。
  * Validate the vocab; returns error messages (empty = valid).
- * @param {{version: number, noiseTitle: VocabEntry[], noiseEnWords: string[], junkCandidateWords: VocabEntry[], titleTailStripWords: string[], versionSuffixes: Array<[string, string]>, addonKeywords: VocabEntry[], demoKeywords: VocabEntry[], editionWords: string[]}} [target] - 缺省校验内置词表
+ * @param {Record<string, any>} [target] - 词表对象（缺省校验内置词表；校验器按动态键遍历）
  * @returns {string[]}
  */
 export function validateRetrievalVocab(target) {
   const errors = [];
-  const v = target || RETRIEVAL_VOCAB;
+  const v = /** @type {Record<string, any>} */ (target || RETRIEVAL_VOCAB);
   /** @param {unknown} x */
   const isStrArr = (x) => Array.isArray(x) && x.length > 0 && x.every((w) => typeof w === 'string' && w.length > 0);
   if (v.version !== 1) errors.push('version 必须为 1');
@@ -275,7 +275,7 @@ export function validateRetrievalVocab(target) {
   // Entry checks: known kind, non-empty value, compilable fragments, no dup words
   /** @param {string} key @param {string[]} kinds */
   const checkEntries = (key, kinds) => {
-    const arr = v[key];
+    const arr = /** @type {any} */ (v[key]);
     if (!Array.isArray(arr) || arr.length === 0) {
       errors.push(`${key} 必须为非空条目数组`);
       return;
@@ -303,7 +303,7 @@ export function validateRetrievalVocab(target) {
   checkEntries('demoKeywords', ['b', 'w']);
   checkEntries('junkCandidateWords', ['w', 're']);
   for (const key of ['noiseEnWords', 'titleTailStripWords', 'editionWords']) {
-    if (!isStrArr(v[key])) errors.push(`${key} 必须为非空字符串数组`);
+    if (!isStrArr(/** @type {any} */ (v[key]))) errors.push(`${key} 必须为非空字符串数组`);
   }
   if (
     !Array.isArray(v.versionSuffixes) ||
@@ -402,7 +402,7 @@ export const PROTECTIVE_TITLES = [
  * Apply a vocab override from a rule package: key-wise merge (override
  * arrays append after the built-ins), validate, then invalidate — on
  * validation failure the built-in vocab stays in effect (fallback).
- * @param {{version?: number, noiseTitle?: VocabEntry[], noiseEnWords?: string[], junkCandidateWords?: VocabEntry[], titleTailStripWords?: string[], versionSuffixes?: Array<[string, string]>, addonKeywords?: VocabEntry[], demoKeywords?: VocabEntry[], editionWords?: string[]}} override
+ * @param {Record<string, any>} override - 覆盖段（仅已知键参与合并；校验动态键形态）
  * @returns {string[]} 校验错误（空 = 已生效）
  */
 export function applyVocabOverride(override) {
@@ -421,14 +421,14 @@ export function applyVocabOverride(override) {
     'demoKeywords',
     'editionWords'
   ]) {
-    const v = override[key];
+    const v = /** @type {any} */ (override[key]);
     if (v === undefined) continue;
     if (!Array.isArray(v) || v.length === 0) return [`${key} 覆盖必须为非空数组`];
   }
   // v14.8 批次 2：防护标题护栏——新增 'w' 噪声词命中防护标题（子串）→
   // 拒绝该词（过度清洗合法标题的确定性防线；全量回放门在 CI 侧）
   for (const key of ['noiseTitle', 'junkCandidateWords', 'titleTailStripWords']) {
-    const extra = override[key];
+    const extra = /** @type {any} */ (override[key]);
     if (!Array.isArray(extra)) continue;
     for (const entry of extra) {
       if (!Array.isArray(entry) || entry[0] !== 'w') continue;
@@ -439,6 +439,7 @@ export function applyVocabOverride(override) {
       }
     }
   }
+  /** @type {Record<string, any>} */
   const merged = { ...RETRIEVAL_VOCAB };
   for (const key of [
     'noiseTitle',
@@ -450,14 +451,14 @@ export function applyVocabOverride(override) {
     'demoKeywords',
     'editionWords'
   ]) {
-    const extra = override[key];
+    const extra = /** @type {any} */ (override[key]);
     if (Array.isArray(extra) && extra.length > 0) {
       merged[key] = [...merged[key], ...extra]; // 追加语义：内置在前，保序不重排
     }
   }
-  const errors = validateRetrievalVocab(merged);
+  const errors = validateRetrievalVocab(/** @type {any} */ (merged));
   if (errors.length > 0) return errors;
-  activeVocab = merged;
+  activeVocab = /** @type {any} */ (merged);
   invalidateRetrievalRulesCache();
   return [];
 }

@@ -16,6 +16,9 @@
 
 import { debounce } from '../core/mechanisms.js';
 
+/**
+ * @param {{name: string, save: (data?: any) => any, debounceMs: number, maxWaitMs?: number}} opts
+ */
 export function createDebouncedStore({ name, save, debounceMs, maxWaitMs = 0 }) {
   // 防抖排程：debounceMs 内重复调用只触发一次写入；save 的失败日志在此统一打印。
   // maxWaitMs > 0 时写入最迟在首个待写调用后 maxWaitMs 内发生（日志等连续流场景）

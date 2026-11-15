@@ -8,7 +8,7 @@
   'use strict';
 
   // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
-  global.__GAME_RECOMMENDER_SITE_ALI213__ = () => ({
+  /** @type {any} */ (global).__GAME_RECOMMENDER_SITE_ALI213__ = () => ({
     key: 'ali213',
     name: '游侠网',
     domains: ['ali213.net'],

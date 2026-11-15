@@ -8,7 +8,7 @@
   'use strict';
 
   // 延迟装配：顶层只注册工厂，首次聚合时才实例化 / lazy: factory only
-  global.__GAME_RECOMMENDER_SITE_GAMERSKY__ = () => ({
+  /** @type {any} */ (global).__GAME_RECOMMENDER_SITE_GAMERSKY__ = () => ({
     key: 'gamersky',
     name: '游民星空',
     domains: ['gamersky.com'],
