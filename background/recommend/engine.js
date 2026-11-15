@@ -54,7 +54,7 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
       if (cachedScore !== null) return cachedScore;
       const llmScore = await calculateWithLLM(gameInfo, settings);
       if (llmScore !== null) {
-        await setLlmScore(gameInfo.name, llmScore);
+        await setLlmScore(gameInfo.name, /** @type {any} */ (llmScore));
         return llmScore;
       }
     } catch (e) {

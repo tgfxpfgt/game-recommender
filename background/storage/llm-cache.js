@@ -32,11 +32,13 @@ async function load() {
   loaded = true;
 }
 
+/** @param {string} gameName */
 function keyOf(gameName) {
   return (gameName || '').toLowerCase().trim();
 }
 
 // 读取缓存（过期 → null + 惰性清理）/ Read cache (expired → null)
+/** @param {string} gameName */
 export async function getLlmScore(gameName) {
   await load();
   const key = keyOf(gameName);
@@ -51,6 +53,7 @@ export async function getLlmScore(gameName) {
 }
 
 // 写入缓存 / Write cache
+/** @param {string} gameName @param {any} score - 评分结果对象（{score, reason, method}）或数值（旧形态） */
 export async function setLlmScore(gameName, score) {
   await load();
   const key = keyOf(gameName);
@@ -76,24 +79,29 @@ export function resetLlmCache() {
 const LLM_MATCH_FAIL_TTL = 24 * 3600e3;
 
 // 读取匹配兜底缓存（失败条目按 24h TTL）
+/** @param {string} gameName */
 export async function getLlmMatch(gameName) {
   return getMatchFallback('match:', gameName);
 }
 
 // 写入匹配兜底缓存（value: {ok, appId?, name?}）
+/** @param {string} gameName @param {any} value */
 export async function setLlmMatch(gameName, value) {
   return setMatchFallback('match:', gameName, value);
 }
 
 // ============ v6.4.17：搜索引擎兜底缓存（独立键，防与 LLM 兜底互相阻断） ============
+/** @param {string} gameName */
 export async function getWebMatch(gameName) {
   return getMatchFallback('web:', gameName);
 }
 
+/** @param {string} gameName @param {any} value */
 export async function setWebMatch(gameName, value) {
   return setMatchFallback('web:', gameName, value);
 }
 
+/** @param {string} prefix @param {string} gameName */
 async function getMatchFallback(prefix, gameName) {
   await load();
   const key = prefix + keyOf(gameName);

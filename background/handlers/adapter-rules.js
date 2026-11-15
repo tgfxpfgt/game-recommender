@@ -31,6 +31,7 @@ async function handleGetAdapterRules() {
   return { rules };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 async function handleSaveAdapterRules(message) {
   const result = await saveAdapterRules(message.rules);
   // v7.4.0：规则变化后同步自定义站点内容脚本注册（新增站点立即生效，
@@ -51,7 +52,10 @@ async function handleSaveAdapterRules(message) {
         result.vocabErrors = applyErrors;
         return result;
       }
-      const anchors = globalThis.__GR_MISMATCH_ANCHORS__;
+      const anchors =
+        /** @type {{samples: Array<{id: string, rawTitle: string, expectedAppId: string}>, replay?: (deps: any) => {failed: Array<{id: string, why: string}>}}|undefined} */ (
+          globalThis.__GR_MISMATCH_ANCHORS__
+        );
       if (!anchors || typeof anchors.replay !== 'function') {
         resetVocabOverride();
         result.vocabApplied = false;
