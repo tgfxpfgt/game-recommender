@@ -30,18 +30,51 @@ async function loadTrends() {
     cachedTrends = (response && response.daily) || [];
     renderTrendChart(cachedTrends);
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载趋势失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
+    mountStatusPreact(container, LoadError, { msg: '加载趋势失败: ' + escapeHtml(window.__GR_MSG__.toUserMessage(e)) });
   }
 }
 
 // 手绘 SVG 趋势图：浏览/下载双柱 + 转化率折线（零依赖，深色主题）
 // Hand-drawn SVG chart: views/downloads bars + conversion-rate line (no deps)
 /** @param {any[]} daily */
+
+// preact h 经组件模块转发（classic 文件内以全局句柄持有）
+/** @type {any} */
+let preactH = null;
+/** @type {any} */
+let LoadError = null;
+/** @type {any} */
+let NoData = null;
+/** @type {any} */
+let TableNoDataLocal = null;
+
+// v15 阶段 3：状态区块 Preact 组件（按需装载一次；tr/tbody 场景用 TableNoData）
+/** @type {(mountEl: HTMLElement, C: any, props: any) => void} */
+let preactMount = null;
+async function ensurePreactMount() {
+  if (preactMount) return preactMount;
+  const m = await import(chrome.runtime.getURL('dashboard/dash-stats.preact.mjs'));
+  preactMount = m.mountAt;
+  preactH = m.h;
+  LoadError = m.LoadError;
+  NoData = m.NoData;
+  TableNoDataLocal = m.NoData;
+  return preactMount;
+}
+/** @param {HTMLElement} mountEl @param {any} C @param {any} props */
+async function mountStatusPreact(mountEl, C, props) {
+  const mount = await ensurePreactMount();
+  mount(mountEl, C(props), mountEl);
+}
+function TableNoData(props) {
+  const cell = preactH('td', { class: 'no-data', colspan: String(props.colspan || 6) }, props.msg);
+  return preactH('tr', null, cell);
+}
 function renderTrendChart(daily) {
   const container = document.getElementById('trendChart');
   const statsEl = document.getElementById('trendStats');
   if (!daily || daily.length === 0) {
-    container.innerHTML = '<div class="no-data">暂无行为数据，请先浏览游戏网站</div>';
+    mountStatusPreact(container, NoData, { msg: '暂无行为数据，请先浏览游戏网站' });
     statsEl.textContent = '';
     return;
   }
@@ -192,7 +225,7 @@ async function loadStats() {
 function renderDownloadMethods(methods, recentLog) {
   const container = document.getElementById('downloadMethods');
   if (!methods || Object.keys(methods).length === 0) {
-    container.innerHTML = '<span class="no-data">暂无下载记录</span>';
+    mountStatusPreact(container, NoData, { msg: '暂无下载记录' });
     return;
   }
 
@@ -239,7 +272,7 @@ function renderDownloadSitesTop(recentLog) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   if (top.length === 0) {
-    container.innerHTML = '<span class="no-data">近期无下载记录</span>';
+    mountStatusPreact(container, NoData, { msg: '近期无下载记录' });
     return;
   }
   container.innerHTML = top
@@ -266,7 +299,7 @@ function renderGameTable(games) {
   }
   const tbody = document.getElementById('gameTableBody');
   if (!games || games.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="6" class="no-data">暂无游戏记录</td></tr>';
+    mountStatusPreact(tbody, TableNoData, { msg: '暂无游戏记录', colspan: 6 });
     renderPager('games', 'gamePager', 0);
     return;
   }
@@ -299,7 +332,7 @@ function renderGameTable(games) {
 function renderLogTable(logs) {
   const tbody = document.getElementById('logTableBody');
   if (!logs || logs.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" class="no-data">暂无行为记录</td></tr>';
+    mountStatusPreact(tbody, TableNoData, { msg: '暂无行为记录', colspan: 5 });
     return;
   }
 
