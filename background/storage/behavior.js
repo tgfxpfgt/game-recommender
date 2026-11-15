@@ -16,6 +16,13 @@ import { createDebouncedStore } from './debounced-store.js';
 // 计算、统计、缓存列表），此前每次 readModule 读盘；写操作更新内存缓存为写回
 // 对象，读写一致；dataVersion 供统计聚合缓存按版本失效。
 /** @type {{log: Array<Object>|null, profiles: Object|null, keywordWeights: Object|null}} */
+/**
+ * @typedef {Object} BehaviorCacheShape
+ * @property {Array<{gameName: string, type: string, keywords?: string[], timestamp?: number}>|null} log
+ * @property {Record<string, any>|null} profiles
+ * @property {Record<string, number>|null} keywordWeights
+ */
+/** @type {BehaviorCacheShape} */
 let behaviorCache = { log: null, profiles: null, keywordWeights: null };
 let dataVersion = 0;
 
@@ -38,6 +45,7 @@ export function bumpDataVersion() {
 
 // 追加一条行为记录（ND-JSON 追加写入，仅超限时裁剪重写）
 // Append a behavior entry (ND-JSON append; trim only when over the limit)
+/** @param {Record<string, any>} entry */
 export async function addBehaviorLog(entry) {
   entry.timestamp = Date.now();
   await dataStore.appendModule(DB_KEYS.BEHAVIOR_LOG, entry);
@@ -60,6 +68,7 @@ export async function addBehaviorLog(entry) {
 
 // 读取行为日志 / Read the behavior log
 /** @returns {Promise<Array<Object>>} */
+/** @returns {Promise<Array<{gameName: string, type: string, keywords?: string[], timestamp?: number, [k: string]: any}>>} */
 export async function getBehaviorLog() {
   if (behaviorCache.log) return behaviorCache.log;
   const stored = await dataStore.readModule(DB_KEYS.BEHAVIOR_LOG);
@@ -137,10 +146,12 @@ export async function flushProfiles() {
 }
 
 // 更新游戏画像（view/download 事件） / Update a game profile
+/** @param {{name: string, keywords?: string[], [k: string]: any}} gameInfo */
 export function updateGameProfile(gameInfo) {
   return withProfilesLock(() => doUpdateGameProfile(gameInfo));
 }
 
+/** @param {{name: string, keywords?: string[], [k: string]: any}} gameInfo */
 async function doUpdateGameProfile(gameInfo) {
   // v14.5.0 B5：基座改内存缓存优先（与写回一致）——缓存未热（冷启动首事件/
   // 重置后首事件）才读盘；此前逐事件读盘 + 全量重写（读放大 + 写放大热点）
@@ -220,19 +231,22 @@ async function updateUserPreferences() {
   const stored = await dataStore.readModule(DB_KEYS.KEYWORD_WEIGHTS);
   const keywordWeights = stored || {};
 
+  /** @type {Record<string, number>} */
   const positiveKeywords = {};
+  /** @type {Record<string, number>} */
   const negativeKeywords = {};
 
   // 关键词用 Set 去重，避免重复查看放大信号
+  /** @type {Record<string, {viewed: boolean, downloaded: boolean, keywords: Set<string>}>} */
   const gameEvents = {};
-  log.forEach((entry) => {
+  log.forEach((/** @type {{gameName: string, type: string, keywords?: string[], [k: string]: any}} */ entry) => {
     if (!gameEvents[entry.gameName]) {
       gameEvents[entry.gameName] = { viewed: false, downloaded: false, keywords: new Set() };
     }
     if (entry.type === 'view_detail') {
       gameEvents[entry.gameName].viewed = true;
       if (entry.keywords) {
-        entry.keywords.forEach((kw) => gameEvents[entry.gameName].keywords.add(kw));
+        entry.keywords.forEach((/** @type {string} */ kw) => gameEvents[entry.gameName].keywords.add(kw));
       }
     }
     if (entry.type === 'click_download') {
@@ -240,15 +254,17 @@ async function updateUserPreferences() {
     }
   });
 
-  Object.values(gameEvents).forEach((game) => {
-    game.keywords.forEach((kw) => {
-      if (game.downloaded) {
-        positiveKeywords[kw] = (positiveKeywords[kw] || 0) + 2;
-      } else if (game.viewed) {
-        negativeKeywords[kw] = (negativeKeywords[kw] || 0) + 1;
-      }
-    });
-  });
+  Object.values(gameEvents).forEach(
+    (/** @type {{viewed: boolean, downloaded: boolean, keywords: Set<string>}} */ game) => {
+      game.keywords.forEach((/** @type {string} */ kw) => {
+        if (game.downloaded) {
+          positiveKeywords[kw] = (positiveKeywords[kw] || 0) + 2;
+        } else if (game.viewed) {
+          negativeKeywords[kw] = (negativeKeywords[kw] || 0) + 1;
+        }
+      });
+    }
+  );
 
   Object.keys(positiveKeywords).forEach((kw) => {
     const pos = positiveKeywords[kw] || 0;
