@@ -45,10 +45,10 @@ export async function handleSearchDownloadSites(message) {
   // 标题跨语言不匹配导致的漏检（如 Gothic 1 Remake → 哥特王朝 重制版）。
   // Fallback 1: the download-URL cache (recorded from list/detail visits) — it
   // bridges cross-language mismatches between EN official names and CN titles.
-  if (sites.every((s) => !s.found) && message.appId) {
+  if (sites.every((/** @type {any} */ s) => !s.found) && message.appId) {
     const cached = await getDownloadUrls(message.appId);
-    for (const s of sites) {
-      const entry = cached[s.key];
+    for (const s of /** @type {any[]} */ (sites)) {
+      const entry = /** @type {Record<string, any>} */ (cached)[s.key];
       if (entry && entry.url) {
         s.found = true;
         s.detailUrl = entry.url;
@@ -70,7 +70,7 @@ export async function handleSearchDownloadSites(message) {
         }
       }
     }
-    if (sites.some((s) => s.found)) {
+    if (sites.some((/** @type {any} */ s) => s.found)) {
       Logger.info('DownloadSites', `缓存命中: "${message.gameName}" (appId ${message.appId}) 下载站网址缓存直接返回`);
     }
   }
@@ -79,31 +79,41 @@ export async function handleSearchDownloadSites(message) {
   // 下载站标题变体重新搜索（跨语言桥接）。
   // Fallback 2: retry with the registry's official CN/EN names AND download-site
   // title variants (cross-language bridge).
-  if (sites.every((s) => !s.found) && message.appId) {
+  if (sites.every((/** @type {any} */ s) => !s.found) && message.appId) {
     const entry = await getGameRegistryEntry(message.appId);
     const officialNames = [
-      ...new Set([entry && entry.cnName, entry && entry.enName, ...((entry && entry.names) || [])].filter(Boolean))
-    ].filter((n) => n && n !== message.gameName);
+      ...new Set(
+        [
+          entry && /** @type {any} */ (entry).cnName,
+          entry && /** @type {any} */ (entry).enName,
+          .../** @type {any} */ ((entry && /** @type {any} */ (entry).names) || [])
+        ].filter(Boolean)
+      )
+    ].filter((/** @type {string|null} */ n) => n && n !== message.gameName);
     for (const name of officialNames) {
       const retry = await searchDownloadSites(name, message.appId, enabledKeys);
-      retry.forEach((r) => {
-        const target = sites.find((s) => s.key === r.key);
-        if (r.found && target && !target.found) Object.assign(target, r);
+      retry.forEach((/** @type {any} */ r) => {
+        const target = sites.find((/** @type {any} */ s) => s.key === r.key);
+        const /** @type {any} */ t = target;
+        if (/** @type {any} */ (r).found && t && !t.found) Object.assign(t, r);
       });
-      if (sites.some((s) => s.found)) break;
+      if (sites.some((/** @type {any} */ s) => s.found)) break;
     }
-    if (sites.some((s) => s.found)) {
+    if (sites.some((/** @type {any} */ s) => s.found)) {
       Logger.info('DownloadSites', `兜底重试命中: "${message.gameName}" → 注册表名重搜`);
     }
   }
 
-  Logger.info('DownloadSites', `搜索"${message.gameName}"`, { found: sites.filter((s) => s.found).map((s) => s.key) });
+  Logger.info('DownloadSites', `搜索"${message.gameName}"`, {
+    found: sites.filter((/** @type {any} */ s) => s.found).map((/** @type {any} */ s) => s.key)
+  });
   return { sites };
 }
 
 // --- 下载历史 ---
 
 // --- 下载历史 ---
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleGetDownloadHistory(message) {
   const history = await getDownloadHistory();
   if (message.gameName) {
@@ -117,12 +127,17 @@ export async function handleGetDownloadHistory(message) {
 // v9.7.0：按适配规则 domains 动态推断站点（含自定义站点）——
 // 此前硬编码 3/6 内置站，3dmgame/ali213/gamersky 与自定义站点的下载网址
 // 缓存写入全被当 'unknown' 静默丢弃。规则系统不可用时回退内置静态映射
+/** @param {string} domain */
 async function inferSite(domain) {
   if (!domain) return { key: 'unknown', name: '未知站点' };
   try {
     const rules = await getSiteRules();
     for (const r of (rules && rules.sites) || []) {
-      if (r && Array.isArray(r.domains) && r.domains.some((d) => typeof d === 'string' && d && domain.includes(d))) {
+      if (
+        r &&
+        Array.isArray(r.domains) &&
+        r.domains.some((/** @type {string} */ d) => typeof d === 'string' && d && domain.includes(d))
+      ) {
         return { key: r.key, name: r.displayName || r.name || r.key };
       }
     }
@@ -133,8 +148,10 @@ async function inferSite(domain) {
 }
 
 // 详情页访问记录（更新下载站网址缓存 lastAccessed）
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleTrackDownloadSiteVisit(message) {
-  const data = message.data || {};
+  /** @type {Record<string, any>} */
+  const data = /** @type {any} */ (message.data || {});
   const appId = data.appId;
   const url = data.url || '';
   if (!appId || !url) return { success: false };
@@ -155,13 +172,17 @@ export async function handleTrackDownloadSiteVisit(message) {
 // 标题不同 = 至少一侧错配，用户实证 107968/107966 同命中）不固化第二侧；
 // ②推测级匹配不覆盖已有不同绑定（防漂移钉死）。entries 携带 confidence/name
 //（matchConflict 条目在内容侧已被剔除，此处为双保险）。
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleRecordDownloadUrlsBatch(message) {
-  const data = message.data || {};
+  /** @type {Record<string, any>} */
+  const data = /** @type {any} */ (message.data || {});
   const siteInfo = await inferSite(data.domain || '');
   if (siteInfo.key === 'unknown') return { success: false };
   await recordDownloadUrlsBatch(siteInfo.key, siteInfo.name, data.entries || []);
   // v7.0.2：列表页匹配成功后记录 详情页网址 → appId（详情页检索第一候选）
-  const entries = data.entries || [];
+  const entries = /** @type {Array<{url: string, appId: string, confidence?: string, name?: string}>} */ (
+    data.entries || []
+  );
   let bound = 0;
   let skipped = 0;
   for (const e of entries) {
