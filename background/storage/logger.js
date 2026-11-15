@@ -14,6 +14,7 @@ import { withLock } from '../core/mechanisms.js';
 // v14.26.0 P1-8：日志载荷脱敏单源（URL 裁 query + 递归剔密钥）
 import { sanitizeLogData, sanitizeUrlText } from '../core/sanitize.js';
 
+/** @type {Array<{level: string, module: string, message: string, timestamp: number, data?: string}>} */
 let logBuffer = [];
 // v10.7.0 批次2：OPFS 落盘条数内存计数（-1 = 未探底）——支持真追加写路径
 let persistedLogCount = -1;
@@ -27,13 +28,17 @@ async function getLogConfig() {
   const now = Date.now();
   if (logConfig && now - logConfigChecked < 10000) return logConfig;
   const settings = await getSettings();
-  logConfig = {
-    enableLog: !!settings.enableLog,
-    minLevel: LOG_LEVELS[settings.logLevel] !== undefined ? LOG_LEVELS[settings.logLevel] : LOG_LEVELS.info,
-    logStorage: settings.logStorage,
-    logRetentionDays: settings.logRetentionDays || 0,
-    maxRuntimeLog: settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault
-  };
+  logConfig =
+    /** @type {{enableLog: boolean, minLevel: number, logStorage: any, logRetentionDays: number, maxRuntimeLog: number}} */ ({
+      enableLog: !!settings.enableLog,
+      minLevel:
+        /** @type {Record<string, number>} */ (LOG_LEVELS)[/** @type {string} */ (settings.logLevel)] !== undefined
+          ? /** @type {Record<string, number>} */ (LOG_LEVELS)[/** @type {string} */ (settings.logLevel)]
+          : LOG_LEVELS.info,
+      logStorage: settings.logStorage,
+      logRetentionDays: settings.logRetentionDays || 0,
+      maxRuntimeLog: settings.maxRuntimeLog || STORAGE_CAPS.runtimeLogDefault
+    });
   logConfigChecked = now;
   return logConfig;
 }
@@ -104,7 +109,7 @@ export function flushLogBuffer() {
       const retentionMs = (settings.logRetentionDays || 0) * 24 * 3600 * 1000;
       if (retentionMs > 0) {
         const cutoff = Date.now() - retentionMs;
-        logs = logs.filter((l) => l && l.timestamp >= cutoff);
+        logs = logs.filter((/** @type {any} */ l) => l && l.timestamp >= cutoff);
       }
 
       while (logs.length > max) logs.shift();
@@ -133,8 +138,14 @@ export function flushLogBuffer() {
 const CONSOLE_MIRROR = { warn: true, error: true };
 
 // 记录日志（按配置级别过滤）/ Write a log entry (filtered by configured level)
+/**
+ * @param {'debug'|'info'|'warn'|'error'} level
+ * @param {string} module
+ * @param {string} message
+ * @param {any} [data]
+ */
 async function writeLog(level, module, message, data) {
-  if (CONSOLE_MIRROR[level]) {
+  if (/** @type {Record<string, boolean>} */ (CONSOLE_MIRROR)[level]) {
     const sink = level === 'error' ? console.error : console.warn;
     if (data === undefined) sink('[' + module + '] ' + message);
     else sink('[' + module + '] ' + message, data);
@@ -144,6 +155,7 @@ async function writeLog(level, module, message, data) {
     if (!cfg.enableLog) return;
     if (LOG_LEVELS[level] < cfg.minLevel) return;
 
+    /** @type {{timestamp: number, level: string, module: string, message: string, data?: string}} */
     const entry = { timestamp: Date.now(), level, module, message: sanitizeUrlText(message) };
     if (data !== undefined) {
       try {
@@ -166,13 +178,18 @@ async function writeLog(level, module, message, data) {
 
 // 日志对象（各模块统一使用）/ Logger facade
 export const Logger = {
+  /** @param {string} module @param {string} msg @param {any} [data] */
   debug: (module, msg, data) => writeLog('debug', module, msg, data),
+  /** @param {string} module @param {string} msg @param {any} [data] */
   info: (module, msg, data) => writeLog('info', module, msg, data),
+  /** @param {string} module @param {string} msg @param {any} [data] */
   warn: (module, msg, data) => writeLog('warn', module, msg, data),
+  /** @param {string} module @param {string} msg @param {any} [data] */
   error: (module, msg, data) => writeLog('error', module, msg, data)
 };
 
 // 读取日志（按存储形式）/ Read logs (per storage format)
+/** @param {number} [limit] */
 export async function getRuntimeLogs(limit) {
   await flushLogBuffer(); // 先落盘缓冲，保证返回完整数据 / Flush buffer first
   const settings = await getSettings();

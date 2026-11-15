@@ -168,7 +168,8 @@ export const BUDGETS = {
   // MessagePayload fields): +1,841B more (注释主体); 225 tests green.
   // stage-1 slice-5 (engine-signals 30→21→9): +876B (注释主体); 47 tests green.
   // stage-1 slice-6 (rules.js 29→0 递归返回类型): +731B; 152 tests green.
-  swGraphBytes: 965326,
+  // stage-1 slice-7 (logger.js 27→0): +1,012B; 154 tests green.
+  swGraphBytes: 966338,
   swGraphFiles: 108,
   staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
