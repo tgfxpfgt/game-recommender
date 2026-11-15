@@ -2,24 +2,25 @@
 
 > 本文件为 AI 编码助手（Claude/GPT/GLM 等）的精简上下文。**改代码前必读**；
 > 细节见 CONTRIBUTING.md（工程约定）、README.md（功能）与 CHANGELOG.md（更新日志，
-> v14.28.0 起自 README 拆出）。
+> v15 阶段 5 起近 10 版保留主文件，v14.29.0 及更早迁 `docs/changelog/archive.md`）。
 > **按需求类型直达触点：先查 `docs/playbooks.md`**（浮窗/管线/设置键/action/
 > 存储模块/词表/外部资源上线/发版 8 类配方——文件+测试+坑查表，免探索式读码）。
 
 ## 项目一句话
 
-游戏雷达 Game Radar——Chrome MV3 扩展（零构建、原生 JS + JSDoc 类型），
-在下载站页面注入 Steam 好评率徽章、行为学习推荐与限免监控。
-当前版本见 manifest.json；版本流水见 CHANGELOG.md（`npm run bump` 自动同步
-manifest/package/CHANGELOG/welcome 四处）。
+游戏雷达 Game Radar——Chrome MV3 扩展（**esbuild 构建器双策略产物**、原生 JS +
+JSDoc 渐进类型、**noImplicitAny 三域已全清零**），在下载站页面注入 Steam 好评率
+徽章、行为学习推荐与限免监控。当前版本见 manifest.json；版本流水见 CHANGELOG.md
+（`npm run bump` 自动同步 manifest/package/CHANGELOG/welcome 四处）。
 
 ## 常用命令
 
 ```bash
+npm run build       # v15 构建器：页面 concat bundle（classic 语义保真）+ content/background esbuild + styles/tokens.css 生成
 npm run gate        # 全量门禁：vitest 两阶段 + E2E(MOCK) + visual + 打包（发布触发点跑；步骤级墙钟预算 suite-budgets.json）
 npm run gate:fast   # 快速门禁：静态门禁群 + lint/typecheck + 受影响测试 + 缺陷回放 + 棘轮 + visual —— 每批提交前必跑
 npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]（manifest/package/CHANGELOG.md/welcome）
-npm test            # 仅 vitest；npm run e2e 真实网络模式（可选增强，外网延迟偶发超时，不进门禁）
+npm test            # 仅 vitest（两阶段：unit → sim/integration）；npm run e2e 真实网络模式（可选增强，不进门禁）
 npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
 npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
 npm run check:modules  # 模块索引（docs/modules/INDEX.md）漂移 + 豁免登记校验；重生成 node scripts/gen-module-index.mjs
@@ -29,10 +30,17 @@ npm run check:first-run # 首次运行证据（scripts/first-run.json）：外�
 npm run check:corpus    # 匹配语料分母：名称级样本必须有 expectedName（豁免须写原因）
 npm run verify:mutations # 缺陷回放（scripts/mutations.json）：历史缺陷放回必须红；--only <id> 单条
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
+node scripts/build-userscript.mjs  # 油猴词表快照同源刷新（v15 阶段 4：retrieval-vocab → VOCAB 生成，幂等）
 ```
 
 ## 架构（30 秒版）
 
+- **构建形态（v15 阶段 0+）**：`scripts/build.mjs` 双策略——①页面（popup/options/
+  dashboard/hub/freegames/welcome/sidepanel）= HTML script 顺序 concat + esbuild
+  transform（classic 全局作用域语义 100% 保真；**type=module 页面脚本保持独立
+  tag + 单独 esbuild ESM bundle**，如 popup-status.preact.mjs）；②content/
+  background = 真 ESM 图 esbuild bundle（content 的 module-loaders 装载桥 + classic
+  注入序列前置）。`styles/tokens.css` 构建期从 `shared/ui-tokens.js` 生成（勿手改）。
 - `background/`：MV3 Service Worker。core（常量/设置/规则/契约）→ storage（各数据模块，
   OPFS 分文件持久化经 `data/data-store.js`）→ steam/recommend/sites/freegames 业务 → handlers
   （消息分发，`handlers.js` 聚合 MESSAGE_HANDLERS）。依赖分层单向，`test-integrity` 强制。
@@ -44,17 +52,21 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 - 站点专属功能（内嵌 Steam 卡/布局默认/详情解析）走 adapter 规则 `features` 字段声明，
   **勿在业务里写 siteKey/host 判断**（v10.7.0 收编三处；xdgrid.js 的 host 兜底判断是
   有意保留的规则加载失败保底，勿删）。运行指标用 core/metrics.js。
-- `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils/retrieval-vocab 等 7 个）。
-  retrieval-vocab.js = 检索规则词表单源（v14.6.3 R1：噪声序列/尾段词/版本对照/
-  附属词/版本词保序词条数据 + 编译 + 校验；**保序语义**——重叠词先长后短决定删除
-  范围；等价性由 golden 测试 + 错题库回放双重门禁）。
+- `shared/`：内容/扩展页共用（escape/msg/patterns/settings-utils/crypto-utils/
+  retrieval-vocab/**ui-tokens** 等）。retrieval-vocab.js = 检索规则词表单源（噪声序列/
+  尾段词/版本对照/附属词/版本词保序词条数据 + 编译 + 校验；**保序语义**——重叠词先长
+  后短决定删除范围；等价性由 golden 测试 + 错题库回放双重门禁）。ui-tokens.js =
+  UI 设计 token 单源（PALETTE 16 语义色 + THEME_LABELS 20 主题名；styles/tokens.css
+  构建生成；**新色值字面量先入此单源**）。
+- **UI 渲染（v15 阶段 3）**：状态区块/空态/统计文案优先 Preact 组件
+  （popup-status.preact.mjs / dash-stats.preact.mjs / cache-status.preact.mjs /
+  rules-status.preact.mjs 模式——classic 页面文件按需 dynamic import(getURL) 装载
+  组件模块）；**新 UI 面勿再写 innerHTML 拼接**（既有大数据行渐进迁移中）。
 - 页面层：popup / options / dashboard / hub（iframe 中心）/ freegames / welcome。
-- `userscript/game-radar.user.js`（@version 14.14.0；与 manifest 已差 14 个 minor，
-  release:smoke 告警阈值在案——下次 minor bump 前须先决策移植同步或调阈值）：
-  油猴单文件版（扩展核心移植，
-  GM_* 适配层直调管线）——**词表/纯函数是扩展快照**，改 shared/retrieval-vocab.js
-  或 api-search 纯函数后须同步该文件（test-userscript-pure 的防漂移门禁会红）；
-  版本号 = 移植基线（@version 对齐功能口径的扩展版），不随扩展 patch 递增。
+- `userscript/game-radar.user.js`（@version = 移植基线，不随扩展 patch 递增）：
+  油猴单文件版（扩展核心移植，GM_* 适配层直调管线）——§1 词表快照由
+  `node scripts/build-userscript.mjs` 从 shared/retrieval-vocab.js **生成**
+  （GR-GENERATED 锚点，幂等；改词表后跑一次即同步，test-userscript-pure 门禁兜底）。
 - 存储模块新增 = `data/storage-registry.js` 的 STORAGE_MODULES 一行 + 业务文件：
   data-store 的 file/format 映射、DATA_MODULES、备份子集（backup 标记）、清除范围
   （clearOnDataReset 标记）全部由该表派生——**勿再手改 MODULE_FILES / DATA_MODULES /
@@ -65,17 +77,23 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
   或诊断包 `trace/traceVerdict` 导出；卡点判读 `classifyTrace()` =
   `{verdict, stuckStage, stuckDurMs, lastFailKind, cacheLayer, counts}`。录制夹具
   `schemaVersion` ≠ 当前 SCHEMA_VERSION 即红（保鲜门禁）。
+- **命名单源**：`constants.js APP_NAME` = 用户可见显示名（background 域 console 前缀
+  已接引；content/pages 域日志文案按 AGENTS 口径散写）。代码标识符 `game-recommender`
+  （仓库/包名）与数据兼容面 `EXPORT_FORMAT`/`ENVELOPE_FORMAT` **冻结不改**
+  （旧备份文件流转在外，改 = 导入失败）。
 
 ## 铁律（违反 = 测试/钩子拦截或线上事故）
 
 1. 动态内容一律 `escapeHtml/escapeAttr`（shared/escape.js）；禁止内联事件处理器（CSP）。
+   **新 UI 面优先 Preact 组件**（文本插值天然转义）。
 2. **MV3 SW 禁止动态 import()**（HTML 规范：import() disallowed on
    ServiceWorkerGlobalScope——运行时 TypeError "import() is disallowed…"，
    v6.3.0 E2E 验证、v14.5.0 B2 复证并修复 4 处曾静默失效的动态导入）——
    后台模块必须静态 import；延迟需求一律"静态加载 + 延迟调用"（setTimeout/
    alarm 触发函数调用，见 service-worker.js 分层预热）。内容脚本/扩展页的
    动态 import 走 getURL（页面上下文允许）。
-3. **Chrome content_scripts 不支持 type:module**（勿再提议）。
+3. **Chrome content_scripts 不支持 type:module**（勿再提议）。页面 HTML 的
+   type=module 脚本（Preact 组件 .mjs）属扩展页上下文，合法。
 4. 顶层 const 初始化不得引用后声明的标识符（TDZ，test-integrity 扫描）。
 5. 双语注释（中英）；eslint 零警告；prettier（2 空格/单引号/120 列）。
 6. 存储读写走 dataStore（模块键）；计数类读-改-写必须加锁（见 download-urls/app-stats 模式）；
@@ -87,8 +105,6 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     任何键（含嵌套组 badgeVisibility/weights/cacheTtls/dataSources/steamApiModules）
     必须同步设置层（options.js/panels 或 HTML）与 popup 必需集——漏同步 `npm run check`
     直接失败；有意无 UI 的键加入测试内 OPTIONS_ALLOWLIST 并写明理由。
-    （v10.7.0 新增样例：uiThemeNightStart/End、ratingsBatchSize、qrImageMaxKb——保存映射
-    以 DEFAULT_SETTINGS 键名为对照，越界回默认）
 11. 权重/设置新增键漏保存映射会被"全量保存"抹掉用户自定义值（历史事故）——保存映射
     以 DEFAULT_SETTINGS 键名为对照逐项核对。
 12. **徽章组标记契约**：`gr-rating-badge` 是好评率徽章**组标记**（prependBadge 防重复
@@ -96,9 +112,10 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     （推荐值等）必须传 `base:'gr-badge'`，否则污染守卫导致好评率徽章缺失（v10.6.0 事故）。
 13. **单源优先**：写互斥锁/防抖/Map+TTL 缓存/重试前先查 `core/mechanisms.js`（withLock /
     debounce / TtlCache / withRetry）；写死值入 `constants.js` 单源组（STORAGE_CAPS /
-    ENDPOINTS / SPY_SCALES / PERF_CONFIG）；检索规则词（噪声/版本/附属/尾段）入
-    `shared/retrieval-vocab.js`（v14.6.3 R1——勿在业务代码新增噪声正则字面量副本）；
-    新增注册表条目走 STORAGE_MODULES / module-manifest。
+    ENDPOINTS / SPY_SCALES / PERF_CONFIG / **APP_NAME**）；检索规则词（噪声/版本/附属/
+    尾段）入 `shared/retrieval-vocab.js`（勿在业务代码新增噪声正则字面量副本）；
+    UI 色值入 `shared/ui-tokens.js`（新色值先入单源再引用）；新增注册表条目走
+    STORAGE_MODULES / module-manifest。
     **长延时/出站超时零字面量（v14.6.2 起 test-integrity 自动拦截）**：≥1000ms 的
     setTimeout/setInterval 与 fetchWithTimeout 的超时参必须走单源——background 入
     PERF_CONFIG（超时组 fetchTimeout*Ms）；内容侧/页面层不可 import background
@@ -133,6 +150,10 @@ npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
     （现两项：MC 视图无「新游/未发售」标签——数据源属 Steam 条目域；
     matchConflict 冲突检测仅列表接线）。门禁：test-match-consensus「双管线
     一致性门禁」组——新增共享语义先入单源再接两侧，改动单源必跑该组。
+19. **列表项名字提取（v15 阶段 2 修复）**：真实 DOM textContent 聚合子元素——
+    徽章渲染后重复提取必须剔除徽章子元素（builder addItem `cleanNameOf`：
+    克隆剔除 .gr-badge/.gr-working-badge/.gr-dislike-btn）；新提取点勿直接读
+    link.textContent（会拼入徽章文本污染名称缓存）。
 
 ## 文档同步（默认启用）
 
@@ -151,12 +172,16 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
 - **npm test 两阶段（B8）**：unit 先行 + sim/integration 全新进程——跨文件 fork
   复用的模块注册表残留会引发竞态（test-freegames→sim-list 同进程连跑时推送
   丢失 ~20-50%）；新套件入 include 时勿把重载荷 unit 套件排到 sim 之前。
-- sim 套件（v14 B9 拆分）：FakeEl DOM 模拟 + `__grImport` 注入；共享 harness 在
-  `tests/sim/sim-harness.mjs`（getGR/setQueryStubs/fireDomReady 显式状态访问，勿再
-  引入文件级顺序状态机）；模块实例共享依赖"无 ?t= 导入"——reloadContentScripts
-  **不得** vi.resetModules()（shared/ 未列 deps.inline，reset 致 content/shared 实例分裂）。
-  推送前置等待：节 1 等 bootPromise（B7 后监听器注册先于 boot）；推送断言
-  用 waitForSignal（B9 showStats 100ms 合并后状态栏渲染非同步）。
+- **sim 套件（v15 阶段 2 换血：happy-dom 真实 DOM）**：FakeEl 手写模拟已退役——
+  sim-harness 注入 happy-dom Window（window/document/location/observer 全局），
+  FakeEl 保留为兼容垫片（真实元素 + _text/_html/_imgs/_rect/_listeners 测试钩子桥；
+  children 数组化）。**关键机制**（违反即大面积假红）：
+  - `__GR_*` 经典脚本挂载必须镜像到 win（window≠globalThis；不镜像则生产模块读
+    window.__GR_MSG__ undefined → fireBatch 全走 catch → error badge 假红）；
+  - readyState 冻结 loading（页面自动流不自发跑，测试手动驱动；否则 tracker eval 后
+    startInit 立即跑 → 与手动驱动双流污染）；
+  - location 切换走 harness 兼容层（平面对象赋值镜像到真实 Location.href）；
+  - 真实 DOM textContent 聚合子元素——断言徽章文本用 startsWith/独立节点查询。
 - e2e 冒烟：入口 `tests/e2e-smoke.mjs`（re-export 壳）→ `tests/e2e/run.mjs` 节管线；
   新增检查项写入对应 `section-*.mjs`（E2E_MOCK 双模式语义不动）。
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
@@ -250,16 +275,18 @@ job 同源调用——漂移即红）。
 --config p/secrets --json`，焦点 = 发版改动文件 + 全库一轮）+ **eslint-plugin-security**
    （已常态入 lint 门禁）。报告落 `docs/reports/security-scan-<版本>/`（REPORT.md +
    原始 JSON），**seal = REPORT.md 的 sha256**，`gh release edit` 补入 notes + CHANGELOG
-   条目补记。Mimosa MCP 可用时仍可用（保留接口）；全库 findings 必须逐条人工定性
-   （转义链核对——参照 security-scan-v14.31.0 §3 形态），误报归档报告、真问题挂账修复。
+   条目补记。全库 findings 必须逐条人工定性（转义链核对——参照
+   security-scan-v14.31.0 §3 形态），误报归档报告、真问题挂账修复。
 5. 油猴脚本更新（v14.15.0 N8）：@updateURL/@downloadURL 指向 raw.githubusercontent
-   （Tampermonkey 自动探测，jsDelivr 备源为用户侧手动替换）——发版时油猴 @version
-   仅在功能口径同步后递增（≠扩展 patch 联动，语义 = 移植基线版本）
+   （Tampermonkey 自动探测，jsDelivr 备源为用户侧手动替换）——**词表快照刷新
+   `node scripts/build-userscript.mjs`**（v15 阶段 4：retrieval-vocab 单源生成，
+   GR-GENERATED 锚点幂等）；发版时油猴 @version 仅在功能口径同步后递增
+   （≠扩展 patch 联动，语义 = 移植基线版本）。
    半自动脚本 scripts/release.mjs 存在但落后于当前流程（visual/双 E2E/zip 附件）——
    以本清单为准，或先更新脚本再用。
 
 ## 明确不做（历史决策，勿再提议）
 
 i18n、云同步、跨浏览器、规则市场、MAIN world 注入、全量 TypeScript。
-
-<!-- neat-freak: initialized at 2026-09-12 -->
+**数据兼容面标识符冻结**：EXPORT_FORMAT/ENVELOPE_FORMAT（'game-recommender-backup*'
+旧备份文件流转在外）与仓库/包名 game-recommender——改名 = 用户数据导入失败，明确不做。
