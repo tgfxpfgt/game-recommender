@@ -159,7 +159,9 @@
 
     // 步骤 3：主题（点击即预览）
     const themes = ['steam', 'ios17', 'cyberpunk', 'morandi'];
-    const themeLabels = { steam: 'Steam 深蓝', ios17: 'iOS 17', cyberpunk: '赛博朋克', morandi: '莫兰迪' };
+    const themeLabels =
+      (typeof globalThis !== 'undefined' && globalThis.__GR_TOKENS__ && globalThis.__GR_TOKENS__.THEME_LABELS) || {}; // v15 阶段 3：主题展示名走 shared/ui-tokens 单源
+
     const themeBox = document.getElementById('guideThemeBtns');
     themeBox.innerHTML = themes
       .map(

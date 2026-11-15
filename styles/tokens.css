@@ -1,0 +1,23 @@
+/**
+ * 游戏雷达 Game Radar - 设计 token CSS 变量（AUTO-GENERATED，勿手改）
+ * Generated from shared/ui-tokens.js PALETTE（npm run build 时同步）。
+ * Auto-generated CSS custom properties from the token single source.
+ */
+:root {
+  --gr-tok-steam-text-dim: #8f98a0;
+  --gr-tok-steam-blue: #66c0f4;
+  --gr-tok-steam-blue-alt: #67c1f5;
+  --gr-tok-steam-panel-deep: #2a475e;
+  --gr-tok-steam-dark: #1b2838;
+  --gr-tok-steam-text: #c7d5e0;
+  --gr-tok-danger: #e74c3c;
+  --gr-tok-ok-green: #a3cf06;
+  --gr-tok-warn-orange: #ff7b00;
+  --gr-tok-gray-panel: #3d4450;
+  --gr-tok-gray-link: #1f6feb;
+  --gr-tok-gray-text: #57606f;
+  --gr-tok-blue-soft: #d2e4fc;
+  --gr-tok-gray-border: #acb2b8;
+  --gr-tok-blue-pale: #eaf3ff;
+  --gr-tok-blue-deep: #2d6cb5;
+}

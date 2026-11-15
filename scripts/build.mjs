@@ -79,6 +79,56 @@ function generateModuleLoaders() {
   console.log(`✓ content/module-loaders.js（${LOADER_FILES.length} 条装载映射）`);
 }
 
+// ============ 1b) styles/tokens.css 生成（ui-tokens 单源 → CSS 变量） ============
+function generateTokensCss() {
+  const src = read('shared/ui-tokens.js');
+  const m = src.match(/const PALETTE = ([\s\S]*?});/);
+  if (!m) throw new Error('tokens.css 生成失败：PALETTE 块未找到');
+  const entries = [...m[1].matchAll(/((?:[A-Za-z])+):\s*'(#[0-9a-fA-F]{6})'/g)];
+  const KEBAB = {
+    steamTextDim: 'steam-text-dim',
+    steamBlue: 'steam-blue',
+    steamBlueAlt: 'steam-blue-alt',
+    steamPanelDeep: 'steam-panel-deep',
+    steamDark: 'steam-dark',
+    steamText: 'steam-text',
+    danger: 'danger',
+    okGreen: 'ok-green',
+    warnOrange: 'warn-orange',
+    grayPanel: 'gray-panel',
+    grayLink: 'gray-link',
+    grayText: 'gray-text',
+    blueSoft: 'blue-soft',
+    grayBorder: 'gray-border',
+    bluePale: 'blue-pale',
+    blueDeep: 'blue-deep'
+  };
+  const lines = entries.map((ent) => {
+    const name = KEBAB[ent[1]] || ent[1];
+    return '  --gr-tok-' + name + ': ' + ent[2].toLowerCase() + ';';
+  });
+  const css =
+    '/**' +
+    NL +
+    ' * 游戏雷达 Game Radar - 设计 token CSS 变量（AUTO-GENERATED，勿手改）' +
+    NL +
+    ' * Generated from shared/ui-tokens.js PALETTE（npm run build 时同步）。' +
+    NL +
+    ' * Auto-generated CSS custom properties from the token single source.' +
+    NL +
+    ' */' +
+    NL +
+    ':root {' +
+    NL +
+    lines.join(NL) +
+    NL +
+    '}' +
+    NL;
+  fs.writeFileSync(path.join(ROOT, 'styles/tokens.css'), css, 'utf-8');
+  console.log('✓ styles/tokens.css（' + entries.length + ' 个变量）');
+}
+
+const NL = String.fromCharCode(10);
 // ============ 2) 页面 concat bundle（HTML script 顺序忠实拼接） ============
 const PAGES = ['popup', 'options', 'dashboard', 'hub', 'freegames', 'welcome', 'sidepanel'];
 
@@ -319,6 +369,7 @@ const contentCode = buildContent();
 fs.mkdirSync(path.join(DIST, 'content'), { recursive: true });
 fs.writeFileSync(path.join(DIST, 'content/tracker.js'), contentCode, 'utf-8');
 console.log('✓ content bundle（classic 注入序列 + ESM 模块图 iife）');
+generateTokensCss();
 await assembleDist();
 verifyDist();
 if (warn.length > 0) {
