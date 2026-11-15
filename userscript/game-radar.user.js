@@ -263,39 +263,20 @@
   // title-parser.js 逐字移植；golden 口径 = 扩展 v14.14.0 编译产物）
   // Vocab + pure functions ported verbatim from the extension.
   // ==================================================================
+  // prettier-ignore
   const VOCAB = {
-    // 中文标题噪声序列（retrieval-vocab RETRIEVAL_VOCAB.noiseTitle 逐字快照）
-    noiseWords:
-      '中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520.com|Switch520|520.com',
-    noiseRe: [
-      'v[\\d.]+',
-      'V[\\d.]+',
-      '\\d+\\.\\d+[\\d.]*',
-      'Build[.\\s]*\\d+',
-      'update\\s*\\d+',
-      'DLC.*',
-      '\\d+\\s*GB',
-      '\\s+The\\s+Game\\s*'
-    ],
+    // GR-GENERATED-BEGIN（由 scripts/build-userscript.mjs 从 shared/retrieval-vocab.js 生成——勿手改）
+    // 中文标题噪声序列（RETRIEVAL_VOCAB.noiseTitle 快照：字面词 + 正则片段分离）
+    noiseWords: '中文|汉化|破解|免安装|绿色|学习|未加密|完整版|豪华版|豪华|终极|数字|典藏|年度|重制|复刻|增强|正式|官方|简繁|简体|繁体|中英|多语言|特别版|标准版|支持者版|解压即撸|预购特典|预购|特典|抢先试玩|抢先体验|抢先|试玩|体验版|修改器|加速器|作弊|全季票|季票|顶置|置顶|汇总贴|汇总|索引|爆火|热门|版|全DLC|整合|硬盘|免DVD|CODEX|FLT|RELOADED|SKIDROW|EMPRESS|GOG|Razor1911|FitGirl|百度网盘|网盘|下载|游戏下载|免费下载|迅雷|磁力|BT|种子|支持手柄|手柄|支持|新游发布|免安装绿色版|Switch520.com|Switch520|520.com',
+    noiseRe: ["v[\\d.]+","V[\\d.]+","\\d+\\.\\d+[\\d.]*","Build[.\\s]*\\d+","update\\s*\\d+","DLC.*","\\d+\\s*GB","\\s+The\\s+Game\\s*"],
     tailStrip: '下载|游戏下载|免费下载|破解版|汉化版|中文版|绿色版|免安装',
-    editionWords:
-      'edition|enhanced|deluxe|upgrade|remastered|remaster|definitive|complete|goty|bundle|collection|demo|trial',
-    junkCandidate:
-      '豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|修改器|加速器|作弊|全季票|季票|pc|vr|3d|hd|build[.\\s]*\\d+|\\d+[\\d.]*|v[\\d.]+',
-    addonPattern:
-      'demo|试玩|trial|prologue|序章|序幕|soundtrack|ost|artbook|dlc|supporter pack|支持者包|fan pack|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包',
+    editionWords: 'edition|enhanced|deluxe|upgrade|remastered|remaster|definitive|complete|goty|bundle|collection|demo|trial',
+    junkCandidate: '豪华|解压即撸|预购特典|预购|特典|中文|汉化|破解|免安装|绿色|完整版|豪华版|终极|修改器|加速器|作弊|全季票|季票|pc|vr|3d|hd|build[.\\s]*\\d+|\\d+[\\d.]*|v[\\d.]+',
+    addonPattern: 'demo|试玩|trial|prologue|序章|序幕|soundtrack|ost|artbook|dlc|supporter pack|支持者包|fan pack|wallpaper|screenshot|原声带|美术集|设定集|艺术集|画集|壁纸|原画集|收藏版|内容包|扩展包|追加内容|组合包',
     demoPattern: 'demo|试玩|trial',
     enNoiseWords: 'build|plus|full|crack|repack|update',
-    versionPairs: [
-      ['增强版', 'Enhanced'],
-      ['重制版', 'Remastered'],
-      ['复刻版', 'Remake'],
-      ['豪华版', 'Deluxe'],
-      ['终极版', 'Ultimate'],
-      ['年度版', 'Game of the Year'],
-      ['典藏版', 'Collector'],
-      ['黄金版', 'Gold']
-    ]
+    versionPairs: [["增强版","Enhanced"],["重制版","Remastered"],["复刻版","Remake"],["豪华版","Deluxe"],["终极版","Ultimate"],["年度版","Game of the Year"],["典藏版","Collector"],["黄金版","Gold"]],
+    // GR-GENERATED-END
   };
 
   // 检查词表快照是否完整（占位词注入即失真——防我方生成损坏的机器护栏）

@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.32.2',
+        date: '2026-11-16',
+        items: [
+          'scripts/build-userscript.mjs：retrieval-vocab 单源→油猴 VOCAB 快照生成（GR-GENERATED 锚点幂等刷新）',
+          '词表防漂移从手工对齐升级为构建期生成+门禁双保险'
+        ]
+      },
+      {
         ver: '14.32.1',
         date: '2026-11-16',
         items: [

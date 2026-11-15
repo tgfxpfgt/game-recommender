@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.32.2（油猴词表同源构建器落地）
+
+- scripts/build-userscript.mjs：retrieval-vocab 单源→油猴 VOCAB 快照生成（GR-GENERATED 锚点幂等刷新）
+- 词表防漂移从手工对齐升级为构建期生成+门禁双保险
+
 ### v14.32.1（阶段 3 Preact 化首批落地）
 
 - UI 设计 token 单源（ui-tokens + tokens.css 构建生成）
