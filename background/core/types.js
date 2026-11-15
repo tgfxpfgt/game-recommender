@@ -44,6 +44,8 @@
  * @property {Array<string>} [moduleKeys] - 备份/导出勾选模块
  * @property {string} [gameId] - 限免游戏 ID（CLAIM_FREE_GAME）
  * @property {number} [limit] - 日志/审计条数上限
+ * @property {number} [page] - v6.4.19：缓存列表页码
+ * @property {number} [pageSize] - v6.4.19：缓存列表页容量
  * @property {boolean} [force] - GET_FREE_GAMES 强制刷新
  * @property {string} [keyword] - GET_GAME_CACHE_LIST 过滤词
  * @property {string} [tag] - GET_GAME_CACHE_LIST 标签过滤

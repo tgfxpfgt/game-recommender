@@ -76,8 +76,9 @@ export async function handleCleanExpiredCache() {
     dataStore.readModule(DB_KEYS.NAME_INDEX),
     readDownloadUrlsStore()
   ]);
+  /** @type {Record<string, {modules: Record<string, any>}>} */
   const combined = {};
-  PART_NAMES.forEach((m, i) => {
+  PART_NAMES.forEach((/** @type {string} */ m, /** @type {number} */ i) => {
     for (const [id, mod] of Object.entries(partRaw[i] || {})) {
       if (!mod || !mod.data) continue;
       combined[id] = combined[id] || { modules: {} };
@@ -108,6 +109,7 @@ export async function handleCleanExpiredCache() {
 // --- 名称批量自愈（v3.1.0）---
 
 // --- 游戏缓存管理 / Game cache management ---
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleGetGameCacheList(message) {
   const keyword = (message.keyword || '').toLowerCase().trim();
   const minRating = Number(message.minRating) > 0 ? Number(message.minRating) : 0;
@@ -128,12 +130,16 @@ export async function handleGetGameCacheList(message) {
   // v6.4.19：缓存模块统计（按信息类型细分：meta/rating/detail/spy）——
   // count = 有条目的模块数据条数，stale = 其中已过期条数（TTL 建议由 UI 展示）
   const MODULE_KEYS = ['meta', 'rating', 'detail', 'spy'];
+  /** @type {Record<string, {count: number, stale: number}>} */
   const moduleStats = {};
   for (const k of MODULE_KEYS) moduleStats[k] = { count: 0, stale: 0 };
   if (steamCacheMemory) {
     for (const entry of steamCacheMemory.values()) {
       for (const k of MODULE_KEYS) {
-        const mod = entry && entry.modules && entry.modules[k];
+        const mod =
+          entry &&
+          /** @type {Record<string, any>} */ (entry.modules) &&
+          /** @type {Record<string, any>} */ (entry.modules)[k];
         if (mod && mod.data) {
           moduleStats[k].count++;
           if (!isModuleValid(entry, k)) moduleStats[k].stale++;
@@ -156,12 +162,14 @@ export async function handleGetGameCacheList(message) {
   };
 
   let games = Object.entries(registry).map(([appId, entry]) => {
+    /** @type {Record<string, any>} */
     const urls = {};
     for (const [sk, bucket] of Object.entries(urlStore.sites)) {
       if (bucket[appId]) urls[sk] = bucket[appId];
     }
     const primaryUrl = Object.values(urls).find((u) => u && u.url) || null;
     const cachedEntry = steamCacheMemory ? steamCacheMemory.get(String(appId)) || null : null;
+    /** @type {Record<string, any>|null} */
     const cachedData = cachedEntry ? getMergedData(cachedEntry) : null;
     // v7.0.4：推荐值计算缓存（内存换延迟）——按 appId + 数据版本缓存 60s，
     // 缓存面板翻页/重复查询不再每条目重算评分
@@ -232,18 +240,22 @@ export async function handleGetGameCacheList(message) {
 
   if (keyword) {
     games = games.filter(
-      (g) =>
+      (/** @type {any} */ g) =>
         String(g.appId).includes(keyword) ||
         (g.cnName && g.cnName.toLowerCase().includes(keyword)) ||
         (g.enName && g.enName.toLowerCase().includes(keyword)) ||
-        g.names.some((n) => n.includes(keyword))
+        g.names.some((/** @type {string} */ n) => n.includes(keyword))
     );
   }
   if (minRating > 0) {
-    games = games.filter((g) => g.positiveRate !== null && g.positiveRate !== undefined && g.positiveRate >= minRating);
+    games = games.filter(
+      (/** @type {any} */ g) => g.positiveRate !== null && g.positiveRate !== undefined && g.positiveRate >= minRating
+    );
   }
   if (tag) {
-    games = games.filter((g) => (g.tags || []).some((t) => t.toLowerCase().includes(tag)));
+    games = games.filter((/** @type {any} */ g) =>
+      (g.tags || []).some((/** @type {string} */ t) => t.toLowerCase().includes(tag))
+    );
   }
   if (siteKey) {
     games = games.filter((g) => g.downloadUrls.some((u) => u.siteKey === siteKey && u.url));
@@ -262,6 +274,7 @@ export async function handleGetGameCacheList(message) {
   return { games: pageItems, total, page, pageSize, totalPages, moduleStats };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleDeleteGameCacheEntry(message) {
   const appId = String(message.appId || '');
   if (!appId) return { success: false, error: 'appId required' };
@@ -292,6 +305,7 @@ export async function handleDeleteGameCacheEntry(message) {
 }
 
 export async function handleClearGameCache() {
+  /* 无参 */
   await Promise.all([
     dataStore.removeModule(DB_KEYS.GAME_REGISTRY),
     dataStore.removeModule(DB_KEYS.STEAM_CACHE),
@@ -309,6 +323,7 @@ export async function handleClearGameCache() {
   return { success: true };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleRefreshGameCacheEntry(message) {
   const appId = String(message.appId || '');
   if (!appId) return { success: false, error: 'appId required' };
@@ -338,7 +353,7 @@ export async function handleRefreshGameCacheEntry(message) {
       name: result.name,
       englishName: result.englishName || '',
       positiveRate: result.positiveRate,
-      sites: sites.map((s) => ({ key: s.key, found: s.found, detailUrl: s.detailUrl }))
+      sites: sites.map((/** @type {any} */ s) => ({ key: s.key, found: s.found, detailUrl: s.detailUrl }))
     };
   } catch (e) {
     Logger.error('Cache', `手动刷新缓存条目失败: ${String(e)}`);
