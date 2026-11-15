@@ -17,7 +17,9 @@ import { Logger } from '../storage/logger.js';
 
 // 链接匹配度评分（0-100）：规范化后全等/包含/分段/跨语言独立比较
 // Link match score (0-100): normalized equality/inclusion/segments/cross-language
+/** @param {string} linkText @param {string} searchName */
 export function calcLinkMatchScore(linkText, searchName) {
+  /** @param {string} s */
   const norm = (s) => (s || '').toLowerCase().replace(/[\s\-_:：|\/'!！?？\[\]()（）]/g, '');
   const nt = norm(linkText);
   const ns = norm(searchName);
@@ -29,8 +31,8 @@ export function calcLinkMatchScore(linkText, searchName) {
   // 分段比较（按 | 和 / 拆分）/ Segment comparison
   const segments = linkText
     .split(/[|\/]/)
-    .map((s) => norm(s))
-    .filter((s) => s.length >= 2);
+    .map((/** @type {string} */ s) => norm(s))
+    .filter((/** @type {string} */ s) => s.length >= 2);
   for (const seg of segments) {
     if (seg === ns) return 95;
     if (seg.includes(ns)) return 80;
@@ -43,6 +45,7 @@ export function calcLinkMatchScore(linkText, searchName) {
   // 防续作检索错配（与 nameMatchesSearch 的续作防护同思路）。
   // Cross-language matching with sequel-number protection (v3.3.10): when the
   // search segment carries a digit the link segment lacks, the pair is rejected.
+  /** @param {string} s */
   function splitLang(s) {
     const text = String(s || '');
     const en = text
@@ -58,6 +61,7 @@ export function calcLinkMatchScore(linkText, searchName) {
 
   // 数字保护：搜索词段有数字但链接段没有 → 拒绝该段（续作 vs 前作）
   // Digit guard: a search segment with digits must not match a digit-less link segment
+  /** @param {string} se @param {string} le */
   function digitGapRejects(se, le) {
     return /\d/.test(se) && !/\d/.test(le);
   }
@@ -109,6 +113,7 @@ export function calcLinkMatchScore(linkText, searchName) {
 // Detail-page meta extraction (date/version/size/pan URL & code)
 // v10.7.0 批次4：第 2 参改传站点规则对象（读 features.detailMetaVersion 声明，
 // 不再写死 siteKey === 'xdgame'；自定义站声明该 feature 即获得同款解析）
+/** @param {string} html @param {any} site */
 export function extractDetailMeta(html, site) {
   const features = (site && site.features) || {};
   const meta = { updateDate: '', version: '', size: '', panUrl: '', panCode: '' };
@@ -358,6 +363,7 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
 }
 
 // 百度网盘链接拼接提取码，支持自动填充 / Build Baidu Pan URL with extraction code
+/** @param {string} url @param {string} pwd */
 function buildBaiduPanUrlWithPwd(url, pwd) {
   if (!url || !pwd) return url;
   try {

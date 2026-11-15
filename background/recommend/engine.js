@@ -38,6 +38,11 @@ export { calculateKeywordScore, findProfile, steamspyScores, appStatScores, comp
  * @param {{settings: import('../core/types.js').AppSettings, profiles: Object, keywordWeights: Object, appStats?: Object}|null} [shared] - 批量共享只读数据
  * @returns {Promise<import('../core/types.js').RecommendResult|{score: number}|null>}
  */
+/**
+ * @param {Record<string, any>} gameInfo
+ * @param {boolean} [forceBuiltin]
+ * @param {{profiles?: any, keywordWeights?: Record<string, number>, appStats?: Record<string, any>, settings?: any}|null} [shared]
+ */
 export async function calculateRecommendation(gameInfo, forceBuiltin = false, shared = null) {
   const settings = shared && shared.settings ? shared.settings : await getSettings();
   const weights = settings.weights;
@@ -74,14 +79,17 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
     : [null, null];
 
   const profile = findProfile(profiles, gameInfo.name, registryEntry);
-  const allProfiles = Object.values(profiles);
+  const allProfiles = /** @type {Array<{views?: number, downloads?: number, disliked?: boolean, [k: string]: any}>} */ (
+    Object.values(profiles)
+  );
   const globalStats = {
-    maxViews: Math.max(1, ...allProfiles.map((p) => p.views || 0)),
-    maxDownloads: Math.max(1, ...allProfiles.map((p) => p.downloads || 0))
+    maxViews: Math.max(1, ...allProfiles.map((/** @type {{views?: number}} */ p) => p.views || 0)),
+    maxDownloads: Math.max(1, ...allProfiles.map((/** @type {{downloads?: number}} */ p) => p.downloads || 0))
   };
   // v10.1.0：AppID 行为统计（a 下载 / b 详情页打开——推荐信号）
   const appStat = appId && appStatsMap ? appStatsMap[String(appId)] : null;
   // v3.3.7：缓存为模块结构，用合并视图读字段
+  /** @type {Record<string, any>|null} */
   const steamData = steamEntry ? getMergedData(steamEntry) : null;
   // v4.0.0：SteamSpy 时长/热度信号（spy 模块可能为 null，steamspyScores 兜底）
   // v10.5.3 任务3：拆分出销量/评论数信号（owners/totalReviews 随 spy 缓存）
@@ -112,6 +120,7 @@ export async function calculateRecommendation(gameInfo, forceBuiltin = false, sh
 
 // --- LLM 计算 / LLM scoring ---
 
+/** @param {Record<string, any>} gameInfo @param {any} settings */
 async function calculateWithLLM(gameInfo, settings) {
   const { llmConfig } = settings;
 
@@ -159,7 +168,8 @@ async function calculateWithLLM(gameInfo, settings) {
   return parseLLMResponse(text);
 }
 
-function buildLLMPrompt(gameInfo, userKeywords) {
+/** @param {Record<string, any>} gameInfo @param {string[]} userKeywords */
+function buildLLMPrompt(gameInfo, /** @type {any} */ userKeywords) {
   // v10.5.2：描述截断至 100 字——输入 token 随描述线性增长，评分只需类型/氛围
   // 提示，长描述对分数几乎无贡献
   // Truncate the description: prompt tokens grow linearly with it while the

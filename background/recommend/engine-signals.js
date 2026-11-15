@@ -56,14 +56,20 @@ export function findProfile(profiles, name, registryEntry) {
   }
   if (cleaned && cleaned.length >= 2) {
     // 模糊匹配前规范化（去标点/空格/斜杠），兼容记录名与列表标题的格式差异
-    const normKey = (s) => s.toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）\/]/g, '');
+    /** @param {string} s */ const normKey = (s) => s.toLowerCase().replace(/[\s\-_:：|.'!！?？\[\]()（）\/]/g, '');
     const normCleaned = normKey(cleaned);
     /** @type {Object|null} */
     let best = null;
     for (const [k, p] of Object.entries(profiles)) {
       const nk = normKey(k);
       if (nk.includes(normCleaned) || normCleaned.includes(nk)) {
-        if (!best || p.views + p.downloads > best.views + best.downloads) best = p;
+        if (
+          !best ||
+          /** @type {{views: number, downloads: number}} */ (p).views +
+            /** @type {{downloads: number}} */ (p).downloads >
+            best.views + best.downloads
+        )
+          best = p;
       }
     }
     if (best) return best;
@@ -204,7 +210,7 @@ export function computeGameScore({
   appStatCaps = null
 }) {
   // v6.3.2 C3：用户标记不感兴趣 → 推荐归零（负信号优先于一切正信号）
-  if (profile && profile.disliked) {
+  if (profile && /** @type {{disliked?: boolean}} */ (profile).disliked) {
     return {
       score: 0,
       breakdown: {
@@ -222,12 +228,13 @@ export function computeGameScore({
       method: 'disliked'
     };
   }
-  const views = profile ? profile.views || 0 : 0;
-  const downloads = profile ? profile.downloads || 0 : 0;
+  const views = profile ? /** @type {{views?: number}} */ (profile).views || 0 : 0;
+  const downloads = profile ? /** @type {{downloads?: number}} */ (profile).downloads || 0 : 0;
   // v10.5.0 P2-B：权重取值一律过有限数值门（缺失/字符串/NaN → 0），防脏权重产 NaN 分
   // Every weight is coerced through a finite-number gate (missing/string/NaN → 0).
+  /** @param {string} key */
   const W = (key) => {
-    const v = weights[key];
+    const v = /** @type {Record<string, number>} */ (weights)[key];
     return typeof v === 'number' && Number.isFinite(v) ? v : 0;
   };
   // 1. 行为信号：该游戏活跃度占全站最高活跃度的比例（饱和到 1）
@@ -235,7 +242,10 @@ export function computeGameScore({
   const downloadScore =
     (globalStats.maxDownloads || 0) > 0 ? Math.min(downloads / (globalStats.maxDownloads || 1), 1) : 0;
   // 2. 标签匹配：Steam 官方标签与用户偏好关键词的匹配度（无标签给中性值）
-  const kw = calculateKeywordScore(tags || [], keywordWeights);
+  const kw = calculateKeywordScore(
+    /** @type {string[]} */ (tags || []),
+    /** @type {Record<string, number>} */ (keywordWeights)
+  );
   const keywordScore = kw !== null ? kw : 0.3;
   // 3. Steam 信号：好评率 70% + 中文支持 30%
   let steamScore = SPY_SCALES.steamNeutral; // v10.7.0：刻度单源
