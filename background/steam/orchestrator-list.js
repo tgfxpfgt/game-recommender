@@ -89,17 +89,60 @@ function attachMatch(result, { gameName, resultName, source, steamYear, conflict
 // cache-invalid-rating/cache-missing-rate/cache-needs-refetch/cache-inverted-counts/
 // demo-no-rating）。先拿数据再改缓存键（不盲改纪律）；不改变返回语义（恒 null）。
 // Wave-1 miss bucketing: counter + event kind for cache-health diagnosis.
-function recordWave1Miss(kind) {
+function recordWave1Miss(/** @type {string} */ kind) {
   recordUsageCounter('match.wave1Miss');
   recordUsageEvent('match', 'wave1Miss', { kind });
   return null;
 }
+
+// ============ 管线类型（v15 阶段 1 隐式 any 还债——options/merged 形状单源） ============
+// RatingOptions：列表/详情管线共用的 options 形状（单一事实源——两管线属性
+// 访问全覆盖；调用方传子集合法）。CachedMerged：steam-cache 合并视图的读取面
+//（正缓存命中路径消费的全部字段）。
+/**
+ * @typedef {Object} RatingOptions
+ * @property {string} [rawTitle] - 原始页面标题（EN 段兜底/置信度页面身份）
+ * @property {string|number} [appId] - 封面直取 appId
+ * @property {string} [platformHint] - 分类页平台提示（listPlatformHints 注入）
+ * @property {string} [pageUrl] - 页面 URL（URL 索引/详情页信号回捞/同站冲突）
+ * @property {boolean} [ignoreNegativeCache] - 批量场景跳过负缓存
+ * @property {number} [cover] - 封面覆盖值
+ * @property {{left: number}} [mcBudget] - MC 查询预算（批量链分摊）
+ * @property {{left: number}} [probeBudget] - 详情页信号回捞预算
+ * @property {(p: string) => void} [onPhase] - 阶段回调（看门狗/状态栏）
+ * @property {string} [coverUrl]
+ */
+/**
+ * @typedef {Object} CachedMerged
+ * @property {string|number} [appId]
+ * @property {string} [name]
+ * @property {string} [englishName]
+ * @property {number|null} [positiveRate]
+ * @property {string|null} [ratingDesc]
+ * @property {number} [totalReviews]
+ * @property {number|null} [positiveReviews]
+ * @property {number|null} [negativeReviews]
+ * @property {number|null} [recentPositiveRate]
+ * @property {number} [recentTotalReviews]
+ * @property {string|null} [lastUpdate]
+ * @property {string} [releaseDate]
+ * @property {boolean} [comingSoon]
+ * @property {number} [ratingRetriedAt]
+ * @property {string} [type]
+ * @property {string} [headerImage]
+ * @property {string} [cnReviewsFetchedAt]
+ * @property {number} [ratingFailCount]
+ * @property {Array<{t: number, r: number}>} [ratingHistory]
+ * @property {{mac?: boolean, linux?: boolean}} [platforms]
+ */
 
 /**
  * 仅缓存命中查询（列表页第一波，无网络请求）。
  * 缓存命中（含 Demo 自愈跳过）即返回，否则返回 null → 调用方转入 Steam 拉取。
  * Cache-only lookup (first wave on list pages, zero network). Returns the
  * cached rating when valid (demo-without-rating self-heals to a miss).
+ * @param {string} gameName
+ * @param {RatingOptions} [options]
  */
 export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (!gameName) return null;
@@ -150,7 +193,7 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (!appId) return recordWave1Miss('no-index-entry');
 
   const cached = await getSteamCacheEntry(appId);
-  const merged = getMergedData(cached) || {};
+  const merged = /** @type {CachedMerged} */ (getMergedData(cached) || {});
   // 无好评率条目（0 评测/失败固化）按冷却期重新获取（v3.3.7：rating 模块有效判定）
   // v14.21.0：评价数倒挂条目（旧回退误写）不命中，重取自愈
   // v14.28.10 P1-1：各 miss 原因分桶落账（语义不变，见 recordWave1Miss）
@@ -162,11 +205,11 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
 
   // v5.0.0：统一命中返回（补写注册表 + 自愈 + 三段式字段）
   // v14.28.6 R4-B：附三要素置信度（确认/推测 + 依据）
-  return attachMatch(await applyCacheHit(merged, appId, gameName), {
+  return attachMatch(await applyCacheHit(/** @type {CachedMerged} */ (merged), appId, gameName), {
     gameName,
     resultName: merged.name,
     source: appSource,
-    steamYear: yearOfDateString(merged.releaseDate)
+    steamYear: yearOfDateString(merged.releaseDate || '')
   });
 }
 
@@ -227,7 +270,7 @@ async function probeDetailSignal(gameName, pageUrl, excludeAppId) {
  * @param {Object} options
  * @returns {Promise<Object|null>} 平台终态结果（null = PC 条目继续后续阶段）
  */
-async function phasePlatform(gameName, options) {
+async function phasePlatform(gameName, /** @type {RatingOptions} */ options) {
   // v14.19.0（用户需求：详情页手动主机机型声明）：用户手动映射**优先于一切
   // 识别与索引**——声明过的条目直接返回 MC/平台终态（MC 分为声明时抓取的
   // 固化值；缺失时按主机条目走常规 Metacritic 预算补查一次）
@@ -288,7 +331,7 @@ async function phasePlatform(gameName, options) {
  *   englishName 在 usableAppId 直取路径为 null（调用方 5.5 步按 pickRegistryEnName 补齐）；
  *   source = 命中来源（v14.28.6 R4-B，仅作推测依据展示，不参与置信度判定）
  */
-async function phaseSearch(gameName, options, corr, usableAppId) {
+async function phaseSearch(gameName, /** @type {RatingOptions} */ options, corr, usableAppId) {
   // v14.28.9：search 阶段轨迹（enter 无 exit / fail 即"未完成"，供离线定位卡点）
   const traceT0 = Date.now();
   const traceGameKey = gameKeyOf(gameName);
@@ -391,6 +434,11 @@ async function phaseSearch(gameName, options, corr, usableAppId) {
   };
 }
 
+/**
+ * 轻量级 Steam 好评率查询（列表页用，缓存优先，仅获取好评率）
+ * @param {string} gameName
+ * @param {RatingOptions} [options]
+ */
 export async function getSteamPositiveRate(gameName, options = {}) {
   if (!gameName) return null;
 
@@ -463,7 +511,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   if (appId) {
     const cached = await readCachedOnce(appId);
     if (cached) cacheLayer = 'opfs'; // 条目存在但未命中有效 → 盘上缓存层
-    const merged = getMergedData(cached) || {};
+    const merged = /** @type {CachedMerged} */ (getMergedData(cached) || {});
     if (
       isModuleValid(cached, 'rating') &&
       merged.positiveRate !== undefined &&
@@ -495,7 +543,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
           gameName,
           resultName: merged.name,
           source: idSource,
-          steamYear: yearOfDateString(merged.releaseDate),
+          steamYear: yearOfDateString(merged.releaseDate || ''),
           conflictReason: conflictHit ? HOST_CONFLICT_NOTE : null
         });
       }
@@ -574,7 +622,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
       phase('validate');
       // v3.3.7：缓存 type 从合并视图读取（meta 模块）
       const cachedType = usableAppId ? (await readCachedOnce(usableAppId)) || null : null;
-      const cachedTypeVal = cachedType ? (getMergedData(cachedType) || {}).type : null;
+      const cachedTypeVal = cachedType ? /** @type {CachedMerged} */ (getMergedData(cachedType) || {}).type : null;
       if (cachedTypeVal) {
         appType = cachedTypeVal;
       } else if (ADDON_NAME_PATTERN.test(foundName)) {
@@ -693,7 +741,9 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     phase('write');
     //    v3.3.8：列表页独立获取最近更新日期（不依赖详情页访问；缓存已有则复用；
     //    GetNewsForApp 在 api.steampowered.com 独立限流域，不影响商店 API 配额）。
-    const existing = usableAppId ? getMergedData(await readCachedOnce(usableAppId)) || {} : {};
+    const existing = /** @type {CachedMerged} */ (
+      usableAppId ? getMergedData(await readCachedOnce(usableAppId)) || {} : {}
+    );
     const headerImage = coverImageFor(foundAppId, options.cover);
     let lastUpdate = existing.lastUpdate || null;
     if (!lastUpdate) {
