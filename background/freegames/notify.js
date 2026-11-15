@@ -20,6 +20,7 @@ import { recordNotification } from '../storage/notifications.js'; // v14.16.0 N6
 // SW 空闲 30s 即被杀，点击通知唤醒的是全新 SW 实例，纯内存变量必然为空
 //（"点击通知打开商店页"100% 失效）；storage.session 生命周期与浏览器会话
 // 一致，恰覆盖通知存活窗口
+/** @type {Array<{id: string, [k: string]: any}>} */
 let lastNotifyGames = [];
 const NOTIFY_SESSION_KEY = 'grLastNotifyGames';
 export async function getLastNotifyGames() {
@@ -39,6 +40,11 @@ export async function getLastNotifyGames() {
 
 // v14.3.0（第五轮 B8）：通知构造单源——各处 chrome.notifications.create 的
 // 公共形状（type/iconUrl/异常吞没）收敛为 notifyBase 工厂。
+/**
+ * @param {string} title
+ * @param {string} message
+ * @param {{id?: string, icon?: string, priority?: number, [k: string]: any}} [options]
+ */
 export function notifyBase(title, message, options = {}) {
   // v14.3.0：导出（itad 域消费）
   // v14.16.0 N6：站内通知中心落库（环形 50）——system 通知即焚的追溯面
@@ -58,6 +64,7 @@ export function notifyBase(title, message, options = {}) {
 
 // v6.3.2 C2：新限免推送通知（聚合一条，防骚扰；通知权限在 manifest）
 // Push notification for new free games (one aggregated notification)
+/** @param {Array<{id: string, platform?: string, freeType?: string, name: string, [k: string]: any}>} newOnes */
 export async function notifyNewFreeGames(newOnes) {
   // v14.2.0：导出（manager 编排消费）
   try {
@@ -100,13 +107,16 @@ export async function notifyNewFreeGames(newOnes) {
       .join('、');
     // v10.6.0 F2：收藏游戏进限免 → 通知标题优先提示（愿望单联动）
     /** @type {{name?: string}|null} */
+    /** @type {{id?: string, name?: string, url?: string, steamId?: string|number, [k: string]: any}|null} */
     let favHit = null;
     try {
       const favs = await getFavorites();
-      favHit = newOnes.find((g) => {
-        const appId = ((g.url && g.url.match(/\/app\/(\d+)/)) || [])[1] || (g.steamId && String(g.steamId));
-        return appId && favs[appId];
-      });
+      favHit = /** @type {any} */ (
+        newOnes.find((/** @type {{id?: string, appId?: string|number, [k: string]: any}} */ g) => {
+          const appId = ((g.url && g.url.match(/\/app\/(\d+)/)) || [])[1] || (g.steamId && String(g.steamId));
+          return appId && /** @type {Record<string, any>} */ (favs)[appId];
+        })
+      );
     } catch {
       /* 收藏读取失败不影响通知 */
     }
@@ -122,13 +132,16 @@ export async function notifyNewFreeGames(newOnes) {
 
 // 更新工具栏角标（当天新增数量）/ Update the toolbar badge (today's new count)
 export async function updateFreeGamesBadge() {
+  /* 无参 */
   try {
     const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
     const games = (stored && stored.games) || [];
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
     const todayStartMs = todayStart.getTime();
-    const newToday = games.filter((g) => g.firstSeen && g.firstSeen >= todayStartMs).length;
+    const newToday = games.filter(
+      (/** @type {{firstSeen?: number, [k: string]: any}} */ g) => g.firstSeen && g.firstSeen >= todayStartMs
+    ).length;
     chrome.action.setBadgeText({ text: newToday > 0 ? String(newToday) : '' });
     chrome.action.setBadgeBackgroundColor({ color: '#e74c3c' });
   } catch (e) {
@@ -137,9 +150,10 @@ export async function updateFreeGamesBadge() {
 }
 
 // 标记领取 / Mark a game as claimed
+/** @param {string} gameId */
 export async function claimFreeGame(gameId) {
   const fg = (await dataStore.readModule(DB_KEYS.FREE_GAMES)) || { games: [] };
-  const game = fg.games.find((g) => g.id === gameId);
+  const game = fg.games.find((/** @type {{id?: string, [k: string]: any}} */ g) => g.id === gameId);
   if (game) {
     game.claimed = true;
     await dataStore.writeModule(DB_KEYS.FREE_GAMES, fg);
