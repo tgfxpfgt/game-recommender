@@ -178,7 +178,8 @@ export const BUDGETS = {
   // stage-1 slice-14 (notify 19→0): +733B; 36 tests green.
   // stage-1 slice-15 (sites/search + engine + engine-signals internals): +1,327B; 59 tests green.
   // stage-1 slice-16 (adapter-rules 17→0 + llm-cache 16→0): +692B; 47 tests green.
-  swGraphBytes: 973684,
+  // stage-1 slice-17 (utils 16→0 + api-details 15→0): +896B; 170 tests green.
+  swGraphBytes: 974580,
   swGraphFiles: 108,
   staticInjectionBytes: 40588,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

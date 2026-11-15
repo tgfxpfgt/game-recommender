@@ -19,6 +19,7 @@ import { PERF_CONFIG } from './constants.js'; // v14.4.1 B4/v14.6.2：性能常�
 // private and reserved addresses (SSRF protection). Hardened in v3.4.1:
 // trailing-dot domains and full IPv6 parsing (ULA/link-local/6to4/Teredo/
 // v4-embedded/unspecified/long-form loopback all blocked).
+/** @param {number} a @param {number} b @param {number} c @param {number} d */
 function isSafeIpv4Octets(a, b, c, d) {
   if (a === 0 || a === 10 || a === 127) return false;
   if (a === 100 && b >= 64 && b <= 127) return false; // CGNAT
@@ -32,6 +33,7 @@ function isSafeIpv4Octets(a, b, c, d) {
 
 // IPv6 host 安全判定（host 为 URL 解析后的 hostname，可能含 []）。
 // 逐段解析 8 组 16-bit，拒绝环回/未指定/嵌入私有 IPv4/ULA/链路本地/组播。
+/** @param {string} host */
 function isSafeIpv6Host(host) {
   let h = host;
   if (h.startsWith('[') && h.endsWith(']')) h = h.slice(1, -1);
@@ -78,6 +80,7 @@ function isSafeIpv6Host(host) {
 
 // v5.0.0：纯对象判定（settings/rules/message-contract 三处重复收敛于此）
 // Plain-object predicate (unified from three duplicated copies).
+/** @param {any} v */
 export function isPlainObject(v) {
   return !!v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 }
@@ -86,13 +89,16 @@ export function isPlainObject(v) {
 // 单一实现避免测试复制被测逻辑（tests 直接导入本函数）。
 // CN/EN name validity predicates shared by registry self-heal and the tests,
 // so tests never carry a copied copy of the production logic.
+/** @param {string} text */
 export function hasChineseChars(text) {
   return /[\u4e00-\u9fff]/.test(text || '');
 }
+/** @param {string} text @param {number} [min] */
 export function hasLatinLetters(text, min = 2) {
   return new RegExp('[A-Za-z]{' + min + ',}').test(text || '');
 }
 
+/** @param {string} url */
 export function isSafeFetchUrl(url) {
   if (typeof url !== 'string') return false;
   let parsed;
@@ -164,6 +170,11 @@ async function steamRateLimit() {
 // 并按主机滑动窗口限速（兜底防失控；Steam 批处理另有自身异常降速）。
 // Since v3.4.1 every outbound request is audited (blocked/rate-limited/network
 // errors included) and per-host rate-limited as a safety net.
+/**
+ * @param {string} url
+ * @param {{allowPrivateHosts?: boolean, [k: string]: any}} [options]
+ * @param {number} [timeout]
+ */
 export async function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAULT_TIMEOUT) {
   let host = 'invalid';
   try {
@@ -191,7 +202,7 @@ export async function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAUL
       resp = await fetch(url, { ...options, redirect: 'manual', signal: controller.signal });
       let hops = 0;
       while (resp.status >= 300 && resp.status < 400 && resp.headers.has('location')) {
-        const next = new URL(resp.headers.get('location'), resp.url).href;
+        const next = new URL(/** @type {string} */ (resp.headers.get('location')), resp.url).href;
         if (!isSafeFetchUrl(next) && !allowPrivate) {
           throw new Error('blocked-redirect: ' + String(next).substring(0, 80));
         }
@@ -217,6 +228,7 @@ export async function fetchWithTimeout(url, options = {}, timeout = FETCH_DEFAUL
 // Regex-matching helpers via computed Symbol.match/Symbol.exec — behaviorally
 // identical to .match/.exec (pure regex, never any command execution), written
 // this way to dodge static scanners that misjudge those method names.
+/** @param {string} text @param {RegExp} pattern */
 export function regexMatch(text, pattern) {
   return pattern[Symbol.match](String(text == null ? '' : text));
 }
@@ -227,6 +239,7 @@ export function regexMatch(text, pattern) {
 // Global regex iteration (equivalent to an exec loop; adds the g flag if
 // absent). Uses the standard Symbol.matchAll — Symbol.exec is NOT a standard
 // symbol (the old implementation was always undefined and threw).
+/** @param {string} text @param {RegExp} pattern */
 export function regexExecAll(text, pattern) {
   const source = String(text == null ? '' : text);
   const flags = pattern.flags.includes('g') ? pattern.flags : pattern.flags + 'g';

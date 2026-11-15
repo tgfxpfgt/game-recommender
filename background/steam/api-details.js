@@ -12,6 +12,7 @@ import { ADDON_NAME_PATTERN } from './api-search.js';
 
 // 名称校验：中文名含中文、英文名含英文、不命中附属内容关键词
 // Name validation for zero-review verification and registry writes
+/** @param {string} [cnName] @param {string} [enName] */
 export function validateSteamNames(cnName, enName) {
   const cn = cnName || '';
   const en = enName || '';
@@ -51,6 +52,7 @@ export function validateSteamNames(cnName, enName) {
 // every other non-base type (bundle/mod/music/video/software/hardware...) → null.
 // Note: the real appdetails payload names the app id `steam_appid` (there is no
 // `appid` field); both are accepted (tests/mock data may use `appid`).
+/** @param {any} data */
 export function baseAppIdFromDetails(data) {
   if (!data || typeof data !== 'object') return null;
   const selfId = data.appid || data.steam_appid;
@@ -74,6 +76,7 @@ export function baseAppIdFromDetails(data) {
 
 // 封面图 URL：优先已有封面，否则按 appId 构造 Steam CDN header 图（纯函数，可单测）
 // Cover URL: keep the provided cover, else build the Steam CDN header URL
+/** @param {string|number} appId @param {string} [fallback] */
 export function coverImageFor(appId, fallback) {
   if (fallback && /^https?:\/\//i.test(fallback)) return fallback;
   if (appId) return ENDPOINTS.steamCdnHeader(appId); // v10.7.0：端点单源
@@ -130,6 +133,10 @@ async function fetchAppDetailsRaw(url) {
  * 获取应用详情（language: schinese/english 等，name 随语言）/ Fetch app details.
  * v14.15.0：同 URL 短窗去重（O1）。
  */
+/**
+ * @param {string|number} appId
+ * @param {'schinese'|'english'|string} [language]
+ */
 export async function fetchSteamAppDetails(appId, language = 'schinese') {
   const detailUrl = `${ENDPOINTS.steamAppDetails}?appids=${appId}&l=${language}`;
   const now = Date.now();
@@ -165,6 +172,7 @@ export async function fetchSteamAppDetails(appId, language = 'schinese') {
 
 // --- 商店页面 HTML ---
 
+/** @param {string|number} appId */
 export async function fetchStorePageHtml(appId) {
   try {
     const storePageUrl = `${ENDPOINTS.steamStoreApp}${appId}/?cc=cn&l=schinese`;
@@ -182,6 +190,7 @@ export async function fetchStorePageHtml(appId) {
 
 // --- 中文语言支持解析 ---
 
+/** @param {string} storeHtml @param {any} gameData */
 export function parseChineseLanguageSupport(storeHtml, gameData) {
   let chineseSupported = false;
   let simplifiedChinese = false;
@@ -200,7 +209,7 @@ export function parseChineseLanguageSupport(storeHtml, gameData) {
         if (isSimplifiedRow || isChineseRow) {
           const hasCheck = /✓|&#10003;|class="[^"]*check/i.test(row);
           const cells = row.match(/<td[\s\S]*?<\/td>/gi) || [];
-          if (hasCheck || cells.some((c) => /✓|&#10003;|check/i.test(c))) {
+          if (hasCheck || cells.some((/** @type {string} */ c) => /✓|&#10003;|check/i.test(c))) {
             chineseSupported = true;
             if (isSimplifiedRow) simplifiedChinese = true;
             if (cells.length >= 3) {
@@ -239,6 +248,7 @@ export function parseChineseLanguageSupport(storeHtml, gameData) {
 // （gameData.categories）兜底，避免"热门用户标签"区块整体消失（v3.3.9）。
 // Parse store-page user tags; when the store HTML is unavailable fall back to
 // the official categories so the tag section never disappears entirely.
+/** @param {string} storeHtml @param {any} gameData */
 export function parseUserTags(storeHtml, gameData) {
   if (storeHtml) {
     const tagMatches = storeHtml.match(/<a[^>]*class="[^"]*app_tag[^"]*"[^>]*>[\s\S]*?<\/a>/gi);
