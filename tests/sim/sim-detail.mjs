@@ -232,11 +232,18 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
   // → 好评率 90.0% / 修正口碑 87.0% / 评分 8.7 / 结论 ≥85 档「口碑表现出色」）
   expect(html.includes('steam-review-card') && html.includes('Steam 玩家评价')).toEqual(true);
   expect(html.includes('is-positive') && html.includes('fa-thumbs-up') && html.includes('特别好评')).toEqual(true);
-  expect(html.includes('data-steam-score>8.7</strong>') && html.includes('综合评分')).toEqual(true);
+  expect(html.includes('data-steam-score') && html.includes('>8.7</strong>') && html.includes('综合评分')).toEqual(
+    true
+  );
   expect(html.includes('90.0%') && html.includes('5,000') && html.includes('条评价')).toEqual(true);
   expect(html.includes('口碑表现出色，推荐下载体验')).toEqual(true);
   expect(html.includes('修正口碑') && html.includes('87.0%') && html.includes('width:87.0%')).toEqual(true);
-  expect(html.includes('data-steam-positive>4,500<') && html.includes('data-steam-negative>500<')).toEqual(true);
+  expect(
+    html.includes('data-steam-positive') &&
+      html.includes('>4,500<') &&
+      html.includes('data-steam-negative') &&
+      html.includes('>500<')
+  ).toEqual(true);
   expect(html.includes('数据更新于')).toEqual(true);
   // 样式表随卡片注入（XDGame 同款 CSS，作用域挂在容器 id 上）
   expect(documentMock.head.children.some((c) => c.id === 'gr-steam-inline-style')).toEqual(true);
@@ -262,7 +269,9 @@ simTest('9a. 详情页内嵌 Steam 信息区（目标站注入 + 非目标站门
     totalReviews: 5000,
     ratingDesc: '特别好评'
   });
-  expect(legacyHtml.includes('data-steam-positive>4,500<') && legacyHtml.includes('90.0%')).toEqual(true);
+  expect(
+    legacyHtml.includes('data-steam-positive') && legacyHtml.includes('>4,500<') && legacyHtml.includes('90.0%')
+  ).toEqual(true);
   const mixedHtml = GR.detailTemplates.steamInlineSection({
     appId: '4',
     name: '褒贬不一',
@@ -500,7 +509,9 @@ simTest('9e. steam250 游戏页面板（复用管线 + 榜单页早退 + 名称�
   };
   window.location = globalThis.location;
   sentMessages.length = 0;
-  documentMock.body.children = documentMock.body.children.filter((c) => c.id !== 'gr-download-site-panel');
+  Array.from(documentMock.body.children)
+    .filter((c) => c.id === 'gr-download-site-panel')
+    .forEach((c) => c.remove());
   GR.detail.injectSteam250Panel();
   await new Promise((r) => setTimeout(r, 50));
   expect(documentMock.body.children.some((c) => c.id === 'gr-download-site-panel')).toEqual(false);

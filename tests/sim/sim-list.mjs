@@ -144,7 +144,8 @@ simTest(
     expect(itemA.a.children[3].className.includes('gr-badge-appstat')).toEqual(true);
     expect(itemA.a.children[3].textContent).toEqual('0-0');
     expect(itemA.a.children[4].className.includes('gr-rec-badge')).toEqual(true);
-    expect(itemA.a.children[4].textContent).toEqual('🎯 85%');
+    // 真实 DOM textContent 聚合子元素（✕ 不感兴趣按钮在徽章内）——startsWith 保推荐值语义
+    expect(itemA.a.children[4].textContent.startsWith('🎯 85%')).toEqual(true);
     expect(
       itemA.a.children[4].title.includes('点击率') &&
         itemA.a.children[4].title.includes('下载率') &&
@@ -369,10 +370,10 @@ simTest('3. waitForListItems（AJAX 延迟渲染）', async () => {
   // 模拟 250ms 后 DOM 渲染出列表项 / simulate the DOM rendering items after 250ms
   setTimeout(() => {
     setQueryStubs((sel) => (sel === 'li.game-item' ? allItems.map((x) => x.li) : []));
+    // v15 阶段 2：真实 MutationObserver 不响应手动 cb——制造真实 DOM 变化驱动
+    // observer 回调（happy-dom 下 appendChild 触发 childList 记录）
+    documentMock.body.appendChild(documentMock.createTextNode('ajax-rendered'));
   }, 250);
-  setTimeout(() => {
-    if (MutationObserver.instances.length) MutationObserver.instances[MutationObserver.instances.length - 1].cb();
-  }, 260);
   const waitedItems = await waitPromise;
   expect(waitedItems.length).toEqual(3);
 });
@@ -401,25 +402,29 @@ simTest('5. lazyload 封面 appId 直取（data-src 优先）', async () => {
   const GR = getGR();
   const lazyScope = new FakeEl('div');
   const lazyImg = new FakeEl('img');
-  lazyImg._attrs['src'] = 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='; // 占位图
-  lazyImg._attrs['data-src'] =
-    'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/1297900/c68d4/capsule_616x353.jpg';
+  lazyImg.setAttribute('src', 'data:image/gif;base64,R0lGODlhAQABAAAAACH5BAEKAAEALAAAAAABAAEAAAICTAEAOw=='); // 占位图
+  lazyImg.setAttribute(
+    'data-src',
+    'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/1297900/c68d4/capsule_616x353.jpg'
+  );
   lazyScope._imgs = [lazyImg];
   const lazyInfo = GR.builder.extractSteamImageInfo(lazyScope);
   expect(lazyInfo ? lazyInfo.appId : null).toEqual('1297900');
   expect(lazyInfo ? lazyInfo.cover.includes('1297900') : false).toEqual(true);
   // 无 data-src 时回退 src
   const plainImg = new FakeEl('img');
-  plainImg._attrs['src'] = 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg';
+  plainImg.setAttribute('src', 'https://cdn.akamai.steamstatic.com/steam/apps/111/header.jpg');
   const plainScope = new FakeEl('div');
   plainScope._imgs = [plainImg];
   const plainInfo = GR.builder.extractSteamImageInfo(plainScope);
   expect(plainInfo ? plainInfo.appId : null).toEqual('111');
   // data-original（xdgame jQuery lazy，v3.2.5）
   const xdImg = new FakeEl('img');
-  xdImg._attrs['src'] = '/images/defaultpic.gif';
-  xdImg._attrs['data-original'] =
-    'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/3613270/xxx/capsule_616x353.jpg';
+  xdImg.setAttribute('src', '/images/defaultpic.gif');
+  xdImg.setAttribute(
+    'data-original',
+    'https://shared.cdn.queniuqe.com/store_item_assets/steam/apps/3613270/xxx/capsule_616x353.jpg'
+  );
   const xdScope = new FakeEl('div');
   xdScope._imgs = [xdImg];
   const xdInfo = GR.builder.extractSteamImageInfo(xdScope);
@@ -578,7 +583,7 @@ simTest(
     const GR = getGR();
     const msgListener = getMsgListener();
     const { li, a } = makeItem('迟到游戏', 901);
-    li.isConnected = true; // FakeEl 无 isConnected——收尾转错误徽章要求元素仍在文档中
+    documentMock.body.appendChild(li); // 真实 isConnected（收尾转错误徽章要求元素在文档中）
     const items = [{ element: li, link: a, name: '迟到游戏', url: 'https://www.xianyudanji.gg/901.html', titleEl: a }];
     presets['GET_STEAM_RATINGS'] = () => ({ ratings: {}, pending: 1 });
     GR.listBatch.requestSteamRatings(items, DEFAULT_SETTINGS);
@@ -622,7 +627,7 @@ simTest('13. 断网故障渲染为「网络异常」而非「未找到」', asyn
   }
   expect(GR).toBeTruthy();
   const { li, a } = makeItem('断网游戏', 902);
-  li.isConnected = true;
+  documentMock.body.appendChild(li); // 真实 isConnected
   const item = { element: li, link: a, name: '断网游戏', url: 'https://www.xianyudanji.gg/902.html', titleEl: a };
   // 直接驱动评分状态机（不经过消息/批次调度）：本用例的契约是"失败结果
   // 如何映射到徽章"，而非"消息是否送达"。

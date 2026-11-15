@@ -110,6 +110,24 @@ function buildAdapter(rule) {
   };
   // v4.1.0：addItem 无状态化（items/seen 由调用方持有），供整页扫描与
   // 容器级增量提取（extractFromContainer）共用
+  // v15 阶段 2：名字提取剔除徽章/占位子元素——真实 DOM textContent 聚合全部
+  // 后代文本，评分徽章渲染后重复提取（滚动增量批次/刷新流）会把
+  // "—✓ 95%—0-0" 等徽章文本拼进游戏名（污染名称级缓存/负缓存/清页收集）。
+  // 旧测试 FakeEl 的 textContent 不聚合子元素，该缺陷被测试环境掩盖至今。
+  // Name extraction strips badge/status descendants: real textContent
+  // aggregates all descendant text, so re-extraction after badge rendering
+  // glued badge text into game names (poisoning name-keyed caches and the
+  // page-clear collector). The old fake DOM hid this production defect.
+  const cleanNameOf = (/** @type {any} */ el) => {
+    try {
+      const clone = el.cloneNode(true);
+      const badges = clone.querySelectorAll('.gr-badge, .gr-working-badge, .gr-dislike-btn');
+      badges.forEach((/** @type {any} */ b) => b.remove());
+      return (clone.textContent || '').trim().replace(/\s+/g, ' ');
+    } catch {
+      return (el.textContent || '').trim().replace(/\s+/g, ' ');
+    }
+  };
   const addItem = (
     /** @type {any[]} */ items,
     /** @type {Set<string>} */ seen,
@@ -119,7 +137,7 @@ function buildAdapter(rule) {
   ) => {
     const href = link.href;
     if (seen.has(href)) return;
-    const text = (nameEl.textContent || '').trim().replace(/\s+/g, ' ');
+    const text = cleanNameOf(nameEl);
     if (text.length < minLen || text.length > maxLen) return;
     // 汇总贴/索引贴（置顶汇总/索引页）不是单个游戏，直接跳过
     // Skip pinned digest/index posts (not a single game)

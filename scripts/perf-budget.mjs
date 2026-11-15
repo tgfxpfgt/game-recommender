@@ -193,7 +193,7 @@ export const BUDGETS = {
   // (finish only when this tab's job is confirmed running); re-locked.
   // v14.31.3 stage-0: detail closure re-locked at true injected surface
   // (sidebar static imports made the runtime tail visible to the meter).
-  closureBytes: 326605
+  closureBytes: 327681
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

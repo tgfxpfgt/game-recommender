@@ -100,7 +100,9 @@ simTest('F4. 拖拽调宽 + 钳位 + 持久化', async () => {
   const body = create(ZONE.TOP_LEFT, 'f-width', { chrome: true, width: 320 });
   const parts = chromeParts(body);
   const fire = (el, type, ev) =>
-    (el._listeners[type] || []).forEach((cb) => cb({ preventDefault() {}, stopPropagation() {}, ...ev }));
+    (el._listeners && el._listeners[type] ? el._listeners[type] : []).forEach((cb) =>
+      cb({ preventDefault() {}, stopPropagation() {}, ...ev })
+    );
   // +60px → 380
   fire(parts.resize, 'mousedown', { clientX: 100 });
   fireDocEvent('mousemove', { clientX: 160 });
@@ -148,7 +150,7 @@ simTest('F5. 缩放步进/钳位/持久化', async () => {
   chromeLocalStore['grFloatScale:f-scalebad'] = 9;
   const body3 = create(ZONE.TOP_LEFT, 'f-scalebad', { chrome: true });
   await TICK();
-  expect(body3.style.zoom).toEqual(undefined); // 越界值不应用（保持默认）
+  expect(body3.style.zoom || '').toEqual(''); // 越界值不应用（真实 DOM 未设置 = ''，FakeEl 时代 undefined）
 });
 
 // F6. 菜单缓存信息区：provider 成功两行 / 抛错降级 / 未提供隐藏
@@ -226,7 +228,9 @@ simTest('F9. 重置位置与大小', async () => {
   await waitForSignal(() => body.parentNode.style.left === '300px', 'F9: 位置恢复（前置）');
   const parts = chromeParts(body);
   const fire = (el, type, ev) =>
-    (el._listeners[type] || []).forEach((cb) => cb({ preventDefault() {}, stopPropagation() {}, ...ev }));
+    (el._listeners && el._listeners[type] ? el._listeners[type] : []).forEach((cb) =>
+      cb({ preventDefault() {}, stopPropagation() {}, ...ev })
+    );
   fire(parts.resize, 'mousedown', { clientX: 0 });
   fireDocEvent('mousemove', { clientX: 100 });
   fireDocEvent('mouseup', {});

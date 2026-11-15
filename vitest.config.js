@@ -161,6 +161,6 @@ export default defineConfig({
       // Global floor from measured all-in coverage with headroom.
       thresholds: { lines: 47, statements: 46, functions: 43, branches: 42 }
     },
-    testTimeout: 120000
+    testTimeout: 180000 // v15 阶段 2：真实 DOM 下双流（自动+手动驱动）重试余量
   }
 });
