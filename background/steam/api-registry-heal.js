@@ -23,8 +23,10 @@ const healAttemptedAt = new Map();
 
 // 通过注册表判断 appId 是否为 Demo/试玩版（缓存缺失时的自愈依据）
 // Determine from the registry whether an appId is a Demo/trial edition
+/** @param {string|number} appId */
 export async function isDemoAppId(appId) {
   if (!appId) return false;
+  /** @type {any} */
   const entry = await getGameRegistryEntry(appId);
   if (!entry) return false;
   const text = [entry.cnName, entry.enName, ...(entry.names || [])].filter(Boolean).join(' ');
@@ -36,8 +38,17 @@ export async function isDemoAppId(appId) {
 
 // 幂等补写注册表：缓存命中返回时确保注册表存在该条目的正确中英文名（含封面/type）
 // Idempotent registry fill when serving from cache (cover + type included)
+/**
+ * @param {string|number} appId
+ * @param {string} [cnName]
+ * @param {string} [enName]
+ * @param {string} [gameName]
+ * @param {string} [coverImage]
+ * @param {string} [type]
+ */
 export async function ensureRegistryEntry(appId, cnName, enName, gameName, coverImage, type) {
   if (!appId) return;
+  /** @type {any} */
   const existing = await getGameRegistryEntry(appId);
   if (existing && (existing.cnName || existing.enName)) {
     // 条目已存在：仅补缺失的封面与 type / fill missing cover & type only
@@ -67,7 +78,11 @@ export async function ensureRegistryEntry(appId, cnName, enName, gameName, cover
 // 中文名异常时仅当 Steam 官方确实有中文名才覆盖（Steam 无中文名的游戏保持原值）。
 // Self-heal abnormal CN/EN names by appId (parallel fetch, one pass). The CN
 // name is overwritten only when Steam itself provides a Chinese name.
-export async function healRegistryNames(appId, { cnName, enName, gameName }) {
+/**
+ * @param {string|number} appId
+ * @param {{cnName?: string, enName?: string, gameName?: string}} [_opts]
+ */
+export async function healRegistryNames(appId, { cnName, enName, gameName } = {}) {
   if (!appId) return false;
   const cnOk = cnName && /[\u4e00-\u9fff]/.test(cnName);
   const enOk = enName && /[A-Za-z]{2,}/.test(enName);
@@ -118,6 +133,12 @@ export async function healRegistryNames(appId, { cnName, enName, gameName }) {
 
 // 缓存命中路径的名称自愈入口（兼容旧调用语义）
 // Self-heal entry for cache-hit paths (keeps the old call shape)
+/**
+ * @param {string|number} appId
+ * @param {string} [cnName]
+ * @param {string} [enName]
+ * @param {string} [gameName]
+ */
 export async function ensureValidRegistryNames(appId, cnName, enName, gameName) {
   await healRegistryNames(appId, { cnName, enName, gameName });
 }
@@ -127,6 +148,7 @@ export async function ensureValidRegistryNames(appId, cnName, enName, gameName) 
 
 // 批量自愈：扫描注册表中名称异常（中文名无中文/英文名无英文）的条目，分批修复
 // Batch self-heal: scan the registry for abnormal names and fix them in batches
+/** @param {number} [limit] */
 export async function scanAndHealRegistry(limit = 20) {
   const registry = await getGameRegistry();
   const abnormal = Object.entries(registry).filter(([, e]) => {
