@@ -168,7 +168,8 @@ export const ENDPOINTS = {
   steamAppReviews: 'https://store.steampowered.com/appreviews/',
   steamAppNews: 'https://api.steampowered.com/ISteamNews/GetNewsForApp/v2/',
   steamSpy: 'https://steamspy.com/api.php',
-  steamCdnHeader: (appId) => `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
+  steamCdnHeader: (/** @type {string|number} */ appId) =>
+    `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`,
   steam250Top250: 'https://steam250.com/top250',
   itadPrices: 'https://api.isthereanydeal.com/v02/game/prices/',
   // v10.8 B-3：限免源端点收编（原散落 manager.js）
@@ -385,6 +386,7 @@ export const LOG_LEVELS = { debug: 0, info: 1, warn: 2, error: 3 };
 let TTL_CONFIG = structuredClone(DEFAULT_SETTINGS.cacheTtls);
 
 // 更新 TTL 配置（由 settings 模块调用）/ Update TTL config (called by settings)
+/** @param {Record<string, any>} ttls */
 export function setTtlConfig(ttls) {
   TTL_CONFIG = { ...TTL_CONFIG, ...(ttls || {}) };
 }
@@ -411,18 +413,24 @@ const TTL_UNITS = {
   negativeCache: 'hours'
 };
 
+/** @param {number} value @param {string} unit */
 function toMs(value, unit) {
   if (value === 0) return Infinity; // 0 = 长期有效 / 0 = keep forever
-  return value * (UNIT_MS[unit] || UNIT_MS.hours);
+  return value * /** @type {Record<string, number>} */ (UNIT_MS[unit] || UNIT_MS.hours);
 }
 
 // 解析某缓存类型的 TTL 为毫秒（支持 {value, unit} 与旧数字格式；0 = 长期）
 // Resolve a cache type's TTL to ms ({value,unit} or legacy number; 0 = forever)
+/** @param {string} key @param {number|{unit: string, value: number}|null|undefined} value */
 export function resolveTtlMs(key, value) {
-  const raw = value === null || value === undefined ? TTL_DEFAULTS[key] : value;
+  /** @type {Record<string, any>} */
+  const defaults = TTL_DEFAULTS;
+  /** @type {Record<string, string>} */
+  const units = TTL_UNITS;
+  const raw = value === null || value === undefined ? defaults[key] : value;
   const num = typeof raw === 'object' ? raw.value : raw;
-  const unit = typeof raw === 'object' ? raw.unit || TTL_UNITS[key] : TTL_UNITS[key];
-  if (num === undefined || num === null) return toMs(TTL_DEFAULTS[key], TTL_UNITS[key]);
+  const unit = typeof raw === 'object' ? raw.unit || units[key] : units[key];
+  if (num === undefined || num === null) return toMs(defaults[key], units[key]);
   return toMs(num, unit);
 }
 
@@ -444,10 +452,11 @@ export const MODULE_TTL_KEYS = {
 };
 
 // 某缓存模块的有效期（毫秒）/ TTL of one cache module (ms)
+/** @param {string} moduleKey */
 export function moduleTtlMs(moduleKey) {
-  const key = MODULE_TTL_KEYS[moduleKey];
+  const key = /** @type {Record<string, string>} */ (MODULE_TTL_KEYS)[moduleKey];
   if (!key) return steamCacheTtlMs();
-  return resolveTtlMs(key, TTL_CONFIG[key]);
+  return resolveTtlMs(key, /** @type {Record<string, any>} */ (TTL_CONFIG)[key]);
 }
 
 // Steam 缓存写参数 / Steam cache write parameters

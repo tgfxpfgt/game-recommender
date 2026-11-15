@@ -39,46 +39,48 @@ async function handleSaveAdapterRules(message) {
   if (result.ok) syncSiteScripts().catch(() => {});
   // v14.8 批次 1（R2）：规则包 v2 词表覆盖段——写入 override 存储 + 热更
   // （applyVocabOverride 校验失败返回 errors，现值保持 = 回退语义）
-  if (result.ok && result.vocabSegment) {
+  /** @type {any} */
+  const resultAny = result;
+  if (resultAny.ok && resultAny.vocabSegment) {
     try {
       // v14.16.0 O6：导入门三步——①新词表**内存态先行**（不落盘）+ 结构校验
       //（PROTECTIVE_TITLES 双防线在此生效）②热更编译产物后离线回放错题库 5
       // 锚点（纯函数零网络）③不达标回滚内置词表整包拒绝；达标才落盘+热更。
       // （首版缺陷：ensure 读的是旧存储覆盖、replay 跑在旧词表上——修为
       // applyVocabOverride(segment) 直接内存生效。）
-      const applyErrors = applyVocabOverride(result.vocabSegment);
+      const applyErrors = applyVocabOverride(resultAny.vocabSegment);
       if (applyErrors.length > 0) {
-        result.vocabApplied = false;
-        result.vocabErrors = applyErrors;
+        resultAny.vocabApplied = false;
+        resultAny.vocabErrors = applyErrors;
         return result;
       }
       const anchors =
         /** @type {{samples: Array<{id: string, rawTitle: string, expectedAppId: string}>, replay?: (deps: any) => {failed: Array<{id: string, why: string}>}}|undefined} */ (
-          globalThis.__GR_MISMATCH_ANCHORS__
+          /** @type {Record<string, any>} */ (globalThis).__GR_MISMATCH_ANCHORS__
         );
       if (!anchors || typeof anchors.replay !== 'function') {
         resetVocabOverride();
-        result.vocabApplied = false;
-        result.vocabErrors = ['错题库锚点未加载（回放门不可用）——整包拒绝'];
-        Logger.warn('AdapterRules', result.vocabErrors[0]);
+        resultAny.vocabApplied = false;
+        resultAny.vocabErrors = ['错题库锚点未加载（回放门不可用）——整包拒绝'];
+        Logger.warn('AdapterRules', resultAny.vocabErrors[0]);
         return result;
       }
       const replay = anchors.replay({ parseGameTitle, nameMatchesSearch, matchCandidateScore });
       if (replay.failed.length > 0) {
         resetVocabOverride(); // 回滚内置词表（编译产物随 reset 热更）
         reloadRetrievalRules();
-        result.vocabApplied = false;
-        result.vocabErrors = replay.failed.map((f) => f.id + ': ' + f.why);
-        Logger.warn('AdapterRules', '词表回放门拒绝（回滚内置词表）: ' + result.vocabErrors.join(' | '));
+        resultAny.vocabApplied = false;
+        resultAny.vocabErrors = replay.failed.map((/** @type {{id: string, why: string}} */ f) => f.id + ': ' + f.why);
+        Logger.warn('AdapterRules', '词表回放门拒绝（回滚内置词表）: ' + resultAny.vocabErrors.join(' | '));
         return result;
       }
-      await dataStore.writeModule(DB_KEYS.RETRIEVAL_VOCAB_OVERRIDE, result.vocabSegment);
+      await dataStore.writeModule(DB_KEYS.RETRIEVAL_VOCAB_OVERRIDE, resultAny.vocabSegment);
       reloadRetrievalRules();
-      result.vocabApplied = true;
+      resultAny.vocabApplied = true;
     } catch (e) {
       resetVocabOverride();
-      result.vocabApplied = false;
-      result.vocabErrors = [String(e)];
+      resultAny.vocabApplied = false;
+      resultAny.vocabErrors = [String(e)];
     }
   }
   return result;
