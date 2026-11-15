@@ -37,6 +37,7 @@ export async function handleClearData() {
 // --- 适配规则管理（v3.0.0 规则编辑器支撑）---
 
 // --- 数据模块：清单/导出/导入 ---
+/** @param {any} value */
 export function countModuleItems(value) {
   if (value === undefined || value === null) return 0;
   if (Array.isArray(value)) return value.length;
@@ -55,9 +56,11 @@ export async function handleGetDataModules() {
   return { modules };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleExportData(message) {
   const moduleKeys =
     message.moduleKeys && message.moduleKeys.length > 0 ? message.moduleKeys : DATA_MODULES.map((m) => m.key);
+  /** @type {Record<string, any>} */
   const modules = {};
   for (const mod of DATA_MODULES) {
     if (!moduleKeys.includes(mod.key)) continue;
@@ -81,8 +84,9 @@ export async function handleExportData(message) {
   };
 }
 
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleImportData(message) {
-  const payload = message.data;
+  const payload = /** @type {any} */ (message.data);
   if (!payload || typeof payload !== 'object') return { success: false, error: '数据格式不正确' };
   if (payload.format !== EXPORT_FORMAT) return { success: false, error: '不是有效的 游戏雷达 Game Radar 导出文件' };
   if (payload.version !== EXPORT_VERSION) return { success: false, error: '导出文件版本不兼容: ' + payload.version };
@@ -124,6 +128,7 @@ export async function handleImportData(message) {
 }
 
 // --- 备份（v5.0.0：由 handlers.js 注册表内联箭头提升为具名函数）---
+/** @param {import('../core/types.js').MessagePayload} msg */
 export async function handleCreateBackup(msg) {
   const b = await createBackup(true, msg && msg.moduleKeys);
   return { success: !!b, backup: b ? { id: b.id, timestamp: b.timestamp, modules: b.modules } : null };
@@ -133,10 +138,12 @@ export async function handleGetBackups() {
   return { backups: await getBackupList() };
 }
 
+/** @param {import('../core/types.js').MessagePayload} msg */
 export async function handleRestoreBackup(msg) {
   return restoreBackup(msg.backupId, msg.moduleKeys);
 }
 
+/** @param {import('../core/types.js').MessagePayload} msg */
 export async function handleDeleteBackup(msg) {
   return deleteBackup(msg.backupId);
 }

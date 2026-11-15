@@ -12,13 +12,14 @@ import { itadFetch } from '../freegames/itad.js'; // v14.26.0：ITAD 请求构�
 
 // v14 B10：领域 handler 段（action → handler 单处声明，handlers.js 聚合展开）
 export const favoritesHandlers = {
-  TOGGLE_FAVORITE: async (msg) => toggleFavorite(msg && msg.appId, msg && msg.name, msg && msg.releaseDate),
+  TOGGLE_FAVORITE: async (/** @type {Record<string, any>|undefined} */ msg) =>
+    toggleFavorite(msg && msg.appId, msg && msg.name, msg && msg.releaseDate),
   GET_FAVORITES: async () => ({ favorites: await getFavorites() }),
   GET_FAVORITE_PRICES: async () => getFavoritePrices(), // v14.1.0
   // v14.2.0（补充轮 P1-3）：ITAD Key 测试改走后台 fetchWithTimeout——此前
   // options 页面裸 fetch（不受 SSRF 校验/限速/出站审计），端点字面量第二份副本。
   // 固定探测 appids=steam/730（CS2，恒存在），只回 ok/status 不回价格体。
-  TEST_ITAD_KEY: async (msg) => {
+  TEST_ITAD_KEY: async (/** @type {Record<string, any>|undefined} */ msg) => {
     const key = String((msg && msg.key) || '').slice(0, 200);
     if (!key) return { ok: false, status: 0 };
     try {

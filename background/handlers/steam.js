@@ -223,7 +223,7 @@ async function doHandleSearchSteam(message, sender) {
   // v14.15.0 O3：负缓存剩余时间随响应下发（候选面板展示真实自动重查等待）
   let negativeCacheMs = 0;
   if (!steamResult) {
-    negativeCacheMs = await negativeCacheRemainingMs(message.gameName);
+    negativeCacheMs = await negativeCacheRemainingMs(String(message.gameName || ''));
   }
   if (!steamResult && !reason) {
     const api = getSteamApiStatus();
@@ -286,7 +286,7 @@ async function doHandleSearchSteam(message, sender) {
 export async function handleRefreshSteamCache(message) {
   recordUsageCounter('refresh.named'); // v14.25.0：无 appId 的名称刷新（证据档案）
   // 通过名称索引查找 appId，以 appId 为键删除缓存
-  const appId = await lookupAppIdByName(message.gameName);
+  const appId = await lookupAppIdByName(String(message.gameName || ''));
   if (appId) {
     await deleteSteamCacheEntry(appId);
   }

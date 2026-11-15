@@ -50,6 +50,7 @@
  * @property {string} [keyword] - GET_GAME_CACHE_LIST 过滤词
  * @property {string} [tag] - GET_GAME_CACHE_LIST 标签过滤
  * @property {string} [siteKey] - GET_GAME_CACHE_LIST 站点过滤
+ * @property {string} [query] - searchCachedGames 跨缓存搜索过滤词
  * @property {string} [host] - SITE_ADAPTER_ALERT 站点 host
  * @property {string} [source] - LOG_PERF 上报来源（content/page）
  * @property {string} [metric] - LOG_PERF 指标名

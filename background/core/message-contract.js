@@ -79,23 +79,25 @@ function limitRule(label, min, max) {
       : { ok: false, error: `${label} 必须是 ${min}-${max} 数字` };
   };
 }
+/** @param {string} label */
 function moduleKeysRule(label) {
-  return (m) => {
+  return (/** @type {Record<string, any>|undefined} */ m) => {
     const mk = m && m.moduleKeys;
     if (mk === undefined || mk === null) return { ok: true, error: '' };
     return isStrArray(mk, 100) ? { ok: true, error: '' } : { ok: false, error: `${label}.moduleKeys 必须是字符串数组` };
   };
 }
 // 必填字符串数组（允许空）/ required string array (empty allowed)
+/** @param {string} label */
 function namesRule(label) {
-  return (m) =>
+  return (/** @type {Record<string, any>|undefined} */ m) =>
     isStrArray(m && m.names, 200)
       ? { ok: true, error: '' }
       : { ok: false, error: `${label}.names 必须是字符串数组（可空）` };
 }
 
 // TRACK_EVENT 单条校验（单发与批量共用）/ one-event validator (shared)
-const trackEventRule = (m) => {
+const trackEventRule = (/** @type {Record<string, any>|undefined} */ m) => {
   const data = m && m.data;
   if (!isPlainObject(data)) return { ok: false, error: 'TRACK_EVENT.data 必须是对象' };
   if (!TRACK_TYPES.has(data.type)) return { ok: false, error: 'TRACK_EVENT.data.type 不在白名单' };
@@ -268,7 +270,8 @@ const buildRules = () => ({
     }
     if (
       data.entries.some(
-        (e) => !e || !APP_ID_RE.test(String(e.appId == null ? '' : e.appId)) || typeof e.url !== 'string'
+        (/** @type {any} */ e) =>
+          !e || !APP_ID_RE.test(String(e.appId == null ? '' : e.appId)) || typeof e.url !== 'string'
       )
     ) {
       return { ok: false, error: 'RECORD_DOWNLOAD_URLS_BATCH.data.entries[].appId 数字且 url 必填' };
@@ -444,6 +447,7 @@ const buildRules = () => ({
 // 统一校验入口：未契约化 action **默认拒绝**（v10.5.0 P2-D 收紧——此前未覆盖
 // 一律放行是隐患面；新增 action 必须在 RULES 补规则，对齐 AGENTS.md 铁律 #7）
 // Unified entry: uncontracted actions are now DENIED (fail-closed).
+/** @param {string} action @param {Record<string, any>|undefined} msg */
 export function validateMessage(action, msg) {
   const rule = getRules()[action];
   if (!rule) return { ok: false, error: `未契约化的 action（需在 message-contract.js RULES 登记）: ${action}` };
@@ -507,6 +511,7 @@ export const CONTENT_ALLOWED_ACTIONS = new Set([
  * No url is treated as an internal/test caller; extension-origin urls are
  * trusted; any other origin (a content script's host page) is untrusted.
  */
+/** @param {any} sender @param {string} extOrigin */
 export function isTrustedSender(sender, extOrigin) {
   const url = sender && sender.url;
   if (!url) return true;

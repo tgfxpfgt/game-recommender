@@ -12,8 +12,8 @@
 /**
  * 返回剔除密钥后的设置副本（不修改原对象）。保留 itadProfiles 的 name/id
  * 等非敏感字段，仅置空 key——用户导入后提示重输（与 llmConfig 同语义）。
- * @param {Object} settings - 原设置对象（原样返回当为空）
- * @returns {Object} 剔除密钥后的副本
+ * @param {Record<string, any>} settings - 原设置对象（原样返回当为空）
+ * @returns {Record<string, any>} 剔除密钥后的副本
  */
 export function stripSecrets(settings) {
   const s = { ...(settings || {}) };

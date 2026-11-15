@@ -12,7 +12,7 @@ import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
-/** @type {Map<string, {appId: string|null, lastSearched: number, missCount?: number}>} */
+/** @type {Map<string, {appId: string|number|null, lastSearched: number, missCount?: number}>} */
 let nameIndexMemory = new Map();
 let nameIndexMemoryLoaded = false;
 let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
@@ -34,6 +34,7 @@ export async function warmupNameIndex() {
   await loadNameIndexToMemory();
 }
 
+/** @param {string} gameName */
 export async function lookupAppIdByName(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return null;
@@ -52,6 +53,7 @@ export async function lookupAppIdByName(gameName) {
 // 检查某游戏名是否在负缓存期内（v14.7 批次 4：分级退避——按该名连续 miss
 // 次数计 TTL，首次 miss 仅 cap/8 可快速重试）/ Is a name within its
 // graded negative-cache window?
+/** @param {string} gameName */
 export async function isRecentlySearchedNotFound(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return false;
@@ -78,6 +80,7 @@ function negativeTtlFor(missCount) {
 // 首档 miss 的用户看到的期望是错的）。
 // Remaining negative-cache ms (0 when not cached); powers the dynamic
 // "auto-retry in X min" hint (the old static "2h" copy lied on tier 1).
+/** @param {string} gameName */
 export async function negativeCacheRemainingMs(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return 0;
@@ -112,11 +115,13 @@ export async function getNegativeCacheCount() {
 // 不 import biz——分层矩阵）。返回 {name: {appId, lastSearched, missCount}}。
 export async function getNameIndexSnapshot() {
   await loadNameIndexToMemory();
+  /** @type {Record<string, any>} */
   const out = {};
   for (const [name, entry] of nameIndexMemory) out[name] = entry;
   return out;
 }
 
+/** @param {string} gameName @param {string|number|null} appId */
 export async function recordNameIndex(gameName, appId) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return;
@@ -193,6 +198,7 @@ function cleanupExpiredNegativeEntries() {
 }
 
 // 按 appId 清理名称索引条目（缓存管理页删除用）/ Delete entries pointing to an appId
+/** @param {string} appId @param {Array<string>} names */
 export async function deleteNameIndexEntries(appId, names) {
   if (!appId) return;
   await loadNameIndexToMemory();
@@ -216,6 +222,7 @@ export async function deleteNameIndexEntries(appId, names) {
 // v6.2.0 修复：与 recordNameIndex 对称删除清理名变体——此前只删精确 key，
 // lookupAppIdByName 的清理名回退仍能命中残留变体（报错重检索被旧映射干扰，
 // test-handlers 集成测试发现）
+/** @param {string} name */
 export async function deleteNameIndexEntry(name) {
   const key = (name || '').toLowerCase().trim();
   if (!key) return;

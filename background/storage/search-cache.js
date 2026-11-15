@@ -18,7 +18,7 @@ import { debounce } from '../core/mechanisms.js'; // v10.7.0：防抖工厂
 const SEARCH_CACHE_TTL = 24 * 3600e3; // 24 小时 / 24 hours
 const MAX_ENTRIES = STORAGE_CAPS.searchCache; // 上限裁剪（LRU 按 ts）/ LRU cap；v10.7.0 单源
 
-/** @type {Map<string, {appId: string|null, siteKeys: Array<string>, results: Array<Object>, ts: number}>} */
+/** @type {Map<string, {appId: string|number|null, siteKeys: Array<string>, results: Array<any>, ts: number}>} */
 let searchCacheMemory = new Map();
 let loaded = false;
 
@@ -35,12 +35,14 @@ async function load() {
   loaded = true;
 }
 
+/** @param {string} gameName @param {string|number|null} [appId] */
 function cacheKey(gameName, appId) {
   const name = (gameName || '').toLowerCase().trim();
   return appId ? `${name}#${appId}` : name;
 }
 
 // 读取缓存（过期条目返回 null 并惰性清理）/ Read cache (expired → null)
+/** @param {string} gameName @param {string|number|null} [appId] @param {Array<string>|null} [siteKeys] */
 export async function getSearchCache(gameName, appId, siteKeys) {
   await load();
   const key = cacheKey(gameName, appId);
@@ -58,6 +60,7 @@ export async function getSearchCache(gameName, appId, siteKeys) {
 }
 
 // 写入缓存（LRU 裁剪）/ Write cache (LRU cap)
+/** @param {string} gameName @param {string|number|null} [appId] @param {Array<string>|null} [siteKeys] @param {any} [results] */
 export async function setSearchCache(gameName, appId, siteKeys, results) {
   await load();
   const key = cacheKey(gameName, appId);

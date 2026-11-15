@@ -71,11 +71,13 @@ let refreshAttempted = false; // 本 SW 生命周期内至多主动刷新一次�
 let meta = null;
 
 /** 归一化名 → 去空格 secondary key（含空格名才有区分价值）*/
+/** @param {string} normTitle */
 function deSpaceKey(normTitle) {
   return normTitle.includes(' ') ? normTitle.replace(/\s+/g, '') : '';
 }
 
 /** 构建索引（主键 + 去空格变体键 + v14.16.0 O2 模糊桶）*/
+/** @param {any} entries */
 function buildMaps(entries) {
   const map = new Map();
   const deSpace = new Map();
@@ -173,7 +175,8 @@ const FUZZY_BUCKET_SCAN_CAP = 400;
  * @returns {Set<number>}
  */
 function seqTokensOf(normTitle) {
-  const romanVal = (r) => {
+  const romanVal = (/** @type {string} */ r) => {
+    /** @type {Record<string, number>} */
     const map = { i: 1, v: 5, x: 10, l: 50, c: 100, d: 500, m: 1000 };
     let total = 0;
     for (let i = 0; i < r.length; i++) {
@@ -192,8 +195,9 @@ function seqTokensOf(normTitle) {
 }
 
 /** 字符 bigram Dice（去空格小写全串；无最小集要求，阈值天然把关短串） */
+/** @param {string} a @param {string} b */
 function charBigramDice(a, b) {
-  const grams = (s) => {
+  const grams = (/** @type {string} */ s) => {
     const t = String(s).replace(/\s+/g, '');
     const out = new Set();
     for (let i = 0; i < t.length - 1; i++) out.add(t.slice(i, i + 2));

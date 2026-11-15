@@ -16,7 +16,7 @@ const MAX_FAVORITES = STORAGE_CAPS.favorites; // v10.7.0：单源 STORAGE_CAPS
 
 /**
  * 读取收藏清单（appId 升序稳定；新增时间随条目返回）
- * @returns {Promise<Object>} { [appId]: { name, addedAt } }
+ * @returns {Promise<Record<string, any>>} { [appId]: { name, addedAt } }
  */
 export async function getFavorites() {
   const stored = await dataStore.readModule(DB_KEYS.FAVORITES);

@@ -35,6 +35,7 @@ export async function createBackup(manual = false, /** @type {string[]|null} */ 
       ? all.filter((m) => moduleKeys.includes(m.key))
       : all.filter((m) => BACKUP_CORE_KEYS.includes(m.key));
     const storageKeys = modules.map((m) => m.storageKey);
+    /** @type {Record<string, any>} */
     const snapshot = {};
     for (const key of storageKeys) {
       const value = await dataStore.readModule(key);
@@ -90,6 +91,7 @@ export async function createBackup(manual = false, /** @type {string[]|null} */ 
 // 备份列表（含模块清单）/ Backup list (with module lists)
 export async function getBackupList() {
   const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+  /** @type {any[]} */
   const backups = stored || [];
   return backups
     .map((b) => ({
@@ -106,12 +108,13 @@ export async function getBackupList() {
 // Restore a backup (moduleKeys optional; defaults to all modules)
 /**
  * 恢复备份
- * @param {string} backupId
+ * @param {string} [backupId]
  * @param {Array<string>|null} [moduleKeys]
  */
 export async function restoreBackup(backupId, moduleKeys = null) {
   try {
     const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+    /** @type {any[]} */
     const backups = stored || [];
     const backup = backups.find((b) => b.id === backupId);
     if (!backup || !backup.data) {
@@ -123,6 +126,8 @@ export async function restoreBackup(backupId, moduleKeys = null) {
     await createBackup(true);
 
     const modules = moduleKeys ? DATA_MODULES.filter((m) => moduleKeys.includes(m.key)) : DATA_MODULES;
+    /** @type {Record<string, any>} */
+    /** @type {Record<string, any>} */
     const snapshot = {};
     for (const mod of modules) {
       const key = mod.storageKey;
@@ -177,8 +182,10 @@ export async function restoreLatestIfFresh() {
   }
 }
 
+/** @param {string} [backupId] */
 export async function deleteBackup(backupId) {
   const stored = await dataStore.readModule(DB_KEYS.BACKUPS);
+  /** @type {any[]} */
   let backups = stored || [];
   backups = backups.filter((b) => b.id !== backupId);
   await dataStore.writeModule(DB_KEYS.BACKUPS, backups);

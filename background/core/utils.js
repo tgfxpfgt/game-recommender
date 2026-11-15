@@ -80,7 +80,7 @@ function isSafeIpv6Host(host) {
 
 // v5.0.0：纯对象判定（settings/rules/message-contract 三处重复收敛于此）
 // Plain-object predicate (unified from three duplicated copies).
-/** @param {any} v */
+/** @param {any} v @returns {v is Record<string, any>} */
 export function isPlainObject(v) {
   return !!v && typeof v === 'object' && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
 }

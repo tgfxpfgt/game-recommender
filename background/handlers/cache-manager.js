@@ -231,6 +231,7 @@ export async function handleGetGameCacheList(message) {
       // v6.4.19：各信息类型缓存新鲜度（true=有效 / false=缺失或过期）——
       // 缓存详情展示用（独立查看/管理）
       moduleFreshness: (() => {
+        /** @type {Record<string, boolean>} */
         const out = {};
         for (const k of MODULE_KEYS) out[k] = cachedEntry ? isModuleValid(cachedEntry, k) : false;
         return out;

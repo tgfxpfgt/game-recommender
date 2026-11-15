@@ -265,8 +265,9 @@ export function validateAdapterRules(rules) {
 export async function saveAdapterRules(rules) {
   const result = validateAdapterRules(rules);
   if (!result.ok) return result;
-  const vocabSegment = result.rules.retrievalVocab;
-  const normalized = normalizeImportedRules(result.rules);
+  const validated = /** @type {any} */ (result);
+  const vocabSegment = validated.rules.retrievalVocab;
+  const normalized = normalizeImportedRules(validated.rules);
   delete normalized.retrievalVocab;
   await dataStore.writeModule(DB_KEYS.ADAPTER_RULES, normalized);
   resetRulesCache();

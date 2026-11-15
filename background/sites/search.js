@@ -196,9 +196,10 @@ export async function searchDownloadSites(gameName, appId, siteKeys = null) {
   const sitesToSearch = siteKeys ? allSites.filter((s) => siteKeys.includes(s.key)) : allSites;
 
   // 生成多个搜索词，按优先级排序：清洗主名 → parseGameTitle 候选 → 原始名
+  /** @type {string[]} */
   const searchTerms = [];
   const seenTerms = new Set();
-  function addTerm(t) {
+  function addTerm(/** @type {any} */ t) {
     t = String(t ?? ''); // v10.9：边界防御（gameName 异型不崩整条搜索链）
     const key = t.toLowerCase().trim();
     if (key.length >= 2 && !seenTerms.has(key)) {

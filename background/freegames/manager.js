@@ -90,8 +90,8 @@ async function doRefreshFreeGames(force = false) {
     await updateFreeGamesBadge();
     return { lastUpdate, games: existing.games, fetchErrorAt: now };
   }
-  const existingMap = new Map(existing.games.map((g) => [g.id, g]));
-  /** @type {Array<Object>} */
+  const existingMap = new Map(existing.games.map((/** @type {any} */ g) => [g.id, g]));
+  /** @type {Array<{id: string, platform?: string, freeType?: string, name: string, [k: string]: any}>} */
   const fresh = []; // 首次出现的游戏（v6.3.2 C2 通知用）/ newly appeared games
   newGames.forEach((g) => {
     const old = existingMap.get(g.id);
@@ -109,6 +109,7 @@ async function doRefreshFreeGames(force = false) {
   if (JSON.stringify(newGames) !== JSON.stringify(existing.games)) {
     await dataStore.writeModule(DB_KEYS.FREE_GAMES, { lastUpdate: now, games: newGames });
   }
+  /** @type {Record<string, any>} */
   const metaUpdate = { lastUpdate: now };
   if (failedCount > 0) metaUpdate.lastFailedSources = failedCount;
   await dataStore.writeModule(DB_KEYS.FREE_GAMES_META, metaUpdate);
@@ -123,6 +124,7 @@ async function doRefreshFreeGames(force = false) {
 // Missed stats: expired while monitored but never claimed. Pure derivation.
 export async function getFreeGameMissStats() {
   const stored = await dataStore.readModule(DB_KEYS.FREE_GAMES);
+  /** @type {any[]} */
   const games = (stored && stored.games) || [];
   const now = Date.now();
   const missed = games.filter((g) => {
@@ -138,7 +140,7 @@ export async function getFreeGameMissStats() {
     missedCount: missed.length,
     missedValue: Math.round(value * 100) / 100,
     monitoredTotal: games.length,
-    missed: missed.slice(-10).map((g) => ({
+    missed: missed.slice(-10).map((/** @type {any} */ g) => ({
       name: g.name,
       platform: g.platform,
       endTime: g.endTime,
@@ -149,7 +151,7 @@ export async function getFreeGameMissStats() {
 
 // 获取限免数据（供页面与消息使用）/ Get free-games data
 export async function getFreeGamesData(force = false) {
-  const freeData = await refreshFreeGames(force);
+  const freeData = /** @type {any} */ (await refreshFreeGames(force));
   Logger.info('FreeGames', `获取限免游戏`, { count: freeData.games ? freeData.games.length : 0 });
   return { data: freeData };
 }

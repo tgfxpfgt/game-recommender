@@ -64,6 +64,7 @@ export async function searchExtendedFallback(searchTerms, rawName, excludeAppId,
     // v6.4.19：俗称序号变体——官方名常无系列序号（"Resident Evil Requiem"），
     // 互联网习惯加（"生化危机9"）——对含数字的变体追加去数字版本
     // （"生化危机9" → "生化危机"），数字冲突校验会保护候选选择。
+    /** @type {string[]} */
     const extras = [];
     for (const v of variants) {
       if (/\d/.test(v)) {
@@ -140,6 +141,7 @@ export async function searchCommunityApps(term, rawName, excludeAppId) {
 
 // 轻量单次中文搜索（扩展组合用：低开销，不加重试与英文搜索；结果需通过名称校验）
 // Lightweight single CN search (cheap; results pass the name-relevance check)
+/** @param {string} term @param {string} rawName @param {string|number|null} [excludeAppId] @param {boolean} [variantMode] @param {string} [lang] */
 async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = false, lang = 'schinese') {
   // v14.7 批次 1（A-P2-2）：与主搜索同样短路——主搜索途中熔断打开后，去数字
   // +变体循环仍会串行发 ~10 个请求（慢网各挂 15s）拖死批次。
@@ -159,13 +161,13 @@ async function searchSteamAppIdLight(term, rawName, excludeAppId, variantMode = 
     const check = variantMode ? nameMatchesSearchVariant : nameMatchesSearch;
     const related = items
       .filter(
-        (i) =>
+        (/** @type {any} */ i) =>
           String(i.id) !== String(excludeAppId) &&
           !ADDON_NAME_PATTERN.test(i.name || '') &&
           check(i.name, term, rawName)
       )
-      .map((i) => ({ item: i, score: matchCandidateScore(i.name, term, rawName) }))
-      .sort((a, b) => b.score - a.score);
+      .map((/** @type {any} */ i) => ({ item: i, score: matchCandidateScore(i.name, term, rawName) }))
+      .sort((/** @type {any} */ a, /** @type {any} */ b) => b.score - a.score);
     const best = related[0];
     if (!best || best.score < 1) return null;
     return { appId: best.item.id, name: best.item.name, englishName: best.item.name };

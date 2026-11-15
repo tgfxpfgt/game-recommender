@@ -179,6 +179,7 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   if (plat0.kind === 'console') return null;
   /** @type {string} */
   let appSource = options.appId ? 'image' : 'unknown';
+  /** @type {string|number|null} */
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);
@@ -471,6 +472,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
   // 0. appId 优先（列表页封面图提取），否则名称索引
   // v14.28.6 R4-B：记录 appId 来源（推测依据展示用）
   let idSource = options.appId ? 'image' : 'unknown';
+  /** @type {string|number|null} */
   let appId = options.appId ? String(options.appId) : null;
   if (!appId) {
     appId = await lookupAppIdByName(gameName);

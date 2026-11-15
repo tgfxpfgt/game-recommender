@@ -42,6 +42,7 @@ export async function handleGetStats() {
     .sort((a, b) => b.downloads - a.downloads || b.views - a.views)
     .slice(0, 50);
 
+  /** @type {Record<string, number>} */
   const downloadMethods = {};
   log
     .filter((e) => e.type === 'click_download')
@@ -50,6 +51,7 @@ export async function handleGetStats() {
       downloadMethods[method] = (downloadMethods[method] || 0) + 1;
     });
 
+  /** @type {Record<string, any>} */
   const result = {
     totalEvents: log.length,
     totalGames: Object.keys(profiles).length,
@@ -77,6 +79,7 @@ export async function handleGetStats() {
 
 // 行为趋势（按天/周浏览·下载·转化率，v4.0.0 起；v4.1.0 支持周粒度）
 // Behavior trends (daily/weekly views · downloads · rate)
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function handleGetTrends(message) {
   const granularity = message && message.granularity === 'week' ? 'week' : 'day';
   // v7.0.4：趋势聚合缓存（版本未变直接复用）
@@ -126,6 +129,7 @@ export async function handleGetSteamRecommendations() {
 // 好评率（steam-cache）/ Steam250 排名 / a-b 统计 / 收藏标记。
 // Cross-cache game search: fuzzy match over the registry, merged with
 // rating / steam250 rank / app stats / favorite flag.
+/** @param {import('../core/types.js').MessagePayload} message */
 export async function searchCachedGames(message) {
   const q = String((message && message.query) || '')
     .trim()
@@ -137,7 +141,7 @@ export async function searchCachedGames(message) {
     const haystacks = [entry.cnName, entry.enName, ...(entry.names || [])].filter(Boolean).map((n) => n.toLowerCase());
     if (!haystacks.some((n) => n.includes(q))) continue;
     const cachedEntry = await getSteamCacheEntry(appId);
-    const merged = getMergedData(cachedEntry);
+    const merged = /** @type {any} */ (getMergedData(cachedEntry));
     const [steam250, favs] = await Promise.all([getSteam250Info(appId), getFavorites()]);
     results.push({
       appId,

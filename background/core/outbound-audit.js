@@ -33,7 +33,9 @@ export async function warmupOutboundAudit() {
 // 记录一次出站请求（fetchWithTimeout 调用；含被拦截/限速/网络错误路径）
 // Record one outbound request (called by fetchWithTimeout; covers blocked,
 // rate-limited and network-error paths).
+/** @param {string} host @param {boolean} ok @param {number} ms @param {number} [status] @param {number} [t] */
 export function recordOutbound(host, ok, ms, status = 0, t = Date.now()) {
+  /** @type {Array<{t: number, host: string, ok: boolean, ms: number, status: number}>} */
   const audit = persist.peek();
   audit.push({ t, host: String(host).slice(0, 80), ok: !!ok, ms: ms | 0, status: status | 0 });
   if (audit.length > AUDIT_MAX) {
@@ -45,6 +47,7 @@ export function recordOutbound(host, ok, ms, status = 0, t = Date.now()) {
 // 获取审计（entries 倒序，最新在前）+ 聚合统计
 // Get audit entries (newest first) plus aggregate stats.
 export function getOutboundAudit(limit = 100) {
+  /** @type {Array<{t: number, host: string, ok: boolean, ms: number, status: number}>} */
   const audit = persist.peek();
   const total = audit.length;
   const failed = audit.filter((e) => !e.ok).length;
@@ -75,12 +78,13 @@ export function resetOutboundAudit() {
 
 // 每主机滑动窗口限速：窗口内超过 RATE_MAX 次则拒绝（now 可注入便于单测）
 // Per-host sliding-window rate limit; returns false when the window is full.
+/** @param {string} host @param {number} [now] */
 export function checkRateLimit(host, now = Date.now()) {
   const key = String(host || '').slice(0, 80);
   if (!key) return true;
   let ts = rateCalls.get(key) || [];
   const cutoff = now - RATE_WINDOW_MS;
-  ts = ts.filter((t) => t > cutoff);
+  ts = ts.filter((/** @type {number} */ t) => t > cutoff);
   if (ts.length >= RATE_MAX) {
     rateCalls.set(key, ts);
     return false;
