@@ -515,3 +515,9 @@ export const BACKUP_CORE_KEYS = [
 // 导出文件格式标识与版本 / Export file format id and version
 export const EXPORT_FORMAT = 'game-recommender-backup';
 export const EXPORT_VERSION = 1;
+
+// v15 阶段 4：用户可见显示名单源（console 前缀/通知标题/文档标题引用；
+// 「游戏雷达 Game Radar」三名并存的显示面收敛到此——代码标识符（仓库/包名）
+// 保持 game-recommender 不改，用户数据兼容面（EXPORT_FORMAT）冻结。
+// v15 stage-4: single source for user-visible display name.
+export const APP_NAME = '游戏雷达 Game Radar';

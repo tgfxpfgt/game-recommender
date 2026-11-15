@@ -35,7 +35,7 @@
 // v14.7 批次 7：早期消息路由必须**最先**求值（ESM 按 import 顺序执行模块体
 // ——本行在全部重依赖之前注册 onMessage，图就绪窗口到达的消息排队冲放）。
 import { attachEarlyMessageRouter } from './core/early-message-router.js';
-import { ENDPOINTS } from './core/constants.js'; // v14.12 B3：store URL 单源
+import { ENDPOINTS, APP_NAME } from './core/constants.js'; // v14.12 B3：store URL 单源 + v15 显示名
 import { runHotTier, runWarmTier } from './warmup-coordinator.js'; // v14.13 B2：分层预热协调器
 import '../adapters/default.js';
 import '../adapters/sites/xdgame.js';
@@ -326,4 +326,4 @@ const MANIFEST_VERSION = (chrome.runtime.getManifest && chrome.runtime.getManife
 Logger.info('System', `Service Worker 已启动 v${MANIFEST_VERSION}`);
 // 控制台横幅保留（与上面的 Logger.info 双写）：SW 首启在 dashboard 打开前就要能
 // 肉眼确认"浏览器加载的是哪个版本"，故不并入 Logger（v14.28.2 P3-4 例外之一）。
-console.log(`【游戏雷达】 Service Worker 已启动 v${MANIFEST_VERSION}`);
+console.log(`【${APP_NAME}】 Service Worker 已启动 v${MANIFEST_VERSION}`);

@@ -183,7 +183,7 @@ export const BUDGETS = {
   // stage-1 slice-19~22 (service-worker/orchestrator-detail/app-stats/ai-fallback/
   // api-assemble/api-monitor/itad/diag-status/api-reviews/types/series 68→0): +3,156B;
   // 全量 vitest（unit+sim+integration）绿 + 普通 typecheck 三配置 0 + lint 0。
-  swGraphBytes: 985278,
+  swGraphBytes: 985750,
   swGraphFiles: 108,
   staticInjectionBytes: 41036,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

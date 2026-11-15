@@ -14,6 +14,7 @@
  * tracker 按规则早退兜底（不再追踪的站点零工作）。
  */
 import { getSiteRules, isValidSiteDomain } from './rules.js';
+import { APP_NAME } from './constants.js';
 
 // 注：core 层不依赖 storage（分层约束）——日志用 console（SW 可见）
 
@@ -90,9 +91,9 @@ export async function syncSiteScripts() {
         }));
       if (toRegister.length === 0) return;
       await chrome.scripting.registerContentScripts(toRegister);
-      console.log(`【游戏雷达】 动态注册自定义站点内容脚本: ${toRegister.map((s) => s.id).join(', ')}`);
+      console.log(`【${APP_NAME}】 动态注册自定义站点内容脚本: ${toRegister.map((s) => s.id).join(', ')}`);
     } catch (e) {
-      console.warn('【游戏雷达】 自定义站点脚本注册失败:', String(e));
+      console.warn(`【${APP_NAME}】 自定义站点脚本注册失败:`, String(e));
     }
   })();
   try {
