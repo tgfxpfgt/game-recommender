@@ -40,18 +40,27 @@ export function reloadRetrievalRules() {
 // related; single-language pairs of different languages are trusted across
 // languages; mixed-language pairs with no shared token are unrelated. Guards
 // cache hits against sticky name-index entries that pin the wrong appId.
+/**
+ * @param {string} title
+ * @param {string} cachedName
+ * @returns {boolean}
+ */
 export function namesRelated(title, cachedName) {
-  const norm = (s) => String(s || '').toLowerCase();
+  const norm = (/** @type {string} */ s) => String(s || '').toLowerCase();
   // 中文词（连续 2+ 汉字）/ CJK tokens
+  /** @param {string} s */
   const cjkWords = (s) => norm(s).match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
   // 英文词（≥4 字符，排除 of/the/and/ii 等短词与下载站噪声词）/
   // EN tokens (≥4 chars, excluding short words and download-site noise)
-  const enWords = (s) => (norm(s).match(/[a-z][a-z0-9']{3,}/g) || []).filter((w) => !noiseEnWordsOf().has(w));
+  /** @param {string} s */
+  const enWords = (s) =>
+    (norm(s).match(/[a-z][a-z0-9']{3,}/g) || []).filter((/** @type {string} */ w) => !noiseEnWordsOf().has(w));
   const tCjk = cjkWords(title),
     tEn = enWords(title);
   const cCjk = cjkWords(cachedName),
     cEn = enWords(cachedName);
-  const hasCommon = (a, b) => a.some((w) => b.includes(w));
+  /** @param {string[]} a @param {string[]} b */
+  const hasCommon = (a, b) => a.some((/** @type {string} */ w) => b.includes(w));
   if (hasCommon(tCjk, cCjk) || hasCommon(tEn, cEn)) return true;
   // 跨语言信任：双方均单语言且语言不同（纯英文标题 vs 纯中文缓存名等）
   // v6.4.17：加数字冲突校验——"生化危机9" 跨语言匹配 "Resident Evil 4"
@@ -76,6 +85,7 @@ export function namesRelated(title, cachedName) {
 // 现统一消费本函数（噪声词表 NOISE_EN_WORDS 单点维护）。
 // Exported as the single source for "EN content words" (noise words filtered);
 // the cross-validation in orchestrator-detail now consumes this.
+/** @param {string} text */
 function coreTokensOf(text) {
   const norm = String(text || '').toLowerCase();
   const cjk = norm.match(/[\u4e00-\u9fff\u3400-\u4dbf]{2,}/g) || [];
@@ -88,8 +98,10 @@ export { coreTokensOf };
 // 用于跨语言信任分支："生化危机9" vs "Resident Evil 4"（{9}∩{4}=∅ 冲突，
 // 系列旧作）；"生化危机9" vs "Resident Evil Requiem"（候选无数字不冲突）。
 // Digit-conflict guard for cross-language trust (blocks same-series old entries).
+/** @param {string} a @param {string} b */
 export function digitSetsOverlap(a, b) {
-  const nums = (s) => (String(s).match(/\d+/g) || []).map((n) => Number(n));
+  /** @param {string} s */
+  const nums = (s) => (String(s).match(/\d+/g) || []).map((/** @type {string} */ n) => Number(n));
   const na = nums(a);
   const nb = nums(b);
   if (na.length === 0 || nb.length === 0) return true; // 任一无数字 → 不冲突
@@ -128,6 +140,7 @@ export function seqNumsOf(s) {
  * @returns {boolean} 是否相关
  */
 export function nameMatchesSearch(resultName, term, rawName) {
+  /** @param {string} s */
   const norm = (s) =>
     String(s || '')
       .toLowerCase()
@@ -143,6 +156,7 @@ export function nameMatchesSearch(resultName, term, rawName) {
   const idx = rawNorm.indexOf(tn);
   const next = idx >= 0 ? rawNorm[idx + tn.length] : '';
   const digitGap = !!next && /\d/.test(next) && !/\d/.test(rn);
+  /** @param {string} s */
   const cnOf = (s) => /[\u4e00-\u9fff]/.test(s);
 
   if (rn === tn) return !digitGap;
@@ -194,6 +208,11 @@ export function nameMatchesSearch(resultName, term, rawName) {
 // 而它与标题整体无关。变体搜索（扩展组合搜索）专用。
 // Variant-search guard: the result must also share a core token with the part
 // of the raw title that the variant dropped (blocks generic-word mismatches).
+/**
+ * @param {string} resultName
+ * @param {string} term
+ * @param {string} rawName
+ */
 export function nameMatchesSearchVariant(resultName, term, rawName) {
   if (!nameMatchesSearch(resultName, term, rawName)) return false;
   const tn = String(term || '').toLowerCase();
@@ -214,6 +233,11 @@ export function nameMatchesSearchVariant(resultName, term, rawName) {
 // v6.4.16：候选相关性打分（多候选排序用）——共同核心词数优先，
 // 跨语言（无共同词）得分 0 不再被采用。
 // Candidate relevance score for multi-candidate ranking (score 0 = rejected).
+/**
+ * @param {string} resultName
+ * @param {string} term
+ * @param {string} rawName
+ */
 export function matchCandidateScore(resultName, term, rawName) {
   const rn = String(resultName || '').toLowerCase();
   const tn = String(term || '').toLowerCase();
@@ -268,6 +292,7 @@ export function matchCandidateScore(resultName, term, rawName) {
 // 全为非游戏候选时兜底保留（名称相关性校验仍在，避免无结果）。
 // Pure candidate ranker by Steam type (DLC/music excluded when game exists).
 const GAME_CANDIDATE_TYPES = new Set(['game', 'software', 'demo']);
+/** @param {any[]} items */
 export function rankCandidatesByType(items) {
   const all = Array.isArray(items) ? items : [];
   const games = all.filter((i) => GAME_CANDIDATE_TYPES.has(String((i && i.type) || '').toLowerCase()));
@@ -337,6 +362,12 @@ export function isCrossoverEntry(resultName, term, rawName) {
 // 结果需通过名称相关性校验（防噪声词/删词变体误匹配无关游戏或续作）。
 // One search pass (throws on total network failure for outer retry; null = not
 // found). Results must pass the name-relevance check.
+/**
+ * @param {string[]} searchTerms
+ * @param {string} rawName
+ * @param {string|number|null} [excludeAppId]
+ * @param {string} [lang]
+ */
 export async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, lang = 'schinese') {
   // v14.8 批次 14（三站基准回放发现）：原实现**按词序首中即返**——第一词的
   // 低分错配候选（如"恶魔城"命中《夜族崛起》恶魔城传奇典藏包，1 分）会抢先
@@ -360,7 +391,9 @@ export async function searchSteamAppIdOnce(searchTerms, rawName, excludeAppId, l
   const enSegment = (String(rawName).match(/[A-Za-zÀ-ɏ][A-Za-zÀ-ɏ0-9 &:.'\-]{5,}/) || [''])[0].trim();
   const mixedTitle = enSegment.length > 0;
   const enWords = mixedTitle ? coreTokensOf(enSegment).filter((w) => /^[a-z]/.test(w)) : [];
-  const hasEnCoverage = (name) => enWords.filter((w) => coreTokensOf(name).includes(w)).length >= 2;
+  /** @param {string} name */
+  const hasEnCoverage = (name) =>
+    enWords.filter((/** @type {string} */ w) => coreTokensOf(name).includes(w)).length >= 2;
   for (const term of searchTerms) {
     /** @type {{total?: number, items: Array<{id: number, name: string, type?: string}>}|null} */
     let cnData = null;

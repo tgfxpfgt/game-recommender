@@ -152,7 +152,7 @@ async function doHandleSearchSteam(message, sender) {
         !needsRatingRefetch(cachedMerged) &&
         !hasInvertedReviewCounts(cachedMerged) &&
         !!cachedMerged.cnReviewsFetchedAt && // v14.24.0：缺标记旧缓存 → 全量拉取一次回填评论
-        namesRelated(message.gameName, cachedMerged.name)
+        namesRelated(/** @type {string} */ (message.gameName), cachedMerged.name)
       ) {
         Logger.info('Steam', `网址索引命中缓存 "${message.gameName}" → ${cachedMerged.name}（零出站）`, {
           appId: cachedMerged.appId
@@ -181,7 +181,7 @@ async function doHandleSearchSteam(message, sender) {
         // 的直取校验对称）——URL 索引由历史匹配写入，一旦写入错误 appId 而
         // 命中路径无校验短路返回，错误被永久固化（报错清理不覆盖 URL 索引
         // 时换绑永远不会发生）。不相关 → 清除错误绑定，继续标题搜索路径
-        if (namesRelated(message.gameName, view.name)) {
+        if (namesRelated(/** @type {string} */ (message.gameName), view.name)) {
           Logger.info('Steam', `网址索引命中 "${message.gameName}" → ${view.name}`, { appId: byUrl.appId });
           await flushAllCaches();
           const newEntry = await getSteamCacheEntry(byUrl.appId);
