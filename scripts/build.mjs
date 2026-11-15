@@ -181,15 +181,28 @@ function concatPage(page) {
   // parsePageScripts 同款——含 type="module" 形态，否则 fm-keys 类标签漏折叠）
   const scriptRe = /<script\s+([^>]*)>\s*<\/script>\s*/g;
   let first = true;
-  const html = read(htmlPath).replace(scriptRe, (m0, attrs) => {
+  /** @type {string[]} */
+  const moduleTags = []; // v15 阶段 3：type=module 脚本保持独立 tag（真 ESM 动态 import 链）
+  let html = read(htmlPath).replace(scriptRe, (m0, attrs) => {
     const srcM = attrs.match(/src="([^"]+)"/);
     if (!srcM || /^https?:\/\//.test(srcM[1])) return m0;
+    if (/type=["']module["']/.test(attrs)) {
+      moduleTags.push(`<script type="module" src="${srcM[1]}"></script>`);
+      return '';
+    }
     if (first) {
       first = false;
       return `<script src="${bundleName}"></script>\n`;
     }
     return '';
   });
+  // module tags 追加到 bundle tag 后（保持 HTML 缩进）
+  if (moduleTags.length > 0) {
+    html = html.replace(
+      `<script src="${bundleName}"></script>`,
+      `<script src="${bundleName}"></script>\n    ` + moduleTags.join('\n    ')
+    );
+  }
   // v15 修正：收集**全部本地引用资源**（link href / img src——属性顺序任意，
   // 原正则要求 rel 紧邻 href 导致 type 插入时漏收集 → options.css 等 404）。
   // 仅收静态资产（.js 已打包进 bundle）。
@@ -310,6 +323,30 @@ async function assembleDist() {
     fs.mkdirSync(path.join(DIST, page), { recursive: true });
     fs.writeFileSync(path.join(DIST, htmlPath), html, 'utf-8');
     fs.writeFileSync(path.join(DIST, page, bundleName), code, 'utf-8');
+    // v15 阶段 3：type=module 页面脚本（.mjs preact 组件）随页复制
+    for (const { src: sc, isModule: im } of parsePageScripts(htmlPath)) {
+      if (!im) continue;
+      const absSrc = path.posix.normalize(path.posix.join(page, sc));
+      if (!exists(absSrc)) continue;
+      fs.mkdirSync(path.dirname(path.join(DIST, absSrc)), { recursive: true });
+      // esbuild bundle（裸包名 import 在扩展页面无法解析——内联 preact/hooks）
+      const mres = esbuild.buildSync({
+        entryPoints: [path.join(ROOT, absSrc)],
+        bundle: true,
+        minify: false,
+        sourcemap: false,
+        legalComments: 'none',
+        logLevel: 'silent',
+        charset: 'utf8',
+        target: ['chrome109'],
+        format: 'esm',
+        write: false
+      });
+      if (mres.errors.length > 0) {
+        throw new Error('module 页面脚本 bundle 失败: ' + absSrc + ' — ' + mres.errors.map((e) => e.text).join('; '));
+      }
+      fs.writeFileSync(path.join(DIST, absSrc), mres.outputFiles[0].text, 'utf-8');
+    }
     for (const css of cssFiles) {
       if (cssCopied.has(css)) continue;
       cssCopied.add(css);

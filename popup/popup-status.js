@@ -8,49 +8,28 @@
  */
 
 // ============ Load Steam API Status / 加载 Steam API 状态 ============
+/** @type {(resp: any, dotEl: HTMLElement, mountEl: HTMLElement) => void} */
+let renderApiStatusPreact = null;
+// v15 阶段 3：Preact 组件按需装载（dynamic import 页面上下文合法）——首次调用装载一次
+async function ensurePreactRenderer() {
+  if (renderApiStatusPreact) return renderApiStatusPreact;
+  const m = await import(chrome.runtime.getURL('popup/popup-status.preact.mjs'));
+  renderApiStatusPreact = m.renderApiStatus;
+  return renderApiStatusPreact;
+}
+
 async function loadApiStatus() {
   const dot = document.getElementById('apiStatusDot');
   const info = document.getElementById('apiStatusInfo');
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_API_STATUS' });
-    if (!resp) {
-      info.innerHTML = '<span class="no-data">无法获取状态</span>';
-      return;
-    }
-    const num = (/** @type {any} */ v) => Number(v) || 0; // v10.9：异型响应防 NaN 文案
-    // v11.0 B2：分域名可达性点灯（store/api/circuit）
-    const dm = resp.domains || {};
-    const lamp = (/** @type {string} */ v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
-    // v13 B1：per-domain 熔断态细节（storeCircuit/apiCircuit：open/half-open/closed）
-    const circuitHint = (/** @type {any} */ d) =>
-      dm[d + 'Circuit'] === 'open' ? ' ⚡熔断中' : dm[d + 'Circuit'] === 'half-open' ? ' ⚡半开探测' : '';
-    const domainLine =
-      dm.store || dm.api
-        ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">可达性：商店 ${lamp(dm.store)}${circuitHint('store')} / API ${lamp(dm.api)}${circuitHint('api')}</div>`
-        : '';
-    if (resp.anomaly) {
-      dot.className = 'status-dot error';
-      info.innerHTML = `<span style="color:#e74c3c;font-size:12px;">⚠️ Steam API 异常：近 ${num(resp.windowSec) / 60} 分钟失败率 <b>${num(resp.failRate)}%</b>（${num(resp.failed)}/${num(resp.total)} 次失败），疑似限流</span>
-        ${domainLine}
-        <div style="font-size:11px;color:#8f98a0;margin-top:4px;">扩展已自动降低批量检索速度；建议稍后重试或减少连续刷新</div>`;
-    } else if (num(resp.total) < 8) {
-      dot.className = 'status-dot';
-      info.innerHTML = `<span style="font-size:12px;color:#8f98a0;">采样中：近 5 分钟 ${num(resp.total)} 次调用（${num(resp.failed)} 次失败）</span>`;
-    } else {
-      dot.className = 'status-dot ok';
-      info.innerHTML =
-        `<span style="font-size:12px;color:#a3cf06;">✅ Steam API 正常：近 ${num(resp.windowSec) / 60} 分钟 ${num(resp.total)} 次调用，失败 ${num(resp.failed)} 次（${num(resp.failRate)}%）${num(resp.limited) > 0 ? `，限流 ${num(resp.limited)} 次` : ''}</span>` +
-        domainLine +
-        // v10.6.0 N1：会话累计出网请求量（缓存命中越多，该值越低）
-        (resp.sessionTotal > 0
-          ? `<div style="font-size:11px;color:#8f98a0;margin-top:4px;">本次浏览器会话已出网 ${resp.sessionTotal} 次 Steam 请求${resp.sessionFailed > 0 ? `（失败 ${resp.sessionFailed}）` : ''}</div>`
-          : '');
-    }
+    const renderApiStatus = await ensurePreactRenderer();
+    renderApiStatus(resp, dot, info);
   } catch {
+    dot.className = 'status-dot';
     info.innerHTML = '<span class="no-data">无法获取状态</span>';
   }
 }
-
 // ============ Load Free Games Count / 加载限免游戏数量 ============
 async function loadFreeGamesCount() {
   try {
