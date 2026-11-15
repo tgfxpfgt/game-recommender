@@ -185,7 +185,7 @@ export const BUDGETS = {
   // 全量 vitest（unit+sim+integration）绿 + 普通 typecheck 三配置 0 + lint 0。
   swGraphBytes: 985278,
   swGraphFiles: 108,
-  staticInjectionBytes: 40895,
+  staticInjectionBytes: 41036,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
@@ -193,7 +193,7 @@ export const BUDGETS = {
   // (finish only when this tab's job is confirmed running); re-locked.
   // v14.31.3 stage-0: detail closure re-locked at true injected surface
   // (sidebar static imports made the runtime tail visible to the meter).
-  closureBytes: 326464
+  closureBytes: 326605
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

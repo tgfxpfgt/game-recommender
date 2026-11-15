@@ -22,10 +22,11 @@
   const LOCAL_LLM_ORIGINS = { localhost: 'http://localhost/*', '127.0.0.1': 'http://127.0.0.1/*' };
 
   /** 端点指向本机时返回待申请的 origin，否则 null / origin to request, or null */
+  /** @param {string} endpoint */
   function localOriginOf(endpoint) {
     try {
       const host = new URL(String(endpoint || '')).hostname;
-      return LOCAL_LLM_ORIGINS[host] || null;
+      return /** @type {Record<string, string>} */ (LOCAL_LLM_ORIGINS)[host] || null;
     } catch {
       return null;
     }
@@ -57,7 +58,7 @@
   /** @param {string} url @param {RequestInit} [init] */
   async function probeEndpoint(url, init) {
     const response = await fetch(url, init);
-    const data = await response.json().catch(() => null);
+    const data = await response.json().catch(() => /** @type {null} */ (null));
     return { ok: response.ok, status: response.status, data };
   }
 
@@ -86,11 +87,11 @@
         result = await probeEndpoint(testUrl, { method: 'GET' });
         if (!result.ok) throw new Error(`HTTP ${result.status}`);
         const models = Array.isArray(result.data && result.data.models) ? result.data.models : []; // v10.9：异型守卫
-        const hasModel = models.some((m) => String((m && m.name) || '').includes(model));
+        const hasModel = models.some((/** @type {any} */ m) => String((m && m.name) || '').includes(model));
         if (hasModel) {
           resultEl.textContent = `✅ 连接成功，模型 ${model} 可用`;
         } else {
-          resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map((m) => m.name).join(', ')}`;
+          resultEl.textContent = `⚠️ 连接成功，但未找到模型 ${model}。可用: ${models.map((/** @type {any} */ m) => m.name).join(', ')}`;
         }
       } else {
         // OpenAI 兼容接口
@@ -123,18 +124,19 @@
 
   // v6.4.19：界面皮肤切换（立即生效）+ v7.0.5：自定义主题 CSS 导入/清除（本地文件，无网络）
   function bindThemeEvents() {
-    document.getElementById('uiTheme').addEventListener('change', (e) => {
+    document.getElementById('uiTheme').addEventListener('change', (/** @type {Event} */ e) => {
       OPTS.scheduleAutoSave();
       if (globalThis.__GR_SETTINGS_UTILS__ && globalThis.__GR_SETTINGS_UTILS__.applyTheme) {
-        globalThis.__GR_SETTINGS_UTILS__.applyTheme(e.target.value);
+        globalThis.__GR_SETTINGS_UTILS__.applyTheme(/** @type {HTMLInputElement} */ (e.target).value);
       }
     });
 
     document.getElementById('themeCssImport').addEventListener('click', () => {
       document.getElementById('themeCssFile').click();
     });
-    document.getElementById('themeCssFile').addEventListener('change', (e) => {
-      const file = e.target.files && e.target.files[0];
+    document.getElementById('themeCssFile').addEventListener('change', (/** @type {Event} */ e) => {
+      const file =
+        /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
@@ -148,7 +150,7 @@
         OPTS.scheduleAutoSave();
       };
       reader.readAsText(file);
-      e.target.value = '';
+      /** @type {HTMLInputElement} */ (e.target).value = '';
     });
     document.getElementById('themeCssClear').addEventListener('click', () => {
       OPTS.currentSettings.customThemeCss = '';
@@ -167,24 +169,28 @@
       OPTS.scheduleAutoSave();
     });
 
-    document.getElementById('llmProvider').addEventListener('change', (e) => {
+    document.getElementById('llmProvider').addEventListener('change', (/** @type {Event} */ e) => {
       OPTS.toggleApiKeyRow();
       const presets = {
         local: 'http://localhost:11434/api/generate',
         openai: 'https://api.openai.com/v1/chat/completions',
         custom: ''
       };
-      if (presets[e.target.value]) {
-        document.getElementById('llmEndpoint').value = presets[e.target.value];
+      if (/** @type {Record<string, any>} */ (presets)[/** @type {HTMLInputElement} */ (e.target).value]) {
+        document.getElementById('llmEndpoint').value = /** @type {Record<string, any>} */ (presets)[
+          /** @type {HTMLInputElement} */ (e.target).value
+        ];
         // v14.26.0 P2-15：切到本地提供商即申请 localhost 权限（change = 用户手势）
-        void ensureLocalEndpointPermission(presets[e.target.value]);
+        void ensureLocalEndpointPermission(
+          /** @type {Record<string, any>} */ (presets)[/** @type {HTMLInputElement} */ (e.target).value]
+        );
       }
       OPTS.scheduleAutoSave();
     });
 
     // v14.26.0 P2-15：手填/粘贴本地端点后（change = 失焦/回车，属用户手势）按需申请
-    document.getElementById('llmEndpoint').addEventListener('change', (e) => {
-      void ensureLocalEndpointPermission(e.target.value);
+    document.getElementById('llmEndpoint').addEventListener('change', (/** @type {Event} */ e) => {
+      void ensureLocalEndpointPermission(/** @type {HTMLInputElement} */ (e.target).value);
     });
 
     // LLM 文本输入（防抖自动保存）
@@ -193,8 +199,10 @@
     });
 
     // Temperature
-    document.getElementById('llmTemp').addEventListener('input', (e) => {
-      document.getElementById('llmTempVal').textContent = (e.target.value / 100).toFixed(1);
+    document.getElementById('llmTemp').addEventListener('input', (/** @type {Event} */ e) => {
+      document.getElementById('llmTempVal').textContent = (
+        Number(/** @type {HTMLInputElement} */ (e.target).value) / 100
+      ).toFixed(1);
       OPTS.scheduleAutoSave();
     });
 
@@ -217,8 +225,10 @@
       'weightAppStatDetailView'
     ];
     weightIds.forEach((id) => {
-      document.getElementById(id).addEventListener('input', (e) => {
-        document.getElementById(`${id}Val`).textContent = (e.target.value / 100).toFixed(2);
+      document.getElementById(id).addEventListener('input', (/** @type {Event} */ e) => {
+        document.getElementById(`${id}Val`).textContent = (
+          Number(/** @type {HTMLInputElement} */ (e.target).value) / 100
+        ).toFixed(2);
         OPTS.updateWeightSum();
         OPTS.scheduleAutoSave();
       });
@@ -228,7 +238,7 @@
   // ============ 数值滑块 + 手动输入双向绑定（v9.6.0） ============
   // Slider ↔ number-input two-way sync for all range controls.
   function bindRangeNumberInputs() {
-    document.querySelectorAll('input[type="range"]').forEach((range) => {
+    document.querySelectorAll('input[type="range"]').forEach((/** @type {any} */ range) => {
       const input = document.getElementById(range.id + 'Input');
       if (!input) return;
       // 滑块 → 输入框
@@ -247,7 +257,7 @@
         }
       };
       input.addEventListener('change', apply);
-      input.addEventListener('keydown', (e) => {
+      input.addEventListener('keydown', (/** @type {KeyboardEvent} */ e) => {
         if (e.key === 'Enter') apply();
       });
     });

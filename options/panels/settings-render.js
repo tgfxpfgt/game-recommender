@@ -15,6 +15,7 @@
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
   // ============ Render Settings / 渲染设置 ============
+  /** @param {Record<string, any>} settings */
   function renderSettings(settings) {
     // 基本设置 / Basic settings
     document.getElementById('enabled').checked = settings.enabled;
@@ -52,12 +53,13 @@
     // 编辑器维护；uiTheme 皮肤回显）
     document.getElementById('vmFilterEnabled').checked = settings.enableVmFilter || false;
     document.getElementById('uiTheme').value = settings.uiTheme || 'steam';
-    if (typeof window['__renderRules'] === 'function') window['__renderRules'](settings.filterRules || []);
+    if (typeof (/** @type {Record<string, any>} */ (window)['__renderRules']) === 'function')
+      /** @type {Record<string, any>} */ (window)['__renderRules'](settings.filterRules || []);
 
     // 权重设置 / Algorithm weights
     // v3.4.1：畸形/缺失权重不再崩溃（toFixed 前兜底为 0）
     const w = settings.weights || {};
-    const pct2 = (n) => (Number.isFinite(n) ? n * 100 : 0).toFixed(2);
+    const pct2 = (/** @type {number} */ n) => (Number.isFinite(n) ? n * 100 : 0).toFixed(2);
     document.getElementById('weightClick').value = pct2(w.clickRate);
     document.getElementById('weightClickVal').textContent = pct2(w.clickRate);
     document.getElementById('weightDownload').value = pct2(w.downloadRate);
@@ -139,7 +141,7 @@
     // 缓存有效期（value + 单位，兼容旧数字格式；0 = 长期有效；v3.3.7 每模块独立）
     // Cache TTLs (value + unit; legacy numbers supported; 0 = forever; per-module)
     const ttls = settings.cacheTtls || {};
-    OPTS.TTL_FIELDS.forEach((f) => setTtlControl(f.id, ttls[f.key], f.defaultUnit));
+    OPTS.TTL_FIELDS.forEach((/** @type {any} */ f) => setTtlControl(f.id, ttls[f.key], f.defaultUnit));
 
     // 日志配置 / Logging config
     document.getElementById('logEnabled').checked = settings.enableLog !== false;
@@ -154,6 +156,7 @@
   }
 
   // 设置单个 TTL 控件（value + 单位）/ Set a TTL control (value + unit)
+  /** @param {string} inputId @param {any} val @param {string} [defaultUnit] */
   function setTtlControl(inputId, val, defaultUnit) {
     const v =
       typeof val === 'object' && val !== null
@@ -166,20 +169,23 @@
   }
 
   // ============ 下载站与追踪管理渲染 / Sites & Tracking Management ============
+  /** @param {Record<string, any>} settings */
   function renderSiteManagement(settings) {
     const container = document.getElementById('siteManageList');
     if (!container) return;
     // v10.9：规则 domains 异型守卫（坏规则包曾打崩设置页半初始化）
-    const rules = ((OPTS.siteRules || {}).sites || []).map((r) => ({
-      ...r,
-      domains: Array.isArray(r && r.domains) ? r.domains : []
-    }));
+    const rules = /** @type {Record<string, any>} */ ((OPTS.siteRules || {}).sites || []).map(
+      (/** @type {any} */ r) => ({
+        ...r,
+        domains: Array.isArray(r && r.domains) ? r.domains : []
+      })
+    );
     const tracked = settings.trackedSites || [];
     const steamSearch = settings.steamSiteSearch || [];
 
     container.innerHTML = rules
-      .map((s) => {
-        const isTracked = s.domains.some((d) => tracked.includes(d));
+      .map((/** @type {any} */ s) => {
+        const isTracked = s.domains.some((/** @type {string} */ d) => tracked.includes(d));
         const canSearch = !!s.searchUrl;
         return `
         <div class="site-manage-row">
@@ -207,15 +213,19 @@
   }
 
   // 自定义追踪站点标签（可删除）/ Custom tracked-site tags (removable)
+  /** @param {any[]} tracked @param {any[]} rules */
   function renderCustomSiteList(tracked, rules) {
     const container = document.getElementById('siteList');
     if (!container) return;
-    const isRuleDomain = (d) =>
-      rules.some((s) => Array.isArray(s.domains) && s.domains.some((x) => d === x || d.includes(x)));
-    const custom = tracked.filter((d) => !isRuleDomain(d));
+    const isRuleDomain = (/** @type {string} */ d) =>
+      rules.some(
+        (/** @type {any} */ s) =>
+          Array.isArray(s.domains) && s.domains.some((/** @type {string} */ x) => d === x || d.includes(x))
+      );
+    const custom = tracked.filter((/** @type {string} */ d) => !isRuleDomain(d));
     container.innerHTML = custom
       .map(
-        (site) => `
+        (/** @type {any} */ site) => `
       <div class="site-item">
         <span>${escapeHtml(site)}</span>
         <button class="remove-site" data-domain="${escapeAttr(site)}">✕</button>
@@ -224,10 +234,12 @@
       )
       .join('');
 
-    container.querySelectorAll('.remove-site').forEach((btn) => {
+    container.querySelectorAll('.remove-site').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', () => {
         const domain = btn.dataset.domain;
-        OPTS.currentSettings.trackedSites = (OPTS.currentSettings.trackedSites || []).filter((d) => d !== domain);
+        OPTS.currentSettings.trackedSites = /** @type {any} */ (OPTS.currentSettings.trackedSites || []).filter(
+          (/** @type {string} */ d) => d !== domain
+        );
         // v14.27.0（P2-5）：移除站点即回收按需授予的该域权限——授予面随列表收缩，
         // 不留"已删除站点仍持有访问权"的残留（remove 可随时调用，无需手势）
         const perms = globalThis.chrome && globalThis.chrome.permissions;

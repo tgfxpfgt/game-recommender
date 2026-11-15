@@ -17,12 +17,12 @@
   // Rating-graded colors (single source: list badges, detail scores, cache page)
   // ≥80 蓝 / ≥60 黄绿 / <60 橙；推荐值 ≥80 红 / ≥60 橙 / ≥40 黄绿 / 其余灰
   global.__GR_PATTERNS__ = global.__GR_PATTERNS__ || {};
-  global.__GR_PATTERNS__.ratingColorFor = (rate) => {
+  global.__GR_PATTERNS__.ratingColorFor = (/** @type {number|null} */ rate) => {
     const r = Number(rate);
     if (isNaN(r)) return '#8f98a0';
     return r >= 80 ? '#66c0f4' : r >= 60 ? '#a3cf06' : '#ff7b00';
   };
-  global.__GR_PATTERNS__.ratingBgFor = (rate) => {
+  global.__GR_PATTERNS__.ratingBgFor = (/** @type {number|null} */ rate) => {
     const r = Number(rate);
     if (isNaN(r)) return 'rgba(143,152,160,0.15)';
     return r >= 80 ? 'rgba(102,192,244,0.15)' : r >= 60 ? 'rgba(163,207,6,0.15)' : 'rgba(255,123,0,0.15)';
@@ -34,7 +34,7 @@
   //（ratingColorFor）**有意不同**（分值语义不同源，勿合并为一把尺）。
   // MC graded colors, single source for the list gr-mc-badge and the detail
   // float's MC view (intentionally NOT merged with the Steam rating scale).
-  global.__GR_PATTERNS__.mcColorFor = (score) => {
+  global.__GR_PATTERNS__.mcColorFor = (/** @type {number|null} */ score) => {
     const s = Number(score);
     if (isNaN(s)) return '#555';
     return s >= 75 ? '#66cc33' : s >= 50 ? '#ffcc33' : '#ff4444';

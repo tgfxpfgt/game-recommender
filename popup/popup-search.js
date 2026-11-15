@@ -26,7 +26,7 @@ async function doSearch() {
       return;
     }
     searchResults.innerHTML = '';
-    cands.slice(0, 6).forEach((c) => {
+    cands.slice(0, 6).forEach((/** @type {any} */ c) => {
       const row = document.createElement('div');
       row.className = 'search-result-row';
       row.textContent = c.name;
@@ -43,7 +43,7 @@ async function doSearch() {
 }
 if (searchInput && searchBtn) {
   searchBtn.addEventListener('click', doSearch);
-  searchInput.addEventListener('keydown', (ev) => {
+  searchInput.addEventListener('keydown', (/** @type {KeyboardEvent} */ ev) => {
     if (ev.key === 'Enter') doSearch();
   });
 }

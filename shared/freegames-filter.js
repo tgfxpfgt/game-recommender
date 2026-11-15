@@ -32,5 +32,5 @@
     return filtered;
   }
 
-  global.__GR_FG_FILTER__ = { filterFreeGames };
+  /** @type {any} */ (global).__GR_FG_FILTER__ = { filterFreeGames };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

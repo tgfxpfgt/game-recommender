@@ -13,6 +13,7 @@
 
   // ============ 事件绑定 / Event binding ============
   function bindRulesEvents() {
+    /** @param {string} id */
     const $ = (id) => document.getElementById(id);
     $('ruleSave').addEventListener('click', saveRules);
     $('ruleValidate').addEventListener('click', validateEditor);
@@ -41,6 +42,7 @@
   }
 
   // 来源标识 / Source indicator
+  /** @param {any} data */
   function renderRuleSource(data) {
     const el = document.getElementById('ruleSource');
     const importedCount = data.imported ? data.imported.sites.length : 0;
@@ -59,6 +61,7 @@
     ['gridLayoutDefault', '布局定制默认开'],
     ['detailMetaVersion', '版本号解析']
   ];
+  /** @param {any} merged */
   function renderRuleList(merged) {
     const el = document.getElementById('ruleList');
     const sites = (merged && merged.sites) || [];
@@ -67,7 +70,7 @@
       return;
     }
     el.innerHTML = sites
-      .map((s) => {
+      .map((/** @type {any} */ s) => {
         const f = s.features || {};
         const checks = FEATURE_FLAGS.map(
           ([flag, label]) => `
@@ -91,7 +94,7 @@
       })
       .join('');
     // 勾选 → 回写编辑器 JSON（非法 JSON 时还原勾选并提示）
-    el.querySelectorAll('.rule-feature-check input').forEach((cb) => {
+    el.querySelectorAll('.rule-feature-check input').forEach((/** @type {any} */ cb) => {
       cb.addEventListener('change', () => {
         const siteKey = cb.dataset.site;
         const flag = cb.dataset.flag;
@@ -101,7 +104,7 @@
           cb.checked = prev; // 编辑器 JSON 当前非法 → 还原勾选
           return;
         }
-        const site = (parsed.sites || []).find((x) => x && x.key === siteKey);
+        const site = (parsed.sites || []).find((/** @type {any} */ x) => x && x.key === siteKey);
         if (!site) {
           cb.checked = prev;
           setRuleStatus(`未在编辑器 JSON 中找到站点 "${siteKey}"（可能已被手动删除）`, 'error');
@@ -174,6 +177,7 @@
   }
 
   // v10.0.0：逐站诊断渲染（warn 红 / info 灰）/ per-site diagnostics render
+  /** @param {any} diagnostics */
   function renderRuleDiagnostics(diagnostics) {
     const box = document.getElementById('ruleDiagnostics');
     if (!box) return;
@@ -184,8 +188,8 @@
     }
     box.style.display = 'block';
     box.innerHTML = diagnostics
-      .map((d) => {
-        const esc = (t) => globalThis.escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
+      .map((/** @type {any} */ d) => {
+        const esc = (/** @type {string} */ t) => /** @type {any} */ (globalThis).escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
         const color = d.level === 'warn' ? '#e67e22' : '#8f98a0';
         return `<div style="color:${color};">⚠ [${esc(d.site)}] ${esc(d.message)}</div>`;
       })
@@ -204,11 +208,11 @@
       const sites = ((rulesResp && rulesResp.merged) || {}).sites || [];
       const alerts = (healthResp && healthResp.sites) || [] || [];
       const alertByKey = {};
-      for (const a of alerts) alertByKey[a.siteKey] = a;
-      const esc = (t) => globalThis.escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
+      for (const a of /** @type {any[]} */ (alerts)) /** @type {Record<string, any>} */ (alertByKey)[a.siteKey] = a;
+      const esc = (/** @type {string} */ t) => /** @type {any} */ (globalThis).escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
       const lines = [];
       for (const s of sites) {
-        const alert = alertByKey[s.key];
+        const alert = /** @type {Record<string, any>} */ (alertByKey)[s.key];
         if (alert) {
           lines.push(
             `<div style="color:#e74c3c;">✖ [${esc(s.key)}] 疑似改版失效（${esc(alert.host || '?')}）— ` +
@@ -267,9 +271,11 @@
     setRuleStatus('✅ 已导出规则 JSON', 'ok');
   }
 
+  /** @param {Event} e */
   async function importRulesFile(e) {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = ''; // 允许重复导入同一文件
+    const file =
+      /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
+    /** @type {HTMLInputElement} */ (e.target).value = ''; // 允许重复导入同一文件
     if (!file) return;
     try {
       const text = await file.text();
@@ -298,6 +304,7 @@
     }
   }
 
+  /** @param {string} text @param {string} type */
   function setRuleStatus(text, type) {
     const el = document.getElementById('ruleStatus');
     el.textContent = text;

@@ -17,12 +17,12 @@ async function loadApiStatus() {
       info.innerHTML = '<span class="no-data">无法获取状态</span>';
       return;
     }
-    const num = (v) => Number(v) || 0; // v10.9：异型响应防 NaN 文案
+    const num = (/** @type {any} */ v) => Number(v) || 0; // v10.9：异型响应防 NaN 文案
     // v11.0 B2：分域名可达性点灯（store/api/circuit）
     const dm = resp.domains || {};
-    const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+    const lamp = (/** @type {string} */ v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
     // v13 B1：per-domain 熔断态细节（storeCircuit/apiCircuit：open/half-open/closed）
-    const circuitHint = (d) =>
+    const circuitHint = (/** @type {any} */ d) =>
       dm[d + 'Circuit'] === 'open' ? ' ⚡熔断中' : dm[d + 'Circuit'] === 'half-open' ? ' ⚡半开探测' : '';
     const domainLine =
       dm.store || dm.api
@@ -60,7 +60,9 @@ async function loadFreeGamesCount() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartMs = todayStart.getTime();
-      const newToday = response.data.games.filter((g) => g.firstSeen && g.firstSeen >= todayStartMs).length;
+      const newToday = response.data.games.filter(
+        (/** @type {any} */ g) => g.firstSeen && g.firstSeen >= todayStartMs
+      ).length;
       const countEl = document.getElementById('freeCount');
       if (newToday > 0) {
         countEl.textContent = newToday;
@@ -100,6 +102,7 @@ async function loadStats() {
 
 // ============ Update LLM Status / 更新大模型状态 ============
 // （escapeHtml 由 shared/escape.js 提供全局实现）
+/** @param {Record<string, any>} settings */
 function updateLLMStatus(settings) {
   const statusDiv = document.getElementById('ppLlmStatus');
   const statusText = document.getElementById('ppLlmStatusText');

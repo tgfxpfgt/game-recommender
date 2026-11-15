@@ -16,6 +16,7 @@
  */
 
 // ============ 运行日志 / Runtime Logs ============
+/** @type {any[]} */
 let cachedLogs = [];
 
 // 从后台加载运行日志（最多 200 条）/ Load runtime logs from background (max 200)
@@ -99,11 +100,13 @@ async function clearLogs() {
 
 // v7.1.0：运行日志级别统计（缓存中按级别计数）
 // （在 renderRuntimeLogs 中调用）
+/** @param {any[]} logs */
 function renderLogLevelStats(logs) {
   const el = document.getElementById('logLevelStats');
   if (!el) return;
+  /** @type {Record<string, number>} */
   const counts = { info: 0, warn: 0, error: 0, debug: 0 };
-  (logs || []).forEach((l) => {
+  (logs || []).forEach((/** @type {any} */ l) => {
     counts[l.level] = (counts[l.level] || 0) + 1;
   });
   el.textContent = `info ${counts.info} · warn ${counts.warn} · error ${counts.error} · debug ${counts.debug}`;
@@ -117,8 +120,9 @@ const PAGERS = {
   audit: { page: 1, pageSize: 50 }
 };
 
+/** @param {string} key @param {any[]} items */
 function paginate(key, items) {
-  const p = PAGERS[key];
+  const p = /** @type {Record<string, any>} */ (PAGERS)[key];
   const total = items.length;
   const pages = Math.max(1, Math.ceil(total / p.pageSize));
   if (p.page > pages) p.page = pages;
@@ -134,10 +138,11 @@ function paginate(key, items) {
 }
 
 // 渲染分页控件（容器 id → 数据来自调用方缓存的 items 长度）
+/** @param {string} key @param {string} containerId @param {number} total */
 function renderPager(key, containerId, total) {
   const el = document.getElementById(containerId);
   if (!el) return;
-  const p = PAGERS[key];
+  const p = /** @type {Record<string, any>} */ (PAGERS)[key];
   const pages = Math.max(1, Math.ceil(total / p.pageSize));
   if (pages <= 1) {
     el.innerHTML = '';
@@ -166,7 +171,7 @@ document.addEventListener('click', (e) => {
   const key = btn.dataset.key;
   const page = Number(btn.dataset.page);
   if (!key || !page) return;
-  PAGERS[key].page = page;
+  /** @type {Record<string, any>} */ (PAGERS)[key].page = page;
   // 触发对应重渲染
   if (key === 'games') renderGameTable(cachedGames || []);
   else if (key === 'logs') renderRuntimeLogs();

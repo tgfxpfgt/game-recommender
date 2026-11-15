@@ -97,7 +97,7 @@
       }
     });
 
-    document.getElementById('newSite').addEventListener('keypress', (e) => {
+    document.getElementById('newSite').addEventListener('keypress', (/** @type {KeyboardEvent} */ e) => {
       if (e.key === 'Enter') document.getElementById('addSite').click();
     });
   }
@@ -130,7 +130,7 @@
         </div>`
       )
       .join('');
-    box.querySelectorAll('[data-ds]').forEach((cb) => {
+    box.querySelectorAll('[data-ds]').forEach((/** @type {any} */ cb) => {
       cb.addEventListener('change', () => {
         OPTS.currentSettings.dataSources = {
           ...(OPTS.currentSettings.dataSources || {}),
@@ -147,6 +147,7 @@
     if (!box) return;
     const mods = OPTS.currentSettings.steamApiModules || {};
     const ttls = OPTS.currentSettings.cacheTtls || {};
+    /** @param {string} key */
     const ttlText = (key) => {
       const t = ttls[key];
       if (!t) return '';
@@ -173,7 +174,7 @@
         </div>`
       )
       .join('');
-    box.querySelectorAll('[data-mod]').forEach((cb) => {
+    box.querySelectorAll('[data-mod]').forEach((/** @type {any} */ cb) => {
       cb.addEventListener('change', () => {
         OPTS.currentSettings.steamApiModules = {
           ...(OPTS.currentSettings.steamApiModules || {}),
@@ -211,7 +212,7 @@
         </label>
       </div>`
     ).join('');
-    box.querySelectorAll('[data-builtin-site]').forEach((cb) => {
+    box.querySelectorAll('[data-builtin-site]').forEach((/** @type {any} */ cb) => {
       cb.addEventListener('change', () => {
         const set = new Set(OPTS.currentSettings.disabledSites || []);
         if (cb.checked) set.delete(cb.dataset.builtinSite);
@@ -233,7 +234,11 @@
   function collectSitesSettings() {
     const rules = (OPTS.siteRules || {}).sites || [];
     const customSites = (OPTS.currentSettings.trackedSites || []).filter(
-      (d) => !rules.some((s) => Array.isArray(s.domains) && s.domains.some((x) => d === x || d.includes(x)))
+      (/** @type {string} */ d) =>
+        !rules.some(
+          (/** @type {any} */ s) =>
+            Array.isArray(s.domains) && s.domains.some((/** @type {string} */ x) => d === x || d.includes(x))
+        )
     ); // v10.9：domains 异型守卫
     const ruleTracked = [...document.querySelectorAll('.track-site-check:checked')].map((cb) => cb.dataset.domain);
     OPTS.currentSettings.trackedSites = [...new Set([...customSites, ...ruleTracked])];

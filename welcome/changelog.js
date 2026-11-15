@@ -10,7 +10,7 @@
 'use strict';
 
 (function (global) {
-  global.__GR_CHANGELOG__ = {
+  /** @type {any} */ (global).__GR_CHANGELOG__ = {
     // 完整记录（GitHub Releases）
     releasesUrl: 'https://github.com/tgfxpfgt/game-recommender/releases',
     // 最近版本（新版本在前；页面默认渲染最近 3 版）

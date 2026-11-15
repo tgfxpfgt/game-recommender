@@ -13,6 +13,7 @@
 
   // 深写入：path 支持点号路径（如 'llmConfig.endpoint'）；中间层不存在时创建
   // Deep set a dotted path (creates intermediate objects as needed).
+  /** @param {Record<string, any>} obj @param {string} path @param {any} value */
   function deepSet(obj, path, value) {
     const keys = String(path).split('.');
     let o = obj;
@@ -27,6 +28,7 @@
 
   // 深读取：path 为点号路径；缺失返回 fallback
   // Deep get a dotted path; returns fallback when missing.
+  /** @param {Record<string, any>} obj @param {string} path @param {any} fallback */
   function getByPath(obj, path, fallback) {
     let o = obj;
     for (const k of String(path).split('.')) {
@@ -38,6 +40,7 @@
 
   // 合并补丁：支持点号路径键（如 { 'badgeVisibility.recent': false }）
   // Apply a patch object whose keys may be dotted paths.
+  /** @param {Record<string, any>} obj @param {Record<string, any>} patch */
   function applyPatch(obj, patch) {
     for (const [k, v] of Object.entries(patch || {})) {
       if (k.includes('.')) deepSet(obj, k, v);
@@ -49,6 +52,7 @@
   // 跳转设置中心：hub iframe 内（URL 带 ?hub=1）→ postMessage 让父级切换面板；
   // 独立打开 → 新开标签直达指定页面。page 取值：options|vista|dashboard|freegames
   // Go to the hub: switch the parent panel when embedded, else open a new tab.
+  /** @param {string} page */
   function goHub(page) {
     const inHub = typeof location !== 'undefined' && !!location.search && location.search.includes('hub=1'); // v14.5.1：includes
     if (inHub && typeof window !== 'undefined' && window.parent !== window) {
@@ -131,6 +135,7 @@
     'gothic',
     'nordic'
   ]);
+  /** @param {string} theme */
   function applyTheme(theme) {
     if (typeof document === 'undefined') return;
     const t = VALID_THEMES.has(theme) ? theme : 'steam';
@@ -144,6 +149,7 @@
   // v10.7.0 批次5：夜间窗口小时数可调（uiThemeNightStart/End，默认 19/7；
   // 支持跨零点窗口 start > end，如 21 → 6）
   // Night window hours now configurable (supports wrap-around windows).
+  /** @param {Record<string, any>} settings @param {number} [hour] - 缺省取当前小时 */
   function resolveTheme(settings, hour) {
     if (!settings) return 'steam';
     const h = typeof hour === 'number' ? hour : new Date().getHours();
@@ -158,6 +164,7 @@
   }
 
   // 应用解析后的主题（定时切换入口；无 settings 时回退 applyTheme）
+  /** @param {Record<string, any>} settings */
   function applyThemeAuto(settings) {
     if (!settings) return;
     applyTheme(resolveTheme(settings));
@@ -183,6 +190,7 @@
 
   // v7.0.5：应用自定义主题 CSS（覆盖任意主题变量；空值移除）
   // Apply user custom theme CSS (overrides any theme variables; empty removes).
+  /** @param {string} css */
   function applyCustomTheme(css) {
     if (typeof document === 'undefined') return;
     const el = document.getElementById('gr-custom-theme');
@@ -204,8 +212,10 @@
   // v9.3.0：串行保存队列工厂（popup 保存链路复用 + 可单测——并发 GET→SAVE
   // 基于旧快照互相覆盖的防竞态）
   // Serial save queue: each task re-reads latest settings before patching.
+  /** @param {(msg: any) => any} send */
   function createSaveQueue(send) {
     let queue = Promise.resolve();
+    /** @param {() => any} getLatest @param {Record<string, any>} patch @param {(latest: any, patch: any) => any} doSave */
     return function enqueue(getLatest, patch, doSave) {
       queue = queue.then(async () => {
         const latest = await getLatest();

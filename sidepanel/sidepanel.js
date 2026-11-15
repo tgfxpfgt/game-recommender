@@ -10,7 +10,8 @@
 'use strict';
 
 (function () {
-  const send = (msg) => window.__GR_MSG__.sendMessage(msg);
+  /** @param {any} msg */
+  const send = (msg) => /** @type {any} */ (window).__GR_MSG__.sendMessage(msg);
 
   // ============ 主题 ============
   (async () => {
@@ -33,7 +34,7 @@
     chrome.runtime.onMessage.addListener((msg) => {
       if (!msg || msg.type !== 'GR_SETTINGS_CHANGED') return;
       send({ action: 'GET_SETTINGS' })
-        .then((r) => {
+        .then((/** @type {any} */ r) => {
           const s = r && r.settings;
           if (s && globalThis.__GR_SETTINGS_UTILS__) globalThis.__GR_SETTINGS_UTILS__.applyPageTheme(s);
         })
@@ -43,9 +44,9 @@
     /* 无 onMessage 环境时静默 */
   }
 
-  const esc = (t) =>
+  const esc = (/** @type {unknown} */ t) =>
     typeof globalThis.escapeHtml === 'function' ? globalThis.escapeHtml(String(t ?? '')) : String(t ?? '');
-  const escA = (t) =>
+  const escA = (/** @type {unknown} */ t) =>
     typeof globalThis.escapeAttr === 'function' ? globalThis.escapeAttr(String(t ?? '')) : String(t ?? '');
 
   // ============ 当前页游戏（随 tab 联动） ============
@@ -70,7 +71,7 @@
         body.innerHTML = '<div class="empty">在下载站或 Steam 页面打开游戏详情后自动显示</div>';
         return;
       }
-      const fav = await send({ action: 'GET_FAVORITES' }).catch(() => null);
+      const fav = await send({ action: 'GET_FAVORITES' }).catch(() => /** @type {null} */ (null));
       const favs = (fav && fav.favorites) || {};
       const isFav = !!favs[String(g.appId)];
       const rate = g.positiveRate != null ? ` · 好评率 ${g.positiveRate}%` : '';
@@ -143,7 +144,7 @@
         </div>`
         )
         .join('');
-      el.querySelectorAll('.rm').forEach((btn) => {
+      el.querySelectorAll('.rm').forEach((/** @type {any} */ btn) => {
         btn.addEventListener('click', async () => {
           const row = btn.closest('.sp-row');
           try {
@@ -175,7 +176,7 @@
         return;
       }
       el.innerHTML = active
-        .map((g) => {
+        .map((/** @type {any} */ g) => {
           const store = String(g.platformName || g.platform || '').slice(0, 12);
           return `<div class="sp-free"><span class="tag">[${esc(store)}]</span><b>${esc(g.title)}</b>${
             g.url ? `<a href="${escA(g.url)}" target="_blank" rel="noopener">领取 ↗</a>` : ''

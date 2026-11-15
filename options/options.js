@@ -125,12 +125,12 @@
   // ============ 侧边栏分类切换 / Sidebar Category Switching ============
   // Chrome 设置页风格：左侧分类导航 + 右侧内容面板
   function bindTabEvents() {
-    document.querySelectorAll('.gr-nav-item').forEach((btn) => {
+    document.querySelectorAll('.gr-nav-item').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', () => {
         const panelId = btn.dataset.panel;
-        document.querySelectorAll('.gr-nav-item').forEach((b) => b.classList.remove('active'));
+        document.querySelectorAll('.gr-nav-item').forEach((/** @type {any} */ b) => b.classList.remove('active'));
         btn.classList.add('active');
-        document.querySelectorAll('.settings-panel').forEach((p) => p.classList.remove('active'));
+        document.querySelectorAll('.settings-panel').forEach((/** @type {any} */ p) => p.classList.remove('active'));
         const panel = document.getElementById('panel-' + panelId);
         if (panel) panel.classList.add('active');
         // 切换到缓存面板时自动加载数据
@@ -155,8 +155,8 @@
     // 滑块：input 回显 + 自动保存 / slider display + auto-save
     /** @param {string} id @param {string} valId */
     const bindSliderVal = (id, valId) => {
-      document.getElementById(id).addEventListener('input', (e) => {
-        document.getElementById(valId).textContent = `${e.target.value}%`;
+      document.getElementById(id).addEventListener('input', (/** @type {Event} */ e) => {
+        document.getElementById(valId).textContent = `${/** @type {HTMLInputElement} */ (e.target).value}%`;
         scheduleAutoSave();
       });
     };
@@ -299,7 +299,9 @@
       ...Object.fromEntries(Object.entries(fmIds).map(([k, id]) => [k, chk(id)])),
       ...(OPTS.currentSettings.floatModules && Array.isArray(OPTS.currentSettings.floatModules.order)
         ? {
-            order: OPTS.currentSettings.floatModules.order.filter((k) => globalThis.__GR_FM_KEYS__.keys.includes(k))
+            order: OPTS.currentSettings.floatModules.order.filter((/** @type {string} */ k) =>
+              /** @type {any} */ (globalThis).__GR_FM_KEYS__.keys.includes(k)
+            )
           }
         : {})
     };
@@ -378,7 +380,7 @@
     // 缓存有效期（value + 单位，0 = 长期有效；v3.3.7 模块化：每模块独立 TTL）
     // Cache TTLs (value + unit; 0 = keep forever; per-module since v3.3.7)
     OPTS.currentSettings.cacheTtls = {};
-    OPTS.TTL_FIELDS.forEach((f) => {
+    OPTS.TTL_FIELDS.forEach((/** @type {any} */ f) => {
       OPTS.currentSettings.cacheTtls[f.key] = {
         value: intVal(f.id) || 0,
         unit: val(f.id + 'Unit')
@@ -415,6 +417,7 @@
   // v14.6.2：状态文案清空延时具名单点（成功 2s / 失败 4s——失败留更久供阅读）
   const SAVE_OK_CLEAR_MS = 2000;
   const SAVE_ERR_CLEAR_MS = 4000;
+  /** @param {string} state */
   function showSaveStatus(state) {
     const status = document.getElementById('saveStatus');
     if (state === 'saving') {

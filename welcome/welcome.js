@@ -31,7 +31,7 @@
   // 退化为外链提示（不阻塞页面）
   if (isUpdate) {
     /** @type {{versions?: Array<{ver: string, date?: string, items: string[]}>, releasesUrl?: string}} */
-    const cl = globalThis.__GR_CHANGELOG__ || {};
+    const cl = /** @type {any} */ (globalThis).__GR_CHANGELOG__ || {};
     const box = document.getElementById('changelogList');
     const link = document.getElementById('allReleasesLink');
     if (link) {
@@ -115,6 +115,7 @@
       guideState.uiTheme = String(settings.uiTheme || 'steam');
       const rules = (rulesResp && (rulesResp.rules || rulesResp.sites)) || {};
       const sites = Array.isArray(rules.sites) ? rules.sites : [];
+      /** @type {string[]} */
       const builtInDomains = [];
       for (const s of sites) {
         for (const d of Array.isArray(s.domains) ? s.domains : []) builtInDomains.push(d);
@@ -162,10 +163,11 @@
     const themeBox = document.getElementById('guideThemeBtns');
     themeBox.innerHTML = themes
       .map(
-        (t) => `<button type="button" data-theme-pick="${t}" class="guide-theme-btn">${themeLabels[t] || t}</button>`
+        (/** @type {string} */ t) =>
+          `<button type="button" data-theme-pick="${t}" class="guide-theme-btn">${/** @type {Record<string, string>} */ (themeLabels)[t] || t}</button>`
       )
       .join('');
-    themeBox.querySelectorAll('[data-theme-pick]').forEach((btn) => {
+    themeBox.querySelectorAll('[data-theme-pick]').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', () => {
         guideState.uiTheme = btn.dataset.themePick;
         // v14.3.2：预览统一走 applyTheme（主题文件按需加载）——直接设
@@ -173,7 +175,9 @@
         const u = globalThis.__GR_SETTINGS_UTILS__;
         if (u && u.applyTheme) u.applyTheme(guideState.uiTheme);
         else document.body.dataset.theme = guideState.uiTheme; // 兜底（无工具文件时）
-        themeBox.querySelectorAll('[data-theme-pick]').forEach((b) => b.classList.toggle('active', b === btn));
+        themeBox
+          .querySelectorAll('[data-theme-pick]')
+          .forEach((/** @type {any} */ b) => b.classList.toggle('active', b === btn));
       });
     });
     const initialPick = themeBox.querySelector(`[data-theme-pick="${guideState.uiTheme}"]`);
@@ -216,7 +220,7 @@
       }
       window.location.href = chrome.runtime.getURL('dashboard/dashboard.html');
     });
-    document.getElementById('guideSkipFeature').addEventListener('click', (e) => {
+    document.getElementById('guideSkipFeature').addEventListener('click', (/** @type {Event} */ e) => {
       e.preventDefault();
       document.getElementById('guideSection').classList.add('hidden');
       document.getElementById('installSection').classList.remove('hidden');
@@ -225,6 +229,7 @@
   }
 
   // 基于最新设置合并式保存（仅改动引导涉及的键，不整包覆盖其他并发修改）
+  /** @param {Record<string, any>} patch */
   async function saveSettingsPatch(patch) {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
     const settings = (resp && resp.settings) || {};

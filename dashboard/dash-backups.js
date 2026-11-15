@@ -27,7 +27,7 @@ async function loadBackups() {
     }
 
     container.innerHTML = backups
-      .map((b) => {
+      .map((/** @type {any} */ b) => {
         const time = safeDateText(b.timestamp); // v10.9.1
         const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
         const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
@@ -47,10 +47,10 @@ async function loadBackups() {
 
     // 绑定恢复/删除按钮（内联 onclick 在 MV3 扩展页被 CSP 禁止，必须用 addEventListener）
     // Bind restore/delete buttons (inline onclick is blocked by MV3 extension-page CSP)
-    container.querySelectorAll('.backup-restore-btn').forEach((btn) => {
+    container.querySelectorAll('.backup-restore-btn').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', () => restoreBackup(btn.dataset.id));
     });
-    container.querySelectorAll('.backup-delete-btn').forEach((btn) => {
+    container.querySelectorAll('.backup-delete-btn').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', () => deleteBackup(btn.dataset.id));
     });
   } catch (e) {
@@ -80,6 +80,7 @@ async function createBackup() {
 
 // 恢复备份（后台会先自动备份当前状态作为安全网）
 // Restore a backup (background creates a safety-net backup of the current state first)
+/** @param {string} id */
 async function restoreBackup(id) {
   if (!confirm('恢复备份将覆盖当前数据（系统会先自动备份当前状态）。确定继续？')) return;
   try {
@@ -96,6 +97,7 @@ async function restoreBackup(id) {
 }
 
 // 删除备份 / Delete a backup
+/** @param {string} id */
 async function deleteBackup(id) {
   if (!confirm('确定删除该备份？')) return;
   await window.__GR_MSG__.sendMessage({ action: 'DELETE_BACKUP', backupId: id });

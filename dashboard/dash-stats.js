@@ -18,6 +18,7 @@
  */
 
 // ============ 行为趋势 / Behavior Trends (v4.0.0, weekly since v4.1.0) ============
+/** @type {any[]} */
 let cachedTrends = []; // 供 CSV 导出 / cached daily trends for CSV export
 
 // 从后台加载聚合趋势（日/周粒度）/ Load trends from background (day/week)
@@ -35,6 +36,7 @@ async function loadTrends() {
 
 // 手绘 SVG 趋势图：浏览/下载双柱 + 转化率折线（零依赖，深色主题）
 // Hand-drawn SVG chart: views/downloads bars + conversion-rate line (no deps)
+/** @param {any[]} daily */
 function renderTrendChart(daily) {
   const container = document.getElementById('trendChart');
   const statsEl = document.getElementById('trendStats');
@@ -43,7 +45,7 @@ function renderTrendChart(daily) {
     statsEl.textContent = '';
     return;
   }
-  const totalViews = daily.reduce((s, d) => s + d.views, 0);
+  const totalViews = daily.reduce((/** @type {number} */ s, /** @type {any} */ d) => s + d.views, 0);
   const totalDl = daily.reduce((s, d) => s + d.downloads, 0);
   statsEl.textContent = `近 ${daily.length} 天 · 浏览 ${totalViews} · 下载 ${totalDl}`;
 
@@ -52,16 +54,16 @@ function renderTrendChart(daily) {
     PAD = { l: 42, r: 42, t: 12, b: 26 };
   const iw = W - PAD.l - PAD.r,
     ih = H - PAD.t - PAD.b;
-  const maxCount = Math.max(1, ...daily.map((d) => Math.max(d.views, d.downloads)));
+  const maxCount = Math.max(1, ...daily.map((/** @type {any} */ d) => Math.max(d.views, d.downloads)));
   const n = daily.length;
   const slot = iw / n;
   const barW = Math.min(10, slot * 0.36);
-  const x = (i) => PAD.l + i * slot + slot / 2;
-  const y = (v) => PAD.t + ih - (v / maxCount) * ih;
+  const x = (/** @type {number} */ i) => PAD.l + i * slot + slot / 2;
+  const y = (/** @type {number} */ v) => PAD.t + ih - (v / maxCount) * ih;
 
   let bars = '';
   // v9.6.0：柱状图渐变填充 + 圆角（美化）
-  daily.forEach((d, i) => {
+  daily.forEach((/** @type {any} */ d, /** @type {number} */ i) => {
     bars +=
       `<rect x="${(x(i) - barW - 1).toFixed(1)}" y="${y(d.views).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.views)).toFixed(1)}" rx="2" fill="url(#gr-grad-views)" opacity="0.85"/>` +
       `<rect x="${(x(i) + 1).toFixed(1)}" y="${y(d.downloads).toFixed(1)}" width="${barW.toFixed(1)}" height="${(PAD.t + ih - y(d.downloads)).toFixed(1)}" rx="2" fill="url(#gr-grad-downloads)" opacity="0.9"/>`;
@@ -73,7 +75,7 @@ function renderTrendChart(daily) {
     grid += `<line x1="${PAD.l}" y1="${gy.toFixed(1)}" x2="${W - PAD.r}" y2="${gy.toFixed(1)}" stroke="#2a3f55" stroke-width="1" stroke-dasharray="4 4" opacity="0.5"/>`;
   }
   let line = '';
-  daily.forEach((d, i) => {
+  daily.forEach((/** @type {any} */ d, /** @type {number} */ i) => {
     const px = x(i).toFixed(1);
     const py = (PAD.t + ih - (d.rate / 100) * ih).toFixed(1);
     line += i === 0 ? `M${px},${py}` : `L${px},${py}`;
@@ -116,6 +118,7 @@ function renderTrendChart(daily) {
 }
 
 // ============ 概览统计 / Overview Statistics ============
+/** @type {any[]} */
 let cachedGameList = []; // 供 CSV 导出 / cached game list for CSV export
 
 async function loadStats() {
@@ -208,7 +211,7 @@ function renderDownloadMethods(methods, recentLog) {
       ([method, count]) => `
       <div class="method-item">
         <div class="method-count">${count}</div>
-        <div class="method-name">${methodNames[method] || escapeHtml(method)}</div>
+        <div class="method-name">${/** @type {Record<string, string>} */ (methodNames)[method] || escapeHtml(method)}</div>
       </div>
     `
     )
@@ -221,6 +224,7 @@ function renderDownloadMethods(methods, recentLog) {
 function renderDownloadSitesTop(recentLog) {
   const container = document.getElementById('downloadSitesTop');
   if (!container) return;
+  /** @type {Record<string, number>} */
   const bySite = {};
   for (const e of recentLog || []) {
     if (e.type !== 'click_download' || !e.url) continue;
@@ -247,14 +251,17 @@ function renderDownloadSitesTop(recentLog) {
 }
 
 // 游戏明细表（按下载数/查看数降序） / Per-game table (sorted by downloads/views)
+/** @type {any[]} - 跨文件全局（tsc 全程序共享作用域，dash-logs.js 分页消费） */
 let cachedGames = []; // 当前表全集（tag 过滤后）——dash-logs.js 分页重渲染按名读取
+/** @param {any[]} games */
 function renderGameTable(games) {
   cachedGames = games || [];
   // v11.0 B7：tag 聚合过滤——keywords 含激活标签的游戏才入表
   if (activeTagFilter) {
     cachedGames = cachedGames.filter(
-      (g) =>
-        Array.isArray(g.keywords) && g.keywords.some((k) => String(k).toLowerCase() === activeTagFilter.toLowerCase())
+      (/** @type {any} */ g) =>
+        Array.isArray(g.keywords) &&
+        g.keywords.some((/** @type {string} */ k) => String(k).toLowerCase() === activeTagFilter.toLowerCase())
     );
   }
   const tbody = document.getElementById('gameTableBody');
@@ -266,10 +273,10 @@ function renderGameTable(games) {
   const { slice, total } = paginate('games', games);
   renderPager('games', 'gamePager', total);
   tbody.innerHTML = slice
-    .map((game) => {
+    .map((/** @type {any} */ game) => {
       const tags = (game.keywords || [])
         .slice(0, 4)
-        .map((t) => `<span class="tag-small">${escapeHtml(t)}</span>`)
+        .map((/** @type {string} */ t) => `<span class="tag-small">${escapeHtml(t)}</span>`)
         .join('');
       const rating = game.steamRating ? `${game.steamRating}/10` : '-';
       const time = safeDateText(game.lastSeen); // v10.9.1
@@ -288,6 +295,7 @@ function renderGameTable(games) {
 }
 
 // 最近行为日志表 / Recent behavior log table
+/** @param {any[]} logs */
 function renderLogTable(logs) {
   const tbody = document.getElementById('logTableBody');
   if (!logs || logs.length === 0) {
@@ -304,8 +312,11 @@ function renderLogTable(logs) {
   };
 
   tbody.innerHTML = logs
-    .map((log) => {
-      const [typeName, typeClass] = typeNames[log.type] || [escapeHtml(String(log.type || '未知')), 'list'];
+    .map((/** @type {any} */ log) => {
+      const [typeName, typeClass] = /** @type {Record<string, string[]>} */ (typeNames)[log.type] || [
+        escapeHtml(String(log.type || '未知')),
+        'list'
+      ];
       const time = log.timestamp
         ? new Date(log.timestamp).toLocaleString('zh-CN', {
             month: '2-digit',

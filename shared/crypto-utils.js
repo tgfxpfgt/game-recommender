@@ -42,12 +42,13 @@
   }
 
   function subtle() {
-    const c = global.crypto || global.msCrypto || null;
+    const c = /** @type {any} */ (global).crypto || /** @type {any} */ (global).msCrypto || null;
     if (!c || !c.subtle) throw new Error('当前环境不支持 WebCrypto（无法加密/解密）');
     return c.subtle;
   }
 
   // 口令 → AES-GCM 密钥（PBKDF2，随机盐）/ passphrase → AES-GCM key (PBKDF2, random salt)
+  /** @param {string} password @param {Uint8Array} saltBytes @param {number} iterations */
   async function deriveKey(password, saltBytes, iterations) {
     const enc = new TextEncoder();
     const base = await subtle().importKey('raw', enc.encode(String(password)), 'PBKDF2', false, ['deriveKey']);
@@ -106,9 +107,10 @@
     return JSON.parse(new TextDecoder().decode(plain));
   }
 
+  /** @param {any} obj */
   function isEnvelope(obj) {
     return !!obj && obj.format === ENVELOPE_FORMAT;
   }
 
-  global.__GR_CRYPTO__ = { encryptJson, decryptJson, isEnvelope, ENVELOPE_FORMAT };
+  /** @type {any} */ (global).__GR_CRYPTO__ = { encryptJson, decryptJson, isEnvelope, ENVELOPE_FORMAT };
 })(typeof globalThis !== 'undefined' ? globalThis : this);

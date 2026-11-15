@@ -7,6 +7,7 @@
  */
 
 // ============ 权重渲染 / Weights ============
+/** @param {Record<string, any>} weights */
 function renderWeights(weights) {
   const box = document.getElementById('ppWeights');
   if (!box) return;
@@ -35,15 +36,18 @@ function renderWeights(weights) {
     const slider = row.querySelector('[data-w]');
     slider.value = Math.round((weights[key] || 0) * 100);
     row.querySelector('[data-wv]').textContent = slider.value + '%';
-    slider.addEventListener('input', (e) => {
-      row.querySelector('[data-wv]').textContent = e.target.value + '%';
+    slider.addEventListener('input', (/** @type {Event} */ e) => {
+      row.querySelector('[data-wv]').textContent = /** @type {HTMLInputElement} */ (e.target).value + '%';
       updateWeightSum();
     });
-    slider.addEventListener('change', async (e) => {
+    slider.addEventListener('change', async (/** @type {Event} */ e) => {
       try {
         const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
         const latest = resp && resp.settings ? resp.settings : {};
-        latest.weights = { ...(latest.weights || {}), [key]: Number(e.target.value) / 100 };
+        latest.weights = {
+          ...(latest.weights || {}),
+          [key]: Number(/** @type {HTMLInputElement} */ (e.target).value) / 100
+        };
         const utils = globalThis.__GR_SETTINGS_UTILS__ || {};
         if (utils.applyPatch) utils.applyPatch(latest, { weights: latest.weights });
         await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: latest });
@@ -62,7 +66,7 @@ function updateWeightSum() {
   const sumEl = document.getElementById('ppWeightSum');
   if (!box || !sumEl) return;
   let sum = 0;
-  box.querySelectorAll('[data-w]').forEach((s) => {
+  box.querySelectorAll('[data-w]').forEach((/** @type {any} */ s) => {
     sum += Number(s.value) || 0;
   });
   sumEl.textContent = (sum / 100).toFixed(2);

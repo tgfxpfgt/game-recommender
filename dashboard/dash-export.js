@@ -11,15 +11,17 @@
 // ============ CSV 导出 / CSV Export (v4.0.0) ============
 // CSV 转义（引号/逗号/换行）；值含特殊字符时加引号并双写引号
 // CSV escaping: quote values containing commas/quotes/newlines ("" doubling)
+/** @param {string[]} headers @param {any[][]} rows */
 function toCsv(headers, rows) {
-  const esc = (v) => {
+  const esc = (/** @type {any} */ v) => {
     const s = v === null || v === undefined ? '' : String(v);
     return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
   };
-  return [headers.map(esc).join(','), ...rows.map((r) => r.map(esc).join(','))].join('\r\n');
+  return [headers.map(esc).join(','), ...rows.map((/** @type {any[]} */ r) => r.map(esc).join(','))].join('\r\n');
 }
 
 // Blob 下载（BOM 防 Excel 中文乱码）/ Blob download with UTF-8 BOM for Excel
+/** @param {string} filename @param {string} csv */
 function downloadCsv(filename, csv) {
   const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
@@ -110,7 +112,7 @@ async function exportLogsCsv() {
       `game-recommender-behavior-${new Date().toISOString().slice(0, 10)}.csv`,
       toCsv(
         ['时间', '类型', '游戏', '方式', '网站', 'URL'],
-        entries.map((e) => [
+        entries.map((/** @type {any} */ e) => [
           new Date(e.timestamp).toLocaleString('zh-CN'),
           e.type,
           e.gameName || '',

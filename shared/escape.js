@@ -10,6 +10,7 @@
   'use strict';
 
   // HTML 转义 / HTML escape
+  /** @param {string} text */
   function escapeHtml(text) {
     const div = document.createElement('div');
     div.textContent = text || '';
@@ -20,6 +21,7 @@
   // v10.8.1 修复：入参 String 强转——转义是安全防线，调用方可能传数字（如
   // Steam appId，v10.5.0 起候选列表 escapeAttr(数字) 抛 TypeError 使候选浮窗
   // 整体"搜索失败"）；防线自身不得因数据类型崩溃
+  /** @param {string} text */
   function escapeAttr(text) {
     return String(text ?? '')
       .replace(/&/g, '&amp;')

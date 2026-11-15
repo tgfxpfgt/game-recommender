@@ -24,10 +24,10 @@
       const q = String((ev && ev.target && ev.target.value) || inputs[0].value || '')
         .trim()
         .toLowerCase();
-      document.querySelectorAll('.settings-panel .setting-row').forEach((row) => {
+      document.querySelectorAll('.settings-panel .setting-row').forEach((/** @type {any} */ row) => {
         row.style.display = !q || (row.textContent || '').toLowerCase().includes(q) ? '' : 'none';
       });
-      document.querySelectorAll('.settings-panel .settings-section').forEach((sec) => {
+      document.querySelectorAll('.settings-panel .settings-section').forEach((/** @type {any} */ sec) => {
         const visible = [...sec.querySelectorAll('.setting-row')].some((r) => r.style.display !== 'none');
         sec.style.display = visible || !q ? '' : 'none';
       });
@@ -38,13 +38,14 @@
 
   // ============ 关键词过滤规则编辑器（v6.4.8：多条 + 排除误报词） ============
   // Keyword filter-rule editor: multiple rules, each with false-positive excludes.
+  /** @param {any[]} rules */
   function renderRules(rules) {
     // v14.11 B5：id 改 keywordRuleList——原 ruleList 与规则管理面板重复，
     // getElementById 恒取首个致规则管理面板恒空（报告 B/C/D 三报共振）
     const box = document.getElementById('keywordRuleList');
     if (!box) return;
     box.innerHTML = '';
-    (rules || []).forEach((rule, idx) => {
+    (rules || []).forEach((/** @type {any} */ rule, /** @type {number} */ idx) => {
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
       // v9.7.0：value 属性转义改用统一 escapeAttr（shared/escape.js 全局注入）——
@@ -55,7 +56,9 @@
           <button class="btn btn-danger" data-rdel="${idx}" style="padding:4px 10px;">✕</button>`;
       box.appendChild(row);
       row.querySelector('[data-rdel]').addEventListener('click', () => {
-        const rules2 = (OPTS.currentSettings.filterRules || []).filter((_, i) => i !== idx);
+        const rules2 = /** @type {any[]} */ (OPTS.currentSettings.filterRules || []).filter(
+          (/** @type {any} */ _r, /** @type {number} */ i) => i !== idx
+        );
         OPTS.currentSettings.filterRules = rules2;
         renderRules(rules2);
         OPTS.scheduleAutoSave();
@@ -78,15 +81,17 @@
       const kIdx = el && el.dataset && el.dataset.rk;
       const xIdx = el && el.dataset && el.dataset.rx;
       if (kIdx === undefined && xIdx === undefined) return;
-      const rules2 = (OPTS.currentSettings.filterRules || []).map((r, i) => {
-        if (String(i) === kIdx) return { ...r, keyword: el.value };
-        if (String(i) === xIdx) return { ...r, exclude: el.value };
-        return r;
-      });
+      const rules2 = /** @type {any[]} */ (OPTS.currentSettings.filterRules || []).map(
+        (/** @type {any} */ r, /** @type {number} */ i) => {
+          if (String(i) === kIdx) return { ...r, keyword: el.value };
+          if (String(i) === xIdx) return { ...r, exclude: el.value };
+          return r;
+        }
+      );
       OPTS.currentSettings.filterRules = rules2;
       OPTS.scheduleAutoSave();
     });
-    global['__renderRules'] = renderRules;
+    /** @type {Record<string, any>} */ (global)['__renderRules'] = renderRules;
     // v6.4.11：renderSettings 先于本定义执行，首次加载时规则列表缺失 → 补渲染
     if (OPTS.currentSettings) renderRules(OPTS.currentSettings.filterRules || []);
   }
@@ -98,7 +103,7 @@
     const logs = (resp && resp.logs) || [];
     const levelFilter = document.getElementById('logLevelFilter').value;
     const search = document.getElementById('logSearch').value.trim().toLowerCase();
-    const filtered = logs.filter((l) => {
+    const filtered = logs.filter((/** @type {any} */ l) => {
       if (levelFilter && l.level !== levelFilter) return false;
       if (
         search &&
@@ -115,7 +120,7 @@
         ? '<div style="color:#8f98a0;">暂无匹配日志</div>'
         : filtered
             .slice(0, 200)
-            .map((l) => {
+            .map((/** @type {any} */ l) => {
               const color =
                 l.level === 'error'
                   ? '#c75050'

@@ -20,6 +20,7 @@
 const COPY_FEEDBACK_RESET_MS = 2000; // 复制反馈复位延时
 
 // ============ 出站请求审计 / Outbound Request Audit ============
+/** @type {{entries: any[], stats: any}} */
 let cachedAudit = { entries: [], stats: null };
 
 // 从后台加载出站请求审计（最近 100 条）/ Load outbound request audit (latest 100)
@@ -126,11 +127,13 @@ async function loadHealthCards() {
     const siteHealth = await window.__GR_MSG__.sendMessage({ action: 'GET_SITE_HEALTH' });
     const alertEl = document.getElementById('diagSiteAlerts');
     const sites = (siteHealth && siteHealth.sites) || [];
-    const totalAlerts = sites.reduce((sum, s) => sum + (s.alertCount || 0), 0);
+    const totalAlerts = sites.reduce((/** @type {number} */ sum, /** @type {any} */ s) => sum + (s.alertCount || 0), 0);
     if (alertEl) {
       alertEl.textContent = String(totalAlerts);
       alertEl.title =
-        sites.length > 0 ? sites.map((s) => `${s.siteKey}: ${s.alertCount ?? 0} 次`).join('\n') : '无告警记录';
+        sites.length > 0
+          ? sites.map((/** @type {any} */ s) => `${s.siteKey}: ${s.alertCount ?? 0} 次`).join('\n')
+          : '无告警记录';
     }
     // 明细列表（仅存在告警时显示）/ per-site detail when alerts exist
     const listEl = document.getElementById('siteHealthList');
@@ -144,7 +147,7 @@ async function loadHealthCards() {
           '<div style="color:#e74c3c;">⚠ 站点适配器疑似失效（列表项提取为 0，请检查/更新适配规则）：</div>' +
           sites
             .map(
-              (s) =>
+              (/** @type {any} */ s) =>
                 `<div style="margin-top:2px;">• ${escapeHtml(s.siteKey)}（${escapeHtml(s.host || '?')}）— ` +
                 `${s.alertCount} 次，最近 ${new Date(s.lastAlertAt || Date.now()).toLocaleString()}</div>`
             )
@@ -169,7 +172,7 @@ async function loadApiDiagnostics() {
     const dm = resp.domains || {};
     const el2 = document.getElementById('diagDomainStatus');
     if (el2) {
-      const lamp = (v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
+      const lamp = (/** @type {string} */ v) => (v === 'ok' ? '🟢' : v === 'down' ? '🔴' : '⚪');
       el2.textContent = `商店 ${lamp(dm.store)} / API ${lamp(dm.api)}`;
       el2.title = dm.circuit === 'open' ? '熔断中：连续网络失败，60s 后自动重试' : '分域名可达性（最近请求滚动窗口）';
     }
@@ -198,7 +201,7 @@ async function loadBootTime() {
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 200 });
     const logs = (resp && resp.logs) || [];
-    const perf = logs.filter((l) => l && l.module === 'Perf');
+    const perf = logs.filter((/** @type {any} */ l) => l && l.module === 'Perf');
     if (perf.length === 0) {
       el.textContent = '—';
       return;
@@ -299,7 +302,7 @@ async function renderMismatchSamples() {
     el.title =
       samples.length > 0
         ? samples
-            .map((s) => s.rawTitle)
+            .map((/** @type {any} */ s) => s.rawTitle)
             .slice(0, 5)
             .join('\n')
         : '暂无采集样本';

@@ -30,7 +30,7 @@
     bindStaleRefresh();
     // 搜索按钮 / 搜索框回车（即时检索）
     document.getElementById('cacheSearchBtn').addEventListener('click', resetAndLoad);
-    document.getElementById('cacheSearchInput').addEventListener('keydown', (e) => {
+    document.getElementById('cacheSearchInput').addEventListener('keydown', (/** @type {KeyboardEvent} */ e) => {
       if (e.key === 'Enter') resetAndLoad();
     });
     // 搜索框防抖（300ms）/ 筛选下拉：变更即检索
@@ -113,8 +113,8 @@
     if (!select) return;
     const rules = (OPTS.siteRules || {}).sites || [];
     rules
-      .filter((s) => s.searchUrl)
-      .forEach((s) => {
+      .filter((/** @type {any} */ s) => s.searchUrl)
+      .forEach((/** @type {any} */ s) => {
         const opt = document.createElement('option');
         opt.value = s.key;
         opt.textContent = s.name;
@@ -128,8 +128,9 @@
     if (!btn) return;
     btn.addEventListener('click', async () => {
       const tbody = document.getElementById('cacheTableBody');
+      /** @type {any[]} */
       const stale = [];
-      tbody.querySelectorAll('tr').forEach((tr) => {
+      tbody.querySelectorAll('tr').forEach((/** @type {any} */ tr) => {
         const appId = tr.querySelector('[data-appid]');
         const tags = tr.querySelectorAll('.col-modules span');
         if (!appId) return;
@@ -187,8 +188,11 @@
       const modNames = { meta: '基础', rating: '好评率', detail: '详情', spy: '热度' };
       const ms = resp.moduleStats || {};
       const msText = Object.keys(modNames)
-        .filter((k) => ms[k])
-        .map((k) => `${modNames[k]} ${ms[k].count ?? 0}${(ms[k].stale ?? 0) > 0 ? `(+${ms[k].stale}过期)` : ''}`) // v10.9.1
+        .filter((/** @type {string} */ k) => ms[k])
+        .map(
+          (/** @type {string} */ k) =>
+            `${/** @type {Record<string, string>} */ (modNames)[k]} ${ms[k].count ?? 0}${(ms[k].stale ?? 0) > 0 ? `(+${ms[k].stale}过期)` : ''}`
+        ) // v10.9.1
         .join(' · ');
       statsEl.innerHTML =
         `<div>共 ${resp.total ?? 0} 条记录 · 第 ${resp.page ?? 1}/${resp.totalPages ?? 1} 页</div>` + // v10.9.1
@@ -205,7 +209,7 @@
       // 渲染表格行（封面缩略图 + 好评率徽章 + 可点击 appId + 手动更新按钮）
       tbody.innerHTML = resp.games
         .map(
-          (g) => `
+          (/** @type {any} */ g) => `
         <tr>
           <td class="col-cover">
             ${
@@ -234,19 +238,19 @@
         .join('');
 
       // 绑定删除按钮事件
-      tbody.querySelectorAll('.cache-delete-btn').forEach((btn) => {
+      tbody.querySelectorAll('.cache-delete-btn').forEach((/** @type {any} */ btn) => {
         btn.addEventListener('click', () => deleteCacheEntry(btn.dataset.appid));
       });
 
       // 封面图加载失败时隐藏（MV3 CSP 合规：addEventListener 而非内联 onerror）
-      tbody.querySelectorAll('.cache-cover').forEach((img) => {
+      tbody.querySelectorAll('.cache-cover').forEach((/** @type {any} */ img) => {
         img.addEventListener('error', () => {
           img.style.display = 'none';
         });
       });
 
       // 绑定手动更新按钮事件
-      tbody.querySelectorAll('.cache-refresh-btn').forEach((btn) => {
+      tbody.querySelectorAll('.cache-refresh-btn').forEach((/** @type {any} */ btn) => {
         btn.addEventListener('click', () => refreshCacheEntry(btn.dataset.appid, btn));
       });
 
@@ -267,6 +271,7 @@
     }, delayMs);
   }
 
+  /** @param {string} appId @param {any} btn */
   async function refreshCacheEntry(appId, btn) {
     if (!btn) return;
     btn.dataset.grOriginal = btn.textContent;
@@ -288,6 +293,7 @@
   }
 
   // 渲染分页控件
+  /** @param {number} total @param {number} totalPages */
   function renderPagination(total, totalPages) {
     const container = document.getElementById('cachePagination');
     if (total === 0 || totalPages <= 1) {
@@ -320,7 +326,7 @@
 
     container.innerHTML = html;
 
-    container.querySelectorAll('button[data-page]').forEach((btn) => {
+    container.querySelectorAll('button[data-page]').forEach((/** @type {any} */ btn) => {
       if (btn.disabled) return;
       btn.addEventListener('click', () => {
         OPTS.cacheCurrentPage = parseInt(btn.dataset.page);
@@ -330,6 +336,7 @@
   }
 
   // 删除单个游戏缓存
+  /** @param {string} appId */
   async function deleteCacheEntry(appId) {
     if (!confirm(`确定要删除 AppID ${appId} 的缓存吗？`)) return;
     try {
@@ -375,7 +382,7 @@
   // ============ 缓存有效期输入绑定（v14 B2 自 options.js 迁入） ============
   // 变更即自动保存；收集在 options.js saveSettings（TTL_FIELDS 单源在壳）。
   function bindTtlEvents() {
-    OPTS.TTL_FIELDS.forEach((f) => {
+    OPTS.TTL_FIELDS.forEach((/** @type {any} */ f) => {
       const el = document.getElementById(f.id);
       if (!el) return;
       el.addEventListener('change', () => OPTS.scheduleAutoSave());

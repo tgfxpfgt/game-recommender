@@ -5,6 +5,7 @@
  */
 'use strict';
 
+/** @type {Record<string, {label: string, url: string}>} */
 const PAGES = {
   options: { label: '设置（经典）', url: '../options/options.html?hub=1' },
   dashboard: { label: '数据分析', url: '../dashboard/dashboard.html?hub=1' },
@@ -32,10 +33,11 @@ function currentPage() {
   return m && PAGES[m[1]] ? m[1] : 'options';
 }
 
+/** @param {string} page */
 function switchPage(page) {
   if (!PAGES[page]) page = 'options';
   // 更新导航高亮
-  document.querySelectorAll('.hub-item').forEach((b) => {
+  document.querySelectorAll('.hub-item').forEach((/** @type {any} */ b) => {
     b.classList.toggle('active', b.dataset.page === page);
   });
   // 更新 hash（不触发重新加载）
@@ -49,7 +51,7 @@ function switchPage(page) {
 }
 
 // 侧栏点击切换
-document.querySelectorAll('.hub-item').forEach((btn) => {
+document.querySelectorAll('.hub-item').forEach((/** @type {any} */ btn) => {
   btn.addEventListener('click', () => switchPage(btn.dataset.page));
 });
 

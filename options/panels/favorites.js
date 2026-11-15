@@ -14,6 +14,7 @@
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
   // v6.4.19：密钥脱敏显示（保留末 4 位）/ Mask API key (keep last 4 chars)
+  /** @param {string} key */
   function maskKey(key) {
     if (!key) return '';
     const k = String(key);
@@ -33,7 +34,7 @@
         '<div style="font-size:12px;color:#8f98a0;">暂无配置——上方添加（可选）。未配置时跳过 ITAD 校验</div>';
       return;
     }
-    profiles.forEach((p, idx) => {
+    profiles.forEach((/** @type {any} */ p, /** @type {number} */ idx) => {
       const isActive = String(p.id) === String(activeId) || (!activeId && idx === 0);
       const row = document.createElement('div');
       row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
@@ -51,7 +52,9 @@
         renderItadProfiles();
       });
       row.querySelector('[data-rdel]').addEventListener('click', () => {
-        const profiles2 = (OPTS.currentSettings.itadProfiles || []).filter((_, i) => i !== idx);
+        const profiles2 = /** @type {any[]} */ (OPTS.currentSettings.itadProfiles || []).filter(
+          (/** @type {any} */ _p, /** @type {number} */ i) => i !== idx
+        );
         OPTS.currentSettings.itadProfiles = profiles2;
         if (String(OPTS.currentSettings.itadActiveProfileId) === String(p.id)) {
           OPTS.currentSettings.itadActiveProfileId = profiles2.length > 0 ? profiles2[0].id : null;
@@ -93,7 +96,8 @@
       const result = document.getElementById('itadTestResult');
       const profiles = OPTS.currentSettings.itadProfiles || [];
       const active =
-        profiles.find((p) => String(p.id) === String(OPTS.currentSettings.itadActiveProfileId)) || profiles[0];
+        profiles.find((/** @type {any} */ p) => String(p.id) === String(OPTS.currentSettings.itadActiveProfileId)) ||
+        profiles[0];
       if (!active || !active.key) {
         result.textContent = '⚠️ 暂无配置，请先添加';
         return;

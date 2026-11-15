@@ -101,6 +101,7 @@
     ['maxBackups', 'maxBackups']
   ];
 
+  /** @type {any} */
   let defaultsCache = null;
 
   async function ensureDefaults() {
@@ -114,12 +115,16 @@
     return defaultsCache;
   }
 
+  /** @param {any} obj @param {string} path */
   function getPath(obj, path) {
-    return path.split('.').reduce((o, k) => (o == null ? undefined : o[k]), obj);
+    return path
+      .split('.')
+      .reduce((/** @type {any} */ o, /** @type {string} */ k) => (o == null ? undefined : o[k]), obj);
   }
 
   // 重置单键：默认值写入当前设置副本 → renderSettings 整面板重渲染（单源）→
   // 常规防抖保存。缺默认值（未知键）时不动。
+  /** @param {string} path */
   async function resetOne(path) {
     const defaults = await ensureDefaults();
     const def = getPath(defaults, path);
@@ -139,6 +144,7 @@
     OPTS.scheduleAutoSave();
   }
 
+  /** @param {string} path @param {any} slot */
   function makeButton(path, slot) {
     const btn = document.createElement('button');
     btn.type = 'button';

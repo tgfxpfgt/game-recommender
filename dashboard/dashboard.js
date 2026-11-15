@@ -80,6 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
 // Date-safe formatting helper (P3 cleanup: no more "Invalid Date" literals).
 // 供 stats/logs/diagnostics/backups 各模块按名调用（跨文件全局）
 // Used by stats/logs/diagnostics/backups via classic-script global scope.
+/** @param {number} ts @param {Intl.DateTimeFormatOptions} [fmt] - Intl 选项（缺省仅日期） */
 // eslint-disable-next-line no-unused-vars -- 跨文件使用，本文件无消费方
 function safeDateText(ts, fmt) {
   const d = new Date(ts);

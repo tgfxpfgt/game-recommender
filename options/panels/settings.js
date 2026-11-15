@@ -17,11 +17,13 @@
   // v14.2.0：键序/文案改读 globalThis.__GR_FM_KEYS__（shared/fm-keys.js 单源，
   // options.html 以 module script 加载、先于 DOMContentLoaded 执行；此前为本地
   // 硬编码副本——全仓 5 份键副本之一，复审轮 P1-2）。
+  /** @type {string[]} */
   let fmOrderState = []; // 面板内工作副本（renderFmOrder 重建）
 
+  /** @param {any} savedOrder */
   function renderFmOrder(savedOrder) {
     const list = document.getElementById('fmOrderList');
-    const fm = globalThis.__GR_FM_KEYS__;
+    const fm = /** @type {any} */ (globalThis).__GR_FM_KEYS__;
     if (!list || !fm) return;
     const valid = Array.isArray(savedOrder) ? savedOrder.filter((k) => fm.keys.includes(k)) : [];
     fmOrderState = [...valid];
@@ -38,6 +40,7 @@
       .join('');
   }
 
+  /** @param {string} key @param {number} delta */
   function moveFmModule(key, delta) {
     const i = fmOrderState.indexOf(key);
     const j = i + delta;
@@ -55,8 +58,8 @@
     const list = document.getElementById('fmOrderList');
     if (!list || list.dataset.grBound) return;
     list.dataset.grBound = '1';
-    list.addEventListener('click', (e) => {
-      const btn = e.target.closest('button');
+    list.addEventListener('click', (/** @type {Event} */ e) => {
+      const btn = /** @type {HTMLElement} */ (e.target).closest('button');
       if (!btn || !btn.dataset.key) return;
       moveFmModule(btn.dataset.key, btn.classList.contains('fm-order-up') ? -1 : 1);
     });

@@ -15,6 +15,7 @@
  * - 领取后按钮仍可点击（支持再次打开）
  */
 
+/** @type {any[]} */
 let allGames = [];
 let currentFilter = 'all';
 let currentClaimFilter = 'all';
@@ -52,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // 系统日历订阅后到期自动提醒；零网络（数据来自已加载的限免缓存）。
   // Export .ics: in-progress giveaways become VEVENTs with a 24h reminder window.
   document.getElementById('icalBtn').addEventListener('click', () => {
-    const ical = globalThis.__GR_ICAL__;
+    const ical = /** @type {any} */ (globalThis).__GR_ICAL__;
     if (!ical || !Array.isArray(allGames) || allGames.length === 0) {
       alert('暂无限免数据可导出');
       return;
@@ -68,9 +69,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 平台筛选 / Platform filter
-  document.querySelectorAll('.filter-btn').forEach((btn) => {
+  document.querySelectorAll('.filter-btn').forEach((/** @type {any} */ btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.filter-btn').forEach((/** @type {any} */ b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentFilter = btn.dataset.platform;
       renderGames();
@@ -78,9 +79,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // 领取方式筛选 / Claim-type filter
-  document.querySelectorAll('.claim-btn-filter').forEach((btn) => {
+  document.querySelectorAll('.claim-btn-filter').forEach((/** @type {any} */ btn) => {
     btn.addEventListener('click', () => {
-      document.querySelectorAll('.claim-btn-filter').forEach((b) => b.classList.remove('active'));
+      document.querySelectorAll('.claim-btn-filter').forEach((/** @type {any} */ b) => b.classList.remove('active'));
       btn.classList.add('active');
       currentClaimFilter = btn.dataset.claim;
       renderGames();
@@ -171,7 +172,7 @@ function renderGames() {
   const listEl = document.getElementById('gameList');
 
   // v9.3.0：过滤逻辑抽取为纯函数（shared/freegames-filter.js——可单测）
-  const { filterFreeGames } = globalThis.__GR_FG_FILTER__ || {};
+  const { filterFreeGames } = /** @type {any} */ (globalThis).__GR_FG_FILTER__ || {};
   const base = Array.isArray(allGames) ? allGames : []; // v10.9：异型守卫
   const filtered = filterFreeGames ? filterFreeGames(base, currentFilter, currentClaimFilter) : base;
 
@@ -187,15 +188,15 @@ function renderGames() {
 
   // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
   // Hide failed images (addEventListener instead of inline onerror for extension-page CSP)
-  listEl.querySelectorAll('.game-card-img').forEach((img) => {
+  listEl.querySelectorAll('.game-card-img').forEach((/** @type {any} */ img) => {
     img.addEventListener('error', () => {
       img.style.display = 'none';
     });
   });
 
   // 绑定领取按钮（所有按钮均可重复点击）
-  listEl.querySelectorAll('.claim-btn').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
+  listEl.querySelectorAll('.claim-btn').forEach((/** @type {any} */ btn) => {
+    btn.addEventListener('click', async (/** @type {Event} */ e) => {
       const gameId = btn.dataset.id;
       const game = allGames.find((g) => g.id === gameId);
       // 链接始终会在新标签打开（<a target=_blank> 默认行为）
@@ -214,6 +215,7 @@ function renderGames() {
 }
 
 // 渲染单个游戏卡片 / Render a single game card
+/** @param {Record<string, any>} game */
 function renderGameCard(game) {
   // v10.9：platform 直插 class 属性——外部限免 API 数据必须经属性转义（防属性突破）
   const platformClass = escapeAttr(game.platform || '');
@@ -280,6 +282,7 @@ function renderGameCard(game) {
 
 // 判断时间戳是否为当天（用于"今日新增"标识）
 // Check whether a timestamp is today (for the "new today" badge)
+/** @param {number} timestamp */
 function isToday(timestamp) {
   if (!timestamp) return false;
   const d = new Date(timestamp);
@@ -288,6 +291,7 @@ function isToday(timestamp) {
 }
 
 // 格式化截止日期（如 "8月15日"）；非法日期回退原文 / Format end date; invalid dates fall back
+/** @param {string} dateStr */
 function formatDate(dateStr) {
   const d = new Date(dateStr);
   if (isNaN(d.getTime())) return dateStr; // new Date 对非法串不抛错，返回 Invalid Date

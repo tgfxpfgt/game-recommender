@@ -12,6 +12,7 @@
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
   // ============ 数据模块管理 / Data Module Management ============
+  /** @type {any[]} */
   let dataModules = [];
   let selectedModules = new Set();
 
@@ -20,7 +21,7 @@
     try {
       const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_DATA_MODULES' });
       dataModules = (resp && resp.modules) || [];
-      selectedModules = new Set(dataModules.map((m) => m.key)); // 默认全选
+      selectedModules = new Set(dataModules.map((/** @type {any} */ m) => m.key)); // 默认全选
       renderModuleChecks();
     } catch (e) {
       console.error('加载数据模块失败:', e);
@@ -42,7 +43,7 @@
     `
       )
       .join('');
-    container.querySelectorAll('.module-check').forEach((cb) => {
+    container.querySelectorAll('.module-check').forEach((/** @type {any} */ cb) => {
       cb.addEventListener('change', () => {
         if (cb.checked) selectedModules.add(cb.dataset.module);
         else selectedModules.delete(cb.dataset.module);
@@ -58,6 +59,7 @@
   // 显示操作状态
   // v14.6.2：状态文案清空延时具名单点
   const DATA_OP_CLEAR_MS = 4000;
+  /** @param {string} text @param {boolean} [isError] */
   function showDataOpStatus(text, isError = false) {
     const el = document.getElementById('dataOpStatus');
     if (!el) return;
@@ -87,12 +89,12 @@
       const encInput = document.getElementById('exportEncryptPassword');
       if (encToggle && encToggle.checked) {
         const pwd = encInput ? encInput.value : '';
-        if (!global.__GR_CRYPTO__) throw new Error('加密组件未加载');
+        if (!(/** @type {any} */ (global).__GR_CRYPTO__)) throw new Error('加密组件未加载');
         if (!pwd || pwd.length < 6) {
           showDataOpStatus('加密导出需要至少 6 位口令', true);
           return;
         }
-        const envelope = await global.__GR_CRYPTO__.encryptJson(resp.data, pwd);
+        const envelope = await /** @type {any} */ (global).__GR_CRYPTO__.encryptJson(resp.data, pwd);
         payload = JSON.stringify(envelope);
         encInput.value = ''; // 口令用后即清（不驻留 DOM）/ clear passphrase after use
       }
@@ -109,20 +111,21 @@
     }
   }
 
+  /** @param {Event} e */
   async function importData(e) {
-    const file = e.target.files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
     if (!file) return;
     try {
       const text = await file.text();
       let payload = JSON.parse(text);
       // v10.6.0 F5：加密备份自动识别——按 format 提示输入口令解密（2 次机会）
-      if (global.__GR_CRYPTO__ && global.__GR_CRYPTO__.isEnvelope(payload)) {
+      if (/** @type {any} */ (global).__GR_CRYPTO__ && /** @type {any} */ (global).__GR_CRYPTO__.isEnvelope(payload)) {
         let decrypted = null;
         for (let i = 0; i < 2 && !decrypted; i++) {
           const pwd = prompt(i === 0 ? '该备份已加密，请输入解密口令：' : '口令不正确，请重试：');
           if (pwd === null) break; // 用户取消
           try {
-            decrypted = await global.__GR_CRYPTO__.decryptJson(payload, pwd);
+            decrypted = await /** @type {any} */ (global).__GR_CRYPTO__.decryptJson(payload, pwd);
           } catch {
             /* 口令错误/文件损坏 → 重试 */
           }
@@ -156,7 +159,7 @@
     } catch (err) {
       showDataOpStatus('导入失败: ' + String(err), true);
     }
-    e.target.value = '';
+    /** @type {HTMLInputElement} */ (e.target).value = '';
   }
 
   // 创建备份（所选模块）
@@ -186,7 +189,7 @@
       select.innerHTML =
         '<option value="">选择备份...</option>' +
         backups
-          .map((b) => {
+          .map((/** @type {any} */ b) => {
             const bt = new Date(b.timestamp); // v10.9.1：Invalid Date 兜底
             const time = isNaN(bt.getTime()) ? '-' : bt.toLocaleString('zh-CN');
             const modCount = b.modules ? b.modules.length : '全部';
@@ -257,7 +260,7 @@
 
   // 全选/全不选模块 / Select all / none
   function moduleCheckAll() {
-    selectedModules = new Set(dataModules.map((m) => m.key));
+    selectedModules = new Set(dataModules.map((/** @type {any} */ m) => m.key));
     renderModuleChecks();
   }
   function moduleCheckNone() {
@@ -277,7 +280,8 @@
       const all = await chrome.storage.local.get(null);
       const presets = {};
       for (const [k, v] of Object.entries(all)) {
-        if (k.startsWith('grFilterPresets:') && Array.isArray(v)) presets[k.slice('grFilterPresets:'.length)] = v;
+        if (k.startsWith('grFilterPresets:') && Array.isArray(v))
+          /** @type {Record<string, any>} */ (presets)[k.slice('grFilterPresets:'.length)] = v;
       }
       const hosts = Object.keys(presets).length;
       if (hosts === 0) {
@@ -296,10 +300,11 @@
       showDataOpStatus('预设导出失败: ' + String(e), true);
     }
   };
-  /** @param {{target?: {files?: File[]|null, value?: string}}} e */
+  /** @param {{target?: HTMLInputElement}} e */
   OPTS.importFilterPresets = async function (e) {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
+    const file =
+      /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
+    /** @type {HTMLInputElement} */ (e.target).value = '';
     if (!file) return;
     try {
       const parsed = JSON.parse(await file.text());
@@ -312,7 +317,7 @@
       let hosts = 0;
       for (const [host, list] of Object.entries(presets)) {
         if (!Array.isArray(list) || list.length === 0) continue;
-        updates['grFilterPresets:' + host] = list.slice(0, 10);
+        /** @type {Record<string, any>} */ (updates)['grFilterPresets:' + host] = list.slice(0, 10);
         hosts += 1;
       }
       if (hosts === 0) {
@@ -369,8 +374,10 @@
       showDataOpStatus('导出失败: ' + String(e), true);
     }
   };
+  /** @param {Event} e */
   OPTS.importMappings = async function (e) {
-    const file = e.target.files && e.target.files[0];
+    const file =
+      /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
     if (!file) return;
     try {
       const payload = JSON.parse(await file.text());
@@ -391,7 +398,7 @@
     } catch (err) {
       showDataOpStatus('导入失败: ' + String(err), true);
     } finally {
-      e.target.value = ''; // 允许重复选择同一文件
+      /** @type {HTMLInputElement} */ (e.target).value = ''; // 允许重复选择同一文件
     }
   };
 

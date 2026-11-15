@@ -15,8 +15,10 @@
  */
 
 // 标签偏好云：按权重分级着色与字号 / Tag cloud: color/size graded by weight
+/** @type {string|null} - 跨文件全局（tsc 全程序共享作用域，dash-stats 消费） */
 let activeTagFilter = null; // v11.0 B7：tag 聚合过滤（点击标签云 → 过滤游戏表）
 
+/** @param {any[]} keywords */
 function renderTagCloud(keywords) {
   const container = document.getElementById('tagCloud');
   if (!keywords || keywords.length === 0) {
@@ -25,7 +27,7 @@ function renderTagCloud(keywords) {
   }
 
   container.innerHTML = keywords
-    .map((kw) => {
+    .map((/** @type {any} */ kw) => {
       const weight = Number(kw.weight) || 0; // v10.9：异型权重防 NaN 字号
       const level = weight >= 0.6 ? 'high' : weight >= 0.3 ? 'medium' : 'low';
       const size = Math.max(12, Math.min(20, 12 + weight * 10));
@@ -36,7 +38,7 @@ function renderTagCloud(keywords) {
     })
     .join('');
 
-  container.querySelectorAll('.tag-item').forEach((el) => {
+  container.querySelectorAll('.tag-item').forEach((/** @type {any} */ el) => {
     el.addEventListener('click', () => {
       const tag = el.dataset.tag;
       activeTagFilter = activeTagFilter === tag ? null : tag; // 再点取消
@@ -47,6 +49,7 @@ function renderTagCloud(keywords) {
 }
 
 // v10.0.0：推荐反馈信号渲染（dislike 闭环 / top 下载）
+/** @param {any} feedback */
 function renderFeedback(feedback) {
   const summaryEl = document.getElementById('feedbackSummary');
   const listEl = document.getElementById('feedbackLists');
@@ -59,11 +62,13 @@ function renderFeedback(feedback) {
     return;
   }
   summaryEl.textContent = `负反馈（不感兴趣）${fb.dislikeTotal || 0} 次 · 覆盖 ${fb.gameCount || 0} 款游戏`;
-  const esc = (t) => escapeHtml(String(t || ''));
-  const renderList = (title, items, key) =>
+  const esc = (/** @type {unknown} */ t) => escapeHtml(String(t || ''));
+  const renderList = (/** @type {string} */ title, /** @type {any[]} */ items, /** @type {string} */ key) =>
     items && items.length > 0
       ? `<div style="margin-top:4px;"><b>${title}</b>${items
-          .map((g) => `<span class="gr-pill" style="margin-left:6px;">${esc(g.name)} · ${g[key]}</span>`)
+          .map(
+            (/** @type {any} */ g) => `<span class="gr-pill" style="margin-left:6px;">${esc(g.name)} · ${g[key]}</span>`
+          )
           .join('')}</div>`
       : '';
   listEl.innerHTML =
@@ -87,7 +92,7 @@ async function loadFavorites() {
     }
     // v13 B5：发售状态三分组——排序按组优先级（即将发售 > 已公布 > 已发售 > 未公布），
     // 渲染时组切换处插组头
-    const groupPrio = (info) => {
+    const groupPrio = (/** @type {any} */ info) => {
       const rd = Date.parse((info && info.releaseDate) || '');
       if (isNaN(rd)) return 3;
       if (rd <= Date.now()) return 2;
@@ -100,7 +105,7 @@ async function loadFavorites() {
     let lastGroupPrio = -1;
     el.innerHTML = entries
       .map(([appId, f]) => {
-        const esc2 = (t) => escapeHtml(String(t || ''));
+        const esc2 = (/** @type {unknown} */ t) => escapeHtml(String(t || ''));
         const prio = groupPrio(f);
         const groupHead =
           prio !== lastGroupPrio
@@ -117,7 +122,7 @@ async function loadFavorites() {
         );
       })
       .join('');
-    el.querySelectorAll('.fav-remove').forEach((btn) => {
+    el.querySelectorAll('.fav-remove').forEach((/** @type {any} */ btn) => {
       btn.addEventListener('click', async () => {
         const appId2 = btn.closest('.fav-row').dataset.appid;
         await window.__GR_MSG__.sendMessage({ action: 'TOGGLE_FAVORITE', appId: appId2, name: '' });
@@ -136,7 +141,7 @@ async function loadFavorites() {
         el.appendChild(note);
       } else {
         const prices = pr.prices || {};
-        el.querySelectorAll('.fav-row').forEach((row) => {
+        el.querySelectorAll('.fav-row').forEach((/** @type {any} */ row) => {
           const p = prices[row.dataset.appid];
           if (!p) return;
           const span = document.createElement('span');
@@ -211,7 +216,7 @@ async function loadSteamRecommendations() {
 
     listEl.innerHTML = response.games
       .map(
-        (game) => `
+        (/** @type {any} */ game) => `
       <div class="rec-card">
         ${game.image ? `<img class="rec-card-img" src="${escapeAttr(game.image)}" alt="${escapeHtml(game.name)}"/>` : ''}
         <div class="rec-card-body">
@@ -221,7 +226,7 @@ async function loadSteamRecommendations() {
             ${game.reviewSummary ? ` | ${escapeHtml(game.reviewSummary)}` : ''}
           </div>
           <div class="rec-card-tags">
-            ${(game.matchTags || []).map((t) => `<span>${escapeHtml(t)}</span>`).join('')}
+            ${(game.matchTags || []).map((/** @type {string} */ t) => `<span>${escapeHtml(t)}</span>`).join('')}
           </div>
           <a href="${escapeAttr(game.url)}" target="_blank">🔗 在Steam查看</a>
         </div>
@@ -232,7 +237,7 @@ async function loadSteamRecommendations() {
 
     // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
     // Hide images that fail to load (addEventListener instead of inline onerror for CSP)
-    listEl.querySelectorAll('.rec-card-img').forEach((img) => {
+    listEl.querySelectorAll('.rec-card-img').forEach((/** @type {any} */ img) => {
       img.addEventListener('error', () => {
         img.style.display = 'none';
       });
@@ -265,9 +270,9 @@ async function runGameSearch() {
       out.textContent = '无匹配游戏（仅搜索已缓存的游戏）';
       return;
     }
-    const esc2 = (t) => escapeHtml(String(t || ''));
+    const esc2 = (/** @type {unknown} */ t) => escapeHtml(String(t || ''));
     out.innerHTML = results
-      .map((g) => {
+      .map((/** @type {any} */ g) => {
         const s250 = g.steam250 ? ` · Steam250 #${g.steam250.rank ?? '-'}（${g.steam250.score ?? '-'} 分）` : ''; // v10.9.1
         const rate = g.positiveRate != null ? ` · 好评率 ${g.positiveRate}%` : '';
         const fav = g.favorited ? ' ⭐' : '';
@@ -286,7 +291,7 @@ function bindGameSearch() {
   if (!btn || !input || btn.dataset.grBound) return;
   btn.dataset.grBound = '1';
   btn.addEventListener('click', runGameSearch);
-  input.addEventListener('keydown', (e) => {
+  input.addEventListener('keydown', (/** @type {KeyboardEvent} */ e) => {
     if (e.key === 'Enter') runGameSearch();
   });
 }
