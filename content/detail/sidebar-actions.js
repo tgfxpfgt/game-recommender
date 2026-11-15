@@ -13,7 +13,7 @@ import * as debug from '../core/debug.js';
 // v14.26.0 P1-6：消息超时单源（出站检索走长超时组）
 import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
 /**
  * Steam 详情数据载荷（GET_STEAM_BY_APPID / SEARCH_STEAM 响应 data，v14 B5 类型化）
@@ -54,9 +54,10 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
   // v14.24.0（用户需求：更新必须真实刷新）：GET_STEAM_BY_APPID 带 forceRefresh
   // ——后台跳过缓存直取并**预先删除该 appId 缓存**（拉取失败不留旧数据，
   // 拉取成功写回全新条目；旧语义缓存有效时直接回旧缓存 = 更新按钮无效）。
+  /** @param {string} name */
   function makeOnRefresh(name) {
     const fn = async () => {
-      const appId = builder.extractSteamAppIdFromImages();
+      const appId = builder.extractSteamAppIdFromImages(document);
       /** @type {SteamLookupResp|null} */
       let refreshResp;
       if (appId) {
@@ -85,10 +86,11 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
   // 更新浮窗；**重检索结果仍是同一 appid（未纠正）或失败时，自动进入
   // 手动选择面板**（v3.3.12）。reportIssue 在 renderAndShow 时创建
   // 并随渲染传递（makeOnRefresh 重渲染时复用同一回调）
+  /** @param {string} name */
   function makeReportIssue(name) {
     const fn = async () => {
       const wrongAppId =
-        steamData && steamData.appId ? String(steamData.appId) : builder.extractSteamAppIdFromImages() || '';
+        steamData && steamData.appId ? String(steamData.appId) : builder.extractSteamAppIdFromImages(document) || '';
       dbg(`⚠️ 人工报错: 清除 appId ${wrongAppId} 缓存并重新检索 ${name}`);
       try {
         await window.__GR_MSG__.sendMessage({ action: 'REPORT_WRONG_APPID', appId: wrongAppId, gameName: name });
@@ -98,7 +100,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
       // 重新检索：有封面 appId 直取，否则名称搜索
       // v14.24.0：forceRefresh——重检索语义 = 清缓存取全新数据（后台预清该
       // appId 缓存，即使没找到新信息也不保留旧缓存）
-      const imgAppId = builder.extractSteamAppIdFromImages();
+      const imgAppId = builder.extractSteamAppIdFromImages(document);
       /** @type {SteamLookupResp|null} */
       let resp = null;
       if (imgAppId) {
@@ -135,7 +137,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
           panel,
           name,
           hidePanel,
-          (selData, selAppId) => {
+          (/** @type {any} */ selData, /** @type {any} */ selAppId) => {
             renderAndShow(selData, Date.now(), name);
             chrome.runtime
               .sendMessage({ action: 'SAVE_MANUAL_MAPPING', gameName: name, appId: selAppId })
@@ -171,7 +173,7 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
   // （报错重检索仍同 appId/未命中——匹配错误场景必经此路径）两处共用。
   /** @param {string} name */
   function makePickPlatform(name) {
-    return async (platformId) => {
+    return async (/** @type {string} */ platformId) => {
       const resp = await window.__GR_MSG__
         .sendMessage(
           { action: 'SET_MANUAL_PLATFORM', gameName: name, platform: platformId, rawTitle: document.title },

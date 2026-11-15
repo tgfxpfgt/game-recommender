@@ -11,9 +11,11 @@ import * as common from '../core/common.js';
 import { MSG_TIMEOUT_SHORT_MS } from '../core/timeouts.js';
 
 /** @type {Array<any>|null} */
+/** @type {any[]|null} */
 let SITE_RULES = null;
 
 // 异步加载适配规则（内容脚本可访问 storage）/ Load rules async (storage-aware)
+/** @param {boolean} [force] */
 export async function loadSiteRules(force) {
   // v7.2.0：force 参数——测试/规则变更场景重置缓存重读
   if (SITE_RULES && !force) return SITE_RULES;
@@ -56,14 +58,17 @@ export function isImageAppIdEnabled() {
   const domain = common.getCurrentDomain();
   // v10.9：domains 异型守卫（坏规则包缺 domains 曾打崩整批评分流程）
   const rule = (SITE_RULES || []).find(
-    (r) => r && Array.isArray(r.domains) && r.domains.some((d) => domain.includes(d))
+    (/** @type {any} */ r) =>
+      r && Array.isArray(r.domains) && r.domains.some((/** @type {string} */ d) => domain.includes(d))
   );
   return rule ? rule.imageAppId !== false : true;
 }
 
 // 根据规则构建站点适配器 / Build a site adapter from its rules
+/** @param {any} rule */
 function buildAdapter(rule) {
   // 非法正则跳过（防御旧版本/手工写入的坏规则；后台 rules.js 也有同款校验）
+  /** @type {RegExp[]} */
   const detailPatterns = [];
   for (const p of rule.detailUrlPatterns || []) {
     try {
@@ -77,7 +82,7 @@ function buildAdapter(rule) {
   // Detail-link detection; unconfigured rules fall back to the built-in path
   // hints instead of accepting every link (previously nav/category links
   // were mis-detected as game detail pages).
-  const isDetailHref = (href) => {
+  const isDetailHref = (/** @type {string} */ href) => {
     try {
       const p = new URL(href, window.location.href).pathname;
       if (detailPatterns.length > 0) {
@@ -94,8 +99,9 @@ function buildAdapter(rule) {
   const excludeClasses = cfg.excludeClasses || [];
   const minLen = cfg.minLen ?? 2; // 默认 2：支持两字游戏名 / 2 supports 2-char names
   const maxLen = cfg.maxLen ?? 200;
-  const isExcluded = (el) => excludeClasses.some((c) => el.classList.contains(c));
-  const findTitleEl = (root, fallback) => {
+  const isExcluded = (/** @type {any} */ el) =>
+    excludeClasses.some((/** @type {string} */ c) => el.classList.contains(c));
+  const findTitleEl = (/** @type {any} */ root, /** @type {any} */ fallback) => {
     if (cfg.titleLink) {
       const tl = root.querySelector(cfg.titleLink);
       if (tl) return tl;
@@ -104,7 +110,13 @@ function buildAdapter(rule) {
   };
   // v4.1.0：addItem 无状态化（items/seen 由调用方持有），供整页扫描与
   // 容器级增量提取（extractFromContainer）共用
-  const addItem = (items, seen, element, link, nameEl) => {
+  const addItem = (
+    /** @type {any[]} */ items,
+    /** @type {Set<string>} */ seen,
+    /** @type {any} */ element,
+    /** @type {any} */ link,
+    /** @type {any} */ nameEl
+  ) => {
     const href = link.href;
     if (seen.has(href)) return;
     const text = (nameEl.textContent || '').trim().replace(/\s+/g, ' ');
@@ -125,7 +137,7 @@ function buildAdapter(rule) {
       const path = window.location.pathname;
       // 1. URL 特征 / URL patterns（非法正则跳过）
       if (
-        (rule.listPage?.urlPatterns || []).some((p) => {
+        (rule.listPage?.urlPatterns || []).some((/** @type {any} */ p) => {
           try {
             return new RegExp(p, 'i').test(path);
           } catch {
@@ -135,7 +147,8 @@ function buildAdapter(rule) {
       )
         return true;
       // 2. DOM 选择器 / DOM selectors
-      if ((rule.listPage?.selectors || []).some((sel) => document.querySelector(sel))) return true;
+      if ((rule.listPage?.selectors || []).some((/** @type {string} */ sel) => document.querySelector(sel)))
+        return true;
       // 3. 通用判断：详情链接数量达到阈值（XDGame 首页等）。
       //    大列表页数千链接时限制扫描量，达到阈值即提前返回
       const minLinks = rule.listPage?.minDetailLinks || 0;
@@ -152,6 +165,7 @@ function buildAdapter(rule) {
       return false;
     },
     getListItems: () => {
+      /** @type {any[]} */
       const items = [];
       const seen = new Set();
 
@@ -160,7 +174,7 @@ function buildAdapter(rule) {
       // 未配置时直接跳过该策略（v3.4.1 修复：此前 5/6 站点列表页整体崩溃）
       if (cfg.titleLink) {
         for (const sel of containers) {
-          document.querySelectorAll(sel).forEach((li) => {
+          document.querySelectorAll(sel).forEach((/** @type {any} */ li) => {
             const tl = li.querySelector(cfg.titleLink);
             if (tl) addItem(items, seen, li, tl, tl);
           });
@@ -170,7 +184,7 @@ function buildAdapter(rule) {
 
       // 策略2：容器内找有文本的详情页链接（跳过纯图片/按钮类）
       for (const sel of containers) {
-        document.querySelectorAll(sel).forEach((li) => {
+        document.querySelectorAll(sel).forEach((/** @type {any} */ li) => {
           if (items.some((it) => it.element === li)) return;
           const links = li.querySelectorAll('a[href]');
           for (const a of links) {
@@ -206,8 +220,9 @@ function buildAdapter(rule) {
     // 容器，不整页扫描；item 结构与 getListItems 完全一致
     // Container-scoped incremental extraction for MutationObserver-added
     // nodes; item shape matches getListItems.
-    extractFromContainer: (root) => {
+    extractFromContainer: (/** @type {any} */ root) => {
       if (!root || root.nodeType !== 1) return [];
+      /** @type {any[]} */
       const items = [];
       const seen = new Set();
       // 策略1：容器内 titleLink 直取
@@ -249,6 +264,7 @@ const DEFAULT_ADAPTER = {
     return gameLinks >= 5;
   },
   getListItems: () => {
+    /** @type {any[]} */
     const items = [];
     const seen = new Set();
     // v4.0.0：受 scanLimit 上限（此前全量）
@@ -268,8 +284,9 @@ const DEFAULT_ADAPTER = {
     return items;
   },
   // v4.1.0：容器级增量提取（通用路径特征）
-  extractFromContainer: (root) => {
+  extractFromContainer: (/** @type {any} */ root) => {
     if (!root || root.nodeType !== 1) return [];
+    /** @type {any[]} */
     const items = [];
     const seen = new Set();
     Array.from(root.querySelectorAll('a'))
@@ -292,6 +309,7 @@ const DEFAULT_ADAPTER = {
 // 列表页链接扫描上限（大列表页性能保护；v3.3.9 可由设置 maxScanLinks 调整，
 // tracker init 时注入） / link-scan limit for list detection (tunable since v3.3.9)
 let SCAN_LIMIT = 500;
+/** @param {number} n */
 export function setScanLimit(n) {
   if (typeof n === 'number' && n > 0) SCAN_LIMIT = n;
 }
@@ -300,8 +318,11 @@ export function getScanLimit() {
 }
 
 // 站点适配器表（init 时构建；规则导入/更新后重建）
+/** @type {Record<string, any>} */
 let SITE_ADAPTERS = { _default: DEFAULT_ADAPTER };
+/** @param {any[]} rules */
 export function buildSiteAdapters(rules) {
+  /** @type {Record<string, any>} */
   const adapters = {};
   // v9.7.0：同步规则引用——getAdapter 的域名匹配依赖 SITE_RULES（与注册表
   // 同源），仅经 buildSiteAdapters 传入规则的调用方也能正确匹配
@@ -320,7 +341,8 @@ export function buildSiteAdapters(rules) {
 function findRuleByDomain() {
   const domain = common.getCurrentDomain();
   return (SITE_RULES || []).find(
-    (r) => r && Array.isArray(r.domains) && r.domains.some((d) => d && domain.includes(d))
+    (/** @type {any} */ r) =>
+      r && Array.isArray(r.domains) && r.domains.some((/** @type {string} */ d) => d && domain.includes(d))
   );
 }
 
@@ -397,6 +419,7 @@ export function getAdapterKey() {
 // Lazyload sites keep the real image in data-* attributes: data-src /
 // data-lazy-src (gamer520) and data-original (xdgame, jQuery lazy), so the
 // data-* attributes are checked first, then src.
+/** @param {any} scope */
 export function extractSteamImageInfo(scope) {
   const imgs = (scope || document).querySelectorAll('img');
   for (const img of imgs) {
@@ -413,6 +436,7 @@ export function extractSteamImageInfo(scope) {
 }
 
 // 仅提取 appId（兼容旧调用）/ Extract just the appId
+/** @param {any} scope */
 export function extractSteamAppIdFromImages(scope) {
   const info = extractSteamImageInfo(scope);
   return info ? info.appId : null;
@@ -421,6 +445,7 @@ export function extractSteamAppIdFromImages(scope) {
 // v4.1.0：容器级增量提取（MutationObserver 新增节点用）——按当前站点
 // 适配器规则只扫传入容器，item 结构与 getListItems 一致
 // Container-scoped incremental extraction for MutationObserver-added nodes.
+/** @param {any} container */
 export function findItemsInContainer(container) {
   const adapter = getAdapter();
   if (!adapter || typeof adapter.extractFromContainer !== 'function') return [];

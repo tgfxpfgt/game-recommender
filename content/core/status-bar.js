@@ -55,6 +55,7 @@ function ensureEl() {
 }
 
 // 显示进行中状态（title, current/total 进度, detail）
+/** @param {string} title @param {number} current @param {number} total @param {string} [detail] */
 export function showStatus(title, current, total, detail) {
   if (!enabled) return;
   // v14.8 批次 8：诊断互斥——诊断视图显示中不覆盖诊断 body（仅 debugMode
@@ -79,6 +80,7 @@ export function showStatus(title, current, total, detail) {
 }
 
 // 显示完成统计（3 秒后按调试模式切换为诊断视图或消失）
+/** @param {Record<string, any>} stats */
 export function showStats(stats) {
   lastStats = stats || null;
   startTime = 0;
@@ -103,7 +105,7 @@ function renderStats() {
   const rows =
     stats && stats.rows && stats.rows.length > 0
       ? stats.rows
-          .map((r, i) => {
+          .map((/** @type {any} */ r, /** @type {number} */ i) => {
             if (r && typeof r === 'object' && typeof r.click === 'function') {
               return `<div data-gr-row="${i}" class="gr-status-row-clickable">${common.escapeHtml(r.text)}</div>`;
             }
@@ -119,7 +121,7 @@ function renderStats() {
       ${rows}
     `;
   // 可点击行事件委托（点击执行对应回调）
-  el.querySelectorAll('[data-gr-row]').forEach((rowEl) => {
+  el.querySelectorAll('[data-gr-row]').forEach((/** @type {any} */ rowEl) => {
     rowEl.addEventListener('click', () => {
       const row = (stats && stats.rows && stats.rows[Number(rowEl.dataset.grRow)]) || null;
       if (row && typeof row.click === 'function') row.click();
@@ -141,6 +143,7 @@ function renderStats() {
 // Since v3.3.15 it only shows when debugMode is on — dbg()'s refresh used to
 // render it regardless of the showDebugPanel setting.
 let debugDismissed = false;
+/** @param {string} html */
 export function showDebugView(html) {
   if (debugDismissed) return; // 用户已关闭：不自动复活 / user dismissed: keep closed
   if (!debugMode) return; // v3.3.15：调试视图仅 showDebugPanel 开启时显示
@@ -161,10 +164,12 @@ export function showDebugView(html) {
 // 调试模式开关（由设置 showDebugPanel 控制；重新开启时允许调试视图再次显示）
 // Debug-mode switch (controlled by settings.showDebugPanel; re-enabling lifts
 // the dismissal so the debug view can show again)
+/** @param {boolean} v */
 export function setEnabled(v) {
   enabled = !!v;
 }
 
+/** @param {boolean} v */
 export function setDebugMode(v) {
   debugMode = !!v;
   if (debugMode) debugDismissed = false;

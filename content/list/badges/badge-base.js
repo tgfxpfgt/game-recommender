@@ -57,6 +57,7 @@ export function createBadge(link, { text, color, bg, cls, title, clickable, appI
 // badge family calls back through it (keeps the import graph one-way).
 /** @type {((item: any) => void)|null} */
 let badgeRetryHandler = null;
+/** @param {() => void} fn */
 export function setBadgeRetryHandler(fn) {
   badgeRetryHandler = typeof fn === 'function' ? fn : null;
 }
@@ -69,6 +70,7 @@ export function getBadgeRetryHandler() {
 // 用 querySelector 循环而非 querySelectorAll——sim FakeEl 的后者仅支持 img。
 // Remove group-marked badges before re-rendering (querySelector loop: the sim
 // FakeEl only implements querySelectorAll for img).
+/** @param {any} item */
 export function removeRatingBadges(item) {
   const target = (item && (item.titleEl || item.link)) || null;
   if (!target) return;
@@ -81,6 +83,7 @@ export function removeRatingBadges(item) {
 
 // 批量插入徽章组（从后往前插保证从左到右顺序；标题元素优先，回退链接文本节点）
 // Insert a badge group (reverse-order insert keeps left-to-right order)
+/** @param {any} item @param {any} link @param {any[]} badges */
 export function insertBadges(item, link, badges) {
   let targetEl = item.titleEl || null;
   if (!targetEl && item.element) {

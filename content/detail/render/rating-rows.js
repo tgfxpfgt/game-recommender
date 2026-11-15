@@ -9,23 +9,29 @@
  */
 import * as common from '../../core/common.js';
 
-const esc = (text) => common.escapeHtml(text);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 /**
  * 四重评价行（Steam总体/最近30天/简体中文/SteamSpy——有值才渲染）
- * @param {Object} data - Steam 详情数据（positiveRate/recentPositiveRate/cnPositiveRate/steamspy…）
- * @param {Object|null} spy - SteamSpy 子对象
+ * @param {Record<string, any>} data - Steam 详情数据（positiveRate/recentPositiveRate/cnPositiveRate/steamspy…）
+ * @param {Record<string, any>|null} spy - SteamSpy 子对象
  * @returns {string} HTML
  */
 export function renderRatingRows(data, spy) {
   const P2 = globalThis.__GR_PATTERNS__ || {};
-  const colorOf = (v) =>
+  const colorOf = (/** @type {number} */ v) =>
     P2.ratingColorFor ? P2.ratingColorFor(v) : v >= 80 ? '#66c0f4' : v >= 60 ? '#a3cf06' : '#ff7b00';
-  const fmt = (n) => (n === null || n === undefined ? 0 : Number(n).toLocaleString());
+  const fmt = (/** @type {number|null} */ n) => (n === null || n === undefined ? 0 : Number(n).toLocaleString());
   // v14.6.2 修复（审查 B4）：rate 数值归一化后入模板——异型缓存条目
   //（positiveRate 为字符串）曾是注入点，与同文件 fmt() 的 Number 防线对齐
-  const num = (v) => (v === null || v === undefined ? 0 : Number(v) || 0);
-  const row = (label, desc, rate, total, color) =>
+  const num = (/** @type {any} */ v) => (v === null || v === undefined ? 0 : Number(v) || 0);
+  const row = (
+    /** @type {string} */ label,
+    /** @type {string} */ desc,
+    /** @type {number} */ rate,
+    /** @type {number|null} */ total,
+    /** @type {string} */ color
+  ) =>
     '<div class="gr-detail-rate-row">' +
     '<div class="gr-detail-rate-head">' +
     '<span class="gr-detail-rate-label">' +
@@ -174,8 +180,8 @@ export function buildSparklineSvg(history) {
 
 /**
  * 综合推荐理由行（v4.1.0：好评率 70% + 中文 30% 口径 + 热度/时长因子，与推荐引擎同源）
- * @param {Object} data - Steam 详情数据
- * @param {Object|null} spy - SteamSpy 子对象（热度/时长展示用）
+ * @param {Record<string, any>} data - Steam 详情数据
+ * @param {Record<string, any>|null} spy - SteamSpy 子对象（热度/时长展示用）
  * @param {() => string} spyHeatLabel - 热度等级（heatLabelFor 柯里化，与内嵌卡同口径）
  * @returns {string} HTML
  */

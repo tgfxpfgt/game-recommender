@@ -57,6 +57,7 @@
   const loadPromises = new Map();
   /** @type {any} 清单与设置缓存（ensureScope 补加载时复用） */
   let manifestCache = null;
+  /** @type {Record<string, any>|null} */
   let settingsCache = null;
 
   // v15 重构（绿地阶段 0）：装载桥单源——content/module-loaders.js（构建器生成，
@@ -88,6 +89,7 @@
   }
 
   /** 装载单个模块文件（同一文件只评估一次）@param {string} file @returns {Promise<any>} */
+  /** @param {string} file */
   function loadOne(file) {
     let p = loadPromises.get(file);
     if (!p) {
@@ -105,14 +107,14 @@
     const mods0 = MODULES || emptyModules();
     const { CORE_MODULES, OPTIONAL_MODULES } = (manifestCache ??= await loadOne('content/module-manifest.js'));
     const targets = [...CORE_MODULES, ...OPTIONAL_MODULES].filter((mod) => {
-      if (mods0[mod.key]) return false;
+      if (/** @type {Record<string, any>} */ (mods0)[mod.key]) return false;
       // 可选模块开关关闭 → 代码零加载（settings 缺失视为开）
       if (mod.setting && settingsCache && settingsCache[mod.setting] === false) return false;
       return mod.scope === 'all' || scope === 'both' || mod.scope === scope;
     });
     const loaded = await Promise.all(targets.map((mod) => loadOne(mod.file)));
     targets.forEach((mod, i) => {
-      mods0[mod.key] = loaded[i];
+      /** @type {Record<string, any>} */ (mods0)[mod.key] = loaded[i];
     });
     return mods0;
   }
@@ -251,7 +253,7 @@
         // 模块装载是静态注入的沉没成本，功能分发在此收口；隐私最小化诉求）
         const disabled = (boot.settings && boot.settings.disabledSites) || [];
         const host = location.hostname.replace(/^www\./, '');
-        if (disabled.some((d) => host === d || host.endsWith('.' + d))) {
+        if (disabled.some((/** @type {string} */ d) => host === d || host.endsWith('.' + d))) {
           console.debug('[游戏雷达] 站点已禁用（disabledSites）——跳过功能分发:', host);
           return;
         }
@@ -286,6 +288,7 @@
     }
   }
 
+  /** @param {string} ver */
   function showUpdateToast(ver) {
     try {
       if (document.getElementById('gr-update-toast')) return;

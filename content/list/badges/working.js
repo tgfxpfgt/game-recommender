@@ -11,6 +11,7 @@
 import { getBadgeRetryHandler } from './badge-base.js'; // v14.7 批次 3：点击重试
 
 // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
+/** @param {any} item */
 export function removeItemFromDom(item) {
   if (!item.element || !item.element.parentNode) return;
   const colContainer = item.element.closest('[class*="col-"]') || item.element.closest('li, article, .item, .post');
@@ -22,6 +23,7 @@ export function removeItemFromDom(item) {
 // Working status badge: shown at enqueue time, replaced by real badges on data.
 // v14.7 批次 3：点击 = 就地重试（经 badge-base 注入的处理器；任务进行中由
 // 处理器自行忽略，收尾残留项点击重查）。
+/** @param {any} item @param {string} text */
 export function showWorkingBadge(item, text) {
   const link = item.link;
   if (!link || link.querySelector('.gr-working-badge')) return;
@@ -46,6 +48,7 @@ export function showWorkingBadge(item, text) {
 
 // v14.3.2 修复：搜索目标与 showWorkingBadge 插入目标对齐（titleEl || link）——
 // 原实现只搜 link 后代，titleEl 是 <h3> 包裹 <a> 时徽章在 h3 里永远删不掉
+/** @param {any} item */
 export function removeWorkingBadge(item) {
   const target = (item && (item.titleEl || item.link)) || null;
   if (!target) return;
@@ -65,6 +68,7 @@ export function updateWorkingBadgesInfo(text) {
 }
 
 // v14 F1：检索异常徽章——网络失败/超时时显示
+/** @param {any} item @param {string} text */
 export function showErrorBadge(item, text) {
   removeWorkingBadge(item);
   const link = item.link;
@@ -79,6 +83,7 @@ export function showErrorBadge(item, text) {
 }
 
 // 高亮条目（推荐值达标）/ Highlight an item (recommendation passed)
+/** @param {any} item */
 export function highlightItem(item) {
   const el = item.element;
   el.classList.add('gr-highlighted');
@@ -89,6 +94,7 @@ export function highlightItem(item) {
 //（防重复守卫/测试选择器三重身份——经 createBadge 传入）。
 // Non-PC platform badges: console/emulator tag (dashed gray) and the
 // Metacritic score badge (green/yellow/red bands).
+/** @param {any} item @param {any} rating */
 export function prependPlatformBadge(item, rating) {
   const link = item.link;
   if (!link || link.querySelector('.gr-rating-badge')) return;

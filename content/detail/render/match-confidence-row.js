@@ -9,7 +9,7 @@
  */
 import * as common from '../../core/common.js';
 
-const esc = (text) => common.escapeHtml(text);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 /**
  * 置信度行 HTML；无 matchConfidence（旧缓存/直取路径/主机映射）→ 空串。

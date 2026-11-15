@@ -40,7 +40,7 @@ export function detectGameName() {
     // v10.9.2：在克隆上操作——此前直接 remove() 宿主 h1 内的徽章元素
     //（如咸鱼单机"版本更新"角标会从用户页面永久消失，属宿主页破坏）
     const h1Clone = h1.cloneNode(true);
-    h1Clone.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach((b) => b.remove());
+    h1Clone.querySelectorAll('.post-badge, .badge, [class*="badge"]').forEach((/** @type {any} */ b) => b.remove());
 
     // 策略1：优先从 h1 子元素中提取纯英文标题
     const enChild = h1Clone.querySelector('span, div, p, em, strong, small');
@@ -58,9 +58,9 @@ export function detectGameName() {
     let text = h1Clone.textContent.trim();
     const parts = text
       .split(/[|]+|\s+[-–—]\s+|[×•·]/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 1);
-    const keptParts = parts.filter((p) => {
+      .map((/** @type {string} */ s) => s.trim())
+      .filter((/** @type {string} */ s) => s.length > 1);
+    const keptParts = parts.filter((/** @type {string} */ p) => {
       const stripped = p.replace(noisePattern, '').replace(/[\s\|\-:：、]+/g, '');
       return stripped.length > 0;
     });

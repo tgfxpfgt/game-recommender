@@ -30,6 +30,7 @@ export {
 // ============ Steam详情浮窗入口 ============
 // v14 B3：浮窗装载/渲染/按钮回调整体迁至 sidebar.js（createSteamFloat，
 // 闭包状态 steamData/reportIssue 随编排迁移）——入口保留委托，调用面不变。
+/** @param {string} gameName @param {Record<string, any>} settings */
 export function injectSteamButton(gameName, settings) {
   sidebar.createSteamFloat(gameName, settings);
 }

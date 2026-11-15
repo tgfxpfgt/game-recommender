@@ -23,11 +23,13 @@ function getCurrentDomain() {
 // v6.0.0：escapeDiv 惰性创建（模块顶层在 Node 测试环境无 document）
 /** @type {HTMLDivElement|null} */
 let escapeDiv = null;
+/** @param {string} text */
 function escapeHtmlLocal(text) {
   escapeDiv = escapeDiv || document.createElement('div');
   escapeDiv.textContent = text || '';
   return escapeDiv.innerHTML;
 }
+/** @param {string} text */
 function escapeAttrLocal(text) {
   // v10.8.1：String 强转（同 shared/escape.js——数字入参不得使防线抛错）
   return String(text ?? '')
@@ -41,6 +43,7 @@ const escapeAttr = typeof globalThis.escapeAttr === 'function' ? globalThis.esca
 
 // 相对时间格式化（内容脚本统一实现，替代各浮窗独立实现）
 // Relative-time formatting (shared by all content floats)
+/** @param {number} timestamp */
 function formatRelativeTime(timestamp) {
   if (!timestamp) return '未知';
   const diff = Date.now() - timestamp;
@@ -71,6 +74,7 @@ function flushTrackBatch() {
   chrome.runtime.sendMessage({ action: 'TRACK_EVENT_BATCH', events: batch }).catch(() => {});
 }
 
+/** @param {string} type @param {Record<string, any>} data */
 function trackEvent(type, data) {
   const event = { type, url: window.location.href, domain: getCurrentDomain(), ...data };
   if (type === 'click_download') {
@@ -106,6 +110,7 @@ try {
 
 // 记录下载站详情页访问（写入下载站网址缓存并更新"上次调用"时间）
 // Record a detail-page visit (writes the URL cache + lastAccessed)
+/** @param {string} appId @param {string} gameName */
 function trackDownloadSiteVisit(appId, gameName) {
   if (!appId) return;
   chrome.runtime
@@ -143,6 +148,7 @@ export function setTitleCleaningOverride(override) {
 }
 
 /** 纯应用函数（单测直驱）/ Pure application for unit tests. */
+/** @param {string} title @param {Record<string, any>|null} override */
 export function applyTitleCleaningOverride(title, override) {
   let t = String(title || '');
   if (!override || !t) return t;
@@ -160,6 +166,7 @@ export function applyTitleCleaningOverride(title, override) {
   return t.replace(/\s+/g, ' ').trim();
 }
 
+/** @param {string} title */
 function cleanPageTitle(title) {
   return applyTitleCleaningOverride(
     (title || '')

@@ -42,7 +42,7 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
     favRow.id = 'gr-fav-row-inner';
     favRow.style.marginTop = '4px';
     itadEl.parentNode.insertBefore(favRow, itadEl);
-    const renderFav = (favorited) => {
+    const renderFav = (/** @type {boolean} */ favorited) => {
       favRow.innerHTML = '';
       const btn = document.createElement('button');
       btn.textContent = favorited ? '★ 已收藏' : '☆ 收藏';
@@ -95,8 +95,8 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
     const info = resp && resp.info;
     const reason = resp && resp.reason;
     if (!info || info.price === undefined || info.price === null) {
-      if (reason && REASON_TEXT[reason]) {
-        itadEl.innerHTML = `💰 ITAD 历史最低: <span style="color:#8f98a0;">${esc(REASON_TEXT[reason])}</span> <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
+      if (reason && /** @type {Record<string, string>} */ (REASON_TEXT)[reason]) {
+        itadEl.innerHTML = `💰 ITAD 历史最低: <span style="color:#8f98a0;">${esc(/** @type {Record<string, string>} */ (REASON_TEXT)[reason])}</span> <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
         itadEl.style.display = '';
         return;
       }
@@ -179,7 +179,7 @@ export async function fillSeriesInfo(appId, name) {
         ? '🎮 系列作品：' +
           entries
             .map(
-              (e) =>
+              (/** @type {any} */ e) =>
                 `<a href="https://store.steampowered.com/app/${esc(String(e.appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">${esc(e.name)}</a>`
             )
             .join(' · ')

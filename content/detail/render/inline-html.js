@@ -21,14 +21,14 @@ import * as common from '../../core/common.js';
 import { adjustedReputation, ratingTextInfo, verdictFor } from '../../core/steam-rating-logic.js';
 import { renderMatchConfidenceRow } from './match-confidence-row.js'; // v14.28.7 R4-B3
 
-const esc = (text) => common.escapeHtml(text);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 /**
  * 内嵌 Steam 信息区模板（与 XDGame 原生卡片完全一致，值在渲染时预填充，
  * 保留其 data-steam-* 属性名以保持结构同构）。
  * Inline Steam card markup, a 1:1 replica of XDGame's native card with
  * values pre-filled (data-steam-* attributes kept for structural parity).
- * @param {Object} data - Steam 详情缓存（totalReviews/positiveRate/
+ * @param {Record<string, any>} data - Steam 详情缓存（totalReviews/positiveRate/
  *   positiveReviews/negativeReviews/ratingDesc/appId）
  * @param {number} [cachedAt] - 缓存时间戳（ms）——「数据更新于」行
  * @returns {string} HTML；无评测数据返回空串（不注入）
@@ -52,13 +52,13 @@ export function steamInlineSection(data, cachedAt) {
   const verdict = verdictFor(adjusted);
   const { text: ratingText, sentiment } = ratingTextInfo(data.ratingDesc, data.positiveRate);
   const levelIcon = sentiment === 'negative' ? 'fa-thumbs-down' : sentiment === 'mixed' ? 'fa-adjust' : 'fa-thumbs-up';
-  const fmt = (n) => Number(n).toLocaleString('zh-CN'); // 千分位，XDGame formatNumber 同款
+  const fmt = (/** @type {number|null} */ n) => Number(n).toLocaleString('zh-CN'); // 千分位，XDGame formatNumber 同款
 
   // 「数据更新于 YYYY-MM-DD」（本地时区）；无时间戳则省略该行（XDGame 为 hidden）
   let updatedHtml = '';
   const d = cachedAt ? new Date(cachedAt) : null;
   if (d && !isNaN(d.getTime())) {
-    const pad = (n) => String(n).padStart(2, '0');
+    const pad = (/** @type {number} */ n) => String(n).padStart(2, '0');
     updatedHtml = `<small data-steam-updated>数据更新于 ${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}</small>`;
   }
 

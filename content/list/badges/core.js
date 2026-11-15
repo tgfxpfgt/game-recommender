@@ -28,9 +28,12 @@ export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v
 // 徽章文字直接写「推测」+ 琥珀配色 + 双线边框；悬停给出匹配标题与数据来源。
 // Confirmed/suspected/not-found differ in text, color and border shape.
 const SUSPECT_STYLE = { color: '#b8860b', bg: 'rgba(184,134,11,0.12)' };
+/** @param {any} rating - Steam 结果（含 matchConfidence/matchNote/matchName 附加字段） */
 function isSuspected(rating) {
   return !!(rating && rating.matchConfidence === 'suspected');
 }
+/** @param {number|null} rating */
+/** @param {any} rating */
 function suspectTitleLine(rating) {
   const why = rating.matchNote || '信息不足，无法核对平台/标题/发行年份';
   const which = rating.matchName ? `匹配到「${rating.matchName}」` : '未返回匹配标题';
@@ -44,6 +47,7 @@ function suspectTitleLine(rating) {
 // v3.3.8：徽章显示开关（badgeVisibility）——关闭某徽章仅跳过渲染，
 // 后台数据获取不受影响；关闭"全部好评率"同时停用好评率过滤。
 // v5.0.0：settings 参数化（此前读 ratingsJob 闭包）
+/** @param {any} item @param {any} rating @param {Record<string, any>} settings */
 export function prependBadge(item, rating, settings) {
   const link = item.link;
   if (!link) return;
@@ -151,7 +155,7 @@ export function prependBadge(item, rating, settings) {
       if (adjusted !== null) {
         const { text: ratingText, sentiment } = ratingTextInfo(rating.ratingDesc, rate);
         const score = (adjusted / 10).toFixed(1);
-        const fmt = (n) => Number(n).toLocaleString('zh-CN'); // 千分位（XDGame 同款）
+        const fmt = (/** @type {number|null} */ n) => Number(n).toLocaleString('zh-CN'); // 千分位（XDGame 同款）
         const negative =
           typeof rating.negativeReviews === 'number' ? rating.negativeReviews : Math.max(total - positive, 0);
         // XDGame steam-review-level 三档配色（正文/底色同源转化）

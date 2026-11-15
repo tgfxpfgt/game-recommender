@@ -25,15 +25,16 @@ import { createSteamActions } from './sidebar-actions.js'; // v14.5.0 B7：回�
 // v14.26.0 P1-6：消息超时单源（Steam 检索为出站长超时）
 import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 const BTN_FAIL_FEEDBACK_MS = 1500; // 按钮失败文案恢复延时（v14.6.2：具名单点，两按钮共用）
 const MENU_INFO_TIMEOUT_MS = 5000; // v14.23.0：浮窗菜单缓存信息查询限时（具名单点）
-const esc = (text) => common.escapeHtml(text);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 // v14.23.0：浮窗菜单缓存信息上下文——renderAndShow 每次渲染刷新（当前游戏
 // 名称/缓存时间），菜单打开时随全局缓存规模一并提供
 // Menu cache-info context: refreshed by every renderAndShow, consumed when
 // the float menu opens (combined with global cache stats from the backend).
+/** @type {{name: string, cachedAt: number|null, [k: string]: any}} */
 const menuCacheContext = { name: '', cachedAt: null };
 function buildMenuCacheInfo() {
   return (async () => {
@@ -100,6 +101,7 @@ function loadInlineCard() {
 // 容器经 GR.float 统一管理（左上区域，chrome 标题栏含折叠/关闭）
 // v10.4.0：接收 settings——浮窗位置（detailFloatSide 左/右）与默认展开
 // （detailFloatExpanded）可配置
+/** @type {Record<string, any>|null} */
 let floatModules = null; // v12 B4：浮窗模块显隐设置（注入时随 settings 传入）
 let inlineRenderSeq = 0; // v14.5.0 B3：内嵌卡渲染令牌（按需加载窗口内重渲染防旧卡回挂）
 
@@ -171,6 +173,7 @@ function createAutoRetry(io) {
       autoRetryTimer = null;
     }
   }
+  /** @param {string} name */
   function scheduleAutoRetry(name) {
     if (autoRetriedGames.has(name)) return;
     autoRetriedGames.add(name);
@@ -241,6 +244,7 @@ function handleLookupMiss(gameName, response, io) {
   openManualSelect(gameName, { reason: missReason });
 }
 
+/** @param {string} gameName @param {Record<string, any>} settings */
 export function createSteamFloat(gameName, settings) {
   dbg('注入Steam浮窗...');
   // v14.24.0（用户需求：手动更新/重新检索/选择机型迁入右上角 ⚙ 菜单）：菜单项
@@ -318,12 +322,13 @@ export function createSteamFloat(gameName, settings) {
   // 共用同一装配（原先 handleLookupMiss 内联，菜单路径无从复用）。
   // Manual-select panel assembly unified: miss fallback and the menu's
   // platform item share one factory.
+  /** @param {string} name @param {Record<string, any>} [opts] */
   function openManualSelect(name, opts = {}) {
     candidates.renderManualSelectPanel(
       panel,
       name,
       hidePanel,
-      (selectedData, selectedAppId) => {
+      (/** @type {any} */ selectedData, /** @type {any} */ selectedAppId) => {
         cancelAutoRetry(); // v14.7 批次 9：手动选择后自动重查作废
         renderAndShow(selectedData, Date.now(), name);
         chrome.runtime
@@ -338,7 +343,7 @@ export function createSteamFloat(gameName, settings) {
           })
           .catch(() => {});
       },
-      opts.reason || '',
+      /** @type {Record<string, any>} */ (opts).reason || '',
       async () => {
         const retryResp = await window.__GR_MSG__
           .sendMessage(
@@ -356,11 +361,11 @@ export function createSteamFloat(gameName, settings) {
         return false;
       },
       // v14.19.1：主机/模拟器机型选择消费 actions.makePickPlatform 单源工厂
-      async (platformId) => {
+      async (/** @type {string} */ platformId) => {
         cancelAutoRetry();
         return actions.makePickPlatform(name)(platformId);
       },
-      opts.openPlatformView === true // v14.24.0：菜单直达 → 渲染后直接切机型专页
+      /** @type {Record<string, any>} */ (opts).openPlatformView === true // v14.24.0：菜单直达 → 渲染后直接切机型专页
     );
     showPanel();
   }
@@ -371,10 +376,12 @@ export function createSteamFloat(gameName, settings) {
   const reverseSiteDomain = (() => {
     const sites = (settings && settings.trackedSites) || [];
     const domain = window.location.hostname;
-    const onTracked = sites.length === 0 || sites.some((s) => domain.includes(s));
+    const onTracked = sites.length === 0 || sites.some((/** @type {string} */ s) => domain.includes(s));
     return onTracked ? null : sites[0] || null;
   })();
 
+  /** @param {Record<string, any>} data @param {number} [cachedAt] @param {string} name */
+  /** @param {any} data @param {number|null} cachedAt @param {string} name */
   function renderAndShow(data, cachedAt, name) {
     // v14.19.0：手动平台映射条目（MC 评分/平台标签，无 appId）——跳过 Steam
     // 侧联动（行填充/标签回写/访问记录/AppID 桥接），浮窗渲染 MC 视图模板
@@ -389,7 +396,7 @@ export function createSteamFloat(gameName, settings) {
     menuCacheContext.cachedAt = cachedAt || Date.now();
     // v14.24.0：⚙ 菜单回调注册表刷新（菜单项消费最新闭包）
     menuState.name = name || data.name || '';
-    actions.setSteamData(data);
+    actions.setSteamData(/** @type {any} */ (data));
     reportIssue = actions.makeReportIssue(name);
     actions.setReportIssue(reportIssue);
     menuState.report = reportIssue;
@@ -429,7 +436,7 @@ export function createSteamFloat(gameName, settings) {
   (async () => {
     debug.DEBUG.steamStatus = '查询中...';
     debug.scheduleDebugUpdate();
-    status.showStatus('正在查询 Steam 信息', null, null, gameName); // 工作状态浮窗
+    status.showStatus('正在查询 Steam 信息', 0, 0, gameName); // 工作状态浮窗
     try {
       // v3.3.14：appId 提取限定主内容区——gamer520 侧边推荐图是 Steam CDN
       // 封面，全页提取会误取推荐游戏的 appId（如 16598 页右侧推荐 2001760）
@@ -470,7 +477,7 @@ export function createSteamFloat(gameName, settings) {
       }
 
       if (response && response.data) {
-        renderAndShow(response.data, response.cachedAt || null, gameName);
+        renderAndShow(response.data, /** @type {number} */ (response.cachedAt || Date.now()), gameName);
         // 工作状态浮窗：完成统计 / Completion stats
         status.showStats({
           title: 'Steam 信息获取完成',
@@ -505,11 +512,15 @@ export function createSteamFloat(gameName, settings) {
 // this function keeps the DOM bindings).
 // v14.24.0（用户需求：手动更新/重新检索迁入 ⚙ 菜单）：底部两按钮移除——
 // 绑定随按钮删除，动作改由浮窗菜单项承担（menuState 注册表，见 createSteamFloat）。
+/** @param {any} panel @param {Record<string, any>} data @param {() => void} onClose @param {number|null} [cachedAt] */
 function renderSteamSidebar(panel, data, onClose, cachedAt) {
   // v14.19.0：平台条目（手动主机映射）——内嵌卡跳过（语义属 Steam 条目；
   // MC 视图提供"重新选择"语义由候选浮窗承担）
   const isPlatformEntry = !!(data && (data.platformOnly || data.mcScore != null));
-  panel.innerHTML = detailTemplates.steamSidebar(floatModules ? { ...data, floatModules } : data, cachedAt);
+  panel.innerHTML = detailTemplates.steamSidebar(
+    floatModules ? { ...data, floatModules } : data,
+    /** @type {number|undefined} */ (cachedAt === null ? undefined : cachedAt)
+  );
 
   // 头部图片加载失败时按备选 CDN 域回退（v10.6.0），全部失败才隐藏
   const headerImg = panel.querySelector('#gr-header-image');
@@ -545,7 +556,7 @@ function renderSteamSidebar(panel, data, onClose, cachedAt) {
   loadInlineCard()
     .then((m) => {
       if (seq !== inlineRenderSeq) return; // 已被更新的渲染取代 / superseded
-      m.renderInlineSteamSection(data, cachedAt);
+      m.renderInlineSteamSection(data, /** @type {number|undefined} */ (cachedAt === null ? undefined : cachedAt));
     })
     .catch((e) => dbg('内嵌信息卡模块加载失败: ' + String(e)));
 }

@@ -15,7 +15,7 @@ import * as debug from '../core/debug.js';
 // v14.26.0 P1-6：消息超时单源（出站图片代取走长超时组）
 import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 const COPY_FEEDBACK_MS = 1500; // "已复制"文案恢复延时（v14.6.2：具名单点）
 
 /** @type {Promise<any>|null} */
@@ -29,7 +29,7 @@ function loadDecoder() {
   return decoderPromise;
 }
 
-/** @type {WeakSet} */
+/** @type {WeakSet<object>} */
 const processed = new WeakSet(); // 每个元素只试解一次 / one attempt per element
 /** @type {MutationObserver|null} */
 let observer = null;
@@ -39,6 +39,7 @@ let QrCode = null;
 let decoderFailed = false;
 
 // 解码一个 img/canvas（返回 http(s) 链接或 null）/ decode one element
+/** @param {any} el */
 async function decodeElement(el) {
   if (processed.has(el)) return null;
   processed.add(el);
@@ -95,6 +96,7 @@ async function decodeElement(el) {
 }
 
 // 从元素绘制并解码（可能因跨域污染抛 SecurityError）/ draw + decode
+/** @param {any} el */
 async function decodeFromElement(el) {
   const w = el.naturalWidth || el.width || 0;
   const h = el.naturalHeight || el.height || 0;
@@ -125,6 +127,7 @@ async function decodeFromElement(el) {
 }
 
 // 在二维码元素旁插入解码结果（链接可点 + 复制按钮）/ render decoded link row
+/** @param {any} el @param {string} url */
 function insertResult(el, url) {
   const host = el.parentNode;
   if (!host || host.querySelector('.gr-qr-result')) return;
@@ -181,6 +184,7 @@ function insertResult(el, url) {
 
 // 批量处理候选元素里的二维码 / scan candidates for QR codes
 let scanScheduled = false;
+/** @param {any} root */
 function scheduleScan(root) {
   if (scanScheduled || decoderFailed) return;
   scanScheduled = true;
@@ -198,6 +202,7 @@ function scheduleScan(root) {
 }
 
 // 初始化（幂等；tracker init 调用；v10.3.0 支持独立开关）/ init (idempotent)
+/** @param {Record<string, any>} settings */
 export function init(settings) {
   // v10.3.0：独立开关（settings.qrUnlockEnabled，默认开）——关闭早退，
   // 不注入观察器、不加载解码器，其他内容功能不受影响

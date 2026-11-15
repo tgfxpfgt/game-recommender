@@ -16,7 +16,7 @@ import * as badges from './badges/core.js';
 // v14.26.0 P1-6：批量评分消息超时单源
 import { RATINGS_TIMEOUT_MS } from '../core/timeouts.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
 // 每批请求上限（v10.7.0 批次5：settings.ratingsBatchSize 可调，默认 60；
 // initBatchState 时由 settings 注入——content 侧无法静态 import 常量）
@@ -32,11 +32,13 @@ let batchCapacity = 60;
 
 // v10.7.1：批次容量解析抽为纯函数（可单测）——非法/越界值回退默认 60
 // Pure resolver for the batch capacity (unit-tested; out-of-range falls back).
+/** @param {any} raw */
 export function resolveBatchCapacity(raw) {
   const n = Number(raw);
   return n >= 10 && n <= 200 ? Math.floor(n) : 60;
 }
 
+/** @param {Record<string, any>} settings */
 function initBatchState(settings) {
   // v9.7.0：重建前先断开旧观察器/定时器——重复调用（SPA 重入/强制刷新）
   // 时旧 MutationObserver/IntersectionObserver 仍持有旧 batchState 闭包，
@@ -70,6 +72,7 @@ function initBatchState(settings) {
 
 // 封面 appId/图惰性提取（幂等）——只对批内名字提取，避免全量扫描
 // Lazy per-name cover extraction (idempotent); batch-scoped, no full scan.
+/** @param {string} name */
 function ensureNameToImage(name) {
   const batchState = _state.batchState;
   if (batchState.nameToImage[name] !== undefined) return batchState.nameToImage[name];
@@ -88,9 +91,10 @@ function ensureNameToImage(name) {
 const OBSERVER_DEBOUNCE_ACTIVE_MS = 200;
 const OBSERVER_DEBOUNCE_IDLE_MS = 500;
 
+/** @param {any[]} items */
 function enqueueItems(items) {
   const batchState = _state.batchState;
-  const seen = batchState.knownUrls || new Set(batchState.processItems.map((i) => i.url));
+  const seen = batchState.knownUrls || new Set(batchState.processItems.map((/** @type {any} */ i) => i.url));
   batchState.knownUrls = seen;
   for (const item of items || []) {
     if (!item || !item.name || item.name.length < 2 || seen.has(item.url)) continue;
@@ -110,11 +114,13 @@ function enqueueItems(items) {
 export function maybeFetchNextBatch() {
   const batchState = _state.batchState;
   if (!batchState || batchState.inflight) return false;
-  const pending = batchState.queue.filter((n) => !batchState.requested.has(n));
+  const pending = /** @type {string[]} */ (
+    batchState.queue.filter((/** @type {string} */ n) => !batchState.requested.has(n))
+  );
   if (pending.length === 0) return false;
   // v10.6.0 S1：视口内优先——按距视口的排序取本批（可见的最先，已在视口上方
   // 的沉底），用户正看着的区域先出徽章
-  const withPos = pending.map((n) => {
+  const withPos = pending.map((/** @type {string} */ n) => {
     let top = Number.MAX_SAFE_INTEGER - 1;
     try {
       const it = batchState.itemsByName.get(n);
@@ -125,10 +131,10 @@ export function maybeFetchNextBatch() {
     }
     return { n, top };
   });
-  withPos.sort((a, b) => a.top - b.top);
-  const names = withPos.slice(0, batchCapacity).map((x) => x.n);
-  names.forEach((n) => batchState.requested.add(n));
-  batchState.queue = batchState.queue.filter((n) => !batchState.requested.has(n));
+  withPos.sort((/** @type {any} */ a, /** @type {any} */ b) => a.top - b.top);
+  const names = withPos.slice(0, batchCapacity).map((/** @type {any} */ x) => x.n);
+  names.forEach((/** @type {string} */ n) => batchState.requested.add(n));
+  batchState.queue = batchState.queue.filter((/** @type {string} */ n) => !batchState.requested.has(n));
   batchState.inflight = true;
   batchState.pendingDone = false;
   fireBatch(names);
@@ -137,6 +143,7 @@ export function maybeFetchNextBatch() {
 
 // 单个批次的请求与第一波应用（fire-and-forget；done 由 applySteamRatingsUpdate
 // 衔接下一批）/ request one batch and apply wave 1 (done chains the next batch)
+/** @param {string[]} names */
 async function fireBatch(names) {
   const batchState = _state.batchState;
   const total = batchState.processItems.length;
@@ -148,16 +155,18 @@ async function fireBatch(names) {
     batchState.queue.length > 0 ? `已排队 ${batchState.queue.length} 个，缓存优先检索中...` : '缓存优先检索中...'
   );
   // 惰性提取批内封面（不再全量扫描）；评分与推荐共用同一 imageData
+  /** @type {Record<string, any>} */
   const imageData = {};
-  names.forEach((n) => {
+  names.forEach((/** @type {string} */ n) => {
     imageData[n] = ensureNameToImage(n) || null;
   });
   // v7.0.2：详情页网址映射（name → item.url）——后台 URL 索引第一候选，
   // 统一列表页/详情页对同一网址的匹配结果。
   // v14.8 批次 9：增量 payload——只发**新增**映射（已发键在 urlsSent；
   // 此前每批全量重发 = O(N²) payload 累计）
+  /** @type {Record<string, string>} */
   const urls = {};
-  batchState.processItems.forEach((it) => {
+  batchState.processItems.forEach((/** @type {any} */ it) => {
     if (it.name && it.url && urls[it.name] === undefined) urls[it.name] = it.url;
   });
   if (!batchState.urlsSent) batchState.urlsSent = new Set();
@@ -238,7 +247,7 @@ async function fireBatch(names) {
     const failedJob = _state.ratingsJob;
     if (failedJob && !failedJob.finished) {
       for (const item of failedJob.processItems) {
-        if (!failedJob.processed.has(item.name)) badges.showErrorBadge(item);
+        if (!failedJob.processed.has(item.name)) badges.showErrorBadge(item, '查询失败');
       }
     }
     batchState.inflight = false;
@@ -249,11 +258,12 @@ async function fireBatch(names) {
 // 按批发起推荐请求（fire-and-forget；失败不影响评分流程）
 // Per-batch recommendation request (fire-and-forget; failures don't block ratings)
 // v10.3.0：推荐功能独立开关——关闭后不发起请求（无推荐徽章，评分流程不受影响）
+/** @param {string[]} names @param {Record<string, any>} imageData */
 async function fetchRecommendationsForBatch(names, imageData) {
   const job = _state.ratingsJob;
   if (job && job.settings && job.settings.enableRecommendations === false) return;
   try {
-    const games = names.map((n) => {
+    const games = names.map((/** @type {string} */ n) => {
       const img = imageData[n];
       return { name: n, url: '', appId: img && img.appId ? img.appId : null };
     });
@@ -268,6 +278,7 @@ async function fetchRecommendationsForBatch(names, imageData) {
 // 滚动批次追加后仍正确对应 item）
 // Apply recommendation results by name (results carry `name`; replaces the
 // index-aligned logic that broke when later batches appended items).
+/** @param {any[]} results */
 function applyRecommendationResults(results) {
   if (!results || results.length === 0) return;
   const batchState = _state.batchState;
@@ -298,6 +309,7 @@ function startListScan() {
   if (!batchState || batchState.observer) return;
   /** @type {ReturnType<typeof setTimeout>|null} */
   let scanTimer = null;
+  /** @type {any[]} */
   let pendingNodes = [];
   batchState.observer = new MutationObserver((mutations) => {
     // 收集新增元素节点（容器级增量提取，不再整页重扫）
@@ -319,7 +331,7 @@ function startListScan() {
     scanTimer = setTimeout(() => {
       const nodes = pendingNodes;
       pendingNodes = [];
-      const known = batchState.knownUrls || new Set(batchState.processItems.map((i) => i.url));
+      const known = batchState.knownUrls || new Set(batchState.processItems.map((/** @type {any} */ i) => i.url));
       batchState.knownUrls = known; // 持久集合：免每扫描 O(N) 重建（enqueueItems 同源）
       const newItems = [];
       for (const node of nodes) {
@@ -353,12 +365,15 @@ function startListScan() {
 
 // 列表页：初始化批次调度并发出首批评分请求（入口签名不变，内部改分批调度）
 // List page: initialise the batch scheduler and fire the first batch.
+/** @param {any[]} items @param {Record<string, any>} settings */
 export function requestSteamRatings(items, settings) {
   if (!items || items.length === 0) return;
   initBatchState(settings);
   enqueueItems(items);
   // 名字全集来自 processItems（nameToImage 已惰性化）
-  const jobNames = _state.batchState.processItems.map((i) => i.name).filter((n) => n && n.length > 1);
+  const jobNames = _state.batchState.processItems
+    .map((/** @type {any} */ i) => i.name)
+    .filter((/** @type {string} */ n) => n && n.length > 1);
   if (jobNames.length === 0) {
     status.hide();
     return;
@@ -375,14 +390,16 @@ export function requestSteamRatings(items, settings) {
 //（此前 REFRESH 不传 nameToImage → appId 恒 null 的缺陷一并修复）。
 // Recommendations ride the batch scheduler; this entry stays for the
 // REFRESH_RECOMMENDATIONS force-refresh with lazy cover extraction.
+/** @param {any[]} items @param {Record<string, any>} settings */
 export async function requestRecommendations(items, settings) {
   // v14.7 批次 13：nameToImage 死参数移除
   const batchState = _state.batchState;
   if (!batchState || !items || items.length === 0) return;
-  const names = items.map((i) => i.name).filter((n) => n && n.length > 1);
+  const names = items.map((/** @type {any} */ i) => i.name).filter((/** @type {string} */ n) => n && n.length > 1);
   if (names.length === 0) return;
+  /** @type {Record<string, any>} */
   const imageData = {};
-  names.forEach((n) => {
+  names.forEach((/** @type {string} */ n) => {
     imageData[n] = ensureNameToImage(n) || null;
   });
   await fetchRecommendationsForBatch(names, imageData);

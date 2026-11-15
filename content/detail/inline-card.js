@@ -11,7 +11,7 @@ import * as detailTemplates from './detail-templates.js';
 import * as builder from '../adapters/builder.js';
 import * as debug from '../core/debug.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
 // ============ v10.5.3 任务1：内嵌 Steam 信息区（咸鱼单机/gamer520） ============
 // XDGame 站点原生详情页自带「Steam 玩家评价」信息区，咸鱼单机/gamer520 没有。
@@ -181,7 +181,8 @@ export function renderInlineSteamSection(data, cachedAt) {
 
     // 幂等：同游戏已注入 → 跳过；换游戏（纠错重检索）→ 移除旧卡重建
     if (existing) {
-      if (existing.getAttribute('data-gr-appid') === String(data.appId || '')) return;
+      if (existing.getAttribute('data-gr-appid') === String(/** @type {Record<string, any>} */ (data).appId || ''))
+        return;
       existing.remove();
     }
 
@@ -191,7 +192,7 @@ export function renderInlineSteamSection(data, cachedAt) {
     const content = document.querySelector('.entry-content, .post-content, .article-content, article, main');
     const section = document.createElement('div');
     section.id = INLINE_SECTION_ID;
-    section.setAttribute('data-gr-appid', String(data.appId || ''));
+    section.setAttribute('data-gr-appid', String(/** @type {Record<string, any>} */ (data).appId || ''));
     if (hostIsDarkMode()) section.className = 'gr-night'; // 夜间配色（XDGame body.night 等价）
     section.innerHTML = html;
     if (title && title.parentNode) {

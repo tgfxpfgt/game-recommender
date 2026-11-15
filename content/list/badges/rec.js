@@ -11,6 +11,7 @@
  */
 import { createBadge } from './badge-base.js';
 
+/** @param {any} item @param {Record<string, any>} recommendation @param {Record<string, any>} settings */
 export function prependRecBadge(item, recommendation, settings) {
   const link = item.link;
   if (!link || !recommendation) return;
@@ -33,7 +34,7 @@ export function prependRecBadge(item, recommendation, settings) {
           : 'rgba(143,152,160,0.1)';
 
   const b = recommendation.breakdown || {};
-  const fmt = (v) => Math.round((v || 0) * 100) + '%';
+  const fmt = (/** @type {number|string|null} */ v) => Math.round((Number(v) || 0) * 100) + '%';
   // v11.0 B8：LLM 推荐理由上浮（method=llm 时 recommendation.reason 可用）
   const reasonLine = recommendation.method === 'llm' && recommendation.reason ? '\n🤖 ' + recommendation.reason : '';
   // v10.6.0 U1：走 createBadge 基类（.gr-badge 统一规格），样式差异收敛到 CSS；

@@ -38,6 +38,7 @@ const RATING_TEXT_MAP = {
 // ≥60% 热门、≥85% 爆款）——浮窗 SteamSpy 面板与 v10.5.3 内嵌信息区共用
 // Sales heat grade from the owners midpoint (log10/divisor), shared by the
 // float's SteamSpy panel and the v10.5.3 inline info section.
+/** @param {Record<string, any>|null} spy */
 export function heatLabelFor(spy) {
   if (!spy || typeof spy.ownersLow !== 'number' || typeof spy.ownersHigh !== 'number' || spy.ownersHigh <= 0) return '';
   const mid = (spy.ownersLow + spy.ownersHigh) / 2;
@@ -52,8 +53,8 @@ export function heatLabelFor(spy) {
  * @returns {{text: string, sentiment: 'positive'|'mixed'|'negative'}}
  */
 export function ratingTextInfo(desc, positiveRate) {
-  const hit = RATING_TEXT_MAP[String(desc || '').trim()];
-  if (hit) return { text: hit[0], sentiment: hit[1] };
+  const hit = /** @type {Record<string, string[]>} */ (RATING_TEXT_MAP)[String(desc || '').trim()];
+  if (hit) return { text: hit[0], sentiment: /** @type {"mixed"|"negative"|"positive"} */ (hit[1]) };
   // Steam 少量评测特例（"1 user review(s)" 等）——XDGame 同口径按褒贬不一
   if (/user reviews?$/i.test(String(desc || ''))) return { text: '褒贬不一', sentiment: 'mixed' };
   if (typeof positiveRate !== 'number') return { text: '玩家评价', sentiment: 'positive' };

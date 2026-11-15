@@ -18,6 +18,7 @@ import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from './page-url.js
 // v14.26.0 P1-6：消息超时单源
 import { MSG_TIMEOUT_SHORT_MS } from './timeouts.js';
 
+/** @param {Record<string, any>} boot - 页面引导对象（M/settings/ensureScope） */
 export async function initPage(boot) {
   const { M, settings: bootSettings } = boot;
   const { common, debug, builder, tracking, status } = M;
@@ -75,7 +76,7 @@ export async function initPage(boot) {
     return;
   }
 
-  const dbg = (...a) => debug.dbg(...a);
+  const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
   dbg('插件初始化...');
   dbg(`域名: ${domain}, 追踪: ${isTracked ? '是' : '否'}, Steam: ${isSteamPage ? '是' : '否'}`);
 

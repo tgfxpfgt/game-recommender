@@ -13,8 +13,8 @@ import * as debug from '../core/debug.js';
 import * as common from '../core/common.js';
 import * as builder from '../adapters/builder.js';
 
-const dbg = (...a) => debug.dbg(...a);
-const esc = (text) => common.escapeHtml(text);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 // ============ 功能3：Steam页面下载站资源浮窗 ============
 // 显示下载站搜索结果，提供详情页跳转链接（v1.1 起不再提供网盘直链）。
@@ -47,7 +47,7 @@ export function injectDownloadSitePanel(opts = {}) {
   if (!gameName) return;
   dbg(`Steam游戏: ${gameName} (appId=${appId})`);
   // 工作状态浮窗：开始搜索 / Work status bar: searching
-  status.showStatus('正在搜索下载站资源', null, null, `${gameName}`);
+  status.showStatus('正在搜索下载站资源', 0, 0, `${gameName}`);
 
   // 浮窗容器经 GR.float 统一管理（左下区域）
   const panel = float.create(float.ZONE.BOTTOM_LEFT, 'gr-download-site-panel', {
@@ -68,13 +68,13 @@ export function injectDownloadSitePanel(opts = {}) {
         cacheOnly: true
       });
       const cachedSites = cacheResp && Array.isArray(cacheResp.sites) ? cacheResp.sites : []; // v10.9
-      const cachedFound = cachedSites.filter((s) => s.found);
+      const cachedFound = cachedSites.filter((/** @type {any} */ s) => s.found);
       if (cachedFound.length > 0) {
         renderDownloadSitePanel(panel, cachedSites, gameName, steamJumpUrl);
         status.showStats({
           title: '下载站缓存命中',
           summary: `${cachedFound.length}/${cachedSites.length} 个下载站已有收录`,
-          rows: cachedFound.map((s) => `${s.name}: ${s.detailUrl}`).slice(0, 3)
+          rows: cachedFound.map((/** @type {any} */ s) => `${s.name}: ${s.detailUrl}`).slice(0, 3)
         });
       } else {
         panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">缓存中暂无收录，正在搜索下载站...</div>`;
@@ -89,13 +89,13 @@ export function injectDownloadSitePanel(opts = {}) {
         // v10.9：异型守卫（同 v10.8.1 候选浮窗教训——响应形状假设必须显式）
         renderDownloadSitePanel(panel, resp.sites, gameName, steamJumpUrl);
         // 工作状态浮窗：完成统计 / Completion stats
-        const found = resp.sites.filter((s) => s.found).length;
+        const found = resp.sites.filter((/** @type {any} */ s) => s.found).length;
         status.showStats({
           title: '下载站资源检索完成',
           summary: `${found}/${resp.sites.length} 个下载站找到资源`,
           rows: resp.sites
-            .filter((s) => s.found)
-            .map((s) => `${s.name}: ${s.detailUrl}`)
+            .filter((/** @type {any} */ s) => s.found)
+            .map((/** @type {any} */ s) => `${s.name}: ${s.detailUrl}`)
             .slice(0, 3)
         });
       } else {
@@ -121,8 +121,9 @@ export function injectDownloadSitePanel(opts = {}) {
 function renderDownloadSitePanel(panel, sites, gameName, steamJumpUrl) {
   // v9.3.0：站点显示名读规则 displayName（此前硬编码 3 站——自定义站点显示 key）
   const rules = (builder.getSITE_RULES && builder.getSITE_RULES()) || [];
+  /** @type {Record<string, string>} */
   const siteNames = {};
-  for (const r of rules) if (r && r.key && r.displayName) siteNames[r.key] = r.displayName;
+  for (const r of /** @type {any[]} */ (rules)) if (r && r.key && r.displayName) siteNames[r.key] = r.displayName;
   // v14.22.0：Steam 跳转链接仅接受 http(s)（外部输入防御同 detailUrl/searchUrl）
   let steamJumpHtml = '';
   if (steamJumpUrl) {
@@ -205,7 +206,7 @@ function renderDownloadSitePanel(panel, sites, gameName, steamJumpUrl) {
   // v12 B7：跨站收录对比（≥2 站命中时显示版本/大小/更新时间对比 + 最优来源标记）
   const foundSites = sites.filter((st) => st.found && st.detailUrl);
   if (foundSites.length >= 2) {
-    const tsOf = (st) => {
+    const tsOf = (/** @type {any} */ st) => {
       const t = Date.parse((st.updateDate || '').replace(/[年月]/g, '-').replace(/日$/, ''));
       return isNaN(t) ? 0 : t;
     };
@@ -228,6 +229,7 @@ function renderDownloadSitePanel(panel, sites, gameName, steamJumpUrl) {
 }
 
 // ============ 下载历史浮窗（详情页显示上次下载记录） ============
+/** @param {string} gameName */
 export function injectDownloadHistoryPanel(gameName) {
   if (!gameName) return;
 
@@ -338,6 +340,7 @@ export function injectSteam250Panel() {
 // ============ TRACK_EVENT 行为采集 / Behavior Event Collection ============
 // 回写 Steam 标签（steam_tags_update——推荐关键词闭环）
 // Write back Steam tags (steam_tags_update; closes the keyword loop).
+/** @param {Record<string, any>} data @param {string} gameName */
 export function trackSteamTagsUpdate(data, gameName) {
   if (data.genres && data.genres.length > 0) {
     chrome.runtime

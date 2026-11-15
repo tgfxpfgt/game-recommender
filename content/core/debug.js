@@ -33,7 +33,9 @@ export function scheduleDebugUpdate() {
 }
 
 // 记录调试日志（带时间戳，最多 20 条）/ Record a debug log line (max 20)
-export function dbg(msg) {
+/** @param {...any} args - 首参为载荷（String 归一，与旧单参行为一致） */
+export function dbg(...args) {
+  let msg = args[0];
   msg = String(msg);
   DEBUG.logs.unshift(`[${new Date().toLocaleTimeString()}] ${msg}`);
   if (DEBUG.logs.length > 20) DEBUG.logs.pop();
@@ -42,7 +44,7 @@ export function dbg(msg) {
 
 // 构建诊断视图 HTML / Build the debug-view HTML
 function buildDebugHtml() {
-  const stateCls = (s) =>
+  const stateCls = (/** @type {string} */ s) =>
     s.startsWith('✅')
       ? 'gr-debug-state-ok'
       : s.startsWith('❌')

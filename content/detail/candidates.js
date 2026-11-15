@@ -10,7 +10,7 @@
 import * as common from '../core/common.js';
 import { MANUAL_PLATFORM_OPTIONS, MANUAL_PLATFORM_BRANDS } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源；v14.20.0：厂商分组
 
-const esc = (text) => common.escapeHtml(text);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 // v14.7 批次 3/4：「跳过，稍后自动重试」的页面会话级已跳过集——同一游戏
 // 本页不再自动弹候选浮窗（跨页面由分级负缓存首档 15min 兜底）。
@@ -56,13 +56,13 @@ export function isGameDismissed(gameName) {
 // v14.24.0: main-view entry button removed (menu item jumps straight to the
 // platform view); openPlatformView=true auto-switches after render.
 export function renderManualSelectPanel(
-  panel,
-  gameName,
-  onClose,
-  onSelect,
-  reason,
-  onRetry,
-  onPickPlatform,
+  /** @type {any} */ panel,
+  /** @type {string} */ gameName,
+  /** @type {(() => void)|undefined} */ onClose,
+  /** @type {((d: any, id: any) => void)|undefined} */ onSelect,
+  /** @type {string} */ reason,
+  /** @type {(() => Promise<any>)|undefined} */ onRetry,
+  /** @type {((p: string) => Promise<any>)|undefined} */ onPickPlatform,
   openPlatformView = false
 ) {
   const reasonText = String(reason || '').trim();
@@ -170,6 +170,7 @@ export function renderManualSelectPanel(
       </div>
     `;
 
+  /** @param {string} keyword */
   async function searchAndRender(keyword) {
     const listEl = panel.querySelector('#gr-candidates-list');
     if (!listEl) return;
@@ -189,7 +190,7 @@ export function renderManualSelectPanel(
 
       listEl.innerHTML = candidates
         .map(
-          (c) => `
+          (/** @type {any} */ c) => `
           <div class="gr-candidate-item" role="option" aria-selected="false" data-appid="${common.escapeAttr(c.appId)}" style="
             display:flex;align-items:center;gap:10px;padding:8px;margin:4px 0;
             background:rgba(0,0,0,0.2);border:1px solid #2a475e;border-radius:3px;
@@ -274,7 +275,7 @@ export function renderManualSelectPanel(
               manual: true // v3.3.14：手动选择候选跳过名称相关性校验（用户主动确认）
             });
             if (detailResp && detailResp.data) {
-              onSelect(detailResp.data, parseInt(selectedAppId));
+              if (onSelect) onSelect(detailResp.data, parseInt(selectedAppId));
             } else {
               // v14.28.12（B2-F4）：失败原因透出（与 SEARCH_STEAM reason 对齐）
               const reasonText =
@@ -439,7 +440,7 @@ export function renderManualSelectPanel(
           manual: true // 手动绑定跳过名称相关性校验（与候选选择同语义）
         });
         if (resp && resp.data) {
-          onSelect(resp.data, parseInt(appId, 10));
+          if (onSelect) onSelect(resp.data, parseInt(appId, 10));
           return;
         }
         if (listEl0) {

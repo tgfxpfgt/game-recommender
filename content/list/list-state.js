@@ -17,7 +17,7 @@ import * as builder from '../adapters/builder.js';
 import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 // 兜底：45 秒强制收尾（v14.6.2：具名单点——未返回的游戏保持空白不误标
 // "未找到"，后台已逐批落盘，刷新页面第一波即命中；收尾后迟到推送仍应用）
 const FORCE_FINISH_MS = 45000;
@@ -77,7 +77,9 @@ export function formatQueueStatusText(prog, qs) {
   // 硬阈值放弃由后台继续队列，前端看到的是该项最终为未找到）
   const stalled = (cur && cur.stalled) || (prog && prog.stalled) || null;
   if (stalled && Number(stalled.elapsedMs) >= 1000) {
-    const label = PHASE_LABELS[String(stalled.phase)] || String(stalled.phase || '未知步骤');
+    const label =
+      /** @type {Record<string, string>} */ (PHASE_LABELS)[String(stalled.phase)] ||
+      String(stalled.phase || '未知步骤');
     parts.push(`卡在${label} ${Math.round(Number(stalled.elapsedMs) / 1000)}s`);
   }
   if ((qs && qs.degraded) || (prog && prog.degraded)) parts.push('限流降速');
@@ -111,6 +113,7 @@ export function formatQueueStatusText(prog, qs) {
 /** @type {{ ratingsJob: RatingsJob|null, batchState: any, ratingsProgress: {done:number,total:number,degraded:boolean,queued?:number,position?:number,phase?:string,stalled?:{name:string,phase:string,elapsedMs:number}|null}|null }} */
 export const _state = { ratingsJob: null, batchState: null, ratingsProgress: null };
 
+/** @param {any[]} processItems @param {Record<string, any>} settings @param {string[]} uniqueNames */
 function createRatingsJob(processItems, settings, uniqueNames) {
   _state.ratingsProgress = null; // v14.7 批次 5：新任务清上一轮进度
   _state.ratingsJob = {
@@ -140,6 +143,7 @@ function createRatingsJob(processItems, settings, uniqueNames) {
 // misses in this wave resolve as "not found". Late pushes still apply badges.
 // v6.4.4：好评率过滤判定（总 + 30 天 + 与/或/非）——纯函数导出供单测
 // and：总≥阈值 且 30天≥阈值；or：任一达标；not：只看 30 天（忽略总好评）
+/** @param {any} rating @param {Record<string, any>} [settings] */
 export function ratingFilterPass(rating, settings = {}) {
   const totalOk =
     !settings.enableRatingFilter ||
@@ -172,6 +176,7 @@ export function ratingFilterPass(rating, settings = {}) {
   return totalOk && recentOk;
 }
 
+/** @param {any} ratings @param {string} mode */
 export function applyRatingsResponse(ratings, mode) {
   if (!_state.ratingsJob) return false;
   const job = _state.ratingsJob;
@@ -330,27 +335,31 @@ export function finishRatings() {
 // processItems 提取序（稳定排序保持相对次序）。
 // Capture the original DOM order once (idempotent) so "restore order" can undo
 // any later sorting; falls back to extraction order where the DOM API is absent.
+/** @param {any} job */
 function captureDomOrder(job) {
   if (!job || job.domOrder) return;
   // v14.13 B5（报告 D P1-7）：isConnected 判定——removeItemFromDom 移除的是
   // 祖先栅格容器，item.element 仍挂于脱文档容器上（parentNode 真值误判）
-  const live = job.processItems.filter((it) => it.element && it.element.isConnected);
+  const live = job.processItems.filter((/** @type {any} */ it) => it.element && it.element.isConnected);
   if (typeof (live[0] && live[0].element && live[0].element.compareDocumentPosition) === 'function') {
     // 4 = Node.DOCUMENT_POSITION_FOLLOWING（eslint no-undef 下避免直接引用 Node）
-    live.sort((a, b) => (a.element.compareDocumentPosition(b.element) & 4 ? -1 : 1));
+    live.sort((/** @type {any} */ a, /** @type {any} */ b) =>
+      a.element.compareDocumentPosition(b.element) & 4 ? -1 : 1
+    );
   }
-  job.domOrder = live.map((it) => it.element);
+  job.domOrder = live.map((/** @type {any} */ it) => it.element);
 }
 
 // v14.0.0：按基线恢复原始顺序（修复此前 'none' 掉入更新日期排序分支的错误行为）。
 // 基线中已脱离容器的元素（被过滤移除）跳过；恢复过滤时重新插入的项归位末尾。
 // Restore the original order from the baseline (fixes 'none' wrongly sorting by
 // last-update); elements currently outside the container are skipped.
+/** @param {any} job */
 function restoreDomOrder(job) {
   if (!job) return 0;
   if (!job.domOrder) captureDomOrder(job); // 无基线（未排序即点恢复）→ 当前序即基线
   const els = job.domOrder || [];
-  const target = els.map((e) => e.parentNode).find(Boolean);
+  const target = els.map((/** @type {any} */ e) => e.parentNode).find(Boolean);
   if (!target) return 0;
   let moved = 0;
   for (const el of els) {
@@ -364,10 +373,11 @@ function restoreDomOrder(job) {
 
 // v7.4.0：恢复被过滤游戏（重新插入列表容器末尾——位置可能略有变化）
 // Restore filtered games: re-append their elements to the list container
+/** @param {any} job */
 function restoreFilteredGames(job) {
   if (!job || job.filteredNames.length === 0) return;
   const names = new Set(job.filteredNames);
-  const live = job.processItems.find((i) => i.element && i.element.isConnected);
+  const live = job.processItems.find((/** @type {any} */ i) => i.element && i.element.isConnected);
   const container = live && live.element.parentNode;
   if (!container) return;
   let restored = 0;
@@ -388,8 +398,12 @@ function restoreFilteredGames(job) {
 
 // v6.4.4：按好评率降序重排列表页 DOM（评分最高的在前；无评分的沉底）
 // Re-sort list items by positive rate descending (unrated sink to the bottom)
+/** @param {any} job */
 export function sortItemsByRating(job) {
-  const sorted = job.processItems.slice().sort((a, b) => (job.ratingMap[b.name] ?? -1) - (job.ratingMap[a.name] ?? -1));
+  const sorted = job.processItems.slice().sort((/** @type {any} */ a, /** @type {any} */ b) => {
+    const ratingMap = /** @type {Record<string, number>} */ (job.ratingMap);
+    return (ratingMap[b.name] ?? -1) - (ratingMap[a.name] ?? -1);
+  });
   const container = sorted[0] && sorted[0].element && sorted[0].element.parentNode;
   if (!container) return;
   for (const item of sorted) {
@@ -491,6 +505,7 @@ export function applyLiveRatingFilter(settingsPatch) {
 // 该函数依赖 list-batch 的 maybeFetchNextBatch，保留在 list-page 层）
 // v12 B8：本地排序——按好评率/更新日期对已渲染项 DOM 重排（不重新取数）。
 // Local sort: reorder rendered items by rating or last-update (no re-fetch).
+/** @param {string} mode */
 export function applyLocalSort(mode) {
   const job = _state.ratingsJob;
   const bs = _state.batchState;
@@ -501,7 +516,7 @@ export function applyLocalSort(mode) {
   if (items.length < 2) return 0;
   captureDomOrder(job); // 首次排序前捕获基线，此后 'none' 可恢复
   const container = items[0].element.parentNode;
-  const keyOf = (it) => {
+  const keyOf = (/** @type {any} */ it) => {
     const rating = job.ratingMap ? job.ratingMap[it.name] : null;
     if (mode === 'rating') return typeof rating === 'number' ? rating : -1;
     const full = job.ratingsByName && job.ratingsByName[it.name];

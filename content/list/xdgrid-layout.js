@@ -12,7 +12,7 @@ import * as common from '../core/common.js';
 import * as debug from '../core/debug.js';
 import * as builder from '../adapters/builder.js';
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
 export const STORE_KEY = 'xdgridSettings';
 // 默认配置（iconW>0 固定图标宽、容器随列数加宽；iconW=0 自适应压缩；
@@ -28,6 +28,7 @@ export const MIN_ITEMS = 3;
 const LAYOUT_RETRY_INTERVAL_MS = 1000;
 const LAYOUT_RETRY_MAX = 10;
 
+/** @param {any} v @param {number} min @param {number} max @param {number} fallback */
 export function clampInt(v, min, max, fallback) {
   const n = parseInt(v, 10);
   if (isNaN(n)) return fallback;
@@ -35,6 +36,7 @@ export function clampInt(v, min, max, fallback) {
 }
 
 // 整体容器宽度（固定图标宽模式）/ container width for fixed-icon-width mode
+/** @param {Record<string, any>} cfg */
 function computeFrameWidth(cfg) {
   const cols = clampInt(cfg.cols, 1, 20, DEFAULTS.cols);
   const iconW = clampInt(cfg.iconW, 0, 600, DEFAULTS.iconW);
@@ -44,6 +46,7 @@ function computeFrameWidth(cfg) {
 }
 
 // 容器 grid 样式（纯函数，可单测）/ container grid style (pure, testable)
+/** @param {Record<string, any>} cfg */
 export function computeContainerStyle(cfg) {
   const cols = clampInt(cfg.cols, 1, 20, DEFAULTS.cols);
   const gap = clampInt(cfg.gap, 0, 80, DEFAULTS.gap);
@@ -65,6 +68,7 @@ export function computeContainerStyle(cfg) {
 // 旧配置迁移（纯函数，可单测）：v10.2.0 的扁平配置（仅 xdgame 使用）→
 // v10.4.0 按站点映射（迁移站默认启用）；已是新形状则原样返回
 // Legacy migration (pure): flat v10.2.0 config → per-site map, enabled.
+/** @param {any} stored @param {string} host */
 export function migrateLegacy(stored, host) {
   if (!stored || typeof stored !== 'object') return { sites: {} };
   if (stored.sites && typeof stored.sites === 'object') return stored; // 已是新形状
@@ -85,6 +89,7 @@ export async function loadAllSettings() {
   }
 }
 
+/** @param {Record<string, any>} all */
 export function saveAllSettings(all) {
   try {
     chrome.storage.local.set({ [STORE_KEY]: all }).catch(() => {});
@@ -93,6 +98,7 @@ export function saveAllSettings(all) {
   }
 }
 
+/** @param {Record<string, any>} cfg */
 export function normalizeCfg(cfg) {
   return {
     enabled: (cfg && cfg.enabled) === true,
@@ -130,11 +136,12 @@ export function commonAncestor(els) {
 
 // 应用布局：检测容器 + 施加 grid + 项内图片封面高度（返回应用到的容器）
 // Apply layout: detect container, apply grid + per-item cover height caps.
+/** @param {Record<string, any>} cfg @param {any[]} items */
 export function applyLayout(cfg, items) {
   if (!cfg.enabled) return null;
-  const list = (items || []).filter((it) => it && it.element);
+  const list = (items || []).filter((/** @type {any} */ it) => it && it.element);
   if (list.length < MIN_ITEMS) return null;
-  const container = commonAncestor(list.map((it) => it.element));
+  const container = commonAncestor(list.map((/** @type {any} */ it) => it.element));
   if (!container || container === document.body || container === document.documentElement) return null;
   container.style.cssText += ';' + computeContainerStyle(cfg);
   if (cfg.iconH > 0) {
@@ -160,6 +167,7 @@ export function isXdgameFallback(host, features) {
   return (features && features.gridLayoutDefault === true) || String(host || '').includes('xdgame.com');
 }
 
+/** @param {Record<string, any>} all @param {string} host */
 export async function detectAndApply(all, host) {
   const features = await builder.getSiteFeatures();
   const defaultEnabled = features.gridLayoutDefault === true || isXdgameFallback(host); // v14.12 B8：单源

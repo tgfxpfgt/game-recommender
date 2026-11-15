@@ -14,13 +14,14 @@ import { FM_KEYS, FM_DEFAULT_ORDER } from '../../../shared/fm-keys.js'; // v14.2
 import { renderRatingRows, renderVerdictRow } from './rating-rows.js';
 import { renderMatchConfidenceRow } from './match-confidence-row.js'; // v14.28.7 R4-B3
 
-const esc = (text) => common.escapeHtml(text);
+const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 // Steam 信息栏完整模板（数据 + 缓存时间 → HTML）
 // v14.24.0（用户需求：手动更新/重新检索/选择机型迁入右上角 ⚙ 菜单）：底部
 // 两按钮移除——动作由浮窗菜单承担（data-menu-action，见 floats.js/sidebar.js）。
 // Full Steam-info sidebar template (data + cachedAt → HTML); the bottom action
 // buttons moved into the float ⚙ menu since v14.24.0.
+/** @param {Record<string, any>} data @param {number} [cachedAt] */
 export function steamSidebar(data, cachedAt) {
   // v10.9：跨边界字段归一化——旧缓存/异型数据（reviews/userTags/genres/
   // developers/description 为字符串或对象）此前使浮窗整条渲染链抛错。
@@ -31,13 +32,18 @@ export function steamSidebar(data, cachedAt) {
   if (!Array.isArray(data.genres)) data.genres = [];
   if (!Array.isArray(data.developers)) data.developers = [];
   if (typeof data.description !== 'string') data.description = ''; // 垃圾对象置空（不渲染 [object Object]）
-  data.reviews = data.reviews.filter((r) => r && typeof r === 'object' && typeof r.text === 'string'); // 无有效文本的条目直接弃用
+  data.reviews = data.reviews.filter(
+    (/** @type {any} */ r) => r && typeof r === 'object' && typeof r.text === 'string'
+  ); // 无有效文本的条目直接弃用
   // v12 B4：模块显隐——floatModules 设置（chips/tags/developers/description/spy）
   // 未配置 = 全显示（不破坏现有用户）
   // v13 B3：order 排序持久化——块按 order 数组顺序渲染（未配置 = 默认序）
   const mods = (typeof data.floatModules === 'object' && data.floatModules) || {};
   // v14.2.0：键序改读 shared/fm-keys.js 单源（此前为本地字面量副本——5 份副本之一）
-  const order = Array.isArray(mods.order) && mods.order.length > 0 ? mods.order.filter((k) => FM_KEYS.includes(k)) : [];
+  const order =
+    Array.isArray(mods.order) && mods.order.length > 0
+      ? mods.order.filter((/** @type {string} */ k) => FM_KEYS.includes(k))
+      : [];
   for (const k of FM_DEFAULT_ORDER) if (!order.includes(k)) order.push(k); // 补缺失项（保底）
   // 评级色（v5.0.0：颜色单源 __GR_PATTERNS__；v10.7.0 删字面量 fallback）
   const P = globalThis.__GR_PATTERNS__;
@@ -45,7 +51,7 @@ export function steamSidebar(data, cachedAt) {
   // v9.6.0：评分区改 Steam 风格——颜色在 row 内经 colorOf 单源计算（此处不再需要）
   const ratingBg = P.ratingBgFor(rate);
 
-  const cacheAgeText = common.formatRelativeTime(cachedAt);
+  const cacheAgeText = common.formatRelativeTime(/** @type {number} */ (cachedAt));
 
   // v14.19.0：手动主机映射条目的 MC 视图（用户需求：详情页匹配错误时手动
   // 选择机型 → Metacritic 评分）——标题 + MC 徽章（色带同列表页惯例）+
@@ -88,7 +94,7 @@ export function steamSidebar(data, cachedAt) {
           ${data.reviews
             .slice(0, 3)
             .map(
-              (r) => `
+              (/** @type {any} */ r) => `
             <div class="gr-detail-review" style="border-left-color:${r.recommended ? '#66c0f4' : '#a34c25'};">
               <span style="color:${r.recommended ? '#66c0f4' : '#a34c25'}">${r.recommended ? '👍 推荐' : '👎 不推荐'}</span>
               <div style="color:#acb2b8;margin-top:3px;word-break:break-all;">${esc(r.text.substring(0, 120))}${r.text.length > 120 ? '...' : ''}</div>
@@ -199,7 +205,7 @@ export function steamSidebar(data, cachedAt) {
             <div class="gr-detail-flex-wrap">
               ${data.userTags
                 .map(
-                  (t) =>
+                  (/** @type {any} */ t) =>
                     // v10.4.4：标签可点击跳转 Steam 标签页（新窗口；href 全量编码）
                     `<a href="${common.escapeAttr('https://store.steampowered.com/tags/zh-cn/' + encodeURIComponent(t))}" target="_blank" rel="noopener" title="在 Steam 查看标签「${esc(t)}」" style="padding:3px 8px;font-size:11px;background:rgba(103,193,245,0.12);color:#67c1f5;border-radius:2px;cursor:pointer;text-decoration:none;display:inline-block;">${esc(t)}</a>`
                 )
@@ -215,7 +221,7 @@ export function steamSidebar(data, cachedAt) {
           <div style="margin-bottom:12px;">
             <div style="font-size:12px;color:#8f98a0;margin-bottom:5px;">类型</div>
             <div class="gr-detail-flex-wrap">
-              ${data.genres.map((g) => `<span style="padding:3px 8px;font-size:11px;background:rgba(255,255,255,0.06);color:#c7d5e0;border-radius:2px;cursor:default;">${esc(g)}</span>`).join('')}
+              ${data.genres.map((/** @type {string} */ g) => `<span style="padding:3px 8px;font-size:11px;background:rgba(255,255,255,0.06);color:#c7d5e0;border-radius:2px;cursor:default;">${esc(g)}</span>`).join('')}
             </div>
           </div>
         `
@@ -243,10 +249,14 @@ export function steamSidebar(data, cachedAt) {
   // ⑤ SteamSpy（spyHtml 上方已按 mods.spy 构建）/ spy
   const orderedModulesHtml = order
     .map(
-      (k) =>
-        ({ chips: chipsHtml, tags: tagsHtml, developers: developersHtml, description: descriptionHtml, spy: spyHtml })[
-          k
-        ] || ''
+      (/** @type {string} */ k) =>
+        /** @type {Record<string, string>} */ ({
+          chips: chipsHtml,
+          tags: tagsHtml,
+          developers: developersHtml,
+          description: descriptionHtml,
+          spy: spyHtml
+        })[k] || ''
     )
     .join('');
 

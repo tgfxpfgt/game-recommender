@@ -14,6 +14,7 @@ import * as common from '../core/common.js';
 import * as detail from '../detail/detect-name.js';
 
 // 网盘/下载URL识别（覆盖主流网盘）/ Pan/download URL detection
+/** @param {string} str */
 export function isDownloadUrl(str) {
   if (!str) return false;
   return /pan\.baidu\.com|yun\.baidu\.com|baidupcs|aliyundrive\.com|alipan\.com|115\.com|quark\.cn|weiyun\.com|jianwen\.com|caiyun\.com|139\.com|mega\.nz|mediafire|1fichier|gofile|rapidgator|uploaded\.net|magnet:|thunder:|ed2k:|ftp:|\.torrent/i.test(
@@ -22,6 +23,7 @@ export function isDownloadUrl(str) {
 }
 
 // 下载相关文本识别 / Download-related text detection
+/** @param {string} text */
 export function isDownloadText(text) {
   if (!text) return false;
   return /百度网盘|百度云|网盘|百度盘|阿里云盘|夸克网盘|115网盘|微云|提取码|下载游戏|游戏下载|高速下载|普通下载|磁力|种子/.test(
@@ -30,6 +32,7 @@ export function isDownloadText(text) {
 }
 
 // 记录一次下载事件 / Record a download event
+/** @param {string} url @param {string} text @param {string} method */
 function recordDownload(url, text, method) {
   debug.DEBUG.downloadEvents++;
   debug.dbg(`📥 下载事件 [${method}]: ${text}`);
@@ -58,7 +61,7 @@ function recordDownload(url, text, method) {
 export function setupDownloadTracking(settings = {}) {
   // v10.5.0 P3：尊重独立开关——此前 tracker 传了 settings 但本函数忽略，导致
   // downloadTrackingEnabled=false 仍全程追踪（死开关）。默认开启（true/未定义）。
-  if (settings && settings.downloadTrackingEnabled === false) {
+  if (settings && /** @type {Record<string, any>} */ (settings).downloadTrackingEnabled === false) {
     debug.dbg('下载追踪已关闭（跳过点击/复制捕获）');
     return;
   }

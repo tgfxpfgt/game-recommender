@@ -22,7 +22,7 @@ import { MSG_TIMEOUT_SHORT_MS } from '../core/timeouts.js';
 
 export { isDetailPageByUrl, isHomePageUrl, isListPageByUrl };
 
-const dbg = (...a) => debug.dbg(...a);
+const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
 // ============ v14.7 批次 3：未找到/等待徽章点击就地重试 ============
 // 点击 = RETRY_GAME_LOOKUP（穿透负缓存单游戏重查，窄化 action 不经 URL
@@ -36,6 +36,7 @@ const retryThrottle = new Map(); // name → 上次尝试时间戳
 // 语义下全清无害——窗口过后首查必然放行）
 const RETRY_THROTTLE_CAP = 500;
 
+/** @param {any} item */
 async function retryItem(item) {
   if (!item || !item.name) return;
   // 批次进行中忽略点击（数据即将由推送到达；收尾残留项才需要手动重试）
@@ -81,7 +82,7 @@ async function retryItem(item) {
     dbg('Steam好评率重查失败:', String(e));
   }
 }
-badges.setBadgeRetryHandler(retryItem);
+badges.setBadgeRetryHandler(/** @type {() => void} */ (/** @type {unknown} */ (retryItem)));
 
 // ============ v14.16.0 N4：批量重试失败项（自愈优先纪律的批量形态） ============
 // 网络恢复后逐个点击失败徽章（20 次）太痛苦——浮条一键串行重试，总量有界
@@ -90,6 +91,7 @@ const RETRY_BATCH_CAP = 20;
 let retryBatchRunning = false;
 
 /** 收集待重试目标（纯函数可测）：未找到/失败固化徽章所在 item，cap 截断 */
+/** @param {number} cap */
 function collectRetryTargets(cap) {
   const job = _state.ratingsJob;
   if (!job) return [];
@@ -107,6 +109,7 @@ function collectRetryTargets(cap) {
 }
 
 /** 批量重试浮条（失败 ≥2 时出现；完成后按剩余量续显或隐藏） */
+/** @param {number} count */
 function ensureRetryBatchChip(count) {
   let chip = document.getElementById('gr-retry-batch-chip');
   if (count < 2) {
@@ -160,6 +163,7 @@ const PRELOAD_ABORT_MS = 15000;
 
 // 智能获取列表项：优先适配器，回退通用链接提取（v3.3.9：回退扫描受
 // maxScanLinks 上限保护，防止极端大列表页提取数千项并发请求）
+/** @param {any} adapter */
 function getListItemsSmart(adapter) {
   const items = adapter.getListItems ? adapter.getListItems() : [];
   if (items.length === 0) {
@@ -191,6 +195,7 @@ function getListItemsSmart(adapter) {
 // 等待列表项出现（AJAX 延迟渲染页面）：容器一出现即提取，超时返回当前结果
 // Wait for list items on AJAX-rendered pages; resolve on the first non-empty
 // extraction (with debounce) or after the timeout.
+/** @param {any} adapter @param {number} timeoutMs */
 function waitForListItems(adapter, timeoutMs) {
   const limit = timeoutMs || 4000;
   return new Promise((resolve) => {
@@ -200,8 +205,9 @@ function waitForListItems(adapter, timeoutMs) {
     let observer = null;
     /** @type {ReturnType<typeof setTimeout>|null} */
     let debounceTimer = null;
+    /** @type {any[]} */
     let lastItems = [];
-    const finish = (its) => {
+    const finish = (/** @type {any[]} */ its) => {
       if (observer) observer.disconnect();
       if (timer) clearTimeout(timer);
       if (debounceTimer) clearTimeout(debounceTimer);
@@ -229,6 +235,7 @@ function waitForListItems(adapter, timeoutMs) {
 // v9.3.0：站点规则失效告警（每页一次）——列表项提取为 0 且站点被追踪时，
 // 上报后台日志（站点改版致选择器静默失效时可感知）
 let siteAlertSent = false;
+/** @param {any} adapter */
 function maybeReportAdapterIssue(adapter) {
   if (siteAlertSent || !adapter || !adapter.key) return;
   siteAlertSent = true;
@@ -250,6 +257,7 @@ function maybeReportAdapterIssue(adapter) {
   }
 }
 
+/** @param {any} adapter @param {any[]} items @param {Record<string, any>} settings */
 function trackListView(adapter, items, settings) {
   common.trackEvent('view_list', { itemCount: items.length, page: window.location.href });
   if (items.length === 0 && adapter && adapter.key) maybeReportAdapterIssue(adapter);
@@ -260,7 +268,7 @@ function trackListView(adapter, items, settings) {
     filteredItems = applyVmFilter(items, settings);
   }
 
-  filteredItems.forEach((item) => {
+  filteredItems.forEach((/** @type {any} */ item) => {
     item.link.addEventListener('click', () => {
       common.trackEvent('click_detail', { gameName: item.name, gameUrl: item.url });
     });
@@ -279,6 +287,7 @@ function trackListView(adapter, items, settings) {
 // 关键词的游戏项并从 DOM 删除。防误报：exact 模式要求关键词与标题的某个
 // 分段完全相等（按分隔符拆分），避免虚拟机误伤虚拟主机类子串。
 // Generic title-keyword filter (exact mode avoids false positives).
+/** @param {any[]} items @param {Record<string, any>} settings */
 function applyVmFilter(items, settings) {
   const raw =
     settings.filterKeywords ||
@@ -293,7 +302,7 @@ function applyVmFilter(items, settings) {
   // 排除词才过滤（如 {keyword:'虚拟机', exclude:'非虚拟机'}）
   const rules = Array.isArray(settings.filterRules)
     ? settings.filterRules
-        .map((r) => ({
+        .map((/** @type {any} */ r) => ({
           k: String(r.keyword || '')
             .trim()
             .toLowerCase(),
@@ -301,20 +310,25 @@ function applyVmFilter(items, settings) {
             .trim()
             .toLowerCase()
         }))
-        .filter((r) => r.k)
+        .filter((/** @type {any} */ r) => r.k)
     : [];
   const kept = [];
   let removed = 0;
   for (const item of items) {
     const name = (item.name || '').toLowerCase();
-    const kwHit = (k) =>
+    const kwHit = (/** @type {string} */ k) =>
       mode === 'exact'
-        ? name.split(/[|｜×•·\-\s]+/).some((seg) => seg === k) || name.startsWith(k) || name.endsWith(k)
+        ? name.split(/[|｜×•·\-\s]+/).some((/** @type {string} */ seg) => seg === k) ||
+          name.startsWith(k) ||
+          name.endsWith(k)
         : name.includes(k);
     // 规则命中（含排除词防误报）；无规则时回退简单关键词列表
     const hit =
       rules.length > 0
-        ? rules.some(({ k, x }) => kwHit(k) && !(x && (name.includes(x) || name.startsWith(x) || name.endsWith(x))))
+        ? rules.some(
+            (/** @type {{k: string, x?: string}} */ { k, x }) =>
+              kwHit(k) && !(x && (name.includes(x) || name.startsWith(x) || name.endsWith(x)))
+          )
         : kws.some(kwHit);
     if (hit) {
       // 从 DOM 移除（优先移除栅格列容器以避免留空，与好评率过滤共用逻辑）
@@ -374,7 +388,7 @@ function preloadNextPage() {
       // 回调避免与页面渲染/交互竞争（无 requestIdleCallback 环境回退 setTimeout）
       // Parse off the critical path: a full-page sync parse can block tens of
       // milliseconds; defer to an idle callback (setTimeout fallback).
-      const parseInIdle = (cb) =>
+      const parseInIdle = (/** @type {() => void} */ cb) =>
         typeof window.requestIdleCallback === 'function'
           ? window.requestIdleCallback(cb, { timeout: 2000 })
           : setTimeout(cb, 0);
@@ -439,13 +453,16 @@ function findNextPageUrl() {
 }
 
 // 从解析后的文档中提取游戏名与封面 appId（选择器来自规则文件）
+/** @param {Document} doc */
 function extractGameNamesFromDoc(doc) {
   const names = new Set();
   const appIds = {};
   const covers = {};
   const domain = window.location.hostname;
 
-  const rule = (builder.getSITE_RULES() || []).find((r) => r.domains.some((d) => domain.includes(d)));
+  const rule = (builder.getSITE_RULES() || []).find((/** @type {any} */ r) =>
+    r.domains.some((/** @type {string} */ d) => domain.includes(d))
+  );
   if (rule) {
     const cfg = rule.listItem || {};
     const containers = cfg.containers || [];
@@ -454,18 +471,18 @@ function extractGameNamesFromDoc(doc) {
     const minLen = cfg.minLen ?? 2;
     const maxLen = cfg.maxLen ?? 200;
     for (const sel of containers) {
-      doc.querySelectorAll(sel).forEach((el) => {
+      doc.querySelectorAll(sel).forEach((/** @type {any} */ el) => {
         const t = titleLink ? el.querySelector(titleLink) : el.querySelector(titleEls.join(','));
         if (t) {
           const text = (t.textContent || '').trim().replace(/\s+/g, ' ');
           if (text.length > minLen && text.length < maxLen) {
             names.add(text);
-            if (!appIds[text]) {
+            if (!(/** @type {Record<string, any>} */ (appIds)[text])) {
               // 复用 builder 的封面 appId 提取（统一正则实现）
               const info = builder.extractSteamImageInfo(el);
               if (info) {
-                appIds[text] = info.appId;
-                covers[text] = info.cover;
+                /** @type {Record<string, any>} */ (appIds)[text] = info.appId;
+                /** @type {Record<string, any>} */ (covers)[text] = info.cover;
               }
             }
           }
@@ -478,7 +495,7 @@ function extractGameNamesFromDoc(doc) {
   // 通用回退：指向详情页且有文本的链接
   if (names.size === 0) {
     const baseUrl = window.location.href;
-    doc.querySelectorAll('a[href]').forEach((a) => {
+    doc.querySelectorAll('a[href]').forEach((/** @type {any} */ a) => {
       const href = a.getAttribute('href') || '';
       if (!href) return;
       try {
@@ -527,6 +544,7 @@ function ensureQueueInfoPolling() {
   queuePollTimer = setTimeout(tick, QUEUE_POLL_INTERVAL_MS);
 }
 
+/** @param {any} ratings @param {boolean|undefined} done @param {any} progress - 队列进度快照（_state.ratingsProgress 同形） */
 function applySteamRatingsUpdate(ratings, done, progress) {
   const batchState = _state.batchState;
   if (!_state.ratingsJob) return false;
@@ -582,6 +600,7 @@ export { _state, _internal, ratingFilterPass, sortItemsByRating, formatQueueStat
 export { collectRetryTargets, RETRY_BATCH_CAP };
 
 export { getListItemsSmart, trackListView, applyVmFilter, waitForListItems, applySteamRatingsUpdate };
+/** @param {any[]} items @param {Record<string, any>} settings */
 export function requestRecommendations(items, settings) {
   return listBatch.requestRecommendations(items, settings);
 }

@@ -313,7 +313,7 @@ export function create(zone, id, opts = {}) {
     // 按钮自 v10.6.0 起点击无任何效果（真机复现实证）；正确语义 = 目标取反。
     // v10.6.0 refactor inverted the toggle (passed current state as target),
     // leaving the fold button dead ever since; fold = invert current state.
-    const setFolded = (folded) => {
+    const setFolded = (/** @type {boolean} */ folded) => {
       body.style.display = folded ? 'none' : '';
       foldItem.textContent = folded ? '展开浮窗' : '折叠浮窗';
       storeSet({ [foldKey]: folded });
@@ -376,7 +376,7 @@ export function create(zone, id, opts = {}) {
       const rect = root.getBoundingClientRect();
       const offX = ev.clientX - rect.left;
       const offY = ev.clientY - rect.top;
-      const onMove = (mv) => {
+      const onMove = (/** @type {MouseEvent} */ mv) => {
         const left = Math.max(0, Math.min(window.innerWidth - 60, mv.clientX - offX));
         const top = Math.max(0, Math.min(window.innerHeight - 30, mv.clientY - offY));
         root.style.left = left + 'px';
@@ -409,7 +409,7 @@ export function create(zone, id, opts = {}) {
       const startW = parseFloat(root.style.width) || opts.width || FLOAT_WIDTH_FALLBACK;
       const rect0 = root.getBoundingClientRect();
       const viewportMax = Math.max(FLOAT_WIDTH_MIN, window.innerWidth - rect0.left - 8);
-      const onMove = (mv) => {
+      const onMove = (/** @type {MouseEvent} */ mv) => {
         const w = Math.min(FLOAT_WIDTH_MAX, viewportMax, Math.max(FLOAT_WIDTH_MIN, startW + (mv.clientX - startX)));
         root.style.width = w + 'px';
       };
@@ -442,14 +442,14 @@ export function create(zone, id, opts = {}) {
 
   // 高度变化时自动重排同区浮窗（防重叠）/ auto re-stack on resize
   if (typeof ResizeObserver !== 'undefined') {
-    item.observer = new ResizeObserver(() => {
+    /** @type {{observer?: ResizeObserver, [k: string]: any}} */ (item).observer = new ResizeObserver(() => {
       const h = root.offsetHeight || 0;
       if (h !== item.lastHeight) {
         item.lastHeight = h;
         refreshZone(zone);
       }
     });
-    item.observer.observe(root);
+    /** @type {any} */ (item).observer.observe(root);
   } else {
     item.lastHeight = root.offsetHeight || 200;
     refreshZone(zone);
@@ -463,7 +463,7 @@ export function create(zone, id, opts = {}) {
 export function remove(id) {
   const item = floats[id];
   if (!item) return;
-  (item.teardown || []).forEach((fn) => {
+  (item.teardown || []).forEach((/** @type {() => void} */ fn) => {
     try {
       fn();
     } catch {
