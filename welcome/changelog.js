@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.32.1',
+        date: '2026-11-16',
+        items: [
+          'UI 设计 token 单源（ui-tokens + tokens.css 构建生成）',
+          'popup API 状态区/dashboard 状态区块 Preact 组件化（innerHTML 8 处退役）',
+          'build 链支持 type=module 页面脚本（esbuild ESM bundle）'
+        ]
+      },
+      {
         ver: '14.32.0',
         date: '2026-11-14',
         items: [

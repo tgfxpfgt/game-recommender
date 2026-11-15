@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.32.1（阶段 3 Preact 化首批落地）
+
+- UI 设计 token 单源（ui-tokens + tokens.css 构建生成）
+- popup API 状态区/dashboard 状态区块 Preact 组件化（innerHTML 8 处退役）
+- build 链支持 type=module 页面脚本（esbuild ESM bundle）
+
 ### v14.32.0（绿地重构阶段 0：esbuild 构建器落地——dist 产物管线（行为零变化））
 
 - scripts/build.mjs 双策略构建器：页面顺序 concat（classic 全局语义 100% 保真）+ content ESM 模块图 esbuild bundle（module-loaders 装载桥 19 条相对 import）+ background ESM 单文件；构建 277ms
