@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.32.3',
+        date: '2026-11-16',
+        items: [
+          'CHANGELOG 拆档（近 10 版主文件 + archive 归档）+ 陈旧脚本清理',
+          'APP_NAME 显示名单源 + background 域 console 前缀接引（数据兼容面标识符冻结）',
+          'AGENTS.md 按 v15 新形态重写（构建形态/happy-dom 测试约定/铁律 19 名字提取防复发）'
+        ]
+      },
+      {
         ver: '14.32.2',
         date: '2026-11-16',
         items: [

@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.32.3（阶段 5 收官：仓库卫生 + AGENTS v15 形态重写）
+
+- CHANGELOG 拆档（近 10 版主文件 + archive 归档）+ 陈旧脚本清理
+- APP_NAME 显示名单源 + background 域 console 前缀接引（数据兼容面标识符冻结）
+- AGENTS.md 按 v15 新形态重写（构建形态/happy-dom 测试约定/铁律 19 名字提取防复发）
+
 ### v14.32.2（油猴词表同源构建器落地）
 
 - scripts/build-userscript.mjs：retrieval-vocab 单源→油猴 VOCAB 快照生成（GR-GENERATED 锚点幂等刷新）
