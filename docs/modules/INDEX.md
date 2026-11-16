@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 183，其中声明不变式 4。
+> 模块数 184，其中声明不变式 4。
 
 ## adapters/default.js
 
@@ -35,7 +35,7 @@
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `background/core/api-monitor.js` | Steam API 状态监测 | `background/core/session-persist` | warmupApiMonitor<br>recordSteamCall<br>getSteamApiStatus<br>isCircuitOpen<br>circuitState<br>recordDomainCall<br>…+3 | — |
-| `background/core/constants.js` | 常量与配置 | `data/storage-registry`<br>`shared/fm-keys`<br>`shared/spy-scales` | DB_KEYS<br>PERF_CONFIG<br>STORAGE_CAPS<br>ENDPOINTS<br>DEFAULT_SETTINGS<br>LOG_LEVELS<br>…+21 | — |
+| `background/core/constants.js` | 常量与配置 | `data/storage-registry`<br>`shared/fm-keys`<br>`shared/spy-scales` | DB_KEYS<br>PERF_CONFIG<br>STORAGE_CAPS<br>ENDPOINTS<br>DEFAULT_SETTINGS<br>LOG_LEVELS<br>…+22 | — |
 | `background/core/early-message-router.js` | 早期消息路由 | — | attachEarlyMessageRouter | — |
 | `background/core/llm-client.js` | LLM 调用单源（v14.12 B6，报告 B P2-08） | `background/core/utils` | assertRemoteLlmEndpoint<br>callLlm | — |
 | `background/core/mechanisms.js` | 通用机制工厂 | — | withLock<br>withWatchdog<br>debounce<br>createTtlCache<br>withRetry<br>evictOldestByTs | withLock 返回的锁禁止嵌套持有（同一锁链内再取锁 = 自死锁）；同一时刻至多持有一把锁<br>时钟可注入（纯工厂）——模块不得直接 import Logger/Date.now 之外的运行环境依赖，告警出口由调用方注入 |
@@ -46,7 +46,7 @@
 | `background/core/sanitize.js` | 设置密钥净化（v14.11 B3，报告 B/C P1-03） | — | stripSecrets<br>sanitizeUrlText<br>sanitizeLogData | — |
 | `background/core/session-persist.js` | storage.session 持久化辅助 | `background/core/mechanisms` | createSessionPersist | — |
 | `background/core/settings.js` | 设置管理 | `background/core/constants`<br>`background/core/utils`<br>`data/data-store` | deepMergeSettings<br>initStorage<br>getSettings<br>clampNumericSettings<br>saveSettings<br>saveRatingFilterCfg<br>…+1 | — |
-| `background/core/site-scripts.js` | 自定义站点内容脚本动态注册 | `background/core/rules` | BUILTIN_DOMAINS<br>SITE_SCRIPT_FILES<br>syncSiteScripts | — |
+| `background/core/site-scripts.js` | 自定义站点内容脚本动态注册 | `background/core/constants`<br>`background/core/rules` | BUILTIN_DOMAINS<br>SITE_SCRIPT_FILES<br>syncSiteScripts | — |
 | `background/core/tab-game.js` | 当前标签页游戏快照 | `background/core/constants`<br>`background/core/session-persist` | warmupTabGames<br>noteTabGame<br>getTabGame | — |
 | `background/core/title-parser.js` | 游戏标题解析 | `shared/retrieval-vocab` | parseGameTitle<br>cleanGameName<br>pickRegistryEnName<br>generateSearchVariants<br>extractNoiseCandidates | — |
 | `background/core/trends.js` | 行为趋势聚合 | — | aggregateDailyTrends<br>aggregateTrends<br>aggregateFeedback | — |
@@ -453,6 +453,12 @@
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `shared/spy-scales.js` | SteamSpy 信号归一化刻度单源 | — | SPY_SCALES | — |
+
+## shared/ui-tokens.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `shared/ui-tokens.js` | UI 设计 token 单源 | — | PALETTE<br>THEME_LABELS | — |
 
 ## welcome/changelog.js
 
