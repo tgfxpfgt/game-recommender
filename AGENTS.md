@@ -31,6 +31,7 @@ npm run check:corpus    # 匹配语料分母：名称级样本必须有 expected
 npm run verify:mutations # 缺陷回放（scripts/mutations.json）：历史缺陷放回必须红；--only <id> 单条
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 node scripts/build-userscript.mjs  # 油猴词表快照同源刷新（v15 阶段 4：retrieval-vocab → VOCAB 生成，幂等）
+npm run lint:commits  # 提交信息 CC 1.0.0 校验（默认 origin/main..HEAD；commit-msg 钩子同源，规范见 CONTRIBUTING）
 ```
 
 ## 架构（30 秒版）
@@ -269,7 +270,7 @@ job 同源调用——漂移即红）。
    发布前先 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜 + 真实默认分支）
 2. bump manifest+package+CHANGELOG.md → `npm run package` → `npm run release:smoke`；
    新增外部资源型功能须已回填 first-run.json 真实证据（check:first-run 在 gate 内兜底）
-3. commit（中文 conventional）→ tag/push → `gh release create`（附 zip + seal）
+3. commit（Conventional Commits 1.0.0，规范见 CONTRIBUTING）→ 每版一 tag（bump 后 `git tag -a vX.Y.Z`——版本号必须可溯 commit）→ push → `gh release create`（附 zip + seal）
 4. 深度扫描 → seal 补入 release notes。**扫描链路（2026-11-14 用户裁决 B+C）**：
    主源 = **Semgrep OSS**（`semgrep scan --config p/javascript --config p/owasp-top-ten
 --config p/secrets --json`，焦点 = 发版改动文件 + 全库一轮）+ **eslint-plugin-security**

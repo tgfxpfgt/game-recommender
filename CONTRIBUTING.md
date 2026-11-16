@@ -31,11 +31,38 @@ npm run coverage       # vitest 覆盖率
 - **mock 工具**：`tests/helpers/storage-mock.mjs`（chrome.storage，含 `_reset()` 隔离）+ `fetch-mock.mjs`（URL 子串分发）。
 - **新增业务文件覆盖率门槛（v7.0.7）**：`npm run coverage:gate`——相对 origin/main（浅克隆回退 HEAD~1）的**新增业务文件**行覆盖 <50% 拒绝；已接入 CI。
 
+## 提交信息规范（Conventional Commits 1.0.0，v14.33.0）
+
+格式：`type(scope)?: subject`（scope 可选、单词字符 `[a-z0-9-]+`；破坏性改动在 `)` 后加 `!` 并在 footer 写 `BREAKING CHANGE: 说明`），subject 与 body 之间空行分隔，细节写 body（要点式）。
+
+- **类型白名单**：`feat|fix|refactor|perf|docs|test|build|ci|chore|style|revert`
+- **类型语义（防混用）**：`refactor` = 行为不变的代码变更（类型注解收口/单源化迁移/重命名——历史 `chore(types)` 属此类，勿再用 chore）；`chore` = 工具链/杂务（脚本/配置/产物重刷）；`perf` = 性能优化；`feat/fix` = 功能/修复（bump 级别依据：feat→minor、fix→patch）
+- **subject**：非空、≤72 字符（细节移入 body）、结尾无句号；多改动点合并提交时 subject 概括主线、body 逐条列要点
+- **scope**：单个单词（禁逗号多 scope——历史 `chore(security,ci)` 写法已废，选主域即可）
+- **强制校验**：`commit-msg` 钩子（scripts/commit-lint.mjs 同源）；发版前 `npm run lint:commits`（默认校验 origin/main..HEAD 未推送区间，`--range <spec>`/`--last <n>` 可选）；规则单测 tests/unit/test-commit-lint.mjs
+- **tag 纪律（每版一 tag）**：每次 bump 后打 annotated tag（`git tag -a vX.Y.Z -m "标题"`）随批次推送——版本号必须可溯 commit；bump.mjs 成功输出含现成命令
+
+正反例：
+
+```text
+✅ feat(ui): 徽章状态区 Preact 组件化
+
+- popup/dashboard 状态区块迁移（innerHTML 8 处退役）
+- ui-tokens 单源接入
+```
+
+```text
+❌ chore(types): 阶段 1 还债切片 23-25——a.js/b.js/c.js 84→0（行为不变的重构应归
+   refactor；subject 超长 + 文件清单应进 body）
+❌ chore(security,ci): xxx（逗号多 scope）
+❌ fix: 修复检索。（结尾句号）
+```
+
 ## 工程护栏（v7.0.7）
 
 - **git 钩子**（`sh scripts/install-hooks.sh` 安装，core.hooksPath=.githooks）：
   - `pre-commit`：暂存 .js/.mjs 语法（node --check）+ eslint + prettier --check 三层快速校验
-  - `commit-msg`：提交信息 conventional 格式（feat|fix|refactor|docs|chore|test|style|perf|build|ci(scope)?: 描述）
+  - `commit-msg`：提交信息 Conventional Commits 1.0.0 全量校验（规则见上文「提交信息规范」；实现在 scripts/commit-lint.mjs，v14.33.0 起替代 v4.1.2 轻量前缀检查）
   - `pre-push`：push 前跑 `npm run check`（lint + typecheck + vitest）——坏提交本地拦截
 - **依赖与密钥防线**：`npm run audit`（devDeps 漏洞）；CI security job 跑 npm audit + gitleaks（Secret 扫描）
 - **CI**（8 job，v10.5.1 现状）：test + test-2（vitest 双分片并行，CI 墙钟减半）；coverage-gate（新增文件行覆盖 ≥50% + 全局覆盖率下限）；release-smoke（CI 构建 zip + 产物校验——manifest/service-worker 在、node_modules/tests 不泄漏）；perf（全量 vitest ≤90s 预算）；e2e（xvfb + 固定版 Playwright Chromium，**E2E_MOCK=1 离线回放全量**，不依赖外网）；visual（**advisory 非阻断**——Windows 基线 vs Linux 字体 ~3% 均匀差，diff 上传 artifact 供人工审）；security（npm audit + gitleaks Secret 扫描）

@@ -115,6 +115,7 @@ export default defineConfig({
       'tests/unit/test-escape-robust.mjs',
       'tests/unit/test-settings-lite.mjs',
       'tests/unit/test-last-update-timeout.mjs',
+      'tests/unit/test-commit-lint.mjs', // v14.33.0：提交信息 CC 1.0.0 校验器（commit-msg 钩子同源）
       // v14 B9（第五轮）：content-sim 拆分为 tests/sim/ 套件（共享
       // sim-harness.mjs 不入 include——非测试文件）；节→文件映射：
       // sim-list=1-7+11 / sim-badges=8-8d / sim-detail=9-9d+10 /

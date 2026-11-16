@@ -186,7 +186,15 @@ await step('typecheck', 'npm run typecheck');
 // 在高压恢复期不够用；30s 仍低于 sim-harness 默认 60s（保持快速失败语义）。
 // Raised 20000→30000: the full-gate context needs more headroom than the
 // bandaged 20s under machine-load contention (isolated runs stay green).
-const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: '30000' };
+// v14.33.0：压额默认 30000→90000——v15 阶段 2 真实 DOM 换血已把 harness 默认
+// 提到 90s（SIM_SIGNAL_TIMEOUT_MS），gate 压额停在旧绷带值造成余量倒挂：
+// sim-list 节 12 连续两次 gate 内确定性超时（396.65s/396.31s），gate 外同命令
+// 29s 全绿（假红非回归；超时上限是环境余量而非断言强度）。外部
+// GR_SIM_SIGNAL_TIMEOUT_MS 优先（重负载机提额处方，AGENTS 测试约定）。
+// v14.33.0: raise the in-gate cap to the harness default (90s) — the v15
+// happy-dom rewrite outgrew the old 30s bandage; an externally set
+// GR_SIM_SIGNAL_TIMEOUT_MS always wins.
+const GATE_VITEST_ENV = { GR_SIM_SIGNAL_TIMEOUT_MS: process.env.GR_SIM_SIGNAL_TIMEOUT_MS || '90000' };
 if (fast) {
   await step('vitest（受影响套件，白名单单源触碰自动升级全量）', 'node scripts/test-changed.mjs', GATE_VITEST_ENV);
 } else {

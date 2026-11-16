@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.33.0',
+        date: '2026-11-17',
+        items: [
+          '提交信息升级 Conventional Commits 1.0.0 全量校验（commit-lint.mjs：类型白名单/scope 单词字符集/subject≤72/结尾禁句号/body 空行/! 与 BREAKING CHANGE 一致性）',
+          'bump 支持 auto 级别推导（区间提交类型 semver 推导）+ major + 显式低于推导拦截（--force 兜底）+ CHANGELOG 条目日期化 + 每版一 tag 纪律',
+          'CHANGELOG.md 近 10 版日期回填；补打 v14.31.1~v14.32.3 七个 tag（manifest 变更提交锚定）；CONTRIBUTING 提交规范节 + AGENTS 指针'
+        ]
+      },
+      {
         ver: '14.32.3',
         date: '2026-11-16',
         items: [
