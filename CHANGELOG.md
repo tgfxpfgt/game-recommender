@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.33.1（AI 协作调研落地：AGENTS 收敛 + E2E dist 验收 + Preact 组件三缺陷修复，2026-11-18）
+
+- AGENTS.md 发布流程细节指针化到 playbooks §7（去双源重复）+ 新增「先问再做」边界档（GitHub 2500 仓三级边界经验）
+- E2E 验收入口切 e2e:dist（源码树直跑撞 Preact 裸 specifier——阶段 3 遗留）；SW 等待改 Playwright 官方 waitForEvent 事件模式（轮询兜底）
+- 构建器修复：.mjs 组件不再并入 classic bundle（require 泄漏防线入 verifyDist）；dash-stats 三连修（h 漏导出/mountAt 参数错位/实参快照陷阱——dashboard 空态真实生产缺陷）
+
 ### v14.33.0（提交与版本规范治理，2026-11-17）
 
 - 提交信息升级 Conventional Commits 1.0.0 全量校验（commit-lint.mjs：类型白名单/scope 单词字符集/subject≤72/结尾禁句号/body 空行/! 与 BREAKING CHANGE 一致性）

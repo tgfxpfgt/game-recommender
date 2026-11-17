@@ -30,7 +30,9 @@ async function loadTrends() {
     cachedTrends = (response && response.daily) || [];
     renderTrendChart(cachedTrends);
   } catch (e) {
-    mountStatusPreact(container, LoadError, { msg: '加载趋势失败: ' + escapeHtml(window.__GR_MSG__.toUserMessage(e)) });
+    mountStatusPreact(container, 'LoadError', {
+      msg: '加载趋势失败: ' + escapeHtml(window.__GR_MSG__.toUserMessage(e))
+    });
   }
 }
 
@@ -49,7 +51,7 @@ let NoData = null;
 let TableNoDataLocal = null;
 
 // v15 阶段 3：状态区块 Preact 组件（按需装载一次；tr/tbody 场景用 TableNoData）
-/** @type {(mountEl: HTMLElement, C: any, props: any) => void} */
+/** @type {(vnode: any, mountEl: HTMLElement) => void} */
 let preactMount = null;
 async function ensurePreactMount() {
   if (preactMount) return preactMount;
@@ -61,10 +63,24 @@ async function ensurePreactMount() {
   TableNoDataLocal = m.NoData;
   return preactMount;
 }
-/** @param {HTMLElement} mountEl @param {any} C @param {any} props */
-async function mountStatusPreact(mountEl, C, props) {
+/** 组件注册表（kind → 解析函数；在 ensurePreactMount 之后求值） */
+const STATUS_COMPONENTS = {
+  LoadError: () => LoadError,
+  NoData: () => NoData,
+  TableNoData: () => TableNoDataLocal
+};
+
+/**
+ * 状态区块组件挂载（kind 解析——v14.33.1 实参快照陷阱修复：调用点传组件变量时
+ * 求值发生在调用瞬间，早于 ensurePreactMount 的赋值（let 初始 null）——快照进
+ * 函数后永远 null → "C is not a function"（v15 阶段 3 遗留，E2E dist 验收暴露）。
+ * 改传组件 key，挂载时从 STATUS_COMPONENTS 解析已赋值引用。
+ * @param {HTMLElement} mountEl @param {keyof typeof STATUS_COMPONENTS} kind @param {any} props
+ */
+async function mountStatusPreact(mountEl, kind, props) {
   const mount = await ensurePreactMount();
-  mount(mountEl, C(props), mountEl);
+  const comp = STATUS_COMPONENTS[kind]();
+  mount(comp(props), mountEl);
 }
 function TableNoData(props) {
   const cell = preactH('td', { class: 'no-data', colspan: String(props.colspan || 6) }, props.msg);
@@ -74,7 +90,7 @@ function renderTrendChart(daily) {
   const container = document.getElementById('trendChart');
   const statsEl = document.getElementById('trendStats');
   if (!daily || daily.length === 0) {
-    mountStatusPreact(container, NoData, { msg: '暂无行为数据，请先浏览游戏网站' });
+    mountStatusPreact(container, 'NoData', { msg: '暂无行为数据，请先浏览游戏网站' });
     statsEl.textContent = '';
     return;
   }
@@ -225,7 +241,7 @@ async function loadStats() {
 function renderDownloadMethods(methods, recentLog) {
   const container = document.getElementById('downloadMethods');
   if (!methods || Object.keys(methods).length === 0) {
-    mountStatusPreact(container, NoData, { msg: '暂无下载记录' });
+    mountStatusPreact(container, 'NoData', { msg: '暂无下载记录' });
     return;
   }
 
@@ -272,7 +288,7 @@ function renderDownloadSitesTop(recentLog) {
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5);
   if (top.length === 0) {
-    mountStatusPreact(container, NoData, { msg: '近期无下载记录' });
+    mountStatusPreact(container, 'NoData', { msg: '近期无下载记录' });
     return;
   }
   container.innerHTML = top
@@ -299,7 +315,7 @@ function renderGameTable(games) {
   }
   const tbody = document.getElementById('gameTableBody');
   if (!games || games.length === 0) {
-    mountStatusPreact(tbody, TableNoData, { msg: '暂无游戏记录', colspan: 6 });
+    mountStatusPreact(tbody, 'TableNoData', { msg: '暂无游戏记录', colspan: 6 });
     renderPager('games', 'gamePager', 0);
     return;
   }
@@ -332,7 +348,7 @@ function renderGameTable(games) {
 function renderLogTable(logs) {
   const tbody = document.getElementById('logTableBody');
   if (!logs || logs.length === 0) {
-    mountStatusPreact(tbody, TableNoData, { msg: '暂无行为记录', colspan: 5 });
+    mountStatusPreact(tbody, 'TableNoData', { msg: '暂无行为记录', colspan: 5 });
     return;
   }
 

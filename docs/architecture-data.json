@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-16T18:26:28.430Z",
-  "version": "14.32.3",
+  "generatedAt": "2026-11-17T23:56:28.301Z",
+  "version": "14.33.1",
   "nodes": [
     {
       "dir": "background",
@@ -32,7 +32,7 @@
       "color": "#ff7b00",
       "desc": "数据分析 — 统计/洞察/诊断/备份",
       "files": 10,
-      "lines": 2191
+      "lines": 2207
     },
     {
       "dir": "popup",
@@ -87,7 +87,7 @@
     "actionCount": 79,
     "storageCount": 32,
     "testCount": 0,
-    "suiteCount": 78
+    "suiteCount": 79
   },
   "flows": [
     {

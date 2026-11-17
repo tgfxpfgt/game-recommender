@@ -17,7 +17,7 @@ npm ci                 # 安装依赖（vitest/eslint/typescript/playwright-core
 npm run install-hooks  # 安装 git 钩子（提交信息格式 + 暂存 JS 语法检查）
 npm run check          # lint + vitest 全量
 npm run typecheck      # tsc --noEmit（background/** 全层 checkJs）
-npm run e2e            # 浏览器冒烟（E2E_MOCK=1 离线回放全量；E2E_FAST=1 跳过真实网络段）
+npm run e2e:dist      # 浏览器冒烟（build+dist 产物 E2E_MOCK=1 离线回放全量；源码树直跑已退役）
 npm run coverage       # vitest 覆盖率
 ```
 
@@ -126,16 +126,15 @@ npm run coverage       # vitest 覆盖率
 
 仓库内不是自研、需要"改动时同步或保持只读"的内容集中如下，勿当普通源码编辑：
 
-| 位置 | 性质 | 维护方式 |
-| --- | --- | --- |
-| `docs/skills/neat-freak-person/` | 第三方技能包（lsa03/neat-freak-person，MIT） | 只读，升级整目录替换 |
-| `userscript/game-radar.user.js` 中的词表/纯函数段 | 扩展 `shared/` + api-search 的**移植快照** | 改扩展侧后同步（`test-userscript-pure` 防漂移门禁） |
-| `tests/fixtures/http/` | 真实网络响应录制 fixture | 只增不改；重录须注明来源 URL 与日期 |
-| `tests/fixtures/list-page.html` | 运行时页面重写产物 | 不入库（`.gitignore`），由测试生成 |
-| `.github/workflows/` | CI 配置（视觉/预算/发布三 job） | 与 `scripts/gate.mjs` 同步 |
+| 位置                                              | 性质                                         | 维护方式                                            |
+| ------------------------------------------------- | -------------------------------------------- | --------------------------------------------------- |
+| `docs/skills/neat-freak-person/`                  | 第三方技能包（lsa03/neat-freak-person，MIT） | 只读，升级整目录替换                                |
+| `userscript/game-radar.user.js` 中的词表/纯函数段 | 扩展 `shared/` + api-search 的**移植快照**   | 改扩展侧后同步（`test-userscript-pure` 防漂移门禁） |
+| `tests/fixtures/http/`                            | 真实网络响应录制 fixture                     | 只增不改；重录须注明来源 URL 与日期                 |
+| `tests/fixtures/list-page.html`                   | 运行时页面重写产物                           | 不入库（`.gitignore`），由测试生成                  |
+| `.github/workflows/`                              | CI 配置（视觉/预算/发布三 job）              | 与 `scripts/gate.mjs` 同步                          |
 
 ## 生成物清理（v14.28.0 / S3 P3-3）
 
 `npm run clean:artifacts` 删除本地生成物（E2E/探针 profile、视觉 diff、coverage、
 录制页、dist、zip），不触碰源码与入库 fixture——磁盘告急或切换分支前使用。
-

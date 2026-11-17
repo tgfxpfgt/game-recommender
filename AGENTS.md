@@ -20,7 +20,7 @@ npm run build       # v15 构建器：页面 concat bundle（classic 语义保�
 npm run gate        # 全量门禁：vitest 两阶段 + E2E(MOCK) + visual + 打包（发布触发点跑；步骤级墙钟预算 suite-budgets.json）
 npm run gate:fast   # 快速门禁：静态门禁群 + lint/typecheck + 受影响测试 + 缺陷回放 + 棘轮 + visual —— 每批提交前必跑
 npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]（manifest/package/CHANGELOG.md/welcome）
-npm test            # 仅 vitest（两阶段：unit → sim/integration）；npm run e2e 真实网络模式（可选增强，不进门禁）
+npm test            # 仅 vitest（两阶段：unit → sim/integration）；E2E 验收入口 = npm run e2e:dist（MOCK+build，gate 步骤）
 npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
 npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
 npm run check:modules  # 模块索引（docs/modules/INDEX.md）漂移 + 豁免登记校验；重生成 node scripts/gen-module-index.mjs
@@ -178,12 +178,14 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
   FakeEl 保留为兼容垫片（真实元素 + _text/_html/_imgs/_rect/_listeners 测试钩子桥；
   children 数组化）。**关键机制**（违反即大面积假红）：
   - `__GR_*` 经典脚本挂载必须镜像到 win（window≠globalThis；不镜像则生产模块读
-    window.__GR_MSG__ undefined → fireBatch 全走 catch → error badge 假红）；
+    window.**GR_MSG** undefined → fireBatch 全走 catch → error badge 假红）；
   - readyState 冻结 loading（页面自动流不自发跑，测试手动驱动；否则 tracker eval 后
     startInit 立即跑 → 与手动驱动双流污染）；
   - location 切换走 harness 兼容层（平面对象赋值镜像到真实 Location.href）；
   - 真实 DOM textContent 聚合子元素——断言徽章文本用 startsWith/独立节点查询。
-- e2e 冒烟：入口 `tests/e2e-smoke.mjs`（re-export 壳）→ `tests/e2e/run.mjs` 节管线；
+- e2e 冒烟：**验收入口 = `npm run e2e:dist`**（先 build 再以 dist 产物跑 MOCK 全量——
+  源码树直跑撞 Preact 裸 specifier，v15 阶段 3 起退役；v14.33.1 gate 步骤同切）。
+  管线入口 `tests/e2e-smoke.mjs`（re-export 壳）→ `tests/e2e/run.mjs` 节管线；
   新增检查项写入对应 `section-*.mjs`（E2E_MOCK 双模式语义不动）。
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
   真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
@@ -266,25 +268,27 @@ job 同源调用——漂移即红）。
 
 触发线：大版本/5 次小版本/单次>1000 行/累计>3000 行。步骤（顺序固定）：
 
-1. `npm run gate`（全量门禁一条命令——发布触发点必跑；日常批次合并前 `gate:fast` 即可）；
-   发布前先 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜 + 真实默认分支）
-2. bump manifest+package+CHANGELOG.md → `npm run package` → `npm run release:smoke`；
-   新增外部资源型功能须已回填 first-run.json 真实证据（check:first-run 在 gate 内兜底）
-3. commit（Conventional Commits 1.0.0，规范见 CONTRIBUTING）→ 每版一 tag（bump 后 `git tag -a vX.Y.Z`——版本号必须可溯 commit）→ push → `gh release create`（附 zip + seal）
-4. 深度扫描 → seal 补入 release notes。**扫描链路（2026-11-14 用户裁决 B+C）**：
-   主源 = **Semgrep OSS**（`semgrep scan --config p/javascript --config p/owasp-top-ten
---config p/secrets --json`，焦点 = 发版改动文件 + 全库一轮）+ **eslint-plugin-security**
-   （已常态入 lint 门禁）。报告落 `docs/reports/security-scan-<版本>/`（REPORT.md +
-   原始 JSON），**seal = REPORT.md 的 sha256**，`gh release edit` 补入 notes + CHANGELOG
-   条目补记。全库 findings 必须逐条人工定性（转义链核对——参照
-   security-scan-v14.31.0 §3 形态），误报归档报告、真问题挂账修复。
-5. 油猴脚本更新（v14.15.0 N8）：@updateURL/@downloadURL 指向 raw.githubusercontent
-   （Tampermonkey 自动探测，jsDelivr 备源为用户侧手动替换）——**词表快照刷新
-   `node scripts/build-userscript.mjs`**（v15 阶段 4：retrieval-vocab 单源生成，
-   GR-GENERATED 锚点幂等）；发版时油猴 @version 仅在功能口径同步后递增
-   （≠扩展 patch 联动，语义 = 移植基线版本）。
-   半自动脚本 scripts/release.mjs 存在但落后于当前流程（visual/双 E2E/zip 附件）——
-   以本清单为准，或先更新脚本再用。
+1. `npm run gate`（全量门禁——发布触发点必跑；日常批次 gate:fast 即可）+ 发布前
+   `npm run check:ext-refs -- --refresh`（外部引用锁 30 天保鲜 + 真实默认分支校验）
+2. bump 四处 → `npm run package` → `npm run release:smoke`；新增外部资源型功能须已回填
+   first-run.json 真实证据（check:first-run 在 gate 内兜底）
+3. commit（Conventional Commits 1.0.0，规范见 CONTRIBUTING）→ 每版一 tag（bump 后
+   `git tag -a vX.Y.Z`——版本号必须可溯 commit）→ push → `gh release create`（附 zip + seal）
+4. 深度扫描 → seal 补入 release notes（Semgrep OSS + eslint-plugin-security 双工具链，
+   seal = REPORT.md 的 sha256）
+5. 油猴词表刷新 `node scripts/build-userscript.mjs`；@version 仅功能口径同步后递增
+
+**步骤细节与坑查表：docs/playbooks.md §7**——扫描链路命令与 seal 口径/findings 逐条人工
+定性纪律/分步 commit 与管道陷阱/visual 基线版本号/GFW 窗口/油猴 @version 口径/release.mjs
+状态。AGENTS 不重复持有发版细节（指针优先——细节易腐烂，双源必漂移）。
+
+## 先问再做（⚠️ Ask first——触及以下高联动面，先向用户确认再动手）
+
+- 存储注册表 STORAGE_MODULES / 内容清单 module-manifest 增删（四处派生面，铁律 13）
+- retrieval-vocab 词表语义调整（golden + 错题库双重门禁面）
+- DEFAULT_SETTINGS 键增删改（铁律 10 同步面 + 历史事故 11）
+- 发版触发线判定与完整发版时机、挂账/暂缓决策（工作完整性纪律要求先确认）
+- 铁律条目与 AGENTS/CONTRIBUTING 规则的增删改、需求外顺手改动（最小 diff 纪律）
 
 ## 明确不做（历史决策，勿再提议）
 

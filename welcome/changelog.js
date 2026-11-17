@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.33.1',
+        date: '2026-11-18',
+        items: [
+          'AGENTS.md 发布流程细节指针化到 playbooks §7（去双源重复）+ 新增「先问再做」边界档（GitHub 2500 仓三级边界经验）',
+          'E2E 验收入口切 e2e:dist（源码树直跑撞 Preact 裸 specifier——阶段 3 遗留）；SW 等待改 Playwright 官方 waitForEvent 事件模式（轮询兜底）',
+          '构建器修复：.mjs 组件不再并入 classic bundle（require 泄漏防线入 verifyDist）；dash-stats 三连修（h 漏导出/mountAt 参数错位/实参快照陷阱——dashboard 空态真实生产缺陷）'
+        ]
+      },
+      {
         ver: '14.33.0',
         date: '2026-11-17',
         items: [

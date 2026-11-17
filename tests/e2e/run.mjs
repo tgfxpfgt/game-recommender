@@ -76,17 +76,40 @@ try {
   }
 
   // 等待扩展加载并获取扩展 id（service worker 就绪）
-  // v14.7 批次 2（C-P2）：等待轮数可配置（E2E_SW_WAIT_ROUNDS，默认 30 轮
-  // =15s 不变）——重负载机上 SW 冷启动慢，提额消除假红。
-  const swWaitRounds = Number(process.env.E2E_SW_WAIT_ROUNDS) || 30;
+  // v14.33.1（Playwright 官方推荐模式，playwright.dev/docs/chrome-extensions）：
+  // ① 先查已有 workers——SW 可能在 launch 与本段之间已启动，纯事件等待会错过；
+  // ② 无则 waitForEvent('serviceworker') 事件等待（消除轮询时序竞态——重负载下
+  //    SW 冷启动慢是满载假红根因之一）；③ 事件超时回退轮询（Chromium 版本差异
+  //    兜底，E2E_SW_WAIT_ROUNDS 提额语义不变）。
+  const evTimeoutMs = Number(process.env.E2E_SW_EVENT_TIMEOUT_MS) || 30000;
   let extId = null;
-  for (let i = 0; i < swWaitRounds; i++) {
+  const workerToId = () => {
     const workers = context.serviceWorkers();
-    if (workers.length > 0) {
-      extId = new URL(workers[0].url()).host;
-      break;
+    return workers.length > 0 ? new URL(workers[0].url()).host : null;
+  };
+  extId = workerToId();
+  if (!extId) {
+    let timer;
+    try {
+      const sw = await Promise.race([
+        context.waitForEvent('serviceworker'),
+        new Promise((_, reject) => {
+          timer = setTimeout(() => reject(new Error('SW 事件等待超时')), evTimeoutMs);
+        })
+      ]);
+      extId = sw ? new URL(sw.url()).host : null;
+    } catch {
+      // 事件等待超时 → 回退轮询（保留 v14.7 C-P2 提额语义）
+    } finally {
+      clearTimeout(timer);
     }
-    await new Promise((r) => setTimeout(r, 500));
+  }
+  if (!extId) {
+    const swWaitRounds = Number(process.env.E2E_SW_WAIT_ROUNDS) || 30;
+    for (let i = 0; i < swWaitRounds && !extId; i++) {
+      extId = workerToId();
+      if (!extId) await new Promise((r) => setTimeout(r, 500));
+    }
   }
   state.extId = extId;
   state.check('扩展后台 Service Worker 已启动', !!extId, `(id=${extId || '未获取'})`);

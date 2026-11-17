@@ -116,6 +116,17 @@ stage + 最近失败类别 + 波次进度 + 缓存命中层）。断网场景判
 顺序：`npm run gate`（全量）→ `npm run bump …` → `npm run package` → `npm run release:smoke` → 分步 commit → tag/push → gh release（附 zip+seal）→ 深度扫描。
 **坑**：commit/push 分步、不带管道（吞退出码事故×2）；链式命令 commit 失败必须中止；visual 基线含版本号——bump 后 `npm run visual -- --update`；推送 GFW 间歇重置等 2 分钟窗口；发布前 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜）。
 
+**深度扫描链路（2026-11-14 用户裁决 B+C）**：主源 = Semgrep OSS（`semgrep scan --config p/javascript
+--config p/owasp-top-ten --config p/secrets --json`，焦点 = 发版改动文件 + 全库一轮）+ eslint-plugin-security
+（已常态入 lint 门禁）。报告落 `docs/reports/security-scan-<版本>/`（REPORT.md + 原始 JSON），
+**seal = REPORT.md 的 sha256**，`gh release edit` 补入 notes + CHANGELOG 条目补记。全库 findings 必须
+逐条人工定性（转义链核对——参照 security-scan-v14.31.0 §3 形态），误报归档报告、真问题挂账修复。
+
+**油猴发布步骤**：@updateURL/@downloadURL 指向 raw.githubusercontent（Tampermonkey 自动探测，jsDelivr
+备源为用户侧手动替换）——词表快照刷新 `node scripts/build-userscript.mjs`（retrieval-vocab 单源生成，
+GR-GENERATED 锚点幂等）；发版时油猴 @version 仅在功能口径同步后递增（≠扩展 patch 联动，语义 = 移植基线
+版本）。半自动脚本 scripts/release.mjs 落后于当前流程（visual/双 E2E/zip 附件）——以本配方为准。
+
 ## 8. 外部资源型功能上线（全量目录/dump 类，v14.28.8 A/G 类教训）
 
 **触点**：`background/core/constants.js` ENDPOINTS（主源 jsDelivr + 备源 raw，**分支必须与上游默认分支一致**）→ `scripts/external-refs.json` 登记（url/owner/repo/branch/validatedAt/httpStatus/bytes）→ 真实首拉实测（如 `GR_LIVE_APPLIST=1 npx vitest run tests/unit/test-app-list-index.mjs`）→ `scripts/first-run.json` 回填 firstRun（at/bytes/entries/evidence，required:true）→ `scripts/mutations.json` 登记缺陷回放（如分支写回 main）。

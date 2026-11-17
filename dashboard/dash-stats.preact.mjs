@@ -38,7 +38,15 @@ export function DownloadMethods({ methods, esc }) {
   );
 }
 
-/** @param {{mountEl: HTMLElement, vnode: any}} props 结构化挂载辅助 */
+/**
+ * 结构化挂载辅助：render(vnode, mountEl) 位置参数版（classic 侧经 m.mountAt 调用）
+ * @param {any} vnode @param {HTMLElement} mountEl
+ */
 export function mountAt(vnode, mountEl) {
   render(vnode, mountEl);
 }
+
+// v14.33.1：classic 侧（dash-stats.js ensurePreactMount）经 m.h 取 preact 的 h
+// 构建 TableNoData 虚拟节点——本模块此前漏导出 h（v15 阶段 3 遗留：dashboard
+// 空态场景 preactH is not a function，E2E dist 验收暴露）。re-export 修复。
+export { h };

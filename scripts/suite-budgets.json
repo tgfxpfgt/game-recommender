@@ -16,7 +16,7 @@
     },
     {
       "id": "e2eMock",
-      "label": "E2E_MOCK=1 npm run e2e（离线 E2E 冒烟）",
+      "label": "E2E_MOCK=1 npm run e2e:dist（dist 产物离线 E2E 冒烟，含 build）",
       "measuredMs": 66530,
       "capMs": 100000
     },

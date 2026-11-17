@@ -228,7 +228,7 @@ if (!fast) {
   await step('coverage:snapshot（全局覆盖率棘轮）', 'npm run coverage:snapshot');
 }
 if (!fast) {
-  await step('E2E 冒烟（MOCK 离线）', 'npm run e2e', { E2E_MOCK: '1' });
+  await step('E2E 冒烟（MOCK 离线）', 'npm run e2e:dist'); // v14.33.1：验收对象改 dist 产物（源码树直跑撞 Preact 裸 specifier——阶段 3 遗留，e2e-dist 内聚 build）
 }
 // v14.24.1（fast 模式）：visual 按变更面跳过——基线只渲染 4 个扩展页
 //（popup/options/dashboard/freegames）+ 主题样式 + 版本号文本，纯后台/内容/

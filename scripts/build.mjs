@@ -158,8 +158,16 @@ function concatPage(page) {
     const abs = path.posix.normalize(path.posix.join(page, src));
     if (!exists(abs)) throw new Error(`${htmlPath} 引用缺失: ${abs}`);
     const body = `/* ===== ${abs} ===== */\n` + read(abs);
+    if (isModule && src.endsWith('.mjs')) {
+      // v14.33.1：type="module" 引用的 .mjs 组件（preact 组件——裸包依赖）不并入
+      // classic bundle：transformSync 无 bundle 能力，裸 import 会被转成 require()
+      // 泄漏进 classic 上下文（v15 阶段 3 遗留缺陷——页面 console ReferenceError
+      // + 与独立 module tag 双重执行）。产物走下方 .mjs 随页 bundle 分支
+      //（preact 内联、format=esm），HTML 折叠保持独立 type=module tag 引用之。
+      continue;
+    }
     if (isModule) {
-      // v15：type="module" 引用的 ESM 共享脚本（如 fm-keys.js 的 export +
+      // v15：type="module" 引用的 .js ESM 共享脚本（如 fm-keys.js 的 export +
       // globalThis 副作用挂载）——export 语句在 classic 上下文是 SyntaxError
       //（整 bundle 零执行的实锤根因），单独 transform 为 iife：export 被消化、
       // globalThis 副作用保留、无依赖单文件转换安全。
@@ -386,6 +394,15 @@ function verifyDist() {
   const failed = probes.filter(([f, needle]) => !fs.readFileSync(path.join(ROOT, f), 'utf-8').includes(needle));
   if (failed.length > 0) {
     throw new Error('bundle 关键符号缺失: ' + failed.map(([f, n]) => `${f} ~ ${n}`).join(', '));
+  }
+  // v14.33.1 回归防线：classic concat bundle 禁 require(——type="module" 的 .mjs
+  // 组件（裸包依赖）若被误并入，transformSync 会把裸 import 转 require 泄漏
+  //（v15 阶段 3 遗留缺陷：popup/options/dashboard/hub console ReferenceError）
+  const requireLeaks = PAGES.map((p) => `dist/${p}/${p}.bundle.js`).filter((f) =>
+    fs.readFileSync(path.join(ROOT, f), 'utf-8').includes('require(')
+  );
+  if (requireLeaks.length > 0) {
+    throw new Error('classic bundle 泄漏 require()（.mjs 组件误并入）: ' + requireLeaks.join(', '));
   }
   const srcManifest = JSON.parse(read('manifest.json'));
   const distManifest = JSON.parse(fs.readFileSync(path.join(DIST, 'manifest.json'), 'utf-8'));
