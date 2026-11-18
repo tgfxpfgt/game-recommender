@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.34.4（hyperfine 基线校准落地——多轮统计口径 + 校准脚本入库，2026-11-19）
+
+- calibrate-budgets.mjs：hyperfine ≥3 轮 mean 口径回写 suite-budgets.json（单次采样定基线的抖动固化风险消除——sim 实证旧基线偏低 13%，cap 45000→50000）
+- Windows 执行三坑入库：hyperfine 位置参数=逐条命令须整串引号成单 argv / npm·npx .cmd shim 裸名 CreateProcess 不解析须包 cmd /c / 2.x export-json 为逐轮 measurements[].time_wall_clock 原始值无预聚合字段
+- CONTRIBUTING 增 PR 流与独立评审位节（评审位文件随 v14.34.3 入库，首启清单+批次流）
+
 ### v14.34.3（阶段 3 收尾：19 主题数据化（主题即数据），2026-11-19）
 
 - shared/themes-data.js 主题变量数据单源（19 套变量块/标题/设计注记提取入库）

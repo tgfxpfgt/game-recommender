@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.34.4',
+        date: '2026-11-19',
+        items: [
+          'calibrate-budgets.mjs：hyperfine ≥3 轮 mean 口径回写 suite-budgets.json（单次采样定基线的抖动固化风险消除——sim 实证旧基线偏低 13%，cap 45000→50000）',
+          'Windows 执行三坑入库：hyperfine 位置参数=逐条命令须整串引号成单 argv / npm·npx .cmd shim 裸名 CreateProcess 不解析须包 cmd /c / 2.x export-json 为逐轮 measurements[].time_wall_clock 原始值无预聚合字段',
+          'CONTRIBUTING 增 PR 流与独立评审位节（评审位文件随 v14.34.3 入库，首启清单+批次流）'
+        ]
+      },
+      {
         ver: '14.34.3',
         date: '2026-11-19',
         items: [

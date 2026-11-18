@@ -58,6 +58,19 @@ npm run coverage       # vitest 覆盖率
 ❌ fix: 修复检索。（结尾句号）
 ```
 
+## PR 流与独立评审位（评审位文件入库 v14.34.3；本节 v14.34.4 补记）
+
+- **评审位**：PR-Agent（The-PR-Agent/pr-agent@v0.50.0，社区维护版）挂 GitHub Action——
+  PR 打开/更新时自动 describe+review+improve，PR 内评论 `/ask <问题>` 交互追问。
+  门禁拦结构错误（AST/类型/缺陷回放），评审位拦「逻辑对但语义错」——两者互补不互替。
+- **接线**：`.github/workflows/pr-agent.yml` + `.pr_agent.toml`（模型/语言/评审指令）。
+  模型走 litellm custom_openai 语义（z.ai GLM 兼容端点）：`gh secret set
+  CUSTOM_OPENAI_API_KEY` 配 key；base URL 可用仓库变量 `CUSTOM_OPENAI_BASE` 覆盖。
+- **首启清单（机制存在 ≠ 生效）**：配 secret → 走一次 PR 流 → **实际观察到评审评论
+  落盘**才算启用（失败看 Actions 日志：secret 未配 / 模型名 404 是两大常见根因）。
+- **批次流**：大改动走分支 + `gh pr create` 过评审位再合 main；小批次仍可直推
+  （评审位对 PR 触发，直推不经它——是否强制全 PR 化属流程决策，未定）。
+
 ## 工程护栏（v7.0.7）
 
 - **git 钩子**（`sh scripts/install-hooks.sh` 安装，core.hooksPath=.githooks）：
