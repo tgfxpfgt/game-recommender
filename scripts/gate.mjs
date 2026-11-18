@@ -179,6 +179,10 @@ await step('check:first-run（首次运行证据）', 'node scripts/check-first-
 // v14.28.9（E 类根治）：匹配语料分母——回放样本必须有 ground truth，
 // 禁止"缺 expectedName / recorded 全 0 命中 / 豁免不写原因"的真空通过。
 await step('check:corpus（匹配语料分母）', 'node scripts/check-match-corpus.mjs');
+// v14.33.2（调研落地 A3）：活规则文件保鲜——AGENTS/CONTRIBUTING/playbooks 引用的
+// 命令与路径存在性（规则腐烂 = AI 助手带失效指令工作）
+await step('check:agents-docs（活规则保鲜）', 'node scripts/check-agents-docs.mjs');
+await step('check:dom-sinks（DOM sink 基线锁）', 'node scripts/check-dom-sinks.mjs');
 await step('lint', 'npm run lint');
 await step('typecheck', 'npm run typecheck');
 // v14.31.2：信号超时 20000→30000——全量 gate 满载上下文 sim-list 节 2/2b/12

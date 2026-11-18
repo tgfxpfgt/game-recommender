@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.34.0（AI 协作与安全审计调研落地（A3/C2/C3），2026-11-19）
+
+- check:agents-docs 活规则保鲜门禁（AGENTS/CONTRIBUTING/playbooks 引用命令与路径存在性 53 处——规则腐烂=AI 带失效指令工作）
+- check:dom-sinks DOM sink 基线锁（29 文件/121 点只减不增——铁律 1 机器化常态防线）+ .semgrep/gr-dom-sinks.yml 自定义规则入发版扫描（非字面量 sink 80 findings 人工定性）
+- Chrome 官方安全清单对照审计报告（10 项达标 + http 注入域/全域 optional_host 两项功能性权衡登记 + B4 dependency-review 不采纳判定——无 PR 流程属装饰性 job）
+
 ### v14.33.1（AI 协作调研落地：AGENTS 收敛 + E2E dist 验收 + Preact 组件三缺陷修复，2026-11-18）
 
 - AGENTS.md 发布流程细节指针化到 playbooks §7（去双源重复）+ 新增「先问再做」边界档（GitHub 2500 仓三级边界经验）

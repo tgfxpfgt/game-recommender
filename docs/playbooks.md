@@ -117,8 +117,9 @@ stage + 最近失败类别 + 波次进度 + 缓存命中层）。断网场景判
 **坑**：commit/push 分步、不带管道（吞退出码事故×2）；链式命令 commit 失败必须中止；visual 基线含版本号——bump 后 `npm run visual -- --update`；推送 GFW 间歇重置等 2 分钟窗口；发布前 `npm run check:ext-refs -- --refresh` 刷新外部引用锁（30 天保鲜）。
 
 **深度扫描链路（2026-11-14 用户裁决 B+C）**：主源 = Semgrep OSS（`semgrep scan --config p/javascript
---config p/owasp-top-ten --config p/secrets --json`，焦点 = 发版改动文件 + 全库一轮）+ eslint-plugin-security
-（已常态入 lint 门禁）。报告落 `docs/reports/security-scan-<版本>/`（REPORT.md + 原始 JSON），
+--config p/owasp-top-ten --config p/secrets --config .semgrep/gr-dom-sinks.yml --json`，焦点 = 发版改动
+文件 + 全库一轮；v14.33.2 增自定义 DOM-sink 规则——非字面量 sink 赋值 ~80 findings 逐条人工定性，
+与 check:dom-sinks 基线锁分工：锁增量/扫存量）+ eslint-plugin-security（已常态入 lint 门禁）。报告落 `docs/reports/security-scan-<版本>/`（REPORT.md + 原始 JSON），
 **seal = REPORT.md 的 sha256**，`gh release edit` 补入 notes + CHANGELOG 条目补记。全库 findings 必须
 逐条人工定性（转义链核对——参照 security-scan-v14.31.0 §3 形态），误报归档报告、真问题挂账修复。
 

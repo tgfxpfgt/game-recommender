@@ -1,0 +1,27 @@
+# 游戏雷达 Game Radar - DOM sink 自定义规则（v14.33.2，调研落地 C2）
+# 发版深度扫描补充配置（playbooks §7 扫描链路）——与 check-dom-sinks.mjs 基线锁分工：
+# 基线锁常态拦截"新增 sink"，本规则供发版时对存量逐条人工定性（提示面更宽，
+# 含动态值注入提示）。规则面向本项目 escapeHtml/escapeAttr 消费纪律（铁律 1）。
+rules:
+  - id: gr-innerhtml-dynamic-assignment
+    message: >-
+      innerHTML 赋值（非纯字符串字面量）——逐点人工定性：动态值是否经 escapeHtml/escapeAttr
+      包裹（铁律 1）；模板字面量插值需逐个变量核对。新 UI 面优先 Preact 组件。
+    severity: WARNING
+    languages: [javascript]
+    patterns:
+      - pattern-either:
+          - pattern: $EL.innerHTML = $VAL
+          - pattern: $EL.outerHTML = $VAL
+      - pattern-not: $EL.innerHTML = "..."
+      - pattern-not: $EL.innerHTML = ''
+      - pattern-not: $EL.outerHTML = "..."
+      - pattern-not: $EL.outerHTML = ''
+
+  - id: gr-insertadjacenthtml
+    message: >-
+      insertAdjacentHTML 调用——逐点人工定性：动态值是否经 escapeHtml/escapeAttr
+      包裹（铁律 1）。新 UI 面优先 Preact 组件。
+    severity: WARNING
+    languages: [javascript]
+    pattern: $EL.insertAdjacentHTML(...)

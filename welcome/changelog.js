@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.34.0',
+        date: '2026-11-19',
+        items: [
+          'check:agents-docs 活规则保鲜门禁（AGENTS/CONTRIBUTING/playbooks 引用命令与路径存在性 53 处——规则腐烂=AI 带失效指令工作）',
+          'check:dom-sinks DOM sink 基线锁（29 文件/121 点只减不增——铁律 1 机器化常态防线）+ .semgrep/gr-dom-sinks.yml 自定义规则入发版扫描（非字面量 sink 80 findings 人工定性）',
+          'Chrome 官方安全清单对照审计报告（10 项达标 + http 注入域/全域 optional_host 两项功能性权衡登记 + B4 dependency-review 不采纳判定——无 PR 流程属装饰性 job）'
+        ]
+      },
+      {
         ver: '14.33.1',
         date: '2026-11-18',
         items: [
