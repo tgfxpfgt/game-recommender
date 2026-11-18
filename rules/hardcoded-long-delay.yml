@@ -1,0 +1,33 @@
+# 长延时零字面量（铁律 13——AGENTS；test-integrity.mjs v14.6.2 扫描的 AST 移植）：
+# ≥1000ms 的 setTimeout/setInterval 第二参必须走单源——background 入
+# PERF_CONFIG（超时组），内容侧/页面层文件顶具名大写常量。扫描目录与原实现
+# HARDCODE_SCAN_DIRS 逐项一致（userscript/ 为生成物不入扫，tests/ 不在铁律域）。
+# 精度升级：原正则 `set(?:Timeout|Interval)\([^,]+,` 对首参含逗号的调用
+#（箭头函数/多参函数调用）漏检——AST 单 metavariable 绑定整棵表达式节点，
+# 无逗号盲区（探针实证：`setTimeout(() => report(a, b), 2000)` 老正则 0 命中，
+# 本规则命中）。member 形态覆盖 window.setTimeout 等接收者前缀。
+id: gr-hardcoded-long-delay
+message: ≥1000ms 延时数字字面量——入 PERF_CONFIG 单源（background）或文件顶具名大写常量（内容/页面层），勿再写裸毫秒。
+severity: error
+language: JavaScript
+files:
+  - 'background/**/*.js'
+  - 'content/**/*.js'
+  - 'shared/**/*.js'
+  - 'data/**/*.js'
+  - 'options/**/*.js'
+  - 'popup/**/*.js'
+  - 'dashboard/**/*.js'
+  - 'freegames/**/*.js'
+  - 'hub/**/*.js'
+  - 'welcome/**/*.js'
+  - 'sidepanel/**/*.js'
+rule:
+  any:
+    - pattern: setTimeout($FN, $MS)
+    - pattern: setInterval($FN, $MS)
+    - pattern: $OBJ.setTimeout($FN, $MS)
+    - pattern: $OBJ.setInterval($FN, $MS)
+constraints:
+  MS:
+    regex: ^\d{4,}$

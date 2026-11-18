@@ -1,0 +1,10 @@
+# ast-grep 结构化门禁配置（v14.34.2 B1 试点）
+# 规则语义对齐 tests/integration/test-integrity.mjs 既有正则扫描（后台动态
+# import 禁令 / 长延时·超时零字面量），并补两类正则盲区：
+# ① 首参含逗号的 setTimeout 调用（原 `[^,]+` 正则漏检）；② JS 侧
+# setAttribute('on…') 内联事件处理器（铁律 1，运行时 CSP 之外的静态护栏）。
+# 渐进迁移声明：check-dom-sinks（DOM sink 基线锁）与 XSS 插值棘轮（lint-baseline）
+# 暂留原扫描器——基线锁语义与 AST 规则形态不同，后续批次单独移植。
+# 运行：npm run check:ast（gate:fast 步骤 check:ast）；单测规则：npx ast-grep scan rules/
+ruleDirs:
+  - rules

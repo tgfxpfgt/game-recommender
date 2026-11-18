@@ -185,7 +185,10 @@ export const BUDGETS = {
   // 全量 vitest（unit+sim+integration）绿 + 普通 typecheck 三配置 0 + lint 0。
   // v14.34.1 重锁（+156B）：knip 盘点清理——retrieval-override/diag-status 死导出
   // 删除 + ONE_DAY 单源化 import 重排 + 退役注释（v14.34.0 三防线入库后 bundle 重排）
-  swGraphBytes: 985906,
+  // v14.34.2 纠偏（+10B）：v14.34.1 把基线锁在 985906，但 HEAD 终态实测 985916
+  // ——测量点之后仍有 +10B 定稿编辑，锁值低于实际（stash 纯净复测实证，非本批
+  // 增长）。按「预算 = 实测值」口径重锁到当前 HEAD 真实值。
+  swGraphBytes: 985916,
   swGraphFiles: 108,
   staticInjectionBytes: 41036,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

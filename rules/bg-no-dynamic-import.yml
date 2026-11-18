@@ -1,0 +1,15 @@
+# MV3 后台零动态 import（铁律 2——AGENTS）：
+# ServiceWorkerGlobalScope 上 import() 被规范禁止，运行时 TypeError；v6.3.0 E2E
+# 验证、v14.5.0 B2 复证（4 处曾静默失效——错误被 allSettled/catch 吞掉）。
+# 语义对齐 test-integrity.mjs「B2：后台零动态 import」：background/** + data/**。
+# AST 匹配天然免注释/字符串误报（原实现需手工剥注释）；import.meta 属性访问
+# 不是调用表达式，天然不命中。模式经探针反向验证（命中/豁免双向）。
+id: gr-bg-no-dynamic-import
+message: 后台存在动态 import()（MV3 SW 规范禁止，运行时必失败）——改为静态 import；延迟需求走「静态加载 + 延迟调用」（setTimeout/alarm 触发函数调用）。
+severity: error
+language: JavaScript
+files:
+  - 'background/**/*.js'
+  - 'data/**/*.js'
+rule:
+  pattern: import($A)

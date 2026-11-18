@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.34.2（ast-grep 结构化门禁落地——四规则试点 + 正则盲区修复，2026-11-19）
+
+- ast-grep 0.51.3 devDep + sgconfig/rules 四规则：后台动态 import 禁令（铁律2）、长延时与 fetchWithTimeout 超时零字面量（铁律13）、JS 侧内联事件处理器静态护栏（铁律1）
+- 精度升级实证：老正则对首参含逗号的 setTimeout 漏检，AST 模式当场抓到 list-page.js 真实违例（2000ms 箭头函数首参）→ PRELOAD_NEXT_PAGE_DELAY_MS 具名常量
+- gate:fast 新步骤 check:ast（872ms）；渐进迁移期原正则扫描双跑保留
+- perf-budget SW 基线纠偏 +10B（v14.34.1 锁值低于 HEAD 终态实测，stash 纯净复测实证非本批增长）
+
 ### v14.34.1（knip 死代码盘点落地，2026-11-19）
 
 - knip 6.46.0 devDep + knip.json 入口配置（适配 esbuild concat 全局语义/getURL 动态装载面豁免——32 unused files 误报全定性豁免）

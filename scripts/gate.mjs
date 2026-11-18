@@ -183,6 +183,10 @@ await step('check:corpus（匹配语料分母）', 'node scripts/check-match-cor
 // 命令与路径存在性（规则腐烂 = AI 助手带失效指令工作）
 await step('check:agents-docs（活规则保鲜）', 'node scripts/check-agents-docs.mjs');
 await step('check:dom-sinks（DOM sink 基线锁）', 'node scripts/check-dom-sinks.mjs');
+// v14.34.2（B1）：ast-grep 结构化门禁试点——后台动态 import 禁令/长延时·超时零
+// 字面量/JS 侧内联事件四规则（tests/integration 正则扫描的 AST 移植 + 精度升级，
+// 修首参含逗号盲区）；规则库 rules/*.yml，渐进迁移期原正则扫描双跑保留。
+await step('check:ast（ast-grep 结构化门禁）', 'npx ast-grep scan');
 await step('lint', 'npm run lint');
 await step('typecheck', 'npm run typecheck');
 // v14.31.2：信号超时 20000→30000——全量 gate 满载上下文 sim-list 节 2/2b/12

@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.34.2',
+        date: '2026-11-19',
+        items: [
+          'ast-grep 0.51.3 devDep + sgconfig/rules 四规则：后台动态 import 禁令（铁律2）、长延时与 fetchWithTimeout 超时零字面量（铁律13）、JS 侧内联事件处理器静态护栏（铁律1）',
+          '精度升级实证：老正则对首参含逗号的 setTimeout 漏检，AST 模式当场抓到 list-page.js 真实违例（2000ms 箭头函数首参）→ PRELOAD_NEXT_PAGE_DELAY_MS 具名常量',
+          'gate:fast 新步骤 check:ast（872ms）；渐进迁移期原正则扫描双跑保留',
+          'perf-budget SW 基线纠偏 +10B（v14.34.1 锁值低于 HEAD 终态实测，stash 纯净复测实证非本批增长）'
+        ]
+      },
+      {
         ver: '14.34.1',
         date: '2026-11-19',
         items: [

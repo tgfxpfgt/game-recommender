@@ -154,6 +154,10 @@ async function runRetryBatch() {
 // background PERF_CONFIG（分层）；防挂起拖垮页面，与消息侧超时独立）
 const PRELOAD_ABORT_MS = 15000;
 
+// 预载下一页的启动延迟（v14.34.2 ast-grep 补检：具名单点——原正则对箭头函数
+// 首参含逗号的 setTimeout 漏检，本处 2000ms 字面量曾被盲区掩盖）
+const PRELOAD_NEXT_PAGE_DELAY_MS = 2000;
+
 // ============ 页面类型检测（URL优先，最可靠） ============
 // v14.26.0 P1-3：三个 URL 判定（详情页 / 列表页 / 下载站首页）已下沉至
 // core/page-url.js（tracker 装载前与 page-init 分发共用，避免为了纯 URL
@@ -420,7 +424,7 @@ function preloadNextPage() {
     } catch (e) {
       dbg('预载下一页失败: ' + String(e));
     }
-  }, 2000);
+  }, PRELOAD_NEXT_PAGE_DELAY_MS);
 }
 
 // 查找下一页 URL：按优先级匹配常见分页模式

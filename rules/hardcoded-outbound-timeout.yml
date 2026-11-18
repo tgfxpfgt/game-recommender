@@ -1,0 +1,31 @@
+# 出站超时零字面量（铁律 13；test-integrity.mjs v14.6.2 扫描的 AST 移植）：
+# fetchWithTimeout（SSRF 校验/限速/审计内建的出站唯一通道，签名
+# (url, options, timeout)）的显式数字超时参必须走 PERF_CONFIG fetchTimeout*Ms
+# 单源。两条 pattern 覆盖「显式传第三参（2 参形）」与「完整 3 参形」——
+# 与原正则「末位 ≥3 位数字参」语义一致（约束 MS 限数字字面量）。
+id: gr-hardcoded-outbound-timeout
+message: fetchWithTimeout 显式数字超时——入 PERF_CONFIG fetchTimeout*Ms 单源，勿写裸毫秒。
+severity: error
+language: JavaScript
+files:
+  - 'background/**/*.js'
+  - 'content/**/*.js'
+  - 'shared/**/*.js'
+  - 'data/**/*.js'
+  - 'options/**/*.js'
+  - 'popup/**/*.js'
+  - 'dashboard/**/*.js'
+  - 'freegames/**/*.js'
+  - 'hub/**/*.js'
+  - 'welcome/**/*.js'
+  - 'sidepanel/**/*.js'
+# 注意：any 复合规则的 constraints 引用的 metavariable 必须在各 pattern 中
+# 均有绑定（否则整条规则解析失败、全扫描中止——B1 实测）。两分支统一以 $MS
+# 绑定超时位：2 参形 = 第二参，3 参形 = 第三参（第二参为 options 故名 $OPT）。
+rule:
+  any:
+    - pattern: fetchWithTimeout($A, $MS)
+    - pattern: fetchWithTimeout($A, $OPT, $MS)
+constraints:
+  MS:
+    regex: ^\d{3,}$

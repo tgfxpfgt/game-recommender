@@ -1,0 +1,26 @@
+# JS 侧内联事件处理器静态护栏（铁律 1——AGENTS）：
+# setAttribute('onclick'/'onerror'/…, …) 创建的内联处理器被 MV3 页面 CSP 拦截，
+# 且与 escape 纪律同源——动态内容一律 addEventListener 或 Preact 组件
+# （文本插值天然转义）。此前无静态扫描（运行时 CSP 兜底），本规则补静态位；
+# HTML 侧 on* 属性 ast-grep 暂不支持 HTML 语言，仍由 CSP 运行时兜底。
+id: gr-no-js-inline-handler
+message: JS 创建内联事件处理器（CSP 禁止）——改 addEventListener 或 Preact 组件。
+severity: error
+language: JavaScript
+files:
+  - 'background/**/*.js'
+  - 'content/**/*.js'
+  - 'shared/**/*.js'
+  - 'data/**/*.js'
+  - 'options/**/*.js'
+  - 'popup/**/*.js'
+  - 'dashboard/**/*.js'
+  - 'freegames/**/*.js'
+  - 'hub/**/*.js'
+  - 'welcome/**/*.js'
+  - 'sidepanel/**/*.js'
+rule:
+  pattern: $EL.setAttribute($NAME, $VAL)
+constraints:
+  NAME:
+    regex: ^['"]on[\w-]+['"]$

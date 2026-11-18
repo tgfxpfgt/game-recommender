@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "14.34.1",
+  "version": "14.34.2",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -34,6 +34,7 @@
     "check:corpus": "node scripts/check-match-corpus.mjs",
     "check:agents-docs": "node scripts/check-agents-docs.mjs",
     "check:dom-sinks": "node scripts/check-dom-sinks.mjs",
+    "check:ast": "ast-grep scan",
     "verify:mutations": "node scripts/mutation-check.mjs",
     "perf:budget": "node scripts/perf-budget.mjs",
     "war:gen": "node scripts/gen-war.mjs --write",
@@ -49,6 +50,7 @@
     "bump": "node scripts/bump.mjs"
   },
   "devDependencies": {
+    "@ast-grep/cli": "^0.51.3",
     "@types/chrome": "^0.2.6",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "^0.28.2",
