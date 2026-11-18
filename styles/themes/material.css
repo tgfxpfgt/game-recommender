@@ -1,9 +1,11 @@
+/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */
 /*
- * 游戏雷达 Game Radar - 主题 10/19：Material You Material3 / Material You (M3)
+ * 游戏雷达 Game Radar - 主题：Material You Material3 / Material You (M3)（AUTO-GENERATED）
  *
- * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
- * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
- * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；
+ * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则
+ * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。
+ * Variable block generated from the theme data single source.
  *
  * 柔和大圆角、动态低饱和配色、柔和大阴影、
  * 谷歌现代安卓材质风格
@@ -35,6 +37,7 @@ body[data-theme='material'] {
   --gr-gap: 14px;
   --gr-control-h: 44px;
 }
+/* GR-GENERATED-END */
 body[data-theme='material'] .gr-btn {
   border-radius: 22px;
   box-shadow: 0 3px 10px rgba(103, 80, 164, 0.3);

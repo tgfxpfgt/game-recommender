@@ -1,9 +1,11 @@
+/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */
 /*
- * 游戏雷达 Game Radar - 主题 16/19：微软 Metro 初代扁平 / Win8 Metro Flat
+ * 游戏雷达 Game Radar - 主题：微软 Metro 初代扁平 / Win8 Metro Flat（AUTO-GENERATED）
  *
- * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
- * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
- * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；
+ * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则
+ * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。
+ * Variable block generated from the theme data single source.
  *
  * 直角方块、无渐变无阴影、大块纯色、极简硬朗、
  * 高对比色块、无多余装饰
@@ -35,6 +37,7 @@ body[data-theme='win8'] {
   --gr-gap: 8px;
   --gr-control-h: 32px;
 }
+/* GR-GENERATED-END */
 body[data-theme='win8'] .gr-btn {
   border: none;
   border-radius: 0;

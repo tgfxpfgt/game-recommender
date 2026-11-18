@@ -28,6 +28,7 @@ npm run check:stubs    # 占位实现（TODO/未实现抛错）+ 契约→handle
 npm run check:ext-refs  # 外部引用锁（scripts/external-refs.json）：登记一致性 + validatedAt 30 天保鲜；--refresh 真实校验上游默认分支（发布前跑）
 npm run check:first-run # 首次运行证据（scripts/first-run.json）：外部资源型功能必须有真实成功调用记录
 npm run check:corpus    # 匹配语料分母：名称级样本必须有 expectedName（豁免须写原因）
+npm run check:ast       # ast-grep 结构化门禁（rules/*.yml：后台动态 import 禁令/长延时·超时零字面量/JS 内联事件）
 npm run verify:mutations # 缺陷回放（scripts/mutations.json）：历史缺陷放回必须红；--only <id> 单条
 npm run coverage:gate  # 覆盖率门禁；npm run package 打包 zip
 node scripts/build-userscript.mjs  # 油猴词表快照同源刷新（v15 阶段 4：retrieval-vocab → VOCAB 生成，幂等）
@@ -58,7 +59,9 @@ npm run lint:commits  # 提交信息 CC 1.0.0 校验（默认 origin/main..HEAD�
   尾段词/版本对照/附属词/版本词保序词条数据 + 编译 + 校验；**保序语义**——重叠词先长
   后短决定删除范围；等价性由 golden 测试 + 错题库回放双重门禁）。ui-tokens.js =
   UI 设计 token 单源（PALETTE 16 语义色 + THEME_LABELS 20 主题名；styles/tokens.css
-  构建生成；**新色值字面量先入此单源**）。
+  构建生成；**新色值字面量先入此单源**）。themes-data.js = 19 主题变量数据单源
+  （styles/themes/<name>.css 变量块构建生成，锚点区勿手改；新增主题 = 数据加对象
+  - VALID_THEMES/THEME_LABELS 各一行后跑 build）。
 - **UI 渲染（v15 阶段 3）**：状态区块/空态/统计文案优先 Preact 组件
   （popup-status.preact.mjs / dash-stats.preact.mjs / cache-status.preact.mjs /
   rules-status.preact.mjs 模式——classic 页面文件按需 dynamic import(getURL) 装载
@@ -196,6 +199,8 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
 - 墙钟预算（v14.28.9 起）：`scripts/suite-budgets.json`（cap = 本机实测×1.5）在
   gate.mjs 逐步骤生效，超 cap 直接判失败——先隔离复跑排机器负载（并行编译/杀毒/争核），
   仍超才调基线；套件实测与口径见 docs/specs/gr-hardening-2026-11-11/spec.md L3。
+  基线校准走 `npm run calibrate:budgets`（v14.34.3：hyperfine ≥3 轮 mean 口径，
+  替换单次采样定基线；unit/sim/e2eMock/visual 默认，gateFast/gateFull 整链仍人工）。
 - 已知噪声：变异 `network-rendered-as-notfound` 在 **gate 上下文**偶发撞 240s 检查
   上界被判「未拦截」（实测 3 次全量中 2 次超时；**隔离运行恒 ~2.7s 红**，5/5 PASS）——
   疑似 spawnSync 超时杀 cmd.exe 后孙进程持管道的楔死级联。处置：`npm run verify:mutations

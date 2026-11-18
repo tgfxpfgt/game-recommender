@@ -1,11 +1,13 @@
+/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */
 /*
- * 游戏雷达 Game Radar - 主题 1/19：Vista Aero 玻璃拟态 / Vista Aero Glass
+ * 游戏雷达 Game Radar - 主题：Vista Aero 玻璃拟态 / Vista Aero Glass（AUTO-GENERATED）
  *
- * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载；
- * steam 默认主题定义于 ui-theme.css :root，无独立文件）。变量键集合一致性由
+ * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；
+ * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则
+ * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。
+ * Variable block generated from the theme data single source.
+ *
  * test-integrity-security 扫描本目录守护（新主题漏键 = 该主题下消费方回退默认值）。
- * Split from themes.css: one file per theme, loaded on demand by applyTheme.
- *
  * 半透明磨砂玻璃、浅蓝高光、大圆角、玻璃反光、柔和外发光
  */
 body[data-theme='vista'] {
@@ -34,6 +36,7 @@ body[data-theme='vista'] {
   --gr-page-grad: linear-gradient(160deg, #1e3a5f 0%, #0e2138 100%);
   --gr-gap: 12px;
 }
+/* GR-GENERATED-END */
 body[data-theme='vista'] .gr-panel,
 body[data-theme='vista'] .gr-card,
 body[data-theme='vista'] .gr-stat-card {

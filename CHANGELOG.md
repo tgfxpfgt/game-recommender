@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.34.3（阶段 3 收尾：19 主题数据化（主题即数据），2026-11-19）
+
+- shared/themes-data.js 主题变量数据单源（19 套变量块/标题/设计注记提取入库）
+- build.mjs generateThemeCss：锚点区变量块构建再生（幂等；主题专属手写规则区保留）
+- 新增主题 = 数据加对象 + VALID_THEMES/THEME_LABELS 各一行后跑 build
+
 ### v14.34.2（ast-grep 结构化门禁落地——四规则试点 + 正则盲区修复，2026-11-19）
 
 - ast-grep 0.51.3 devDep + sgconfig/rules 四规则：后台动态 import 禁令（铁律2）、长延时与 fetchWithTimeout 超时零字面量（铁律13）、JS 侧内联事件处理器静态护栏（铁律1）
@@ -90,4 +96,5 @@
 - 词表补「移植版/移植」裸段（PC guard 优先不变）；手动选择面板恢复「主机/模拟器」入口按钮（面板内直达机型专页，与 ⚙ 菜单同路径）
 
 ---
+
 更早版本（v14.29.0 及前）已迁档：[docs/changelog/archive.md](docs/changelog/archive.md)。

@@ -1,9 +1,11 @@
+/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */
 /*
- * 游戏雷达 Game Radar - 主题 4/19：Windows XP Luna 蓝 / Windows XP Luna Blue
+ * 游戏雷达 Game Radar - 主题：Windows XP Luna 蓝 / Windows XP Luna Blue（AUTO-GENERATED）
  *
- * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
- * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
- * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；
+ * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则
+ * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。
+ * Variable block generated from the theme data single source.
  *
  * XP 经典家用系统、鲜艳蓝色渐变、饱满圆润控件、明亮高光、
  * 2000 年代复古桌面 UI
@@ -34,6 +36,7 @@ body[data-theme='winxp'] {
   --gr-page-grad: linear-gradient(180deg, #6f9ae4 0%, #3f6fc0 100%);
   --gr-gap: 11px;
 }
+/* GR-GENERATED-END */
 body[data-theme='winxp'] .gr-btn {
   border: 1px solid #2c56a0;
   border-radius: 6px;

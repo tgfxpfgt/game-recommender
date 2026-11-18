@@ -128,6 +128,71 @@ function generateTokensCss() {
   console.log('✓ styles/tokens.css（' + entries.length + ' 个变量）');
 }
 
+// ============ 1c) styles/themes/<name>.css 变量块再生（themes-data 单源） ============
+// v15 阶段 3 主题数据化：19 套主题的变量块由 shared/themes-data.js 生成（锚点区覆盖）；
+// 变量块下方的主题专属手写规则（.gr-panel/.gr-btn 等元素覆写）不在锚点区，保留原样。
+// 新增主题 = themes-data 加一个对象（+ settings-utils VALID_THEMES / ui-tokens
+// THEME_LABELS 各一行）后跑 build。Theme var blocks regenerated from the data
+// single source; per-theme hand-written element rules live outside the anchors.
+function generateThemeCss(THEMES) {
+  const dir = path.join(ROOT, 'styles/themes');
+  let count = 0;
+  for (const [name, t] of Object.entries(THEMES)) {
+    const file = path.join(dir, name + '.css');
+    const region =
+      '/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */' +
+      NL +
+      '/*' +
+      NL +
+      ' * 游戏雷达 Game Radar - 主题：' +
+      t.title +
+      '（AUTO-GENERATED）' +
+      NL +
+      ' *' +
+      NL +
+      ' * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；' +
+      NL +
+      ' * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则' +
+      NL +
+      ' * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。' +
+      NL +
+      ' * Variable block generated from the theme data single source.' +
+      NL +
+      ' *' +
+      NL +
+      t.desc.map((/** @type {string} */ l) => ' * ' + l + NL).join('') +
+      ' */' +
+      NL +
+      "body[data-theme='" +
+      name +
+      "'] {" +
+      NL +
+      Object.entries(t.vars)
+        .map((/** @type {[string, string]} */ ent) => '  ' + ent[0] + ': ' + ent[1] + ';')
+        .join(NL) +
+      NL +
+      '}' +
+      NL +
+      '/* GR-GENERATED-END */';
+    if (!fs.existsSync(file)) {
+      // 新增主题：建文件（手写规则区由作者按需补写）
+      fs.writeFileSync(file, region + NL, 'utf-8');
+      count++;
+      continue;
+    }
+    const css = fs.readFileSync(file, 'utf-8');
+    const begin = css.indexOf('/* GR-GENERATED-BEGIN');
+    const endMark = '/* GR-GENERATED-END */';
+    const end = css.indexOf(endMark);
+    if (begin === -1 || end === -1 || end < begin) {
+      throw new Error('主题 ' + name + ' 缺少 GR-GENERATED 锚点（变量块未数据化）');
+    }
+    fs.writeFileSync(file, region + css.slice(end + endMark.length), 'utf-8');
+    count++;
+  }
+  console.log('✓ styles/themes 变量块再生（' + count + ' 套，单源 shared/themes-data.js）');
+}
+
 const NL = String.fromCharCode(10);
 // ============ 2) 页面 concat bundle（HTML script 顺序忠实拼接） ============
 const PAGES = ['popup', 'options', 'dashboard', 'hub', 'freegames', 'welcome', 'sidepanel'];
@@ -424,6 +489,8 @@ fs.mkdirSync(path.join(DIST, 'content'), { recursive: true });
 fs.writeFileSync(path.join(DIST, 'content/tracker.js'), contentCode, 'utf-8');
 console.log('✓ content bundle（classic 注入序列 + ESM 模块图 iife）');
 generateTokensCss();
+const { THEMES } = await import(new URL('../shared/themes-data.js', import.meta.url).href);
+generateThemeCss(THEMES);
 await assembleDist();
 verifyDist();
 if (warn.length > 0) {

@@ -85,6 +85,7 @@ export default defineConfig({
       'tests/unit/test-list-local-sort.mjs',
       'tests/unit/test-track-batch.mjs',
       'tests/unit/test-tab-game.mjs',
+      'tests/unit/test-themes-data.mjs', // v15 阶段 3：主题数据单源完整性（构建生成源守卫）
       'tests/unit/test-filter-presets.mjs',
       'tests/unit/test-favorite-prices.mjs',
       'tests/unit/test-reset-defaults.mjs',

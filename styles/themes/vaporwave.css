@@ -1,9 +1,11 @@
+/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */
 /*
- * 游戏雷达 Game Radar - 主题 12/19：蒸汽波 Vaporwave 复古 80-90 / Vaporwave Retro
+ * 游戏雷达 Game Radar - 主题：蒸汽波 Vaporwave 复古 80-90 / Vaporwave Retro（AUTO-GENERATED）
  *
- * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
- * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
- * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；
+ * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则
+ * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。
+ * Variable block generated from the theme data single source.
  *
  * 粉紫、薄荷蓝高饱和复古渐变、柔和模糊、梦幻霓虹复古氛围
  */
@@ -33,6 +35,7 @@ body[data-theme='vaporwave'] {
   --gr-page-grad: linear-gradient(180deg, #3a2a5e 0%, #1a1030 100%);
   --gr-gap: 12px;
 }
+/* GR-GENERATED-END */
 body[data-theme='vaporwave'] .gr-panel,
 body[data-theme='vaporwave'] .gr-card {
   backdrop-filter: blur(8px);

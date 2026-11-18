@@ -1,9 +1,11 @@
+/* GR-GENERATED-BEGIN 变量块（构建自 shared/themes-data.js 覆盖；勿手改） */
 /*
- * 游戏雷达 Game Radar - 主题 2/19：iOS 6 经典拟物化 / iOS 6 Skeuomorphism
+ * 游戏雷达 Game Radar - 主题：iOS 6 经典拟物化 / iOS 6 Skeuomorphism（AUTO-GENERATED）
  *
- * v14.3.2：themes.css 拆分为 19 套独立主题文件（applyTheme 动态 <link> 按需加载）。
- * 变量键集合一致性由 test-integrity-security 扫描本目录守护。
- * Split from themes.css: one file per theme, loaded on demand by applyTheme.
+ * 变量块由 scripts/build.mjs generateThemeCss() 从 shared/themes-data.js 生成；
+ * 新增/调整主题改数据单源后跑 npm run build。变量块下方的主题专属手写规则
+ * （.gr-panel/.gr-btn 等元素覆写）不在生成区，可手改。
+ * Variable block generated from the theme data single source.
  *
  * 写实拟物、斜面浮雕、金属磨砂质感、凸起按钮、凹陷输入框、
  * 银灰米色底、旧苹果实体控件
@@ -34,6 +36,7 @@ body[data-theme='ios6'] {
   --gr-page-grad: linear-gradient(180deg, #e2e2dd 0%, #cbcbc6 100%);
   --gr-gap: 11px;
 }
+/* GR-GENERATED-END */
 body[data-theme='ios6'] .gr-btn {
   border: 1px solid rgba(0, 0, 0, 0.3);
   border-radius: 6px;

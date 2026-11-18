@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.34.3',
+        date: '2026-11-19',
+        items: [
+          'shared/themes-data.js 主题变量数据单源（19 套变量块/标题/设计注记提取入库）',
+          'build.mjs generateThemeCss：锚点区变量块构建再生（幂等；主题专属手写规则区保留）',
+          '新增主题 = 数据加对象 + VALID_THEMES/THEME_LABELS 各一行后跑 build'
+        ]
+      },
+      {
         ver: '14.34.2',
         date: '2026-11-19',
         items: [
