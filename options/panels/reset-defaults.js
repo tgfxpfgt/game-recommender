@@ -138,7 +138,7 @@
       if (!node[segs[i]] || typeof node[segs[i]] !== 'object') node[segs[i]] = {};
       node = node[segs[i]];
     }
-    node[segs.at(-1)] = structuredClone(def);
+    node[/** @type {string} */ (segs.at(-1))] = structuredClone(def);
     OPTS.currentSettings = merged;
     OPTS.renderSettings(merged);
     OPTS.scheduleAutoSave();

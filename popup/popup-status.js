@@ -8,14 +8,15 @@
  */
 
 // ============ Load Steam API Status / 加载 Steam API 状态 ============
-/** @type {(resp: any, dotEl: HTMLElement, mountEl: HTMLElement) => void} */
+/** @type {((resp: any, dotEl: HTMLElement, mountEl: HTMLElement) => void) | null} */
 let renderApiStatusPreact = null;
 // v15 阶段 3：Preact 组件按需装载（dynamic import 页面上下文合法）——首次调用装载一次
+/** @returns {Promise<(resp: any, dotEl: HTMLElement, mountEl: HTMLElement) => void>} */
 async function ensurePreactRenderer() {
   if (renderApiStatusPreact) return renderApiStatusPreact;
   const m = await import(chrome.runtime.getURL('popup/popup-status.preact.mjs'));
   renderApiStatusPreact = m.renderApiStatus;
-  return renderApiStatusPreact;
+  return /** @type {(resp: any, dotEl: HTMLElement, mountEl: HTMLElement) => void} */ (renderApiStatusPreact);
 }
 
 async function loadApiStatus() {

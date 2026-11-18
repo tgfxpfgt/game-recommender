@@ -157,10 +157,11 @@
   // v15 阶段 3：缓存面板状态区块 Preact 组件（按需装载一次）
   /** @type {{mountAt: (v: any, el: HTMLElement) => void, CacheEmptyRow: any, HealStats: any, h: any}|null} */
   let cachePreact = null;
+  /** @returns {Promise<{mountAt: (v: any, el: HTMLElement) => void, CacheEmptyRow: any, HealStats: any, h: any}>} */
   async function ensureCachePreact() {
     if (cachePreact) return cachePreact;
     cachePreact = await import(chrome.runtime.getURL('options/panels/cache-status.preact.mjs'));
-    return cachePreact;
+    return /** @type {NonNullable<typeof cachePreact>} */ (cachePreact);
   }
   /** @param {HTMLElement} tbody @param {string} msg */
   async function mountCacheEmpty(tbody, msg) {

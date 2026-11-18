@@ -113,7 +113,7 @@
 
   /** @param {Event} e */
   async function importData(e) {
-    const file = /** @type {HTMLInputElement} */ (e.target).files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
     if (!file) return;
     try {
       const text = await file.text();
@@ -302,8 +302,7 @@
   };
   /** @param {{target?: HTMLInputElement}} e */
   OPTS.importFilterPresets = async function (e) {
-    const file =
-      /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
     /** @type {HTMLInputElement} */ (e.target).value = '';
     if (!file) return;
     try {
@@ -376,8 +375,7 @@
   };
   /** @param {Event} e */
   OPTS.importMappings = async function (e) {
-    const file =
-      /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
     if (!file) return;
     try {
       const payload = JSON.parse(await file.text());

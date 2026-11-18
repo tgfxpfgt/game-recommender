@@ -59,7 +59,7 @@
   };
 
   global.__GR_TOKENS__ = { PALETTE, THEME_LABELS };
-})(typeof globalThis !== 'undefined' ? globalThis : this);
+})(/** @type {typeof globalThis} */ (typeof globalThis !== 'undefined' ? globalThis : this));
 
 // ESM 形态（页面 bundle import 用；classic eval 时 export 被打包器消化）
 export const PALETTE =

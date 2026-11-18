@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-18T20:16:45.324Z",
-  "version": "14.34.3",
+  "generatedAt": "2026-11-18T20:48:16.046Z",
+  "version": "14.34.5",
   "nodes": [
     {
       "dir": "background",
@@ -32,7 +32,7 @@
       "color": "#ff7b00",
       "desc": "数据分析 — 统计/洞察/诊断/备份",
       "files": 10,
-      "lines": 2207
+      "lines": 2211
     },
     {
       "dir": "popup",
@@ -40,7 +40,7 @@
       "color": "#b48ce0",
       "desc": "弹出面板 — 快捷设置/快速搜索/状态",
       "files": 6,
-      "lines": 1610
+      "lines": 1611
     },
     {
       "dir": "sidepanel",

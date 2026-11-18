@@ -135,8 +135,7 @@
       document.getElementById('themeCssFile').click();
     });
     document.getElementById('themeCssFile').addEventListener('change', (/** @type {Event} */ e) => {
-      const file =
-        /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
+      const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {

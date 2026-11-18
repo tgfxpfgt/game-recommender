@@ -22,7 +22,7 @@
       if (o[k] === null || typeof o[k] !== 'object') o[k] = {};
       o = o[k];
     }
-    o[keys.at(-1)] = value; // v14.5.1：Array.prototype.at
+    o[/** @type {string} */ (keys.at(-1))] = value; // v14.5.1：Array.prototype.at
     return obj;
   }
 
@@ -185,7 +185,7 @@
   function applyPageTheme(settings) {
     if (!settings) return;
     applyThemeAuto(settings);
-    applyCustomTheme(settings.customThemeCss);
+    applyCustomTheme(settings.customThemeCss || '');
   }
 
   // v7.0.5：应用自定义主题 CSS（覆盖任意主题变量；空值移除）

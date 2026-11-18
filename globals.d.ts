@@ -14,6 +14,12 @@ declare global {
   var GR: any;
   var __GAME_RECOMMENDER_SITES__: any; // 适配规则（adapters 经典注入）
   var __GR_PATTERNS__: any; // 共享模式（shared/patterns.js 经典注入）
+  // v14.34.5（noImplicitAny 收紧）：shared/ui-tokens.js 双形态 token 挂载——
+  // classic 注入 window.__GR_TOKENS__，ESM 形态经 globalThis 重读（typeof 保护）
+  var __GR_TOKENS__: {
+    PALETTE: Record<string, string>;
+    THEME_LABELS: Record<string, string>;
+  } | undefined;
   var __OPTS__: any; // 设置页命名空间（options 经典脚本共享）
   var __gameRecommenderTracker: boolean; // tracker 防重入守卫
   var __grBootPromise: Promise<any>; // v8.2.0：tracker boot 就绪信号（测试等待用）

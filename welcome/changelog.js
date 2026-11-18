@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.34.5',
+        date: '2026-11-19',
+        items: [
+          '三域 tsconfig 删除 noImplicitAny:false / ui 域 strictNullChecks:false 显式豁免——strict 开关组全开，JSDoc 形态下完整 strict 覆盖达成',
+          ' fallout 32 处一次修净：ui 域隐式 any 家族 12 处（dash-stats 参数注解/rules.js/__GR_TOKENS__ globals.d.ts 单源声明）+ strictNullChecks 20 处（files 可选链/preact 装载器返回类型收口/tabId·at(-1)·customThemeCss 断言与守卫）——行为等价由既有测试背书',
+          '类型债棘轮基线三域降至 0（只降不升，隐式 any 回流直接红）'
+        ]
+      },
+      {
         ver: '14.34.4',
         date: '2026-11-19',
         items: [

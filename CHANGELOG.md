@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.34.5（TS strict 三域收口——noImplicitAny 与 strictNullChecks 全开零豁免，2026-11-19）
+
+- 三域 tsconfig 删除 noImplicitAny:false / ui 域 strictNullChecks:false 显式豁免——strict 开关组全开，JSDoc 形态下完整 strict 覆盖达成
+-  fallout 32 处一次修净：ui 域隐式 any 家族 12 处（dash-stats 参数注解/rules.js/__GR_TOKENS__ globals.d.ts 单源声明）+ strictNullChecks 20 处（files 可选链/preact 装载器返回类型收口/tabId·at(-1)·customThemeCss 断言与守卫）——行为等价由既有测试背书
+- 类型债棘轮基线三域降至 0（只降不升，隐式 any 回流直接红）
+
 ### v14.34.4（hyperfine 基线校准落地——多轮统计口径 + 校准脚本入库，2026-11-19）
 
 - calibrate-budgets.mjs：hyperfine ≥3 轮 mean 口径回写 suite-budgets.json（单次采样定基线的抖动固化风险消除——sim 实证旧基线偏低 13%，cap 45000→50000）

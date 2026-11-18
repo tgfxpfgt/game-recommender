@@ -203,7 +203,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const el = document.getElementById(id);
     if (!el) return;
     /** @param {any} e */
-    const save = (e) => saveSettingsPatch({ [key]: type === 'toggle' ? e.target.checked : parse(e.target.value) });
+    const save = (e) => saveSettingsPatch({ [key]: type === 'toggle' ? e.target.checked : parse?.(e.target.value) });
     if (type === 'toggle') {
       el.addEventListener('change', async (/** @type {any} */ e) => {
         await save(e);
@@ -220,7 +220,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (type === 'slider') {
       // 滑块：input 实时更新显示，change 保存
       el.addEventListener('input', (/** @type {any} */ e) => {
-        document.getElementById(valId).textContent = `${e.target.value}%`;
+        document.getElementById(/** @type {string} */ (valId)).textContent = `${e.target.value}%`;
       });
     }
     el.addEventListener('change', save);
@@ -276,7 +276,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let ok = false;
     if (tab) {
       ok = await chrome.tabs
-        .sendMessage(tab.id, { action: 'REFRESH_RECOMMENDATIONS' })
+        .sendMessage(/** @type {number} */ (tab.id), { action: 'REFRESH_RECOMMENDATIONS' })
         .then(() => true)
         .catch(() => false);
     }
@@ -332,7 +332,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       spBtn.addEventListener('click', async () => {
         try {
           const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-          await sidePanelApi.open({ tabId: tab && tab.id });
+          await sidePanelApi.open({ tabId: /** @type {number} */ (tab && tab.id) });
           window.close();
         } catch {
           /* 打开失败（如 chrome:// 页）静默 */

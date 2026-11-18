@@ -51,8 +51,9 @@ let NoData = null;
 let TableNoDataLocal = null;
 
 // v15 阶段 3：状态区块 Preact 组件（按需装载一次；tr/tbody 场景用 TableNoData）
-/** @type {(vnode: any, mountEl: HTMLElement) => void} */
+/** @type {((vnode: any, mountEl: HTMLElement) => void) | null} */
 let preactMount = null;
+/** @returns {Promise<(vnode: any, mountEl: HTMLElement) => void>} */
 async function ensurePreactMount() {
   if (preactMount) return preactMount;
   const m = await import(chrome.runtime.getURL('dashboard/dash-stats.preact.mjs'));
@@ -61,7 +62,7 @@ async function ensurePreactMount() {
   LoadError = m.LoadError;
   NoData = m.NoData;
   TableNoDataLocal = m.NoData;
-  return preactMount;
+  return /** @type {(vnode: any, mountEl: HTMLElement) => void} */ (preactMount);
 }
 /** 组件注册表（kind → 解析函数；在 ensurePreactMount 之后求值） */
 const STATUS_COMPONENTS = {
@@ -82,10 +83,12 @@ async function mountStatusPreact(mountEl, kind, props) {
   const comp = STATUS_COMPONENTS[kind]();
   mount(comp(props), mountEl);
 }
+/** @param {{ colspan?: number, msg?: string }} props */
 function TableNoData(props) {
   const cell = preactH('td', { class: 'no-data', colspan: String(props.colspan || 6) }, props.msg);
   return preactH('tr', null, cell);
 }
+/** @param {Array<{ date: string, views: number, downloads: number }>} daily */
 function renderTrendChart(daily) {
   const container = document.getElementById('trendChart');
   const statsEl = document.getElementById('trendStats');
@@ -95,7 +98,7 @@ function renderTrendChart(daily) {
     return;
   }
   const totalViews = daily.reduce((/** @type {number} */ s, /** @type {any} */ d) => s + d.views, 0);
-  const totalDl = daily.reduce((s, d) => s + d.downloads, 0);
+  const totalDl = daily.reduce((/** @type {number} */ s, /** @type {{ downloads: number }} */ d) => s + d.downloads, 0);
   statsEl.textContent = `近 ${daily.length} 天 · 浏览 ${totalViews} · 下载 ${totalDl}`;
 
   const W = 640,
@@ -307,10 +310,11 @@ function renderGameTable(games) {
   cachedGames = games || [];
   // v11.0 B7：tag 聚合过滤——keywords 含激活标签的游戏才入表
   if (activeTagFilter) {
+    const tagFilter = activeTagFilter; // 回调内窄化丢失（let 跨文件全局）——块内捕获
     cachedGames = cachedGames.filter(
       (/** @type {any} */ g) =>
         Array.isArray(g.keywords) &&
-        g.keywords.some((/** @type {string} */ k) => String(k).toLowerCase() === activeTagFilter.toLowerCase())
+        g.keywords.some((/** @type {string} */ k) => String(k).toLowerCase() === tagFilter.toLowerCase())
     );
   }
   const tbody = document.getElementById('gameTableBody');

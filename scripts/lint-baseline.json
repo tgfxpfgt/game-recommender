@@ -1,15 +1,15 @@
 {
-  "updatedAt": "2026-11-12",
-  "batch": "v14 B9 lint 规则收紧——错误/警告数基线锁定（新增即红，防劣化）",
+  "updatedAt": "2026-11-19",
+  "batch": "v14.34.5 noImplicitAny 三域开闸收口——家族债清零后基线降锁 0（只降不升棘轮保留）",
   "eslint": {
     "errors": 0,
     "warnings": 0,
     "enforcedBy": "lint 脚本 --max-warnings 0（check/gate 内生效）"
   },
   "tsNoImplicitAnyErrors": {
-    "main": 495,
-    "ui": 248,
-    "content": 272,
+    "main": 0,
+    "ui": 0,
+    "content": 0,
     "notes": [
       "noImplicitAny 现为关闭（非 roadmap 预期的 warn）——全开约 1570 处需整库类型工程，",
       "  数字记录为棘轮参照：后续批次补类型后下调，禁止上调；",
@@ -41,9 +41,13 @@
     "2026-11-03 下调 main 510→495（v14.13 B8：message-contract 校验助手五函数补类型；剩余债集中于规则表 (m)=> 形态，后续表驱动重构时清偿）"
   ],
   "tsImplicitAnyFamily": {
-    "main": 675,
-    "ui": 347,
-    "content": 356
+    "main": 0,
+    "ui": 0,
+    "content": 0,
+    "notes": [
+      "v14.34.5：tsconfig 三域 noImplicitAny:false 显式豁免已删（strict 组内默认 true 生效），12 处家族债修复（dash-stats 4 参数注解 / rules.js 1 处 / __GR_TOKENS__ 全局声明 6 处），实测全 0；",
+      "此基线从此锁 0——任何隐式 any 回流直接红。"
+    ]
   },
   "xssBaselineNote": "v14.28.12：75 = 74 + candidates.js:273 reasonText 三元（B2-F4 失败原因映射——受控静态片段，三个分支均为代码内固定文案、无外部数据插值；v14.22.2 入口按钮 74 与 v14.19.0 platformSection 73 基线说明仍适用：其插值全 esc/escapeAttr）"
 }

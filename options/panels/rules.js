@@ -65,11 +65,13 @@
   // v15 阶段 3：规则面板状态区块 Preact 组件（按需装载一次）
   /** @type {{mountAt: (v: any, el: HTMLElement) => void, NoRules: any, HealthHeader: any}|null} */
   let rulesPreact = null;
+  /** @returns {Promise<{mountAt: (v: any, el: HTMLElement) => void, NoRules: any, HealthHeader: any}>} */
   async function ensureRulesPreact() {
     if (rulesPreact) return rulesPreact;
     rulesPreact = await import(chrome.runtime.getURL('options/panels/rules-status.preact.mjs'));
-    return rulesPreact;
+    return /** @type {NonNullable<typeof rulesPreact>} */ (rulesPreact);
   }
+  /** @param {{ sites?: any[] } | null} merged */
   function renderRuleList(merged) {
     const el = document.getElementById('ruleList');
     const sites = (merged && merged.sites) || [];
@@ -284,8 +286,7 @@
 
   /** @param {Event} e */
   async function importRulesFile(e) {
-    const file =
-      /** @type {HTMLInputElement} */ (e.target).files && /** @type {HTMLInputElement} */ (e.target).files[0];
+    const file = /** @type {HTMLInputElement} */ (e.target).files?.[0];
     /** @type {HTMLInputElement} */ (e.target).value = ''; // 允许重复导入同一文件
     if (!file) return;
     try {
