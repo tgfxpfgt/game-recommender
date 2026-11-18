@@ -16,7 +16,7 @@
 import { dataStore } from '../../data/data-store.js';
 import { DB_KEYS } from '../core/constants.js';
 import { Logger } from '../storage/logger.js';
-import { applyVocabOverride, resetVocabOverride } from '../../shared/retrieval-vocab.js';
+import { applyVocabOverride } from '../../shared/retrieval-vocab.js';
 import { reloadRetrievalRules } from './api-search.js';
 
 /**
@@ -42,12 +42,6 @@ export async function ensureRetrievalVocabOverride() {
   }
 }
 
-/**
- * 回滚词表覆盖到内置词表（v14.16.0 O6 导入回放门用：清内存覆盖态 + 热更
- * 回内置编译产物；存储由调用方决定是否清除）。
- * Roll the vocab back to built-ins (import-gate rollback path).
- */
-export function rollbackRetrievalVocab() {
-  resetVocabOverride();
-  reloadRetrievalRules();
-}
+// v14.34.0：rollbackRetrievalVocab 封装删除（knip 盘点死导出）——回放门
+//（handlers/adapter-rules.js）按各调用点语义直接组合 resetVocabOverride/
+// reloadRetrievalRules（拒绝/回滚/热更三形态各异，非固定组合）。

@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.34.1',
+        date: '2026-11-19',
+        items: [
+          'knip 6.46.0 devDep + knip.json 入口配置（适配 esbuild concat 全局语义/getURL 动态装载面豁免——32 unused files 误报全定性豁免）',
+          '清理 5 处真死代码：baseline-crawl.mjs 死文件 + warmupSiteAlertPersist/rollbackRetrievalVocab/happyWindow 死导出 + ONE_DAY 重复副本单源化（manager 改 import fetch）',
+          '常态化 = npm run knip 手动盘点（不入 gate:fast——全仓扫描耗时，渐进迁移期豁免面大）；回归 93 用例全绿'
+        ]
+      },
+      {
         ver: '14.34.0',
         date: '2026-11-19',
         items: [

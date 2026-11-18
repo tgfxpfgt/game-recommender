@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.34.1（knip 死代码盘点落地，2026-11-19）
+
+- knip 6.46.0 devDep + knip.json 入口配置（适配 esbuild concat 全局语义/getURL 动态装载面豁免——32 unused files 误报全定性豁免）
+- 清理 5 处真死代码：baseline-crawl.mjs 死文件 + warmupSiteAlertPersist/rollbackRetrievalVocab/happyWindow 死导出 + ONE_DAY 重复副本单源化（manager 改 import fetch）
+- 常态化 = npm run knip 手动盘点（不入 gate:fast——全仓扫描耗时，渐进迁移期豁免面大）；回归 93 用例全绿
+
 ### v14.34.0（AI 协作与安全审计调研落地（A3/C2/C3），2026-11-19）
 
 - check:agents-docs 活规则保鲜门禁（AGENTS/CONTRIBUTING/playbooks 引用命令与路径存在性 53 处——规则腐烂=AI 带失效指令工作）

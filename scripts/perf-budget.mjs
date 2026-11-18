@@ -183,7 +183,9 @@ export const BUDGETS = {
   // stage-1 slice-19~22 (service-worker/orchestrator-detail/app-stats/ai-fallback/
   // api-assemble/api-monitor/itad/diag-status/api-reviews/types/series 68→0): +3,156B;
   // 全量 vitest（unit+sim+integration）绿 + 普通 typecheck 三配置 0 + lint 0。
-  swGraphBytes: 985750,
+  // v14.34.1 重锁（+156B）：knip 盘点清理——retrieval-override/diag-status 死导出
+  // 删除 + ONE_DAY 单源化 import 重排 + 退役注释（v14.34.0 三防线入库后 bundle 重排）
+  swGraphBytes: 985906,
   swGraphFiles: 108,
   staticInjectionBytes: 41036,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish

@@ -1,0 +1,42 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "background/service-worker.js",
+    "background/core/site-scripts.js",
+    "content/tracker.js",
+    "content/module-manifest.js",
+    "popup/popup.html",
+    "options/options.html",
+    "dashboard/dashboard.html",
+    "hub/hub.html",
+    "freegames/freegames.html",
+    "welcome/welcome.html",
+    "sidepanel/sidepanel.html",
+    "userscript/game-radar.user.js",
+    "scripts/build-userscript.mjs",
+    "scripts/gen-module-index.mjs",
+    "scripts/measure-write-amplification.mjs",
+    "tests/e2e-probe.mjs"
+  ],
+  "ignoreExportsUsedInFile": true,
+  "ignore": [
+    "dashboard/**",
+    "freegames/**",
+    "hub/**",
+    "lib/**",
+    "options/**",
+    "popup/**",
+    "shared/crypto-utils.js",
+    "shared/ical.js",
+    "shared/ui-tokens.js",
+    "welcome/**",
+    "scripts/generate-architecture.mjs",
+    "scripts/test-changed.mjs",
+    "scripts/release.mjs",
+    "extension-env.d.ts"
+  ],
+  "ignoreDependencies": [
+    "preact",
+    "prettier"
+  ]
+}

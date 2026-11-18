@@ -32,7 +32,6 @@ export const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 // ============ happy-dom 真实 DOM / real DOM ============
 // url 注入模拟咸鱼单机页面（与原 location mock 同域同路径）
 const win = new Window({ url: 'https://www.xianyudanji.gg/pcdj' });
-export const happyWindow = win;
 // v15 阶段 2：location 切换兼容层——套件以平面对象覆写 globalThis.location，
 // happy-dom Location 为宿主对象无法整体替换；用 defineProperty 拦截赋值并
 // 镜像 hostname/pathname/href 到真实 win.location（getCurrentDomain/URL 解析

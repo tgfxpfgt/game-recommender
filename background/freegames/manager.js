@@ -20,7 +20,8 @@ import {
   determineSteamFreeType,
   classifyGamerPowerGiveaway,
   classifyFreeType,
-  extractThirdPartySource
+  extractThirdPartySource,
+  ONE_DAY
 } from './fetch.js';
 import { getItadLowest, watchFavoritePrices, getFavoritePrices } from './itad.js';
 import { getLastNotifyGames, notifyNewFreeGames, updateFreeGamesBadge, claimFreeGame } from './notify.js';
@@ -29,8 +30,6 @@ import { getLastNotifyGames, notifyNewFreeGames, updateFreeGamesBadge, claimFree
 export { getLastNotifyGames, claimFreeGame };
 export { getItadLowest, watchFavoritePrices, getFavoritePrices };
 export { determineSteamFreeType, classifyGamerPowerGiveaway, classifyFreeType, extractThirdPartySource };
-
-const ONE_DAY = 24 * 3600 * 1000;
 
 // 刷新限免游戏（force 强制重新拉取）/ Refresh free games (force re-fetches)
 // v9.7.0：in-flight 复用——启动/alarm/UI 三处触发源可能并发（SW 启动即发

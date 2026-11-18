@@ -12,6 +12,8 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { createTtlCache } from '../core/mechanisms.js';
 import { Logger } from '../storage/logger.js';
 
+// v14.34.0：ONE_DAY 单源化——manager.js 原有同名私有副本已删，改 import 本处
+//（knip 盘点暴露重复定义；fetch.js 为导出方）。
 export const ONE_DAY = 24 * 3600 * 1000;
 
 // v3.4.1：外链协议白名单——第三方 API 的链接/图片只允许 http(s)

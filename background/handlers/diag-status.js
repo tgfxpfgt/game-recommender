@@ -39,9 +39,8 @@ export async function handleGetSteam250Rank(message) {
 // v9.3.0：站点规则失效告警（内容侧提取 0 上报——站点改版可感知；每站点 24h 限频）
 // v10.0.0：限频表持久化 storage.session（防抖）——SW 冷启动后 24h 限频连续
 const siteAlertPersist = createSessionPersist('grSiteAlertLast', { initial: {} });
-export async function warmupSiteAlertPersist() {
-  await siteAlertPersist.load();
-}
+// v14.34.0：warmupSiteAlertPersist 已迁 warmup-coordinator.js（分层预热单点），
+// 此处 export 为迁移遗留死导出（knip 盘点暴露）——siteAlertPersist 留给下方 handler。
 /** @param {import('../core/types.js').MessagePayload} message */
 export async function handleSiteAdapterAlert(message) {
   const siteKey = String(message.siteKey || 'unknown');
