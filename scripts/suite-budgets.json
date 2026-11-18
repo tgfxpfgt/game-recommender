@@ -1,29 +1,29 @@
 {
-  "generatedAt": "2026-11-13T12:00:00Z",
-  "note": "套件墙钟预算单源（L3）。measuredMs = 本机实测（Windows，串行无并行负载）；capMs = ceil(measuredMs*1.5/5000)*5000。v14.29.1 变更面化后口径：coverageGate = vitest related <新增文件> + 插桩（实测 24s，原先全量 112.3s——变更面自动触发）；mutations 无独立预算（gate:fast 内 76.9s→0.2-15s 按变更面浮动，整链 gateFast 兜底）。gateFast = 含受影响测试的普通批次口径。超预算先复跑排除机器负载，仍超才调整基线。",
+  "generatedAt": "2026-11-18T20:20:10Z",
+  "note": "套件墙钟预算单源（L3）。measuredMs = 本机实测（Windows，串行无并行负载）；capMs = ceil(measuredMs*1.5/5000)*5000。v14.29.1 变更面化后口径：coverageGate = vitest related <新增文件> + 插桩（实测 24s，原先全量 112.3s——变更面自动触发）；mutations 无独立预算（gate:fast 内 76.9s→0.2-15s 按变更面浮动，整链 gateFast 兜底）。gateFast = 含受影响测试的普通批次口径。超预算先复跑排除机器负载，仍超才调整基线。 校准来源：hyperfine 3 轮 mean（2026-11-18T20:20:10Z，calibrate-budgets.mjs）。",
   "budgets": [
     {
       "id": "unit",
       "label": "npx vitest run tests/unit（unit 全量）",
-      "measuredMs": 81230,
+      "measuredMs": 80289,
       "capMs": 125000
     },
     {
       "id": "sim",
       "label": "npm run test:sim（sim 4 套件 + integration 5 套件）",
-      "measuredMs": 29300,
-      "capMs": 45000
+      "measuredMs": 33011,
+      "capMs": 50000
     },
     {
       "id": "e2eMock",
       "label": "E2E_MOCK=1 npm run e2e:dist（dist 产物离线 E2E 冒烟，含 build）",
-      "measuredMs": 66530,
-      "capMs": 100000
+      "measuredMs": 67159,
+      "capMs": 105000
     },
     {
       "id": "visual",
       "label": "npm run visual（视觉回归 11 张基线）",
-      "measuredMs": 12510,
+      "measuredMs": 11726,
       "capMs": 20000
     },
     {

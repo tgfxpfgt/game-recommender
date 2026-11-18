@@ -276,6 +276,10 @@ for (const f of relevant) {
       directUnit.push(f); // 只把真实测试文件交给 vitest
       continue;
     }
+    // v15 阶段 3：视觉基线 png = gate visual 步骤的**产物**（版本号漂移/样式重钉
+    // 由该步骤本轮运行并重钉），非 vitest 夹具——passthrough 免映射（其断言
+    // 就是产出它的 visual 对比本身，触发面含 styles 时必然已运行）。
+    if (f.startsWith('tests/visual/baseline/')) continue;
     const mapped = FIXTURE_MAP.find((m) => m.file === f);
     if (mapped) mapped.suites.forEach((s) => directUnit.push(s));
     else unmappedFixtures.push(f);

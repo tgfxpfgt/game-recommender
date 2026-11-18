@@ -1,0 +1,43 @@
+# PR-Agent 独立评审位（理论最优清单 B6，v14.34.3）：
+# 批次主要由 AI 生成时，评审通道必须与生成方独立——门禁拦结构错误（AST/类型/
+# 缺陷回放），评审位拦「逻辑对但语义错」（AGENTS 铁律之外的语义防线）。
+#
+# 首次启用清单（机制存在 ≠ 功能生效——首次 PR 必须实际观察到评审评论落盘）：
+#   1) gh secret set CUSTOM_OPENAI_API_KEY   # GLM API key（OpenAI 兼容端点）
+#   2) 核对 .pr_agent.toml 的 model 与账号实际可用模型一致（改错 = 404 静默失败）
+#   3) 走一次 PR 流（分支 → push → gh pr create）→ 确认 describe/review/improve
+#      评论真实出现；失败看 Actions 日志（常见：secret 未配 / 模型名 404）
+#
+# 触发：PR 打开/重开/就绪时自动三件套；PR 内评论 /ask <问题> 交互式追问。
+# 版本锁：The-PR-Agent/pr-agent@v0.50.0（2026-04 起 Qodo 移交社区维护，
+# 原 qodo-ai/pr-agent；锁 tag 防 @main 漂移）。
+name: PR Agent 评审
+
+on:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issue_comment:
+    types: [created]
+
+concurrency:
+  group: pr-agent-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-agent:
+    if: ${{ github.event.sender.type != 'Bot' }}
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
+    steps:
+      - name: PR Agent 评审
+        uses: The-PR-Agent/pr-agent@v0.50.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # litellm custom_openai 语义：OpenAI 兼容端点（z.ai GLM）
+          CUSTOM_OPENAI_API_KEY: ${{ secrets.CUSTOM_OPENAI_API_KEY }}
+          CUSTOM_OPENAI_BASE: ${{ vars.CUSTOM_OPENAI_BASE || 'https://api.z.ai/api/paas/v4' }}
+        with:
+          handle_features: describe,review,improve

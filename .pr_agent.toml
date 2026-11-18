@@ -1,0 +1,23 @@
+# PR-Agent 仓库级配置（评审位语义参数；模型接线见 .github/workflows/pr-agent.yml）
+# 参考：The-PR-Agent/pr-agent（社区维护版，v0.50.0）。本文件被 pr-agent 在
+# Action 运行时读取——改字段前跑一次 PR 流验证「真实生效」（首启清单见 workflow）。
+
+[config]
+# 模型：litellm custom_openai 前缀 = OpenAI 兼容端点转发；模型名与账号可用
+# 列表对齐（改错名 = 404 静默失败——与 AGENTS 外部引用锁同源的教训）
+model = "custom_openai/glm-5.3"
+response_language = "zh-CN"
+# 评审输出不自动 commit/push（只发评论——评审位无写权限是设计约束）
+publish_output = true
+
+[pr_reviewer]
+# 评审聚焦：语义正确性/边界/安全，不重复门禁已拦的结构问题
+extra_instructions = """
+本仓库为 Chrome MV3 扩展（原生 JS + JSDoc）。评审重点：
+1) 后台模块是否误用动态 import（MV3 SW 禁止）；2) 动态内容是否经 escapeHtml/escapeAttr；
+3) 存储读写是否走 dataStore 且计数类有锁；4) 失败是否被渲染成「未找到」（三态语义）；
+5) 逻辑对但语义错的情况（门禁拦不住的）。不评格式/lint 类问题。
+"""
+
+[pr_description]
+publish_labels = false
