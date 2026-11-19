@@ -128,10 +128,23 @@ function renderFreeGamesCalendar(games) {
   host.innerHTML = html;
 }
 
+// v15 阶段 3：限免页状态区块 Preact 组件（按需装载一次）
+/** @type {{mountAt: (v: any, el: HTMLElement) => void, StatusLine: any}|null} */
+let fgStatusPreact = null;
+async function ensureFgStatusPreact() {
+  if (fgStatusPreact) return fgStatusPreact;
+  fgStatusPreact = await import(chrome.runtime.getURL('freegames/freegames-status.preact.mjs'));
+  return fgStatusPreact;
+}
+/** @param {HTMLElement} listEl @param {string} msg @param {string} [cls] */
+async function mountFgStatus(listEl, msg, cls) {
+  const P = await ensureFgStatusPreact();
+  if (P) P.mountAt(P.StatusLine({ msg, cls: cls || 'empty' }), listEl);
+}
 // 加载限免游戏（force=true 强制刷新数据源）/ Load free games (force=true re-fetches sources)
 async function loadFreeGames(force = false) {
   const listEl = document.getElementById('gameList');
-  listEl.innerHTML = '<div class="loading">正在加载限免游戏...</div>';
+  await mountFgStatus(listEl, '正在加载限免游戏...', 'loading');
 
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_FREE_GAMES', force });
@@ -159,10 +172,10 @@ async function loadFreeGames(force = false) {
       renderGames();
       renderFreeGamesCalendar(allGames); // v14.8 批次 7：当月月历
     } else {
-      listEl.innerHTML = '<div class="empty">加载失败，请重试</div>';
+      await mountFgStatus(listEl, '加载失败，请重试');
     }
   } catch (e) {
-    listEl.innerHTML = `<div class="empty">加载失败: ${escapeHtml(String(e))}</div>`;
+    await mountFgStatus(listEl, '加载失败: ' + escapeHtml(String(e)));
   }
 }
 
@@ -177,7 +190,7 @@ function renderGames() {
   const filtered = filterFreeGames ? filterFreeGames(base, currentFilter, currentClaimFilter) : base;
 
   if (filtered.length === 0) {
-    listEl.innerHTML = '<div class="empty">当前没有符合条件的限免游戏</div>';
+    void mountFgStatus(listEl, '当前没有符合条件的限免游戏');
     return;
   }
 
