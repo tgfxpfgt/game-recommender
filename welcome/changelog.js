@@ -16,6 +16,17 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.35.0',
+        date: '2026-11-20',
+        items: [
+          '@playwright/test runner 基建：playwright.config.mjs + tests/e2e-pw 扩展 fixtures（复用 helpers 单源语义零复制）+ boot.spec 4 用例 4.9s 全绿（SW 装载/popup 冒烟/options 零 console error/fixture 页环境）',
+          'trace 失败保留（trace viewer 回放替代单次跑数排障）；GR_EXTENSION_DIR 默认 dist、E2E_MOCK 默认 1（离线确定性）',
+          'harness 缺陷修复：launchOpts 补 --no-proxy-server——系统代理下 host-resolver-rules 对代理连接不生效（fixture 导航撞真实站点 4xx），同机开关对照实证',
+          '@playwright/test 与 playwright-core 锁 1.63.0（chromium-1243 缓存内，免下载）',
+          '补登 b220d93 freegames 限免页状态区块 Preact 化批次（该提交未走 bump，本条目为其补记）'
+        ]
+      },
+      {
         ver: '14.34.5',
         date: '2026-11-19',
         items: [

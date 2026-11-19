@@ -1,6 +1,6 @@
 {
   "name": "game-recommender",
-  "version": "14.34.5",
+  "version": "14.35.0",
   "description": "游戏雷达 Game Radar - 游戏智能推荐（Chrome MV3 扩展）",
   "type": "module",
   "private": true,
@@ -48,10 +48,12 @@
     "test:changed": "vitest run --changed",
     "gate": "node scripts/gate.mjs",
     "gate:fast": "node scripts/gate.mjs --fast",
-    "bump": "node scripts/bump.mjs"
+    "bump": "node scripts/bump.mjs",
+    "e2e:pw": "playwright test -c playwright.config.mjs"
   },
   "devDependencies": {
     "@ast-grep/cli": "^0.51.3",
+    "@playwright/test": "^1.63.0",
     "@types/chrome": "^0.2.6",
     "@vitest/coverage-v8": "^4.1.10",
     "esbuild": "^0.28.2",
@@ -61,7 +63,7 @@
     "happy-dom": "^21.0.4",
     "knip": "^6.46.0",
     "pixelmatch": "^7.2.0",
-    "playwright-core": "^1.45.0",
+    "playwright-core": "^1.63.0",
     "pngjs": "^7.0.0",
     "preact": "^11.2.0",
     "prettier": "^3.9.6",

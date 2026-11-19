@@ -269,7 +269,13 @@ export function launchOpts() {
     args: [
       `--disable-extensions-except=${EXTENSION_DIR}`,
       `--load-extension=${EXTENSION_DIR}`,
-      `--host-resolver-rules=MAP www.xianyudanji.gg 127.0.0.1`
+      `--host-resolver-rules=MAP www.xianyudanji.gg 127.0.0.1`,
+      // v14.34.6：禁系统代理——fixture 全本地（127.0.0.1），但 Chrome 对代理
+      // 连接不应用 host-resolver-rules（代理自行解析真域名 → 导航撞真实站点
+      // 4xx → ERR_HTTP_RESPONSE_CODE_FAILURE）。E2E/MOCK 的离线确定性契约
+      // 本就不允许任何真实网络介入，代理旁路属 harness 级缺陷而非环境噪声。
+      // 实证：同机开关对照（默认 FAIL / --no-proxy-server 200）。
+      `--no-proxy-server`
     ]
   };
 }

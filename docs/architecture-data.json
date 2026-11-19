@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-18T20:48:16.046Z",
-  "version": "14.34.5",
+  "generatedAt": "2026-11-19T22:23:19.673Z",
+  "version": "14.35.0",
   "nodes": [
     {
       "dir": "background",
@@ -56,7 +56,7 @@
       "color": "#e67e22",
       "desc": "限免页 — Epic/GOG/Steam/GamerPower",
       "files": 3,
-      "lines": 670
+      "lines": 684
     },
     {
       "dir": "shared",

@@ -2,6 +2,14 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.35.0（Playwright Test runner 落地（B4 阶段 1）——boot 冒烟 + harness 代理缺陷修复，2026-11-20）
+
+- @playwright/test runner 基建：playwright.config.mjs + tests/e2e-pw 扩展 fixtures（复用 helpers 单源语义零复制）+ boot.spec 4 用例 4.9s 全绿（SW 装载/popup 冒烟/options 零 console error/fixture 页环境）
+- trace 失败保留（trace viewer 回放替代单次跑数排障）；GR_EXTENSION_DIR 默认 dist、E2E_MOCK 默认 1（离线确定性）
+- harness 缺陷修复：launchOpts 补 --no-proxy-server——系统代理下 host-resolver-rules 对代理连接不生效（fixture 导航撞真实站点 4xx），同机开关对照实证
+- @playwright/test 与 playwright-core 锁 1.63.0（chromium-1243 缓存内，免下载）
+- 补登 b220d93 freegames 限免页状态区块 Preact 化批次（该提交未走 bump，本条目为其补记）
+
 ### v14.34.5（TS strict 三域收口——noImplicitAny 与 strictNullChecks 全开零豁免，2026-11-19）
 
 - 三域 tsconfig 删除 noImplicitAny:false / ui 域 strictNullChecks:false 显式豁免——strict 开关组全开，JSDoc 形态下完整 strict 覆盖达成
