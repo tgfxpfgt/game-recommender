@@ -135,7 +135,7 @@
             type: 'checkbox',
             'data-ds': key,
             checked: ds[key] !== false,
-            onChange: (ev) => {
+            onChange: (/** @type {any} */ ev) => {
               OPTS.currentSettings.dataSources = {
                 ...(OPTS.currentSettings.dataSources || {}),
                 [key]: ev.target.checked
@@ -186,7 +186,7 @@
             type: 'checkbox',
             'data-mod': key,
             checked: mods[key] !== false,
-            onChange: (ev) => {
+            onChange: (/** @type {any} */ ev) => {
               OPTS.currentSettings.steamApiModules = {
                 ...(OPTS.currentSettings.steamApiModules || {}),
                 [key]: ev.target.checked
@@ -233,7 +233,7 @@
             type: 'checkbox',
             'data-builtin-site': domain,
             checked: !disabled.includes(domain),
-            onChange: (ev) => {
+            onChange: (/** @type {any} */ ev) => {
               const d = ev.target.dataset.builtinSite;
               const set = new Set(OPTS.currentSettings.disabledSites || []);
               if (ev.target.checked) set.delete(d);
