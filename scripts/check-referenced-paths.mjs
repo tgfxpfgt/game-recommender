@@ -55,7 +55,11 @@ const ROOT_FILE_RE = new RegExp(`(?<![\\w/.-])(${ROOT_FILES.map((f) => f.replace
 const ALLOWLIST = new Map([
   ['tests/e2e/run.mjs', 'welcome/changelog.js 历史日志叙述（旧编排层 v14.37.3 退役）'],
   ['tests/e2e-smoke.mjs', 'welcome/changelog.js 历史日志叙述（旧编排层 v14.37.3 退役）'],
-  ['scripts/e2e-dist.mjs', 'welcome/changelog.js 历史日志叙述（旧入口 v14.36.0 切换后退役）']
+  ['scripts/e2e-dist.mjs', 'welcome/changelog.js 历史日志叙述（旧入口 v14.36.0 切换后退役）'],
+  [
+    'tests/fixtures/list-page.html',
+    'CONTRIBUTING.md 说明性引用——tests/fixtures 为 .gitignore 有意排除的本地生成夹具（clean-artifacts 清理目标，e2e 流程本地生成），干净检出按设计不存在'
+  ]
 ]);
 
 const problems = [];
