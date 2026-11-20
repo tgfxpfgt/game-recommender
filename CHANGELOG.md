@@ -2,6 +2,10 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.37.2（文档对齐——E2E 验收入口 e2e:dist → e2e:pw（活规则保鲜），2026-11-20）
+
+- AGENTS 测试约定节 + 常用命令、CONTRIBUTING 环境准备三处 E2E 入口描述随 v14.36.0 gate 切换对齐（文档腐烂=AI 读错上下文的首要来源——check:agents-docs 引用校验之外的语义面补齐）；新增检查项仍写 section-*.mjs（runner 桥接自动获得）；旧入口保留运行能力回退面登记
+
 ### v14.37.1（dashboard 数据渲染面 Preact 化（渐进迁移续批），2026-11-20）
 
 - dash-stats 四处数据渲染 innerHTML 退役：下载方式/站点 Top5/游戏明细表/行为日志表（含组件化+插值天然转义）

@@ -17,7 +17,7 @@ npm ci                 # 安装依赖（vitest/eslint/typescript/playwright-core
 npm run install-hooks  # 安装 git 钩子（提交信息格式 + 暂存 JS 语法检查）
 npm run check          # lint + vitest 全量
 npm run typecheck      # tsc --noEmit（background/** 全层 checkJs）
-npm run e2e:dist      # 浏览器冒烟（build+dist 产物 E2E_MOCK=1 离线回放全量；源码树直跑已退役）
+npm run e2e:pw        # 浏览器冒烟（build+dist 产物 E2E_MOCK=1 离线回放全量；@playwright/test 节管线，v14.36.0 起主入口）
 npm run coverage       # vitest 覆盖率
 ```
 

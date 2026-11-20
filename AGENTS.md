@@ -20,7 +20,7 @@ npm run build       # v15 构建器：页面 concat bundle（classic 语义保�
 npm run gate        # 全量门禁：vitest 两阶段 + E2E(MOCK) + visual + 打包（发布触发点跑；步骤级墙钟预算 suite-budgets.json）
 npm run gate:fast   # 快速门禁：静态门禁群 + lint/typecheck + 受影响测试 + 缺陷回放 + 棘轮 + visual —— 每批提交前必跑
 npm run bump        # 版本四处一键 bump：npm run bump patch|minor "标题" "要点1" [要点2...]（manifest/package/CHANGELOG.md/welcome）
-npm test            # 仅 vitest（两阶段：unit → sim/integration）；E2E 验收入口 = npm run e2e:dist（MOCK+build，gate 步骤）
+npm test            # 仅 vitest（两阶段：unit → sim/integration）；E2E 验收入口 = npm run e2e:pw（MOCK+build，gate 步骤）
 npm run test:changed -- <改动文件...>  # 按变更面选测（日常批次首选，快于全量）
 npm run check:docs  # 文档版本/索引门禁；npm run clean:artifacts 清理本地生成物
 npm run check:modules  # 模块索引（docs/modules/INDEX.md）漂移 + 豁免登记校验；重生成 node scripts/gen-module-index.mjs
@@ -186,10 +186,12 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
     startInit 立即跑 → 与手动驱动双流污染）；
   - location 切换走 harness 兼容层（平面对象赋值镜像到真实 Location.href）；
   - 真实 DOM textContent 聚合子元素——断言徽章文本用 startsWith/独立节点查询。
-- e2e 冒烟：**验收入口 = `npm run e2e:dist`**（先 build 再以 dist 产物跑 MOCK 全量——
-  源码树直跑撞 Preact 裸 specifier，v15 阶段 3 起退役；v14.33.1 gate 步骤同切）。
-  管线入口 `tests/e2e-smoke.mjs`（re-export 壳）→ `tests/e2e/run.mjs` 节管线；
-  新增检查项写入对应 `section-*.mjs`（E2E_MOCK 双模式语义不动）。
+- e2e 冒烟：**验收入口 = `npm run e2e:pw`**（v14.36.0 起 @playwright/test runner
+  全面接管——内聚 build，验收对象 dist 产物；节函数零重写移植自 tests/e2e/
+  section-*.mjs，`tests/e2e-pw/pipeline.spec.mjs` serial 编排，state.check 桥接
+  expect.soft 软断言=失败继续跑完+终态红；trace 失败保留 test-results/）。
+  **新增检查项仍写 section-*.mjs**（runner 自动获得）；旧入口 `npm run e2e:dist`
+  （run.mjs 节管线）保留运行能力作回退面，退役删除留清理批。
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
   真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
   主世界 evaluate 读不到，模块加载以网络请求为准）；不进门禁。
