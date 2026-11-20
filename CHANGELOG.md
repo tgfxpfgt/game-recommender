@@ -7,6 +7,9 @@
 - 删 tests/e2e/run.mjs + tests/e2e-smoke.mjs + scripts/e2e-dist.mjs（编排层退役——@playwright/test runner v14.36.0 全面接管且双跑验证绿，回退面过稳定期）；节函数 section-*.mjs 与 helpers.mjs 保留（runner 复用单源），e2e-probe 真机诊断不受影响
 - 引用面同步：calibrate-budgets e2eMock 校准命令 e2e:dist → e2e:pw（否则下次校准跑已删脚本）、coverage-gate 注释、gate.mjs/AGENTS 回退面表述、npm 脚本 e2e:dist 删除
 
+
+**完整发版（2026-11-21，tag+release，zip 上线）**：触发线（v14.31.0 后累计 +12,000 行）→ gate 全量绿（E2E:pw runner 首次完整跑；worktree 干净检出隔离验收）→ **安全深度扫描 seal `sha256:c0c3303486e7788bd009d5db2ffd0968c56c76b6907a37484b753dc7f3079a94`**（Semgrep OSS 含自定义规则：98 findings 0 新增逃逸——74 JS 类全在基线锁管理面 + 24 Actions pin-to-SHA 挂账；报告 docs/reports/security-scan-v14.37.3/）
+
 ### v14.37.2（文档对齐——E2E 验收入口 e2e:dist → e2e:pw（活规则保鲜），2026-11-20）
 
 - AGENTS 测试约定节 + 常用命令、CONTRIBUTING 环境准备三处 E2E 入口描述随 v14.36.0 gate 切换对齐（文档腐烂=AI 读错上下文的首要来源——check:agents-docs 引用校验之外的语义面补齐）；新增检查项仍写 section-*.mjs（runner 桥接自动获得）；旧入口保留运行能力回退面登记
