@@ -16,7 +16,7 @@
     },
     {
       "id": "e2eMock",
-      "label": "E2E_MOCK=1 npm run e2e:dist（dist 产物离线 E2E 冒烟，含 build）",
+      "label": "npm run e2e:pw（@playwright/test 节管线，内聚 build——v14.36.0 B4 阶段 3 切换）",
       "measuredMs": 67159,
       "capMs": 105000
     },

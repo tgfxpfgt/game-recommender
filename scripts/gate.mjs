@@ -236,7 +236,12 @@ if (!fast) {
   await step('coverage:snapshot（全局覆盖率棘轮）', 'npm run coverage:snapshot');
 }
 if (!fast) {
-  await step('E2E 冒烟（MOCK 离线）', 'npm run e2e:dist'); // v14.33.1：验收对象改 dist 产物（源码树直跑撞 Preact 裸 specifier——阶段 3 遗留，e2e-dist 内聚 build）
+  // v14.36.0（B4 阶段 3）：E2E 验收入口切换 @playwright/test runner——节函数
+  // 零重写移植（语义等价由 v14.35.0 阶段 2 双跑验证），新增 trace 失败保留/
+  // expect.soft 软断言/分节报告粒度；e2e:pw 内聚 build（验收对象 = dist 产物，
+  // 与原 e2e:dist 同口径）。旧管线 tests/e2e/run.mjs 保留运行能力作回退面
+  // （npm run e2e:dist），退役删除留后续清理批。
+  await step('E2E 冒烟（MOCK 离线）', 'npm run e2e:pw');
 }
 // v14.24.1（fast 模式）：visual 按变更面跳过——基线只渲染 4 个扩展页
 //（popup/options/dashboard/freegames）+ 主题样式 + 版本号文本，纯后台/内容/

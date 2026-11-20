@@ -1,4 +1,5 @@
-import { test, expect } from './extension-fixture.mjs';
+import { test } from './extension-fixture.mjs';
+import { expect } from '@playwright/test';
 /**
  * 游戏雷达 Game Radar - Playwright E2E boot 冒烟（B4 阶段 1）
  *
