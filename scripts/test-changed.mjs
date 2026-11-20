@@ -311,7 +311,9 @@ const onlyStyles = related.length === 0 && directUnit.length === 0 && simSet.siz
 if (onlyStyles) {
   // "空匹配通过"只允许出现在**变更根本没碰测试面**的批次（docs/scripts/页面层）；
   // 测试文件或夹具变更映射后仍为空 = 选择器漏配，必须红。
-  const testSide = relevant.filter((f) => f.startsWith('tests/'));
+  // v14.37.0：visual 基线 png 与上方分类 passthrough 同口径排除——它们是 gate
+  // visual 步骤的产物（版本号重钉该步骤本轮已运行），非测试资产。
+  const testSide = relevant.filter((f) => f.startsWith('tests/') && !f.startsWith('tests/visual/baseline/'));
   if (testSide.length > 0) {
     console.error(`\n❌ 变更含测试面但未匹配到可运行套件（选择器漏配）：${testSide.join(', ')}`);
     process.exit(1);
