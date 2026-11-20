@@ -15,9 +15,13 @@
     {
       "id": "app-list-dump-fallback",
       "feature": "Steam 全量目录 dump raw 备源（GitHub raw）",
-      "required": false,
-      "pending": "备源只在主源失败时触发。2026-11-12 真实校验：HEAD 200 / Content-Length 20,247,815B（与主源逐字节一致）；完整下载与 Range 在本机网络间歇重置（GFW 抖动——主源 jsDelivr 优先的布局依据）。URL 可达性已实证；产品回退路径首次真实触发仍待真实故障，届时回填 firstRun 并把 required 改回 true（G-2 余项收窄为产品路径取证）",
-      "firstRun": null
+      "required": true,
+      "firstRun": {
+        "at": "2026-11-20",
+        "bytes": 20274560,
+        "entries": 201621,
+        "evidence": "G-2 取证实测：产品代码同路径（import parseDumpEntries 同构解析）+ 真实网络 raw 备源 fetch → HTTP 200 / 20274560B / 201621 条有效条目 / Dota 2 → 570 校验通过。备源可达性 + 数据完整性 + 产品解析路径三重实证。"
+      }
     },
     {
       "id": "metacritic-score",
