@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.35.1',
+        date: '2026-11-20',
+        items: [
+          'welcome-status.preact.mjs：ChangelogBox/SiteStatus/Dots 组件——六处 innerHTML 退役',
+          '主题选择按钮（guideState 状态交互）保留原实现另批'
+        ]
+      },
+      {
         ver: '14.35.0',
         date: '2026-11-20',
         items: [

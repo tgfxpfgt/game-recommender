@@ -42,6 +42,7 @@
       const list = Array.isArray(cl.versions) ? cl.versions : [];
       // 当前版本条目（manifest 版本号精确匹配；缺失时回退最近一版）
       const current = list.find((v) => v && v.ver === ver) || list[0] || null;
+
       const recents = list.filter((v) => v && v !== current).slice(0, 2);
       /** @param {string} s */
       const esc = (s) =>
@@ -50,24 +51,11 @@
           .replace(/</g, '&lt;')
           .replace(/>/g, '&gt;')
           .replace(/"/g, '&quot;');
-      if (current) {
-        box.innerHTML =
-          `<div class="changelog-current"><h3>✨ 本次更新 v${esc(current.ver)}${current.date ? ` <small>(${esc(current.date)})</small>` : ''}</h3>` +
-          `<ul class="changelog">${current.items.map((it) => `<li>${it}</li>`).join('')}</ul></div>` +
-          (recents.length > 0
-            ? `<div class="changelog-recent"><h3>近期版本</h3>` +
-              recents
-                .map(
-                  (v) =>
-                    `<details><summary>v${esc(v.ver)}${v.date ? ` · ${esc(v.date)}` : ''}</summary>` +
-                    `<ul class="changelog">${v.items.map((it) => `<li>${it}</li>`).join('')}</ul></details>`
-                )
-                .join('') +
-              '</div>'
-            : '');
-      } else {
-        box.innerHTML = '<p>本版更新说明见完整记录。</p>';
-      }
+      // v15 阶段 3：更新说明盒 Preact 组件化（<details> 原生交互无需绑定）
+      void ensureWlPreact().then((P) => {
+        if (!P) return;
+        P.mountAt(P.ChangelogBox({ current, recents, esc }), box);
+      });
     }
   }
 
@@ -98,6 +86,15 @@
     minRating: 0
   };
 
+  // v15 阶段 3：欢迎页状态区块 Preact 组件（按需装载一次）
+  /** @type {{mountAt: (v: any, el: HTMLElement) => void, ChangelogBox: any, PlainMsg: any, SiteStatus: any, Dots: any}|null} */
+  let wlStatusPreact = null;
+  async function ensureWlPreact() {
+    if (wlStatusPreact) return wlStatusPreact;
+    wlStatusPreact = await import(chrome.runtime.getURL('welcome/welcome-status.preact.mjs'));
+    return wlStatusPreact;
+  }
+
   async function initGuide() {
     document.getElementById('installSection').classList.add('hidden');
     document.getElementById('guideSection').classList.remove('hidden');
@@ -124,14 +121,20 @@
       const statusEl = document.getElementById('guideSiteStatus');
       const enableBtn = document.getElementById('guideEnableAll');
       if (tracked.length > 0) {
-        statusEl.innerHTML = `✅ 已启用 <b>${tracked.length}</b> 个站点（含自定义）`;
+        void ensureWlPreact().then((P) => {
+          if (P) P.mountAt(P.SiteStatus({ mode: 'custom', count: tracked.length }), statusEl);
+        });
       } else {
-        statusEl.innerHTML = '⚠️ 尚未启用任何站点';
+        void ensureWlPreact().then((P) => {
+          if (P) P.mountAt(P.SiteStatus({ mode: 'none', count: 0 }), statusEl);
+        });
         if (enableBtn && builtInDomains.length > 0) {
           enableBtn.style.display = '';
           enableBtn.addEventListener('click', async () => {
             await saveSettingsPatch({ trackedSites: [...new Set(builtInDomains)] });
-            statusEl.innerHTML = `✅ 已启用 <b>${builtInDomains.length}</b> 个内置站点`;
+            void ensureWlPreact().then((P) => {
+              if (P) P.mountAt(P.SiteStatus({ mode: 'builtin', count: builtInDomains.length }), statusEl);
+            });
             enableBtn.style.display = 'none';
           });
         }
@@ -193,7 +196,9 @@
     let step = 0;
     const show = () => {
       steps.forEach((el, i) => el.classList.toggle('hidden', i !== step));
-      dots.innerHTML = steps.map((_, i) => `<span class="dot${i === step ? ' on' : ''}"></span>`).join('');
+      void ensureWlPreact().then((P) => {
+        if (P) P.mountAt(P.Dots({ step, total: steps.length }), dots);
+      });
       prevBtn.style.visibility = step === 0 ? 'hidden' : 'visible';
       nextBtn.textContent = step === steps.length - 1 ? '完成，打开面板 🚀' : '下一步';
     };
