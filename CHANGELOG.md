@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.37.3（旧 E2E 编排层退役删除——runner 单源化清理批，2026-11-20）
+
+- 删 tests/e2e/run.mjs + tests/e2e-smoke.mjs + scripts/e2e-dist.mjs（编排层退役——@playwright/test runner v14.36.0 全面接管且双跑验证绿，回退面过稳定期）；节函数 section-*.mjs 与 helpers.mjs 保留（runner 复用单源），e2e-probe 真机诊断不受影响
+- 引用面同步：calibrate-budgets e2eMock 校准命令 e2e:dist → e2e:pw（否则下次校准跑已删脚本）、coverage-gate 注释、gate.mjs/AGENTS 回退面表述、npm 脚本 e2e:dist 删除
+
 ### v14.37.2（文档对齐——E2E 验收入口 e2e:dist → e2e:pw（活规则保鲜），2026-11-20）
 
 - AGENTS 测试约定节 + 常用命令、CONTRIBUTING 环境准备三处 E2E 入口描述随 v14.36.0 gate 切换对齐（文档腐烂=AI 读错上下文的首要来源——check:agents-docs 引用校验之外的语义面补齐）；新增检查项仍写 section-*.mjs（runner 桥接自动获得）；旧入口保留运行能力回退面登记

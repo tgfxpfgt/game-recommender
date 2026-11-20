@@ -37,7 +37,7 @@ const BUDGET_FILE = path.join(ROOT, 'scripts', 'suite-budgets.json');
 const CALIBRATION_COMMANDS = {
   unit: { cmd: 'cmd /c npx vitest run tests/unit' },
   sim: { cmd: 'cmd /c npm run test:sim' },
-  e2eMock: { cmd: 'cmd /c npm run e2e:dist', env: { E2E_MOCK: '1' } },
+  e2eMock: { cmd: 'cmd /c npm run e2e:pw', env: { E2E_MOCK: '1' } },
   visual: { cmd: 'cmd /c npm run visual' },
   coverageGate: { cmd: 'cmd /c npm run coverage:gate' }
 };

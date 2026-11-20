@@ -190,8 +190,9 @@ CHANGELOG.md 更新日志 / Agent 记忆），执行"变更影响矩阵"式盘�
   全面接管——内聚 build，验收对象 dist 产物；节函数零重写移植自 tests/e2e/
   section-*.mjs，`tests/e2e-pw/pipeline.spec.mjs` serial 编排，state.check 桥接
   expect.soft 软断言=失败继续跑完+终态红；trace 失败保留 test-results/）。
-  **新增检查项仍写 section-*.mjs**（runner 自动获得）；旧入口 `npm run e2e:dist`
-  （run.mjs 节管线）保留运行能力作回退面，退役删除留清理批。
+  **新增检查项仍写 section-*.mjs**（runner 自动获得）；旧编排层（run.mjs/
+  e2e-smoke 壳/e2e-dist）已退役删除（v14.37.3 清理批），节函数与 helpers 单源
+  保留（runner 复用），e2e-probe 真机诊断不受影响。
 - 真机诊断：`node tests/e2e-probe.mjs [--url <URL>] [--settings <JSON>] [--dump-logs]`——
   真实 Chromium 加载扩展，收集页面信号/扩展模块网络加载/后台日志（boot 在隔离世界，
   主世界 evaluate 读不到，模块加载以网络请求为准）；不进门禁。

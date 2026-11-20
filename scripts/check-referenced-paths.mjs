@@ -50,8 +50,13 @@ const PATH_RE = new RegExp(`(?<![\\w/.-])((?:${TOP_DIRS.join('|')})/[A-Za-z0-9_.
 const ROOT_FILE_RE = new RegExp(`(?<![\\w/.-])(${ROOT_FILES.map((f) => f.replace('.', '\\.')).join('|')})`, 'g');
 
 // 有意不存在的引用（占位示例 / 计划中的文件）——每条必须写明理由
-// 当前为空：首次落地扫描 75 条引用全部可定位（2 条为扩展名边界误报，已修正则）
-const ALLOWLIST = new Map([]);
+// v14.37.3：welcome/changelog.js 为**历史日志文本**（v6.x~v14.33 条目叙述当年
+// 文件路径，非活引用）——旧 E2E 编排层退役删除后其历史提及按叙述豁免。
+const ALLOWLIST = new Map([
+  ['tests/e2e/run.mjs', 'welcome/changelog.js 历史日志叙述（旧编排层 v14.37.3 退役）'],
+  ['tests/e2e-smoke.mjs', 'welcome/changelog.js 历史日志叙述（旧编排层 v14.37.3 退役）'],
+  ['scripts/e2e-dist.mjs', 'welcome/changelog.js 历史日志叙述（旧入口 v14.36.0 切换后退役）']
+]);
 
 const problems = [];
 const seen = new Set();

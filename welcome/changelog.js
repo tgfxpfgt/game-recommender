@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.37.3',
+        date: '2026-11-20',
+        items: [
+          '删 tests/e2e/run.mjs + tests/e2e-smoke.mjs + scripts/e2e-dist.mjs（编排层退役——@playwright/test runner v14.36.0 全面接管且双跑验证绿，回退面过稳定期）；节函数 section-*.mjs 与 helpers.mjs 保留（runner 复用单源），e2e-probe 真机诊断不受影响',
+          '引用面同步：calibrate-budgets e2eMock 校准命令 e2e:dist → e2e:pw（否则下次校准跑已删脚本）、coverage-gate 注释、gate.mjs/AGENTS 回退面表述、npm 脚本 e2e:dist 删除'
+        ]
+      },
+      {
         ver: '14.37.2',
         date: '2026-11-20',
         items: [

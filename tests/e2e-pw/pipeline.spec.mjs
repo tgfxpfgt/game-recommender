@@ -22,7 +22,7 @@ import { runCustomSite } from '../e2e/section-custom-site.mjs';
  * - detail 断链（E2E_FAST&&!MOCK）→ state.broken → 其后节 test.skip
  * - 终局转储（SEARCH_STEAM/任务/flush 生命周期日志）挂在末节尾部（纯诊断零断言）
  *
- * 阶段 3（gate e2e:dist 切换 + 现役 run.mjs 退役）单独批次。
+ * 阶段 3 已落地（v14.36.0 gate 切换；v14.37.3 旧编排层退役删除——本文件为唯一 E2E 编排入口）。
  */
 
 const SECTIONS = [
