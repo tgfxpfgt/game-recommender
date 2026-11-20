@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.37.4（CI Actions pin-to-SHA 迁移（发版 seal 挂账清偿），2026-11-21）
+
+- 23 处 uses 引用从可变 tag pin 到 commit SHA（checkout/setup-node/codeql/cache/upload-artifact/gitleaks——供应链纵深防御，Scorecard 同款检查项；@v4 注释保留版本可读）
+- pr-agent.yml（另一会话进行中工作）不在本批；semgrep p/secrets 复扫可变 tag 0 findings
+
 ### v14.37.3（旧 E2E 编排层退役删除——runner 单源化清理批，2026-11-20）
 
 - 删 tests/e2e/run.mjs + tests/e2e-smoke.mjs + scripts/e2e-dist.mjs（编排层退役——@playwright/test runner v14.36.0 全面接管且双跑验证绿，回退面过稳定期）；节函数 section-*.mjs 与 helpers.mjs 保留（runner 复用单源），e2e-probe 真机诊断不受影响

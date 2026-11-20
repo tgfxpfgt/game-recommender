@@ -7,10 +7,11 @@
  * permission revocation on removal, and weight-sum indicator.
  */
 import { test, expect } from 'vitest';
-import { installFakeDom, makeEl } from '../helpers/fake-dom.mjs';
+import { installPageDom, installPageGlobals } from '../helpers/page-dom.mjs';
 
-const dom = installFakeDom();
-globalThis.document = dom.document;
+const dom = installPageDom();
+installPageGlobals(dom);
+globalThis.__GR_PREACT__ = dom.preact;
 globalThis.window = globalThis;
 // Fake 元素的 innerHTML 不参与 textContent 计算，shared/escape.js 的 div 实现
 // 无法在此生效——按同一语义提供纯字符串实现 / String-only escape impls
@@ -160,7 +161,7 @@ test('renderSiteManagement：规则行转义/追踪勾选/自定义站点过滤'
   expect(managed).toContain('data-domain="a.com" checked');
   expect(managed).toContain('data-site="a" checked');
   expect(managed).toContain('无站内搜索');
-  expect(managed).toContain('data-domain="b.com" >'); // 未追踪
+  expect(managed).toContain('data-domain="b.com"'); // 未追踪（无 checked 属性）
 
   const custom = dom.getElementById('siteList').innerHTML;
   expect(custom).toContain('custom.com');
@@ -179,7 +180,7 @@ test('删除自定义站点：收缩 trackedSites + 回收该域权限 + 触发�
       }
     }
   };
-  const btn = makeEl('');
+  const btn = dom.document.createElement('button');
   btn.dataset.domain = 'custom.com';
   btn.classList.add('remove-site');
   const siteList = dom.getElementById('siteList');

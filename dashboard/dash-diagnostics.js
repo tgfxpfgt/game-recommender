@@ -24,6 +24,8 @@ const COPY_FEEDBACK_RESET_MS = 2000; // 复制反馈复位延时
 let cachedAudit = { entries: [], stats: null };
 
 // 从后台加载出站请求审计（最近 100 条）/ Load outbound request audit (latest 100)
+// v15 阶段 3 全量迁移：innerHTML 退役——审计/健康渲染走 __GR_PREACT__ h() 树
+// （preact-globals.js 页面垫片；Preact 插值天然转义接管 escapeHtml）。
 async function loadOutboundAudit() {
   const container = document.getElementById('auditList');
   try {
@@ -31,7 +33,8 @@ async function loadOutboundAudit() {
     cachedAudit = (response && response.audit) || { entries: [], stats: null };
     renderOutboundAudit();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载审计失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
+    const P = globalThis.__GR_PREACT__;
+    P.render(P.h('div', { class: 'no-data' }, '加载审计失败: ' + window.__GR_MSG__.toUserMessage(e)), container);
   }
 }
 
@@ -45,30 +48,33 @@ function renderOutboundAudit() {
   const filter = (document.getElementById('auditHostFilter').value || '').trim().toLowerCase();
   const entries = (cachedAudit.entries || []).filter((e) => !filter || (e.host || '').toLowerCase().includes(filter));
   if (entries.length === 0) {
-    container.innerHTML = '<div class="no-data">' + (filter ? '无匹配主机记录' : '暂无请求记录') + '</div>';
+    const P = globalThis.__GR_PREACT__;
+    P.render(P.h('div', { class: 'no-data' }, filter ? '无匹配主机记录' : '暂无请求记录'), container);
     renderPager('audit', 'auditPager', 0);
     return;
   }
   const { slice: auditSlice, total: auditTotal } = paginate('audit', entries);
   renderPager('audit', 'auditPager', auditTotal);
-  container.innerHTML = auditSlice
-    .map((e) => {
-      const time = safeDateText(e.t, {
-        // v10.9.1
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-      const detail = e.status ? `HTTP ${e.status}` : e.ok ? '成功' : '异常';
-      return `<div class="log-entry ${e.ok ? '' : 'log-error'}">
-      <span class="log-time">${time}</span>
-      <span class="log-module">[${escapeHtml(e.host)}]</span>
-      <span class="log-msg">${e.ok ? '✓' : '✗'} ${escapeHtml(detail)} · ${e.ms}ms</span>
-    </div>`;
-    })
-    .join('');
+  const P = globalThis.__GR_PREACT__;
+  const rows = auditSlice.map((e, i) => {
+    const time = safeDateText(e.t, {
+      // v10.9.1
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    const detail = e.status ? 'HTTP ' + e.status : e.ok ? '成功' : '异常';
+    return P.h(
+      'div',
+      { class: 'log-entry ' + (e.ok ? '' : 'log-error'), key: String(i) },
+      P.h('span', { class: 'log-time' }, time),
+      P.h('span', { class: 'log-module' }, '[' + (e.host || '') + ']'),
+      P.h('span', { class: 'log-msg' }, (e.ok ? '✓' : '✗') + ' ' + detail + ' · ' + e.ms + 'ms')
+    );
+  });
+  P.render(P.h(P.Fragment, null, rows), container);
 }
 
 // v4.1.0：导出审计 CSV（含筛选结果）/ Export the (filtered) audit as CSV
@@ -140,18 +146,32 @@ async function loadHealthCards() {
     if (listEl) {
       if (sites.length === 0) {
         listEl.style.display = 'none';
-        listEl.innerHTML = '';
+        globalThis.__GR_PREACT__.render(null, listEl);
       } else {
         listEl.style.display = 'block';
-        listEl.innerHTML =
-          '<div style="color:#e74c3c;">⚠ 站点适配器疑似失效（列表项提取为 0，请检查/更新适配规则）：</div>' +
-          sites
-            .map(
-              (/** @type {any} */ s) =>
-                `<div style="margin-top:2px;">• ${escapeHtml(s.siteKey)}（${escapeHtml(s.host || '?')}）— ` +
-                `${s.alertCount} 次，最近 ${new Date(s.lastAlertAt || Date.now()).toLocaleString()}</div>`
+        const PH = globalThis.__GR_PREACT__;
+        PH.render(
+          PH.h(
+            PH.Fragment,
+            null,
+            PH.h('div', { style: 'color:#e74c3c;' }, '⚠ 站点适配器疑似失效（列表项提取为 0，请检查/更新适配规则）：'),
+            sites.map((/** @type {any} */ s, /** @type {number} */ i) =>
+              PH.h(
+                'div',
+                { style: 'margin-top:2px;', key: String(i) },
+                '• ' +
+                  (s.siteKey || '') +
+                  '（' +
+                  (s.host || '?') +
+                  '）— ' +
+                  s.alertCount +
+                  ' 次，最近 ' +
+                  new Date(s.lastAlertAt || Date.now()).toLocaleString()
+              )
             )
-            .join('');
+          ),
+          listEl
+        );
       }
     }
   } catch {

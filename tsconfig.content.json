@@ -11,5 +11,6 @@
     "lib": ["ES2023", "DOM", "DOM.Iterable"],
     "types": ["chrome"]
   },
+  "exclude": ["shared/preact-globals.js"],
   "include": ["content/**/*.js", "globals.d.ts"]
 }

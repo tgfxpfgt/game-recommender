@@ -77,3 +77,5 @@ comm-probe.html
 gh-probe.html
 scripts/.gate-costs.jsonl
 next/node_modules/
+
+shared/preact-globals.js

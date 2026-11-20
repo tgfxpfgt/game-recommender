@@ -795,7 +795,8 @@ test('P2：出站 URL 字面量 ⊆ MOCK_RE 拦截域 ∪ 豁免表（E2E 离线
     'www.xdgame.com',
     'www.xianyudanji.gg',
     'club.steam250.com', // v14.22.0/v14.22.1：steam250 游戏页/排名行深链（后台快照 fetch 走 steam250.com/top250，已在 MOCK_RE）
-    'localhost' // 测试/开发
+    'localhost', // 测试/开发
+    'www.w3.org' // v15 阶段 3：W3C 命名空间 URI（preact 内部 createElementNS 常量，非出站请求）
   ]);
   const HREF_ONLY_PREFIXES = [
     'https://store.steampowered.com/search', // 候选面板"在 Steam 网页搜索"链接

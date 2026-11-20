@@ -20,6 +20,8 @@
 let cachedLogs = [];
 
 // 从后台加载运行日志（最多 200 条）/ Load runtime logs from background (max 200)
+// v15 阶段 3 全量迁移：innerHTML 退役——状态/列表/分页渲染走 __GR_PREACT__ h()
+// 树（preact-globals.js 页面垫片同步提供；Preact 插值天然转义接管 escapeHtml）。
 async function loadRuntimeLogs() {
   const container = document.getElementById('runtimeLogList');
   try {
@@ -27,7 +29,8 @@ async function loadRuntimeLogs() {
     cachedLogs = (response && response.logs) || [];
     renderRuntimeLogs();
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载日志失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
+    const P = globalThis.__GR_PREACT__;
+    P.render(P.h('div', { class: 'no-data' }, '加载日志失败: ' + window.__GR_MSG__.toUserMessage(e)), container);
   }
 }
 
@@ -43,7 +46,8 @@ function renderRuntimeLogs() {
   }
 
   if (logs.length === 0) {
-    container.innerHTML = '<div class="no-data">暂无日志</div>';
+    const P = globalThis.__GR_PREACT__;
+    P.render(P.h('div', { class: 'no-data' }, '暂无日志'), container);
     renderPager('logs', 'logPager', 0);
     return;
   }
@@ -52,26 +56,27 @@ function renderRuntimeLogs() {
   logs = logSlice;
 
   // 倒序显示（最新在前）
-  container.innerHTML = [...logs]
-    .reverse()
-    .map((log) => {
-      const time = safeDateText(log.timestamp, {
-        // v10.9.1
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit'
-      });
-      return `<div class="log-entry log-${log.level}">
-      <span class="log-time">${time}</span>
-      <span class="log-level">${log.level.toUpperCase()}</span>
-      <span class="log-module">[${escapeHtml(log.module)}]</span>
-      <span class="log-msg">${escapeHtml(log.message)}</span>
-      ${log.data ? `<span class="log-data">${escapeHtml(log.data)}</span>` : ''}
-    </div>`;
-    })
-    .join('');
+  const P = globalThis.__GR_PREACT__;
+  const rows = [...logs].reverse().map((log, i) => {
+    const time = safeDateText(log.timestamp, {
+      // v10.9.1
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    });
+    return P.h(
+      'div',
+      { class: 'log-entry log-' + log.level, key: String(i) },
+      P.h('span', { class: 'log-time' }, time),
+      P.h('span', { class: 'log-level' }, log.level.toUpperCase()),
+      P.h('span', { class: 'log-module' }, '[' + (log.module || '') + ']'),
+      P.h('span', { class: 'log-msg' }, log.message || ''),
+      log.data ? P.h('span', { class: 'log-data' }, log.data) : null
+    );
+  });
+  P.render(P.h(P.Fragment, null, rows), container);
 }
 
 // 导出日志为 JSON 文件 / Export logs as a JSON file
@@ -145,7 +150,7 @@ function renderPager(key, containerId, total) {
   const p = /** @type {Record<string, any>} */ (PAGERS)[key];
   const pages = Math.max(1, Math.ceil(total / p.pageSize));
   if (pages <= 1) {
-    el.innerHTML = '';
+    globalThis.__GR_PREACT__.render(null, el);
     return;
   }
   const start = (p.page - 1) * p.pageSize + 1;
@@ -156,11 +161,37 @@ function renderPager(key, containerId, total) {
       `<button class="gr-btn sm pager-btn${i === p.page ? ' active' : ''}" data-key="${key}" data-page="${i}">${i}</button>`
     );
   }
-  el.innerHTML =
-    `<span class="pager-info">${start}-${end} / ${total} 条</span>` +
-    `<button class="gr-btn sm pager-btn" data-key="${key}" data-page="${p.page - 1}" ${p.page <= 1 ? 'disabled' : ''}>‹</button>` +
-    pageBtns.join('') +
-    `<button class="gr-btn sm pager-btn" data-key="${key}" data-page="${p.page + 1}" ${p.page >= pages ? 'disabled' : ''}>›</button>`;
+  const P = globalThis.__GR_PREACT__;
+  const btn = (/** @type {number} */ pg) =>
+    P.h(
+      'button',
+      {
+        class: 'gr-btn sm pager-btn' + (pg === p.page ? ' active' : ''),
+        'data-key': key,
+        'data-page': String(pg),
+        disabled: pg < 1 || pg > pages ? true : undefined
+      },
+      String(pg)
+    );
+  P.render(
+    P.h(
+      P.Fragment,
+      null,
+      P.h('span', { class: 'pager-info' }, start + '-' + end + ' / ' + total + ' 条'),
+      P.h(
+        'button',
+        { class: 'gr-btn sm pager-btn', 'data-key': key, 'data-page': String(p.page - 1), disabled: p.page <= 1 },
+        '‹'
+      ),
+      pageBtns.map((_, i) => btn(i + 1)),
+      P.h(
+        'button',
+        { class: 'gr-btn sm pager-btn', 'data-key': key, 'data-page': String(p.page + 1), disabled: p.page >= pages },
+        '›'
+      )
+    ),
+    el
+  );
 }
 
 // 分页控件事件（事件委托：任何 pager 内按钮）

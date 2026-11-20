@@ -6,6 +6,9 @@
  * View & edit download-site adapter rules as JSON; save overrides the built-in
  * rules; reset to built-in; standalone export/import.
  */
+// v15 阶段 3 全量迁移：innerHTML 退役——渲染走 __GR_PREACT__ h() 树
+// （Preact 插值天然转义接管 escapeHtml；事件经 onChange/onClick prop 直连闭包）
+const GRP = () => globalThis.__GR_PREACT__;
 (function (global) {
   'use strict';
 
@@ -14,6 +17,7 @@
   // ============ 事件绑定 / Event binding ============
   function bindRulesEvents() {
     /** @param {string} id */
+
     const $ = (id) => document.getElementById(id);
     $('ruleSave').addEventListener('click', saveRules);
     $('ruleValidate').addEventListener('click', validateEditor);
@@ -47,10 +51,17 @@
     const el = document.getElementById('ruleSource');
     const importedCount = data.imported ? data.imported.sites.length : 0;
     const builtinCount = data.builtin ? data.builtin.sites.length : 0;
-    el.innerHTML =
-      importedCount > 0
-        ? `📥 已导入规则 <b>${importedCount}</b> 个站点（覆盖内置 ${builtinCount} 个）`
-        : `📦 内置规则 <b>${builtinCount}</b> 个站点`;
+    const P = GRP();
+    P.render(
+      P.h(
+        'div',
+        null,
+        importedCount > 0
+          ? ['📥 已导入规则 ', P.h('b', null, String(importedCount)), ' 个站点（覆盖内置 ' + builtinCount + ' 个）']
+          : ['📦 内置规则 ', P.h('b', null, String(builtinCount)), ' 个站点']
+      ),
+      el
+    );
   }
 
   // 规则列表（展示 + v10.8 F1：features 勾选行——勾选即回写编辑器 JSON，
@@ -82,53 +93,71 @@
       });
       return;
     }
-    el.innerHTML = sites
-      .map((/** @type {any} */ s) => {
-        const f = s.features || {};
-        const checks = FEATURE_FLAGS.map(
-          ([flag, label]) => `
-          <label class="rule-feature-check" title="features.${escapeHtml(flag)}">
-            <input type="checkbox" data-site="${escapeHtml(s.key)}" data-flag="${escapeHtml(flag)}" ${f[flag] === true ? 'checked' : ''}/>
-            ${escapeHtml(label)}
-          </label>`
-        ).join('');
-        return `
-      <div class="rule-item">
-        <div class="rule-item-head">
-          <span class="rule-item-key">${escapeHtml(s.key)}</span>
-          <span class="rule-item-name">${escapeHtml(s.name)}</span>
-          ${s.searchUrl ? '<span class="rule-item-tag">🔍 可检索</span>' : ''}
-        </div>
-        <div class="rule-item-meta">域名: ${escapeHtml(Array.isArray(s.domains) ? s.domains.join(', ') : String(s.domains ?? ''))}</div>
-        ${Array.isArray(s.detailUrlPatterns) ? `<div class="rule-item-meta">详情: ${escapeHtml(s.detailUrlPatterns.join(' | '))}</div>` : ''}
-        ${s.listItem && Array.isArray(s.listItem.containers) ? `<div class="rule-item-meta">容器: ${escapeHtml(s.listItem.containers.join(' | '))}</div>` : ''}
-        <div class="rule-item-features">${checks}</div>
-      </div>`;
-      })
-      .join('');
-    // 勾选 → 回写编辑器 JSON（非法 JSON 时还原勾选并提示）
-    el.querySelectorAll('.rule-feature-check input').forEach((/** @type {any} */ cb) => {
-      cb.addEventListener('change', () => {
-        const siteKey = cb.dataset.site;
-        const flag = cb.dataset.flag;
-        const prev = !cb.checked;
-        const parsed = parseEditor();
-        if (!parsed) {
-          cb.checked = prev; // 编辑器 JSON 当前非法 → 还原勾选
-          return;
-        }
-        const site = (parsed.sites || []).find((/** @type {any} */ x) => x && x.key === siteKey);
-        if (!site) {
-          cb.checked = prev;
-          setRuleStatus(`未在编辑器 JSON 中找到站点 "${siteKey}"（可能已被手动删除）`, 'error');
-          return;
-        }
-        site.features = site.features || {};
-        site.features[flag] = cb.checked;
-        document.getElementById('ruleEditor').value = JSON.stringify(parsed, null, 2);
-        setRuleStatus(`已更新 ${siteKey}.features.${flag}=${cb.checked}——请点击「保存规则」生效`, 'info');
-      });
+    // v15 阶段 3 全量迁移：数据行 Preact 组件（onChange 直连回写闭包——
+    // 渲染后 querySelectorAll 绑定退役；Preact 插值天然转义接管 escapeHtml）
+    const P = GRP();
+    const rows = sites.map((/** @type {any} */ s, /** @type {number} */ idx) => {
+      const f = s.features || {};
+      const checks = FEATURE_FLAGS.map(([flag, label], fi) =>
+        P.h(
+          'label',
+          { class: 'rule-feature-check', title: 'features.' + flag, key: String(fi) },
+          P.h('input', {
+            type: 'checkbox',
+            'data-site': s.key,
+            'data-flag': flag,
+            checked: f[flag] === true,
+            onChange: (/** @type {any} */ ev) => {
+              const cb = /** @type {HTMLInputElement} */ (ev.target);
+              const prev = !cb.checked;
+              const parsed = parseEditor();
+              if (!parsed) {
+                cb.checked = prev; // 编辑器 JSON 当前非法 → 还原勾选
+                return;
+              }
+              const site = (parsed.sites || []).find((/** @type {any} */ x) => x && x.key === s.key);
+              if (!site) {
+                cb.checked = prev;
+                setRuleStatus('未在编辑器 JSON 中找到站点 "' + s.key + '"（可能已被手动删除）', 'error');
+                return;
+              }
+              site.features = site.features || {};
+              site.features[flag] = cb.checked;
+              document.getElementById('ruleEditor').value = JSON.stringify(parsed, null, 2);
+              setRuleStatus(
+                '已更新 ' + s.key + '.features.' + flag + '=' + cb.checked + '——请点击「保存规则」生效',
+                'info'
+              );
+            }
+          }),
+          label
+        )
+      );
+      return P.h(
+        'div',
+        { class: 'rule-item', key: s.key + '-' + String(idx) },
+        P.h(
+          'div',
+          { class: 'rule-item-head' },
+          P.h('span', { class: 'rule-item-key' }, s.key),
+          P.h('span', { class: 'rule-item-name' }, s.name),
+          s.searchUrl ? P.h('span', { class: 'rule-item-tag' }, '🔍 可检索') : null
+        ),
+        P.h(
+          'div',
+          { class: 'rule-item-meta' },
+          '域名: ' + (Array.isArray(s.domains) ? s.domains.join(', ') : String(s.domains ?? ''))
+        ),
+        Array.isArray(s.detailUrlPatterns)
+          ? P.h('div', { class: 'rule-item-meta' }, '详情: ' + s.detailUrlPatterns.join(' | '))
+          : null,
+        s.listItem && Array.isArray(s.listItem.containers)
+          ? P.h('div', { class: 'rule-item-meta' }, '容器: ' + s.listItem.containers.join(' | '))
+          : null,
+        P.h('div', { class: 'rule-item-features' }, checks)
+      );
     });
+    P.render(P.h(P.Fragment, null, rows), el);
   }
 
   // ============ 编辑器操作 / Editor actions ============
@@ -196,17 +225,25 @@
     if (!box) return;
     if (!diagnostics || diagnostics.length === 0) {
       box.style.display = 'none';
-      box.innerHTML = '';
+      globalThis.__GR_PREACT__.render(null, box);
       return;
     }
     box.style.display = 'block';
-    box.innerHTML = diagnostics
-      .map((/** @type {any} */ d) => {
-        const esc = (/** @type {string} */ t) => /** @type {any} */ (globalThis).escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
-        const color = d.level === 'warn' ? '#e67e22' : '#8f98a0';
-        return `<div style="color:${color};">⚠ [${esc(d.site)}] ${esc(d.message)}</div>`;
-      })
-      .join('');
+    const P = GRP();
+    P.render(
+      P.h(
+        P.Fragment,
+        null,
+        diagnostics.map((/** @type {any} */ d, /** @type {number} */ i) =>
+          P.h(
+            'div',
+            { style: 'color:' + (d.level === 'warn' ? '#e67e22' : '#8f98a0') + ';', key: String(i) },
+            '⚠ [' + d.site + '] ' + d.message
+          )
+        )
+      ),
+      box
+    );
   }
 
   // v10.0.0：规则健康自检——逐站展示"配置诊断 + 运行时改版告警"
@@ -222,31 +259,44 @@
       const alerts = (healthResp && healthResp.sites) || [] || [];
       const alertByKey = {};
       for (const a of /** @type {any[]} */ (alerts)) /** @type {Record<string, any>} */ (alertByKey)[a.siteKey] = a;
-      const esc = (/** @type {string} */ t) => /** @type {any} */ (globalThis).escapeHtml(t); // v10.7.0：口径统一 shared/escape.js（原实现不转义引号）
+      const P = GRP();
       const lines = [];
       for (const s of sites) {
         const alert = /** @type {Record<string, any>} */ (alertByKey)[s.key];
         if (alert) {
           lines.push(
-            `<div style="color:#e74c3c;">✖ [${esc(s.key)}] 疑似改版失效（${esc(alert.host || '?')}）— ` +
-              `${alert.alertCount} 次告警，最近 ${new Date(alert.lastAlertAt || Date.now()).toLocaleString()}</div>`
+            P.h(
+              'div',
+              { style: 'color:#e74c3c;' },
+              '✖ [' +
+                s.key +
+                '] 疑似改版失效（' +
+                (alert.host || '?') +
+                '）— ' +
+                alert.alertCount +
+                ' 次告警，最近 ' +
+                new Date(alert.lastAlertAt || Date.now()).toLocaleString()
+            )
           );
         } else {
-          lines.push(`<div style="color:#67c1f5;">✓ [${esc(s.key)}] 正常（无改版告警）</div>`);
+          lines.push(P.h('div', { style: 'color:#67c1f5;' }, '✓ [' + s.key + '] 正常（无改版告警）'));
         }
       }
       if (box) {
         box.style.display = 'block';
-        box.innerHTML = '<div style="font-weight:bold;">🩺 规则健康自检：</div>' + lines.join('');
+        P.render(
+          P.h(P.Fragment, null, [P.h('div', { style: 'font-weight:bold;' }, '🩺 规则健康自检：')].concat(lines)),
+          box
+        );
       }
       if (!lines.length && box) {
         box.style.display = 'block';
-        box.innerHTML = '<div style="color:#8f98a0;">无站点规则可检查</div>';
+        P.render(P.h('div', { style: 'color:#8f98a0;' }, '无站点规则可检查'), box);
       }
     } catch (e) {
       if (box) {
         box.style.display = 'block';
-        box.innerHTML = `<div style="color:#e74c3c;">自检失败: ${String(e).replace(/</g, '&lt;')}</div>`;
+        GRP().render(GRP().h('div', { style: 'color:#e74c3c;' }, '自检失败: ' + String(e).replace(/</g, '&lt;')), box);
       }
     }
   }

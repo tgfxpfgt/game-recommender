@@ -78,7 +78,21 @@
       );
       if (resp) {
         // v10.9.1：?? 0 兜底（"undefined" 字面量）
-        statsEl.innerHTML = `✅ 名称自愈：扫描 <b>${resp.scanned ?? 0}</b> 条异常 · 修复 <b>${resp.healed ?? 0}</b> 条${(resp.remaining ?? 0) > 0 ? ` · 剩余 <b>${resp.remaining}</b> 条（可再次点击）` : ''}`;
+        const P0 = CGRP();
+        P0.render(
+          P0.h(
+            'span',
+            null,
+            '✅ 名称自愈：扫描 ',
+            P0.h('b', null, String(resp.scanned ?? 0)),
+            ' 条异常 · 修复 ',
+            P0.h('b', null, String(resp.healed ?? 0)),
+            (resp.remaining ?? 0) > 0
+              ? [' · 剩余 ', P0.h('b', null, String(resp.remaining)), ' 条（可再次点击）']
+              : null
+          ),
+          statsEl
+        );
         await loadGameCache(); // 刷新列表
       } else {
         statsEl.textContent = '自愈失败，请查看运行日志';
@@ -97,7 +111,23 @@
         window.__GR_MSG__.sendMessage({ action: 'CLEAN_EXPIRED_CACHE' })
       );
       if (resp && resp.total >= 0) {
-        statsEl.innerHTML = `✅ 清理完成：Steam 缓存 <b>${resp.steamCache}</b> · 名称负缓存 <b>${resp.nameIndex}</b> · 下载站网址 <b>${resp.downloadUrls}</b>，共 <b>${resp.total}</b> 条过期条目`;
+        const P0 = CGRP();
+        P0.render(
+          P0.h(
+            'span',
+            null,
+            '✅ 清理完成：Steam 缓存 ',
+            P0.h('b', null, String(resp.steamCache)),
+            ' · 名称负缓存 ',
+            P0.h('b', null, String(resp.nameIndex)),
+            ' · 下载站网址 ',
+            P0.h('b', null, String(resp.downloadUrls)),
+            '，共 ',
+            P0.h('b', null, String(resp.total)),
+            ' 条过期条目'
+          ),
+          statsEl
+        );
         await loadGameCache(); // 刷新列表
       } else {
         statsEl.textContent = '清理失败，请查看运行日志';
@@ -168,6 +198,15 @@
     const P = await ensureCachePreact();
     P.mountAt(P.CacheEmptyRow({ msg }), tbody);
   }
+
+  // v15 阶段 3 全量迁移：结构渲染走 __GR_PREACT__（Preact 插值天然转义）；
+  // OPTS.formatXxx 可信助手输出（内部已对数据 escape）经 dangerouslySetInnerHTML
+  // 注入——等价于原 innerHTML 赋值的信任边界，注入面未扩大。
+  const CGRP = () => globalThis.__GR_PREACT__;
+  /** 可信预转义 HTML 片段挂载（helper 输出专用；原始数据一律走插值） */
+  function trustedHtml(/** @type {string} */ html) {
+    return { __html: html };
+  }
   // 加载游戏缓存列表
   async function loadGameCache() {
     const keyword = document.getElementById('cacheSearchInput').value.trim();
@@ -208,11 +247,26 @@
             `${/** @type {Record<string, string>} */ (modNames)[k]} ${ms[k].count ?? 0}${(ms[k].stale ?? 0) > 0 ? `(+${ms[k].stale}过期)` : ''}`
         ) // v10.9.1
         .join(' · ');
-      statsEl.innerHTML =
-        `<div>共 ${resp.total ?? 0} 条记录 · 第 ${resp.page ?? 1}/${resp.totalPages ?? 1} 页</div>` + // v10.9.1
-        (msText
-          ? `<div style="font-size:11px;color:#8f98a0;margin-top:2px;">缓存模块：${msText}（各模块 TTL 建议见「缓存有效期」设置）</div>`
-          : '');
+      const P0 = CGRP();
+      P0.render(
+        P0.h(
+          P0.Fragment,
+          null,
+          P0.h(
+            'div',
+            null,
+            '共 ' + (resp.total ?? 0) + ' 条记录 · 第 ' + (resp.page ?? 1) + '/' + (resp.totalPages ?? 1) + ' 页'
+          ),
+          msText
+            ? P0.h(
+                'div',
+                { style: 'font-size:11px;color:#8f98a0;margin-top:2px;' },
+                '缓存模块：' + msText + '（各模块 TTL 建议见「缓存有效期」设置）'
+              )
+            : null
+        ),
+        statsEl
+      );
 
       if (resp.games.length === 0) {
         await mountCacheEmpty(tbody, '暂无缓存数据');
@@ -220,53 +274,79 @@
         return;
       }
 
-      // 渲染表格行（封面缩略图 + 好评率徽章 + 可点击 appId + 手动更新按钮）
-      tbody.innerHTML = resp.games
-        .map(
-          (/** @type {any} */ g) => `
-        <tr>
-          <td class="col-cover">
-            ${
-              g.coverImage
-                ? `<img src="${escapeAttr(g.coverImage)}" class="cache-cover" loading="lazy" alt="" title="${escapeAttr(g.cnName || g.appId)}">`
-                : '—'
-            }
-          </td>
-          <td class="col-appid">
-            ${OPTS.formatRatingBadge(g.positiveRate)}
-            <a href="https://store.steampowered.com/app/${escapeAttr(g.appId)}" target="_blank" rel="noopener" title="打开 Steam 详情页">${escapeHtml(g.appId)}</a>
-            <button class="cache-refresh-btn" data-appid="${escapeAttr(g.appId)}" title="手动更新 Steam 信息与下载站地址">🔄</button>
-          </td>
-          <td class="col-name" title="${escapeAttr(g.cnName)}">${escapeHtml(g.cnName || '—')}</td>
-          <td class="col-name" title="${escapeAttr(g.enName)}">${escapeHtml(g.enName || '—')}</td>
-          <td class="col-type">${OPTS.formatTypeBadge(g.type)}</td>
-          <td class="col-modules" title="各信息类型缓存新鲜度：绿=有效 灰=缺失/过期">${OPTS.formatModuleFreshness(g.moduleFreshness)}</td>
-          <td class="col-rec" title="${OPTS.formatRecDetail(g)}">${OPTS.formatRecBadge(g.recommendation)}</td>
-          <td class="col-time">${OPTS.formatTime(g.lastConfirmed)}</td>
-          <td class="col-url">${OPTS.formatDownloadUrls(g.downloadUrls, g.primaryDownloadUrl)}</td>
-          <td class="col-time">${OPTS.formatTime(g.lastAccessed)}</td>
-          <td><button class="cache-delete-btn" data-appid="${escapeAttr(g.appId)}">删除</button></td>
-        </tr>
-      `
-        )
-        .join('');
-
-      // 绑定删除按钮事件
-      tbody.querySelectorAll('.cache-delete-btn').forEach((/** @type {any} */ btn) => {
-        btn.addEventListener('click', () => deleteCacheEntry(btn.dataset.appid));
+      // 渲染表格行（v15 阶段 3 全量迁移：行结构 Preact 组件化——onClick/onError
+      // prop 直连替代渲染后 querySelectorAll 绑定；OPTS.formatXxx 可信助手输出
+      // 经 dangerouslySetInnerHTML 注入，信任边界同原 innerHTML 赋值）
+      const P = CGRP();
+      const rows = resp.games.map((/** @type {any} */ g, /** @type {number} */ ri) => {
+        const appId = String(g.appId);
+        return P.h(
+          'tr',
+          { key: appId + '-' + String(ri) },
+          P.h(
+            'td',
+            { class: 'col-cover' },
+            g.coverImage
+              ? P.h('img', {
+                  src: g.coverImage,
+                  class: 'cache-cover',
+                  loading: 'lazy',
+                  alt: '',
+                  title: g.cnName || appId,
+                  onError: (/** @type {any} */ ev) => {
+                    ev.target.style.display = 'none';
+                  }
+                })
+              : '—'
+          ),
+          P.h(
+            'td',
+            { class: 'col-appid' },
+            P.h('span', { dangerouslySetInnerHTML: trustedHtml(OPTS.formatRatingBadge(g.positiveRate)) }),
+            P.h(
+              'a',
+              {
+                href: 'https://store.steampowered.com/app/' + appId,
+                target: '_blank',
+                rel: 'noopener',
+                title: '打开 Steam 详情页'
+              },
+              appId
+            ),
+            P.h(
+              'button',
+              {
+                class: 'cache-refresh-btn',
+                title: '手动更新 Steam 信息与下载站地址',
+                onClick: (/** @type {any} */ ev) =>
+                  refreshCacheEntry(appId, /** @type {HTMLButtonElement} */ (ev.target))
+              },
+              '🔄'
+            )
+          ),
+          P.h('td', { class: 'col-name', title: g.cnName || '' }, g.cnName || '—'),
+          P.h('td', { class: 'col-name', title: g.enName || '' }, g.enName || '—'),
+          P.h('td', { class: 'col-type', dangerouslySetInnerHTML: trustedHtml(OPTS.formatTypeBadge(g.type)) }),
+          P.h('td', {
+            class: 'col-modules',
+            title: '各信息类型缓存新鲜度：绿=有效 灰=缺失/过期',
+            dangerouslySetInnerHTML: trustedHtml(OPTS.formatModuleFreshness(g.moduleFreshness))
+          }),
+          P.h('td', {
+            class: 'col-rec',
+            title: OPTS.formatRecDetail(g),
+            dangerouslySetInnerHTML: trustedHtml(OPTS.formatRecBadge(g.recommendation))
+          }),
+          P.h('td', { class: 'col-time' }, OPTS.formatTime(g.lastConfirmed)),
+          P.h('td', {
+            class: 'col-url',
+            dangerouslySetInnerHTML: trustedHtml(OPTS.formatDownloadUrls(g.downloadUrls, g.primaryDownloadUrl))
+          }),
+          P.h('td', { class: 'col-time' }, OPTS.formatTime(g.lastAccessed)),
+          P.h('td', null, P.h('button', { class: 'cache-delete-btn', onClick: () => deleteCacheEntry(appId) }, '删除'))
+        );
       });
-
-      // 封面图加载失败时隐藏（MV3 CSP 合规：addEventListener 而非内联 onerror）
-      tbody.querySelectorAll('.cache-cover').forEach((/** @type {any} */ img) => {
-        img.addEventListener('error', () => {
-          img.style.display = 'none';
-        });
-      });
-
-      // 绑定手动更新按钮事件
-      tbody.querySelectorAll('.cache-refresh-btn').forEach((/** @type {any} */ btn) => {
-        btn.addEventListener('click', () => refreshCacheEntry(btn.dataset.appid, btn));
-      });
+      P.render(P.h(P.Fragment, null, rows), tbody);
 
       renderPagination(resp.total, resp.totalPages);
     } catch (e) {
@@ -306,47 +386,60 @@
     }
   }
 
-  // 渲染分页控件
+  // 渲染分页控件（v15 阶段 3 全量迁移：分页按钮 Preact 组件——onClick 直连翻页）
   /** @param {number} total @param {number} totalPages */
   function renderPagination(total, totalPages) {
     const container = document.getElementById('cachePagination');
+    const P = CGRP();
     if (total === 0 || totalPages <= 1) {
-      container.innerHTML = '';
+      P.render(null, container);
       return;
     }
 
-    let html = '';
-    html += `<button ${OPTS.cacheCurrentPage <= 1 ? 'disabled' : ''} data-page="${OPTS.cacheCurrentPage - 1}">‹ 上一页</button>`;
+    const pageBtn = (
+      /** @type {number} */ pg,
+      /** @type {string} */ label,
+      /** @type {boolean} */ disabled,
+      /** @type {string} */ cls
+    ) =>
+      P.h(
+        'button',
+        {
+          'data-page': String(pg),
+          class: cls,
+          disabled: disabled ? true : undefined,
+          onClick: disabled
+            ? undefined
+            : () => {
+                OPTS.cacheCurrentPage = pg;
+                loadGameCache();
+              }
+        },
+        label
+      );
 
     const maxButtons = 7;
     let start = Math.max(1, OPTS.cacheCurrentPage - 3);
     const end = Math.min(totalPages, start + maxButtons - 1);
     start = Math.max(1, end - maxButtons + 1);
 
+    const btns = [];
+    btns.push(pageBtn(OPTS.cacheCurrentPage - 1, '‹ 上一页', OPTS.cacheCurrentPage <= 1, ''));
     if (start > 1) {
-      html += `<button data-page="1">1</button>`;
-      if (start > 2) html += `<span class="page-info">...</span>`;
+      btns.push(pageBtn(1, '1', false, ''));
+      if (start > 2) btns.push(P.h('span', { class: 'page-info' }, '...'));
     }
     for (let i = start; i <= end; i++) {
-      html += `<button class="${i === OPTS.cacheCurrentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+      btns.push(pageBtn(i, String(i), false, i === OPTS.cacheCurrentPage ? 'active' : ''));
     }
     if (end < totalPages) {
-      if (end < totalPages - 1) html += `<span class="page-info">...</span>`;
-      html += `<button data-page="${totalPages}">${totalPages}</button>`;
+      if (end < totalPages - 1) btns.push(P.h('span', { class: 'page-info' }, '...'));
+      btns.push(pageBtn(totalPages, String(totalPages), false, ''));
     }
+    btns.push(pageBtn(OPTS.cacheCurrentPage + 1, '下一页 ›', OPTS.cacheCurrentPage >= totalPages, ''));
+    btns.push(P.h('span', { class: 'page-info' }, '共 ' + total + ' 条'));
 
-    html += `<button ${OPTS.cacheCurrentPage >= totalPages ? 'disabled' : ''} data-page="${OPTS.cacheCurrentPage + 1}">下一页 ›</button>`;
-    html += `<span class="page-info">共 ${total} 条</span>`;
-
-    container.innerHTML = html;
-
-    container.querySelectorAll('button[data-page]').forEach((/** @type {any} */ btn) => {
-      if (btn.disabled) return;
-      btn.addEventListener('click', () => {
-        OPTS.cacheCurrentPage = parseInt(btn.dataset.page);
-        loadGameCache();
-      });
-    });
+    P.render(P.h(P.Fragment, null, btns), container);
   }
 
   // 删除单个游戏缓存

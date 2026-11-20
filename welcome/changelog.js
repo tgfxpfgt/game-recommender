@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.37.4',
+        date: '2026-11-21',
+        items: [
+          '23 处 uses 引用从可变 tag pin 到 commit SHA（checkout/setup-node/codeql/cache/upload-artifact/gitleaks——供应链纵深防御，Scorecard 同款检查项；@v4 注释保留版本可读）',
+          'pr-agent.yml（另一会话进行中工作）不在本批；semgrep p/secrets 复扫可变 tag 0 findings'
+        ]
+      },
+      {
         ver: '14.37.3',
         date: '2026-11-20',
         items: [

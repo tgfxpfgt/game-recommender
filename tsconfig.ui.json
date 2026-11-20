@@ -23,5 +23,6 @@
     "shared/**/*.js",
     "**/*.d.ts"
   ],
-  "exclude": ["node_modules", "tests", "content", "background", "data", "lib"]
+  "exclude": [
+    "shared/preact-globals.js","node_modules", "tests", "content", "background", "data", "lib"]
 }

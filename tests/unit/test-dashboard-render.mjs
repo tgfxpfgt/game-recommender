@@ -7,14 +7,56 @@
  * log renderer, pagination and the export helpers.
  */
 import { test, expect } from 'vitest';
+import { installPageDom } from '../helpers/page-dom.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
-import { installFakeDom } from '../helpers/fake-dom.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
-const dom = installFakeDom();
+// v15 阶段 3 全量迁移：fake-dom → happy-dom（Preact render 需真实 DOM 树）；
+// vm 沙箱保留 classic 跨文件全局语义，document 注入宿主 happy-dom 实例（对象
+// 身份共享——沙箱内 Preact render 与宿主断言操作同一棵树）。
+// lazy-create 语义保留（页面 getElementById 的 id 缺失时自动建 div 挂 body）。
+const dom2 = installPageDom();
+const realDoc = dom2.realDoc;
+/** @param {string} id */
+function lazyById(id) {
+  let el = realDoc.getElementById(id);
+  if (!el) {
+    el = realDoc.createElement('div');
+    el.id = id;
+    realDoc.body.appendChild(el);
+  }
+  return el;
+}
+const docListeners = [];
+const docCreated = [];
+const dom = {
+  listeners: docListeners,
+  created: docCreated,
+  document: {
+    getElementById: (id) => lazyById(id),
+    createElement: (t) => {
+      const el = realDoc.createElement(t);
+      docCreated.push(el);
+      return el;
+    },
+    createTextNode: (t) => realDoc.createTextNode(t),
+    querySelector: (sel) => realDoc.querySelector(sel),
+    querySelectorAll: (sel) => realDoc.querySelectorAll(sel),
+    addEventListener: (t, f) => {
+      docListeners.push({ type: t, fn: f });
+      realDoc.addEventListener(t, f);
+    },
+    removeEventListener: (t, f) => realDoc.removeEventListener(t, f),
+    body: realDoc.body,
+    head: realDoc.head
+  },
+  getElementById: (id) => lazyById(id)
+};
+globalThis.document = dom.document;
+globalThis.__GR_PREACT__ = dom2.preact;
 
 const messages = [];
 const alerts = [];
@@ -56,6 +98,7 @@ const sandbox = {
   confirm: () => confirmAnswer,
   setTimeout,
   clearTimeout,
+  __GR_PREACT__: dom2.preact,
   Blob: class FakeBlob {
     /** @param {any[]} parts @param {any} opts */
     constructor(parts, opts) {

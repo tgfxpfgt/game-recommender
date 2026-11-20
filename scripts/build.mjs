@@ -134,6 +134,26 @@ function generateTokensCss() {
 // 新增主题 = themes-data 加一个对象（+ settings-utils VALID_THEMES / ui-tokens
 // THEME_LABELS 各一行）后跑 build。Theme var blocks regenerated from the data
 // single source; per-theme hand-written element rules live outside the anchors.
+// ============ 1d) shared/preact-globals.js（preact 同步垫片 iife） ============
+function generatePreactGlobals() {
+  const res = esbuild.buildSync({
+    entryPoints: [path.join(ROOT, 'scripts/vendor-preact.mjs')],
+    bundle: true,
+    minify: true,
+    sourcemap: false,
+    legalComments: 'none',
+    logLevel: 'silent',
+    charset: 'utf8',
+    target: ['chrome109'],
+    format: 'iife',
+    write: false
+  });
+  if (res.errors.length > 0) {
+    throw new Error('preact-globals bundle 失败: ' + res.errors.map((e) => e.text).join('; '));
+  }
+  fs.writeFileSync(path.join(ROOT, 'shared/preact-globals.js'), res.outputFiles[0].text, 'utf-8');
+  console.log('✓ shared/preact-globals.js（window.__GR_PREACT__ 同步垫片）');
+}
 function generateThemeCss(THEMES) {
   const dir = path.join(ROOT, 'styles/themes');
   let count = 0;
@@ -489,6 +509,7 @@ fs.mkdirSync(path.join(DIST, 'content'), { recursive: true });
 fs.writeFileSync(path.join(DIST, 'content/tracker.js'), contentCode, 'utf-8');
 console.log('✓ content bundle（classic 注入序列 + ESM 模块图 iife）');
 generateTokensCss();
+generatePreactGlobals();
 const { THEMES } = await import(new URL('../shared/themes-data.js', import.meta.url).href);
 generateThemeCss(THEMES);
 await assembleDist();

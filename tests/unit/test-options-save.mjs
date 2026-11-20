@@ -9,10 +9,11 @@
  */
 import { test, expect, vi } from 'vitest';
 import { DEFAULT_SETTINGS } from '../../background/core/constants.js';
-import { installFakeDom } from '../helpers/fake-dom.mjs';
+import { installPageDom, installPageGlobals } from '../helpers/page-dom.mjs';
 
-const dom = installFakeDom();
-globalThis.document = dom.document;
+const dom = installPageDom();
+installPageGlobals(dom);
+globalThis.__GR_PREACT__ = dom.preact;
 globalThis.window = globalThis;
 globalThis.__GR_FM_KEYS__ = { keys: ['chips', 'tags', 'developers', 'description', 'spy'] };
 

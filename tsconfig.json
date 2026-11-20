@@ -13,6 +13,7 @@
   },
   "include": ["background/**/*.js", "data/**/*.js", "lib/**/*.js", "**/*.d.ts"],
   "exclude": [
+    "shared/preact-globals.js",
     "node_modules",
     "tests",
     "content",
