@@ -2,6 +2,17 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.36.0（Playwright 节管线全面接管 E2E 验收（B4 阶段 2+3），2026-11-20）
+
+- 阶段 2 薄适配层移植：节函数零重写（runInstall…runCustomSite 原样复用语义零漂移），每节一个 serial test；state.check 桥接 expect.soft（软断言=失败继续跑完+终态红，精确对应旧 check 汇总语义）；12/12 全绿 1.3 分钟（4 boot + 8 节管线：评分波次/滚动批次/持久化重启/自定义站点全跑通）
+- 阶段 3 gate 切换：gate E2E 冒烟步骤 e2e:dist → e2e:pw（内聚 build——验收对象 dist 产物语义保持）；@playwright/test 获得逐节 trace 失败保留/软断言/分节报告/超时即红留 trace
+- 旧管线 tests/e2e/run.mjs 保留运行能力作回退面（npm run e2e:dist），退役删除留后续清理批；suite-budgets e2eMock label 更新（cap 105s 覆盖新口径 78s 实测）
+
+### v14.35.1（欢迎页状态区块 Preact 化（渐进迁移续批），2026-11-20）
+
+- welcome-status.preact.mjs：ChangelogBox/SiteStatus/Dots 组件——六处 innerHTML 退役
+- 主题选择按钮（guideState 状态交互）保留原实现另批
+
 ### v14.35.0（Playwright Test runner 落地（B4 阶段 1）——boot 冒烟 + harness 代理缺陷修复，2026-11-20）
 
 - @playwright/test runner 基建：playwright.config.mjs + tests/e2e-pw 扩展 fixtures（复用 helpers 单源语义零复制）+ boot.spec 4 用例 4.9s 全绿（SW 装载/popup 冒烟/options 零 console error/fixture 页环境）
