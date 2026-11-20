@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.37.1',
+        date: '2026-11-20',
+        items: [
+          'dash-stats 四处数据渲染 innerHTML 退役：下载方式/站点 Top5/游戏明细表/行为日志表（含组件化+插值天然转义）',
+          'DOWNLOAD_METHODS/SITES_TOP/LOG_TYPE_NAMES 展示映射迁入组件模块'
+        ]
+      },
+      {
         ver: '14.37.0',
         date: '2026-11-20',
         items: [

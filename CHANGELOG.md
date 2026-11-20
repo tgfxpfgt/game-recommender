@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.37.1（dashboard 数据渲染面 Preact 化（渐进迁移续批），2026-11-20）
+
+- dash-stats 四处数据渲染 innerHTML 退役：下载方式/站点 Top5/游戏明细表/行为日志表（含组件化+插值天然转义）
+- DOWNLOAD_METHODS/SITES_TOP/LOG_TYPE_NAMES 展示映射迁入组件模块
+
 ### v14.37.0（B5 构建层评估入库——WXT 迁移暂缓（评估即交付），2026-11-20）
 
 - docs/reports/B5-WXT构建层评估-2026-11-20.md：WXT 非模块入口 IIFE 输出可行，但无「多文件 classic concat 保真」原生语义（Vite HTML classic script 不进依赖图）——迁移=架构范式重写（50+ 页面脚本 ESM 化+三单源派生面重建）非构建器替换

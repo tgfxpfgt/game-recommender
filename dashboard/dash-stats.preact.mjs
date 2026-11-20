@@ -1,11 +1,11 @@
 /**
- * 游戏雷达 Game Radar - Dashboard 状态区块 Preact 组件（阶段 3 切片 C 首件）
+ * 游戏雷达 Game Radar - Dashboard 状态区块 Preact 组件（阶段 3 切片 C + 渐进迁移）
  *
- * dash-stats.js 的 four no-data/错误分支（趋势失败/暂无数据/下载方法空/
- * 站点 Top 空/表空）与**数据行渲染**先迁组件——SVG 图与 tbody 大表保留
- * 原实现（SVG diff 收益低），后续批次渐进。
- * Preact components for dashboard status blocks; SVG chart & big tables stay
- * as-is this slice (low diff benefit), migrate incrementally.
+ * no-data/错误分支 + 纯数据渲染面（下载方式/站点 Top/游戏明细表/行为日志表）
+ * 全部迁组件——Preact 文本插值天然转义（原 innerHTML 拼接的 escapeHtml 防线由
+ * 插值语义接管）。趋势图 SVG 保留原实现（computed paths 自包含，diff 收益低）。
+ * Preact components for dashboard status blocks AND pure data renders (tables,
+ * method/site lists). Trend SVG chart stays as-is (computed paths, low value).
  */
 import { h, render } from 'preact';
 
@@ -20,21 +20,110 @@ export function LoadError({ msg }) {
 }
 
 /**
- * 下载方式分布行（renderDownloadMethods 的 Object.entries 渲染段）
- * @param {{methods: Array<[string, number]>, esc: (s: unknown) => string}} props
+ * 下载方式分布（method-item：count 在前 name 在后——与既有 CSS 类序一致）
+ * @param {{entries: Array<[string, number]>, methodNames: Record<string, string>}} props
  */
-export function DownloadMethods({ methods, esc }) {
+export function DownloadMethods({ entries, methodNames }) {
   return h(
     'div',
     null,
-    methods.map(([method, count]) =>
+    entries.map(([method, count]) =>
       h(
         'div',
-        { class: 'method-row', key: method },
-        h('div', { class: 'method-name' }, (method && String(method)) || 'unknown'),
-        h('div', { class: 'method-count' }, String(count))
+        { class: 'method-item', key: method },
+        h('div', { class: 'method-count' }, String(count)),
+        h('div', { class: 'method-name' }, methodNames[method] || method)
       )
     )
+  );
+}
+
+/**
+ * 按站点 Top5（同 method-item 形状）
+ * @param {{top: Array<[string, number]>}} props
+ */
+export function SitesTop({ top }) {
+  return h(
+    'div',
+    null,
+    top.map(([host, count]) =>
+      h(
+        'div',
+        { class: 'method-item', key: host },
+        h('div', { class: 'method-count' }, String(count)),
+        h('div', { class: 'method-name' }, host)
+      )
+    )
+  );
+}
+
+/**
+ * 游戏明细表行（6 列：名称/浏览/下载/标签/评分/最近查看；Preact 插值天然
+ * 转义——原 innerHTML 拼接的 escapeHtml 防线由插值语义接管）
+ * @param {{games: any[], safeDateText: (ts: number) => string}} props
+ */
+export function GameTableBody({ games, safeDateText }) {
+  return h(
+    'tbody',
+    null,
+    games.map((game, i) => {
+      const tags = (game.keywords || []).slice(0, 4);
+      const rating = game.steamRating ? game.steamRating + '/10' : '-';
+      const time = safeDateText(game.lastSeen);
+      const dlClass = game.downloads > 0 ? 'downloaded' : '';
+      return h(
+        'tr',
+        { key: String(game.name) + '-' + String(i) },
+        h('td', null, game.name),
+        h('td', null, game.views ?? '-'),
+        h('td', { class: dlClass }, game.downloads > 0 ? '⬇ ' + game.downloads : '0'),
+        h('td', null, tags.length > 0 ? tags.map((t, j) => h('span', { class: 'tag-small', key: String(j) }, t)) : '-'),
+        h('td', null, rating),
+        h('td', null, time)
+      );
+    })
+  );
+}
+
+/** 日志类型展示映射（渲染面数据——原 renderLogTable 内联表迁移） */
+export const LOG_TYPE_NAMES = {
+  view_list: ['浏览列表', 'list'],
+  view_detail: ['查看详情', 'view'],
+  click_detail: ['点击详情', 'view'],
+  click_download: ['下载游戏', 'download'],
+  steam_tags_update: ['Steam标签', 'steam']
+};
+
+/**
+ * 行为日志表行（5 列：时间/类型/游戏/方式/域名）
+ * @param {{logs: any[]}} props
+ */
+export function LogTableBody({ logs }) {
+  return h(
+    'tbody',
+    null,
+    logs.map((log, i) => {
+      const known = LOG_TYPE_NAMES[log.type];
+      const typeName = known ? known[0] : String(log.type || '未知');
+      const typeClass = known ? known[1] : 'list';
+      const time = log.timestamp
+        ? new Date(log.timestamp).toLocaleString('zh-CN', {
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })
+        : '-';
+      return h(
+        'tr',
+        { key: String(i) },
+        h('td', null, time),
+        h('td', null, h('span', { class: 'event-type ' + typeClass }, typeName)),
+        h('td', null, log.gameName || '-'),
+        h('td', null, log.method || '-'),
+        h('td', null, log.domain || '-')
+      );
+    })
   );
 }
 

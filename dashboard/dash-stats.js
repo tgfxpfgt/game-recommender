@@ -59,6 +59,7 @@ async function ensurePreactMount() {
   const m = await import(chrome.runtime.getURL('dashboard/dash-stats.preact.mjs'));
   preactMount = m.mountAt;
   preactH = m.h;
+  preactMod = m;
   LoadError = m.LoadError;
   NoData = m.NoData;
   TableNoDataLocal = m.NoData;
@@ -70,6 +71,26 @@ const STATUS_COMPONENTS = {
   NoData: () => NoData,
   TableNoData: () => TableNoDataLocal
 };
+
+// v15 阶段 3 渐进迁移：数据渲染面组件（从 preact 模块句柄取；ensurePreactMount
+// 赋值 preactMod 后可用）
+/** @type {any} */
+let preactMod = null;
+/** @type {Record<string, (props: any) => any>} */
+const DATA_COMPONENTS = {
+  DownloadMethods: (/** @type {any} */ props) => preactMod.DownloadMethods(props),
+  SitesTop: (/** @type {any} */ props) => preactMod.SitesTop(props),
+  GameTableBody: (/** @type {any} */ props) => preactMod.GameTableBody(props),
+  LogTableBody: (/** @type {any} */ props) => preactMod.LogTableBody(props)
+};
+/** 数据渲染挂载（props 内联函数引用页面工具——safeDateText 跨文件全局）
+ * @param {HTMLElement} mountEl @param {string} kind @param {any} props
+ */
+async function mountDataPreact(mountEl, kind, props) {
+  await ensurePreactMount();
+  const comp = DATA_COMPONENTS[kind](props);
+  if (preactMount) preactMount(comp, mountEl);
+}
 
 /**
  * 状态区块组件挂载（kind 解析——v14.33.1 实参快照陷阱修复：调用点传组件变量时
@@ -257,17 +278,13 @@ function renderDownloadMethods(methods, recentLog) {
     unknown: '其他方式'
   };
 
-  container.innerHTML = Object.entries(methods)
-    .sort((a, b) => b[1] - a[1])
-    .map(
-      ([method, count]) => `
-      <div class="method-item">
-        <div class="method-count">${count}</div>
-        <div class="method-name">${/** @type {Record<string, string>} */ (methodNames)[method] || escapeHtml(method)}</div>
-      </div>
-    `
-    )
-    .join('');
+  // v15 阶段 3 渐进迁移：数据行 Preact 组件（Preact 插值天然转义）
+  void mountDataPreact(container, 'DownloadMethods', {
+    entries: Object.entries(methods).sort(
+      (/** @type {[string, number]} */ a, /** @type {[string, number]} */ b) => b[1] - a[1]
+    ),
+    methodNames
+  });
 }
 
 // v14.8 批次 11（第九轮 B4）：按站点 Top5——近期下载事件（最近 30 条内）
@@ -294,12 +311,8 @@ function renderDownloadSitesTop(recentLog) {
     mountStatusPreact(container, 'NoData', { msg: '近期无下载记录' });
     return;
   }
-  container.innerHTML = top
-    .map(
-      ([host, count]) =>
-        `<div class="method-item"><div class="method-count">${count}</div><div class="method-name">${escapeHtml(host)}</div></div>`
-    )
-    .join('');
+  // v15 阶段 3 渐进迁移：SitesTop Preact 组件
+  void mountDataPreact(container, 'SitesTop', { top });
 }
 
 // 游戏明细表（按下载数/查看数降序） / Per-game table (sorted by downloads/views)
@@ -325,26 +338,8 @@ function renderGameTable(games) {
   }
   const { slice, total } = paginate('games', games);
   renderPager('games', 'gamePager', total);
-  tbody.innerHTML = slice
-    .map((/** @type {any} */ game) => {
-      const tags = (game.keywords || [])
-        .slice(0, 4)
-        .map((/** @type {string} */ t) => `<span class="tag-small">${escapeHtml(t)}</span>`)
-        .join('');
-      const rating = game.steamRating ? `${game.steamRating}/10` : '-';
-      const time = safeDateText(game.lastSeen); // v10.9.1
-      const dlClass = game.downloads > 0 ? 'downloaded' : '';
-
-      return `<tr>
-      <td>${escapeHtml(game.name)}</td>
-      <td>${game.views ?? '-'}</td> <!-- v10.9.1 -->
-      <td class="${dlClass}">${game.downloads > 0 ? '⬇ ' + game.downloads : '0'}</td>
-      <td>${tags || '-'}</td>
-      <td>${rating}</td>
-      <td>${time}</td>
-    </tr>`;
-    })
-    .join('');
+  // v15 阶段 3 渐进迁移：GameTableBody Preact 组件（Preact 插值天然转义）
+  void mountDataPreact(tbody, 'GameTableBody', { games: slice, safeDateText });
 }
 
 // 最近行为日志表 / Recent behavior log table
@@ -356,38 +351,6 @@ function renderLogTable(logs) {
     return;
   }
 
-  const typeNames = {
-    view_list: ['浏览列表', 'list'],
-    view_detail: ['查看详情', 'view'],
-    click_detail: ['点击详情', 'view'],
-    click_download: ['下载游戏', 'download'],
-    steam_tags_update: ['Steam标签', 'steam']
-  };
-
-  tbody.innerHTML = logs
-    .map((/** @type {any} */ log) => {
-      const [typeName, typeClass] = /** @type {Record<string, string[]>} */ (typeNames)[log.type] || [
-        escapeHtml(String(log.type || '未知')),
-        'list'
-      ];
-      const time = log.timestamp
-        ? new Date(log.timestamp).toLocaleString('zh-CN', {
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          })
-        : '-';
-      // v3.4.1：日志内容不可信，method 与未知 type 必须转义（防 innerHTML 注入）
-      const method = escapeHtml(log.method || '-');
-
-      return `<tr>
-      <td>${time}</td>
-      <td><span class="event-type ${typeClass}">${typeName}</span></td>
-      <td>${escapeHtml(log.gameName || '-')}</td>
-      <td>${method}</td>
-      <td>${escapeHtml(log.domain || '-')}</td>
-    </tr>`;
-    })
-    .join('');
+  // v15 阶段 3 渐进迁移：LogTableBody Preact 组件（类型映射迁入组件模块）
+  void mountDataPreact(tbody, 'LogTableBody', { logs });
 }
