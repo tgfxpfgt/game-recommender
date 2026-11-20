@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 186，其中声明不变式 4。
+> 模块数 185，其中声明不变式 4。
 
 ## adapters/default.js
 
@@ -435,12 +435,6 @@
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `shared/platform-detect.js` | 非 PC 平台识别（v14.10.0，用户需求：主机/模拟器条目） | — | detectPlatform<br>detectOffSteamPlatform<br>trimPlatformTokens<br>MANUAL_PLATFORM_OPTIONS<br>MANUAL_PLATFORM_BRANDS<br>resolveManualPlatformOption<br>…+1 | — |
-
-## shared/preact-globals.js
-
-| 模块 | 职责 | 依赖 | 导出 | 不变式 |
-| --- | --- | --- | --- | --- |
-| `shared/preact-globals.js` | — | — | — | — |
 
 ## shared/retrieval-vocab.js
 
