@@ -102,6 +102,8 @@
     });
   }
 
+  const P = () => globalThis.__GR_PREACT__;
+
   // ============ 数据源开关（游戏平台 + 辅助站）/ Data Source Toggles ============
   // v6.4.19：数据源开关渲染
   function renderDataSources() {
@@ -115,30 +117,37 @@
       ['gamerpower', 'GamerPower 聚合', '限免聚合（Steam/GOG 主源）'],
       ['bing', 'Bing 搜索', '辅助：appid 匹配兜底']
     ];
-    box.innerHTML = items
-      .map(
-        ([key, name, desc]) => `
-        <div class="setting-row">
-          <div class="setting-label">
-            <span class="label-text">${name}</span>
-            <span class="label-desc">${desc}</span>
-          </div>
-          <label class="switch">
-            <input type="checkbox" data-ds="${key}" ${ds[key] !== false ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>`
+    const PP = P();
+    const rows = items.map(([key, name, desc]) =>
+      PP.h(
+        'div',
+        { class: 'setting-row', key },
+        PP.h(
+          'div',
+          { class: 'setting-label' },
+          PP.h('span', { class: 'label-text' }, name),
+          PP.h('span', { class: 'label-desc' }, desc)
+        ),
+        PP.h(
+          'label',
+          { class: 'switch' },
+          PP.h('input', {
+            type: 'checkbox',
+            'data-ds': key,
+            checked: ds[key] !== false,
+            onChange: (ev) => {
+              OPTS.currentSettings.dataSources = {
+                ...(OPTS.currentSettings.dataSources || {}),
+                [key]: ev.target.checked
+              };
+              OPTS.scheduleAutoSave();
+            }
+          }),
+          PP.h('span', { class: 'slider' })
+        )
       )
-      .join('');
-    box.querySelectorAll('[data-ds]').forEach((/** @type {any} */ cb) => {
-      cb.addEventListener('change', () => {
-        OPTS.currentSettings.dataSources = {
-          ...(OPTS.currentSettings.dataSources || {}),
-          [cb.dataset.ds]: cb.checked
-        };
-        OPTS.scheduleAutoSave();
-      });
-    });
+    );
+    PP.render(PP.h(PP.Fragment, null, rows), box);
   }
 
   // v6.4.19：Steam 数据获取模块开关（各带缓存 TTL 建议）
@@ -159,30 +168,37 @@
       ['detail', '详情页完整信息', '商店页解析：语言支持 / 标签 / 更新日期', 'detailSteam'],
       ['spy', 'SteamSpy 补充', '游玩时长 / 热度（无官方替代）', 'spySteam']
     ];
-    box.innerHTML = items
-      .map(
-        ([key, name, desc, ttlKey]) => `
-        <div class="setting-row">
-          <div class="setting-label">
-            <span class="label-text">${name}</span>
-            <span class="label-desc">${desc} · ${ttlText(ttlKey)}</span>
-          </div>
-          <label class="switch">
-            <input type="checkbox" data-mod="${key}" ${mods[key] !== false ? 'checked' : ''}>
-            <span class="slider"></span>
-          </label>
-        </div>`
+    const PP = P();
+    const rows = items.map(([key, name, desc, ttlKey]) =>
+      PP.h(
+        'div',
+        { class: 'setting-row', key },
+        PP.h(
+          'div',
+          { class: 'setting-label' },
+          PP.h('span', { class: 'label-text' }, name),
+          PP.h('span', { class: 'label-desc' }, desc + ' · ' + ttlText(ttlKey))
+        ),
+        PP.h(
+          'label',
+          { class: 'switch' },
+          PP.h('input', {
+            type: 'checkbox',
+            'data-mod': key,
+            checked: mods[key] !== false,
+            onChange: (ev) => {
+              OPTS.currentSettings.steamApiModules = {
+                ...(OPTS.currentSettings.steamApiModules || {}),
+                [key]: ev.target.checked
+              };
+              OPTS.scheduleAutoSave();
+            }
+          }),
+          PP.h('span', { class: 'slider' })
+        )
       )
-      .join('');
-    box.querySelectorAll('[data-mod]').forEach((/** @type {any} */ cb) => {
-      cb.addEventListener('change', () => {
-        OPTS.currentSettings.steamApiModules = {
-          ...(OPTS.currentSettings.steamApiModules || {}),
-          [cb.dataset.mod]: cb.checked
-        };
-        OPTS.scheduleAutoSave();
-      });
-    });
+    );
+    PP.render(PP.h(PP.Fragment, null, rows), box);
   }
 
   // ============ v14.16.0 N9：内置站独立开关（隐私最小化） ============
@@ -199,28 +215,38 @@
     const box = document.getElementById('builtinSiteList');
     if (!box) return;
     const disabled = OPTS.currentSettings.disabledSites || [];
-    box.innerHTML = BUILTIN_SITE_TOGGLES.map(
-      ([domain, name]) => `
-      <div class="setting-row">
-        <div class="setting-label">
-          <span class="label-text">${name}</span>
-          <span class="label-desc">${domain}（关闭后不注入不查评分）</span>
-        </div>
-        <label class="switch">
-          <input type="checkbox" data-builtin-site="${domain}" ${disabled.includes(domain) ? '' : 'checked'}>
-          <span class="slider"></span>
-        </label>
-      </div>`
-    ).join('');
-    box.querySelectorAll('[data-builtin-site]').forEach((/** @type {any} */ cb) => {
-      cb.addEventListener('change', () => {
-        const set = new Set(OPTS.currentSettings.disabledSites || []);
-        if (cb.checked) set.delete(cb.dataset.builtinSite);
-        else set.add(cb.dataset.builtinSite);
-        OPTS.currentSettings.disabledSites = [...set];
-        OPTS.scheduleAutoSave();
-      });
-    });
+    const PP = P();
+    const rows = BUILTIN_SITE_TOGGLES.map(([domain, name]) =>
+      PP.h(
+        'div',
+        { class: 'setting-row', key: domain },
+        PP.h(
+          'div',
+          { class: 'setting-label' },
+          PP.h('span', { class: 'label-text' }, name),
+          PP.h('span', { class: 'label-desc' }, domain + '（关闭后不注入不查评分）')
+        ),
+        PP.h(
+          'label',
+          { class: 'switch' },
+          PP.h('input', {
+            type: 'checkbox',
+            'data-builtin-site': domain,
+            checked: !disabled.includes(domain),
+            onChange: (ev) => {
+              const d = ev.target.dataset.builtinSite;
+              const set = new Set(OPTS.currentSettings.disabledSites || []);
+              if (ev.target.checked) set.delete(d);
+              else set.add(d);
+              OPTS.currentSettings.disabledSites = [...set];
+              OPTS.scheduleAutoSave();
+            }
+          }),
+          PP.h('span', { class: 'slider' })
+        )
+      )
+    );
+    PP.render(PP.h(PP.Fragment, null, rows), box);
   }
 
   function bindDataSourceToggles() {

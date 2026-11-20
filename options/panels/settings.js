@@ -28,16 +28,39 @@
     const valid = Array.isArray(savedOrder) ? savedOrder.filter((k) => fm.keys.includes(k)) : [];
     fmOrderState = [...valid];
     for (const k of fm.keys) if (!fmOrderState.includes(k)) fmOrderState.push(k); // 补缺失
-    list.innerHTML = fmOrderState
-      .map(
-        (k, i) => `
-      <div style="display:flex;align-items:center;gap:6px;">
-        <span style="flex:1;">${i + 1}. ${fm.labels[k]}</span>
-        <button type="button" class="gr-btn gr-btn-sm fm-order-up" data-key="${k}" ${i === 0 ? 'disabled' : ''} title="上移">↑</button>
-        <button type="button" class="gr-btn gr-btn-sm fm-order-down" data-key="${k}" ${i === fmOrderState.length - 1 ? 'disabled' : ''} title="下移">↓</button>
-      </div>`
+    // v15 阶段 3 全量迁移：fm-order 列表 Preact h() 渲染（容器事件委托不变——
+    // list.dataset.grBound 绑定在容器元素上，P.render 替换内容不影响监听器）
+    const P = globalThis.__GR_PREACT__;
+    const rows = fmOrderState.map((k, i) =>
+      P.h(
+        'div',
+        { style: 'display:flex;align-items:center;gap:6px;', key: k },
+        P.h('span', { style: 'flex:1;' }, i + 1 + '. ' + (fm.labels[k] || k)),
+        P.h(
+          'button',
+          {
+            type: 'button',
+            class: 'gr-btn gr-btn-sm fm-order-up',
+            'data-key': k,
+            disabled: i === 0 ? true : undefined,
+            title: '上移'
+          },
+          '↑'
+        ),
+        P.h(
+          'button',
+          {
+            type: 'button',
+            class: 'gr-btn gr-btn-sm fm-order-down',
+            'data-key': k,
+            disabled: i === fmOrderState.length - 1 ? true : undefined,
+            title: '下移'
+          },
+          '↓'
+        )
       )
-      .join('');
+    );
+    P.render(P.h(P.Fragment, null, rows), list);
   }
 
   /** @param {string} key @param {number} delta */

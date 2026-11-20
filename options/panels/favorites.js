@@ -23,46 +23,80 @@
 
   // ============ ITAD 多套配置管理 / ITAD Multi-Profile Management ============
   // v6.4.19：添加/切换激活/删除（限免校验使用）
+  // v15 阶段 3 全量迁移：ITAD 配置行 Preact h() 渲染（onChange/onClick prop 直连）
   function renderItadProfiles() {
     const box = document.getElementById('itadProfileList');
     if (!box) return;
     const profiles = OPTS.currentSettings.itadProfiles || [];
     const activeId = OPTS.currentSettings.itadActiveProfileId;
-    box.innerHTML = '';
+    const P = globalThis.__GR_PREACT__;
     if (profiles.length === 0) {
-      box.innerHTML =
-        '<div style="font-size:12px;color:#8f98a0;">暂无配置——上方添加（可选）。未配置时跳过 ITAD 校验</div>';
+      P.render(
+        P.h('div', { style: 'font-size:12px;color:#8f98a0;' }, '暂无配置——上方添加（可选）。未配置时跳过 ITAD 校验'),
+        box
+      );
       return;
     }
-    profiles.forEach((/** @type {any} */ p, /** @type {number} */ idx) => {
+    const rows = profiles.map((/** @type {any} */ p, /** @type {number} */ idx) => {
       const isActive = String(p.id) === String(activeId) || (!activeId && idx === 0);
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-      row.innerHTML = `<label class="check-item" style="flex:0 0 auto;" title="设为激活配置（限免校验使用）">
-            <input type="radio" name="itadActive" data-act="${idx}" ${isActive ? 'checked' : ''}>
-          </label>
-          <span style="min-width:80px;font-size:12.5px;color:${isActive ? '#66c0f4' : 'inherit'};font-weight:${isActive ? '700' : '400'};">${escapeHtml(p.name || '配置 ' + (idx + 1))}${isActive ? ' ⭐' : ''}</span>
-          <span style="font-size:10.5px;color:#5a6a7a;white-space:nowrap;">${p.createdAt ? '添加于 ' + new Date(p.createdAt).toLocaleDateString('zh-CN') : ''}</span>
-          <code style="font-size:12px;color:#8f98a0;">${maskKey(p.key)}</code>
-          <button class="btn btn-danger btn-sm" data-rdel="${idx}" style="margin-left:auto;">删除</button>`;
-      box.appendChild(row);
-      row.querySelector('[data-act]').addEventListener('change', () => {
-        OPTS.currentSettings.itadActiveProfileId = p.id;
-        OPTS.scheduleAutoSave();
-        renderItadProfiles();
-      });
-      row.querySelector('[data-rdel]').addEventListener('click', () => {
-        const profiles2 = /** @type {any[]} */ (OPTS.currentSettings.itadProfiles || []).filter(
-          (/** @type {any} */ _p, /** @type {number} */ i) => i !== idx
-        );
-        OPTS.currentSettings.itadProfiles = profiles2;
-        if (String(OPTS.currentSettings.itadActiveProfileId) === String(p.id)) {
-          OPTS.currentSettings.itadActiveProfileId = profiles2.length > 0 ? profiles2[0].id : null;
-        }
-        OPTS.scheduleAutoSave();
-        renderItadProfiles();
-      });
+      return P.h(
+        'div',
+        { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px;', key: String(p.id || idx) },
+        P.h(
+          'label',
+          { class: 'check-item', style: 'flex:0 0 auto;', title: '设为激活配置（限免校验使用）' },
+          P.h('input', {
+            type: 'radio',
+            name: 'itadActive',
+            'data-act': String(idx),
+            checked: isActive,
+            onChange: () => {
+              OPTS.currentSettings.itadActiveProfileId = p.id;
+              OPTS.scheduleAutoSave();
+              renderItadProfiles();
+            }
+          })
+        ),
+        P.h(
+          'span',
+          {
+            style:
+              'min-width:80px;font-size:12.5px;color:' +
+              (isActive ? '#66c0f4' : 'inherit') +
+              ';font-weight:' +
+              (isActive ? '700' : '400') +
+              ';'
+          },
+          (p.name || '配置 ' + (idx + 1)) + (isActive ? ' ⭐' : '')
+        ),
+        P.h(
+          'span',
+          { style: 'font-size:10.5px;color:#5a6a7a;white-space:nowrap;' },
+          p.createdAt ? '添加于 ' + new Date(p.createdAt).toLocaleDateString('zh-CN') : ''
+        ),
+        P.h('code', { style: 'font-size:12px;color:#8f98a0;' }, maskKey(p.key)),
+        P.h(
+          'button',
+          {
+            class: 'btn btn-danger btn-sm',
+            style: 'margin-left:auto;',
+            onClick: () => {
+              const profiles2 = (OPTS.currentSettings.itadProfiles || []).filter(
+                (/** @type {any} */ _p, /** @type {number} */ i) => i !== idx
+              );
+              OPTS.currentSettings.itadProfiles = profiles2;
+              if (String(OPTS.currentSettings.itadActiveProfileId) === String(p.id)) {
+                OPTS.currentSettings.itadActiveProfileId = profiles2.length > 0 ? profiles2[0].id : null;
+              }
+              OPTS.scheduleAutoSave();
+              renderItadProfiles();
+            }
+          },
+          '删除'
+        )
+      );
     });
+    P.render(P.h(P.Fragment, null, rows), box);
   }
 
   function bindItadProfiles() {

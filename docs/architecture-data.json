@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-11-20T17:42:41.502Z",
+  "generatedAt": "2026-11-20T18:44:36.909Z",
   "version": "14.37.4",
   "nodes": [
     {
@@ -32,7 +32,7 @@
       "color": "#ff7b00",
       "desc": "数据分析 — 统计/洞察/诊断/备份",
       "files": 10,
-      "lines": 2195
+      "lines": 2226
     },
     {
       "dir": "popup",
