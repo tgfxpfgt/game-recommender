@@ -43,18 +43,25 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     }
     if (listEl && items.length > 0) {
-      listEl.innerHTML = items
-        .map(
-          (/** @type {{title?: string, message?: string, ts: number}} */ n) =>
-            '<div class="notif-item"><div class="notif-title">' +
-            (n.title || '').replace(/</g, '&lt;') +
-            '</div><div class="notif-msg">' +
-            (n.message || '').replace(/</g, '&lt;') +
-            '</div><div class="notif-ts">' +
-            new Date(n.ts).toLocaleString('zh-CN') +
-            '</div></div>'
-        )
-        .join('');
+      // v15 阶段 3 全量迁移：通知列表 Preact 渲染（原手写 replace(/</g) 转义退役
+      // ——文本插值天然转义）
+      const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+      PP.render(
+        PP.h(
+          PP.Fragment,
+          null,
+          items.map((/** @type {{title?: string, message?: string, ts: number}} */ n, /** @type {number} */ i) =>
+            PP.h(
+              'div',
+              { class: 'notif-item', key: i },
+              PP.h('div', { class: 'notif-title' }, n.title || ''),
+              PP.h('div', { class: 'notif-msg' }, n.message || ''),
+              PP.h('div', { class: 'notif-ts' }, new Date(n.ts).toLocaleString('zh-CN'))
+            )
+          )
+        ),
+        listEl
+      );
       const markBtn = document.getElementById('notifMarkRead');
       if (markBtn) {
         markBtn.addEventListener('click', async () => {
@@ -77,9 +84,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     console.warn('【游戏雷达】 加载设置失败:', e);
   }
   if (!settings) {
-    document.body.insertAdjacentHTML(
-      'afterbegin',
-      '<div style="padding:12px;margin:12px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;font-size:13px;">⚠️ 扩展后台未就绪，请稍后重试。</div>'
+    // v15 阶段 3 全量迁移：静态降级横幅 Preact 渲染（insertAdjacentHTML sink 退役）
+    const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+    const banner = document.createElement('div');
+    document.body.prepend(banner);
+    PP.render(
+      PP.h(
+        'div',
+        {
+          style:
+            'padding:12px;margin:12px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;font-size:13px;'
+        },
+        '⚠️ 扩展后台未就绪，请稍后重试。'
+      ),
+      banner
     );
     return;
   }

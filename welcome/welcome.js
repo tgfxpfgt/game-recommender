@@ -166,25 +166,39 @@
       (typeof globalThis !== 'undefined' && globalThis.__GR_TOKENS__ && globalThis.__GR_TOKENS__.THEME_LABELS) || {}; // v15 阶段 3：主题展示名走 shared/ui-tokens 单源
 
     const themeBox = document.getElementById('guideThemeBtns');
-    themeBox.innerHTML = themes
-      .map(
-        (/** @type {string} */ t) =>
-          `<button type="button" data-theme-pick="${t}" class="guide-theme-btn">${/** @type {Record<string, string>} */ (themeLabels)[t] || t}</button>`
-      )
-      .join('');
-    themeBox.querySelectorAll('[data-theme-pick]').forEach((/** @type {any} */ btn) => {
-      btn.addEventListener('click', () => {
-        guideState.uiTheme = btn.dataset.themePick;
-        // v14.3.2：预览统一走 applyTheme（主题文件按需加载）——直接设
-        // data-theme 不再加载 styles/themes/<t>.css，非 steam 预览会落空
-        const u = globalThis.__GR_SETTINGS_UTILS__;
-        if (u && u.applyTheme) u.applyTheme(guideState.uiTheme);
-        else document.body.dataset.theme = guideState.uiTheme; // 兜底（无工具文件时）
-        themeBox
-          .querySelectorAll('[data-theme-pick]')
-          .forEach((/** @type {any} */ b) => b.classList.toggle('active', b === btn));
-      });
-    });
+    // v15 阶段 3 全量迁移：主题按钮 Preact h() 渲染（innerHTML 退役；点击
+    // onClick prop 直连——active 高亮走渲染后 DOM 标记，与原实现一致）
+    const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        themes.map((/** @type {string} */ t) =>
+          PP.h(
+            'button',
+            {
+              type: 'button',
+              'data-theme-pick': t,
+              class: 'guide-theme-btn',
+              key: t,
+              onClick: (/** @type {any} */ ev) => {
+                guideState.uiTheme = t;
+                // v14.3.2：预览统一走 applyTheme（主题文件按需加载）——直接设
+                // data-theme 不再加载 styles/themes/<t>.css，非 steam 预览会落空
+                const u = globalThis.__GR_SETTINGS_UTILS__;
+                if (u && u.applyTheme) u.applyTheme(guideState.uiTheme);
+                else document.body.dataset.theme = guideState.uiTheme; // 兜底（无工具文件时）
+                themeBox
+                  .querySelectorAll('[data-theme-pick]')
+                  .forEach((/** @type {any} */ b) => b.classList.toggle('active', b === ev.currentTarget));
+              }
+            },
+            /** @type {Record<string, string>} */ (themeLabels)[t] || t
+          )
+        )
+      ),
+      themeBox
+    );
     const initialPick = themeBox.querySelector(`[data-theme-pick="${guideState.uiTheme}"]`);
     (initialPick || themeBox.querySelector('[data-theme-pick="steam"]')).classList.add('active');
 

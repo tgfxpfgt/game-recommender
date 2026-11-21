@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.38.0（Preact 全量迁移收官——innerHTML 生产面清零 + sim-list 竞态定性，2026-11-21）
+
+- 内容域+页面域全量 Preact 化（30 文件 84 sink 退役，基线 85→1 唯一残留=preact-globals vendor 产物）
+- content/core/preact-mount.js 单源助手（mountView 共享容器清场纪律）
+- sim-list 竞态：探针 20 连绿未捕获，retry:2 绷带恢复 + 证据登记（复现率约1/15 隔离运行，根因待后续专项）
+- 测试基建：test-sidebar-rows/test-sidepanel/test-options-render 手写 DOM 桩退役换 happy-dom 真实 DOM
+
 ### v14.37.4（CI Actions pin-to-SHA 迁移（发版 seal 挂账清偿），2026-11-21）
 
 - 23 处 uses 引用从可变 tag pin 到 commit SHA（checkout/setup-node/codeql/cache/upload-artifact/gitleaks——供应链纵深防御，Scorecard 同款检查项；@v4 注释保留版本可读）

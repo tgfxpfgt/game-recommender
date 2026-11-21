@@ -14,6 +14,12 @@
 
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
+  // v15 阶段 3：Preact 垫片惰性访问器（classic 页面脚本——加载序在垫片之前）
+  /** @returns {{h: Function, render: Function, Fragment: any}} */
+  function P() {
+    return /** @type {any} */ (globalThis).__GR_PREACT__;
+  }
+
   // ============ Render Settings / 渲染设置 ============
   /** @param {Record<string, any>} settings */
   function renderSettings(settings) {
@@ -183,31 +189,44 @@
     const tracked = settings.trackedSites || [];
     const steamSearch = settings.steamSiteSearch || [];
 
-    container.innerHTML = rules
-      .map((/** @type {any} */ s) => {
-        const isTracked = s.domains.some((/** @type {string} */ d) => tracked.includes(d));
-        const canSearch = !!s.searchUrl;
-        return `
-        <div class="site-manage-row">
-          <span class="site-manage-name">${escapeHtml(s.name)} <small>${escapeHtml(s.domains[0] ?? '')}</small></span>
-          <label class="gr-check" title="追踪该站点的浏览行为">
-            <input type="checkbox" class="track-site-check" data-domain="${escapeAttr(s.domains[0])}" ${isTracked ? 'checked' : ''}>
-            <span>追踪行为</span>
-          </label>
-          ${
-            canSearch
-              ? `
-            <label class="gr-check" title="在 Steam 详情页与缓存更新中检索该站点资源">
-              <input type="checkbox" class="steam-site-check" data-site="${escapeAttr(s.key)}" ${steamSearch.includes(s.key) ? 'checked' : ''}>
-              <span>Steam 检索</span>
-            </label>
-          `
-              : '<span class="no-search-hint">无站内搜索</span>'
-          }
-        </div>
-      `;
-      })
-      .join('');
+    // v15 阶段 3 全量迁移：站点管理行 Preact h() 渲染（innerHTML 退役；
+    // collectSitesSettings 依赖的 .track-site-check/.steam-site-check 选择器与
+    // data-domain/data-site 属性在 Preact 渲染下保持同形）
+    const PP = P();
+    const rows = rules.map((/** @type {any} */ s) => {
+      const isTracked = s.domains.some((/** @type {string} */ d) => tracked.includes(d));
+      const canSearch = !!s.searchUrl;
+      return PP.h(
+        'div',
+        { class: 'site-manage-row', key: String(s.key || s.domains[0]) },
+        PP.h('span', { class: 'site-manage-name' }, s.name + ' ', PP.h('small', null, String(s.domains[0] ?? ''))),
+        PP.h(
+          'label',
+          { class: 'gr-check', title: '追踪该站点的浏览行为' },
+          PP.h('input', {
+            type: 'checkbox',
+            class: 'track-site-check',
+            'data-domain': String(s.domains[0] ?? ''),
+            checked: isTracked
+          }),
+          PP.h('span', null, '追踪行为')
+        ),
+        canSearch
+          ? PP.h(
+              'label',
+              { class: 'gr-check', title: '在 Steam 详情页与缓存更新中检索该站点资源' },
+              PP.h('input', {
+                type: 'checkbox',
+                class: 'steam-site-check',
+                'data-site': String(s.key),
+                checked: steamSearch.includes(s.key)
+              }),
+              PP.h('span', null, 'Steam 检索')
+            )
+          : PP.h('span', { class: 'no-search-hint' }, '无站内搜索')
+      );
+    });
+    PP.render(PP.h(PP.Fragment, null, rows), container);
 
     renderCustomSiteList(tracked, rules);
   }
@@ -223,33 +242,43 @@
           Array.isArray(s.domains) && s.domains.some((/** @type {string} */ x) => d === x || d.includes(x))
       );
     const custom = tracked.filter((/** @type {string} */ d) => !isRuleDomain(d));
-    container.innerHTML = custom
-      .map(
-        (/** @type {any} */ site) => `
-      <div class="site-item">
-        <span>${escapeHtml(site)}</span>
-        <button class="remove-site" data-domain="${escapeAttr(site)}">✕</button>
-      </div>
-    `
-      )
-      .join('');
-
-    container.querySelectorAll('.remove-site').forEach((/** @type {any} */ btn) => {
-      btn.addEventListener('click', () => {
-        const domain = btn.dataset.domain;
-        OPTS.currentSettings.trackedSites = /** @type {any} */ (OPTS.currentSettings.trackedSites || []).filter(
-          (/** @type {string} */ d) => d !== domain
-        );
-        // v14.27.0（P2-5）：移除站点即回收按需授予的该域权限——授予面随列表收缩，
-        // 不留"已删除站点仍持有访问权"的残留（remove 可随时调用，无需手势）
-        const perms = globalThis.chrome && globalThis.chrome.permissions;
-        if (perms && perms.remove) {
-          perms.remove({ origins: [`http://${domain}/*`, `https://${domain}/*`] }).catch(() => {});
-        }
-        renderSiteManagement(OPTS.currentSettings);
-        OPTS.scheduleAutoSave();
-      });
-    });
+    // v15 阶段 3 全量迁移：自定义站点标签 Preact h() 渲染（移除 onClick prop 直连）
+    const PP = P();
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        custom.map((/** @type {any} */ site) =>
+          PP.h(
+            'div',
+            { class: 'site-item', key: String(site) },
+            PP.h('span', null, String(site)),
+            PP.h(
+              'button',
+              {
+                class: 'remove-site',
+                onClick: () => {
+                  const domain = String(site);
+                  OPTS.currentSettings.trackedSites = /** @type {any} */ (
+                    OPTS.currentSettings.trackedSites || []
+                  ).filter((/** @type {string} */ d) => d !== domain);
+                  // v14.27.0（P2-5）：移除站点即回收按需授予的该域权限——授予面随列表收缩，
+                  // 不留"已删除站点仍持有访问权"的残留（remove 可随时调用，无需手势）
+                  const perms = globalThis.chrome && globalThis.chrome.permissions;
+                  if (perms && perms.remove) {
+                    perms.remove({ origins: [`http://${domain}/*`, `https://${domain}/*`] }).catch(() => {});
+                  }
+                  renderSiteManagement(OPTS.currentSettings);
+                  OPTS.scheduleAutoSave();
+                }
+              },
+              '✕'
+            )
+          )
+        )
+      ),
+      container
+    );
   }
 
   // ============ UI Toggles / UI 切换 ============

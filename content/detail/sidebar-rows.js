@@ -8,24 +8,18 @@
  * Async row fills inside the Steam float: ITAD lowest + favorite button,
  * Steam250 rank (float + inline-card mounts). Anchor ids come from the
  * steamSidebar template.
+ * v15 阶段 3 全量迁移：行内容 Preact h() 渲染（innerHTML 6 处退役——文本
+ * 插值天然转义，esc 回退实现随之退役；收藏按钮切换经重挂载行内容）。
+ * Row contents rendered via Preact h(); the manual esc fallback retires.
  */
 // v14.26.0 P1-6：消息超时单源
 import { MSG_TIMEOUT_LONG_MS, MSG_TIMEOUT_NORMAL_MS } from '../core/timeouts.js';
+import { mountView, h, render, Fragment } from '../core/preact-mount.js';
 
-// v14.6.2 修复（审查 B5）：回退分支曾是恒等函数（shared/escape.js 未注入的
-// 异常场景下本文件所有注入点裸奔）——回退复刻 common.escapeHtmlLocal 的
-// 纯字符串转义实现（与注入版同语义）
-/** @param {string} text */
-const esc = (text) =>
-  typeof globalThis.escapeHtml === 'function'
-    ? globalThis.escapeHtml(text)
-    : String(text ?? '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;');
+const ITAD_LINK_STYLE = 'color:#67c1f5;text-decoration:none;';
+const ROW_LINK_STYLE = 'color:inherit;text-decoration:none;cursor:pointer;';
 
-// v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2）
+// ============ v10.6.0：ITAD 最低价行 + 收藏按钮（F1/F2） ============
 // ITAD：Key 未配置或查询失败 → 行隐藏；收藏：按钮切换 + 状态持久化
 /**
  * @param {string} appId
@@ -42,31 +36,39 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
     favRow.id = 'gr-fav-row-inner';
     favRow.style.marginTop = '4px';
     itadEl.parentNode.insertBefore(favRow, itadEl);
-    const renderFav = (/** @type {boolean} */ favorited) => {
-      favRow.innerHTML = '';
-      const btn = document.createElement('button');
-      btn.textContent = favorited ? '★ 已收藏' : '☆ 收藏';
-      btn.style.cssText = `padding:2px 10px;font-size:11px;cursor:pointer;border-radius:3px;border:1px solid ${favorited ? '#f1c40f' : '#666'};background:transparent;color:${favorited ? '#f1c40f' : '#aaa'}`;
-      btn.addEventListener('click', async (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        try {
-          const resp = await window.__GR_MSG__.sendMessage(
-            {
-              action: 'TOGGLE_FAVORITE',
-              appId,
-              name: name || '',
-              releaseDate: releaseDate || '' // v12 B6：发售追踪
-            },
-            null,
-            { timeout: MSG_TIMEOUT_NORMAL_MS }
-          );
-          if (resp && resp.favorited !== undefined) renderFav(resp.favorited);
-        } catch {
-          /* 后台不可达静默 */
-        }
-      });
-      favRow.appendChild(btn);
+    /** @param {boolean} favorited */
+    const renderFav = (favorited) => {
+      // v15 阶段 3：favRow 内容 Preact 重挂载（按收藏态重渲染——
+      // render 差分复用按钮节点，文本/样式 prop 更新）
+      render(
+        h(
+          'button',
+          {
+            style: `padding:2px 10px;font-size:11px;cursor:pointer;border-radius:3px;border:1px solid ${favorited ? '#f1c40f' : '#666'};background:transparent;color:${favorited ? '#f1c40f' : '#aaa'}`,
+            onClick: async (/** @type {any} */ ev) => {
+              ev.preventDefault();
+              ev.stopPropagation();
+              try {
+                const resp = await window.__GR_MSG__.sendMessage(
+                  {
+                    action: 'TOGGLE_FAVORITE',
+                    appId,
+                    name: name || '',
+                    releaseDate: releaseDate || '' // v12 B6：发售追踪
+                  },
+                  null,
+                  { timeout: MSG_TIMEOUT_NORMAL_MS }
+                );
+                if (resp && resp.favorited !== undefined) renderFav(resp.favorited);
+              } catch {
+                /* 后台不可达静默 */
+              }
+            }
+          },
+          favorited ? '★ 已收藏' : '☆ 收藏'
+        ),
+        favRow
+      );
     };
     try {
       const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' }, null, {
@@ -96,17 +98,45 @@ export async function fillItadAndFavorites(appId, name, releaseDate) {
     const reason = resp && resp.reason;
     if (!info || info.price === undefined || info.price === null) {
       if (reason && /** @type {Record<string, string>} */ (REASON_TEXT)[reason]) {
-        itadEl.innerHTML = `💰 ITAD 历史最低: <span style="color:#8f98a0;">${esc(/** @type {Record<string, string>} */ (REASON_TEXT)[reason])}</span> <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
+        mountView(
+          itadEl,
+          h(
+            Fragment,
+            null,
+            '💰 ITAD 历史最低: ',
+            h('span', { style: 'color:#8f98a0;' }, /** @type {Record<string, string>} */ (REASON_TEXT)[reason]),
+            ' ',
+            h(
+              'a',
+              { href: 'https://isthereanydeal.com', target: '_blank', rel: 'noopener', style: ITAD_LINK_STYLE },
+              'ITAD ↗'
+            )
+          )
+        );
         itadEl.style.display = '';
         return;
       }
       itadEl.style.display = 'none';
       return;
     }
-    const shop = info.shop ? ` @ ${esc(info.shop)}` : ''; // v10.9.1：shop 一并转义
     const price = Number(info.price); // v10.9.1：异型防 "NaN"
     if (!isFinite(price)) throw new Error('bad-price');
-    itadEl.innerHTML = `💰 ITAD 历史最低: <b style="color:#67c1f5;">${price.toFixed(2)}</b>${shop} <a href="https://isthereanydeal.com" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">ITAD ↗</a>`;
+    mountView(
+      itadEl,
+      h(
+        Fragment,
+        null,
+        '💰 ITAD 历史最低: ',
+        h('b', { style: 'color:#67c1f5;' }, price.toFixed(2)),
+        info.shop ? ' @ ' + info.shop : '', // v10.9.1：shop 一并转义（现文本插值天然转义）
+        ' ',
+        h(
+          'a',
+          { href: 'https://isthereanydeal.com', target: '_blank', rel: 'noopener', style: ITAD_LINK_STYLE },
+          'ITAD ↗'
+        )
+      )
+    );
     itadEl.style.display = '';
   } catch {
     itadEl.style.display = 'none';
@@ -134,18 +164,33 @@ export async function fillSteam250Info(appId) {
     const info = resp && resp.info;
     const loaded = !!(resp && resp.loaded);
     const href = `https://club.steam250.com/app/${encodeURIComponent(String(appId))}`;
-    const linkAttr = `href="${href}" target="_blank" rel="noopener" style="color:inherit;text-decoration:none;cursor:pointer;"`;
-    const linkHtml = `<a ${linkAttr}>`;
-    const html = info
-      ? // v10.9.1；v14.6.2：rank/score 补 esc（审查 B4）
-        `${linkHtml}🏆 Steam250 排名 <b style="color:#67c1f5;">#${esc(String(info.rank ?? '-'))}</b> · ${esc(String(info.score ?? '-'))} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 <span style="color:#67c1f5;">Steam250 ↗</span></a>`
+    const row = info
+      ? // v10.9.1；v14.6.2：rank/score 补 esc（审查 B4）——现文本插值天然转义
+        h(
+          'a',
+          { href, target: '_blank', rel: 'noopener', style: ROW_LINK_STYLE },
+          '🏆 Steam250 排名 ',
+          h('b', { style: 'color:#67c1f5;' }, `#${String(info.rank ?? '-')}`),
+          ` · ${String(info.score ?? '-')} 分 · ${Number(info.votes || 0).toLocaleString()} 条评价 `,
+          h('span', { style: 'color:#67c1f5;' }, 'Steam250 ↗')
+        )
       : loaded
-        ? `${linkHtml}<span style="color:#666;">🏆 未入 Steam250 前 250 名</span> <span style="color:#67c1f5;">Steam250 ↗</span></a>`
-        : `<a href="${href}" target="_blank" rel="noopener" style="color:#666;text-decoration:none;cursor:pointer;">🏆 Steam250 榜单 ↗</a>`;
+        ? h(
+            'a',
+            { href, target: '_blank', rel: 'noopener', style: ROW_LINK_STYLE },
+            h('span', { style: 'color:#666;' }, '🏆 未入 Steam250 前 250 名'),
+            ' ',
+            h('span', { style: 'color:#67c1f5;' }, 'Steam250 ↗')
+          )
+        : h(
+            'a',
+            { href, target: '_blank', rel: 'noopener', style: 'color:#666;text-decoration:none;cursor:pointer;' },
+            '🏆 Steam250 榜单 ↗'
+          );
     for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {
       const el = document.getElementById(id);
       if (!el) continue;
-      el.innerHTML = html;
+      mountView(el, row);
       el.style.display = '';
     }
   } catch {
@@ -156,7 +201,14 @@ export async function fillSteam250Info(appId) {
     for (const id of ['gr-steam250-row', 'gr-steam250-inline']) {
       const el = document.getElementById(id);
       if (!el) continue;
-      el.innerHTML = `<a href="${href}" target="_blank" rel="noopener" style="color:#666;text-decoration:none;cursor:pointer;">🏆 Steam250 榜单 ↗</a>`;
+      mountView(
+        el,
+        h(
+          'a',
+          { href, target: '_blank', rel: 'noopener', style: 'color:#666;text-decoration:none;cursor:pointer;' },
+          '🏆 Steam250 榜单 ↗'
+        )
+      );
       el.style.display = '';
     }
   }
@@ -174,20 +226,34 @@ export async function fillSeriesInfo(appId, name) {
       { timeout: MSG_TIMEOUT_NORMAL_MS }
     );
     const entries = (resp && resp.entries) || [];
-    const html =
-      entries.length > 0
-        ? '🎮 系列作品：' +
-          entries
-            .map(
-              (/** @type {any} */ e) =>
-                `<a href="https://store.steampowered.com/app/${esc(String(e.appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">${esc(e.name)}</a>`
-            )
-            .join(' · ')
-        : '';
     const el = document.getElementById('gr-series-row');
     if (!el) return;
-    if (html) {
-      el.innerHTML = html;
+    if (entries.length > 0) {
+      mountView(
+        el,
+        h(
+          Fragment,
+          null,
+          '🎮 系列作品：',
+          entries.map((/** @type {any} */ e, /** @type {number} */ i) =>
+            h(
+              Fragment,
+              { key: i },
+              i > 0 ? ' · ' : null,
+              h(
+                'a',
+                {
+                  href: `https://store.steampowered.com/app/${String(e.appId)}/`,
+                  target: '_blank',
+                  rel: 'noopener',
+                  style: ITAD_LINK_STYLE
+                },
+                e.name
+              )
+            )
+          )
+        )
+      );
       el.style.display = '';
     } else {
       el.style.display = 'none';

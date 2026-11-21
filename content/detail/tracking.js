@@ -6,15 +6,35 @@
  * Split from detail-page.js (B3): the Steam-page download-site panel, the
  * download-history float and TRACK_EVENT collection (steam_tags_update).
  * 入口经 detail-page.js re-export（tracker 调用面不变）。
+ * v15 阶段 3 全量迁移：面板渲染 Preact h()（innerHTML 6 处退役——文本插值
+ * 天然转义；href 仅接受 http(s) 的协议复核守卫原样保留）。共享容器走
+ * core/preact-mount.js mountView（异源 DOM 清场纪律）。
  */
 import * as float from '../core/floats.js';
 import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
 import * as common from '../core/common.js';
 import * as builder from '../adapters/builder.js';
+import { mountView, h, Fragment } from '../core/preact-mount.js';
 
 const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
-const esc = (/** @type {string} */ text) => common.escapeHtml(text);
+
+// 面板状态行统一样式（加载/空态/错误） / panel status line style
+const PANEL_STATUS_STYLE = 'padding:14px;text-align:center;color:#8f98a0;';
+
+// href 协议复核（铁律：规则包/外部输入渲染进 href 前只接受 http(s)——
+// escapeAttr 不拦 javascript: 伪协议，Preact setAttribute 同样不拦，守卫前置）
+// href protocol guard: only http(s) passes (rule-pack data is external input).
+/** @param {string} raw @returns {string} 合法绝对 URL 或空串 */
+function safeHref(raw) {
+  try {
+    const u = new URL(raw, location.href);
+    if (u.protocol === 'http:' || u.protocol === 'https:') return u.href;
+  } catch {
+    /* 非法 URL → 无链接 */
+  }
+  return '';
+}
 
 // ============ 功能3：Steam页面下载站资源浮窗 ============
 // 显示下载站搜索结果，提供详情页跳转链接（v1.1 起不再提供网盘直链）。
@@ -55,7 +75,7 @@ export function injectDownloadSitePanel(opts = {}) {
     width: 320,
     title: '📥 下载站资源'
   });
-  panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">正在读取下载站缓存...</div>`;
+  mountView(panel, h('div', { style: PANEL_STATUS_STYLE }, '正在读取下载站缓存...'));
 
   (async () => {
     try {
@@ -77,7 +97,7 @@ export function injectDownloadSitePanel(opts = {}) {
           rows: cachedFound.map((/** @type {any} */ s) => `${s.name}: ${s.detailUrl}`).slice(0, 3)
         });
       } else {
-        panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">缓存中暂无收录，正在搜索下载站...</div>`;
+        mountView(panel, h('div', { style: PANEL_STATUS_STYLE }, '缓存中暂无收录，正在搜索下载站...'));
       }
       // 完整搜索（站内检索 + 缓存兜底）→ 更新面板
       const resp = await window.__GR_MSG__.sendMessage({
@@ -99,11 +119,11 @@ export function injectDownloadSitePanel(opts = {}) {
             .slice(0, 3)
         });
       } else {
-        panel.innerHTML = `<div style="padding:14px;text-align:center;color:#8f98a0;">未找到下载站资源</div>`;
+        mountView(panel, h('div', { style: PANEL_STATUS_STYLE }, '未找到下载站资源'));
         status.showStats({ title: '下载站资源检索完成', summary: '未找到匹配资源' });
       }
     } catch {
-      panel.innerHTML = `<div style="padding:14px;text-align:center;color:#e74c3c;">搜索失败</div>`;
+      mountView(panel, h('div', { style: PANEL_STATUS_STYLE + 'color:#e74c3c;' }, '搜索失败'));
     }
   })();
 }
@@ -112,6 +132,8 @@ export function injectDownloadSitePanel(opts = {}) {
 // v14.22.0：steamJumpUrl 非空时头部附 Steam 商店页跳转链接（steam250 页
 // 复用入口——页面本身不在 Steam 域，无"打开商店页"原生路径）。
 // v14.22.0: optional Steam store jump link in the header (steam250 reuse).
+// v15 阶段 3 全量迁移：h() 树渲染（原模板串 + 双重 escape 全部退役；
+// name/updateDate/version/size 均外部输入——文本子节点天然转义）。
 /**
  * @param {HTMLElement} panel
  * @param {Array<any>} sites
@@ -124,108 +146,178 @@ function renderDownloadSitePanel(panel, sites, gameName, steamJumpUrl) {
   /** @type {Record<string, string>} */
   const siteNames = {};
   for (const r of /** @type {any[]} */ (rules)) if (r && r.key && r.displayName) siteNames[r.key] = r.displayName;
-  // v14.22.0：Steam 跳转链接仅接受 http(s)（外部输入防御同 detailUrl/searchUrl）
-  let steamJumpHtml = '';
-  if (steamJumpUrl) {
-    try {
-      const u = new URL(steamJumpUrl, location.href);
-      if (u.protocol === 'http:' || u.protocol === 'https:') {
-        steamJumpHtml =
-          `<a href="${common.escapeAttr(u.href)}" target="_blank" rel="noopener noreferrer" ` +
-          `style="font-size:11px;color:#67c1f5;text-decoration:none;">商店页 ↗</a>`;
-      }
-    } catch {
-      /* 非法 URL → 不渲染 */
-    }
-  }
-  let html = `
-      <div style="padding:12px 14px 6px 14px;">
-        <div style="font-size:13px;font-weight:bold;color:#fff;margin-bottom:2px;">📥 下载站资源</div>
-        <div style="font-size:11px;color:#8f98a0;margin-bottom:8px;">${esc(gameName)}${steamJumpHtml ? ' · ' + steamJumpHtml : ''}</div>
-      </div>
-    `;
+  // v14.22.0：Steam 跳转链接仅接受 http(s)
+  const steamJumpHref = steamJumpUrl ? safeHref(steamJumpUrl) : '';
 
-  for (const site of sites) {
-    // v9.7.0：站点名（规则的 displayName）/key 均为外部输入，必须转义——
-    // 恶意规则包可借未转义 name 注入 HTML（同函数其余字段早已全部转义）
-    const name = esc(siteNames[site.key] || site.key);
-    const siteKeyAttr = common.escapeAttr(site.key);
+  const siteRows = sites.map((/** @type {any} */ site) => {
+    const name = siteNames[site.key] || site.key;
     if (site.found && site.detailUrl) {
       // v14.13.1：detailUrl 与 searchUrl 同风险（规则包数据渲染进 href）——
       // protocol 复核兜底，非法降级为无链接
-      let detailHref = '';
-      try {
-        const du = new URL(site.detailUrl, location.href);
-        if (du.protocol === 'http:' || du.protocol === 'https:') detailHref = common.escapeAttr(du.href);
-      } catch {
-        /* 非法 URL → 无链接 */
-      }
-      const detailLinkHtml = detailHref
-        ? `<a href="${detailHref}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;">跳转详情页 ↗</a>`
-        : `<span style="font-size:11px;color:#666;">（链接不可用）</span>`;
-      html += `
-          <div data-site-key="${siteKeyAttr}" style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;">
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-              <span style="font-size:12px;font-weight:bold;color:#67c1f5;">${name}</span>
-              ${detailLinkHtml}
-            </div>
-            <div style="display:flex;flex-direction:column;gap:3px;font-size:11px;color:#acb2b8;">
-              ${site.updateDate ? `<div>📅 更新: ${esc(site.updateDate)}</div>` : ''}
-              ${site.version ? `<div>🏷️ 版本: ${esc(site.version)}</div>` : ''}
-              ${site.size ? `<div>💾 大小: ${esc(site.size)}</div>` : ''}
-              ${!site.updateDate && !site.version && !site.size ? '<div style="color:#666;">点击跳转查看详情</div>' : ''}
-            </div>
-          </div>
-        `;
-    } else {
-      // v14.11 B4（报告 B/C P1-04 渲染侧兜底）：href 仅接受 http(s)——存量
-      // 已入库恶意规则不受保存侧校验保护，渲染时 protocol 复核（escapeAttr
-      // 不拦 javascript: 伪协议）；非法则降级为纯文本不渲染链接
-      let searchHref = '';
-      try {
-        const u = new URL(site.searchUrl, location.href);
-        if (u.protocol === 'http:' || u.protocol === 'https:') searchHref = common.escapeAttr(u.href);
-      } catch {
-        /* 非法 URL → 无链接 */
-      }
-      const linkHtml = searchHref
-        ? `<a href="${searchHref}" target="_blank" rel="noopener noreferrer" style="font-size:11px;color:#67c1f5;text-decoration:none;">去搜索 ↗</a>`
-        : '<span style="font-size:11px;color:#666;">（搜索链接不可用）</span>';
-      html += `
-          <div style="margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.15);border:1px solid #222;border-radius:3px;">
-            <div class="gr-detail-flex-between">
-              <span style="font-size:12px;color:#666;">${name}</span>
-              ${linkHtml}
-            </div>
-            <div style="font-size:11px;color:#555;margin-top:3px;">未直接找到该游戏</div>
-          </div>
-        `;
+      const detailHref = safeHref(site.detailUrl);
+      const detailLink = detailHref
+        ? h(
+            'a',
+            {
+              href: detailHref,
+              target: '_blank',
+              rel: 'noopener noreferrer',
+              style:
+                'font-size:11px;color:#d2efa9;background:linear-gradient(to right,#75b022,#588a1b);padding:3px 10px;border-radius:2px;text-decoration:none;'
+            },
+            '跳转详情页 ↗'
+          )
+        : h('span', { style: 'font-size:11px;color:#666;' }, '（链接不可用）');
+      return h(
+        'div',
+        {
+          'data-site-key': String(site.key),
+          style:
+            'margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.25);border:1px solid #2a475e;border-radius:3px;'
+        },
+        h(
+          'div',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;' },
+          h('span', { style: 'font-size:12px;font-weight:bold;color:#67c1f5;' }, name),
+          detailLink
+        ),
+        h(
+          'div',
+          { style: 'display:flex;flex-direction:column;gap:3px;font-size:11px;color:#acb2b8;' },
+          site.updateDate ? h('div', null, '📅 更新: ' + site.updateDate) : null,
+          site.version ? h('div', null, '🏷️ 版本: ' + site.version) : null,
+          site.size ? h('div', null, '💾 大小: ' + site.size) : null,
+          !site.updateDate && !site.version && !site.size
+            ? h('div', { style: 'color:#666;' }, '点击跳转查看详情')
+            : null
+        )
+      );
     }
-  }
+    // v14.11 B4（报告 B/C P1-04 渲染侧兜底）：href 仅接受 http(s)——存量
+    // 已入库恶意规则不受保存侧校验保护，渲染时 protocol 复核；非法则降级为纯文本不渲染链接
+    const searchHref = safeHref(site.searchUrl);
+    const searchLink = searchHref
+      ? h(
+          'a',
+          {
+            href: searchHref,
+            target: '_blank',
+            rel: 'noopener noreferrer',
+            style: 'font-size:11px;color:#67c1f5;text-decoration:none;'
+          },
+          '去搜索 ↗'
+        )
+      : h('span', { style: 'font-size:11px;color:#666;' }, '（搜索链接不可用）');
+    return h(
+      'div',
+      {
+        style:
+          'margin:0 14px 10px 14px;padding:10px;background:rgba(0,0,0,0.15);border:1px solid #222;border-radius:3px;'
+      },
+      h(
+        'div',
+        { class: 'gr-detail-flex-between' },
+        h('span', { style: 'font-size:12px;color:#666;' }, name),
+        searchLink
+      ),
+      h('div', { style: 'font-size:11px;color:#555;margin-top:3px;' }, '未直接找到该游戏')
+    );
+  });
 
   // v12 B7：跨站收录对比（≥2 站命中时显示版本/大小/更新时间对比 + 最优来源标记）
-  const foundSites = sites.filter((st) => st.found && st.detailUrl);
+  const foundSites = sites.filter((/** @type {any} */ st) => st.found && st.detailUrl);
+  let compareBlock = null;
   if (foundSites.length >= 2) {
     const tsOf = (/** @type {any} */ st) => {
       const t = Date.parse((st.updateDate || '').replace(/[年月]/g, '-').replace(/日$/, ''));
       return isNaN(t) ? 0 : t;
     };
-    const best = foundSites.reduce((a, b) => (tsOf(b) > tsOf(a) ? b : a), foundSites[0]);
-    let cmp = `<div style="margin:0 14px 10px 14px;padding:8px 10px;background:rgba(103,193,245,0.06);border:1px dashed #2a475e;border-radius:3px;">
-        <div style="font-size:11px;color:#8f98a0;margin-bottom:4px;">📋 跨站对比（按更新时间，⭐ = 最优来源）</div>`;
-    for (const st of foundSites.slice(0, 5)) {
-      const isBest = st === best && tsOf(st) > 0;
-      // v13 B6：每行附详情页直达链接（detailUrl 已过同域白名单校验）
-      cmp += `<div style="font-size:11px;color:#acb2b8;display:flex;justify-content:space-between;gap:8px;">
-          <span>${isBest ? '⭐ ' : ''}${escapeHtml(st.name)} <a href="${common.escapeAttr(st.detailUrl)}" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">打开 ↗</a></span>
-          <span style="color:#666;">${st.version ? 'v' + escapeHtml(st.version) : '—'} ${st.size ? '· ' + escapeHtml(st.size) : ''} ${st.updateDate ? '· ' + escapeHtml(st.updateDate) : '· 更新—'}</span>
-        </div>`;
-    }
-    cmp += '</div>';
-    html += cmp;
+    const best = foundSites.reduce(
+      (/** @type {any} */ a, /** @type {any} */ b) => (tsOf(b) > tsOf(a) ? b : a),
+      foundSites[0]
+    );
+    compareBlock = h(
+      'div',
+      {
+        style:
+          'margin:0 14px 10px 14px;padding:8px 10px;background:rgba(103,193,245,0.06);border:1px dashed #2a475e;border-radius:3px;'
+      },
+      h(
+        'div',
+        { style: 'font-size:11px;color:#8f98a0;margin-bottom:4px;' },
+        '📋 跨站对比（按更新时间，⭐ = 最优来源）'
+      ),
+      foundSites.slice(0, 5).map((/** @type {any} */ st) => {
+        const isBest = st === best && tsOf(st) > 0;
+        // v13 B6：每行附详情页直达链接（detailUrl 已过同域白名单校验）
+        return h(
+          'div',
+          { style: 'font-size:11px;color:#acb2b8;display:flex;justify-content:space-between;gap:8px;' },
+          h(
+            'span',
+            null,
+            isBest ? '⭐ ' : '',
+            st.name,
+            ' ',
+            h(
+              'a',
+              {
+                href: safeHref(st.detailUrl),
+                target: '_blank',
+                rel: 'noopener',
+                style: 'color:#67c1f5;text-decoration:none;'
+              },
+              '打开 ↗'
+            )
+          ),
+          h(
+            'span',
+            { style: 'color:#666;' },
+            st.version ? 'v' + st.version : '—',
+            st.size ? '· ' + st.size : '',
+            st.updateDate ? '· ' + st.updateDate : '· 更新—'
+          )
+        );
+      })
+    );
   }
 
-  panel.innerHTML = html;
+  mountView(
+    panel,
+    h(
+      Fragment,
+      null,
+      h(
+        'div',
+        { style: 'padding:12px 14px 6px 14px;' },
+        h('div', { style: 'font-size:13px;font-weight:bold;color:#fff;margin-bottom:2px;' }, '📥 下载站资源'),
+        h(
+          'div',
+          { style: 'font-size:11px;color:#8f98a0;margin-bottom:8px;' },
+          gameName,
+          steamJumpHref
+            ? h(
+                'span',
+                null,
+                ' · ',
+                h(
+                  'a',
+                  {
+                    href: steamJumpHref,
+                    target: '_blank',
+                    rel: 'noopener noreferrer',
+                    style: 'font-size:11px;color:#67c1f5;text-decoration:none;'
+                  },
+                  '商店页 ↗'
+                )
+              )
+            : null
+        )
+      ),
+      siteRows,
+      compareBlock
+    )
+  );
 }
 
 // ============ 下载历史浮窗（详情页显示上次下载记录） ============
@@ -271,21 +363,46 @@ export function injectDownloadHistoryPanel(gameName) {
       const timeStr = common.formatRelativeTime(record.lastDownloadTime);
       const siteName = record.lastDownloadSiteName || '未知站点';
 
+      // v15 阶段 3 全量迁移：h() 树渲染（原模板串退役）
       panel.style.padding = '12px 14px';
-      panel.innerHTML = `
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-          <span style="font-size:16px;">📥</span>
-          <span style="font-weight:bold;color:#66c0f4;font-size:13px;">下载记录</span>
-        </div>
-        <div style="color:#8f98a0;margin-bottom:4px;">
-          上次下载：<span style="color:#d2efa9;">${timeStr}</span>
-        </div>
-        <div style="color:#8f98a0;">
-          下载站点：<span style="color:#66c0f4;">${esc(siteName)}</span>
-        </div>
-        ${record.totalDownloads && record.totalDownloads > 1 ? `<div style="color:#666;margin-top:6px;font-size:11px;">共下载 ${record.totalDownloads} 次</div>` : ''}
-        ${record.lastDownloadUrl ? `<div style="margin-top:8px;"><a href="${common.escapeAttr(record.lastDownloadUrl)}" target="_blank" style="color:#67c1f5;text-decoration:none;font-size:11px;">↗ 打开上次下载页</a></div>` : ''}
-      `;
+      mountView(
+        panel,
+        h(
+          Fragment,
+          null,
+          h(
+            'div',
+            { style: 'display:flex;align-items:center;gap:8px;margin-bottom:8px;' },
+            h('span', { style: 'font-size:16px;' }, '📥'),
+            h('span', { style: 'font-weight:bold;color:#66c0f4;font-size:13px;' }, '下载记录')
+          ),
+          h(
+            'div',
+            { style: 'color:#8f98a0;margin-bottom:4px;' },
+            '上次下载：',
+            h('span', { style: 'color:#d2efa9;' }, timeStr)
+          ),
+          h('div', { style: 'color:#8f98a0;' }, '下载站点：', h('span', { style: 'color:#66c0f4;' }, siteName)),
+          record.totalDownloads && record.totalDownloads > 1
+            ? h('div', { style: 'color:#666;margin-top:6px;font-size:11px;' }, `共下载 ${record.totalDownloads} 次`)
+            : null,
+          record.lastDownloadUrl && safeHref(record.lastDownloadUrl)
+            ? h(
+                'div',
+                { style: 'margin-top:8px;' },
+                h(
+                  'a',
+                  {
+                    href: safeHref(record.lastDownloadUrl),
+                    target: '_blank',
+                    style: 'color:#67c1f5;text-decoration:none;font-size:11px;'
+                  },
+                  '↗ 打开上次下载页'
+                )
+              )
+            : null
+        )
+      );
     })
     .catch(() => {});
 }

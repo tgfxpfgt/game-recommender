@@ -198,7 +198,14 @@ export const BUDGETS = {
   // (finish only when this tab's job is confirmed running); re-locked.
   // v14.31.3 stage-0: detail closure re-locked at true injected surface
   // (sidebar static imports made the runtime tail visible to the meter).
-  closureBytes: 327681
+  // v14.37.5（Preact 全量迁移）：detail 闭包 +10.2KB = preact 运行时（~4KB min）
+  // + preact-mount 助手 + 迁移面改写（模板串 → h() 树，render 调用略大）；
+  // list 闭包 305.9KB 仍在 320KB 内。innerHTML 生产面清零（85→1，唯一残留为
+  // preact-globals vendor 产物），按实测重锁。
+  // v14.37.5 (full Preact migration): detail closure +10.2KB = preact runtime
+  // (~4KB min) + preact-mount helper + migrated call sites; list closure
+  // still within budget. Production innerHTML surface now zero; re-locked.
+  closureBytes: 337876
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

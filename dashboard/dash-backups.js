@@ -14,47 +14,66 @@
 // ============ 备份管理 / Backup Management ============
 // 状态文案清空延时（v14.6.2：具名单点）
 const BACKUP_STATUS_CLEAR_MS = 3000;
+// v15 阶段 3：Preact 垫片惰性访问器（classic 页面脚本——加载序在垫片之前）
+/** @returns {{h: Function, render: Function, Fragment: any}} */
+function P() {
+  return /** @type {any} */ (globalThis).__GR_PREACT__;
+}
 // 加载备份列表并渲染 / Load and render the backup list
+// v15 阶段 3 全量迁移：Preact h() 渲染（innerHTML 3 处退役；恢复/删除
+// onClick prop 直连——原 querySelectorAll 接线块退役）
 async function loadBackups() {
   const container = document.getElementById('backupList');
+  if (!container) return;
+  const PP = P();
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_BACKUPS' });
     const backups = (response && response.backups) || [];
 
     if (backups.length === 0) {
-      container.innerHTML = '<div class="no-data">暂无备份，点击“立即备份”创建</div>';
+      PP.render(PP.h('div', { class: 'no-data' }, '暂无备份，点击“立即备份”创建'), container);
       return;
     }
 
-    container.innerHTML = backups
-      .map((/** @type {any} */ b) => {
-        const time = safeDateText(b.timestamp); // v10.9.1
-        const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
-        const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
-        return `<div class="backup-item">
-        <div class="backup-info">
-          <span class="backup-type">${b.manual ? '🔧 手动' : '⏰ 自动'}</span>
-          <span class="backup-time">${time}</span>
-          <span class="backup-size">${sizeKb} KB${modInfo}</span>
-        </div>
-        <div class="backup-actions">
-          <button class="btn btn-sm backup-restore-btn" data-id="${escapeAttr(b.id)}">♻️ 恢复</button>
-          <button class="btn btn-sm btn-danger backup-delete-btn" data-id="${escapeAttr(b.id)}">删除</button>
-        </div>
-      </div>`;
-      })
-      .join('');
-
-    // 绑定恢复/删除按钮（内联 onclick 在 MV3 扩展页被 CSP 禁止，必须用 addEventListener）
-    // Bind restore/delete buttons (inline onclick is blocked by MV3 extension-page CSP)
-    container.querySelectorAll('.backup-restore-btn').forEach((/** @type {any} */ btn) => {
-      btn.addEventListener('click', () => restoreBackup(btn.dataset.id));
-    });
-    container.querySelectorAll('.backup-delete-btn').forEach((/** @type {any} */ btn) => {
-      btn.addEventListener('click', () => deleteBackup(btn.dataset.id));
-    });
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        backups.map((/** @type {any} */ b) => {
+          const time = safeDateText(b.timestamp); // v10.9.1
+          const sizeKb = b.size ? (b.size / 1024).toFixed(1) : '?';
+          const modInfo = b.modules ? ` · ${b.modules.length} 模块` : ' · 全部模块';
+          return PP.h(
+            'div',
+            { class: 'backup-item', key: String(b.id) },
+            PP.h(
+              'div',
+              { class: 'backup-info' },
+              PP.h('span', { class: 'backup-type' }, b.manual ? '🔧 手动' : '⏰ 自动'),
+              PP.h('span', { class: 'backup-time' }, time),
+              PP.h('span', { class: 'backup-size' }, `${sizeKb} KB${modInfo}`)
+            ),
+            PP.h(
+              'div',
+              { class: 'backup-actions' },
+              PP.h(
+                'button',
+                { class: 'btn btn-sm backup-restore-btn', onClick: () => restoreBackup(String(b.id)) },
+                '♻️ 恢复'
+              ),
+              PP.h(
+                'button',
+                { class: 'btn btn-sm btn-danger backup-delete-btn', onClick: () => deleteBackup(String(b.id)) },
+                '删除'
+              )
+            )
+          );
+        })
+      ),
+      container
+    );
   } catch (e) {
-    container.innerHTML = `<div class="no-data">加载备份失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</div>`;
+    PP.render(PP.h('div', { class: 'no-data' }, '加载备份失败: ' + window.__GR_MSG__.toUserMessage(e)), container);
   }
 }
 

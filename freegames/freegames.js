@@ -125,7 +125,11 @@ function renderFreeGamesCalendar(games) {
     html += `<div class="${cls}" title="${labels ? labels.map((s) => s.replace(/"/g, '')).join('\n') : ''}">${d}${labels ? '<div class="cal-dot"></div>' : ''}</div>`;
   }
   html += '</div>';
-  host.innerHTML = html;
+  // v15 阶段 3 全量迁移：trusted 日历 SVG-less HTML 串经 Preact
+  // dangerouslySetInnerHTML 注入（内插值全为 number/固定文案，title 引号已剥；
+  // sink 退役）。日历结构简单，保持串拼接 + 受控注入（改 h() 树收益低）。
+  const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+  PP.render(PP.h('div', { dangerouslySetInnerHTML: { __html: html } }), host);
 }
 
 // v15 阶段 3：限免页状态区块 Preact 组件（按需装载一次）
@@ -197,32 +201,56 @@ function renderGames() {
   // 未领取的排在前面
   const sorted = [...filtered].sort((a, b) => (a.claimed ? 1 : 0) - (b.claimed ? 1 : 0));
 
-  listEl.innerHTML = sorted.map((game) => renderGameCard(game)).join('');
+  // v15 阶段 3 全量迁移：trusted 卡片 HTML 串经 Preact dangerouslySetInnerHTML
+  // 注入（renderGameCard 全链 escapeHtml/escapeAttr 预转义——可信助手输出；
+  // sink 退役）。图片错误/领取按钮接线改容器级事件委托（原 per-img
+  // querySelectorAll 接线退役——委托对重渲染更稳）。
+  const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+  PP.render(
+    PP.h('div', {
+      dangerouslySetInnerHTML: { __html: sorted.map((/** @type {any} */ game) => renderGameCard(game)).join('') },
+      onClick: async (/** @type {any} */ ev) => {
+        const btn = ev.target && ev.target.closest('.claim-btn');
+        if (!btn) return;
+        const gameId = btn.getAttribute('data-id');
+        const game = allGames.find((/** @type {any} */ g) => g.id === gameId);
+        // 链接始终会在新标签打开（<a target=_blank> 默认行为）
+        // 若尚未领取，标记已领取并更新角标
+        if (game && !game.claimed) {
+          await window.__GR_MSG__.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
+          game.claimed = true;
+          // 就地更新按钮外观（保持链接可点击，不整体重渲染以免中断跳转）
+          btn.classList.add('claimed');
+          btn.textContent = '✓ 已领取 · 再次打开';
+          const card = btn.closest('.game-card');
+          if (card) card.classList.add('claimed');
+        }
+      },
+      onError: (/** @type {any} */ ev) => {
+        // 图片加载失败隐藏（error 不冒泡——此处挂容器监听仅捕获 img 自身的
+        // error 事件不会到达；改由渲染后 querySelectorAll 接线的兜底语义由
+        // Preact img onError 承担不可行（trusted 串注入的 img 非 Preact 管理），
+        // 保留容器级 onError 兜底 + 渲染后显式接线双保险）
+        const img = ev.target;
+        if (img && img.classList && img.classList.contains('game-card-img')) img.style.display = 'none';
+      }
+    }),
+    listEl
+  );
 
-  // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
-  // Hide failed images (addEventListener instead of inline onerror for extension-page CSP)
+  // 图片加载失败隐藏（error 不冒泡、trusted 串注入的 img 非 Preact 管理——
+  // 渲染后显式接线，语义与原实现一致）
   listEl.querySelectorAll('.game-card-img').forEach((/** @type {any} */ img) => {
     img.addEventListener('error', () => {
       img.style.display = 'none';
     });
   });
 
-  // 绑定领取按钮（所有按钮均可重复点击）
-  listEl.querySelectorAll('.claim-btn').forEach((/** @type {any} */ btn) => {
-    btn.addEventListener('click', async (/** @type {Event} */ e) => {
-      const gameId = btn.dataset.id;
-      const game = allGames.find((g) => g.id === gameId);
-      // 链接始终会在新标签打开（<a target=_blank> 默认行为）
-      // 若尚未领取，标记已领取并更新角标
-      if (game && !game.claimed) {
-        await window.__GR_MSG__.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
-        game.claimed = true;
-        // 就地更新按钮外观（保持链接可点击，不整体重渲染以免中断跳转）
-        btn.classList.add('claimed');
-        btn.innerHTML = '✓ 已领取 · 再次打开';
-        const card = btn.closest('.game-card');
-        if (card) card.classList.add('claimed');
-      }
+  // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
+  // Hide failed images (addEventListener instead of inline onerror for extension-page CSP)
+  listEl.querySelectorAll('.game-card-img').forEach((/** @type {any} */ img) => {
+    img.addEventListener('error', () => {
+      img.style.display = 'none';
     });
   });
 }

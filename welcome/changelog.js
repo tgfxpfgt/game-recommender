@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.38.0',
+        date: '2026-11-21',
+        items: [
+          '内容域+页面域全量 Preact 化（30 文件 84 sink 退役，基线 85→1 唯一残留=preact-globals vendor 产物）',
+          'content/core/preact-mount.js 单源助手（mountView 共享容器清场纪律）',
+          'sim-list 竞态：探针 20 连绿未捕获，retry:2 绷带恢复 + 证据登记（复现率约1/15 隔离运行，根因待后续专项）',
+          '测试基建：test-sidebar-rows/test-sidepanel/test-options-render 手写 DOM 桩退役换 happy-dom 真实 DOM'
+        ]
+      },
+      {
         ver: '14.37.4',
         date: '2026-11-21',
         items: [

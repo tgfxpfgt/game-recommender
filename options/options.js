@@ -68,9 +68,20 @@
       const response = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
       // 防御：后台未就绪时 response 可能为 undefined
       if (!response || !response.settings) {
-        document.body.insertAdjacentHTML(
-          'afterbegin',
-          '<div style="padding:16px;margin:16px auto;max-width:760px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;">⚠️ 无法加载设置，请刷新页面或重新启用扩展。</div>'
+        // v15 阶段 3 全量迁移：静态降级横幅 Preact 渲染（insertAdjacentHTML sink 退役）
+        const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+        const banner = document.createElement('div');
+        document.body.prepend(banner);
+        PP.render(
+          PP.h(
+            'div',
+            {
+              style:
+                'padding:16px;margin:16px auto;max-width:760px;background:#3a1a1a;color:#ff8a7a;border:1px solid #d94126;border-radius:8px;'
+            },
+            '⚠️ 无法加载设置，请刷新页面或重新启用扩展。'
+          ),
+          banner
         );
         return;
       }

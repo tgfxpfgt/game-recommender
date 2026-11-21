@@ -12,7 +12,7 @@
  * view when debugging is enabled (dismissible), otherwise it disappears.
  */
 import * as float from './floats.js';
-import * as common from './common.js';
+import { mountView, h, Fragment } from './preact-mount.js'; // v15 阶段 3 全量迁移：状态浮窗 Preact 渲染
 
 /** @type {HTMLDivElement|null} */
 let statusEl = null;
@@ -55,6 +55,8 @@ function ensureEl() {
 }
 
 // 显示进行中状态（title, current/total 进度, detail）
+// v15 阶段 3 全量迁移：h() 树渲染（原模板串 + escapeHtml 退役——文本插值
+// 天然转义；进度宽度为 number 内插，零注入面）
 /** @param {string} title @param {number} current @param {number} total @param {string} [detail] */
 export function showStatus(title, current, total, detail) {
   if (!enabled) return;
@@ -65,17 +67,27 @@ export function showStatus(title, current, total, detail) {
   const el = ensureEl();
   const pct = total > 0 ? Math.round((current / total) * 100) : null;
   // v8.1.0：进度条样式类化（.gr-status-progress 系列，content.css）
-  const progressHtml =
-    pct === null
-      ? `<div class="gr-status-progress"><div class="gr-status-progress-fill" style="width:40%;animation:gr-status-slide 1.2s ease-in-out infinite;"></div></div>`
-      : `<div class="gr-status-progress"><div class="gr-status-progress-fill" style="width:${pct}%;"></div></div>`;
   ensureKeyframes();
-  el.innerHTML = `
-      <div class="gr-status-title"><span>🎮</span><span>${common.escapeHtml(title)}</span></div>
-      ${progressHtml}
-      ${pct !== null ? `<div class="gr-status-row" style="margin-top:3px;">${current}/${total} · ${pct}%</div>` : ''}
-      ${detail ? `<div class="gr-status-row" style="margin-top:2px;">${common.escapeHtml(detail)}</div>` : ''}
-    `;
+  mountView(
+    el,
+    h(
+      Fragment,
+      null,
+      h('div', { class: 'gr-status-title' }, h('span', null, '🎮'), h('span', null, title)),
+      h(
+        'div',
+        { class: 'gr-status-progress' },
+        h('div', {
+          class: 'gr-status-progress-fill',
+          style: pct === null ? 'width:40%;animation:gr-status-slide 1.2s ease-in-out infinite;' : `width:${pct}%;`
+        })
+      ),
+      pct !== null
+        ? h('div', { class: 'gr-status-row', style: 'margin-top:3px;' }, `${current}/${total} · ${pct}%`)
+        : null,
+      detail ? h('div', { class: 'gr-status-row', style: 'margin-top:2px;' }, detail) : null
+    )
+  );
   if (hideTimer) clearTimeout(hideTimer); // 进行中不自动消失
 }
 
@@ -95,6 +107,8 @@ export function showStats(stats) {
 }
 
 // 渲染统计浮窗（B9：由 showStats 的合并窗口调度）
+// v15 阶段 3 全量迁移：h() 树渲染——可点击行由事件委托改 onClick prop 直连
+//（原 data-gr-row 委托随之退役）；文本插值天然转义。
 function renderStats() {
   if (!enabled) return; // 合并窗口内被关闭 → 放弃渲染
   const stats = lastStats;
@@ -104,29 +118,29 @@ function renderStats() {
   // Rows may be strings or {text, click} objects (interactive rows)
   const rows =
     stats && stats.rows && stats.rows.length > 0
-      ? stats.rows
-          .map((/** @type {any} */ r, /** @type {number} */ i) => {
-            if (r && typeof r === 'object' && typeof r.click === 'function') {
-              return `<div data-gr-row="${i}" class="gr-status-row-clickable">${common.escapeHtml(r.text)}</div>`;
-            }
-            return `<div class="gr-status-row">${common.escapeHtml(String(r))}</div>`;
-          })
-          .join('')
-      : '';
-  el.innerHTML = `
-      <div class="gr-status-title"><span>✅</span><span>${common.escapeHtml(stats ? stats.title || '完成' : '完成')}</span>
-        ${elapsed ? `<span class="gr-status-elapsed">⏱ ${common.escapeHtml(elapsed)}</span>` : ''}
-      </div>
-      ${stats && stats.summary ? `<div class="gr-status-summary">${common.escapeHtml(stats.summary)}</div>` : ''}
-      ${rows}
-    `;
-  // 可点击行事件委托（点击执行对应回调）
-  el.querySelectorAll('[data-gr-row]').forEach((/** @type {any} */ rowEl) => {
-    rowEl.addEventListener('click', () => {
-      const row = (stats && stats.rows && stats.rows[Number(rowEl.dataset.grRow)]) || null;
-      if (row && typeof row.click === 'function') row.click();
-    });
-  });
+      ? stats.rows.map((/** @type {any} */ r, /** @type {number} */ i) => {
+          if (r && typeof r === 'object' && typeof r.click === 'function') {
+            return h('div', { class: 'gr-status-row-clickable', key: i, onClick: () => r.click() }, r.text);
+          }
+          return h('div', { class: 'gr-status-row', key: i }, String(r));
+        })
+      : [];
+  mountView(
+    el,
+    h(
+      Fragment,
+      null,
+      h(
+        'div',
+        { class: 'gr-status-title' },
+        h('span', null, '✅'),
+        h('span', null, stats ? stats.title || '完成' : '完成'),
+        elapsed ? h('span', { class: 'gr-status-elapsed' }, `⏱ ${elapsed}`) : null
+      ),
+      stats && stats.summary ? h('div', { class: 'gr-status-summary' }, stats.summary) : null,
+      rows
+    )
+  );
   if (hideTimer) clearTimeout(hideTimer);
   // 3 秒后消失（v14 B4：调试视图刷新回调接线整体已死——debugRefreshHandler
   // 从未被注册，setDebugRefreshHandler 已删）
@@ -156,7 +170,10 @@ export function showDebugView(html) {
       statusEl = null;
     }
   });
-  statusEl.innerHTML = html;
+  // v15 阶段 3 全量迁移：诊断视图为调用方构造的内部 HTML（debug.js 全链
+  // escapeHtml 预转义——trusted）+ sim 直驱注入测试片段，经 Preact
+  // dangerouslySetInnerHTML 注入（.innerHTML 赋值 sink 退役，语义不变）
+  mountView(statusEl, h('div', { dangerouslySetInnerHTML: { __html: html } }));
   debugViewActive = true;
   if (hideTimer) clearTimeout(hideTimer); // 诊断视图常驻 / persistent
 }

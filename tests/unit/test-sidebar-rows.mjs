@@ -5,49 +5,53 @@
  * 无数据/异型时行隐藏、有数据时渲染转义后的 HTML（shop 转义、price 异型防御）。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { Window } from 'happy-dom';
 
 const msgHandlers = {};
-globalThis.window = globalThis;
+const win = new Window();
+globalThis.window = win;
+globalThis.document = win.document;
 // escapeHtml 全局（真实环境由 shared/escape.js 注入；此处以同语义纯字符串实现）
-globalThis.escapeHtml = (t) =>
+globalThis.escapeHtml = (/** @type {unknown} */ t) =>
   String(t ?? '')
     .replace(/&/g, '&amp;')
     .replace(/"/g, '&quot;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 globalThis.__GR_MSG__ = {
-  sendMessage: vi.fn((msg) => (msgHandlers[msg.action] || (() => ({})))(msg))
+  sendMessage: vi.fn((/** @type {any} */ msg) => (msgHandlers[msg.action] || (() => ({})))(msg))
 };
+// 页面经 window.__GR_MSG__ 取消息层——happy-dom Window 是独立实例，需镜像
+/** @type {any} */ (win).__GR_MSG__ = globalThis.__GR_MSG__;
+// 页面 Preact 渲染经 __GR_PREACT__（sidebar-rows v15 阶段 3 迁移面）
+const { h, render, Fragment } = await import('preact');
+/** @type {any} */ (globalThis).__GR_PREACT__ = { h, render, Fragment };
 
-function makeRowEl(id) {
-  const el = {
-    id,
-    style: {},
-    innerHTML: '',
-    textContent: '',
-    parentNode: { insertBefore(child, ref) {} },
-    children: []
-  };
+// v15 阶段 3：手写 DOM 桩 → happy-dom 真实元素（Preact mountView 需
+// createElementNS/createElement/appendChild 真实面）
+const rows = {};
+function makeRowEl(/** @type {string} */ id) {
+  const el = win.document.createElement('div');
+  el.id = id;
   return el;
 }
-const rows = {};
-globalThis.document = {
-  getElementById(id) {
-    return rows[id] || null;
-  },
-  createElement() {
-    return { style: {}, innerHTML: '', textContent: '', appendChild() {}, addEventListener() {} };
-  }
-};
 
 const mod = await import('../../content/detail/sidebar-rows.js');
 const { fillItadAndFavorites, fillSteam250Info } = mod;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  // 真实 DOM 语义：getElementById 取文档序首个同 id 元素——上一用例残留元素
+  // 会吞掉本用例的行锚点，body 必须先清场再挂新锚点
+  win.document.body.replaceChildren();
   rows['gr-itad-row'] = makeRowEl('gr-itad-row');
   rows['gr-steam250-row'] = makeRowEl('gr-steam250-row');
   rows['gr-steam250-inline'] = makeRowEl('gr-steam250-inline');
+  // 行锚点必须挂入文档——fillItadAndFavorites 的 favRow 插入走
+  // parentNode.insertBefore（脱文档元素 parentNode=null 即抛）
+  win.document.body.appendChild(rows['gr-itad-row']);
+  win.document.body.appendChild(rows['gr-steam250-row']);
+  win.document.body.appendChild(rows['gr-steam250-inline']);
 });
 
 describe('fillItadAndFavorites（ITAD 最低价行 + 收藏按钮）', () => {

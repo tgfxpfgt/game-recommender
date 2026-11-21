@@ -163,7 +163,9 @@ function renderTrendChart(daily) {
     const v = Math.round((maxCount * g) / 4);
     yTicks += `<text x="${PAD.l - 6}" y="${(y((maxCount * g) / 4) + 3).toFixed(1)}" text-anchor="end" font-size="10" fill="#8f98a0">${v}</text>`;
   }
-  container.innerHTML = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="行为趋势图">
+  // v15 阶段 3 全量迁移：trusted SVG 串经 Preact dangerouslySetInnerHTML 注入
+  //（内插值全为 number 内算/toFixed 产物 + 日期段 slice(5) 常规安全面；sink 退役）
+  const svg = `<svg viewBox="0 0 ${W} ${H}" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="行为趋势图">
     <defs>
       <linearGradient id="gr-grad-views" x1="0" y1="0" x2="0" y2="1">
         <stop offset="0%" stop-color="#66c0f4" stop-opacity="0.95"/>
@@ -188,6 +190,8 @@ function renderTrendChart(daily) {
     <rect x="${W - 112}" y="5" width="12" height="10" fill="#a3cf06"/><text x="${W - 96}" y="14" font-size="10" fill="#c9d4e0">下载</text>
     <line x1="${W - 52}" y1="10" x2="${W - 40}" y2="10" stroke="#ff7b00" stroke-width="2"/><text x="${W - 36}" y="14" font-size="10" fill="#c9d4e0">转化%</text>
   </svg>`;
+  const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+  PP.render(PP.h('div', { dangerouslySetInnerHTML: { __html: svg } }), container);
 }
 
 // ============ 概览统计 / Overview Statistics ============

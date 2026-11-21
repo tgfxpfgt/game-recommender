@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 186，其中声明不变式 4。
+> 模块数 187，其中声明不变式 4。
 
 ## adapters/default.js
 
@@ -188,7 +188,8 @@
 | `content/core/messages.js` | 内容侧消息路由 | `content/core/page-url` | createMessageRouter | — |
 | `content/core/page-init.js` | 页面检测与功能分发 | `content/core/page-url`<br>`content/core/timeouts` | initPage | — |
 | `content/core/page-url.js` | 页面类型 URL 判定（零依赖纯函数）/ URL-based page kind | — | isDetailPageByUrl<br>isListPageByUrl<br>isHomePageUrl<br>detectPageScope | — |
-| `content/core/status-bar.js` | 工作状态/诊断统一浮窗 | `content/core/common`<br>`content/core/floats` | showStatus<br>showStats<br>showDebugView<br>setEnabled<br>setDebugMode<br>hide<br>…+1 | — |
+| `content/core/preact-mount.js` | 内容侧 Preact 挂载助手 | — | mountView<br>h<br>render<br>Fragment | — |
+| `content/core/status-bar.js` | 工作状态/诊断统一浮窗 | `content/core/floats`<br>`content/core/preact-mount` | showStatus<br>showStats<br>showDebugView<br>setEnabled<br>setDebugMode<br>hide<br>…+1 | — |
 | `content/core/steam-rating-logic.js` | Steam 评分口径单源 | `shared/spy-scales` | heatLabelFor<br>ratingTextInfo<br>adjustedReputation<br>verdictFor | — |
 | `content/core/timeouts.js` | 内容侧消息超时常量（单源）/ Content-side message timeouts | — | MSG_TIMEOUT_SHORT_MS<br>MSG_TIMEOUT_NORMAL_MS<br>MSG_TIMEOUT_LONG_MS<br>RATINGS_TIMEOUT_MS | — |
 
@@ -196,20 +197,20 @@
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
-| `content/detail/candidates.js` | 候选手动选择模块 | `content/core/common`<br>`shared/platform-detect` | parseManualAppIdInput<br>isGameDismissed<br>renderManualSelectPanel | — |
+| `content/detail/candidates.js` | 候选手动选择模块 | `content/core/preact-mount`<br>`shared/platform-detect` | parseManualAppIdInput<br>isGameDismissed<br>renderManualSelectPanel | — |
 | `content/detail/detail-page.js` | 详情页模块入口 | `content/detail/detect-name`<br>`content/detail/sidebar`<br>`content/detail/tracking` | injectSteamButton<br>detectGameName<br>injectDownloadSitePanel<br>injectDownloadHistoryPanel<br>injectSteam250Panel<br>steam250AppIdFromUrl<br>…+1 | — |
 | `content/detail/detail-templates.js` | 详情页浮窗模板入口 | `content/core/steam-rating-logic`<br>`content/detail/render/inline-html`<br>`content/detail/render/sidebar-html` | steamSidebar<br>steamInlineSection<br>heatLabelFor<br>ratingTextInfo<br>adjustedReputation<br>verdictFor | — |
 | `content/detail/detect-name.js` | 详情页游戏名提取（轻量单点）/ Page game-name detection | `content/core/common`<br>`shared/retrieval-vocab` | detectGameName | — |
-| `content/detail/inline-card.js` | 内嵌 Steam 信息卡 | `content/adapters/builder`<br>`content/core/debug`<br>`content/detail/detail-templates` | renderInlineSteamSection | — |
+| `content/detail/inline-card.js` | 内嵌 Steam 信息卡 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/preact-mount`<br>`content/detail/detail-templates` | renderInlineSteamSection | — |
 | `content/detail/qr-unlock.js` | 二维码转链接 | `content/core/debug`<br>`content/core/timeouts` | init | — |
 | `content/detail/render/inline-html.js` | 内嵌 Steam 信息卡模板 | `content/core/common`<br>`content/core/steam-rating-logic`<br>`content/detail/render/match-confidence-row` | steamInlineSection | — |
 | `content/detail/render/match-confidence-row.js` | 匹配置信度行 | `content/core/common` | renderMatchConfidenceRow | — |
 | `content/detail/render/rating-rows.js` | 评分区块渲染器 | `content/core/common` | renderRatingRows<br>buildSparklineSvg<br>renderVerdictRow | — |
 | `content/detail/render/sidebar-html.js` | Steam 信息栏模板 | `content/core/common`<br>`content/core/steam-rating-logic`<br>`content/detail/render/match-confidence-row`<br>`content/detail/render/rating-rows`<br>`shared/fm-keys` | steamSidebar | — |
 | `content/detail/sidebar-actions.js` | 浮窗回调工厂 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/timeouts`<br>`content/detail/candidates` | createSteamActions | — |
-| `content/detail/sidebar-rows.js` | 浮窗数据行填充 | `content/core/timeouts` | fillItadAndFavorites<br>fillSteam250Info<br>fillSeriesInfo | — |
-| `content/detail/sidebar.js` | Steam 信息浮窗模块（编排壳）/ Steam Info Float (orchestrator) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/detail/candidates`<br>`content/detail/detail-templates`<br>…+4 | createSteamFloat | — |
-| `content/detail/tracking.js` | 下载追踪面板模块 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/status-bar` | injectDownloadSitePanel<br>injectDownloadHistoryPanel<br>steam250AppIdFromUrl<br>steam250NameFromTitle<br>injectSteam250Panel<br>trackSteamTagsUpdate | — |
+| `content/detail/sidebar-rows.js` | 浮窗数据行填充 | `content/core/preact-mount`<br>`content/core/timeouts` | fillItadAndFavorites<br>fillSteam250Info<br>fillSeriesInfo | — |
+| `content/detail/sidebar.js` | Steam 信息浮窗模块（编排壳）/ Steam Info Float (orchestrator) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/preact-mount`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/detail/candidates`<br>…+5 | createSteamFloat | — |
+| `content/detail/tracking.js` | 下载追踪面板模块 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/floats`<br>`content/core/preact-mount`<br>`content/core/status-bar` | injectDownloadSitePanel<br>injectDownloadHistoryPanel<br>steam250AppIdFromUrl<br>steam250NameFromTitle<br>injectSteam250Panel<br>trackSteamTagsUpdate | — |
 
 ## content/list
 
@@ -225,7 +226,7 @@
 | `content/list/list-page.js` | 列表页模块 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/page-url`<br>`content/core/timeouts`<br>`content/list/badges/core`<br>`content/list/list-batch`<br>`content/list/list-state` | requestRecommendations<br>isDetailPageByUrl<br>isHomePageUrl<br>isListPageByUrl<br>_state<br>_internal<br>…+10 | — |
 | `content/list/list-state.js` | 列表页共享状态容器 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/status-bar`<br>`content/list/badges/core` | formatQueueStatusText<br>_state<br>ratingFilterPass<br>applyRatingsResponse<br>finishRatings<br>sortItemsByRating<br>…+4 | — |
 | `content/list/xdgrid-layout.js` | 列表布局引擎 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug` | STORE_KEY<br>DEFAULTS<br>MIN_ITEMS<br>clampInt<br>computeContainerStyle<br>migrateLegacy<br>…+7 | — |
-| `content/list/xdgrid-panel.js` | 列表工具面板 | `content/adapters/builder`<br>`content/core/debug`<br>`content/list/filter-presets`<br>`content/list/list-state`<br>`content/list/xdgrid-layout` | buildUI | — |
+| `content/list/xdgrid-panel.js` | 列表工具面板 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/preact-mount`<br>`content/list/filter-presets`<br>`content/list/list-state`<br>`content/list/xdgrid-layout` | buildUI | — |
 | `content/list/xdgrid.js` | 下载站列表布局定制（装配壳）/ Grid Customizer (shell) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/list/xdgrid-layout`<br>`content/list/xdgrid-panel` | init<br>computeContainerStyle<br>migrateLegacy<br>commonAncestor<br>isXdgameFallback | — |
 
 ## content/module-loaders.js

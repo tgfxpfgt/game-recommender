@@ -11,6 +11,12 @@
 
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
+  // v15 阶段 3：Preact 垫片惰性访问器（classic 页面脚本——加载序在垫片之前）
+  /** @returns {{h: Function, render: Function, Fragment: any}} */
+  function P() {
+    return /** @type {any} */ (globalThis).__GR_PREACT__;
+  }
+
   // ============ 数据模块管理 / Data Module Management ============
   /** @type {any[]} */
   let dataModules = [];
@@ -29,26 +35,41 @@
   }
 
   // 渲染模块勾选列表
+  // v15 阶段 3 全量迁移：勾选项 Preact h() 渲染（innerHTML 退役；onChange prop
+  // 直连——原 querySelectorAll 接线块退役）
   function renderModuleChecks() {
     const container = document.getElementById('moduleCheckList');
     if (!container) return;
-    container.innerHTML = dataModules
-      .map(
-        (m) => `
-      <label class="module-check-item">
-        <input type="checkbox" class="module-check" data-module="${escapeAttr(m.key)}" ${selectedModules.has(m.key) ? 'checked' : ''}>
-        <span class="module-check-name">${escapeHtml(m.name)}</span>
-        <small class="module-check-desc">${escapeHtml(m.desc)}${m.count ? ` · ${m.count} 条` : ''}${m.bytes ? ` · ${(m.bytes / 1024).toFixed(1)} KB` : ''}</small>
-      </label>
-    `
-      )
-      .join('');
-    container.querySelectorAll('.module-check').forEach((/** @type {any} */ cb) => {
-      cb.addEventListener('change', () => {
-        if (cb.checked) selectedModules.add(cb.dataset.module);
-        else selectedModules.delete(cb.dataset.module);
-      });
-    });
+    const PP = P();
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        dataModules.map((/** @type {any} */ m) =>
+          PP.h(
+            'label',
+            { class: 'module-check-item', key: String(m.key) },
+            PP.h('input', {
+              type: 'checkbox',
+              class: 'module-check',
+              'data-module': String(m.key),
+              checked: selectedModules.has(m.key),
+              onChange: (/** @type {any} */ ev) => {
+                if (ev.target.checked) selectedModules.add(String(m.key));
+                else selectedModules.delete(String(m.key));
+              }
+            }),
+            PP.h('span', { class: 'module-check-name' }, m.name),
+            PP.h(
+              'small',
+              { class: 'module-check-desc' },
+              `${m.desc}${m.count ? ` · ${m.count} 条` : ''}${m.bytes ? ` · ${(m.bytes / 1024).toFixed(1)} KB` : ''}`
+            )
+          )
+        )
+      ),
+      container
+    );
   }
 
   // 获取当前勾选的模块键
@@ -179,26 +200,36 @@
   }
 
   // 加载备份列表到恢复下拉框
+  // v15 阶段 3 全量迁移：option 列表 Preact h() 渲染（innerHTML 2 处退役）
   async function loadBackupsSelect() {
     const select = document.getElementById('restoreBackupSelect');
     const btn = document.getElementById('restoreBackupBtn');
     if (!select) return;
+    const PP = P();
     try {
       const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_BACKUPS' });
       const backups = (resp && resp.backups) || [];
-      select.innerHTML =
-        '<option value="">选择备份...</option>' +
-        backups
-          .map((/** @type {any} */ b) => {
+      PP.render(
+        PP.h(
+          PP.Fragment,
+          null,
+          PP.h('option', { value: '' }, '选择备份...'),
+          backups.map((/** @type {any} */ b) => {
             const bt = new Date(b.timestamp); // v10.9.1：Invalid Date 兜底
             const time = isNaN(bt.getTime()) ? '-' : bt.toLocaleString('zh-CN');
             const modCount = b.modules ? b.modules.length : '全部';
-            return `<option value="${escapeAttr(b.id)}">${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)</option>`;
+            return PP.h(
+              'option',
+              { value: String(b.id), key: String(b.id) },
+              `${b.manual ? '🔧' : '⏰'} ${time} (${modCount} 模块)`
+            );
           })
-          .join('');
+        ),
+        select
+      );
       btn.disabled = backups.length === 0;
     } catch {
-      select.innerHTML = '<option value="">备份加载失败</option>';
+      PP.render(PP.h(PP.Fragment, null, PP.h('option', { value: '' }, '备份加载失败')), select);
     }
   }
 

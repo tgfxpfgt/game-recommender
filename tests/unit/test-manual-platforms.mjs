@@ -277,8 +277,9 @@ describe('候选浮窗主机机型专页（v14.22.2/v14.24.0/v14.29.2 源码守�
   test('双视图结构要素 + 键盘护栏 + Esc 自清理 + 菜单直达 + 主视图入口', async () => {
     const fs = await import('node:fs');
     const src = fs.readFileSync(new URL('../../content/detail/candidates.js', import.meta.url), 'utf8');
-    expect(src.includes('id="gr-platform-view"')).toBe(true); // 机型专页容器（默认隐藏）
-    expect(src.includes('id="gr-platform-back"')).toBe(true); // 专页返回按钮
+    // v15 阶段 3 全量迁移：面板 Preact h() 化——id 形态由模板串改 prop 键
+    expect(src.includes("id: 'gr-platform-view'")).toBe(true); // 机型专页容器（默认隐藏）
+    expect(src.includes("id: 'gr-platform-back'")).toBe(true); // 专页返回按钮
     expect(src.includes('showPlatformView')).toBe(true);
     expect(src.includes('showMainView')).toBe(true);
     expect(src.includes('if (openPlatformView) showPlatformView()')).toBe(true); // 菜单直达切换
@@ -290,7 +291,7 @@ describe('候选浮窗主机机型专页（v14.22.2/v14.24.0/v14.29.2 源码守�
     // v14.29.2（用户需求）：主视图入口按钮恢复——"手动选择游戏"面板内可直接
     // 转机型专页（v14.24.0 曾移除，用户在面板内无出口，须先关面板再找菜单）。
     // 点击绑定同一 showPlatformView 路径（与菜单直达单源）
-    expect(src.includes('id="gr-platform-entry"')).toBe(true);
+    expect(src.includes("id: 'gr-platform-entry'")).toBe(true);
     expect(src.includes("querySelector('#gr-platform-entry')")).toBe(true);
     const sidebarSrc = fs.readFileSync(new URL('../../content/detail/sidebar.js', import.meta.url), 'utf8');
     expect(sidebarSrc.includes("'steam-platform'")).toBe(true); // ⚙ 菜单机型入口

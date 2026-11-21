@@ -10,23 +10,17 @@
  * same-appId → manual select).
  */
 import { describe, test, expect } from 'vitest';
+import { Window } from 'happy-dom';
 
 // escape 全局先注入（common.escapeHtml 回退本地实现需要 document——IIFE 版纯字符串）
 await import('../../shared/escape.js');
 
-// DOM 桩：builder 图片提取（querySelectorAll('img') → 空）与 candidates 面板操作的最小面
-globalThis.document = {
-  querySelector: () => null,
-  querySelectorAll: () => [],
-  addEventListener: () => {},
-  removeEventListener: () => {},
-  getElementById: () => null,
-  body: { contains: () => false },
-  documentElement: {},
-  head: { appendChild: () => {} },
-  createElement: () => ({ style: {}, setAttribute() {}, appendChild() {}, addEventListener() {}, remove() {} })
-};
-if (!globalThis.window) globalThis.window = {};
+// v15 阶段 3 全量迁移：手写 document 桩 → happy-dom 真实 DOM——Preact 渲染
+//（candidates 面板 mountView）需要 createElementNS/createElement/appendChild
+// 等真实面；builder 图片提取在空文档下 querySelectorAll('img') 天然为空。
+const win = new Window();
+globalThis.document = win.document;
+globalThis.window = win;
 // candidates.renderManualSelectPanel 的 issue 链接需要 location/chrome.runtime
 globalThis.location = globalThis.location || { href: 'http://test/detail' };
 globalThis.chrome = globalThis.chrome || { runtime: { getManifest: () => ({ version: '0-test' }) } };
@@ -40,7 +34,8 @@ globalThis.window.__GR_MSG__ = {
 };
 
 function makePanel() {
-  return { innerHTML: '', style: {}, querySelector: () => null, querySelectorAll: () => [] };
+  // v15 阶段 3：真实 DOM 元素（Preact mountView 挂载 + querySelector 接线全真实）
+  return win.document.createElement('div');
 }
 
 function makeDeps() {

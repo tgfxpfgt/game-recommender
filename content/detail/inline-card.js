@@ -10,6 +10,7 @@
 import * as detailTemplates from './detail-templates.js';
 import * as builder from '../adapters/builder.js';
 import * as debug from '../core/debug.js';
+import { render, h } from '../core/preact-mount.js'; // v15 阶段 3：trusted 模板经 Preact 注入
 
 const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
@@ -194,7 +195,11 @@ export function renderInlineSteamSection(data, cachedAt) {
     section.id = INLINE_SECTION_ID;
     section.setAttribute('data-gr-appid', String(/** @type {Record<string, any>} */ (data).appId || ''));
     if (hostIsDarkMode()) section.className = 'gr-night'; // 夜间配色（XDGame body.night 等价）
-    section.innerHTML = html;
+    // v15 阶段 3 全量迁移：trusted 模板经 Preact dangerouslySetInnerHTML 注入
+    //（steamInlineSection 全链 escapeHtml/escapeAttr 预转义——可信助手输出；
+    // .innerHTML 赋值 sink 退役。本卡 CSS 全为 #gr-steam-inline-section 后代
+    // 选择器，Preact 包一层 div 不影响命中）
+    render(h('div', { dangerouslySetInnerHTML: { __html: html } }), section);
     if (title && title.parentNode) {
       title.parentNode.insertBefore(section, title.nextSibling);
     } else if (content) {

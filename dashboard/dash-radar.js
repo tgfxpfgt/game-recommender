@@ -89,10 +89,13 @@ function renderProfileRadarSvg(profiles) {
 }
 
 /** DOM 挂载（dash-stats 经典全局调用）/ DOM mount wrapper. */
+// v15 阶段 3 全量迁移：trusted SVG 串经 Preact dangerouslySetInnerHTML 注入
+//（renderProfileRadarSvg 内部全 esc 转义——可信助手输出；sink 退役）
 /** @param {any[]} profiles */
 function renderProfileRadar(profiles) {
   const host = document.getElementById('profileRadar');
   if (!host) return;
-  host.innerHTML = renderProfileRadarSvg(profiles);
+  const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+  PP.render(PP.h('div', { dangerouslySetInnerHTML: { __html: renderProfileRadarSvg(profiles) } }), host);
 }
 window.renderProfileRadar = renderProfileRadar; // 经典链跨文件全局挂载

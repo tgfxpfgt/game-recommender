@@ -38,8 +38,9 @@ const SCAN_DIRS = [
 ];
 /** sink 形态（铁律 1 管辖面） */
 const SINK_RE = /\.innerHTML\s*=|\.outerHTML\s*=|insertAdjacentHTML\s*\(/g;
-/** 跳过文件：Preact 组件（文本插值天然转义）与生成物 */
-const SKIP_FILE_RE = /\.preact\.mjs$/;
+/** 跳过文件：Preact 组件（文本插值天然转义）与生成物（preact-globals 为
+ * vendor 产物——内部 sink 是 preact 自身的 DOM 实现，非我方代码） */
+const SKIP_FILE_RE = /\.preact\.mjs$|^shared\/preact-globals\.js$/;
 
 /** @param {string} dir @param {string[]} out @returns {string[]} 递归收集 .js/.mjs */
 function walk(dir, out) {

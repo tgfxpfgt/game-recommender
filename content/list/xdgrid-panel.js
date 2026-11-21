@@ -15,6 +15,7 @@ import * as builder from '../adapters/builder.js';
 import * as listState from './list-state.js';
 import { upsertPreset, clampPct } from './filter-presets.js';
 import { applyLayout, normalizeCfg, saveAllSettings, DEFAULTS } from './xdgrid-layout.js';
+import { mountView, h, Fragment } from '../core/preact-mount.js'; // v15 阶段 3 全量迁移：面板 Preact 渲染
 
 /** @param {...any} a */
 const dbg = (...a) => debug.dbg(...a);
@@ -57,7 +58,7 @@ function createFab() {
   return fab;
 }
 
-/** 创建面板容器（innerHTML 插值 cfg）/ Create the panel container. @param {XdgridCfg} cfg */
+/** 创建面板容器（v15 阶段 3 全量迁移：Preact h() 渲染，data-xg/data-rf 选择器接线不变） / Create the panel container. @param {XdgridCfg} cfg */
 function createPanel(cfg) {
   const panel = document.createElement('div');
   panel.id = PANEL_ID;
@@ -75,81 +76,211 @@ function createPanel(cfg) {
     'font:12px/1.6 sans-serif',
     'display:none'
   ].join(';');
-  panel.innerHTML = `
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <b style="font-size:13px">列表页工具（本站）</b>
-        <span data-xg="close" style="cursor:pointer;color:#999;padding:0 4px;font-size:14px">✕</span>
-      </div>
-      <div style="display:flex;gap:6px;margin-bottom:10px">
-        <button data-xg="tabLayout" style="flex:1;padding:5px 0;border:1px solid #4a9eff;border-radius:6px;cursor:pointer;background:#eaf3ff;color:#2d6cb5;font-weight:bold">布局</button>
-        <button data-xg="tabFilter" style="flex:1;padding:5px 0;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#f5f5f5;color:#666">过滤</button>
-      </div>
-      <div data-xg="paneLayout">
-      <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer">
-        <span>启用本站定制</span>
-        <input data-xg="enabled" type="checkbox" ${cfg.enabled ? 'checked' : ''}
-          style="width:16px;height:16px;cursor:pointer">
-      </label>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span>每行图标数</span><b data-xg="colsVal">${cfg.cols}</b>
-      </div>
-      <input data-xg="cols" type="range" min="1" max="12" step="1" value="${cfg.cols}"
-        style="width:100%;margin-bottom:10px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span>图标宽度(px)</span>
-        <input data-xg="iconW" type="number" min="0" max="600" step="2" value="${cfg.iconW}"
-          style="width:64px;padding:2px 4px;border:1px solid #ddd;border-radius:4px">
-      </div>
-      <div data-xg="modeHint" style="color:#4a9eff;margin-bottom:8px">图标大小不变，容器随列数加宽</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
-        <span>封面高度(px)</span>
-        <input data-xg="iconH" type="number" min="0" max="500" step="5" value="${cfg.iconH}"
-          style="width:64px;padding:2px 4px;border:1px solid #ddd;border-radius:4px">
-      </div>
-      <div style="color:#999;margin-bottom:8px">0 = 保持站点原始比例</div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-        <span>卡片间距(px)</span><b data-xg="gapVal">${cfg.gap}</b>
-      </div>
-      <input data-xg="gap" type="range" min="0" max="40" step="1" value="${cfg.gap}"
-        style="width:100%;margin-bottom:8px">
-      <button data-xg="reset"
-        style="width:100%;padding:6px 0;border:none;border-radius:6px;cursor:pointer;
-        background:#f0f2f5;color:#666">恢复默认（本站）</button>
-      </div>
-      <div data-xg="paneFilter" style="display:none">
-        <label style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;cursor:pointer">
-          <span>启用好评率过滤</span>
-          <input data-rf="enabled" type="checkbox" style="width:16px;height:16px;cursor:pointer">
-        </label>
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <span>最低好评率</span><b><span data-rf="rateVal">0</span>%</b>
-        </div>
-        <input data-rf="slider" type="range" min="0" max="100" step="5" value="0"
-          style="width:100%;margin-bottom:8px">
-        <div data-rf="hint" style="color:#4a9eff;margin-bottom:4px">过滤关闭</div>
-        <div data-rf="reach" style="color:#999;margin-bottom:6px"></div>
-        <div style="color:#999">实时作用于当前列表（不重新取数）；设置全站生效</div>
-        <div style="border-top:1px solid #e5e7eb;margin:10px 0;padding-top:8px">
-          <div style="margin-bottom:6px">本地排序（不重新取数）</div>
-          <div style="display:flex;gap:6px">
-            <button data-rf="sortRating" style="flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666">好评率↓</button>
-            <button data-rf="sortUpdate" style="flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666">更新日期↓</button>
-            <button data-rf="sortReset" style="flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666">取消</button>
-          </div>
-          <div data-rf="sortHint" style="color:#999;margin-top:4px"></div>
-        </div>
-        <div data-rf="presetBox" style="border-top:1px solid #e5e7eb;margin-top:10px;padding-top:8px">
-          <div style="margin-bottom:6px">过滤预设（跨刷新持久）</div>
-          <div style="display:flex;gap:4px;margin-bottom:6px">
-            <input data-rf="presetName" placeholder="预设名（如 95+）" maxlength="20"
-              style="flex:1;min-width:0;padding:3px 6px;font-size:12px;border:1px solid #ddd;border-radius:6px">
-            <button data-rf="presetSave" title="把当前过滤条件（开关+阈值）存为该名字的预设"
-              style="padding:3px 10px;border:none;border-radius:6px;cursor:pointer;background:#eaf3ff;color:#2d6cb5">存当前</button>
-          </div>
-          <div data-rf="presetList" style="display:flex;flex-wrap:wrap;gap:4px;color:#999;font-size:12px"></div>
-        </div>
-      </div>
-    `;
+  mountView(
+    panel,
+    h(
+      Fragment,
+      null,
+      h(
+        'div',
+        { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px' },
+        h('b', { style: 'font-size:13px' }, '列表页工具（本站）'),
+        h('span', { 'data-xg': 'close', style: 'cursor:pointer;color:#999;padding:0 4px;font-size:14px' }, '✕')
+      ),
+      h(
+        'div',
+        { style: 'display:flex;gap:6px;margin-bottom:10px' },
+        h(
+          'button',
+          {
+            'data-xg': 'tabLayout',
+            style:
+              'flex:1;padding:5px 0;border:1px solid #4a9eff;border-radius:6px;cursor:pointer;background:#eaf3ff;color:#2d6cb5;font-weight:bold'
+          },
+          '布局'
+        ),
+        h(
+          'button',
+          {
+            'data-xg': 'tabFilter',
+            style:
+              'flex:1;padding:5px 0;border:1px solid #ddd;border-radius:6px;cursor:pointer;background:#f5f5f5;color:#666'
+          },
+          '过滤'
+        )
+      ),
+      h(
+        'div',
+        { 'data-xg': 'paneLayout' },
+        h(
+          'label',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;cursor:pointer' },
+          h('span', null, '启用本站定制'),
+          h('input', {
+            'data-xg': 'enabled',
+            type: 'checkbox',
+            checked: !!cfg.enabled,
+            style: 'width:16px;height:16px;cursor:pointer'
+          })
+        ),
+        h(
+          'div',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px' },
+          h('span', null, '每行图标数'),
+          h('b', { 'data-xg': 'colsVal' }, String(cfg.cols))
+        ),
+        h('input', {
+          'data-xg': 'cols',
+          type: 'range',
+          min: '1',
+          max: '12',
+          step: '1',
+          value: String(cfg.cols),
+          style: 'width:100%;margin-bottom:10px'
+        }),
+        h(
+          'div',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px' },
+          h('span', null, '图标宽度(px)'),
+          h('input', {
+            'data-xg': 'iconW',
+            type: 'number',
+            min: '0',
+            max: '600',
+            step: '2',
+            value: String(cfg.iconW),
+            style: 'width:64px;padding:2px 4px;border:1px solid #ddd;border-radius:4px'
+          })
+        ),
+        h('div', { 'data-xg': 'modeHint', style: 'color:#4a9eff;margin-bottom:8px' }, '图标大小不变，容器随列数加宽'),
+        h(
+          'div',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:4px' },
+          h('span', null, '封面高度(px)'),
+          h('input', {
+            'data-xg': 'iconH',
+            type: 'number',
+            min: '0',
+            max: '500',
+            step: '5',
+            value: String(cfg.iconH),
+            style: 'width:64px;padding:2px 4px;border:1px solid #ddd;border-radius:4px'
+          })
+        ),
+        h('div', { style: 'color:#999;margin-bottom:8px' }, '0 = 保持站点原始比例'),
+        h(
+          'div',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px' },
+          h('span', null, '卡片间距(px)'),
+          h('b', { 'data-xg': 'gapVal' }, String(cfg.gap))
+        ),
+        h('input', {
+          'data-xg': 'gap',
+          type: 'range',
+          min: '0',
+          max: '40',
+          step: '1',
+          value: String(cfg.gap),
+          style: 'width:100%;margin-bottom:8px'
+        }),
+        h(
+          'button',
+          {
+            'data-xg': 'reset',
+            style: 'width:100%;padding:6px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666'
+          },
+          '恢复默认（本站）'
+        )
+      ),
+      h(
+        'div',
+        { 'data-xg': 'paneFilter', style: 'display:none' },
+        h(
+          'label',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;cursor:pointer' },
+          h('span', null, '启用好评率过滤'),
+          h('input', { 'data-rf': 'enabled', type: 'checkbox', style: 'width:16px;height:16px;cursor:pointer' })
+        ),
+        h(
+          'div',
+          { style: 'display:flex;justify-content:space-between;align-items:center;margin-bottom:6px' },
+          h('span', null, '最低好评率'),
+          h('b', null, h('span', { 'data-rf': 'rateVal' }, '0'), '%')
+        ),
+        h('input', {
+          'data-rf': 'slider',
+          type: 'range',
+          min: '0',
+          max: '100',
+          step: '5',
+          value: '0',
+          style: 'width:100%;margin-bottom:8px'
+        }),
+        h('div', { 'data-rf': 'hint', style: 'color:#4a9eff;margin-bottom:4px' }, '过滤关闭'),
+        h('div', { 'data-rf': 'reach', style: 'color:#999;margin-bottom:6px' }),
+        h('div', { style: 'color:#999' }, '实时作用于当前列表（不重新取数）；设置全站生效'),
+        h(
+          'div',
+          { style: 'border-top:1px solid #e5e7eb;margin:10px 0;padding-top:8px' },
+          h('div', { style: 'margin-bottom:6px' }, '本地排序（不重新取数）'),
+          h(
+            'div',
+            { style: 'display:flex;gap:6px' },
+            h(
+              'button',
+              {
+                'data-rf': 'sortRating',
+                style: 'flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666'
+              },
+              '好评率↓'
+            ),
+            h(
+              'button',
+              {
+                'data-rf': 'sortUpdate',
+                style: 'flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666'
+              },
+              '更新日期↓'
+            ),
+            h(
+              'button',
+              {
+                'data-rf': 'sortReset',
+                style: 'flex:1;padding:5px 0;border:none;border-radius:6px;cursor:pointer;background:#f0f2f5;color:#666'
+              },
+              '取消'
+            )
+          ),
+          h('div', { 'data-rf': 'sortHint', style: 'color:#999;margin-top:4px' })
+        ),
+        h(
+          'div',
+          { 'data-rf': 'presetBox', style: 'border-top:1px solid #e5e7eb;margin-top:10px;padding-top:8px' },
+          h('div', { style: 'margin-bottom:6px' }, '过滤预设（跨刷新持久）'),
+          h(
+            'div',
+            { style: 'display:flex;gap:4px;margin-bottom:6px' },
+            h('input', {
+              'data-rf': 'presetName',
+              placeholder: '预设名（如 95+）',
+              maxLength: 20,
+              style: 'flex:1;min-width:0;padding:3px 6px;font-size:12px;border:1px solid #ddd;border-radius:6px'
+            }),
+            h(
+              'button',
+              {
+                'data-rf': 'presetSave',
+                title: '把当前过滤条件（开关+阈值）存为该名字的预设',
+                style: 'padding:3px 10px;border:none;border-radius:6px;cursor:pointer;background:#eaf3ff;color:#2d6cb5'
+              },
+              '存当前'
+            )
+          ),
+          h('div', { 'data-rf': 'presetList', style: 'display:flex;flex-wrap:wrap;gap:4px;color:#999;font-size:12px' })
+        )
+      )
+    )
+  );
   document.body.appendChild(panel);
   return panel;
 }
@@ -339,39 +470,57 @@ function buildFilterTab(ctx) {
       presetList.textContent = '暂无预设';
       return;
     }
-    presetList.innerHTML = '';
-    for (const p of presets) {
-      const chip = document.createElement('span');
-      chip.style.cssText =
-        'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;font-size:12px;background:#eaf3ff;color:#2d6cb5;border-radius:6px;';
-      const applyBtn = document.createElement('button');
-      applyBtn.type = 'button';
-      applyBtn.textContent = `${p.name}（${p.enabled ? '≥' + p.min + '%' : '关'}）`;
-      applyBtn.title = '应用此预设';
-      applyBtn.style.cssText = 'border:none;background:none;color:inherit;cursor:pointer;font-size:12px;padding:0;';
-      applyBtn.addEventListener('click', () => {
-        rf.enabled.checked = p.enabled !== false;
-        rf.slider.value = String(Math.min(100, Math.max(0, Number(p.min) || 0)));
-        applyFilterChange(); // 复用既有链路：实时过滤 + 窄化持久化
-      });
-      const delBtn = document.createElement('button');
-      delBtn.type = 'button';
-      delBtn.textContent = '✕';
-      delBtn.title = '删除预设';
-      delBtn.style.cssText = 'border:none;background:none;color:#99a;cursor:pointer;font-size:11px;padding:0;';
-      delBtn.addEventListener('click', async () => {
-        const rest = (await readPresets()).filter((x) => x.name !== p.name);
-        try {
-          await chrome.storage.local.set({ [presetKey]: rest });
-        } catch {
-          /* ignore */
-        }
-        renderPresets();
-      });
-      chip.appendChild(applyBtn);
-      chip.appendChild(delBtn);
-      presetList.appendChild(chip);
-    }
+    // v15 阶段 3 全量迁移：预设 chips Preact 重挂载（原 innerHTML='' +
+    // createElement 循环退役；onClick prop 直连，重渲染差分复用节点）
+    mountView(
+      presetList,
+      h(
+        Fragment,
+        null,
+        presets.map((/** @type {any} */ p) =>
+          h(
+            'span',
+            {
+              key: String(p.name),
+              style:
+                'display:inline-flex;align-items:center;gap:3px;padding:2px 6px;font-size:12px;background:#eaf3ff;color:#2d6cb5;border-radius:6px;'
+            },
+            h(
+              'button',
+              {
+                type: 'button',
+                title: '应用此预设',
+                style: 'border:none;background:none;color:inherit;cursor:pointer;font-size:12px;padding:0;',
+                onClick: () => {
+                  rf.enabled.checked = p.enabled !== false;
+                  rf.slider.value = String(Math.min(100, Math.max(0, Number(p.min) || 0)));
+                  applyFilterChange(); // 复用既有链路：实时过滤 + 窄化持久化
+                }
+              },
+              `${p.name}（${p.enabled ? '≥' + p.min + '%' : '关'}）`
+            ),
+            h(
+              'button',
+              {
+                type: 'button',
+                title: '删除预设',
+                style: 'border:none;background:none;color:#99a;cursor:pointer;font-size:11px;padding:0;',
+                onClick: async () => {
+                  const rest = (await readPresets()).filter((/** @type {any} */ x) => x.name !== p.name);
+                  try {
+                    await chrome.storage.local.set({ [presetKey]: rest });
+                  } catch {
+                    /* ignore */
+                  }
+                  renderPresets();
+                }
+              },
+              '✕'
+            )
+          )
+        )
+      )
+    );
   };
   if (presetSaveBtn && presetName) {
     presetSaveBtn.addEventListener('click', async () => {

@@ -158,17 +158,22 @@ test('renderSiteManagement：规则行转义/追踪勾选/自定义站点过滤'
 
   const managed = dom.getElementById('siteManageList').innerHTML;
   expect(managed).toContain('Site &lt;A&gt;');
-  expect(managed).toContain('data-domain="a.com" checked');
-  expect(managed).toContain('data-site="a" checked');
+  // v15 阶段 3：Preact 渲染 checked 态——属性断言改 DOM API（checked prop 序列化
+  // 形态为引擎实现细节，语义锚定在元素的 checked 值上）
+  const aRow = dom.getElementById('siteManageList').querySelector('.track-site-check[data-domain="a.com"]');
+  expect(aRow && aRow.checked).toBe(true);
+  const aSearch = dom.getElementById('siteManageList').querySelector('.steam-site-check[data-site="a"]');
+  expect(aSearch && aSearch.checked).toBe(true);
   expect(managed).toContain('无站内搜索');
-  expect(managed).toContain('data-domain="b.com"'); // 未追踪（无 checked 属性）
+  const bRow = dom.getElementById('siteManageList').querySelector('.track-site-check[data-domain="b.com"]');
+  expect(bRow && bRow.checked).toBe(false); // 未追踪
 
   const custom = dom.getElementById('siteList').innerHTML;
   expect(custom).toContain('custom.com');
   expect(custom).not.toContain('a.com');
 });
 
-test('删除自定义站点：收缩 trackedSites + 回收该域权限 + 触发自动保存', () => {
+test('删除自定义站点：收缩 trackedSites + 回收该域权限 + 触发自动保存', async () => {
   /** @type {any} */
   let removed = null;
   globalThis.chrome = {
@@ -180,12 +185,6 @@ test('删除自定义站点：收缩 trackedSites + 回收该域权限 + 触发�
       }
     }
   };
-  const btn = dom.document.createElement('button');
-  btn.dataset.domain = 'custom.com';
-  btn.classList.add('remove-site');
-  const siteList = dom.getElementById('siteList');
-  siteList.querySelectorAll = () => [btn];
-
   OPTS.siteRules = { sites: [{ key: 'a', name: 'A', domains: ['a.com'] }] };
   const s = { trackedSites: ['a.com', 'custom.com'], steamSiteSearch: [] };
   OPTS.currentSettings = s; // 真实页面中二者同一引用
@@ -193,14 +192,18 @@ test('删除自定义站点：收缩 trackedSites + 回收该域权限 + 触发�
   OPTS.scheduleAutoSave = () => {
     autosaves++;
   };
-  OPTS.renderSiteManagement(s); // 本次渲染把删除处理器绑到 btn
+  OPTS.renderSiteManagement(s); // 本次渲染在 siteList 内产出 .remove-site（onClick prop 直连）
 
+  // v15 阶段 3：Preact 渲染的删除按钮（onClick prop 直连）——真实点击驱动
+  const btn = dom.getElementById('siteList').querySelector('.remove-site');
+  expect(btn).toBeTruthy();
   btn.click();
+  await new Promise((r) => setTimeout(r, 0)); // onClick 内 chrome.permissions.remove 异步落定
 
   expect(s.trackedSites).toEqual(['a.com']);
   expect(removed).toEqual({ origins: ['http://custom.com/*', 'https://custom.com/*'] });
   expect(autosaves).toBe(1);
-  expect(siteList.innerHTML).toBe('');
+  expect(dom.getElementById('siteList').innerHTML).toBe(''); // 重渲染后 custom 清空
 });
 
 test('权重总和指示器：1.00 无标记 / 偏差 warn / 严重偏离 bad', () => {

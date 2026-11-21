@@ -12,6 +12,12 @@
 
   const OPTS = (global.__OPTS__ = global.__OPTS__ || {});
 
+  // v15 阶段 3：Preact 垫片惰性访问器（classic 页面脚本——加载序在垫片之前）
+  /** @returns {{h: Function, render: Function, Fragment: any}} */
+  function P() {
+    return /** @type {any} */ (globalThis).__GR_PREACT__;
+  }
+
   // ============ 设置搜索（v11.0 B6：按行文本过滤；纯前端，不改保存逻辑） ============
   // Settings search: filter setting rows by text (front-end only).
   function bindSettingsSearch() {
@@ -38,36 +44,66 @@
 
   // ============ 关键词过滤规则编辑器（v6.4.8：多条 + 排除误报词） ============
   // Keyword filter-rule editor: multiple rules, each with false-positive excludes.
+  // v15 阶段 3 全量迁移：规则行 Preact h() 渲染（innerHTML 3 处退役——
+  // value 经 prop 绑定天然安全；删除 onClick prop 直连；容器 change 委托保留）
   /** @param {any[]} rules */
   function renderRules(rules) {
     // v14.11 B5：id 改 keywordRuleList——原 ruleList 与规则管理面板重复，
     // getElementById 恒取首个致规则管理面板恒空（报告 B/C/D 三报共振）
     const box = document.getElementById('keywordRuleList');
     if (!box) return;
-    box.innerHTML = '';
-    (rules || []).forEach((/** @type {any} */ rule, /** @type {number} */ idx) => {
-      const row = document.createElement('div');
-      row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:6px;';
-      // v9.7.0：value 属性转义改用统一 escapeAttr（shared/escape.js 全局注入）——
-      // 此前只转义双引号，含 &quot; 等实体样式的关键词会显示错乱
-      row.innerHTML = `<input type="text" class="text-input" data-rk="${idx}" placeholder="关键词" value="${escapeAttr(rule.keyword || '')}" style="flex:1">
-          <span style="font-size:11px;color:#8f98a0;">排除</span>
-          <input type="text" class="text-input" data-rx="${idx}" placeholder="排除误报词（可空）" value="${escapeAttr(rule.exclude || '')}" style="flex:1">
-          <button class="btn btn-danger" data-rdel="${idx}" style="padding:4px 10px;">✕</button>`;
-      box.appendChild(row);
-      row.querySelector('[data-rdel]').addEventListener('click', () => {
-        const rules2 = /** @type {any[]} */ (OPTS.currentSettings.filterRules || []).filter(
-          (/** @type {any} */ _r, /** @type {number} */ i) => i !== idx
-        );
-        OPTS.currentSettings.filterRules = rules2;
-        renderRules(rules2);
-        OPTS.scheduleAutoSave();
-      });
-    });
+    const PP = P();
     if (!rules || rules.length === 0) {
-      box.innerHTML =
-        '<div style="font-size:12px;color:#8f98a0;">暂无规则——添加后生效（关键词命中且不命中排除词才过滤）</div>';
+      PP.render(
+        PP.h(
+          'div',
+          { style: 'font-size:12px;color:#8f98a0;' },
+          '暂无规则——添加后生效（关键词命中且不命中排除词才过滤）'
+        ),
+        box
+      );
+      return;
     }
+    const rows = (rules || []).map((/** @type {any} */ rule, /** @type {number} */ idx) =>
+      PP.h(
+        'div',
+        { style: 'display:flex;gap:8px;align-items:center;margin-bottom:6px;', key: idx },
+        PP.h('input', {
+          type: 'text',
+          class: 'text-input',
+          'data-rk': idx,
+          placeholder: '关键词',
+          value: rule.keyword || '',
+          style: 'flex:1'
+        }),
+        PP.h('span', { style: 'font-size:11px;color:#8f98a0;' }, '排除'),
+        PP.h('input', {
+          type: 'text',
+          class: 'text-input',
+          'data-rx': idx,
+          placeholder: '排除误报词（可空）',
+          value: rule.exclude || '',
+          style: 'flex:1'
+        }),
+        PP.h(
+          'button',
+          {
+            class: 'btn btn-danger',
+            style: 'padding:4px 10px;',
+            onClick: () => {
+              const rules2 = /** @type {any[]} */ (OPTS.currentSettings.filterRules || []).filter(
+                (/** @type {any} */ _r, /** @type {number} */ i) => i !== idx
+              );
+              OPTS.currentSettings.filterRules = rules2;
+              renderRules(rules2);
+              OPTS.scheduleAutoSave();
+            }
+          },
+          '✕'
+        )
+      )
+    );
+    PP.render(PP.h(PP.Fragment, null, rows), box);
   }
 
   function bindFilterRules() {
@@ -115,30 +151,38 @@
     });
     document.getElementById('logCount').textContent = filtered.length + ' / ' + logs.length + ' 条';
     const box = document.getElementById('logViewer');
-    box.innerHTML =
-      filtered.length === 0
-        ? '<div style="color:#8f98a0;">暂无匹配日志</div>'
-        : filtered
-            .slice(0, 200)
-            .map((/** @type {any} */ l) => {
-              const color =
-                l.level === 'error'
-                  ? '#c75050'
-                  : l.level === 'warn'
-                    ? '#c78550'
-                    : l.level === 'debug'
-                      ? '#8f98a0'
-                      : '#66c0f4';
-              const dt = new Date(l.timestamp || l.t); // v10.9.1：Invalid Date 兜底
-              const time = isNaN(dt.getTime()) ? '-' : dt.toLocaleTimeString('zh-CN');
-              return `<div style="padding:2px 4px;border-bottom:1px solid #2f4055;display:flex;gap:6px;">
-              <span style="color:#8f98a0;white-space:nowrap;">${time}</span>
-              <span style="color:${color};font-weight:600;white-space:nowrap;">[${escapeHtml(l.level || 'info')}]</span>
-              <span style="color:#4a7ab5;white-space:nowrap;">${escapeHtml(l.module || '')}</span>
-              <span style="flex:1;">${escapeHtml(l.message || l.msg || '')}</span>
-            </div>`;
-            })
-            .join('');
+    const PP = P();
+    if (filtered.length === 0) {
+      PP.render(PP.h('div', { style: 'color:#8f98a0;' }, '暂无匹配日志'), box);
+      return;
+    }
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        filtered.slice(0, 200).map((/** @type {any} */ l, /** @type {number} */ i) => {
+          const color =
+            l.level === 'error'
+              ? '#c75050'
+              : l.level === 'warn'
+                ? '#c78550'
+                : l.level === 'debug'
+                  ? '#8f98a0'
+                  : '#66c0f4';
+          const dt = new Date(l.timestamp || l.t); // v10.9.1：Invalid Date 兜底
+          const time = isNaN(dt.getTime()) ? '-' : dt.toLocaleTimeString('zh-CN');
+          return PP.h(
+            'div',
+            { style: 'padding:2px 4px;border-bottom:1px solid #2f4055;display:flex;gap:6px;', key: i },
+            PP.h('span', { style: 'color:#8f98a0;white-space:nowrap;' }, time),
+            PP.h('span', { style: `color:${color};font-weight:600;white-space:nowrap;` }, `[${l.level || 'info'}]`),
+            PP.h('span', { style: 'color:#4a7ab5;white-space:nowrap;' }, l.module || ''),
+            PP.h('span', { style: 'flex:1;' }, l.message || l.msg || '')
+          );
+        })
+      ),
+      box
+    );
   }
 
   function bindLogViewer() {

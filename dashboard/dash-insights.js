@@ -12,79 +12,115 @@
  * 经典脚本跨文件全局作用域，事件期调用——脚本全部加载后）。
  * 共享状态：activeTagFilter（本文件写，dash-stats.js renderGameTable 读）。
  * CSV/JSON 导出函数在 dash-export.js（本文件不含）。
+ *
+ * v15 阶段 3 全量迁移：渲染面 Preact h()（innerHTML 13 处退役——文本插值
+ * 天然转义；点击/图片错误经 props 直连）。classic 页面脚本 → shared/
+ * preact-globals.js 的 window.__GR_PREACT__（本文件加载序在其前——惰性
+ * 访问器 P() 于事件期求值，同 options/panels/sites.js 模式）。
  */
 
 // 标签偏好云：按权重分级着色与字号 / Tag cloud: color/size graded by weight
 /** @type {string|null} - 跨文件全局（tsc 全程序共享作用域，dash-stats 消费） */
 let activeTagFilter = null; // v11.0 B7：tag 聚合过滤（点击标签云 → 过滤游戏表）
 
+/** @returns {{h: Function, render: Function, Fragment: any}} */
+function P() {
+  return /** @type {any} */ (globalThis).__GR_PREACT__;
+}
+
 /** @param {any[]} keywords */
 function renderTagCloud(keywords) {
   const container = document.getElementById('tagCloud');
+  if (!container) return;
+  const PP = P();
   if (!keywords || keywords.length === 0) {
-    container.innerHTML = '<span class="no-data">暂无数据，请先浏览游戏网站让插件学习您的偏好</span>';
+    PP.render(PP.h('span', { class: 'no-data' }, '暂无数据，请先浏览游戏网站让插件学习您的偏好'), container);
     return;
   }
 
-  container.innerHTML = keywords
-    .map((/** @type {any} */ kw) => {
-      const weight = Number(kw.weight) || 0; // v10.9：异型权重防 NaN 字号
-      const level = weight >= 0.6 ? 'high' : weight >= 0.3 ? 'medium' : 'low';
-      const size = Math.max(12, Math.min(20, 12 + weight * 10));
-      // v11.0 B7：标签可点击 → 聚合过滤游戏表（与游戏表标签闭环）
-      return `<span class="tag-item ${level}" data-tag="${escapeAttr(kw.keyword)}" style="font-size:${size}px;cursor:pointer;${activeTagFilter === kw.keyword ? 'outline:2px solid #67c1f5;' : ''}" title="匹配度: ${Math.round(weight * 100)}% — 点击筛选该类游戏">
-      ${escapeHtml(kw.keyword)} <small>${Math.round(weight * 100)}%</small>
-    </span>`;
-    })
-    .join('');
-
-  container.querySelectorAll('.tag-item').forEach((/** @type {any} */ el) => {
-    el.addEventListener('click', () => {
-      const tag = el.dataset.tag;
-      activeTagFilter = activeTagFilter === tag ? null : tag; // 再点取消
-      renderGameTable(cachedGameList);
-      renderTagCloud(keywords);
-    });
+  // v11.0 B7：标签可点击 → 聚合过滤游戏表（与游戏表标签闭环）——再点取消
+  // v15 阶段 3：onClick prop 直连（原 querySelectorAll 接线块退役）
+  const tags = keywords.map((/** @type {any} */ kw, /** @type {number} */ i) => {
+    const weight = Number(kw.weight) || 0; // v10.9：异型权重防 NaN 字号
+    const level = weight >= 0.6 ? 'high' : weight >= 0.3 ? 'medium' : 'low';
+    const size = Math.max(12, Math.min(20, 12 + weight * 10));
+    return PP.h(
+      'span',
+      {
+        class: 'tag-item ' + level,
+        'data-tag': String(kw.keyword),
+        key: String(kw.keyword) + i,
+        style:
+          'font-size:' +
+          size +
+          'px;cursor:pointer;' +
+          (activeTagFilter === kw.keyword ? 'outline:2px solid #67c1f5;' : ''),
+        title: '匹配度: ' + Math.round(weight * 100) + '% — 点击筛选该类游戏',
+        onClick: () => {
+          activeTagFilter = activeTagFilter === kw.keyword ? null : kw.keyword; // 再点取消
+          renderGameTable(cachedGameList);
+          renderTagCloud(keywords);
+        }
+      },
+      kw.keyword + ' ',
+      PP.h('small', null, Math.round(weight * 100) + '%')
+    );
   });
+  PP.render(PP.h(PP.Fragment, null, tags), container);
 }
 
 // v10.0.0：推荐反馈信号渲染（dislike 闭环 / top 下载）
+// v15 阶段 3：h() 渲染（pills 文本插值天然转义）
 /** @param {any} feedback */
 function renderFeedback(feedback) {
   const summaryEl = document.getElementById('feedbackSummary');
   const listEl = document.getElementById('feedbackLists');
   if (!summaryEl || !listEl) return;
+  const PP = P();
   const fb = feedback || {};
   const hasData = (fb.gameCount || 0) > 0 || (fb.dislikeTotal || 0) > 0;
   if (!hasData) {
     summaryEl.textContent = '暂无数据';
-    listEl.innerHTML = '';
+    listEl.textContent = '';
     return;
   }
   summaryEl.textContent = `负反馈（不感兴趣）${fb.dislikeTotal || 0} 次 · 覆盖 ${fb.gameCount || 0} 款游戏`;
-  const esc = (/** @type {unknown} */ t) => escapeHtml(String(t || ''));
-  const renderList = (/** @type {string} */ title, /** @type {any[]} */ items, /** @type {string} */ key) =>
+  /** @param {string} title @param {any[]} items @param {string} key */
+  const renderList = (title, items, key) =>
     items && items.length > 0
-      ? `<div style="margin-top:4px;"><b>${title}</b>${items
-          .map(
-            (/** @type {any} */ g) => `<span class="gr-pill" style="margin-left:6px;">${esc(g.name)} · ${g[key]}</span>`
+      ? PP.h(
+          'div',
+          { style: 'margin-top:4px;' },
+          PP.h('b', null, title),
+          items.map((/** @type {any} */ g) =>
+            PP.h('span', { class: 'gr-pill', style: 'margin-left:6px;' }, `${g.name} · ${g[key]}`)
           )
-          .join('')}</div>`
-      : '';
-  listEl.innerHTML =
-    renderList('👎 负反馈最多：', fb.topDisliked, 'dislikes') +
-    renderList('⬇️ 下载最多：', fb.topDownloaded, 'downloads');
+        )
+      : null;
+  PP.render(
+    PP.h(
+      PP.Fragment,
+      null,
+      renderList('👎 负反馈最多：', fb.topDisliked, 'dislikes'),
+      renderList('⬇️ 下载最多：', fb.topDownloaded, 'downloads')
+    ),
+    listEl
+  );
 }
 
 // v10.6.0 F2：收藏清单渲染（移除按钮 + Steam 外链）
+// v15 阶段 3：h() 渲染（移除按钮 onClick prop 直连——原 querySelectorAll
+// 接线块退役）；价格列为渲染后命令式填充（第二次异步消息到达后插入，
+// 与原两阶段结构一致）
 async function loadFavorites() {
   const el = document.getElementById('favList');
   if (!el) return;
+  const PP = P();
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_FAVORITES' });
     const favs = (resp && resp.favorites) || {};
     const entries = Object.entries(favs).sort(
-      (a, b) => ((b[1] && b[1].addedAt) || 0) - ((a[1] && a[1].addedAt) || 0) // v10.9：null 值守卫
+      (/** @type {any} */ a, /** @type {any} */ b) => ((b[1] && b[1].addedAt) || 0) - ((a[1] && a[1].addedAt) || 0) // v10.9：null 值守卫
     );
     if (entries.length === 0) {
       el.textContent = '暂无收藏（在游戏详情浮窗点 ☆ 收藏）';
@@ -100,35 +136,60 @@ async function loadFavorites() {
     };
     const groupLabel = ['🚀 即将发售（30 天内）', '📅 已公布发售日', '✅ 已发售', '❓ 未公布/未识别'];
     entries.sort(
-      (a, b) => groupPrio(a[1]) - groupPrio(b[1]) || ((b[1] && b[1].addedAt) || 0) - ((a[1] && a[1].addedAt) || 0)
+      (/** @type {any} */ a, /** @type {any} */ b) =>
+        groupPrio(a[1]) - groupPrio(b[1]) || ((b[1] && b[1].addedAt) || 0) - ((a[1] && a[1].addedAt) || 0)
     );
     let lastGroupPrio = -1;
-    el.innerHTML = entries
-      .map(([appId, f]) => {
-        const esc2 = (/** @type {unknown} */ t) => escapeHtml(String(t || ''));
-        const prio = groupPrio(f);
-        const groupHead =
-          prio !== lastGroupPrio
-            ? `<div style="font-size:11px;color:#8f98a0;margin-top:6px;">${groupLabel[prio]}</div>`
-            : '';
-        lastGroupPrio = prio;
-        return (
-          groupHead +
-          `<div class="fav-row" data-appid="${escapeAttr(String(appId))}" style="display:flex;align-items:center;gap:8px;margin-top:3px;">
-          <span style="flex:1;">⭐ ${esc2(f.name)} <small style="color:#8f98a0;">(${esc2(String(appId))})</small></span>
-          <a href="https://store.steampowered.com/app/${escapeAttr(String(appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;font-size:11px;">Steam ↗</a>
-          <button class="gr-btn gr-btn-sm fav-remove" style="padding:1px 8px;">移除</button>
-        </div>`
-        );
-      })
-      .join('');
-    el.querySelectorAll('.fav-remove').forEach((/** @type {any} */ btn) => {
-      btn.addEventListener('click', async () => {
-        const appId2 = btn.closest('.fav-row').dataset.appid;
-        await window.__GR_MSG__.sendMessage({ action: 'TOGGLE_FAVORITE', appId: appId2, name: '' });
-        loadFavorites().catch(() => {});
-      });
+    const rows = entries.map(([appId, f]) => {
+      const prio = groupPrio(f);
+      const groupHead =
+        prio !== lastGroupPrio
+          ? PP.h('div', { style: 'font-size:11px;color:#8f98a0;margin-top:6px;' }, groupLabel[prio])
+          : null;
+      lastGroupPrio = prio;
+      return PP.h(
+        PP.Fragment,
+        { key: String(appId) },
+        groupHead,
+        PP.h(
+          'div',
+          {
+            class: 'fav-row',
+            'data-appid': String(appId),
+            style: 'display:flex;align-items:center;gap:8px;margin-top:3px;'
+          },
+          PP.h(
+            'span',
+            { style: 'flex:1;' },
+            '⭐ ' + f.name + ' ',
+            PP.h('small', { style: 'color:#8f98a0;' }, '(' + String(appId) + ')')
+          ),
+          PP.h(
+            'a',
+            {
+              href: 'https://store.steampowered.com/app/' + String(appId) + '/',
+              target: '_blank',
+              rel: 'noopener',
+              style: 'color:#67c1f5;text-decoration:none;font-size:11px;'
+            },
+            'Steam ↗'
+          ),
+          PP.h(
+            'button',
+            {
+              class: 'gr-btn gr-btn-sm fav-remove',
+              style: 'padding:1px 8px;',
+              onClick: async () => {
+                await window.__GR_MSG__.sendMessage({ action: 'TOGGLE_FAVORITE', appId: String(appId), name: '' });
+                loadFavorites().catch(() => {});
+              }
+            },
+            '移除'
+          )
+        )
+      );
     });
+    PP.render(PP.h(PP.Fragment, null, rows), el);
     // v14.1.0（第一轮 B3 补完）：收藏价格列——现价/历史最低/折扣率。
     // GET_FAVORITE_PRICES 复用 ITAD 两处 TTL 缓存（暖会话零请求）；未配置
     // ITAD Key 时显示引导文案（后台 configured:false，不发任何请求）。
@@ -148,13 +209,8 @@ async function loadFavorites() {
           span.style.cssText = 'font-size:11px;color:#8f98a0;white-space:nowrap;';
           if (p.current != null && p.lowest != null && p.lowest > 0) {
             const off = Math.round((1 - p.current / p.lowest) * 100);
-            // v14.8 批次 5（第九轮 B1）：现价 ≤ 史低 = 💥 史低标记（收藏折扣
-            // 阈值提醒的看板对应物；90 天趋势线无时序数据，不做——诚实降级）。
-            // v14.8 修复：史低徽章改 DOM API（textContent）——innerHTML 插值
-            // 变量曾触发 XSS 棘轮（+1，XSS 棘轮护栏实战首功）
+            // v14.8 修复：史低徽章 DOM API（textContent）——XSS 棘轮护栏实战首功
             const isAllTimeLow = p.current <= p.lowest;
-            const offTxt = off >= 5 && !isAllTimeLow ? ` · <span style="color:#a3cf06;">-${off}%</span>` : '';
-            span.innerHTML = `💰 ${Number(p.current).toFixed(2)}（最低 ${Number(p.lowest).toFixed(2)}${offTxt}）`;
             if (isAllTimeLow) {
               const lowBadge = document.createElement('span');
               lowBadge.style.cssText = 'color:#ff7b00;font-weight:bold;margin-left:4px;';
@@ -183,80 +239,93 @@ async function loadFavorites() {
 
 // 基于用户偏好标签向 Steam 搜索推荐游戏
 // Recommend games on Steam based on the user's preferred tags
+// v15 阶段 3：h() 渲染（图片错误 onError prop 直连——原 querySelectorAll
+// 接线块退役）
 async function loadSteamRecommendations() {
   const section = document.getElementById('steamRecSection');
   const listEl = document.getElementById('steamRecList');
   const basedOnEl = document.getElementById('recBasedOn');
+  if (!section || !listEl) return;
+  const PP = P();
 
   section.style.display = 'block';
-  listEl.innerHTML = '<span class="no-data">正在获取Steam推荐...</span>';
-  basedOnEl.textContent = '';
+  PP.render(PP.h('span', { class: 'no-data' }, '正在获取Steam推荐...'), listEl);
+  if (basedOnEl) basedOnEl.textContent = '';
 
   try {
     const response = await window.__GR_MSG__.sendMessage({ action: 'GET_STEAM_RECOMMENDATIONS' });
 
     if (response && response.error) {
-      listEl.innerHTML = `<span class="no-data">${escapeHtml(response.error)}</span>`;
+      PP.render(PP.h('span', { class: 'no-data' }, String(response.error)), listEl);
       return;
     }
 
-    if (response.error) {
-      listEl.innerHTML = `<span class="no-data">${escapeHtml(response.error)}</span>`;
-      return;
-    }
-
-    if (response.basedOnTags) {
+    if (response.basedOnTags && basedOnEl) {
       basedOnEl.textContent = `基于您偏好的Steam标签: ${response.basedOnTags.join('、')}`;
     }
 
     if (!response.games || response.games.length === 0) {
-      listEl.innerHTML = '<span class="no-data">未找到匹配的Steam游戏</span>';
+      PP.render(PP.h('span', { class: 'no-data' }, '未找到匹配的Steam游戏'), listEl);
       return;
     }
 
-    listEl.innerHTML = response.games
-      .map(
-        (/** @type {any} */ game) => `
-      <div class="rec-card">
-        ${game.image ? `<img class="rec-card-img" src="${escapeAttr(game.image)}" alt="${escapeHtml(game.name)}"/>` : ''}
-        <div class="rec-card-body">
-          <div class="rec-card-title">${escapeHtml(game.name)}</div>
-          <div class="rec-card-meta">
-            ${game.price ? `💰 ${escapeHtml(game.price)}` : ''}
-            ${game.reviewSummary ? ` | ${escapeHtml(game.reviewSummary)}` : ''}
-          </div>
-          <div class="rec-card-tags">
-            ${(game.matchTags || []).map((/** @type {string} */ t) => `<span>${escapeHtml(t)}</span>`).join('')}
-          </div>
-          <a href="${escapeAttr(game.url)}" target="_blank">🔗 在Steam查看</a>
-        </div>
-      </div>
-    `
-      )
-      .join('');
-
-    // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
-    // Hide images that fail to load (addEventListener instead of inline onerror for CSP)
-    listEl.querySelectorAll('.rec-card-img').forEach((/** @type {any} */ img) => {
-      img.addEventListener('error', () => {
-        img.style.display = 'none';
-      });
-    });
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        response.games.map((/** @type {any} */ game) =>
+          PP.h(
+            'div',
+            { class: 'rec-card', key: String(game.appId || game.name) },
+            game.image
+              ? PP.h('img', {
+                  class: 'rec-card-img',
+                  src: String(game.image),
+                  alt: String(game.name),
+                  onError: (/** @type {any} */ ev) => {
+                    ev.currentTarget.style.display = 'none';
+                  }
+                })
+              : null,
+            PP.h(
+              'div',
+              { class: 'rec-card-body' },
+              PP.h('div', { class: 'rec-card-title' }, game.name),
+              PP.h(
+                'div',
+                { class: 'rec-card-meta' },
+                game.price ? '💰 ' + game.price : '',
+                game.reviewSummary ? ' | ' + game.reviewSummary : ''
+              ),
+              PP.h(
+                'div',
+                { class: 'rec-card-tags' },
+                (game.matchTags || []).map((/** @type {string} */ t, /** @type {number} */ i) =>
+                  PP.h('span', { key: i }, t)
+                )
+              ),
+              PP.h('a', { href: String(game.url), target: '_blank' }, '🔗 在Steam查看')
+            )
+          )
+        )
+      ),
+      listEl
+    );
 
     // 滚动到推荐区域
     section.scrollIntoView({ behavior: 'smooth' });
   } catch (e) {
-    listEl.innerHTML = `<span class="no-data">获取推荐失败: ${escapeHtml(window.__GR_MSG__.toUserMessage(e))}</span>`;
+    PP.render(PP.h('span', { class: 'no-data' }, '获取推荐失败: ' + window.__GR_MSG__.toUserMessage(e)), listEl);
   }
 }
-// （escapeHtml/escapeAttr 由 shared/escape.js 提供全局实现）
-// (escapeHtml/escapeAttr come from shared/escape.js)
 
 // v10.6.0 F3：跨缓存游戏搜索
+// v15 阶段 3：h() 渲染
 async function runGameSearch() {
   const input = document.getElementById('gameSearchInput');
   const out = document.getElementById('gameSearchResults');
   if (!input || !out) return;
+  const PP = P();
   const q = input.value.trim().slice(0, 100); // v10.9：契约上限 100 字符（超长不再误导"无匹配"）
   if (q.length < 2) {
     out.textContent = '请输入至少 2 个字符';
@@ -270,17 +339,35 @@ async function runGameSearch() {
       out.textContent = '无匹配游戏（仅搜索已缓存的游戏）';
       return;
     }
-    const esc2 = (/** @type {unknown} */ t) => escapeHtml(String(t || ''));
-    out.innerHTML = results
-      .map((/** @type {any} */ g) => {
-        const s250 = g.steam250 ? ` · Steam250 #${g.steam250.rank ?? '-'}（${g.steam250.score ?? '-'} 分）` : ''; // v10.9.1
-        const rate = g.positiveRate != null ? ` · 好评率 ${g.positiveRate}%` : '';
-        const fav = g.favorited ? ' ⭐' : '';
-        return `<div style="margin-top:3px;"><a href="https://store.steampowered.com/app/${escapeAttr(String(g.appId))}/" target="_blank" rel="noopener" style="color:#67c1f5;text-decoration:none;">${esc2(g.name)}</a>${fav}${rate}${s250}</div>`;
-      })
-      .join('');
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        results.map((/** @type {any} */ g) => {
+          const s250 = g.steam250 ? ` · Steam250 #${g.steam250.rank ?? '-'}（${g.steam250.score ?? '-'} 分）` : ''; // v10.9.1
+          const rate = g.positiveRate != null ? ` · 好评率 ${g.positiveRate}%` : '';
+          const fav = g.favorited ? ' ⭐' : '';
+          return PP.h(
+            'div',
+            { style: 'margin-top:3px;', key: String(g.appId) },
+            PP.h(
+              'a',
+              {
+                href: 'https://store.steampowered.com/app/' + String(g.appId) + '/',
+                target: '_blank',
+                rel: 'noopener',
+                style: 'color:#67c1f5;text-decoration:none;'
+              },
+              g.name
+            ),
+            fav + rate + s250
+          );
+        })
+      ),
+      out
+    );
   } catch (e) {
-    out.textContent = '搜索失败: ' + escapeHtml(window.__GR_MSG__.toUserMessage(e));
+    out.textContent = '搜索失败: ' + window.__GR_MSG__.toUserMessage(e);
   }
 }
 

@@ -28,7 +28,10 @@ async function loadApiStatus() {
     renderApiStatus(resp, dot, info);
   } catch {
     dot.className = 'status-dot';
-    info.innerHTML = '<span class="no-data">无法获取状态</span>';
+    // v15 阶段 3 全量迁移：错误态经 Preact 渲染（__GR_PREACT__ 由 preact-globals
+    // 垫片提供——popup.html 装载序在 classic 脚本前）
+    const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+    PP.render(PP.h('span', { class: 'no-data' }, '无法获取状态'), info);
   }
 }
 // ============ Load Free Games Count / 加载限免游戏数量 ============
@@ -70,10 +73,20 @@ async function loadStats() {
     const container = document.getElementById('topKeywords');
     if (Array.isArray(topKeywords) && topKeywords.length > 0) {
       // v10.9：异型守卫
-      container.innerHTML = topKeywords
-        .slice(0, 5)
-        .map((kw) => `<span class="keyword-tag">${escapeHtml(kw.keyword)}</span>`)
-        .join('');
+      // v15 阶段 3 全量迁移：关键词标签 Preact 渲染
+      const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+      PP.render(
+        PP.h(
+          PP.Fragment,
+          null,
+          topKeywords
+            .slice(0, 5)
+            .map((/** @type {any} */ kw) =>
+              PP.h('span', { class: 'keyword-tag', key: String(kw.keyword) }, String(kw.keyword))
+            )
+        ),
+        container
+      );
     }
   } catch (e) {
     console.warn('加载统计失败:', e);

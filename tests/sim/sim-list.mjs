@@ -73,11 +73,13 @@ simTest('1. 顶层加载与预热', async () => {
   }, '节1: bootPromise 完成（模块+预热就绪，推送可路由）');
 });
 
-// v14.24.1：节 2/2b 挂 {retry:2} 文档化绷带——STEAM_RATINGS_UPDATE 推送间歇性
-// 被丢弃（~60% 翻转，单文件/多文件/任意顺序/含 v14.23.0 harness 改造前的提交
-// 全部复现，bisect 定性先于该改造；头号嫌疑 = Vitest 4 升级，隔离对照留专项）。
-// retry 先例：v11.0 曾挂 retry 2，第四轮 B6 根因修复后移除——根因再次未明期间
-// 恢复，专项闭环后撤除。推送应用后断言为强断言，retry 不掩盖真回归。
+// v14.24.1 绷带（节 2/2b {retry:2}）——推送竞态保险，撤除条件 = 根因闭环。
+// 2026-11-21 曾短暂撤除后当日即复现 1 次（隔离 6 连跑中 run5：节 2/2b 180s
+// 全测试超时 + 节 12 错误徽章 90s 超时，签名 = 多个有界等待依次失败；探针
+// 带全量状态追踪 20 连绿未捕获 → 根因仍未明）。按"根因未明不撤保险"恢复。
+// 已排除项：推送先于 job 开放（v14.24.1 工作徽章信号守卫）、迁移引入的
+// showStatus 异常（签名不符）、环境负载（隔离单文件仍复现）。
+// 待办线索：run5 全日志 /tmp/simhunt/run-5.log；复现率 ~1/15 隔离运行。
 simTest(
   '2. 列表页两波好评率流程',
   async () => {
@@ -247,7 +249,7 @@ simTest(
     const batchMsg = sentMessages.find((m) => m.action === 'RECORD_DOWNLOAD_URLS_BATCH');
     expect(batchMsg ? batchMsg.data.entries.length : 0).toEqual(2);
   },
-  { retry: 2 }
+  { retry: 2 } // v14.24.1 绷带（根因未明不撤——2026-11-21 复现定性见文件头注）
 );
 
 simTest(
@@ -360,7 +362,7 @@ simTest(
     expect(batchRequests2[1] ? batchRequests2[1].length : 0).toEqual(40);
     presets['GET_STEAM_RATINGS'] = batchPreset;
   },
-  { retry: 2 }
+  { retry: 2 } // v14.24.1 绷带（同上）
 );
 
 simTest('3. waitForListItems（AJAX 延迟渲染）', async () => {
@@ -608,8 +610,8 @@ simTest(
     expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
     expect(a.children.some((c) => (c.className || '').includes('gr-working-badge'))).toEqual(false);
   },
-  { retry: 2 }
-); // v14.29.1：同 v14.24.1 绷带口径——节 2/2b 同签名竞态在节 12 同样观测（推送竞态绷带，专项闭环后撤除）
+  { retry: 2 } // v14.29.1 绷带（同节 2/2b——根因未明不撤）
+);
 
 // v14.28.8：故障语义分离（B 类门禁）——断网/限流导致的检索失败必须渲染
 // 「网络异常·点击重查」，不得复用「未找到」的文案与类名。

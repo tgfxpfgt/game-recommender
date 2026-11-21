@@ -22,13 +22,13 @@ import * as builder from '../adapters/builder.js';
 import * as candidates from './candidates.js';
 import * as tracking from './tracking.js';
 import { createSteamActions } from './sidebar-actions.js'; // v14.5.0 B7：回调工厂
+import { mountView, h } from '../core/preact-mount.js'; // v15 阶段 3 全量迁移：浮窗视图 Preact 渲染
 // v14.26.0 P1-6：消息超时单源（Steam 检索为出站长超时）
 import { MSG_TIMEOUT_LONG_MS } from '../core/timeouts.js';
 
 const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 const BTN_FAIL_FEEDBACK_MS = 1500; // 按钮失败文案恢复延时（v14.6.2：具名单点，两按钮共用）
 const MENU_INFO_TIMEOUT_MS = 5000; // v14.23.0：浮窗菜单缓存信息查询限时（具名单点）
-const esc = (/** @type {string} */ text) => common.escapeHtml(text);
 
 // v14.23.0：浮窗菜单缓存信息上下文——renderAndShow 每次渲染刷新（当前游戏
 // 名称/缓存时间），菜单打开时随全局缓存规模一并提供
@@ -131,12 +131,16 @@ function createFloatShell(settings, menuItems) {
   // 初始隐藏，数据就绪后滑入显示（保留原动画语义）
   panel.style.cssText +=
     'opacity:0;transform:translateX(20px);pointer-events:none;transition:opacity 0.3s,transform 0.3s;';
-  panel.innerHTML = `
-      <div style="padding:16px;text-align:center;color:#8f98a0;">
-        <div style="font-size:24px;margin-bottom:8px;">🎮</div>
-        正在查询 Steam 信息...
-      </div>
-    `;
+  // v15 阶段 3 全量迁移：加载占位 Preact 渲染（原 innerHTML 模板串退役）
+  mountView(
+    panel,
+    h(
+      'div',
+      { style: 'padding:16px;text-align:center;color:#8f98a0;' },
+      h('div', { style: 'font-size:24px;margin-bottom:8px;' }, '🎮'),
+      '正在查询 Steam 信息...'
+    )
+  );
   function showPanel() {
     panel.style.opacity = '1';
     panel.style.transform = 'translateX(0)';
@@ -498,7 +502,15 @@ export function createSteamFloat(gameName, settings) {
     } catch (e) {
       debug.DEBUG.steamStatus = '❌ ' + String(e);
       dbg('Steam查询错误: ' + String(e));
-      panel.innerHTML = `<div style="padding:16px;text-align:center;color:#e74c3c;">查询失败: ${esc(globalThis.__GR_MSG__.toUserMessage(e))}</div>`;
+      // v15 阶段 3 全量迁移：错误态 Preact 渲染（文本插值天然转义）
+      mountView(
+        panel,
+        h(
+          'div',
+          { style: 'padding:16px;text-align:center;color:#e74c3c;' },
+          '查询失败: ' + globalThis.__GR_MSG__.toUserMessage(e)
+        )
+      );
       showPanel();
       status.showStats({ title: 'Steam 信息查询失败', summary: String(e) });
     }
@@ -517,9 +529,20 @@ function renderSteamSidebar(panel, data, onClose, cachedAt) {
   // v14.19.0：平台条目（手动主机映射）——内嵌卡跳过（语义属 Steam 条目；
   // MC 视图提供"重新选择"语义由候选浮窗承担）
   const isPlatformEntry = !!(data && (data.platformOnly || data.mcScore != null));
-  panel.innerHTML = detailTemplates.steamSidebar(
-    floatModules ? { ...data, floatModules } : data,
-    /** @type {number|undefined} */ (cachedAt === null ? undefined : cachedAt)
+  // v15 阶段 3 全量迁移：trusted 模板经 Preact dangerouslySetInnerHTML 注入
+  //（detailTemplates.steamSidebar 全链 escapeHtml/escapeAttr 预转义——可信
+  // 助手输出；.innerHTML 赋值 sink 退役，语义不变）。共享容器走 mountView
+  // 清场纪律（本容器与手动选择/加载/错误视图共用）。
+  mountView(
+    panel,
+    h('div', {
+      dangerouslySetInnerHTML: {
+        __html: detailTemplates.steamSidebar(
+          floatModules ? { ...data, floatModules } : data,
+          /** @type {number|undefined} */ (cachedAt === null ? undefined : cachedAt)
+        )
+      }
+    })
   );
 
   // 头部图片加载失败时按备选 CDN 域回退（v10.6.0），全部失败才隐藏

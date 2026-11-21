@@ -25,18 +25,31 @@ async function doSearch() {
       searchResults.textContent = '未找到匹配的 Steam 游戏';
       return;
     }
-    searchResults.innerHTML = '';
-    cands.slice(0, 6).forEach((/** @type {any} */ c) => {
-      const row = document.createElement('div');
-      row.className = 'search-result-row';
-      row.textContent = c.name;
-      row.title = '打开 Steam 商店页 (App ID ' + c.appId + ')';
-      row.addEventListener('click', () => {
-        chrome.tabs.create({ url: 'https://store.steampowered.com/app/' + c.appId + '/' });
-        window.close();
-      });
-      searchResults.appendChild(row);
-    });
+    // v15 阶段 3 全量迁移：结果行 Preact 渲染（原 createElement 循环 + 清场退役；
+    // onClick prop 直连）
+    const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
+    PP.render(
+      PP.h(
+        PP.Fragment,
+        null,
+        cands.slice(0, 6).map((/** @type {any} */ c) =>
+          PP.h(
+            'div',
+            {
+              class: 'search-result-row',
+              key: String(c.appId),
+              title: '打开 Steam 商店页 (App ID ' + c.appId + ')',
+              onClick: () => {
+                chrome.tabs.create({ url: 'https://store.steampowered.com/app/' + c.appId + '/' });
+                window.close();
+              }
+            },
+            String(c.name)
+          )
+        )
+      ),
+      searchResults
+    );
   } catch (e) {
     searchResults.textContent = '搜索失败：' + String(e);
   }
