@@ -65,7 +65,13 @@ const PAGES = [
     name: 'options',
     url: 'options/options.html',
     viewport: { width: 1280, height: 800 },
-    themes: ['steam', 'ios17', 'cyberpunk', 'morandi'],
+    // v14.40.0（用户指令 4：测试偷懒加速）——基线只留默认主题 steam：多主题
+    // 基线此前 11 张/次截图+对比 ~16s，主题 CSS 变量块由 themes-data 单源
+    // 构建期生成（结构同源），主题回归风险集中在变量块（build 产物），非
+    // 布局面。非默认主题回归由"改主题数据时手动跑 --update + 抽查"兜底。
+    // Baselines keep the default theme only; theme CSS regresses at build-time
+    // single source, spot-check manually when theme data changes.
+    themes: ['steam'],
     states: [
       {
         name: 'filters',
