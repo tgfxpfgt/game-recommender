@@ -303,3 +303,15 @@ job 同源调用——漂移即红）。
 i18n、云同步、跨浏览器、规则市场、MAIN world 注入、全量 TypeScript。
 **数据兼容面标识符冻结**：EXPORT_FORMAT/ENVELOPE_FORMAT（'game-recommender-backup*'
 旧备份文件流转在外）与仓库/包名 game-recommender——改名 = 用户数据导入失败，明确不做。
+
+<!-- caveman-blocks:start -->
+BLOCKS. Scripts in this repo are reusable blocks in .blocks/. Rules:
+1. Check the block index below first. If a block fits, run it. If one almost fits, add a param to it.
+2. A script you would run twice, or over ~10 lines, becomes a block, not a heredoc or a /tmp file.
+3. Inputs are params. No hardcoded paths, ids, ports or dates.
+4. Print one small JSON object: the answer, not the data. Filter, count and truncate in code.
+5. Exit 0 on success, non-zero with {"error": ...} on failure.
+6. Safe to re-run: idempotent, no prompts, cleans up after itself.
+7. Header first: name, summary, params, effects, example. caveman-blocks lint checks it.
+8. Compose: call existing blocks with caveman-blocks run instead of copying their code.
+<!-- caveman-blocks:end -->
