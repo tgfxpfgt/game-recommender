@@ -27,6 +27,13 @@ declare global {
     render: (vnode: any, parent: Element | Document | ShadowRoot | DocumentFragment) => any;
     Fragment: any;
   }; // v15 阶段 3：preact 同步垫片（preact-globals.js 先于消费面 script 加载，恒非空） // v15 阶段 3：preact 同步垫片（preact-globals.js）
+  // v14.39.0：shared/ui-text.js 双形态文案字典挂载（同 __GR_TOKENS__ 模式）
+  var __GR_UI_TEXT__:
+    | {
+        TEXT: Record<string, any>;
+        t: (key: string, vars?: Record<string, any>) => string;
+      }
+    | undefined;
   var __OPTS__: any; // 设置页命名空间（options 经典脚本共享）
   var __gameRecommenderTracker: boolean; // tracker 防重入守卫
   var __grBootPromise: Promise<any>; // v8.2.0：tracker boot 就绪信号（测试等待用）

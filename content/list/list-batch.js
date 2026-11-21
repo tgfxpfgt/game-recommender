@@ -15,6 +15,7 @@ import * as builder from '../adapters/builder.js';
 import * as badges from './badges/core.js';
 // v14.26.0 P1-6：批量评分消息超时单源
 import { RATINGS_TIMEOUT_MS } from '../core/timeouts.js';
+import { t } from '../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 
@@ -149,10 +150,10 @@ async function fireBatch(names) {
   const total = batchState.processItems.length;
   const doneCount = batchState.requested.size - names.length;
   status.showStatus(
-    '正在获取 Steam 好评率',
+    t('status.progressTitle'),
     doneCount,
     total,
-    batchState.queue.length > 0 ? `已排队 ${batchState.queue.length} 个，缓存优先检索中...` : '缓存优先检索中...'
+    batchState.queue.length > 0 ? t('status.queuedDetail', { n: batchState.queue.length }) : t('status.cachePriority')
   );
   // 惰性提取批内封面（不再全量扫描）；评分与推荐共用同一 imageData
   /** @type {Record<string, any>} */
@@ -220,15 +221,19 @@ async function fireBatch(names) {
       // "Steam 检索 x/y"（误导），改显示自己的排队位置
       const prog = _state.ratingsProgress;
       const queuedText =
-        prog && typeof prog.position === 'number' && prog.position > 0 ? ` · 全局排队中·前方 ${prog.position} 页` : '';
+        prog && typeof prog.position === 'number' && prog.position > 0
+          ? t('status.queueAhead', { n: prog.position })
+          : '';
       const progText =
-        !queuedText && prog && prog.total > 0 ? ` · Steam 检索 ${Math.min(prog.done, prog.total)}/${prog.total}` : '';
-      const degradedText = prog && prog.degraded ? ' · Steam 访问受限，自动恢复中' : '';
+        !queuedText && prog && prog.total > 0
+          ? t('status.steamProgress', { done: Math.min(prog.done, prog.total), total: prog.total })
+          : '';
+      const degradedText = prog && prog.degraded ? t('status.degradedSuffix') : '';
       status.showStatus(
-        '正在从 Steam 更新缓存',
+        t('status.steamUpdateTitle'),
         job.processed.size,
         _state.batchState.processItems.length,
-        `${pendingCount} 个未命中缓存，后台拉取中${queuedText}${progText}${degradedText}`
+        t('status.pendingFetch', { n: pendingCount }) + queuedText + progText + degradedText
       );
       _internal.scheduleFallbacks();
     } else {
@@ -379,7 +384,7 @@ export function requestSteamRatings(items, settings) {
     return;
   }
   // v9.7.0：修正参数错位（同上——detail 应为第 4 参）
-  status.showStatus('正在获取 Steam 好评率', 0, _state.batchState.processItems.length, '缓存优先检索中...');
+  status.showStatus(t('status.progressTitle'), 0, _state.batchState.processItems.length, t('status.cachePriority'));
   _internal.createRatingsJob(_state.batchState.processItems, settings, jobNames);
   maybeFetchNextBatch();
   startListScan();

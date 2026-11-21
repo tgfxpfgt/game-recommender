@@ -5,8 +5,12 @@
  * pixelmatch 对比——UI 布局/样式回归（如面板逃逸、样式丢失）可被直接抓到。
  * 基线存 tests/visual/baseline/（提交入库）；差异输出 tests/visual/diff/。
  * Run: npm run visual            （对比基线，超过阈值非零退出）
- *       npm run visual -- --update（重新生成基线——版本号/主题变更后使用）
- * 注意：基线含版本号文本（popup/hub 显示 vX.Y.Z）——每次发版需 --update 更新。
+ *       npm run visual -- --update（重新生成基线——主题变更后使用）
+ * v14.39.0：基线去版本号——截图前把 #extVersion 中性化为固定占位（popup 头部
+ * 显示 vX.Y.Z 曾随每次 bump 全基线漂移，playbooks §7"visual 基线版本号"重钉
+ * 负担退役；本地 gate:fast 跑在 bump 前而 CI 在 bump 后的错位红随之消失）。
+ * v14.39.0: version text neutralized before screenshots — bump no longer
+ * churns every baseline (fixes the gate:fast-pre-bump vs CI-post-bump skew).
  */
 import { chromium } from 'playwright-core';
 import pixelmatch from 'pixelmatch';
@@ -133,6 +137,11 @@ try {
     await page.goto(`chrome-extension://${extId}/${p.url}`);
     // 等待渲染稳定（options/dashboard 有异步数据加载）
     await page.waitForTimeout(1500);
+    // v14.39.0：版本号中性化（基线去版本号——见文件头注）
+    await page.evaluate(() => {
+      const el = document.getElementById('extVersion');
+      if (el) el.textContent = 'v0.0.0-visual';
+    });
     // 默认态 + 交互态（v9.1.0：states 为附加基线）
     const states = [{ name: null, prep: null }, ...(p.states || [])];
     for (const theme of p.themes) {
@@ -186,7 +195,10 @@ try {
             ratio = ratio2;
             fs.writeFileSync(path.join(DIFF_DIR, base + '.png'), PNG.sync.write(diff2));
           }
-          if (ratio > MAX_DIFF_RATIO) {
+          // v14.39.0 修复：终判阈值用 thresholdFor(base)（此前放宽阈值只作用于
+          // 重试触发，终判恒用全局 0.5%——ios17 的 1% 放宽从未生效，日级字体
+          // 漂移 0.6% 被误判失败，与本注释宣称语义相悖）
+          if (ratio > maxDiff) {
             report(`${base} 与基线差异 ${(ratio * 100).toFixed(2)}%`, false, `(diff: tests/visual/diff/${base}.png)`);
           } else {
             report(`${base} 与基线一致（差异 ${(ratio * 100).toFixed(3)}%）`, true);

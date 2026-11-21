@@ -19,6 +19,7 @@ import * as debug from '../core/debug.js';
 import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from '../core/page-url.js';
 // v14.26.0 P1-6：消息超时单源
 import { MSG_TIMEOUT_SHORT_MS } from '../core/timeouts.js';
+import { t } from '../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 export { isDetailPageByUrl, isHomePageUrl, isListPageByUrl };
 
@@ -575,7 +576,7 @@ function applySteamRatingsUpdate(ratings, done, progress) {
       if (progJob.processed.has(item.name)) continue;
       const target = item.titleEl || item.link;
       const badge = target && target.querySelector('.gr-working-badge');
-      if (badge) badge.title = `Steam 检索中 ${Math.min(prog.done, prog.total)}/${prog.total}`;
+      if (badge) badge.title = t('queue.searching', { done: Math.min(prog.done, prog.total), total: prog.total });
     }
   }
   // v14.8.1（用户反馈：等待检测一直卡在等待检测）：**可见文本**同步当前队列

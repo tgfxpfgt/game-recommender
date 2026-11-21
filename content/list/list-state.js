@@ -16,6 +16,7 @@ import * as badges from './badges/core.js';
 import * as builder from '../adapters/builder.js';
 import * as status from '../core/status-bar.js';
 import * as debug from '../core/debug.js';
+import { t } from '../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 const dbg = (/** @type {...any} */ ...a) => debug.dbg(...a);
 // 兜底：45 秒强制收尾（v14.6.2：具名单点——未返回的游戏保持空白不误标
@@ -28,16 +29,18 @@ const FORCE_FINISH_MS = 45000;
 // 全局态（qs）优先——跨 tab 排队时本 tab 推送无进度可显；两者皆缺回落"等待检索"。
 // Format the waiting badge's visible queue info (pure, unit-tested): pipeline
 // progress from the running job (global snapshot preferred) + queue depth.
-/** 阶段中文名（v14.28.6 R4-A：卡住时告诉用户卡在哪一步）/ phase labels */
+// v14.39.0：阶段中文名迁 shared/ui-text.js 字典（queue.phase* 键——卡住时
+// 告诉用户卡在哪一步）；PHASE_LABELS 保留为 t() 的键映射表
+/** 阶段中文名键映射 / phase label keys */
 const PHASE_LABELS = {
-  platform: '平台识别',
-  cache: '查缓存',
-  search: '搜索匹配',
-  validate: '校验条目',
-  reviews: '取评价',
-  names: '补全名称',
-  write: '写缓存',
-  start: '启动'
+  platform: 'queue.phasePlatform',
+  cache: 'queue.phaseCache',
+  search: 'queue.phaseSearch',
+  validate: 'queue.phaseValidate',
+  reviews: 'queue.phaseReviews',
+  names: 'queue.phaseNames',
+  write: 'queue.phaseWrite',
+  start: 'queue.phaseStart'
 };
 
 /**
@@ -56,34 +59,35 @@ export function formatQueueStatusText(prog, qs) {
   if (you && !you.running) {
     // v14.29.0：本页视角（快照 you 在场且非运行中 = 本页还在排队）——此前
     // 等待徽章只能显示别的页面的"检索中 x/y"，本页排第几位毫无信息
-    parts.push(`排队中·前方 ${you.position} 页`);
-    if (typeof you.aheadItems === 'number' && you.aheadItems > 0) parts.push(`前方约 ${you.aheadItems} 项`);
-    if (typeof you.total === 'number' && you.total > 0) parts.push(`本页 ${you.total} 项`);
+    parts.push(t('queue.youPosition', { n: you.position }));
+    if (typeof you.aheadItems === 'number' && you.aheadItems > 0)
+      parts.push(t('queue.aheadItems', { n: you.aheadItems }));
+    if (typeof you.total === 'number' && you.total > 0) parts.push(t('queue.pageTotal', { n: you.total }));
   } else {
     if (cur && typeof cur.total === 'number' && cur.total > 0) {
       const curTotal = cur.total; // v14.8.1：局部常量——TS 收窄不穿模板串内重复属性读
-      parts.push(`检索中 ${Math.min(cur.done ?? 0, curTotal)}/${curTotal}`);
+      parts.push(t('queue.searching', { done: Math.min(cur.done ?? 0, curTotal), total: curTotal }));
     } else if (prog && typeof prog.total === 'number' && prog.total > 0) {
       const progTotal = prog.total;
-      parts.push(`检索中 ${Math.min(prog.done ?? 0, progTotal)}/${progTotal}`);
+      parts.push(t('queue.searching', { done: Math.min(prog.done ?? 0, progTotal), total: progTotal }));
     }
     if (qs && typeof qs.pending === 'number' && qs.pending > 0) {
-      parts.push(`排队 ${qs.pending}`);
+      parts.push(t('queue.pending', { n: qs.pending }));
     } else if (prog && typeof prog.position === 'number' && prog.position > 0) {
-      parts.push(`排队中·前方 ${prog.position} 项`);
+      parts.push(t('queue.progPosition', { n: prog.position }));
     }
   }
   // v14.28.6 R4-A：软阈值超时 → 明确告知"卡在哪一步、已等多久"（只展示不放弃；
   // 硬阈值放弃由后台继续队列，前端看到的是该项最终为未找到）
   const stalled = (cur && cur.stalled) || (prog && prog.stalled) || null;
   if (stalled && Number(stalled.elapsedMs) >= 1000) {
-    const label =
-      /** @type {Record<string, string>} */ (PHASE_LABELS)[String(stalled.phase)] ||
-      String(stalled.phase || '未知步骤');
-    parts.push(`卡在${label} ${Math.round(Number(stalled.elapsedMs) / 1000)}s`);
+    const label = /** @type {Record<string, string>} */ (PHASE_LABELS)[String(stalled.phase)]
+      ? t(/** @type {Record<string, string>} */ (PHASE_LABELS)[String(stalled.phase)])
+      : String(stalled.phase || t('queue.phaseUnknown'));
+    parts.push(t('queue.stuckAt', { phase: label, secs: Math.round(Number(stalled.elapsedMs) / 1000) }));
   }
-  if ((qs && qs.degraded) || (prog && prog.degraded)) parts.push('限流降速');
-  return parts.length > 0 ? `⏳ ${parts.join(' · ')}` : '⏳ 等待检索';
+  if ((qs && qs.degraded) || (prog && prog.degraded)) parts.push(t('queue.degraded'));
+  return parts.length > 0 ? `⏳ ${parts.join(' · ')}` : `⏳ ${t('queue.waiting')}`;
 }
 
 // ============ 列表页 Steam 好评率（两波：缓存命中即时显示 + 后台推送更新） ============
@@ -280,7 +284,7 @@ export function finishRatings() {
   // and late pushes still replace them with real badges.
   for (const item of job.processItems) {
     if (job.processed.has(item.name)) continue;
-    if (item.element && item.element.isConnected) badges.showErrorBadge(item, '⚠️ 未返回·点击重查');
+    if (item.element && item.element.isConnected) badges.showErrorBadge(item, t('badge.errorNotReturned'));
   }
   // 批量写入下载站网址缓存（fire-and-forget）
   const siteKey = builder.getAdapterKey();
@@ -304,20 +308,29 @@ export function finishRatings() {
       (unresolved > 0 ? `, 未返回 ${unresolved} 个` : '')
   );
   status.showStats({
-    title: 'Steam 好评率获取完成',
-    summary: `${job.shown} 个好评率${job.filtered > 0 ? ` · ${job.filtered} 个已过滤` : ''}${job.notFoundNames.length > 0 ? ` · ${job.notFoundNames.length} 个未找到` : ''}${job.failedNames.length > 0 ? ` · ${job.failedNames.length} 个网络异常（点击徽章可重查）` : ''}${unresolved > 0 ? ` · ${unresolved} 个暂未返回（点击条目旁徽章可重查）` : ''}`,
+    title: t('finish.title'),
+    summary:
+      t('finish.summaryShown', { n: job.shown }) +
+      (job.filtered > 0 ? t('finish.summaryFiltered', { n: job.filtered }) : '') +
+      (job.notFoundNames.length > 0 ? t('finish.summaryNotFound', { n: job.notFoundNames.length }) : '') +
+      (job.failedNames.length > 0 ? t('finish.summaryFailed', { n: job.failedNames.length }) : '') +
+      (unresolved > 0 ? t('finish.summaryUnresolved', { n: unresolved }) : ''),
     rows: [
-      `查询 ${job.uniqueNames.length} 个游戏 · 提取 ${job.processItems.length} 个`,
+      t('finish.rowsQueried', { a: job.uniqueNames.length, b: job.processItems.length }),
       job.failedNames.length > 0
-        ? `网络异常: ${job.failedNames.slice(0, 3).join('、')}${job.failedNames.length > 3 ? '...' : ''}（非 Steam 无此游戏）`
+        ? t('finish.rowsFailed', {
+            list: job.failedNames.slice(0, 3).join('、') + (job.failedNames.length > 3 ? '...' : '')
+          })
         : '',
       job.notFoundNames.length > 0
-        ? `未找到: ${job.notFoundNames.slice(0, 3).join('、')}${job.notFoundNames.length > 3 ? '...' : ''}`
+        ? t('finish.rowsNotFound', {
+            list: job.notFoundNames.slice(0, 3).join('、') + (job.notFoundNames.length > 3 ? '...' : '')
+          })
         : '',
       // v7.4.0：被过滤游戏可恢复（点击回调由 status-bar 委托执行）
       job.filteredNames.length > 0
         ? {
-            text: `已过滤 ${job.filteredNames.length} 个（点击恢复全部）`,
+            text: t('finish.rowsFiltered', { n: job.filteredNames.length }),
             click: () => restoreFilteredGames(job)
           }
         : ''
@@ -390,8 +403,8 @@ function restoreFilteredGames(job) {
   job.filteredNames = [];
   job.filtered = 0;
   status.showStats({
-    title: '已恢复被过滤游戏',
-    summary: `恢复了 ${restored} 个游戏（位置可能略有变化）`,
+    title: t('finish.restoredTitle'),
+    summary: t('finish.restoredSummary', { n: restored }),
     rows: []
   });
 }

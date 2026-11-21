@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 187，其中声明不变式 4。
+> 模块数 188，其中声明不变式 5。
 
 ## adapters/default.js
 
@@ -217,14 +217,14 @@
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `content/list/badges/badge-base.js` | 徽章 DOM 基元 | — | createBadge<br>setBadgeRetryHandler<br>getBadgeRetryHandler<br>removeRatingBadges<br>insertBadges | createBadge 默认 base 含 gr-rating-badge；组外徽章（推荐值等）必须显式传 base:'gr-badge'（铁律 12，v10.6.0 事故）<br>徽章文本由调用方拼好传入（本模块不做转义）——动态内容在调用方经 escapeHtml/escapeAttr 处理 |
-| `content/list/badges/core.js` | 列表页徽章域入口 | `content/core/steam-rating-logic`<br>`content/list/badges/badge-base`<br>`content/list/badges/rec`<br>`content/list/badges/working` | prependBadge<br>removeItemFromDom<br>showWorkingBadge<br>removeWorkingBadge<br>updateWorkingBadgesInfo<br>// v14.8.1：等待徽章可见队列信息
+| `content/list/badges/core.js` | 列表页徽章域入口 | `content/core/steam-rating-logic`<br>`content/list/badges/badge-base`<br>`content/list/badges/rec`<br>`content/list/badges/working`<br>`shared/ui-text` | prependBadge<br>removeItemFromDom<br>showWorkingBadge<br>removeWorkingBadge<br>updateWorkingBadgesInfo<br>// v14.8.1：等待徽章可见队列信息
   showErrorBadge<br>…+5 | — |
-| `content/list/badges/rec.js` | 徽章：推荐值域 | `content/list/badges/badge-base` | prependRecBadge | — |
-| `content/list/badges/working.js` | 徽章：工作状态域 | `content/list/badges/badge-base` | removeItemFromDom<br>showWorkingBadge<br>removeWorkingBadge<br>updateWorkingBadgesInfo<br>showErrorBadge<br>highlightItem<br>…+1 | — |
+| `content/list/badges/rec.js` | 徽章：推荐值域 | `content/list/badges/badge-base`<br>`shared/ui-text` | prependRecBadge | — |
+| `content/list/badges/working.js` | 徽章：工作状态域 | `content/list/badges/badge-base`<br>`shared/ui-text` | removeItemFromDom<br>showWorkingBadge<br>removeWorkingBadge<br>updateWorkingBadgesInfo<br>showErrorBadge<br>highlightItem<br>…+1 | — |
 | `content/list/filter-presets.js` | 过滤预设纯逻辑 | — | PRESET_CAP<br>PRESET_NAME_MAX<br>clampPct<br>upsertPreset | — |
-| `content/list/list-batch.js` | 列表页批次调度 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/list/badges/core`<br>`content/list/list-state` | resolveBatchCapacity<br>maybeFetchNextBatch<br>requestSteamRatings<br>requestRecommendations<br>waitForBatchIdle | — |
-| `content/list/list-page.js` | 列表页模块 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/page-url`<br>`content/core/timeouts`<br>`content/list/badges/core`<br>`content/list/list-batch`<br>`content/list/list-state` | requestRecommendations<br>isDetailPageByUrl<br>isHomePageUrl<br>isListPageByUrl<br>_state<br>_internal<br>…+10 | — |
-| `content/list/list-state.js` | 列表页共享状态容器 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/status-bar`<br>`content/list/badges/core` | formatQueueStatusText<br>_state<br>ratingFilterPass<br>applyRatingsResponse<br>finishRatings<br>sortItemsByRating<br>…+4 | — |
+| `content/list/list-batch.js` | 列表页批次调度 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/status-bar`<br>`content/core/timeouts`<br>`content/list/badges/core`<br>`content/list/list-state`<br>`shared/ui-text` | resolveBatchCapacity<br>maybeFetchNextBatch<br>requestSteamRatings<br>requestRecommendations<br>waitForBatchIdle | — |
+| `content/list/list-page.js` | 列表页模块 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/core/page-url`<br>`content/core/timeouts`<br>`content/list/badges/core`<br>`content/list/list-batch`<br>`content/list/list-state`<br>…+1 | requestRecommendations<br>isDetailPageByUrl<br>isHomePageUrl<br>isListPageByUrl<br>_state<br>_internal<br>…+10 | — |
+| `content/list/list-state.js` | 列表页共享状态容器 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/status-bar`<br>`content/list/badges/core`<br>`shared/ui-text` | formatQueueStatusText<br>_state<br>ratingFilterPass<br>applyRatingsResponse<br>finishRatings<br>sortItemsByRating<br>…+4 | — |
 | `content/list/xdgrid-layout.js` | 列表布局引擎 | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug` | STORE_KEY<br>DEFAULTS<br>MIN_ITEMS<br>clampInt<br>computeContainerStyle<br>migrateLegacy<br>…+7 | — |
 | `content/list/xdgrid-panel.js` | 列表工具面板 | `content/adapters/builder`<br>`content/core/debug`<br>`content/core/preact-mount`<br>`content/list/filter-presets`<br>`content/list/list-state`<br>`content/list/xdgrid-layout` | buildUI | — |
 | `content/list/xdgrid.js` | 下载站列表布局定制（装配壳）/ Grid Customizer (shell) | `content/adapters/builder`<br>`content/core/common`<br>`content/core/debug`<br>`content/list/xdgrid-layout`<br>`content/list/xdgrid-panel` | init<br>computeContainerStyle<br>migrateLegacy<br>commonAncestor<br>isXdgameFallback | — |
@@ -466,6 +466,12 @@
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
 | `shared/themes-data.js` | 主题数据单源（v15 阶段 3 主题数据化） | — | THEMES | — |
+
+## shared/ui-text.js
+
+| 模块 | 职责 | 依赖 | 导出 | 不变式 |
+| --- | --- | --- | --- | --- |
+| `shared/ui-text.js` | 用户可见文案单源（zh-CN）/ UI text single source | — | TEXT<br>t | 值为用户可见 zh-CN 固定文案；占位符形如 {name}，vars 缺失时 |
 
 ## shared/ui-tokens.js
 

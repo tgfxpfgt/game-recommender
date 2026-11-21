@@ -272,6 +272,11 @@ export function setQueryStubs(allFn, oneFn) {
   if (oneFn) queryOneStub = oneFn;
 }
 // 触发 DOMContentLoaded（happy-dom 加载即 complete——测试手动派发保持时序控制）
+// v14.39.0 备注：曾试装"天然 DCL 拦截闸"（stopImmediatePropagation 门控）——
+// 隔离/两阶段全绿，但 gate 上下文 2/2 仍同签名红（job=null），假设未获证实，
+// 已回退（最小 diff 纪律：未证实修复不并入批次）。job=null 挂起根因待续：
+// 自动流在 requestSteamRatings 之前停摆，嫌疑收窄 initPage/adapter 提取/
+// waitForListItems 分支（sim-trace 周期快照持续留现场）。
 export function fireDomReady() {
   [...docReadyCallbacks].forEach((cb) => cb());
   // v15 阶段 2：tracker startInit 挂在 window 的真实 DCL 监听（readyState=loading
@@ -477,13 +482,66 @@ export { loadModules };
 
 // v14.24.1：默认 60s（提额处方见 AGENTS；批量挂起时 GR_SIM_SIGNAL_TIMEOUT_MS 提额）
 const SIM_SIGNAL_TIMEOUT_MS = Number(process.env.GR_SIM_SIGNAL_TIMEOUT_MS) || 90000; // v15 阶段 2：真实 DOM 双流重试余量（60s→90s）
+
+// v14.39.0：等待期状态快照（双流竞态诊断性）——waitForSignal 等待超过 30s 即
+// 每 30s 经 console.warn 打一份列表页状态机快照。动机：节 2/2b 曾观测 vitest
+// 180s 测试级 kill（等待自身 90s 超时来不及抛）→ 错误信息零现场；vitest 失败
+// 报告会附带测试期 console 输出，快照走 console 即可在 kill 场景留诊断。
+// 经 __grSimStateSnapshot 可注入自定义快照器（套件按需覆盖）。
+// Periodic state snapshots while waiting: >30s waits console.warn a compact
+// list-state snapshot every 30s, so vitest-timeout kills still leave a trace
+// (vitest attaches console output of failed tests to the report).
+/** @type {(() => string) | null} */
+let stateSnapshotFn = null;
+export function setSimStateSnapshot(fn) {
+  stateSnapshotFn = typeof fn === 'function' ? fn : null;
+}
+/** @returns {string} 列表页状态机紧凑快照（无 GR 时给占位） */
+function defaultStateSnapshot() {
+  const GR = /** @type {any} */ (globalThis).__GR__;
+  const st = GR && GR.list && GR.list._state;
+  if (!st) return '(GR.list._state 不可用——模块未装载或非列表场景)';
+  const job = st.ratingsJob;
+  const bs = st.batchState;
+  const badgeCount = (/** @type {any} */ sel) => {
+    try {
+      return document.querySelectorAll(sel).length;
+    } catch {
+      return -1;
+    }
+  };
+  return [
+    'job=' +
+      (job
+        ? `names=${job.uniqueNames.length} proc=${job.processed.size} shown=${job.shown} fin=${job.finished}`
+        : 'null'),
+    'bs=' +
+      (bs ? `inf=${bs.inflight} q=${bs.queue.length} req=${bs.requested.size} pendingDone=${bs.pendingDone}` : 'null'),
+    'prog=' + (st.ratingsProgress ? `${st.ratingsProgress.done}/${st.ratingsProgress.total}` : '-'),
+    'badges: working=' +
+      badgeCount('.gr-working-badge') +
+      ' rating=' +
+      badgeCount('.gr-rating-badge') +
+      ' error=' +
+      badgeCount('.gr-error-badge')
+  ].join(' | ');
+}
 export async function waitForSignal(fn, desc, timeoutMs = SIM_SIGNAL_TIMEOUT_MS) {
   const t0 = Date.now();
+  let lastDumpAt = 0;
   while (Date.now() - t0 < timeoutMs) {
     if (fn()) return true;
+    const now = Date.now();
+    // 超 30s 的等待：每 30s 打一份快照（kill 场景经 vitest console 留现场）
+    if (now - t0 > 30000 && now - lastDumpAt > 30000) {
+      lastDumpAt = now;
+      const snap = stateSnapshotFn ? stateSnapshotFn() : defaultStateSnapshot();
+      console.warn(`[sim-trace] 等待 "${desc || '(未命名信号)'}" 已 ${((now - t0) / 1000).toFixed(0)}s：${snap}`);
+    }
     await new Promise((r) => setTimeout(r, 20));
   }
-  throw new Error(`waitForSignal 超时(${timeoutMs}ms): ${desc || '(未命名信号)'}`);
+  const snap = stateSnapshotFn ? stateSnapshotFn() : defaultStateSnapshot();
+  throw new Error(`waitForSignal 超时(${timeoutMs}ms): ${desc || '(未命名信号)'} ｜ 终态快照: ${snap}`);
 }
 
 // 构建列表页 DOM 项（真实 DOM 版 makeItem——返回真元素，旧字段 a 保留）

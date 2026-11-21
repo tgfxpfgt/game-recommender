@@ -155,22 +155,18 @@ jobs:
 
   visual:
     # v10.5.1 任务3：视觉回归独立作业——基线在开发者 Windows 机采集，Linux CI
-    # 字体/抗锯齿导致全页 ~3% 均匀像素差（与真实回归无关）。单次失败保持
-    # advisory（不阻断）；v10.6.0 E4：连续 2 次失败升级为阻断——经 actions/cache
-    # 跨 run 传递失败标记（key 用 run_id 追加，restore-keys 取最近一次）。
-    # Visual regression stays advisory on a single failure (Linux font noise vs
-    # Windows baselines); E4 escalates to blocking after 2 consecutive failures
-    # via a cache-carried failure marker.
+    # 字体/抗锯齿导致全页 ~3% 均匀像素差（与真实回归无关，环境性恒差非瞬时噪声）。
+    # v14.39.0 裁决：E4 连续失败升级阻断退役——升级机制假设噪声是瞬时的，实测
+    # Linux 渲染差异恒定存在 → 升级后每次 run 都阻断（CI 恒红 8+ 连）。
+    # 本作业永久 advisory（只报告 + 传 diff 工件），权威门禁 = 本地 Windows
+    # gate:fast 的 visual 步骤（基线同源采集，触发面覆盖 popup/options/dashboard）。
+    # Visual stays advisory forever: Linux font noise vs Windows baselines is
+    # permanent, so the E4 escalation dead-locked CI red. The authoritative gate
+    # is the local Windows visual step in gate:fast.
     runs-on: ubuntu-latest
     needs: [coverage-gate]
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: 读取上次失败标记 / Restore previous failure marker
-        uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: tests/visual/.prev-failed
-          key: visual-state-${{ github.run_id }}
-          restore-keys: visual-state-
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 20
@@ -179,27 +175,9 @@ jobs:
         run: npm ci
       - name: 安装 Playwright Chromium / Install pinned Playwright Chromium
         run: npx playwright-core install chromium
-      - name: 运行视觉回归（单次失败 advisory）/ Run visual regression
-        id: visual
+      - name: 运行视觉回归（永久 advisory——环境差参考，不阻断）/ Run visual regression (advisory)
         run: xvfb-run -a npm run visual
         continue-on-error: true
-      - name: 连续失败升级为阻断 / Escalate after 2 consecutive failures
-        env:
-          VISUAL_FAILED: ${{ steps.visual.outcome == 'failure' }}
-        run: |
-          prev=$(cat tests/visual/.prev-failed 2>/dev/null || echo 0)
-          if [ "$VISUAL_FAILED" = "true" ] && [ "$prev" = "1" ]; then
-            echo "::error::视觉回归连续 2 次失败——升级为阻断（疑似真实回归，请核对 visual-diff 工件）"
-            echo 1 > tests/visual/.prev-failed
-            exit 1
-          fi
-          if [ "$VISUAL_FAILED" = "true" ]; then echo 1 > tests/visual/.prev-failed; else echo 0 > tests/visual/.prev-failed; fi
-      - name: 保存失败标记 / Save failure marker
-        if: always()
-        uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
-        with:
-          path: tests/visual/.prev-failed
-          key: visual-state-${{ github.run_id }}
       - name: 上传视觉 diff / Upload visual diffs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4

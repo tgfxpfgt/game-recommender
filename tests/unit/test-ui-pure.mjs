@@ -343,3 +343,38 @@ test('浮窗正常评分行不受影响（不渲染灰色行）', () => {
   expect(html).toContain('87%');
   expect(html).not.toContain('不足 10 篇');
 });
+
+// ============ v14.39.0：用户可见文案字典（shared/ui-text.js 单源完整性） ============
+// 文案集中层首域门禁：叶子值必须是非空字符串（漏登记/空串在 UI 上不可见 =
+// 静默降级）；t() 点路径解析 + {var} 替换 + 缺键回显键名（可见可查）。
+const { TEXT: UI_TEXT_DICT, t: uiTextT } = await import('../../shared/ui-text.js');
+
+test('文案字典完整性：叶子值全为非空字符串（防静默空串）', () => {
+  /** @param {any} node @param {string} path @returns {string[]} */
+  const collectBad = (node, path) => {
+    const bad = [];
+    for (const k of Object.keys(node || {})) {
+      const v = node[k];
+      const p = path ? path + '.' + k : k;
+      if (typeof v === 'string') {
+        if (v.length === 0) bad.push(p);
+      } else if (v && typeof v === 'object') {
+        bad.push(...collectBad(v, p));
+      } else {
+        bad.push(p); // 非字符串非对象 = 非法节点
+      }
+    }
+    return bad;
+  };
+  expect(collectBad(UI_TEXT_DICT, '')).toEqual([]);
+});
+
+test('t()：点路径解析 + {var} 替换 + 缺键回显键名 + 缺 vars 占位保留', () => {
+  expect(uiTextT('badge.workingWait')).toEqual('⏳ 等待检索');
+  expect(uiTextT('queue.searching', { done: 12, total: 60 })).toEqual('检索中 12/60');
+  expect(uiTextT('queue.searching')).toEqual('检索中 {done}/{total}'); // 缺 vars 占位保留
+  expect(uiTextT('no.such.key')).toEqual('no.such.key'); // 缺键回显键名（可见可查）
+  expect(uiTextT('queue.youPosition', { n: 3 })).toEqual('排队中·前方 3 页');
+  // 变量重复出现全替换（g 替换）
+  expect(uiTextT('finish.summaryShown', { n: 7 })).toEqual('7 个好评率');
+});

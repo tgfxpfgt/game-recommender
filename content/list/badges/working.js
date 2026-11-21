@@ -9,6 +9,7 @@
  */
 
 import { getBadgeRetryHandler } from './badge-base.js'; // v14.7 批次 3：点击重试
+import { t } from '../../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
 /** @param {any} item */
@@ -29,13 +30,13 @@ export function showWorkingBadge(item, text) {
   if (!link || link.querySelector('.gr-working-badge')) return;
   const badge = document.createElement('span');
   badge.className = 'gr-working-badge';
-  badge.textContent = text || '⏳ 等待检索';
+  badge.textContent = text || t('badge.workingWait');
   badge.style.cssText =
     'padding:2px 6px;font-size:10px;background:rgba(255,255,255,0.08);color:#8f98a0;border:1px dashed #444;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;';
   const retry = getBadgeRetryHandler();
   if (retry) {
     badge.style.cursor = 'pointer';
-    badge.title = '点击立即重查（穿透负缓存）';
+    badge.title = t('badge.workingRetryTitle');
     badge.addEventListener('click', (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -75,7 +76,7 @@ export function showErrorBadge(item, text) {
   if (!link || link.querySelector('.gr-rating-badge')) return;
   const badge = document.createElement('span');
   badge.className = 'gr-working-badge gr-error-badge';
-  badge.textContent = text || '⚠️ 检索异常';
+  badge.textContent = text || t('badge.errorDefault');
   badge.style.cssText =
     'padding:2px 6px;font-size:10px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px dashed #e74c3c;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;';
   const target = item.titleEl || link;
@@ -108,7 +109,10 @@ export function prependPlatformBadge(item, rating) {
     badge.className = 'gr-rating-badge gr-mc-badge';
     badge.textContent = `MC ${score}`;
     badge.style.cssText = `padding:2px 6px;font-size:10px;color:#fff;background:${color};border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;`;
-    badge.title = `Metacritic 媒体评分 ${score}${rating.mcName ? `（${rating.mcName}）` : ''}${rating.platformTag ? ` · ${rating.platformTag}平台` : ''}`;
+    badge.title =
+      t('badge.mcTitlePrefix', { score }) +
+      (rating.mcName ? t('badge.mcNameSuffix', { name: rating.mcName }) : '') +
+      (rating.platformTag ? t('badge.mcTagSuffix', { tag: rating.platformTag }) : '');
     target.insertBefore(badge, target.firstChild);
     return;
   }
@@ -118,9 +122,6 @@ export function prependPlatformBadge(item, rating) {
   badge.textContent = tag;
   badge.style.cssText =
     'padding:2px 6px;font-size:10px;background:rgba(143,152,160,0.12);color:#8f98a0;border:1px dashed #555;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;';
-  badge.title =
-    rating.platformTag === '模拟器'
-      ? '模拟器/ROM 整合条目——非 Steam 游戏，未检索评分'
-      : '主机平台游戏——评分优先 Metacritic（本条暂无可得评分）';
+  badge.title = rating.platformTag === '模拟器' ? t('badge.platformEmulatorTitle') : t('badge.platformConsoleTitle');
   target.insertBefore(badge, target.firstChild);
 }

@@ -11,6 +11,7 @@
  */
 import { adjustedReputation, verdictFor, ratingTextInfo } from '../../core/steam-rating-logic.js'; // v10.7.0：评分口径单源
 import { createBadge, insertBadges, getBadgeRetryHandler } from './badge-base.js';
+import { t } from '../../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 export {
   removeItemFromDom,
@@ -70,12 +71,11 @@ export function prependBadge(item, rating, settings) {
   if (rating && rating.failed && !rating.appId) {
     badges.push(
       createBadge(link, {
-        text: '⚠️ 网络异常·点击重查',
+        text: t('badge.networkErrorText'),
         color: '#b8860b',
         bg: 'rgba(184,134,11,0.12)',
         cls: 'gr-badge-network-error',
-        title:
-          'Steam 网络/限流故障，本次未能完成检索（并非 Steam 无此游戏）\n点击立即重查 · 网络恢复后刷新页面也会自动重试',
+        title: t('badge.networkErrorTitle'),
         dashed: true,
         onClick: () => {
           const retry = getBadgeRetryHandler();
@@ -86,12 +86,11 @@ export function prependBadge(item, rating, settings) {
   } else if (isNotFound) {
     badges.push(
       createBadge(link, {
-        text: '未找到',
+        text: t('badge.notFoundText'),
         color: '#666',
         bg: 'rgba(102,102,102,0.08)',
         cls: 'gr-badge-notfound',
-        title:
-          '未在 Steam 找到该游戏\n点击立即重查（穿透负缓存）· 负缓存分级退避 15min→1h→2h 后自动重查 · 或按 Alt+Shift+G 强制刷新本页',
+        title: t('badge.notFoundTitle'),
         dashed: true,
         // v14.7 批次 3：点击 = 穿透负缓存单游戏重查（处理器由 list-page 注入）
         onClick: () => {

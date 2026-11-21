@@ -115,21 +115,25 @@ function renderFreeGamesCalendar(games) {
     if (Number.isFinite(end)) mark(end, '⏰ 截止 ' + g.name);
   }
   const today = now.getDate();
-  let html = '<div class="cal-grid">';
-  html +=
-    '<div class="cal-dow">日</div><div class="cal-dow">一</div><div class="cal-dow">二</div><div class="cal-dow">三</div><div class="cal-dow">四</div><div class="cal-dow">五</div><div class="cal-dow">六</div>';
-  for (let i = 0; i < firstDow; i++) html += '<div class="cal-cell cal-empty"></div>';
-  for (let d = 1; d <= daysInMonth; d++) {
-    const labels = marks[d];
-    const cls = 'cal-cell' + (d === today ? ' cal-today' : '') + (labels ? ' cal-marked' : '');
-    html += `<div class="${cls}" title="${labels ? labels.map((s) => s.replace(/"/g, '')).join('\n') : ''}">${d}${labels ? '<div class="cal-dot"></div>' : ''}</div>`;
-  }
-  html += '</div>';
-  // v15 阶段 3 全量迁移：trusted 日历 SVG-less HTML 串经 Preact
-  // dangerouslySetInnerHTML 注入（内插值全为 number/固定文案，title 引号已剥；
-  // sink 退役）。日历结构简单，保持串拼接 + 受控注入（改 h() 树收益低）。
+  // v14.39.0：h() 树直渲染（trusted 串注入退役——日格/标记全为受控数据，
+  // title 文本子节点天然安全，无需再剥引号）
   const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
-  PP.render(PP.h('div', { dangerouslySetInnerHTML: { __html: html } }), host);
+  const cells = [
+    ...['日', '一', '二', '三', '四', '五', '六'].map((d, i) => PP.h('div', { class: 'cal-dow', key: 'dow' + i }, d)),
+    ...Array.from({ length: firstDow }, (_, i) => PP.h('div', { class: 'cal-cell cal-empty', key: 'e' + i })),
+    ...Array.from({ length: daysInMonth }, (_, i) => {
+      const d = i + 1;
+      const labels = marks[d];
+      const cls = 'cal-cell' + (d === today ? ' cal-today' : '') + (labels ? ' cal-marked' : '');
+      return PP.h(
+        'div',
+        { class: cls, title: labels ? labels.join('\n') : undefined, key: 'd' + d },
+        String(d),
+        labels ? PP.h('div', { class: 'cal-dot' }) : null
+      );
+    })
+  ];
+  PP.render(PP.h('div', { class: 'cal-grid' }, cells), host);
 }
 
 // v15 阶段 3：限免页状态区块 Preact 组件（按需装载一次）
@@ -179,7 +183,9 @@ async function loadFreeGames(force = false) {
       await mountFgStatus(listEl, '加载失败，请重试');
     }
   } catch (e) {
-    await mountFgStatus(listEl, '加载失败: ' + escapeHtml(String(e)));
+    // v14.39.0：去 escapeHtml（StatusLine 为 Preact 文本插值自动转义——调用点
+    // 预转义是双重转义，含 < 的错误串会显示 &lt; 字面量）
+    await mountFgStatus(listEl, '加载失败: ' + String(e));
   }
 }
 
@@ -201,124 +207,118 @@ function renderGames() {
   // 未领取的排在前面
   const sorted = [...filtered].sort((a, b) => (a.claimed ? 1 : 0) - (b.claimed ? 1 : 0));
 
-  // v15 阶段 3 全量迁移：trusted 卡片 HTML 串经 Preact dangerouslySetInnerHTML
-  // 注入（renderGameCard 全链 escapeHtml/escapeAttr 预转义——可信助手输出；
-  // sink 退役）。图片错误/领取按钮接线改容器级事件委托（原 per-img
-  // querySelectorAll 接线退役——委托对重渲染更稳）。
+  // v14.39.0：h() 树直渲染（trusted 串注入退役——外部 API 字段全部走文本
+  // 子节点/href prop，天然转义；img onError prop 直连——上批的双保险接线
+  // 块随之退役；领取按钮 onClick prop 直连，就地更新语义不变）
   const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
   PP.render(
-    PP.h('div', {
-      dangerouslySetInnerHTML: { __html: sorted.map((/** @type {any} */ game) => renderGameCard(game)).join('') },
-      onClick: async (/** @type {any} */ ev) => {
-        const btn = ev.target && ev.target.closest('.claim-btn');
-        if (!btn) return;
-        const gameId = btn.getAttribute('data-id');
-        const game = allGames.find((/** @type {any} */ g) => g.id === gameId);
-        // 链接始终会在新标签打开（<a target=_blank> 默认行为）
-        // 若尚未领取，标记已领取并更新角标
-        if (game && !game.claimed) {
-          await window.__GR_MSG__.sendMessage({ action: 'CLAIM_FREE_GAME', gameId });
-          game.claimed = true;
-          // 就地更新按钮外观（保持链接可点击，不整体重渲染以免中断跳转）
-          btn.classList.add('claimed');
-          btn.textContent = '✓ 已领取 · 再次打开';
-          const card = btn.closest('.game-card');
-          if (card) card.classList.add('claimed');
-        }
-      },
-      onError: (/** @type {any} */ ev) => {
-        // 图片加载失败隐藏（error 不冒泡——此处挂容器监听仅捕获 img 自身的
-        // error 事件不会到达；改由渲染后 querySelectorAll 接线的兜底语义由
-        // Preact img onError 承担不可行（trusted 串注入的 img 非 Preact 管理），
-        // 保留容器级 onError 兜底 + 渲染后显式接线双保险）
-        const img = ev.target;
-        if (img && img.classList && img.classList.contains('game-card-img')) img.style.display = 'none';
-      }
-    }),
+    PP.h(
+      PP.Fragment,
+      null,
+      sorted.map((/** @type {any} */ game) => renderGameCard(game))
+    ),
     listEl
   );
-
-  // 图片加载失败隐藏（error 不冒泡、trusted 串注入的 img 非 Preact 管理——
-  // 渲染后显式接线，语义与原实现一致）
-  listEl.querySelectorAll('.game-card-img').forEach((/** @type {any} */ img) => {
-    img.addEventListener('error', () => {
-      img.style.display = 'none';
-    });
-  });
-
-  // 图片加载失败时隐藏（addEventListener 替代内联 onerror，规避扩展页 CSP）
-  // Hide failed images (addEventListener instead of inline onerror for extension-page CSP)
-  listEl.querySelectorAll('.game-card-img').forEach((/** @type {any} */ img) => {
-    img.addEventListener('error', () => {
-      img.style.display = 'none';
-    });
-  });
 }
 
-// 渲染单个游戏卡片 / Render a single game card
+// 领取点击（卡片 h() 化后由 claim 元素 onClick prop 直连）：
+// 链接始终会在新标签打开（<a target=_blank> 默认行为）；若尚未领取，标记
+// 已领取并就地更新按钮外观（不整体重渲染以免中断跳转）
+/** @param {any} ev @param {any} game */
+async function onClaimClick(ev, game) {
+  if (!game || game.claimed) return;
+  const btn = ev.currentTarget;
+  await window.__GR_MSG__.sendMessage({ action: 'CLAIM_FREE_GAME', gameId: game.id });
+  game.claimed = true;
+  btn.classList.add('claimed');
+  btn.textContent = '✓ 已领取 · 再次打开';
+  const card = btn.closest('.game-card');
+  if (card) card.classList.add('claimed');
+}
+
+// 渲染单个游戏卡片（Preact 组件）/ Render a single game card
 /** @param {Record<string, any>} game */
 function renderGameCard(game) {
-  // v10.9：platform 直插 class 属性——外部限免 API 数据必须经属性转义（防属性突破）
-  const platformClass = escapeAttr(game.platform || '');
-  // v9.7.0：formatDate 非法日期回退原文（外部 API 字段），必须转义
-  const endTimeHtml = game.endTime
-    ? `<span class="game-endtime">截止: ${escapeHtml(formatDate(game.endTime))}</span>`
-    : '';
-
-  const priceHtml =
-    game.originalPrice && game.originalPrice !== '免费'
-      ? `<span class="game-price"><span class="original">${escapeHtml(game.originalPrice)}</span>免费</span>`
-      : `<span class="game-price">免费</span>`;
-
-  // 今日新增标识
-  const newTodayHtml = isToday(game.firstSeen) ? `<span class="new-today">🆕 今日新增</span>` : '';
-
-  // 领取方式标识：官方直领（无门槛） vs 第三方领取（需条件）
+  const PP = /** @type {any} */ (globalThis).__GR_PREACT__;
   // v6.3.3：限免类型标记（✅ 限时领取 / ⚠️ 免费周末 / ❌ 永久免费）
   const freeTypeTag =
     game.freeType === 'weekend'
-      ? '<span style="color:#ff7b00;font-size:11px;">⚠️ 免费周末</span>'
+      ? PP.h('span', { style: 'color:#ff7b00;font-size:11px;' }, '⚠️ 免费周末')
       : game.freeType === 'f2p'
-        ? '<span style="color:#8f98a0;font-size:11px;">❌ 永久免费</span>'
-        : '<span style="color:#a3cf06;font-size:11px;">✅ 限时领取</span>';
+        ? PP.h('span', { style: 'color:#8f98a0;font-size:11px;' }, '❌ 永久免费')
+        : PP.h('span', { style: 'color:#a3cf06;font-size:11px;' }, '✅ 限时领取');
+  // 领取方式标识：官方直领（无门槛） vs 第三方领取（需条件）
   const isThirdParty = game.claimType === 'thirdparty';
-  const claimTypeHtml = isThirdParty
-    ? `<span class="claim-type thirdparty" title="需到第三方平台（${escapeHtml(game.source || '第三方')}）领取，可能有额外条件">🟡 第三方·${escapeHtml(game.source || '需条件')}</span>`
-    : `<span class="claim-type direct" title="可直接在 ${escapeHtml(game.platformName)} 平台领取，无门槛">🟢 官方直领</span>`;
-
+  const claimTypeTag = isThirdParty
+    ? PP.h(
+        'span',
+        {
+          class: 'claim-type thirdparty',
+          title: `需到第三方平台（${game.source || '第三方'}）领取，可能有额外条件`
+        },
+        '🟡 第三方·' + (game.source || '需条件')
+      )
+    : PP.h(
+        'span',
+        { class: 'claim-type direct', title: `可直接在 ${game.platformName} 平台领取，无门槛` },
+        '🟢 官方直领'
+      );
   // 领取按钮：始终为可点击链接（可重复点击），已领取仅改变样式/文案。
   // v3.4.1：仅渲染合法 http(s) 链接，否则降级为无跳转按钮（防 javascript: 伪协议）
   const safeUrl = /^https?:\/\//i.test(game.url || '') ? game.url : '';
-  const claimBtn = game.claimed
-    ? safeUrl
-      ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 再次打开</a>`
-      : `<span class="claim-btn claimed" data-id="${escapeAttr(game.id)}">✓ 已领取 · 无外链</span>`
-    : safeUrl
-      ? `<a href="${escapeAttr(safeUrl)}" target="_blank" class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</a>`
-      : `<span class="claim-btn" data-id="${escapeAttr(game.id)}">🎁 去领取</span>`;
+  /** @type {any} */
+  const claimProps = {
+    class: 'claim-btn' + (game.claimed ? ' claimed' : ''),
+    'data-id': String(game.id),
+    onClick: (/** @type {any} */ ev) => onClaimClick(ev, game)
+  };
+  const claimText = game.claimed ? '✓ 已领取 · 再次打开' : '🎁 去领取';
+  const claimBtn = safeUrl
+    ? PP.h('a', { ...claimProps, href: String(safeUrl), target: '_blank' }, claimText)
+    : PP.h('span', claimProps, game.claimed ? '✓ 已领取 · 无外链' : '🎁 去领取');
 
-  return `
-    <div class="game-card ${game.claimed ? 'claimed' : ''}">
-      ${game.image ? `<img class="game-card-img" src="${escapeAttr(game.image)}" alt="${escapeHtml(game.name)}"/>` : ''}
-      <div class="game-card-body">
-        <div class="game-tags-row">
-          <span class="game-platform ${platformClass}">${escapeHtml(game.platformName)}</span>
-          ${freeTypeTag}
-          ${claimTypeHtml}
-          ${newTodayHtml}
-        </div>
-        <div class="game-title">${escapeHtml(game.name)}</div>
-        <div class="game-desc">${escapeHtml(game.description || '暂无简介')}</div>
-        <div class="game-meta">
-          ${priceHtml}
-          ${endTimeHtml}
-        </div>
-        <div class="game-actions">
-          ${claimBtn}
-        </div>
-      </div>
-    </div>
-  `;
+  return PP.h(
+    'div',
+    { class: 'game-card' + (game.claimed ? ' claimed' : ''), key: String(game.id) },
+    game.image
+      ? PP.h('img', {
+          class: 'game-card-img',
+          src: String(game.image),
+          alt: String(game.name),
+          onError: (/** @type {any} */ ev) => {
+            ev.currentTarget.style.display = 'none';
+          }
+        })
+      : null,
+    PP.h(
+      'div',
+      { class: 'game-card-body' },
+      PP.h(
+        'div',
+        { class: 'game-tags-row' },
+        PP.h('span', { class: 'game-platform ' + (game.platform || '') }, String(game.platformName)),
+        freeTypeTag,
+        claimTypeTag,
+        isToday(game.firstSeen) ? PP.h('span', { class: 'new-today' }, '🆕 今日新增') : null
+      ),
+      PP.h('div', { class: 'game-title' }, String(game.name)),
+      PP.h('div', { class: 'game-desc' }, String(game.description || '暂无简介')),
+      PP.h(
+        'div',
+        { class: 'game-meta' },
+        game.originalPrice && game.originalPrice !== '免费'
+          ? PP.h(
+              'span',
+              { class: 'game-price' },
+              PP.h('span', { class: 'original' }, String(game.originalPrice)),
+              '免费'
+            )
+          : PP.h('span', { class: 'game-price' }, '免费'),
+        game.endTime ? PP.h('span', { class: 'game-endtime' }, '截止: ' + formatDate(game.endTime)) : null
+      ),
+      PP.h('div', { class: 'game-actions' }, claimBtn)
+    )
+  );
 }
 
 // 判断时间戳是否为当天（用于"今日新增"标识）

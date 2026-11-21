@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.39.0（CI visual 适配 + sim 诊断快照 + freegames h() 化 + 文案字典首域，2026-11-21）
+
+- CI visual 永久 advisory（Linux 字体恒差非瞬时噪声，E4 升级阻断退役——CI 恒红 8+ 连根治）+ 基线去版本号（bump 不再重钉）+ ios17 终判阈值 bug 修复
+- sim harness waitForSignal 等待期 30s 周期状态快照（vitest timeout kill 也留现场——双流竞态诊断性）
+- freegames 月历/游戏卡 h() 组件化（trusted 串注入退役）+ StatusLine 双重转义修复 + 重复接线块清理
+- 文案集中层首域：shared/ui-text.js 字典单源（t() 点路径+{var} 替换）+ badges/queue/status/finish 四域迁移 + 完整性门禁测试
+
 ### v14.38.0（Preact 全量迁移收官——innerHTML 生产面清零 + sim-list 竞态定性，2026-11-21）
 
 - 内容域+页面域全量 Preact 化（30 文件 84 sink 退役，基线 85→1 唯一残留=preact-globals vendor 产物）

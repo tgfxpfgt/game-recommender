@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.39.0',
+        date: '2026-11-21',
+        items: [
+          'CI visual 永久 advisory（Linux 字体恒差非瞬时噪声，E4 升级阻断退役——CI 恒红 8+ 连根治）+ 基线去版本号（bump 不再重钉）+ ios17 终判阈值 bug 修复',
+          'sim harness waitForSignal 等待期 30s 周期状态快照（vitest timeout kill 也留现场——双流竞态诊断性）',
+          'freegames 月历/游戏卡 h() 组件化（trusted 串注入退役）+ StatusLine 双重转义修复 + 重复接线块清理',
+          '文案集中层首域：shared/ui-text.js 字典单源（t() 点路径+{var} 替换）+ badges/queue/status/finish 四域迁移 + 完整性门禁测试'
+        ]
+      },
+      {
         ver: '14.38.0',
         date: '2026-11-21',
         items: [

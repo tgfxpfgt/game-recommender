@@ -10,6 +10,7 @@
  * inserted after the LAST rating badge.
  */
 import { createBadge } from './badge-base.js';
+import { t } from '../../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 /** @param {any} item @param {Record<string, any>} recommendation @param {Record<string, any>} settings */
 export function prependRecBadge(item, recommendation, settings) {
@@ -61,7 +62,7 @@ export function prependRecBadge(item, recommendation, settings) {
   dislikeBtn.className = 'gr-dislike-btn';
   dislikeBtn.textContent = '✕';
   dislikeBtn.style.cssText = 'margin-left:4px;cursor:pointer;font-size:10px;opacity:0.6;';
-  dislikeBtn.title = '不感兴趣';
+  dislikeBtn.title = t('badge.recDislikeTitle');
   dislikeBtn.addEventListener('click', (ev) => {
     ev.preventDefault();
     ev.stopPropagation();
