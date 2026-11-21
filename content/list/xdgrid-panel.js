@@ -623,6 +623,16 @@ function bindLayoutReset(ctx) {
 export function buildUI(all, host, cfg) {
   if (uiBuilt || document.getElementById(BTN_ID)) return;
   uiBuilt = true;
+  // v14.40.0：面板装配 = 用户开启布局定制的真实信号（LOG_PERF 宽松通道——
+  // TRACK_EVENT 白名单外会被契约拒绝；后台按 source=usage/metric 映射
+  // usage.xdgrid_open）。分级统计是聚合信号，失败静默。
+  try {
+    window.__GR_MSG__
+      .sendMessage({ action: 'LOG_PERF', source: 'usage', metric: 'xdgrid_open', durationMs: 0 })
+      .catch(() => {});
+  } catch {
+    /* 上报失败不影响功能 */
+  }
   const fab = createFab();
   const panel = createPanel(cfg);
   const layoutApi = buildLayoutTab({ all, host, cfg, panel });

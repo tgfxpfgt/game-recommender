@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.41.0（模块分级自动统计：usage 埋点 + 分级建议生成器，2026-11-21）
+
+- background/core/feature-usage.js 单源（USAGE_KEYS 20 键）+ track-event 管线全 type 埋点 + 页面 boot 幂等上报（applyPageTheme 公共入口）+ 备份/导入导出/xdgrid/Steam页浮窗动作埋点
+- scripts/gen-module-tiers.mjs：读 GET_RUNTIME_METRICS usage.* 快照与 docs/module-tiers.md 现表对比，输出调级建议（只建议不自动改表——T 级投入变化须人工裁决+CHANGELOG 可追溯）
+
 ### v14.40.0（运维纪律四指令：模块分级/测试最小化/多主题基线收缩/省token工作流，2026-11-21）
 
 - 模块分级台账 docs/module-tiers.md（T0核心/T1活跃/T2低频默认不管/T3冻结）——测试面与审查深度按级分配

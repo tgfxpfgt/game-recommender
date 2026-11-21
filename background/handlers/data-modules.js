@@ -6,6 +6,7 @@ import { Logger } from '../storage/logger.js';
 import { resetInMemoryCaches } from '../storage/reset.js';
 import { stripSecrets } from '../core/sanitize.js'; // v14.11 B3：密钥剔除单源
 import { resetSteam250 } from '../steam/steam250.js'; // v10.4.4：榜单快照重置（storage 层不能反向 import steam，故在业务层调用）
+import { meterUsage, USAGE_KEYS } from '../core/feature-usage.js'; // v14.40.0：模块分级使用统计
 import '../../shared/msg.js'; // v14.0.0：统一错误归一（classic IIFE 挂 __GR_MSG__，无具名导出）
 
 // v14.0.0：用户可见 error 字段统一走 toUserMessage（去 "Error: " 前缀/翻译超时）
@@ -58,6 +59,7 @@ export async function handleGetDataModules() {
 
 /** @param {import('../core/types.js').MessagePayload} message */
 export async function handleExportData(message) {
+  meterUsage(USAGE_KEYS.dataExport); // v14.40.0：usage 计数
   const moduleKeys =
     message.moduleKeys && message.moduleKeys.length > 0 ? message.moduleKeys : DATA_MODULES.map((m) => m.key);
   /** @type {Record<string, any>} */
@@ -86,6 +88,7 @@ export async function handleExportData(message) {
 
 /** @param {import('../core/types.js').MessagePayload} message */
 export async function handleImportData(message) {
+  meterUsage(USAGE_KEYS.dataImport); // v14.40.0：usage 计数
   const payload = /** @type {any} */ (message.data);
   if (!payload || typeof payload !== 'object') return { success: false, error: '数据格式不正确' };
   if (payload.format !== EXPORT_FORMAT) return { success: false, error: '不是有效的 游戏雷达 Game Radar 导出文件' };
@@ -130,6 +133,7 @@ export async function handleImportData(message) {
 // --- 备份（v5.0.0：由 handlers.js 注册表内联箭头提升为具名函数）---
 /** @param {import('../core/types.js').MessagePayload} msg */
 export async function handleCreateBackup(msg) {
+  meterUsage(USAGE_KEYS.backupCreate); // v14.40.0：usage 计数
   const b = await createBackup(true, msg && msg.moduleKeys);
   return { success: !!b, backup: b ? { id: b.id, timestamp: b.timestamp, modules: b.modules } : null };
 }
@@ -140,6 +144,7 @@ export async function handleGetBackups() {
 
 /** @param {import('../core/types.js').MessagePayload} msg */
 export async function handleRestoreBackup(msg) {
+  meterUsage(USAGE_KEYS.backupRestore); // v14.40.0：usage 计数
   return restoreBackup(msg.backupId, msg.moduleKeys);
 }
 

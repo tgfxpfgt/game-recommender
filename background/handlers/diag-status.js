@@ -8,6 +8,7 @@
  */
 import { createSessionPersist } from '../core/session-persist.js';
 import { metricsSnapshot } from '../core/metrics.js'; // v14 B10：运行指标归口
+import { meterUsage, USAGE_KEYS } from '../core/feature-usage.js'; // v14.40.0：模块分级使用统计
 import { getOutboundAudit, resetOutboundAudit } from '../core/outbound-audit.js'; // v14 B10
 import { getSteamApiStatus, getDomainStatus } from '../core/api-monitor.js';
 import { getSteam250Status } from '../steam/steam250.js';
@@ -67,12 +68,30 @@ export function handleGetStorageHealth() {
 }
 
 // v9.1.0：性能上报（内容脚本 boot 耗时等 → Perf 日志落盘）
+// v14.40.0：兼作页面打开统计源——boot metric = 页面文件名（页面层 LOG_PERF
+// 已带 metric=hostname 的内容侧上报不在映射内，仅页面域计 usage.page_*）。
 /** @param {import('../core/types.js').MessagePayload} message */
 export async function handleLogPerf(message) {
   const source = (message && message.source) || 'content';
   const metric = (message && message.metric) || '';
   const durationMs = (message && message.durationMs) || 0;
   const detail = message && message.detail ? ' (' + message.detail + ')' : '';
+  if (source === 'page-boot') {
+    const pageKey = {
+      'popup/popup.html': USAGE_KEYS.pagePopup,
+      'options/options.html': USAGE_KEYS.pageOptions,
+      'dashboard/dashboard.html': USAGE_KEYS.pageDashboard,
+      'freegames/freegames.html': USAGE_KEYS.pageFreegames,
+      'sidepanel/sidepanel.html': USAGE_KEYS.pageSidepanel,
+      'welcome/welcome.html': USAGE_KEYS.pageWelcome,
+      'hub/hub.html': USAGE_KEYS.pageHub
+    }[metric];
+    if (pageKey) meterUsage(pageKey);
+  } else if (source === 'usage') {
+    // v14.40.0：内容侧真实动作上报（xdgrid 面板装配等）——metric 直作键尾
+    const usageKey = { xdgrid_open: USAGE_KEYS.xdgridOpen, steam_page_panel: USAGE_KEYS.steamPagePanel }[metric];
+    if (usageKey) meterUsage(usageKey);
+  }
   Logger.info('Perf', source + ' ' + metric + ' 耗时: ' + durationMs + 'ms' + detail);
   return { success: true };
 }

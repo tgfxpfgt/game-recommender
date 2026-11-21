@@ -65,6 +65,15 @@ export function injectDownloadSitePanel(opts = {}) {
   const steamJumpUrl = opts.steamJumpUrl || '';
 
   if (!gameName) return;
+  // v14.40.0：Steam 页浮窗 = 该功能真实使用信号（usage.steam_page_panel，
+  // LOG_PERF 宽松通道；失败静默）
+  try {
+    window.__GR_MSG__
+      .sendMessage({ action: 'LOG_PERF', source: 'usage', metric: 'steam_page_panel', durationMs: 0 })
+      .catch(() => {});
+  } catch {
+    /* 上报失败不影响功能 */
+  }
   dbg(`Steam游戏: ${gameName} (appId=${appId})`);
   // 工作状态浮窗：开始搜索 / Work status bar: searching
   status.showStatus('正在搜索下载站资源', 0, 0, `${gameName}`);

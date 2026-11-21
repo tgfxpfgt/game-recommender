@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.41.0',
+        date: '2026-11-21',
+        items: [
+          'background/core/feature-usage.js 单源（USAGE_KEYS 20 键）+ track-event 管线全 type 埋点 + 页面 boot 幂等上报（applyPageTheme 公共入口）+ 备份/导入导出/xdgrid/Steam页浮窗动作埋点',
+          'scripts/gen-module-tiers.mjs：读 GET_RUNTIME_METRICS usage.* 快照与 docs/module-tiers.md 现表对比，输出调级建议（只建议不自动改表——T 级投入变化须人工裁决+CHANGELOG 可追溯）'
+        ]
+      },
+      {
         ver: '14.40.0',
         date: '2026-11-21',
         items: [

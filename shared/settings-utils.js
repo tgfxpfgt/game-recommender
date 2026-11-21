@@ -186,6 +186,29 @@
     if (!settings) return;
     applyThemeAuto(settings);
     applyCustomTheme(settings.customThemeCss || '');
+    meterPageBootOnce();
+  }
+
+  // v14.40.0：页面打开统计（模块分级数据源，module-tiers 自动更新）——
+  // applyPageTheme 是全部扩展页的首个公共动作（五页+welcome/hub 均调），
+  // 借此一次性上报页面身份（sessionStorage 防重入：同页会话只计一次）。
+  // 后台 handleLogPerf 按 source=page-boot 映射 usage.page_*（会话持久计数）。
+  // Page-open meter: the first common action of every extension page reports
+  // its identity once per page session (deref'd via background metrics).
+  /** 记一次页面 boot 上报（幂等）/ report page boot once */
+  function meterPageBootOnce() {
+    try {
+      const ss = window.sessionStorage; // window 前缀（sessionStorage 不在共享 lint globals）
+      if (!ss || !window.__GR_MSG__) return;
+      if (ss.getItem('grPageBootMetered') === '1') return;
+      ss.setItem('grPageBootMetered', '1');
+      const page = ((window.location && window.location.pathname) || '').replace(/^\//, '');
+      window.__GR_MSG__
+        .sendMessage({ action: 'LOG_PERF', source: 'page-boot', metric: page, durationMs: 0 })
+        .catch(() => {});
+    } catch {
+      /* 上报失败不影响页面功能 */
+    }
   }
 
   // v7.0.5：应用自定义主题 CSS（覆盖任意主题变量；空值移除）

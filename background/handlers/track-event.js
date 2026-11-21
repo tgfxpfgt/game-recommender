@@ -10,6 +10,7 @@ import { addBehaviorLog, updateGameProfile, maybeUpdatePreferences } from '../st
 import { recordAppDownload } from '../storage/app-stats.js';
 import { inferSiteFromDomain, recordDownloadHistory } from '../storage/history.js';
 import { Logger } from '../storage/logger.js';
+import { meterTrackType } from '../core/feature-usage.js'; // v14.40.0：模块分级使用统计
 
 /** @param {import('../core/types.js').MessagePayload} message */
 export async function handleTrackEvent(message) {
@@ -37,6 +38,7 @@ export async function handleTrackEventBatch(message) {
 // 单事件管线（单发与批量共用）/ one-event pipeline (shared by single & batch)
 /** @param {any} data */
 async function applyTrackEvent(data) {
+  meterTrackType(data && data.type); // v14.40.0：usage 计数（同步，不阻断管线）
   await addBehaviorLog(data);
 
   if (data.type === 'click_download') {
