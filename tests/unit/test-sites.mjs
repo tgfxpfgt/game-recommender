@@ -135,3 +135,32 @@ test('siteKeys 变更 → 缓存失效重查', async () => {
     restoreFetch();
   }
 });
+
+// ============ v14.42.0：内置站点规则——非 PC 专列页特征（现网取证门禁） ============
+// XDGAME /list/2/ 聚合专列 + /game/117-122/ 移植分类家族；gamer520 /yzb-2
+// "移植P"分类。平台标注均在标题外（pl-type 徽章 / 分类标签），标题级识别
+// 必然落空——特征以规则字段固化（listPlatformHints/detailPlatformSelectors），
+// 断言失效 = 站点改版或规则被误删。
+// v14.42.0: built-in site rules must keep the non-PC special-list features
+// (hints + detail annotation selectors) — regression for the live-site audit.
+test('xdgame 规则：移植专列页 hints 家族 + 详情标注选择器 + pl-card 提取（v14.42.0）', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../../adapters/sites/xdgame.js', import.meta.url), 'utf8');
+  // ① 专列页/分类页 hints：聚合专列 + 五个非 PC 分类（/game/117/ 刻意不注入
+  //   ——其条目为 PC 复刻，走 PC 管线是正确语义）
+  for (const pat of ['/list/2/', '/game/118/', '/game/119/', '/game/120/', '/game/121/', '/game/122/', '/game/10/']) {
+    expect(src.includes(`urlPattern: '${pat}'`)).toBe(true);
+  }
+  // ② 详情页标注选择器（徽章 + 分类面包屑）
+  expect(src.includes("detailPlatformSelectors: ['.title-badges .tit-badge'")).toBe(true);
+  expect(src.includes('.article-crumbs a[href*="/game/"]')).toBe(true);
+  // ③ 新版列表结构：pl-card 容器 + 标题链接（a.tit 共存不互斥）
+  expect(src.includes("'.pl-grid li'")).toBe(true);
+  expect(src.includes("'a.tit, a.pl-title'")).toBe(true);
+});
+test('gamer520 规则：/yzb-2 移植P 分类 hint + 详情分类标注选择器（v14.42.0）', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../../adapters/sites/gamer520.js', import.meta.url), 'utf8');
+  expect(src.includes("urlPattern: '/yzb-2'")).toBe(true);
+  expect(src.includes('detailPlatformSelectors: [\'.meta-category a[rel="category"]\']')).toBe(true);
+});

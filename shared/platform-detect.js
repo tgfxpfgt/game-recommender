@@ -77,6 +77,11 @@ const CONSOLE_MARKERS = [
   '掌机',
   '游戏机',
   '电视游戏',
+  // v14.42.0（XDGAME /game/122/ 分类名写实取证）：任天堂品牌整段形态——
+  // "任天堂经典"分类（FC/SFC/GBA 怀旧 ROM）与"任天堂"裸品牌段。
+  // v14.42.0: Nintendo brand segments (XDGAME's 任天堂经典 category).
+  '任天堂',
+  '任天堂经典',
   'switch游戏',
   'ns游戏',
   'ps5游戏',
@@ -87,7 +92,21 @@ const CONSOLE_MARKERS = [
   // PC guard 优先不变："PC移植版"段首 pc 走段首守卫，仍判 PC
   // （主机游戏移植到 PC，Steam 有数据——不误伤）。
   '移植版',
-  '移植'
+  '移植',
+  // v14.42.0（XDGAME 移植分类页提示词实证）：组合段"PS移植"剥"移植"后落的
+  // 裸机型缩写——裸 'ps' 此前不在整段表（只有 ps5/ps4 等带数字形态），
+  // "PS移植"提示词必落空回 PC。裸段粒度与表内既有 'ss'/'md'/'gb'/'dc'
+  // 两字母段一致（真实下载站标题裸 'ps' 段 = 平台标注惯例，PC 游戏名不含
+  // 独立 'ps' 段）。
+  // v14.42.0: bare 'ps' segment — stripping 移植 from a "PS移植" hint lands
+  // on 'ps', which previously matched nothing; same two-letter granularity
+  // as the existing ss/md/gb/dc markers.
+  'ps',
+  // v14.42.0（gamer520 /yzb-2 分类名写实取证）：站点标注"移植P"（P = Ported
+  // 缩写，WordPress 分类 slug yzb-2），整段形态——'移植p' 剥后缀落不出
+  // '移植'（p 非后缀词），须独立词条。列表 hint 与详情分类标签共用。
+  // v14.42.0: gamer520's literal category label "移植P" (Ported).
+  '移植p'
 ];
 
 // v14.17.0：主机数字版 ROM/封装格式段（console 语义——底物是主机游戏，评分

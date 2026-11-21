@@ -424,10 +424,16 @@ export async function getListPlatformHint() {
   return out;
 }
 
-// 当前站点的适配器 key（下载站网址缓存上报用）/ The current site's adapter key
 export function getAdapterKey() {
   const rule = findRuleByDomain();
   return rule ? rule.key : '';
+}
+
+// v14.42.0：当前站点规则对象（详情域 candidates.js 的平台标注提取消费
+// detailPlatformSelectors——域匹配单源，勿在详情域复制 findRuleByDomain 逻辑）
+// The current site's rule object (single source of domain matching).
+export function getRuleForCurrentSite() {
+  return findRuleByDomain();
 }
 
 // 从 Steam 图片 URL 提取 appId 与封面图（scope 可选：限定在元素内）。

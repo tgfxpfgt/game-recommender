@@ -122,7 +122,14 @@ async function doHandleSearchSteam(message, sender) {
   // URL-index shortcut guard: non-PC titles skip the URL-first path entirely
   // and fall through to searchSteamGame, whose platform pre-check short-circuits
   // before ANY lookup (manual mapping > emulator > console MC > PC).
-  if (detectPlatform(String(message.gameName || '')).kind !== 'pc') {
+  // v14.42.0：URL 先行守卫同样消费 platformHint（与 phaseDetailPlatform 同拼接
+  // 语义——纯标题判定对"标签在标题外"的专列页条目落空，会错走 URL 索引先行的
+  // 全量拉取路径后才被 namesRelated 推翻）
+  // v14.42.0: the URL-shortcut guard consumes the hint with the same
+  // name|hint concatenation as phaseDetailPlatform.
+  const hintText = typeof message.platformHint === 'string' ? message.platformHint.trim() : '';
+  const guardName = hintText ? `${String(message.gameName || '')}|${hintText}` : String(message.gameName || '');
+  if (detectPlatform(guardName).kind !== 'pc') {
     Logger.info('Steam', `非 PC 标题跳过 URL 索引先行: "${String(message.gameName || '').slice(0, 40)}"`);
   } else if (pageUrl) {
     const urlAppId = await getAppIdByUrl(pageUrl);
@@ -214,7 +221,10 @@ async function doHandleSearchSteam(message, sender) {
     steamResult = await searchSteamGame(/** @type {string} */ (message.gameName), {
       ignoreNegativeCache: message.ignoreNegativeCache === true,
       rawTitle: message.rawTitle, // v14.3.1：原始标题透传（扩展搜索英文变体）
-      appId: message.appId // v14.3.2：元素直取 appId（统一入口）
+      appId: message.appId, // v14.3.2：元素直取 appId（统一入口）
+      // v14.42.0：详情页平台提示透传（站点标注段——XDGAME"Xbox移植"徽章等；
+      // phaseDetailPlatform 与标题拼接参与识别，语义同列表页 listPlatformHints）
+      platformHint: message.platformHint
     });
   } catch (e) {
     reason = 'error: ' + String((e && /** @type {Error} */ (e).message) || e).slice(0, 120);

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-21T13:04:04.732Z",
-  "version": "14.39.0",
+  "generatedAt": "2026-11-21T18:21:49.161Z",
+  "version": "14.42.0",
   "nodes": [
     {
       "dir": "background",
@@ -64,7 +64,7 @@
       "color": "#95a5a6",
       "desc": "跨侧共享 — msg/escape/settings-utils/fm-keys/spy-scales",
       "files": 16,
-      "lines": 2520
+      "lines": 2562
     },
     {
       "dir": "adapters",

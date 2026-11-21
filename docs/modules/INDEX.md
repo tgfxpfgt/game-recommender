@@ -5,7 +5,7 @@
 > 五列：模块 / 职责 / 依赖 / 导出 / **不变式**。不变式 = 改动前必须知道、
 > 但从代码里看不出来的约束（顺序依赖、并发假设、幂等要求、单位约定）；
 > 无则 `—`。新增不变式在模块文件头写 `@invariant …`。
-> 模块数 188，其中声明不变式 5。
+> 模块数 189，其中声明不变式 5。
 
 ## adapters/default.js
 
@@ -37,6 +37,7 @@
 | `background/core/api-monitor.js` | Steam API 状态监测 | `background/core/session-persist` | warmupApiMonitor<br>recordSteamCall<br>getSteamApiStatus<br>isCircuitOpen<br>circuitState<br>recordDomainCall<br>…+3 | — |
 | `background/core/constants.js` | 常量与配置 | `data/storage-registry`<br>`shared/fm-keys`<br>`shared/spy-scales` | DB_KEYS<br>PERF_CONFIG<br>STORAGE_CAPS<br>ENDPOINTS<br>DEFAULT_SETTINGS<br>LOG_LEVELS<br>…+22 | — |
 | `background/core/early-message-router.js` | 早期消息路由 | — | attachEarlyMessageRouter | — |
+| `background/core/feature-usage.js` | 功能使用统计（模块分级数据源）/ Feature Usage Meter | `background/core/metrics` | USAGE_KEYS<br>meterUsage<br>meterTrackType | — |
 | `background/core/llm-client.js` | LLM 调用单源（v14.12 B6，报告 B P2-08） | `background/core/utils` | assertRemoteLlmEndpoint<br>callLlm | — |
 | `background/core/mechanisms.js` | 通用机制工厂 | — | withLock<br>withWatchdog<br>debounce<br>createTtlCache<br>withRetry<br>evictOldestByTs | withLock 返回的锁禁止嵌套持有（同一锁链内再取锁 = 自死锁）；同一时刻至多持有一把锁<br>时钟可注入（纯工厂）——模块不得直接 import Logger/Date.now 之外的运行环境依赖，告警出口由调用方注入 |
 | `background/core/message-contract.js` | 消息契约校验 | `background/core/utils` | getRules<br>validateMessage<br>CONTENT_ALLOWED_ACTIONS<br>isTrustedSender | — |
@@ -68,8 +69,8 @@
 | --- | --- | --- | --- | --- |
 | `background/handlers/adapter-rules.js` | 消息处理：适配器规则 | `background/core/constants`<br>`background/core/rules`<br>`background/core/site-scripts`<br>`background/core/title-parser`<br>`background/steam/api-search`<br>`background/storage/logger`<br>`data/data-store`<br>`shared/retrieval-vocab` | adapterRulesHandlers | — |
 | `background/handlers/cache-manager.js` | @type {any} | `background/core/constants`<br>`background/core/mechanisms`<br>`background/core/rules`<br>`background/core/settings`<br>`background/recommend/engine`<br>`background/sites/search`<br>`background/steam/api`<br>`background/steam/orchestrator-shared`<br>…+12 | handleCleanExpiredCache<br>handleGetGameCacheList<br>handleDeleteGameCacheEntry<br>handleClearGameCache<br>handleRefreshGameCacheEntry<br>cacheManagerHandlers | — |
-| `background/handlers/data-modules.js` | @type {any} | `background/core/constants`<br>`background/core/rules`<br>`background/core/sanitize`<br>`background/steam/steam250`<br>`background/storage/backups`<br>`background/storage/logger`<br>`background/storage/reset`<br>`data/data-store`<br>…+1 | handleClearData<br>countModuleItems<br>handleGetDataModules<br>handleExportData<br>handleImportData<br>handleCreateBackup<br>…+4 | — |
-| `background/handlers/diag-status.js` | 消息处理：诊断与状态 | `background/core/api-monitor`<br>`background/core/metrics`<br>`background/core/outbound-audit`<br>`background/core/session-persist`<br>`background/steam/mismatch-samples`<br>`background/steam/series`<br>`background/steam/steam250`<br>`background/storage/flush-health`<br>…+3 | handleGetApiStatus<br>handleGetSteam250Rank<br>handleSiteAdapterAlert<br>handleGetSiteHealth<br>handleGetStorageHealth<br>handleLogPerf<br>…+5 | — |
+| `background/handlers/data-modules.js` | @type {any} | `background/core/constants`<br>`background/core/feature-usage`<br>`background/core/rules`<br>`background/core/sanitize`<br>`background/steam/steam250`<br>`background/storage/backups`<br>`background/storage/logger`<br>`background/storage/reset`<br>…+2 | handleClearData<br>countModuleItems<br>handleGetDataModules<br>handleExportData<br>handleImportData<br>handleCreateBackup<br>…+4 | — |
+| `background/handlers/diag-status.js` | 消息处理：诊断与状态 | `background/core/api-monitor`<br>`background/core/feature-usage`<br>`background/core/metrics`<br>`background/core/outbound-audit`<br>`background/core/session-persist`<br>`background/steam/mismatch-samples`<br>`background/steam/series`<br>`background/steam/steam250`<br>…+4 | handleGetApiStatus<br>handleGetSteam250Rank<br>handleSiteAdapterAlert<br>handleGetSiteHealth<br>handleGetStorageHealth<br>handleLogPerf<br>…+5 | — |
 | `background/handlers/download-sites.js` | 消息处理：下载站 | `background/core/rules`<br>`background/core/settings`<br>`background/core/utils`<br>`background/sites/search`<br>`background/storage/app-stats`<br>`background/storage/diag-trace`<br>`background/storage/download-urls`<br>`background/storage/history`<br>…+3 | handleSearchDownloadSites<br>handleGetDownloadHistory<br>handleTrackDownloadSiteVisit<br>handleRecordDownloadUrlsBatch<br>downloadSitesHandlers | — |
 | `background/handlers/favorites.js` | 消息处理：收藏 | `background/freegames/itad`<br>`background/freegames/manager`<br>`background/storage/favorites` | favoritesHandlers | — |
 | `background/handlers/freegames.js` | 消息处理：限免与 ITAD | `background/freegames/manager` | freegamesHandlers | — |
@@ -79,7 +80,7 @@
 | `background/handlers/settings.js` | 消息处理：设置 | `background/core/constants`<br>`background/core/settings` | settingsHandlers | — |
 | `background/handlers/stats.js` | @type {any} | `background/core/constants`<br>`background/core/trends`<br>`background/steam/api-search`<br>`background/steam/steam250`<br>`background/storage/behavior`<br>`background/storage/favorites`<br>`background/storage/logger`<br>`background/storage/name-index`<br>…+4 | handleGetStats<br>handleGetTrends<br>handleGetSteamRecommendations<br>searchCachedGames<br>statsHandlers | — |
 | `background/handlers/steam.js` | 消息处理：Steam 查询 | `background/core/api-monitor`<br>`background/core/constants`<br>`background/core/tab-game`<br>`background/core/title-parser`<br>`background/steam/api`<br>`background/steam/api-metacritic`<br>`background/steam/mismatch-samples`<br>`background/steam/orchestrator`<br>…+14 | handleSearchSteam<br>handleRefreshSteamCache<br>handleGetSteamByAppId<br>handleSaveManualMapping<br>handleSetManualPlatform<br>handleSearchSteamCandidates<br>…+6 | — |
-| `background/handlers/track-event.js` | 消息处理：行为追踪 | `background/storage/app-stats`<br>`background/storage/behavior`<br>`background/storage/history`<br>`background/storage/logger` | handleTrackEvent<br>handleTrackEventBatch<br>trackEventHandlers | — |
+| `background/handlers/track-event.js` | 消息处理：行为追踪 | `background/core/feature-usage`<br>`background/storage/app-stats`<br>`background/storage/behavior`<br>`background/storage/history`<br>`background/storage/logger` | handleTrackEvent<br>handleTrackEventBatch<br>trackEventHandlers | — |
 
 ## background/handlers.js
 
@@ -176,7 +177,7 @@
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
-| `content/adapters/builder.js` | 站点适配器构建 | `content/core/common`<br>`content/core/timeouts` | loadSiteRules<br>isImageAppIdEnabled<br>setScanLimit<br>getScanLimit<br>buildSiteAdapters<br>getAdapter<br>…+7 | — |
+| `content/adapters/builder.js` | 站点适配器构建 | `content/core/common`<br>`content/core/timeouts` | loadSiteRules<br>isImageAppIdEnabled<br>setScanLimit<br>getScanLimit<br>buildSiteAdapters<br>getAdapter<br>…+8 | — |
 
 ## content/core
 
@@ -197,7 +198,7 @@
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
-| `content/detail/candidates.js` | 候选手动选择模块 | `content/core/preact-mount`<br>`shared/platform-detect` | parseManualAppIdInput<br>isGameDismissed<br>renderManualSelectPanel | — |
+| `content/detail/candidates.js` | 候选手动选择模块 | `content/adapters/builder`<br>`content/core/preact-mount`<br>`shared/platform-detect` | getDetailPlatformHint<br>parseManualAppIdInput<br>isGameDismissed<br>renderManualSelectPanel | — |
 | `content/detail/detail-page.js` | 详情页模块入口 | `content/detail/detect-name`<br>`content/detail/sidebar`<br>`content/detail/tracking` | injectSteamButton<br>detectGameName<br>injectDownloadSitePanel<br>injectDownloadHistoryPanel<br>injectSteam250Panel<br>steam250AppIdFromUrl<br>…+1 | — |
 | `content/detail/detail-templates.js` | 详情页浮窗模板入口 | `content/core/steam-rating-logic`<br>`content/detail/render/inline-html`<br>`content/detail/render/sidebar-html` | steamSidebar<br>steamInlineSection<br>heatLabelFor<br>ratingTextInfo<br>adjustedReputation<br>verdictFor | — |
 | `content/detail/detect-name.js` | 详情页游戏名提取（轻量单点）/ Page game-name detection | `content/core/common`<br>`shared/retrieval-vocab` | detectGameName | — |

@@ -2,6 +2,14 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.0（非PC专列页识别——XDGAME 移植分类家族 + gamer520 移植P + 详情页平台标注链，2026-11-22）
+
+- XDGAME 改版取证修复：新增 /list/2/ 移植聚合专列与 /game/118~122/ 细分分类（pl-card 新列表结构 a.pl-title，平台标注在标题外）——listPlatformHints 补 6 条 + listItem 双选择器，修复列表页/详情页不工作（此前名称被平台标签污染/整页误走 PC 检索）
+- gamer520 /yzb-2「移植P」分类 hint + 详情 meta-category 标注选择器
+- 详情页平台识别补链：SEARCH_STEAM 契约新增 platformHint（candidates 提取器：站点徽章/面包屑逐段语义校验去噪），URL 先行守卫与 phaseDetailPlatform 同拼接语义——专列页详情不再误挂 Steam 错误徽章
+- 词表扩充（现网取证）：裸 ps 段/移植P/任天堂段；Windows移植分类刻意不注入（实抓为 PC 复刻，Steam 有数据）
+- perf-budget 重锁（并账 v14.41.0 usage 埋点遗留 +4.3KB/109 文件）+ 模块索引重生成 + playbooks §6b 站点适配配方
+
 ### v14.41.0（模块分级自动统计：usage 埋点 + 分级建议生成器，2026-11-21）
 
 - background/core/feature-usage.js 单源（USAGE_KEYS 20 键）+ track-event 管线全 type 埋点 + 页面 boot 幂等上报（applyPageTheme 公共入口）+ 备份/导入导出/xdgrid/Steam页浮窗动作埋点

@@ -16,6 +16,17 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.0',
+        date: '2026-11-22',
+        items: [
+          'XDGAME 改版取证修复：新增 /list/2/ 移植聚合专列与 /game/118~122/ 细分分类（pl-card 新列表结构 a.pl-title，平台标注在标题外）——listPlatformHints 补 6 条 + listItem 双选择器，修复列表页/详情页不工作（此前名称被平台标签污染/整页误走 PC 检索）',
+          'gamer520 /yzb-2「移植P」分类 hint + 详情 meta-category 标注选择器',
+          '详情页平台识别补链：SEARCH_STEAM 契约新增 platformHint（candidates 提取器：站点徽章/面包屑逐段语义校验去噪），URL 先行守卫与 phaseDetailPlatform 同拼接语义——专列页详情不再误挂 Steam 错误徽章',
+          '词表扩充（现网取证）：裸 ps 段/移植P/任天堂段；Windows移植分类刻意不注入（实抓为 PC 复刻，Steam 有数据）',
+          'perf-budget 重锁（并账 v14.41.0 usage 埋点遗留 +4.3KB/109 文件）+ 模块索引重生成 + playbooks §6b 站点适配配方'
+        ]
+      },
+      {
         ver: '14.41.0',
         date: '2026-11-21',
         items: [

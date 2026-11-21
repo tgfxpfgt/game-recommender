@@ -130,6 +130,44 @@ describe('SEARCH_STEAM 无结果', () => {
   });
 });
 
+// ============ 2b. SEARCH_STEAM platformHint（v14.42.0 详情页平台标注） ============
+// 标题不含平台段的专列页条目（XDGAME 详情"刺猬索尼克2006/Sonic the Hedgehog
+// 2006"，标注在标题旁徽章）——hint 拼接后经 phaseDetailPlatform 预检直达
+// platformOnly 终态，零 Steam 检索（此前纯标题判 pc 走检索必错配）。
+// v14.42.0: SEARCH_STEAM platformHint routes title-blind special-list items
+// through the platform pre-check to a zero-network terminal state.
+describe('SEARCH_STEAM platformHint 平台预检（v14.42.0）', () => {
+  let fetchMock, restoreFetch;
+  beforeAll(() => {
+    fetchMock = createFetchMock({});
+    restoreFetch = installFetchMock(fetchMock);
+  });
+  afterAll(() => {
+    if (restoreFetch) restoreFetch();
+  });
+
+  test('主机 hint：platformOnly 终态，零 Steam 出站请求', async () => {
+    storage._reset();
+    const resp = await handleMessage({
+      action: 'SEARCH_STEAM',
+      gameName: '刺猬索尼克2006/Sonic the Hedgehog 2006',
+      platformHint: 'Xbox移植'
+    });
+    expect(resp.data && resp.data.platformOnly).toEqual(true);
+    expect(resp.data && resp.data.platformTag).toEqual('主机');
+    expect(resp.data && resp.data.appId).toEqual(null);
+    expect(fetchMock._calls.filter((u) => u.includes('storesearch')).length).toEqual(0);
+  });
+
+  test('无 hint 的纯 PC 标题走常规检索（hint 缺省不回归）', async () => {
+    storage._reset();
+    // PC 标题无 hint → 不短路（fetchMock 空响应 → 落到检索失败路径也行，
+    // 关键断言：storesearch 被发起 = 未被平台预检拦截）
+    await handleMessage({ action: 'SEARCH_STEAM', gameName: '完全普通的PC游戏名XYZ' }).catch(() => {});
+    expect(fetchMock._calls.some((u) => u.includes('storesearch'))).toEqual(true);
+  });
+});
+
 // ============ 3. REPORT_WRONG_APPID（纠错接线） ============
 test('报错清除缓存/索引/下载站映射并记录样本', async () => {
   storage._reset();

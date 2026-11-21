@@ -146,6 +146,10 @@ const buildRules = () => ({
   },
   // v14.3.1：rawTitle 可选——原始页面标题（未清洗），供扩展搜索提取英文变体
   //（新游戏 schinese storesearch 返回空时，英文变体是唯一有效检索路径）
+  // v14.42.0：platformHint 可选——详情页站点标注的平台段（如"Xbox移植"徽章/
+  // 分类面包屑），与列表页 listPlatformHints 同语义； orchestrator-detail
+  // phaseDetailPlatform 与标题拼接参与 detectPlatform 分段识别（PC guard
+  // 仍优先——"PC|Xbox"双平台条目不被带偏）。
   SEARCH_STEAM: (m) => {
     const base = nameRule('SEARCH_STEAM.gameName')(m);
     if (!base.ok) return base;
@@ -155,6 +159,16 @@ const buildRules = () => ({
     // v14.3.2：appId 可选（元素直取提示——数字字符串）
     if (m && m.appId !== undefined && !/^\d{1,10}$/.test(String(m.appId))) {
       return { ok: false, error: 'SEARCH_STEAM.appId 可选且必须为数字字符串' };
+    }
+    // v14.42.0：platformHint 可选（与 GET_STEAM_RATINGS 的 platformHint 同口径：
+    // 非空字符串 ≤24 字符——hint 源截断在 builder.getListPlatformHint/详情徽章
+    // 提取侧完成）
+    if (
+      m &&
+      m.platformHint !== undefined &&
+      (typeof m.platformHint !== 'string' || m.platformHint.length > 24 || m.platformHint.trim() === '')
+    ) {
+      return { ok: false, error: 'SEARCH_STEAM.platformHint 可选且为非空字符串（≤24 字符）' };
     }
     return { ok: true, error: '' };
   },

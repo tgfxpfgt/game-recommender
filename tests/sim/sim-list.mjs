@@ -28,6 +28,7 @@ import {
   documentMock,
   DEFAULT_SETTINGS,
   FakeEl,
+  chromeLocalStore,
   MODULE_KEYS
 } from './sim-harness.mjs';
 
@@ -646,4 +647,107 @@ simTest('13. 断网故障渲染为「网络异常」而非「未找到」', asyn
   expect(text).toContain('网络异常');
   expect(text).not.toContain('未找到');
   expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
+});
+
+// ============ v14.42.0：XDGAME pl-card 新列表结构 + 详情页平台标注提取 ============
+// 现网取证：专列页/分类页条目 ul.pl-grid > li.pl-card（标题 a.pl-title，首链接
+// a.pl-cover 的 textContent 是平台标签"Xbox移植"——旧规则 titleLink 'a.tit'
+// 在新版页面落空，策略2 会把平台标签当名称）。详情页标注在 .title-badges
+// .tit-badge / .article-crumbs。两处提取均走规则声明（sim 以 harness 域注入
+// 同构规则——测规则结构语义，不测域名；happy-dom 下切 href 会触发导航清空
+// DOM，勿改 location）。
+// v14.42.0: XDGAME pl-card extraction + detail annotation extraction (live
+// page structure; an isomorphic rule is injected under the harness domain —
+// we test rule semantics, not the domain. NEVER switch location.href here:
+// happy-dom treats it as navigation and wipes the DOM).
+simTest('14. XDGAME pl-card 提取 + 详情平台标注（v14.42.0）', async () => {
+  let GR = getGR();
+  if (!GR) {
+    await loadModules();
+    await resetSiteRulesForTests();
+    loadClassicScripts();
+    GR = getGR();
+  }
+  expect(GR).toBeTruthy();
+  // 注入 xdgame 形状规则（与内置规则同构，domains 用 harness 域以命中 adapter；
+  // storage 回退路径 chromeLocalStore 必须同步——loadSiteRules 的消息路径在
+  // sim 无 preset 快速失败后读它，单改全局不生效）
+  const xdgameShapeRule = {
+    key: 'xdgame-sim',
+    name: 'XDGameSim',
+    domains: ['xianyudanji.gg'],
+    base: 'https://www.xdgame.com',
+    detailUrlPatterns: ['/game/\\d+\\.html?$', '/\\d+\\.html?$'],
+    imageAppId: true,
+    listItem: {
+      containers: ['.game-list li', '.pl-grid li', '.list li', 'ul li'],
+      titleLink: 'a.tit, a.pl-title',
+      titleEls: ['h2', 'h3', '.title', '.entry-title', '.name', '.game-name', '.game-title', '.pl-title'],
+      excludeClasses: ['grid-cover', 'link'],
+      minLen: 2,
+      maxLen: 200,
+      fallbackLinks: true
+    },
+    detailPlatformSelectors: ['.title-badges .tit-badge', '.article-crumbs a[href*="/game/"]'],
+    listPlatformHints: [{ urlPattern: '/list/2/', hint: '移植' }]
+  };
+  const simPack = { version: 1, sites: [xdgameShapeRule] };
+  globalThis.__GAME_RECOMMENDER_SITES__ = simPack;
+  chromeLocalStore['adapterRules'] = simPack;
+  try {
+    await GR.builder.loadSiteRules(true);
+    GR.builder.buildSiteAdapters(GR.builder.getSITE_RULES());
+    expect(GR.builder.getAdapter().key).toEqual('xdgame-sim');
+
+    // 构造 pl-card 页面 DOM（真实结构 1:1：pl-cover 含 img+pl-type 平台标签，
+    // pl-title 独立链接，导航 li 同页共存）。document 级 qSA 是桩语义（无桩
+    // 返回 []，见 harness 插桩注释）——adapter 提取经桩路由到真实 body DOM。
+    documentMock.body.innerHTML = `
+      <nav><ul><li><a href="/game/118/">Switch移植</a></li><li><a href="/so/">搜索</a></li></ul></nav>
+      <ul class="pl-grid">
+        <li class="pl-card">
+          <a class="pl-cover" href="/game/17966.html"><img src="x.jpg"><span class="pl-type">Xbox移植</span></a>
+          <a class="pl-title" href="/game/17966.html">刺猬索尼克2006/Sonic the Hedgehog 2006</a>
+          <div class="pl-meta"><span class="size">5.23 GB</span></div>
+        </li>
+        <li class="pl-card">
+          <a class="pl-cover" href="/game/16881.html"><img src="y.jpg"><span class="pl-type">索尼移植</span></a>
+          <a class="pl-title" href="/game/16881.html">最后的守护者/The Last Guardian</a>
+        </li>
+      </ul>`;
+    setQueryStubs((sel) => Array.from(documentMock.body.querySelectorAll(sel)));
+    const items = GR.builder.getAdapter().getListItems();
+    // 名称不被 pl-type 平台标签污染；两条 pl-card 全提取；导航 li 不混入
+    const names = items.map((i) => i.name);
+    expect(JSON.stringify(names)).toEqual(
+      JSON.stringify(['刺猬索尼克2006/Sonic the Hedgehog 2006', '最后的守护者/The Last Guardian'])
+    );
+    expect(items[0].url.endsWith('/game/17966.html')).toBe(true);
+
+    // 详情页平台标注提取：徽章"Xbox移植"+面包屑分类命中 → 提示词"Xbox移植"
+    //（噪声徽章"内置汉化/新游发布"不命中平台词表自动丢弃）。提取器落详情域
+    // candidates（platform-detect 本就在详情闭包——经 builder 会把词表拖进
+    // 列表闭包 +27KB）
+    documentMock.body.innerHTML = `
+      <nav class="article-crumbs"><a href="https://www.xdgame.com/">主页</a>
+      <span>›</span><a href="/list/2/">移植游戏</a><span>›</span><a href="/game/120/">Xbox移植</a></nav>
+      <h1><span class="article-title-text">刺猬索尼克2006/Sonic the Hedgehog 2006</span></h1>
+      <span class="title-badges"><span class="tit-badge is-highlight">Xbox移植</span>
+      <span class="tit-badge is-highlight">内置汉化</span><span class="tit-badge is-new">新游发布</span></span>`;
+    const cand = await import('../../content/detail/candidates.js');
+    const hint = await cand.getDetailPlatformHint();
+    expect(hint).toEqual('Xbox移植');
+    // 平台段拼接 detectPlatform 判主机（与后台 phaseDetailPlatform 同语义）
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('刺猬索尼克2006/Sonic the Hedgehog 2006|' + hint).kind).toEqual('console');
+
+    // 页级缓存语义：换 DOM 后重读仍返回首次值（页内 pathname 不变，缓存有效）
+    documentMock.body.innerHTML = '<h1>某款PC游戏</h1>';
+    const hint2 = await cand.getDetailPlatformHint();
+    expect(hint2).toEqual('Xbox移植');
+  } finally {
+    documentMock.body.innerHTML = '';
+    setQueryStubs(() => []); // 清桩（防泄漏进后续节）
+    await resetSiteRulesForTests(); // 恢复测试规则（global + 适配器重建）
+  }
 });

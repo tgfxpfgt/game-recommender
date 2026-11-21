@@ -390,4 +390,31 @@ describe('manifest MC 域权限 + 词表「移植」标记（v14.29.2 门禁）'
     expect(detectPlatform('GTA5|PC版').kind).toEqual('pc'); // 既有护栏不回归
     expect(detectPlatform('PC装机模拟器').kind).toEqual('pc'); // 游戏名内含标记词不误判
   });
+
+  // v14.42.0（XDGAME/gamer520 非 PC 专列页现网取证）：新平台段词 + 提示词
+  // 拼接语义——专列页/详情页标注在标题外，hint 与标题拼接后分段匹配。
+  // v14.42.0: new platform segments from live site evidence + hint
+  // concatenation semantics (same as orchestrator phasePlatform).
+  test('v14.42.0 词表扩充：裸 ps/移植p/任天堂段 + 提示词拼接（护栏不回归）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    // 裸 'ps' 段（"PS移植" hint 剥后缀落点；粒度同既有 ss/md/gb/dc）
+    expect(detectPlatform('最后的守护者/The Last Guardian|PS移植').kind).toEqual('console');
+    expect(detectPlatform('血源诅咒|PS移植').kind).toEqual('console');
+    // gamer520 写实分类标注"移植P"（WordPress slug yzb-2）
+    expect(detectPlatform('火焰纹章 万缕千丝|移植P').kind).toEqual('console');
+    expect(detectPlatform('塞尔达传说 天空之剑|移植p').kind).toEqual('console'); // 大小写不敏感
+    // XDGAME "任天堂经典"分类（FC/SFC/GBA 怀旧）
+    expect(detectPlatform('拳皇97|任天堂经典').kind).toEqual('console');
+    expect(detectPlatform('游戏|任天堂').kind).toEqual('console');
+    // XDGAME 专列页 hint 拼接形态（orchestrator 同款 name|hint）
+    expect(detectPlatform('刺猬索尼克2006/Sonic the Hedgehog 2006|Xbox移植').kind).toEqual('console');
+    expect(detectPlatform('塞尔达传说|Switch移植').kind).toEqual('console');
+    expect(detectPlatform('宝可梦 朱|模拟器整合').kind).toEqual('emulator');
+    // 护栏：/game/117/（Windows移植）= PC 复刻，不注入提示词 → 保持 PC；
+    // PC guard / 游戏名含标记词不回归
+    expect(detectPlatform('魔兽争霸2：黑潮/Warcraft II: Tides of Darkness').kind).toEqual('pc');
+    expect(detectPlatform('艾尔登法环|PC移植版').kind).toEqual('pc');
+    expect(detectPlatform('GTA5|PC版').kind).toEqual('pc');
+    expect(detectPlatform('PC装机模拟器').kind).toEqual('pc');
+  });
 });

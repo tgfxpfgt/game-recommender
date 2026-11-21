@@ -13,7 +13,50 @@
  * through props (no inline handlers); shared container mounted via mountView.
  */
 import { mountView, h, render, Fragment } from '../core/preact-mount.js';
-import { MANUAL_PLATFORM_OPTIONS, MANUAL_PLATFORM_BRANDS } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源；v14.20.0：厂商分组
+import { MANUAL_PLATFORM_OPTIONS, MANUAL_PLATFORM_BRANDS, detectPlatform } from '../../shared/platform-detect.js'; // v14.19.0：机型选项单源；v14.20.0：厂商分组；v14.42.0：平台标注校验
+import * as builder from '../adapters/builder.js'; // v14.42.0：规则读取单源（getRuleForCurrentSite）
+
+// v14.42.0：详情页平台标注提取（规则 detailPlatformSelectors 声明选择器）。
+// 背景：非 PC 专列页（XDGAME /list/2/ 家族、gamer520 /yzb-2）的**详情页**
+// 标题同样不含平台段——站点标注在标题旁徽章（XDGAME .tit-badge "Xbox移植"）、
+// 分类面包屑/分类标签（gamer520 meta-category "移植P"）里，纯标题级
+// detectPlatform 落空 → 详情页走 PC 检索必错配。落在 candidates（详情域，
+// platform-detect 本就在本闭包——若经 builder 引入会把整个词表拖进列表闭包
+// +27KB，perf-budget 实测）。页级缓存（pathname 页内不变）。
+// Detail-page platform annotation extraction (rule-declared selectors).
+// Hosted in candidates: the detail closure already carries platform-detect.
+/** @type {string|null} */
+let detailPlatformHintCache = null;
+export async function getDetailPlatformHint() {
+  if (detailPlatformHintCache !== null) return detailPlatformHintCache;
+  const rule = builder.getRuleForCurrentSite();
+  const selectors = rule && Array.isArray(rule.detailPlatformSelectors) ? rule.detailPlatformSelectors : [];
+  /** @type {string[]} */
+  const found = [];
+  for (const sel of selectors) {
+    // 逐选择器防御（导入规则包可能畸形）：非法选择器跳过不抛错
+    if (typeof sel !== 'string' || !sel || sel.length > 120) continue;
+    /** @type {any[]} */
+    let els = [];
+    try {
+      els = Array.from(document.querySelectorAll(sel));
+    } catch {
+      continue;
+    }
+    for (const el of els.slice(0, 8)) {
+      const text = String(el.textContent || '')
+        .trim()
+        .slice(0, 24);
+      if (!text || text.length > 24) continue;
+      // 语义校验：**逐段独立**判定（"PC PLAY"与"移植P"同页共存时整串探针会被
+      // PC guard 整体拦下——gamer520 详情页真实形态）；去重（徽章与面包屑常
+      // 同标注）。 Per-segment validation + dedup (badge & breadcrumb repeat).
+      if (detectPlatform(text).kind !== 'pc' && !found.includes(text)) found.push(text);
+    }
+  }
+  detailPlatformHintCache = found.length > 0 ? found.join('|') : '';
+  return detailPlatformHintCache;
+}
 
 // v14.7 批次 3/4：「跳过，稍后自动重试」的页面会话级已跳过集——同一游戏
 // 本页不再自动弹候选浮窗（跨页面由分级负缓存首档 15min 兜底）。

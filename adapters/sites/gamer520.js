@@ -32,6 +32,12 @@
       titleEls: ['h2', 'h3', '.title'],
       minLen: 2,
       maxLen: 100
-    }
+    },
+    // v14.42.0（现网取证）：/yzb-2 = "移植P"分类专列（20/20 条目带 WP 分类
+    // 标签"移植P"，标题为"游戏名|豪华中文|V1.x-…|解压即撸|"形态无机型段）；
+    // 详情页标注在 meta-category 分类标签。语义校验去噪同 xdgame。
+    // v14.42.0: /yzb-2 ported-games category; labels live outside titles.
+    detailPlatformSelectors: ['.meta-category a[rel="category"]'],
+    listPlatformHints: [{ urlPattern: '/yzb-2', hint: '移植' }]
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);

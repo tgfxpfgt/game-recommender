@@ -188,9 +188,21 @@ export const BUDGETS = {
   // v14.34.2 纠偏（+10B）：v14.34.1 把基线锁在 985906，但 HEAD 终态实测 985916
   // ——测量点之后仍有 +10B 定稿编辑，锁值低于实际（stash 纯净复测实证，非本批
   // 增长）。按「预算 = 实测值」口径重锁到当前 HEAD 真实值。
-  swGraphBytes: 985916,
-  swGraphFiles: 108,
-  staticInjectionBytes: 41036,
+  // v14.42.0 重锁（非PC专列页识别批 + 上一批遗留欠账并账）：
+  // - SW 图 995,633B / 109 文件：+4,301B/+1 文件为 v14.41.0 usage 埋点批遗留
+  //  （新增 feature-usage.js + 全线埋点，入库未重锁——stash 纯净复测实证 HEAD
+  //  已超）；本批 +5,416B = platform-detect 词表扩充（裸 ps/移植p/任天堂段）+
+  //  SEARCH_STEAM platformHint 契约与接线（双语注释主体）。
+  // - 静态注入 42,266B：xdgame/gamer520 规则新增 hints 家族 + 详情标注选择器
+  //  （站点脚本每页必付，注释已压至最小）。
+  // 按实测重锁（新增识别能力，无冗余代码）。
+  // v14.42.0 re-lock: +4,301B/+1 file pre-existing debt from the v14.41.0
+  // usage-metering batch (clean-stash verified); this batch adds +5,416B SW
+  // (vocab + hint contract) and +1.2KB static injection (rule fields, comments
+  // minimized). No dead code.
+  swGraphBytes: 995633,
+  swGraphFiles: 109,
+  staticInjectionBytes: 42266,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
@@ -205,7 +217,12 @@ export const BUDGETS = {
   // v14.37.5 (full Preact migration): detail closure +10.2KB = preact runtime
   // (~4KB min) + preact-mount helper + migrated call sites; list closure
   // still within budget. Production innerHTML surface now zero; re-locked.
-  closureBytes: 337876
+  // v14.42.0：detail 闭包 345,221B（+7,345B = 详情页平台标注提取器落 candidates
+  // + 词表扩充）；list 闭包 322,425B 回落预算内（提取器落详情域——经 builder
+  // 引入曾把 platform-detect 拖进列表闭包 +27KB，实测后迁移）。
+  // v14.42.0: detail closure +7.3KB (annotation extractor, detail-domain
+  // hosted); list closure back in budget.
+  closureBytes: 345221
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

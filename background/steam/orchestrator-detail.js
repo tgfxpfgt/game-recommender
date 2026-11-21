@@ -144,9 +144,17 @@ async function phaseDetailPlatform(gameName, options = {}) {
     }
     return platformOnlyResult(gameName, manual.tag, null, null);
   }
-  // 标题级平台识别（详情页 SEARCH_STEAM 消息契约未声明 platformHint——仅
-  // 标题级识别；分类页提示词仅列表批量链消费）
-  const plat = detectPlatform(gameName);
+  // 标题级平台识别 + 分类页提示词（v14.42.0）——详情页站点标注的平台段
+  //（XDGAME 详情标题旁的"Xbox移植"徽章/面包屑分类）经 SEARCH_STEAM
+  // platformHint 透传，与标题拼接后分段匹配；语义与列表页 phasePlatform
+  // 一致（`name|hint` 拼接、PC guard 由 detectPlatform 内部优先保证）。
+  // 此前详情页仅标题级识别：非 PC 专列页条目标题不含平台段（标签在标题外
+  // 独立元素），整页走 PC 检索必错配（"刺猬索尼克2006/Sonic the Hedgehog
+  // 2006"检出 Xbox 360 版 Steam 条目并挂错误好评率徽章）。
+  // Detail platform check now consumes the site-annotated hint (v14.42.0);
+  // same name|hint concatenation semantics as the list pipeline.
+  const hint = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
+  const plat = detectPlatform(hint ? `${gameName}|${hint}` : gameName);
   if (plat.kind === 'pc') return null;
   if (plat.kind === 'emulator') return platformOnlyResult(gameName, plat.tag, null, null);
   // 主机条目：Metacritic 优先（EN 段剥平台词后推 slug；预算 = 单次，与列表

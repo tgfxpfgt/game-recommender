@@ -187,11 +187,14 @@ function createAutoRetry(io) {
       if (candidates.isGameDismissed(name)) return; // 用户已跳过 → 不再打扰
       dbg('Steam: 网络故障期未命中，自动重查:', name);
       try {
+        // v14.42.0：自动重查同样携带详情页平台标注（与首查/重检同语义）
+        const platformHint = await candidates.getDetailPlatformHint().catch(() => '');
         const resp = await window.__GR_MSG__.sendMessage(
           {
             action: 'SEARCH_STEAM',
             gameName: name,
             rawTitle: document.title,
+            platformHint: platformHint || undefined,
             ignoreNegativeCache: true
           },
           null,
@@ -349,9 +352,17 @@ export function createSteamFloat(gameName, settings) {
       },
       /** @type {Record<string, any>} */ (opts).reason || '',
       async () => {
+        // v14.42.0：候选面板重试同样携带平台标注（与首查同语义）
+        const platformHint = await candidates.getDetailPlatformHint().catch(() => '');
         const retryResp = await window.__GR_MSG__
           .sendMessage(
-            { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
+            {
+              action: 'SEARCH_STEAM',
+              gameName: name,
+              rawTitle: document.title,
+              platformHint: platformHint || undefined,
+              ignoreNegativeCache: true
+            },
             null,
             {
               timeout: MSG_TIMEOUT_LONG_MS
@@ -448,6 +459,9 @@ export function createSteamFloat(gameName, settings) {
         'article, .entry-content, .post-content, .main-content, #main-content, main, .single-content'
       );
       const imgAppId = builder.extractSteamAppIdFromImages(mainEl || document);
+      // v14.42.0：详情页平台标注（站点徽章/面包屑，规则声明选择器）——非 PC
+      // 专列页条目标题不含平台段，纯标题识别落空走 PC 检索必错配
+      const platformHint = await candidates.getDetailPlatformHint().catch(() => '');
       /** @type {SteamLookupResp|null} */
       let response = null;
       // v14.3.2：单消息合并——appId(元素直取) / pageUrl(sender) / gameName / rawTitle
@@ -457,7 +471,8 @@ export function createSteamFloat(gameName, settings) {
           action: 'SEARCH_STEAM',
           gameName,
           rawTitle: document.title,
-          appId: imgAppId || undefined
+          appId: imgAppId || undefined,
+          platformHint: platformHint || undefined
         },
         null,
         { timeout: MSG_TIMEOUT_LONG_MS }
@@ -472,6 +487,7 @@ export function createSteamFloat(gameName, settings) {
               gameName,
               rawTitle: document.title,
               appId: imgAppId || undefined,
+              platformHint: platformHint || undefined,
               ignoreNegativeCache: true
             },
             null,

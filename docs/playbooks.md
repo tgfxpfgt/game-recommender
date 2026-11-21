@@ -111,6 +111,16 @@ stage + 最近失败类别 + 波次进度 + 缓存命中层）。断网场景判
 
 **测试**：test-retrieval-vocab（golden 等价）+ `npm run verify:match`（错题库回放）+ test-mismatch-samples。**改词表后油猴 `userscript/game-radar.user.js` 词表快照须同步**（test-userscript-pure 防漂移门禁会红）。
 
+### 6b. 站点适配规则类（列表提取 / 非PC专列页识别）
+
+**触点**：`adapters/sites/<site>.js` 规则字段（listItem/listPage/listPlatformHints/detailPlatformSelectors）→ 消费方 `content/adapters/builder.js`（提取三策略 + getListPlatformHint/getDetailPlatformHint，页级缓存）→ 后台 `platform-detect.js` 词表（CONSOLE/EMULATOR_MARKERS 整段匹配）。
+
+**非PC专列页通用特征（v14.42.0 两站现网取证，识别套路）**：① URL 有专属分类路径（xdgame `/list/2/` 聚合 + `/game/117~122/` 细分；gamer520 `/yzb-2`）；② 页面标题写明"移植/模拟器"（`<title>`）；③ **平台标注在标题外**——条目级独立元素（xdgame `a.pl-type` 徽章、gamer520 WP 分类标签"移植P"），标题只含游戏名 → 标题级 detectPlatform 必落空；④ 详情页同病：标注在标题旁徽章（`.tit-badge`）或分类面包屑/分类标签里。落法 = 规则 `listPlatformHints`（URL→提示词，列表批量链）+ `detailPlatformSelectors`（详情页标注选择器，经 detectPlatform 逐段校验去噪声）+ 词表补段（如裸 `ps`、`移植p`、`任天堂`）。**注意区分真非PC分类与PC复刻分类**（xdgame `/game/117/` "Windows移植"实为 Win9x PC 游戏复刻，Steam 有数据——刻意不注入提示词）。
+
+**测试**：test-sites（规则特征门禁）+ test-manual-platforms（词表+hint 拼接）+ sim-list 节 14（pl-card 提取+详情标注提取，真实 DOM 结构）+ test-handlers（SEARCH_STEAM platformHint 预检直达 platformOnly）。
+
+**坑**：新站点规则**勿写 host/siteKey 判断**（全部走规则字段声明）；xdgame 新旧列表结构共存（首页 `a.tit`、专列页 `a.pl-title`）——titleLink 用逗号组合选择器，容器序短路；导入规则包可能畸形，消费侧逐一防御（坏正则/超长/空值跳过不抛错）。
+
 ## 7. 发版批次
 
 顺序：`npm run gate`（全量）→ `npm run bump …` → `npm run package` → `npm run release:smoke` → 分步 commit → tag/push → gh release（附 zip+seal）→ 深度扫描。

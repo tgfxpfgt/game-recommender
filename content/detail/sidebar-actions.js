@@ -101,6 +101,9 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
       // v14.24.0：forceRefresh——重检索语义 = 清缓存取全新数据（后台预清该
       // appId 缓存，即使没找到新信息也不保留旧缓存）
       const imgAppId = builder.extractSteamAppIdFromImages(document);
+      // v14.42.0：重检索同样携带详情页平台标注（语义与首查一致——平台标注
+      // 在标题外的专列页条目，重检索仍需提示词才能走对管线）
+      const platformHint = await candidates.getDetailPlatformHint().catch(() => '');
       /** @type {SteamLookupResp|null} */
       let resp = null;
       if (imgAppId) {
@@ -115,7 +118,8 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
         resp = await window.__GR_MSG__.sendMessage({
           action: 'SEARCH_STEAM',
           gameName: name,
-          rawTitle: document.title
+          rawTitle: document.title,
+          platformHint: platformHint || undefined
         });
       }
       // v3.3.12：重检索成功但结果仍是同一 appid（自动纠正失败）→ 手动选择
@@ -147,7 +151,13 @@ export function createSteamActions({ panel, hidePanel, showPanel, renderSteamSid
           async () => {
             const rr = await window.__GR_MSG__
               .sendMessage(
-                { action: 'SEARCH_STEAM', gameName: name, rawTitle: document.title, ignoreNegativeCache: true },
+                {
+                  action: 'SEARCH_STEAM',
+                  gameName: name,
+                  rawTitle: document.title,
+                  platformHint: platformHint || undefined,
+                  ignoreNegativeCache: true
+                },
                 null,
                 {
                   timeout: MSG_TIMEOUT_LONG_MS

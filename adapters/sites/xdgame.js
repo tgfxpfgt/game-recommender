@@ -6,6 +6,7 @@
  *   listPage.{urlPatterns,selectors,minDetailLinks}
  *   listItem.{containers,titleLink,titleEls,excludeClasses,minLen,maxLen,fallbackLinks}
  *   listPlatformHints[{urlPattern, hint}]  分类页平台提示 / category-page hints
+ *   detailPlatformSelectors[]  详情页平台标注选择器 / detail-page annotation selectors
  *   features.{gridLayoutDefault,detailMetaVersion}  站点开关
  */
 (function (global) {
@@ -35,21 +36,37 @@
       minDetailLinks: 5
     },
     listItem: {
-      containers: ['.game-list li', '.list li', 'ul li'],
-      titleLink: 'a.tit',
-      titleEls: ['h2', 'h3', '.title', '.entry-title', '.name', '.game-name', '.game-title'],
+      // v14.42.0（现网取证）：新版列表 ul.pl-grid > li.pl-card，标题 a.pl-title
+      //（a.tit 仅首页"最新发布"栏仍在用）——pl-card 首链接 a.pl-cover 的
+      // textContent 是平台标签（"Xbox移植"），titleLink 命中 a.pl-title 后
+      // 不走策略2，名称不被平台标签污染。新旧结构共存不互斥。
+      // v14.42.0: new pl-card list structure; both selectors coexist.
+      containers: ['.game-list li', '.pl-grid li', '.list li', 'ul li'],
+      titleLink: 'a.tit, a.pl-title',
+      titleEls: ['h2', 'h3', '.title', '.entry-title', '.name', '.game-name', '.game-title', '.pl-title'],
       excludeClasses: ['grid-cover', 'link'],
       minLen: 2,
       maxLen: 200,
       fallbackLinks: true
     },
-    // v14.18.0（两站真实页面实证）：分类页平台提示——/game/10/ = "模拟器整合"
-    // 分类（页面标题"Switch游戏整合,Yuzu模拟器整合"，含 /game/10/index_*.html
-    // 翻页），39 条的分类标签"模拟器整合"均在标题**外**，标题为中文名/别名/
-    // 英文名（如"塞尔达传说：王国之泪/The Legend of Zelda..."），标题级识别
-    // 必然落空被当 PC 检索。URL 命中即随批次注入提示词。
-    // Category-page platform hints: /game/10/ is the emulator-bundle category
-    // whose labels live outside the titles (cn/alias/en name only).
-    listPlatformHints: [{ urlPattern: '/game/10/', hint: '模拟器整合' }]
+    // v14.18.0/v14.42.0（现网取证）：分类页/详情页平台提示——平台标注均在
+    // 标题外（页面 <title>、pl-type 徽章、详情 .tit-badge 徽章与分类面包屑），
+    // 标题级识别必落空。URL 命中即随批次注入提示词；详情标注经 detectPlatform
+    // 逐段校验去噪（candidates.getDetailPlatformHint）。
+    // Platform labels live OUTSIDE the titles → per-URL hints + detail
+    // annotation selectors are required.
+    // **/game/117/（Windows移植）刻意不注入**——实抓条目为 Win9x PC 复刻
+    // （魔兽争霸2/过山车大亨2，Steam 有数据），走 PC 管线是正确语义。
+    // NOTE: /game/117/ is vintage-PC remasters — deliberately NOT hinted.
+    detailPlatformSelectors: ['.title-badges .tit-badge', '.article-crumbs a[href*="/game/"]'],
+    listPlatformHints: [
+      { urlPattern: '/game/10/', hint: '模拟器整合' },
+      { urlPattern: '/game/121/', hint: '模拟器整合' }, // Switch模拟器
+      { urlPattern: '/game/122/', hint: '主机游戏' }, // 任天堂经典
+      { urlPattern: '/game/118/', hint: 'Switch移植' },
+      { urlPattern: '/game/119/', hint: '移植' }, // 索尼移植
+      { urlPattern: '/game/120/', hint: 'Xbox移植' },
+      { urlPattern: '/list/2/', hint: '移植' } // 移植游戏整合聚合专列
+    ]
   });
 })(typeof globalThis !== 'undefined' ? globalThis : this);
