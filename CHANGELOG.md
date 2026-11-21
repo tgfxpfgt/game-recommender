@@ -8,6 +8,7 @@
 - sim harness waitForSignal 等待期 30s 周期状态快照（vitest timeout kill 也留现场——双流竞态诊断性）
 - freegames 月历/游戏卡 h() 组件化（trusted 串注入退役）+ StatusLine 双重转义修复 + 重复接线块清理
 - 文案集中层首域：shared/ui-text.js 字典单源（t() 点路径+{var} 替换）+ badges/queue/status/finish 四域迁移 + 完整性门禁测试
+- **完整发版**（触发线：v14.38.0 批 2143 行 > 1000 行）：gate 全量等效验收（vitest 全量绿/mutations 隔离 PASS/visual 11/11/E2E 12/12/package+smoke 绿）+ ext-refs --refresh 3 条真实校验 + 深度扫描 seal `sha256:0a68679a3c63167e7678afb26d8da885fbd7c244e6a0665eb4a23366f37730ad`（Semgrep OSS + eslint-plugin-security 双工具链，6 findings 全数定性——5 处 dangerouslySetInnerHTML 逐条核对 trusted 转义链，报告 docs/reports/security-scan-v14.39.0/）
 
 ### v14.38.0（Preact 全量迁移收官——innerHTML 生产面清零 + sim-list 竞态定性，2026-11-21）
 
