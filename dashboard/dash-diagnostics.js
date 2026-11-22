@@ -233,6 +233,34 @@ async function loadRunSelfCheck() {
   // v14.42.8（用户报告线索：welcome 更新日志为空 = 走 install 分支 =
   // extLastInjectedVersion 缺失 = 内容脚本从未成功注入——与零徽章同根因）
   try {
+    // v14.42.8：注入心跳（tracker 每次注入写 {time, host, ver}，60s 限频）——
+    // "扩展最近一次在下载站启动"的直接证据，超 15 分钟无记录即 ⚠
+    const hb = /** @type {{contentInjectLastSeen?: {time?: number, host?: string, ver?: string}}} */ (
+      await chrome.storage.local.get('contentInjectLastSeen')
+    );
+    /** @type {{time?: number, host?: string, ver?: string}} */
+    const hbv = (hb && hb.contentInjectLastSeen) || {};
+    if (hbv && hbv.time) {
+      const ageMin = Math.round((Date.now() - hbv.time) / 60000);
+      const stale = ageMin > 15;
+      rows.push(
+        row(
+          !stale,
+          '注入心跳: ' +
+            ageMin +
+            ' 分钟前 @ ' +
+            (hbv.host || '?') +
+            ' (v' +
+            (hbv.ver || '?') +
+            ')' +
+            (stale ? '——近期无注入：内容脚本未在下载站运行' : '')
+        )
+      );
+    }
+  } catch {
+    /* storage 不可用时跳过 */
+  }
+  try {
     const inj = await chrome.storage.local.get('extLastInjectedVersion');
     const injVer = inj && inj.extLastInjectedVersion;
     rows.push(
@@ -303,6 +331,10 @@ async function loadRunSelfCheck() {
                 rules && rules.imported
                   ? { version: rules.imported.version, keys: rules.imported.sites.map((/** @type {any} */ s) => s.key) }
                   : null,
+              extLastInjectedVersion:
+                (await chrome.storage.local.get('extLastInjectedVersion')).extLastInjectedVersion || null,
+              contentInjectLastSeen:
+                (await chrome.storage.local.get('contentInjectLastSeen')).contentInjectLastSeen || null,
               recentErrors: logs
             };
             try {

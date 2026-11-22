@@ -314,4 +314,27 @@
 
   // 顶层立即执行（document_start 阶段 html 元素已存在）
   void checkExtensionUpdate();
+
+  // v14.42.8（用户反馈："感觉在下载站都没启动扩展"）：注入心跳——内容脚本
+  // 一经注入即写 {time, host, ver}（60s 限频防抖），dashboard 运行自检卡直读
+  // "最近一次在下载站启动"——注入是否发生不再依赖用户开 DevTools 观察。
+  // Inject heartbeat: written on every content-script injection (60s
+  // debounce); the dashboard self-check reads it to prove/disprove injection.
+  const INJECT_HEARTBEAT_KEY = 'contentInjectLastSeen';
+  const INJECT_HEARTBEAT_DEBOUNCE_MS = 60000; // 限频：同名页多次注入（SPA/刷新）60s 一次
+  void (async () => {
+    try {
+      const common = await loadOne('content/core/common.js');
+      const prev = (await common.storageLocalGet(INJECT_HEARTBEAT_KEY)) || {};
+      const now = Date.now();
+      if (prev.time && now - prev.time < INJECT_HEARTBEAT_DEBOUNCE_MS && prev.host === location.hostname) return;
+      await common.storageLocalSet(INJECT_HEARTBEAT_KEY, {
+        time: now,
+        host: location.hostname,
+        ver: (chrome.runtime.getManifest && chrome.runtime.getManifest().version) || ''
+      });
+    } catch {
+      /* 存储不可用时静默（不影响主流程） */
+    }
+  })();
 })();

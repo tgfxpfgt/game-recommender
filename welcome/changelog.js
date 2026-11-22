@@ -16,6 +16,13 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.11',
+        date: '2026-11-22',
+        items: [
+          'tracker 注入心跳：内容脚本一经注入即写 {time, host, ver}（60s 限频）——dashboard 自检卡新增「注入心跳」行（超 15 分钟无记录 ⚠），诊断包补 extLastInjectedVersion/contentInjectLastSeen 字段——注入是否发生不再依赖用户开 DevTools'
+        ]
+      },
+      {
         ver: '14.42.10',
         date: '2026-11-22',
         items: [

@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-22T11:35:09.494Z",
-  "version": "14.42.9",
+  "generatedAt": "2026-11-22T12:51:47.903Z",
+  "version": "14.42.10",
   "nodes": [
     {
       "dir": "background",
@@ -16,7 +16,7 @@
       "color": "#a3cf06",
       "desc": "内容脚本 — 徽章注入/浮窗/行为采集",
       "files": 3,
-      "lines": 399
+      "lines": 422
     },
     {
       "dir": "options",
@@ -32,7 +32,7 @@
       "color": "#ff7b00",
       "desc": "数据分析 — 统计/洞察/诊断/备份",
       "files": 10,
-      "lines": 2594
+      "lines": 2626
     },
     {
       "dir": "popup",

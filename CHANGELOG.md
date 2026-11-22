@@ -2,6 +2,10 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.11（注入心跳——「扩展在下载站是否启动」直接证据化（用户反馈：感觉下载站都没启动扩展），2026-11-22）
+
+- tracker 注入心跳：内容脚本一经注入即写 {time, host, ver}（60s 限频）——dashboard 自检卡新增「注入心跳」行（超 15 分钟无记录 ⚠），诊断包补 extLastInjectedVersion/contentInjectLastSeen 字段——注入是否发生不再依赖用户开 DevTools
+
 ### v14.42.10（welcome 更新日志 TDZ 根治（铁律 4 漏报面收口）——日志恒空根因闭环 + 变异登记，2026-11-22）
 
 - welcome.js ensureWlPreact 定义块前移（原位在渲染块之后，常显后顶层执行流先过渲染块→同步读 let 绑定触发 TDZ ReferenceError→日志恒空）：真机复验 v14.42.9 条目正确渲染、pageerror 归零
