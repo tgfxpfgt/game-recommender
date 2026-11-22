@@ -56,32 +56,72 @@ export function steamSidebar(data, cachedAt) {
   // v14.19.0：手动主机映射条目的 MC 视图（用户需求：详情页匹配错误时手动
   // 选择机型 → Metacritic 评分）——标题 + MC 徽章（色带同列表页惯例）+
   // 平台标签 + Metacritic 页面链接。数据经 normalize（reviews 等）不影响。
+  // v14.19.0：手动主机映射条目的 MC 视图（用户需求：详情页匹配错误时手动
+  // 选择机型 → Metacritic 评分）——标题 + MC 徽章（色带同列表页惯例）+
+  // 平台标签 + Metacritic 页面链接。数据经 normalize（reviews 等）不影响。
+  // v14.42.5（用户指令：MC 双分显示 + steamMissing 全新 MC 详情 UI）：
+  // - steamMissing → 专用 MC 详情卡（媒体分/用户分双徽章 + 评论数 + 类型/
+  //   平台/发行日期/发行商/简介，全部出自单次 MC 抓取：ld+json + aria 锚）
+  // - 手动声明分支补用户分徽章（与列表双徽章同一语义）
   if (data.platformOnly || data.mcScore != null) {
     const mcScore = typeof data.mcScore === 'number' ? data.mcScore : null;
+    const userScore = typeof data.mcUserScore === 'number' ? data.mcUserScore : null;
     // v14.31.0：MC 分级色单源化 __GR_PATTERNS__.mcColorFor（与列表 gr-mc-badge
     // 同一把尺——阈值调整单点改动，防两处脱节）
     const mcColor = P.mcColorFor(mcScore);
     const mcSlug = common.escapeAttr(
       data.mcName ? 'https://www.metacritic.com/game/' + encodeURIComponent(data.mcName) + '/' : ''
     );
+    const tokens = globalThis.__GR_TOKENS__ ? globalThis.__GR_TOKENS__.PALETTE : {};
+    const userColor = tokens.mcUserBadge || '#5a7bb8';
+
+    // —— steamMissing 专用 MC 详情卡（全新 UI，用户指令②）——
+    if (data.steamMissing) {
+      const facts = [];
+      if (data.mcGenres && data.mcGenres.length) facts.push('类型：' + esc(data.mcGenres.join(' / ')));
+      if (data.mcPlatforms && data.mcPlatforms.length) facts.push('平台：' + esc(data.mcPlatforms.join(' / ')));
+      if (data.mcReleaseDate) facts.push('发行：' + esc(String(data.mcReleaseDate).slice(0, 10)));
+      if (data.mcPublishers && data.mcPublishers.length) facts.push('发行商：' + esc(data.mcPublishers.join(' / ')));
+      const factRows = facts
+        .map((f) => '<div style="font-size:11px;color:#8f98a0;line-height:1.8;">' + f + '</div>')
+        .join('');
+      const desc = data.mcDescription ? String(data.mcDescription) : '';
+      return `
+      <div class="gr-detail-content">
+        <div class="gr-detail-title">${esc(data.name)}</div>
+        <div style="font-size:11px;color:#8f98a0;margin:2px 0 8px;">本游戏未在 Steam 发售——以下信息与评分来自 Metacritic</div>
+        <div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;">
+          <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${mcColor};border-radius:3px;">${mcScore != null ? `MC 媒体 ${mcScore}` : 'MC —'}</span>
+          <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${userColor};border-radius:3px;">${userScore != null ? `用户 ${userScore}` : '用户 —'}</span>
+          ${data.mcCriticCount != null ? `<span style="font-size:11px;color:#8f98a0;">${esc(String(data.mcCriticCount))} 家媒体评测</span>` : ''}
+        </div>
+        ${factRows ? `<div style="margin:8px 0;padding:8px;background:rgba(42,71,94,0.35);border-radius:4px;">${factRows}</div>` : ''}
+        ${desc ? `<div style="font-size:11px;color:#c7d5e0;line-height:1.7;margin-bottom:10px;">${esc(desc.slice(0, 200))}${desc.length > 200 ? '…' : ''}</div>` : ''}
+        <div style="font-size:11px;color:#8f98a0;margin-bottom:8px;">后续该游戏上架 Steam 后重查将自动切换为 Steam 评分。</div>
+        ${mcSlug ? `<a href="${mcSlug}" target="_blank" rel="noopener" style="font-size:12px;color:#67c1f5;text-decoration:none;">在 Metacritic 查看详情 ↗</a>` : ''}
+        <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
+          <span>缓存于 ${cacheAgeText}</span>
+        </div>
+      </div>
+    `;
+    }
+
+    // —— 手动声明 MC 视图（既有语义 + 用户分补齐）——
     return `
       <div class="gr-detail-content">
         <div class="gr-detail-title">${esc(data.name)}</div>
         <div style="display:flex;align-items:center;gap:8px;margin:10px 0;flex-wrap:wrap;">
           <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${mcColor};border-radius:3px;">${mcScore != null ? `MC ${mcScore}` : 'MC —'}</span>
+          ${userScore != null ? `<span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${userColor};border-radius:3px;">用户 ${userScore}</span>` : ''}
           <span style="padding:3px 10px;font-size:12px;background:rgba(143,152,160,0.15);color:#c7d5e0;border:1px dashed #555;border-radius:3px;">🎮 ${esc(data.platformTag || '主机')}</span>
         </div>
         <div style="font-size:12px;color:#8f98a0;line-height:1.7;margin-bottom:12px;">
           ${
-            data.steamMissing
-              ? // v14.43.0（用户需求：非 Steam 发售的 PC 游戏）：自动判定文案——
-                // 区别于手动声明的"已按你的声明记录"语气
-                `Steam 未收录该游戏，评分取自 Metacritic 媒体评分${mcScore != null ? `（${esc(String(data.mcName || ''))}）` : ''}。后续该游戏上架 Steam 后重查可自动切换。`
-              : mcScore != null
-                ? `Metacritic 媒体评分（${esc(String(data.mcName || ''))}）——已按你的声明记录为主机游戏，评分长期生效。`
-                : '已按你的声明记录为' +
-                  esc(data.platformTag || '主机') +
-                  '游戏（Metacritic 暂无该条评分，后续访问自动补查）。'
+            mcScore != null
+              ? `Metacritic 媒体评分（${esc(String(data.mcName || ''))}）——已按你的声明记录为主机游戏，评分长期生效。`
+              : '已按你的声明记录为' +
+                esc(data.platformTag || '主机') +
+                '游戏（Metacritic 暂无该条评分，后续访问自动补查）。'
           }
         </div>
         ${mcSlug ? `<a href="${mcSlug}" target="_blank" rel="noopener" style="font-size:12px;color:#67c1f5;text-decoration:none;">在 Metacritic 查看评价 ↗</a>` : ''}

@@ -114,6 +114,20 @@ export function prependPlatformBadge(item, rating) {
       (rating.mcName ? t('badge.mcNameSuffix', { name: rating.mcName }) : '') +
       (rating.platformTag ? t('badge.mcTagSuffix', { tag: rating.platformTag }) : '');
     target.insertBefore(badge, target.firstChild);
+    // v14.42.5（用户指令：MC 双分列表区分显示）：用户分独立徽章（0-10 制一位
+    // 小数，蓝紫底与媒体分分级色区分）——插入在媒体分徽章之后（firstChild
+    // 再插一次即排第二）
+    if (typeof rating.mcUserScore === 'number') {
+      const userBadge = document.createElement('span');
+      userBadge.className = 'gr-rating-badge gr-mc-user-badge';
+      userBadge.textContent = `用户 ${rating.mcUserScore}`;
+      userBadge.style.cssText =
+        'padding:2px 6px;font-size:10px;color:#fff;background:' +
+        (globalThis.__GR_TOKENS__ ? globalThis.__GR_TOKENS__.PALETTE.mcUserBadge : '#5a7bb8') +
+        ';border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;';
+      userBadge.title = t('badge.mcUserTitle', { score: rating.mcUserScore });
+      target.insertBefore(userBadge, target.firstChild);
+    }
     return;
   }
   const tag = rating.platformTag || '主机';

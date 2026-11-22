@@ -39,6 +39,7 @@
       mcTitlePrefix: 'Metacritic 媒体评分 {score}',
       mcNameSuffix: '（{name}）',
       mcTagSuffix: ' · {tag}平台',
+      mcUserTitle: 'Metacritic 用户评分 {score}（0-10 制）',
       platformEmulatorTitle: '模拟器/ROM 整合条目——非 Steam 游戏，未检索评分',
       platformConsoleTitle: '主机平台游戏——评分优先 Metacritic（本条暂无可得评分）',
       recDislikeTitle: '不感兴趣'

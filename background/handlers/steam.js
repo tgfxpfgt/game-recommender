@@ -18,7 +18,7 @@ import { getSteamApiStatus } from '../core/api-monitor.js'; // v10.9.3：失败�
 import { readDownloadUrlsStore } from '../storage/download-urls.js';
 import { Logger } from '../storage/logger.js';
 import { flushNameIndex, recordNameIndex, lookupAppIdByName, deleteNameIndexEntry } from '../storage/name-index.js';
-import { negativeCacheRemainingMs } from '../storage/name-index.js'; // v14.15.0 O3：负缓存剩余
+import { negativeCacheRemainingMs, getNotFoundMeta } from '../storage/name-index.js'; // v14.15.0 O3：负缓存剩余；v14.42.5：MC attempted 标记读取
 import { flushRegistry, recordGameInRegistry } from '../storage/registry.js';
 import {
   flushSteamCache,
@@ -244,7 +244,13 @@ async function doHandleSearchSteam(message, sender) {
       reason = `steam-api-unreachable（窗口内 ${api.failed} 次 Steam 接口失败——请检查网络/加速器后点重试）`;
       errorType = 'network';
     } else {
-      reason = 'not-found（Steam 商店检索无匹配' + negNote + '）';
+      // v14.42.5（议题③，用户指令：Steam 和 MC 都找不到，就如实反馈）：
+      // notFoundMeta.attempted = 本负缓存窗口内 MC 兜底已尝试且未命中——
+      // 如实告知双无收录，不渲染任何分数或平台数据。
+      const missMeta = await getNotFoundMeta(String(message.gameName || ''));
+      const bothMissed = !!(missMeta && missMeta.attempted && typeof missMeta.mcScore !== 'number');
+      reason =
+        'not-found（' + (bothMissed ? 'Steam 与 Metacritic 均无收录记录' : 'Steam 商店检索无匹配') + negNote + '）';
       errorType = 'notfound';
     }
     Logger.warn('Steam', `未命中原因: ${reason} — "${message.gameName}"`);

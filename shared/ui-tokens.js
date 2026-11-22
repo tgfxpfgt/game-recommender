@@ -31,7 +31,9 @@
     blueSoft: '#d2e4fc',
     grayBorder: '#acb2b8',
     bluePale: '#eaf3ff',
-    blueDeep: '#2d6cb5'
+    blueDeep: '#2d6cb5',
+    // v14.42.5：MC 用户分徽章底（蓝紫，与媒体分分级色区分——用户指令双分区分显示）
+    mcUserBadge: '#5a7bb8'
   };
 
   /** 主题清单单源（与 settings-utils VALID_THEMES 同步的展示名） */

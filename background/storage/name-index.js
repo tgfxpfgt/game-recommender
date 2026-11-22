@@ -12,7 +12,15 @@ import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
-/** @type {Map<string, {appId: string|number|null, lastSearched: number, missCount?: number, notFoundMeta?: {mcScore: number, mcName: string}}>} */
+/**
+ * @typedef {{attempted?: boolean, mcScore?: number|null, mcName?: string,
+ *   userScore?: number|null, criticCount?: number|null, genres?: string[],
+ *   platforms?: string[], releaseDate?: string, publishers?: string[],
+ *   description?: string}} NotFoundMeta 负缓存 MC 元数据（attempted=true 且
+ *   无 mcScore = Steam/MC 双失败如实标记；有 mcScore = steamMissing 数据）
+ */
+
+/** @type {Map<string, {appId: string|number|null, lastSearched: number, missCount?: number, notFoundMeta?: NotFoundMeta}>} */
 let nameIndexMemory = new Map();
 let nameIndexMemoryLoaded = false;
 let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
@@ -118,19 +126,37 @@ export async function getNegativeCacheCount() {
 // v14.43.0: Metacritic supplement on negative-cache entries — fetched once on
 // the detail miss, consumed by BOTH pipelines on later visits (zero extra MC
 // requests; bounded by the detail-page single-call budget).
-/** @param {string} gameName @param {{mcScore: number, mcName: string}} meta */
+/** @param {string} gameName @param {NotFoundMeta} meta */
 export async function recordNotFoundMeta(gameName, meta) {
   const name = (gameName || '').toLowerCase().trim();
-  if (!name || !meta || typeof meta.mcScore !== 'number' || !Number.isFinite(meta.mcScore)) return;
+  // v14.42.5：两种合法形态——MC 命中（mcScore 数字，steamMissing 数据）/
+  // MC 也未命中（attempted=true，双失败如实标记；议题③不凑数）
+  const valid =
+    meta && ((typeof meta.mcScore === 'number' && Number.isFinite(meta.mcScore)) || meta.attempted === true);
+  if (!name || !valid) return;
   await loadNameIndexToMemory();
   const prev = nameIndexMemory.get(name);
   // 只补负缓存条目（appId 非空 = 正缓存，无 notFound 语义可言）
   if (!prev || (prev.appId !== null && prev.appId !== undefined)) return;
-  nameIndexMemory.set(name, { ...prev, notFoundMeta: { mcScore: meta.mcScore, mcName: String(meta.mcName || '') } });
+  /** @type {NotFoundMeta} */
+  const stored = { attempted: meta.attempted === true };
+  if (typeof meta.mcScore === 'number') {
+    stored.mcScore = meta.mcScore;
+    stored.mcName = String(meta.mcName || '');
+    // v14.42.5：MC 详情扩展字段（单次抓取解析，双管线直返零重复请求）
+    if (typeof meta.userScore === 'number') stored.userScore = meta.userScore;
+    if (typeof meta.criticCount === 'number') stored.criticCount = meta.criticCount;
+    if (meta.genres) stored.genres = meta.genres.slice(0, 4);
+    if (meta.platforms) stored.platforms = meta.platforms.slice(0, 5);
+    if (meta.releaseDate) stored.releaseDate = String(meta.releaseDate).slice(0, 20);
+    if (meta.publishers) stored.publishers = meta.publishers.slice(0, 2);
+    if (meta.description) stored.description = String(meta.description).slice(0, 300);
+  }
+  nameIndexMemory.set(name, { ...prev, notFoundMeta: stored });
   scheduleWrite();
 }
 
-/** @param {string} gameName @returns {Promise<{mcScore: number, mcName: string}|null>} 负缓存期内有效 */
+/** @param {string} gameName @returns {Promise<NotFoundMeta|null>} 负缓存期内有效 */
 export async function getNotFoundMeta(gameName) {
   const name = (gameName || '').toLowerCase().trim();
   if (!name) return null;
@@ -139,8 +165,7 @@ export async function getNotFoundMeta(gameName) {
   if (!entry || (entry.appId !== null && entry.appId !== undefined) || !entry.lastSearched) return null;
   // 过期负缓存不返回（meta 随条目生命周期走，重查后重写）
   if (Date.now() - entry.lastSearched >= negativeTtlFor(entry.missCount)) return null;
-  const meta = entry.notFoundMeta;
-  return meta && typeof meta.mcScore === 'number' ? { mcScore: meta.mcScore, mcName: String(meta.mcName || '') } : null;
+  return entry.notFoundMeta || null;
 }
 
 // v14.16.0 N10：内存条目全量快照（steam 层 series.js 聚合消费；storage 层

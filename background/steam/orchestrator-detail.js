@@ -66,7 +66,7 @@ import {
   trimPlatformTokens,
   extractEnNameSegment
 } from '../../shared/platform-detect.js'; // v14.28.7 R4-B3；v14.29.2 平台预检
-import { fetchMetacriticScore } from './api-metacritic.js'; // v14.29.2：详情页主机条目 MC 评分（与列表 phasePlatform 同语义）
+import { fetchMetacriticScore, fetchMetacriticDetails } from './api-metacritic.js'; // v14.42.5：MC 全量详情
 
 // ============ 匹配置信度打标（v14.28.7 R4-B3）/ Match confidence ============
 // 用户裁决：详情面板与浮窗必须与列表徽章同尺子标推测——"只在列表标推测等于
@@ -144,11 +144,28 @@ function platformOnlyResult(gameName, tag, mcScore, mcName) {
 async function trySteamMissingMc(gameName, options = {}) {
   const enSeg = trimPlatformTokens(extractEnNameSegment(String(options.rawTitle || gameName)));
   if (!enSeg) return null;
-  const mcScore = await fetchMetacriticScore(enSeg).catch(() => null);
-  if (typeof mcScore !== 'number') return null;
-  const meta = { mcScore, mcName: enSeg };
+  // v14.42.5：详情级抓取（媒体分 + 用户分 + 结构化信息单次抓取）
+  const mc = await fetchMetacriticDetails(enSeg).catch(() => null);
+  if (!mc || typeof mc.metascore !== 'number') {
+    // 议题③（用户指令：Steam 和 MC 都找不到，就如实反馈，不凑数）：MC 也
+    // 未命中 → 落 attempted 标记（handlers 组装「双无收录」如实文案），返回
+    // null 维持 notfound 语义——绝不虚挂分数或平台数据。
+    await recordNotFoundMeta(gameName, { attempted: true });
+    return null;
+  }
+  const meta = {
+    mcScore: mc.metascore,
+    mcName: mc.mcName,
+    userScore: mc.userScore,
+    criticCount: mc.criticCount,
+    genres: mc.genres,
+    platforms: mc.platforms,
+    releaseDate: mc.releaseDate,
+    publishers: mc.publishers,
+    description: mc.description
+  };
   await recordNotFoundMeta(gameName, meta);
-  Logger.info('Steam', 'Steam 未找到 → Metacritic 兜底命中: "' + gameName + '" → MC ' + mcScore);
+  Logger.info('Steam', 'Steam 未找到 → Metacritic 兜底命中: "' + gameName + '" → MC ' + mc.metascore);
   return steamMissingResult(gameName, meta);
 }
 
@@ -193,8 +210,12 @@ async function phaseDetailPlatform(gameName, options = {}) {
   // 主机条目：Metacritic 优先（EN 段剥平台词后推 slug；预算 = 单次，与列表
   // phasePlatform 一致——详情页访问语义是单条目，无需批量预算对象）
   const enSeg = trimPlatformTokens(extractEnNameSegment(gameName));
-  const mcScore = enSeg ? await fetchMetacriticScore(enSeg).catch(() => null) : null;
-  return platformOnlyResult(gameName, plat.tag, mcScore, mcScore != null ? enSeg : null);
+  // v14.42.5（用户指令：MC 双分显示）：详情级抓取透出用户分（MC 视图双徽章）
+  const mc = enSeg ? await fetchMetacriticDetails(enSeg).catch(() => null) : null;
+  const mcScore = mc && mc.metascore != null ? mc.metascore : null;
+  const result = platformOnlyResult(gameName, plat.tag, mcScore, mcScore != null ? enSeg : null);
+  if (mc && mc.userScore != null) result.mcUserScore = mc.userScore;
+  return result;
 }
 
 /**
@@ -281,7 +302,7 @@ export async function searchSteamGame(gameName, options = {}) {
     // 访问零请求；穿透负缓存的重试语义不变）
     // v14.43.0: serve the cached Metacritic supplement without any request.
     const missMeta = await getNotFoundMeta(gameName);
-    if (missMeta) return steamMissingResult(gameName, missMeta);
+    if (missMeta && typeof missMeta.mcScore === 'number') return steamMissingResult(gameName, missMeta);
     return null;
   }
 

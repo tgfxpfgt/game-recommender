@@ -27,9 +27,12 @@ export const STEAM_MISSING_TAG = 'Steam 未发售';
 
 /**
  * @param {string} gameName
- * @param {{mcScore: number, mcName: string}} meta
+ * @param {{mcScore?: number|null, mcName?: string, userScore?: number|null, criticCount?: number|null, genres?: string[], platforms?: string[], releaseDate?: string, publishers?: string[], description?: string}} meta
  */
 export function steamMissingResult(gameName, meta) {
+  // v14.42.5（用户指令：steamMissing 详情页全新 MC 详情 UI）：MC 详情字段
+  // 全量透出（用户分/评论数/类型/平台/发行日期/发行商/简介）——单源扩展，
+  // 列表徽章消费 mcUserScore、详情 MC 卡消费其余（渲染分支见 sidebar-html）
   return {
     appId: null,
     name: gameName,
@@ -37,6 +40,13 @@ export function steamMissingResult(gameName, meta) {
     platformTag: STEAM_MISSING_TAG,
     mcScore: typeof meta.mcScore === 'number' ? meta.mcScore : null,
     mcName: meta.mcName || '',
+    mcUserScore: typeof meta.userScore === 'number' ? meta.userScore : null,
+    mcCriticCount: typeof meta.criticCount === 'number' ? meta.criticCount : null,
+    mcGenres: Array.isArray(meta.genres) ? meta.genres : [],
+    mcPlatforms: Array.isArray(meta.platforms) ? meta.platforms : [],
+    mcReleaseDate: meta.releaseDate || '',
+    mcPublishers: Array.isArray(meta.publishers) ? meta.publishers : [],
+    mcDescription: meta.description || '',
     genres: [],
     userTags: [],
     developers: [],

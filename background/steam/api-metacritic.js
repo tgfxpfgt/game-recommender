@@ -4,10 +4,21 @@
  *
  * 主机/模拟器条目不走 Steam 检索（见 shared/platform-detect.js）——主机游戏
  * 评分从 Metacritic 取：**规范 slug 由英文名推导**（小写/剥标点/空格转连字符，
- * 实测 the-legend-of-zelda-tears-of-the-kingdom/elden-ring 等全命中），分数
- * 在页面嵌入 JSON 的 "ratingValue":"N"。无 UA 亦可达（实测 200）。
+ * 实测 the-legend-of-zelda-tears-of-the-kingdom/elden-ring 等全命中）。
  * 命中缓存 24h / 无分与 404 负缓存 6h（TTL 内不重打）。Metacritic 无官方
  * API——标记页面结构变更敏感点：分数提取依赖 "ratingValue"。
+ *
+ * v14.42.5（用户指令：MC 双分显示 + steamMissing 详情页 MC 详情）：单次抓取
+ * 升级为全量详情解析——媒体分（ld+json aggregateRating.ratingValue，0-100）、
+ * 用户分（aria-label="User score X out of 10"，0-10 制一位小数，2026-11 现网
+ * 双页取证 elden-ring 8.5/dragoon 8.7）、评论数与结构化详情（name/genre/
+ * gamePlatform/datePublished/publisher/description，均出自同一 ld+json）。
+ * 锚点敏感点：用户分唯一可靠锚 = aria-label（data-testid="global-score-value"
+ * 媒体分块复用同一 testid，不可作用户分锚点）。
+ * v14.42.5: single-fetch full parsing — metascore (ld+json) + user score
+ * (aria-label anchor; the global-score-value testid is REUSED by the
+ * metascore block and must not be used as the user-score anchor) + structured
+ * details from the same ld+json blob.
  */
 import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js';
@@ -16,6 +27,7 @@ import { Logger } from '../storage/logger.js';
 
 const MC_HIT_TTL_MS = 24 * 3600e3;
 const MC_MISS_TTL_MS = 6 * 3600e3;
+/** @type {ReturnType<typeof createTtlCache>} 缓存值 = McDetails 对象 */
 const mcCache = createTtlCache({ ttlMs: MC_HIT_TTL_MS, max: 300 });
 const mcMissCache = createTtlCache({ ttlMs: MC_MISS_TTL_MS, max: 300 });
 
@@ -35,14 +47,38 @@ export function deriveMetacriticSlug(enName) {
     .replace(/^-|-$/g, '');
 }
 
+/** @typedef {{metascore: number|null, userScore: number|null, criticCount: number|null, mcName: string, slug: string, genres: string[], platforms: string[], releaseDate: string, publishers: string[], description: string}} McDetails */
+
+// ld+json 块提取（页面首个 application/ld+json = VideoGame schema）
+/** @param {string} html @returns {Record<string, any>} */
+function parseLdJson(html) {
+  const m = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/);
+  if (!m) return {};
+  try {
+    return JSON.parse(m[1]);
+  } catch {
+    return {};
+  }
+}
+
+// 用户分提取：aria-label 锚（媒体分块复用 global-score-value testid，勿用）
+/** @param {string} html @returns {number|null} */
+function parseUserScore(html) {
+  const m = html.match(/aria-label="User score (\d+(?:\.\d+)?) out of 10"/);
+  if (!m) return null;
+  const v = Number(m[1]);
+  return Number.isFinite(v) ? v : null;
+}
+
 /**
- * 查询 Metacritic 媒体评分（Metascore）。无分/404/网络失败 → null（负缓存）。
- * @param {string} enName @returns {Promise<number|null>}
+ * 查询 Metacritic 详情（媒体分 + 用户分 + 结构化信息，单次抓取）。
+ * 页面不存在/无 Metascore/网络失败 → null（负缓存）。
+ * @param {string} enName @returns {Promise<McDetails|null>}
  */
-export async function fetchMetacriticScore(enName) {
+export async function fetchMetacriticDetails(enName) {
   const slug = deriveMetacriticSlug(enName);
   if (!slug || slug.length < 3) return null;
-  const hit = mcCache.peek(slug);
+  const hit = /** @type {McDetails|undefined} */ (mcCache.peek(slug));
   if (hit !== undefined) return hit;
   const miss = mcMissCache.peek(slug);
   if (miss !== undefined) return null;
@@ -62,17 +98,42 @@ export async function fetchMetacriticScore(enName) {
       return null;
     }
     const html = await resp.text();
-    const m = html.match(/"ratingValue"\s*:\s*"?(\d+)"?/);
-    if (!m) {
+    const ld = parseLdJson(html) || {};
+    const m =
+      ld && ld.aggregateRating && ld.aggregateRating.ratingValue !== undefined
+        ? ld.aggregateRating
+        : html.match(/"ratingValue"\s*:\s*"?(\d+)"?/);
+    if (!ld && !m) {
       // 页面存在但无 Metascore（新游戏评测不足——Steam 低评测同语义，负缓存）
       mcMissCache.set(slug, null);
       Logger.info('Steam', `Metacritic 无分: ${slug}`);
       return null;
     }
-    const score = Math.min(100, Number(m[1]));
-    mcCache.set(slug, score);
-    Logger.info('Steam', `Metacritic 命中: ${slug} → ${score}`);
-    return score;
+    const agg = ld && ld.aggregateRating ? ld.aggregateRating : null;
+    /** @type {McDetails} */
+    const details = {
+      metascore: agg ? Math.min(100, Number(agg.ratingValue)) : Math.min(100, Number(/** @type {any} */ (m)[1])),
+      userScore: parseUserScore(html),
+      criticCount: agg && agg.reviewCount != null ? Number(agg.reviewCount) : null,
+      mcName: String((ld && ld.name) || enName),
+      slug,
+      genres: Array.isArray(ld && ld.genre) ? ld.genre.map(String) : ld && ld.genre ? [String(ld.genre)] : [],
+      platforms: Array.isArray(ld && ld.gamePlatform) ? ld.gamePlatform.map(String) : [],
+      releaseDate: String((ld && ld.datePublished) || ''),
+      publishers: Array.isArray(ld && ld.publisher)
+        ? ld.publisher
+            .map((/** @type {any} */ p) => String(p && p.name))
+            .filter(Boolean)
+            .slice(0, 2)
+        : ld && ld.publisher
+          ? [String(ld.publisher)]
+          : [],
+      // 简介截断 300 字（负缓存条目体积有界）
+      description: String((ld && ld.description) || '').slice(0, 300)
+    };
+    mcCache.set(slug, details);
+    Logger.info('Steam', `Metacritic 命中: ${slug} → 媒体 ${details.metascore} / 用户 ${details.userScore}`);
+    return details;
   } catch (e) {
     // v14.29.2：网络异常落 warn（CORS 拦截/超时/DNS——此前静默吞错，
     // 主机条目 MC 评分功能失效五个月不可见，first-run 门禁即为此类事故设）
@@ -81,4 +142,14 @@ export async function fetchMetacriticScore(enName) {
     Logger.warn('Steam', `Metacritic 异常: ${slug} → ${msg.slice(0, 120)}`);
     return null;
   }
+}
+
+/**
+ * 查询 Metacritic 媒体评分（Metascore）。无分/404/网络失败 → null（负缓存）。
+ * v14.42.5：退化为 fetchMetacriticDetails 的媒体分快捷视图（单源单次抓取）。
+ * @param {string} enName @returns {Promise<number|null>}
+ */
+export async function fetchMetacriticScore(enName) {
+  const details = await fetchMetacriticDetails(enName);
+  return details ? details.metascore : null;
 }

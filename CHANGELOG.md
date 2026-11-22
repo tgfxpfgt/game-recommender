@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.5（MC 双分显示 + steamMissing 全新 MC 详情卡 + 双失败如实反馈（用户指令三条），2026-11-22）
+
+- MC 双分：api-metacritic 升级 fetchMetacriticDetails 单次抓取（媒体分 ld+json + 用户分 aria-label 锚——global-score-value testid 被媒体分块复用不可用作锚，双页现网取证）；列表徽章双块（MC 媒体分级色 + 用户分蓝紫 mcUserBadge 入 ui-tokens 单源）；主机/模拟器/steamMissing 三路径全透出用户分
+- steamMissing 详情页全新 MC 详情卡：双分徽章 + 评论数 + 类型/平台/发行日期/发行商/简介（ld+json 结构化）+ MC 链接；负缓存 notFoundMeta 扩展详情字段（截断有界），两管线直返零重复请求
+- 双失败如实（议题③）：MC 兜底未命中落 attempted 标记 → notfound 文案升级「Steam 与 Metacritic 均无收录记录」——绝不虚挂分数（用户指令：不凑数）
+- 回归：test-handlers fixture 升级真实 MC 形态 + 双失败新用例 + consensus ④ 详情字段守卫 + 四套件 165 绿
+
 ### v14.42.4（模拟器条目 MC 兜底（用户裁决：精确/有界/失败如实）+ steam250/ITAD 入数据源组设置开关，2026-11-22）
 
 - 两管线模拟器条目接 MC 兜底：与主机共用路径（精确 slug、mcBudget 有界、miss 如实落「MC —」平台标签，不做模糊凑数）；零网络早退退役

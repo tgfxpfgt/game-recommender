@@ -183,7 +183,7 @@ describe('SEARCH_STEAM steamMissing MC 兜底（v14.43.0）', () => {
       '/appreviews': {},
       '/api/ISteamNews': {},
       '/game/the-legend-of-dragoon/':
-        '<html><body><script type="application/ld+json">{"ratingValue": 74}</script></body></html>'
+        '<html><body><script type="application/ld+json">{"@type":"VideoGame","name":"The Legend of Dragoon","datePublished":"2000-06-13","genre":"JRPG","gamePlatform":["PlayStation","PlayStation 5"],"publisher":[{"@type":"Organization","name":"SCEA"}],"description":"A peaceful beginning.","aggregateRating":{"ratingValue":74,"reviewCount":12}}</script><div aria-label="User score 8.7 out of 10"><span>8.7</span></div></body></html>'
     });
     restoreFetch = installFetchMock(fetchMock);
   });
@@ -201,9 +201,23 @@ describe('SEARCH_STEAM steamMissing MC 兜底（v14.43.0）', () => {
     expect(resp.data && resp.data.steamMissing).toEqual(true);
     expect(resp.data && resp.data.appId).toEqual(null);
     expect(resp.data && resp.data.mcScore).toEqual(74);
+    expect(resp.data && resp.data.mcUserScore).toEqual(8.7); // 用户分（议题①双分）
+    expect(resp.data && resp.data.mcCriticCount).toEqual(12);
+    expect(resp.data && resp.data.mcReleaseDate).toEqual('2000-06-13');
     expect(resp.data && resp.data.platformTag).toEqual('Steam 未发售');
     expect(fetchMock._calls.some((u) => u.includes('storesearch'))).toEqual(true);
     expect(fetchMock._calls.some((u) => u.includes('/game/the-legend-of-dragoon/'))).toEqual(true);
+  });
+
+  test('Steam+MC 双失败：notfound 如实反馈（不凑数，议题③）', async () => {
+    storage._reset();
+    const resp = await handleMessage({
+      action: 'SEARCH_STEAM',
+      gameName: '双失败游戏/The Both Missed Game',
+      rawTitle: '双失败游戏/The Both Missed Game - 某下载站'
+    });
+    expect(resp.data).toEqual(null);
+    expect(String(resp.reason || '')).toContain('Steam 与 Metacritic 均无收录记录');
   });
 
   test('负缓存 meta 直返（二次访问零 storesearch/零 MC 请求）', async () => {

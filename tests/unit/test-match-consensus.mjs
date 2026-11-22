@@ -1047,12 +1047,29 @@ describe('双管线一致性门禁（v14.31.0 列表/详情防脱节）', () => 
   // 有意差异登记（第三项）：MC 兜底抓取仅详情管线接线（列表消费持久化 meta）。
   test('④steamMissingResult：两管线同构造器（appId null/标签/steamMissing 三字段单源）+ 双侧接线源码守卫', async () => {
     const { steamMissingResult, STEAM_MISSING_TAG } = await import('../../background/steam/orchestrator-shared.js');
-    const r = steamMissingResult('某游戏', { mcScore: 74, mcName: 'Some Game' });
+    const r = steamMissingResult('某游戏', {
+      mcScore: 74,
+      mcName: 'Some Game',
+      userScore: 8.7,
+      criticCount: 12,
+      genres: ['JRPG'],
+      platforms: ['PlayStation'],
+      releaseDate: '2000-06-13',
+      publishers: ['SCEA'],
+      description: 'x'
+    });
     expect(r.steamMissing).toEqual(true);
     expect(r.appId).toEqual(null);
     expect(r.platformTag).toEqual(STEAM_MISSING_TAG);
     expect(r.platformTag).toEqual('Steam 未发售'); // 徽章文案冻结（列表/详情同显）
     expect(r.mcScore).toEqual(74);
+    // v14.42.5（用户指令②③）：MC 详情字段全量透出（详情全新 MC 卡数据源）+
+    // 双失败 attempted 形态不产生 steamMissing（单源构造仅由有分 meta 调用）
+    expect(r.mcUserScore).toEqual(8.7);
+    expect(r.mcCriticCount).toEqual(12);
+    expect(r.mcGenres).toEqual(['JRPG']);
+    expect(r.mcReleaseDate).toEqual('2000-06-13');
+    expect(r.mcDescription).toEqual('x');
     // 双侧接线源码守卫：detail 负缓存兜底 + 负缓存直返；list wave-2 miss 直返
     const fs = await import('node:fs');
     const detailSrc = fs.readFileSync(

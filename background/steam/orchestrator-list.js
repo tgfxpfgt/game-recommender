@@ -9,7 +9,7 @@
  * 3-layer cache writes).
  *
  * @invariant 第一波 getSteamRatingsFromCacheOnly 零网络，且返回非 null 即终态（第二波不会纠错）——故平台预检必须发生在第一波内部
- * @invariant console 条目第一波一律返回 null 交第二波 phasePlatform（Metacritic）；emulator 返回 platformOnly 终态
+ * @invariant console/emulator 条目第一波一律返回 null 交第二波 phasePlatform（Metacritic；v14.42.3 起模拟器与主机共用 MC 路径，命中=MC 双分形状，miss=platformOnly 标签终态）
  * @invariant 缓存写入以 appId 为键、可重复覆盖（幂等）——看门狗放弃后迟到的结果允许覆盖旧值
  */
 import {
@@ -46,7 +46,7 @@ import {
   trimPlatformTokens,
   extractEnNameSegment
 } from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段剥离；v14.19.0：EN 段提取单源；v14.28.7：置信度平台判定
-import { fetchMetacriticScore } from './api-metacritic.js'; // v14.10.0：主机条目评分源
+import { fetchMetacriticDetails } from './api-metacritic.js'; // v14.10.0：主机/模拟器条目评分源；v14.42.5：详情级抓取（媒体分+用户分）
 import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
@@ -289,7 +289,9 @@ async function phasePlatform(gameName, /** @type {RatingOptions} */ options) {
       const enSegManual = trimPlatformTokens(extractEnNameSegment(manual.mcName || gameName));
       if (enSegManual && (!options.mcBudget || options.mcBudget.left > 0)) {
         if (options.mcBudget) options.mcBudget.left -= 1;
-        const mcRetry = await fetchMetacriticScore(enSegManual).catch(() => null);
+        const mcRetry = await fetchMetacriticDetails(enSegManual)
+          .then((d) => (d ? d.metascore : null))
+          .catch(() => null);
         if (mcRetry != null) {
           return { mcScore: mcRetry, mcName: enSegManual, platformTag: manual.tag, appId: null, name: gameName };
         }
@@ -314,14 +316,22 @@ async function phasePlatform(gameName, /** @type {RatingOptions} */ options) {
   // v14.17.0：EN 段先剥尾部平台/模拟器/格式词再推导 slug——"The Legend of
   // Zelda TotK NSP/Ryujinx"类"英文名+平台标记"标题不剥离则 slug 必 404。
   // 全剥光时 trimPlatformTokens 返回原文，deriveMetacriticSlug 自身有短 slug 守卫。
-  /** @type {number|null} */
-  let mcScore = null;
+  // v14.42.5（用户指令：MC 双分列表区分显示）：详情级抓取——媒体分 + 用户分
+  // 同一次请求透出（徽章双块渲染见 prependPlatformBadge）
+  let mcDetails = null;
   if (enSeg && (!options.mcBudget || options.mcBudget.left > 0)) {
     if (options.mcBudget) options.mcBudget.left -= 1;
-    mcScore = await fetchMetacriticScore(enSeg).catch(() => null);
+    mcDetails = await fetchMetacriticDetails(enSeg).catch(() => null);
   }
-  if (mcScore != null) {
-    return { mcScore, mcName: enSeg, platformTag: plat.tag, appId: null, name: gameName };
+  if (mcDetails && mcDetails.metascore != null) {
+    return {
+      mcScore: mcDetails.metascore,
+      mcUserScore: mcDetails.userScore,
+      mcName: enSeg,
+      platformTag: plat.tag,
+      appId: null,
+      name: gameName
+    };
   }
   return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
 }
@@ -593,7 +603,7 @@ export async function getSteamPositiveRate(gameName, options = {}) {
         // v14.43.0: serve the cached Metacritic supplement (written once by
         // the detail pipeline); the list never fetches MC itself.
         const missMeta = await getNotFoundMeta(gameName);
-        if (missMeta) return steamMissingResult(gameName, missMeta);
+        if (missMeta && typeof missMeta.mcScore === 'number') return steamMissingResult(gameName, missMeta);
         return null;
       }
       // v14.28.8：网络/限流故障 ≠ 未找到——显式标记 errorType，内容侧据此渲染
