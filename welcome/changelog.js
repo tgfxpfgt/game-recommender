@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.15',
+        date: '2026-11-23',
+        items: [
+          'MC 卡新增：封面图（ld+json image）+ 年龄分级（contentRating）+ 首截图（screenshot[0]）——同一次抓取免费获得零新增请求；平台/发行日期事实行保持显著',
+          '浮窗标题动态化：steamMissing→「游戏信息 · Metacritic」/平台条目→「平台游戏信息」/Steam 条目保持「Steam 信息」——修正非 Steam 游戏浮窗名不副实',
+          'MC 数据源开关（v14.42.14）同批生效：dataSources.metacritic 关闭=全 MC 请求停'
+        ]
+      },
+      {
         ver: '14.42.14',
         date: '2026-11-23',
         items: [

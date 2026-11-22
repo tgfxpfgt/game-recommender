@@ -162,7 +162,10 @@ async function trySteamMissingMc(gameName, options = {}) {
     platforms: mc.platforms,
     releaseDate: mc.releaseDate,
     publishers: mc.publishers,
-    description: mc.description
+    description: mc.description,
+    contentRating: mc.contentRating,
+    image: mc.image,
+    screenshot: mc.screenshot
   };
   await recordNotFoundMeta(gameName, meta);
   Logger.info('Steam', 'Steam 未找到 → Metacritic 兜底命中: "' + gameName + '" → MC ' + mc.metascore);

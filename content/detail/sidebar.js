@@ -401,6 +401,22 @@ export function createSteamFloat(gameName, settings) {
     // v14.19.0：手动平台映射条目（MC 评分/平台标签，无 appId）——跳过 Steam
     // 侧联动（行填充/标签回写/访问记录/AppID 桥接），浮窗渲染 MC 视图模板
     const isPlatformEntry = !!(data && (data.platformOnly || data.mcScore != null));
+    // v14.42.8（用户指令：浮窗叫"steam信息"名不副实）：标题按数据身份动态化
+    // ——非 Steam 条目改显示真实来源；Steam 条目保持原题。panel 是 create()
+    // 返回的 body，标题 span 经父级 root 查询。
+    try {
+      const titleEl = panel.parentElement && panel.parentElement.querySelector('.gr-float-chrome-title');
+      if (titleEl) {
+        titleEl.textContent =
+          data && data.steamMissing
+            ? '🎮 游戏信息 · Metacritic'
+            : isPlatformEntry
+              ? '🎮 平台游戏信息'
+              : '🎮 Steam 信息';
+      }
+    } catch {
+      /* 标题 DOM 不可达时保持原题（不影响内容渲染） */
+    }
     if (reverseSiteDomain && !isPlatformEntry) {
       data.downloadSiteSearchUrl =
         'https://' + reverseSiteDomain + '/?s=' + encodeURIComponent(name || data.name || '');

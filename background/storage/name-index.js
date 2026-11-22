@@ -16,7 +16,8 @@ import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败�
  * @typedef {{attempted?: boolean, mcScore?: number|null, mcName?: string,
  *   userScore?: number|null, criticCount?: number|null, genres?: string[],
  *   platforms?: string[], releaseDate?: string, publishers?: string[],
- *   description?: string}} NotFoundMeta 负缓存 MC 元数据（attempted=true 且
+ *   description?: string, contentRating?: string, image?: string,
+ *   screenshot?: string}} NotFoundMeta 负缓存 MC 元数据（attempted=true 且
  *   无 mcScore = Steam/MC 双失败如实标记；有 mcScore = steamMissing 数据）
  */
 
@@ -151,6 +152,10 @@ export async function recordNotFoundMeta(gameName, meta) {
     if (meta.releaseDate) stored.releaseDate = String(meta.releaseDate).slice(0, 20);
     if (meta.publishers) stored.publishers = meta.publishers.slice(0, 2);
     if (meta.description) stored.description = String(meta.description).slice(0, 300);
+    // v14.42.8：MC 详情增量字段（分级/封面/首截图——URL 截断防注入长串）
+    if (meta.contentRating) stored.contentRating = String(meta.contentRating).slice(0, 10);
+    if (meta.image) stored.image = String(meta.image).slice(0, 300);
+    if (meta.screenshot) stored.screenshot = String(meta.screenshot).slice(0, 300);
   }
   nameIndexMemory.set(name, { ...prev, notFoundMeta: stored });
   scheduleWrite();

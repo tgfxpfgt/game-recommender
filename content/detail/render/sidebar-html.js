@@ -76,20 +76,30 @@ export function steamSidebar(data, cachedAt) {
     const userColor = tokens.mcUserBadge || '#5a7bb8';
 
     // —— steamMissing 专用 MC 详情卡（全新 UI，用户指令②）——
+    // v14.42.8（用户指令：MC 信息扩充 + 非 Steam 游戏显示平台/发售日期）：
+    // 封面图 + 年龄分级入卡；平台/发行日期升为显著事实行（已有，保持）
     if (data.steamMissing) {
       const facts = [];
       if (data.mcGenres && data.mcGenres.length) facts.push('类型：' + esc(data.mcGenres.join(' / ')));
       if (data.mcPlatforms && data.mcPlatforms.length) facts.push('平台：' + esc(data.mcPlatforms.join(' / ')));
-      if (data.mcReleaseDate) facts.push('发行：' + esc(String(data.mcReleaseDate).slice(0, 10)));
+      if (data.mcReleaseDate) facts.push('发行日期：' + esc(String(data.mcReleaseDate).slice(0, 10)));
       if (data.mcPublishers && data.mcPublishers.length) facts.push('发行商：' + esc(data.mcPublishers.join(' / ')));
+      if (data.mcContentRating) facts.push('分级：' + esc(data.mcContentRating));
       const factRows = facts
         .map((f) => '<div style="font-size:11px;color:#8f98a0;line-height:1.8;">' + f + '</div>')
         .join('');
       const desc = data.mcDescription ? String(data.mcDescription) : '';
+      const cover = data.mcImage ? String(data.mcImage) : '';
+      const shot = data.mcScreenshot ? String(data.mcScreenshot) : '';
       return `
       <div class="gr-detail-content">
-        <div class="gr-detail-title">${esc(data.name)}</div>
-        <div style="font-size:11px;color:#8f98a0;margin:2px 0 8px;">本游戏未在 Steam 发售——以下信息与评分来自 Metacritic</div>
+        <div style="display:flex;gap:10px;margin-bottom:8px;">
+          ${cover ? `<img src="${common.escapeAttr(cover)}" alt="" style="width:64px;height:64px;object-fit:cover;border-radius:4px;flex-shrink:0;" referrerpolicy="no-referrer">` : ''}
+          <div style="min-width:0;">
+            <div class="gr-detail-title">${esc(data.name)}</div>
+            <div style="font-size:11px;color:#8f98a0;margin-top:2px;">本游戏未在 Steam 发售——信息与评分来自 Metacritic</div>
+          </div>
+        </div>
         <div style="display:flex;align-items:center;gap:8px;margin:8px 0;flex-wrap:wrap;">
           <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${mcColor};border-radius:3px;">${mcScore != null ? `MC 媒体 ${mcScore}` : 'MC —'}</span>
           <span style="display:inline-block;padding:3px 10px;font-size:13px;font-weight:bold;color:#fff;background:${userColor};border-radius:3px;">${userScore != null ? `用户 ${userScore}` : '用户 —'}</span>
@@ -97,6 +107,7 @@ export function steamSidebar(data, cachedAt) {
         </div>
         ${factRows ? `<div style="margin:8px 0;padding:8px;background:rgba(42,71,94,0.35);border-radius:4px;">${factRows}</div>` : ''}
         ${desc ? `<div style="font-size:11px;color:#c7d5e0;line-height:1.7;margin-bottom:10px;">${esc(desc.slice(0, 200))}${desc.length > 200 ? '…' : ''}</div>` : ''}
+        ${shot ? `<img src="${common.escapeAttr(shot)}" alt="" style="width:100%;border-radius:4px;margin-bottom:10px;" referrerpolicy="no-referrer">` : ''}
         <div style="font-size:11px;color:#8f98a0;margin-bottom:8px;">后续该游戏上架 Steam 后重查将自动切换为 Steam 评分。</div>
         ${mcSlug ? `<a href="${mcSlug}" target="_blank" rel="noopener" style="font-size:12px;color:#67c1f5;text-decoration:none;">在 Metacritic 查看详情 ↗</a>` : ''}
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">

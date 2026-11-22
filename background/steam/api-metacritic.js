@@ -48,7 +48,7 @@ export function deriveMetacriticSlug(enName) {
     .replace(/^-|-$/g, '');
 }
 
-/** @typedef {{metascore: number|null, userScore: number|null, criticCount: number|null, mcName: string, slug: string, genres: string[], platforms: string[], releaseDate: string, publishers: string[], description: string}} McDetails */
+/** @typedef {{metascore: number|null, userScore: number|null, criticCount: number|null, mcName: string, slug: string, genres: string[], platforms: string[], releaseDate: string, publishers: string[], description: string, contentRating: string, image: string, screenshot: string}} McDetails */
 
 // ld+json 块提取（页面首个 application/ld+json = VideoGame schema）
 /** @param {string} html @returns {Record<string, any>} */
@@ -142,7 +142,15 @@ export async function fetchMetacriticDetails(enName) {
           ? [String(ld.publisher)]
           : [],
       // 简介截断 300 字（负缓存条目体积有界）
-      description: String((ld && ld.description) || '').slice(0, 300)
+      description: String((ld && ld.description) || '').slice(0, 300),
+      // v14.42.8（用户指令：MC 详情页信息扩充）：年龄分级/封面/首截图——
+      // 同一次 ld+json 解析免费获得（无额外请求）
+      contentRating: String((ld && ld.contentRating) || ''),
+      image: String((ld && ld.image) || ''),
+      screenshot:
+        Array.isArray(ld && ld.screenshot) && ld.screenshot[0] && ld.screenshot[0].contentUrl
+          ? String(ld.screenshot[0].contentUrl)
+          : ''
     };
     mcCache.set(slug, details);
     Logger.info('Steam', `Metacritic 命中: ${slug} → 媒体 ${details.metascore} / 用户 ${details.userScore}`);

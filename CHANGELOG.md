@@ -2,6 +2,12 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.15（MC 详情信息扩充（封面/分级/截图）+ 浮窗标题按数据身份动态化（用户指令：浮窗名不副实），2026-11-23）
+
+- MC 卡新增：封面图（ld+json image）+ 年龄分级（contentRating）+ 首截图（screenshot[0]）——同一次抓取免费获得零新增请求；平台/发行日期事实行保持显著
+- 浮窗标题动态化：steamMissing→「游戏信息 · Metacritic」/平台条目→「平台游戏信息」/Steam 条目保持「Steam 信息」——修正非 Steam 游戏浮窗名不副实
+- MC 数据源开关（v14.42.14）同批生效：dataSources.metacritic 关闭=全 MC 请求停
+
 ### v14.42.14（Metacritic 数据源开关（用户指令：MC 数据模块对齐 Steam 细粒度开关面），2026-11-23）
 
 - dataSources 加 metacritic 键（constants/types/面板「游戏平台与辅助站」区第四处同步）+ api-metacritic 消费守卫——关闭 = 全 MC 请求停（fetchMetacriticDetails 首行闸，各消费点经既有「MC 无分」语义优雅降级，无新失败形态）；MC 请求闸回归用例（零出站断言）
