@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.1（e2e-probe 装载对象改 dist 产物——v15 后源码树直跑必撞 Preact 裸 specifier，2026-11-22）
+
+- 探针 EXTENSION_DIR 默认 dist（与 e2e:dist 验收对象同纪律），--ext 保留源码树装载诊断口；修复 argv TDZ
+- 真机复验三用户报告页（xdgame/list1=25 徽章、xianyudanji/pcdj=50、gamer520/pcplay=20）——v14.42.0 产物全绿，用户侧无徽章=装载陈旧产物/源码树所致
+
 ### v14.42.0（非PC专列页识别——XDGAME 移植分类家族 + gamer520 移植P + 详情页平台标注链，2026-11-22）
 
 - XDGAME 改版取证修复：新增 /list/2/ 移植聚合专列与 /game/118~122/ 细分分类（pl-card 新列表结构 a.pl-title，平台标注在标题外）——listPlatformHints 补 6 条 + listItem 双选择器，修复列表页/详情页不工作（此前名称被平台标签污染/整页误走 PC 检索）

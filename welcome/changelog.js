@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.1',
+        date: '2026-11-22',
+        items: [
+          '探针 EXTENSION_DIR 默认 dist（与 e2e:dist 验收对象同纪律），--ext 保留源码树装载诊断口；修复 argv TDZ',
+          '真机复验三用户报告页（xdgame/list1=25 徽章、xianyudanji/pcdj=50、gamer520/pcplay=20）——v14.42.0 产物全绿，用户侧无徽章=装载陈旧产物/源码树所致'
+        ]
+      },
+      {
         ver: '14.42.0',
         date: '2026-11-22',
         items: [

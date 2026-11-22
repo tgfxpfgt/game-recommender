@@ -27,7 +27,6 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright-core';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const EXTENSION_DIR = ROOT;
 const FIXTURE = path.join(ROOT, 'tests', 'fixtures', 'list-page.html');
 
 // --- 参数解析 / arg parsing ---
@@ -37,6 +36,13 @@ function argOf(name, fallback = null) {
   return i >= 0 && argv[i + 1] ? argv[i + 1] : fallback;
 }
 const has = (name) => argv.includes(name);
+// v14.42.1：装载对象改 dist 产物（v15 打包后源码树直跑必撞 Preact 裸 specifier
+// ——content ESM 图的裸包名只有 esbuild bundle 才解析；与 e2e:dist 验收对象
+// 同一纪律）。--ext 参数保留源码树装载能力（诊断构建器前态用）。
+// v14.42.1: load the dist artifact (post-v15 the source tree cannot boot —
+// bare Preact specifiers only resolve in the esbuild bundle); same acceptance
+// target as e2e:dist. --ext keeps source-tree loading for diagnosis.
+const EXTENSION_DIR = argOf('--ext', path.join(ROOT, 'dist'));
 const TARGET_URL = argOf('--url');
 const COUNT = Math.max(1, Number(argOf('--count', '3')) || 3);
 const WAIT_MS = Math.max(1000, Number(argOf('--timeout', '8000')) || 8000);

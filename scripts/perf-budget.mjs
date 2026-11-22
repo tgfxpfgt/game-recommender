@@ -222,7 +222,11 @@ export const BUDGETS = {
   // 引入曾把 platform-detect 拖进列表闭包 +27KB，实测后迁移）。
   // v14.42.0: detail closure +7.3KB (annotation extractor, detail-domain
   // hosted); list closure back in budget.
-  closureBytes: 345221
+  // v14.42.1（+16B）：CHANGELOG/welcome bump 追加文本随 bundle 常量内联的
+  // 基线漂移（逻辑零变更）——按「预算 = 实测值」口径重锁。
+  // v14.42.1 (+16B): bump-text constant drift, zero logic change; re-locked
+  // to the measured value.
+  closureBytes: 345237
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;
