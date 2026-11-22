@@ -237,7 +237,7 @@ export const BUDGETS = {
   // 基线漂移（逻辑零变更）——按「预算 = 实测值」口径重锁。
   // v14.42.1 (+16B): bump-text constant drift, zero logic change; re-locked
   // to the measured value.
-  closureBytes: 350590
+  closureBytes: 351199
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

@@ -16,6 +16,13 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.12',
+        date: '2026-11-22',
+        items: [
+          'page-init 列表分支处理后写 {time, url, host, adapter, itemCount} 快照；dashboard 自检卡新增「最近列表页」行——无徽章分流：itemCount=0=提取失败（结构×选择器不匹配）>0=渲染/消息层（1 小时无记录=列表流程未跑）'
+        ]
+      },
+      {
         ver: '14.42.11',
         date: '2026-11-22',
         items: [

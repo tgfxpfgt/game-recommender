@@ -230,6 +230,42 @@ async function loadRunSelfCheck() {
         : row(true, '数据源关闭: ' + dsOff.join(', ') + '（限免/排名/比价行随之停用，不影响好评率徽章）')
     );
   }
+  try {
+    // v14.42.8：列表页处理快照（page-init 提取后写）——最近一次列表页提取了
+    // 多少项 @ 哪个站，"无徽章"是提取失败（itemCount=0）还是渲染/消息层
+    // （itemCount>0），一眼分层
+    const snap =
+      /** @type {{listPageLastRun?: {time?: number, host?: string, adapter?: string, itemCount?: number}}} */ (
+        await chrome.storage.local.get('listPageLastRun')
+      );
+    const snapV = (snap && snap.listPageLastRun) || {};
+    if (snapV && snapV.time) {
+      const ageMin = Math.round((Date.now() - snapV.time) / 60000);
+      const stale = ageMin > 60;
+      const ok = !stale && (snapV.itemCount || 0) > 0;
+      rows.push(
+        row(
+          ok,
+          '最近列表页: ' +
+            ageMin +
+            ' 分钟前 @ ' +
+            (snapV.host || '?') +
+            ' 提取 ' +
+            snapV.itemCount +
+            ' 项（适配器 ' +
+            (snapV.adapter || '?') +
+            '）' +
+            (snapV.itemCount === 0
+              ? '——提取 0 项：页面结构与规则选择器不匹配'
+              : stale
+                ? '——超 1 小时无列表页处理记录'
+                : '')
+        )
+      );
+    }
+  } catch {
+    /* storage 不可用时跳过 */
+  }
   // v14.42.8（用户报告线索：welcome 更新日志为空 = 走 install 分支 =
   // extLastInjectedVersion 缺失 = 内容脚本从未成功注入——与零徽章同根因）
   try {

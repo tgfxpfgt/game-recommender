@@ -15,6 +15,7 @@
 // List/detail clusters are loaded on demand; URL predicates come from the
 // zero-dependency core/page-url.js so no domain module is needed to classify.
 import { isDetailPageByUrl, isHomePageUrl, isListPageByUrl } from './page-url.js';
+import { storageLocalSet } from './common.js'; // v14.42.8：列表页处理快照（自检卡取证）
 // v14.26.0 P1-6：消息超时单源
 import { MSG_TIMEOUT_SHORT_MS } from './timeouts.js';
 
@@ -154,6 +155,16 @@ export async function initPage(boot) {
       dbg('列表项为空，等待页面数据渲染...');
       items = await list.waitForListItems(adapter, 4000);
     }
+    // v14.42.8（用户反馈：三站徽章排查）：列表页处理快照——提取数/适配器/
+    // URL 落 storage，dashboard 运行自检卡直读（后台侧无法观测内容页提取，
+    // 此前用户三站无徽章的取证缺口）
+    storageLocalSet('listPageLastRun', {
+      time: Date.now(),
+      url: String(location.href).slice(0, 200),
+      host: location.hostname,
+      adapter: adapter.key || adapter.name || '',
+      itemCount: items.length
+    }).catch(() => {});
     if (items.length > 0) {
       dbg(`找到 ${items.length} 个游戏项`);
       list.trackListView(adapter, items, settings);

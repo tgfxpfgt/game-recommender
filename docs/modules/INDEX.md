@@ -187,7 +187,7 @@
 | `content/core/debug.js` | 调试模块 | `content/core/common`<br>`content/core/status-bar` | DEBUG<br>scheduleDebugUpdate<br>dbg | — |
 | `content/core/floats.js` | 统一浮窗管理器 | — | ZONE<br>applyFloatTheme<br>create<br>remove<br>closeAll | — |
 | `content/core/messages.js` | 内容侧消息路由 | `content/core/page-url` | createMessageRouter | — |
-| `content/core/page-init.js` | 页面检测与功能分发 | `content/core/page-url`<br>`content/core/timeouts` | initPage | — |
+| `content/core/page-init.js` | 页面检测与功能分发 | `content/core/common`<br>`content/core/page-url`<br>`content/core/timeouts` | initPage | — |
 | `content/core/page-url.js` | 页面类型 URL 判定（零依赖纯函数）/ URL-based page kind | — | isDetailPageByUrl<br>isListPageByUrl<br>isHomePageUrl<br>detectPageScope | — |
 | `content/core/preact-mount.js` | 内容侧 Preact 挂载助手 | — | mountView<br>h<br>render<br>Fragment | — |
 | `content/core/status-bar.js` | 工作状态/诊断统一浮窗 | `content/core/floats`<br>`content/core/preact-mount` | showStatus<br>showStats<br>showDebugView<br>setEnabled<br>setDebugMode<br>hide<br>…+1 | — |

@@ -2,6 +2,10 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.12（列表页处理快照——徽章排查最后一层取证（提取数/适配器/URL 直显自检卡），2026-11-22）
+
+- page-init 列表分支处理后写 {time, url, host, adapter, itemCount} 快照；dashboard 自检卡新增「最近列表页」行——无徽章分流：itemCount=0=提取失败（结构×选择器不匹配）>0=渲染/消息层（1 小时无记录=列表流程未跑）
+
 ### v14.42.11（注入心跳——「扩展在下载站是否启动」直接证据化（用户反馈：感觉下载站都没启动扩展），2026-11-22）
 
 - tracker 注入心跳：内容脚本一经注入即写 {time, host, ver}（60s 限频）——dashboard 自检卡新增「注入心跳」行（超 15 分钟无记录 ⚠），诊断包补 extLastInjectedVersion/contentInjectLastSeen 字段——注入是否发生不再依赖用户开 DevTools
