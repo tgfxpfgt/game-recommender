@@ -138,6 +138,21 @@ async function loadRunSelfCheck() {
     /* 非扩展上下文（测试）忽略 */
   }
   rows.push(row(true, '扩展版本: ' + (version || '未知') + '（应与 dist/manifest.json 一致）'));
+  // v14.42.8（用户实证：仓库根装载自检卡全绿但内容管线死）——源模式标记首行 ⚠
+  try {
+    const st = await chrome.storage.local.get('sourceTreeLoad');
+    if (st && st.sourceTreeLoad) {
+      rows.push(
+        row(
+          false,
+          '扩展装载自源码树（未构建产物）——SW/设置页正常但列表/详情/徽章管线不可用。' +
+            '请移除当前扩展并在 chrome://extensions「加载已解压的扩展程序」选择 dist/ 目录'
+        )
+      );
+    }
+  } catch {
+    /* storage 不可用时跳过 */
+  }
   let settings = null;
   let rules = null;
   try {

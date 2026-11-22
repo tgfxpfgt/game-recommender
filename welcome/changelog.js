@@ -16,6 +16,13 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.13',
+        date: '2026-11-23',
+        items: [
+          'tracker 源模式守卫（__GR_BUNDLE__ 未定义时 console.error + storage 落 sourceTreeLoad 标记）+ dashboard 自检卡首行 ⚠「扩展装载自源码树——列表/详情/徽章管线不可用，请加载 dist/」；sim-harness 置标记免噪声。收口『仓库根装载自检全绿而内容管线死』的迷惑面（e2e-dist 教训的根目录版）'
+        ]
+      },
+      {
         ver: '14.42.12',
         date: '2026-11-22',
         items: [

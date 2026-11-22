@@ -447,6 +447,9 @@ async function loadModules() {
 
 // import provider：eval 代码里的 import( → __grImport(（vitest 兼容层）
 globalThis.__grImport = (spec) => import(spec);
+// v14.42.8：sim 装载源文件属正常语义——置 bundle 标记免 tracker 源模式守卫
+// 在 sim 内 console.error 噪声/写 storage 标记（dist 语义等价）
+globalThis.__GR_BUNDLE__ = true;
 export function evalWithGrImport(code) {
   return (0, eval)(code.replace(/import\(/g, '__grImport('));
 }

@@ -69,6 +69,23 @@
   // 双模式开关：bundle 模式由 esbuild banner 注入 `const __GR_BUNDLE__ = true;`
   //（typeof 检查安全——banner 非 define，不做 token 替换）；源模式未定义 → falsy
   // → getURL 分支。
+  // v14.42.8（用户实证：仓库根装载 → 自检卡全绿但列表/徽章管线死）：源模式
+  // （未构建）下含 preact 裸包名的模块链不可解析——SW/扩展页/dashboard 全活
+  // 而 content 管线死，"一半活一半死"最具迷惑性。落标记供自检卡首行 ⚠ 直示。
+  // Source-tree (unbuilt) load marker: SW/pages work but the content pipeline
+  // (preact bare specifier) cannot — the self-check card surfaces this.
+  if (typeof __GR_BUNDLE__ === 'undefined' || !__GR_BUNDLE__) {
+    try {
+      chrome.storage.local.set({ sourceTreeLoad: { time: Date.now(), ver: chrome.runtime.getManifest().version } });
+    } catch {
+      /* 存储不可用静默 */
+    }
+    console.error(
+      '[游戏雷达] ⚠ 检测到扩展装载自源码树（未构建）——列表/详情/徽章管线不可用。' +
+        '请在 chrome://extensions 加载 dist/ 目录（构建产物），而非仓库根目录。'
+    );
+  }
+
   /** @type {Record<string, () => Promise<any>>|null} */
   let loaders = null;
   const loadersPromise = (
