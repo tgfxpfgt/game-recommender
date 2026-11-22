@@ -18,6 +18,18 @@
   const verEl = document.getElementById('extVersion');
   if (verEl && ver) verEl.textContent = 'v' + ver;
 
+  // v15 阶段 3：欢迎页状态区块 Preact 组件（按需装载一次）
+  // v14.42.8（TDZ 修复）：定义块须位于一切运行时调用之前——原位在文件中段，
+  // changelog 渲染块先执行 ensureWlPreact() 读 let 绑定触发 TDZ
+  // ReferenceError（铁律 4 同款；test-integrity 对异步内引用不可见的漏报面）。
+  /** @type {{mountAt: (v: any, el: HTMLElement) => void, ChangelogBox: any, PlainMsg: any, SiteStatus: any, Dots: any}|null} */
+  let wlStatusPreact = null;
+  async function ensureWlPreact() {
+    if (wlStatusPreact) return wlStatusPreact;
+    wlStatusPreact = await import(chrome.runtime.getURL('welcome/welcome-status.preact.mjs'));
+    return wlStatusPreact;
+  }
+
   const source = new URLSearchParams(location.search).get('source') || 'install';
   const isUpdate = source === 'update';
   document.getElementById('installSection').classList.toggle('hidden', isUpdate);
@@ -88,15 +100,6 @@
     enableFilter: false,
     minRating: 0
   };
-
-  // v15 阶段 3：欢迎页状态区块 Preact 组件（按需装载一次）
-  /** @type {{mountAt: (v: any, el: HTMLElement) => void, ChangelogBox: any, PlainMsg: any, SiteStatus: any, Dots: any}|null} */
-  let wlStatusPreact = null;
-  async function ensureWlPreact() {
-    if (wlStatusPreact) return wlStatusPreact;
-    wlStatusPreact = await import(chrome.runtime.getURL('welcome/welcome-status.preact.mjs'));
-    return wlStatusPreact;
-  }
 
   async function initGuide() {
     document.getElementById('installSection').classList.add('hidden');

@@ -100,6 +100,16 @@
       "replace": "if (false && conflict) return { written: false, reason: 'host-conflict', existingUrl: conflict.url };",
       "check": "npx vitest run tests/unit/test-storage.mjs",
       "caughtBy": "unit：同站冲突写入用例（107960 页命中已绑定 appId 必须拒写）"
+    },
+    {
+      "id": "tdz-welcome-changelog",
+      "class": "B",
+      "defect": "welcome.js ensureWlPreact 定义块位于 changelog 渲染块之后——无条件常显后顶层执行流先过渲染块，读 let 绑定触发 TDZ ReferenceError（铁律 4 同款；页面 console pageerror，更新日志恒空。v14.42.8 现网用户报告 + welcome-probe 复现实证）",
+      "file": "welcome/welcome.js",
+      "find": "let wlStatusPreact = null;",
+      "replace": "var wlStatusPreact = null;",
+      "check": "npx vitest run tests/integration/test-integrity.mjs",
+      "caughtBy": "integrity：welcome.js TDZ 行序守卫用例（ensureWlPreact 定义须先于首次调用——var 提升放回即红）"
     }
   ]
 }

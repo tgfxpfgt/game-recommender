@@ -832,3 +832,21 @@ test('P2：出站 URL 字面量 ⊆ MOCK_RE 拦截域 ∪ 豁免表（E2E 离线
       offenders.join('\n  ')
   ).toEqual([]);
 });
+
+// ============ v14.42.8：welcome.js TDZ 行序守卫（铁律 4 漏报面收口） ============
+// 放回案例：ensureWlPreact 的 let 绑定定义移回 changelog 渲染块之后——
+// 无条件常显后顶层执行流先过渲染块，同步读 let 触发 TDZ ReferenceError，
+// 更新日志恒空（现网实证：用户报告"重载后日志为空"+ welcome-probe pageerror）。
+// 此前 test-integrity 的 TDZ 扫描器对"异步回调内引用后置 let"不可见——本用例
+// 用行序断言补齐该漏报面（var 提升放回 = 消灭 TDZ = 用例红，验证放回可检出）。
+test('welcome.js：ensureWlPreact 定义行须先于首次调用行（TDZ 行序守卫，v14.42.8）', async () => {
+  const fs = await import('node:fs');
+  const src = fs.readFileSync(new URL('../../welcome/welcome.js', import.meta.url), 'utf8');
+  const defLine = src.indexOf('let wlStatusPreact = null;');
+  const varLine = src.indexOf('var wlStatusPreact'); // var 提升放回形态（变异面）须判红
+  expect(varLine).toEqual(-1); // let 不得降级为 var（放回即红）
+  const firstCall = src.indexOf('void ensureWlPreact()');
+  expect(defLine).toBeGreaterThan(-1);
+  expect(firstCall).toBeGreaterThan(-1);
+  expect(defLine, 'ensureWlPreact 定义须先于首次调用（TDZ 行序）').toBeLessThan(firstCall);
+});

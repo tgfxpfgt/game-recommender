@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.10',
+        date: '2026-11-22',
+        items: [
+          'welcome.js ensureWlPreact 定义块前移（原位在渲染块之后，常显后顶层执行流先过渲染块→同步读 let 绑定触发 TDZ ReferenceError→日志恒空）：真机复验 v14.42.9 条目正确渲染、pageerror 归零',
+          'test-integrity 新增 TDZ 行序守卫用例（此前扫描器对异步回调内引用后置 let 不可见的漏报面收口）+ mutations 登记 tdz-welcome-changelog（verify 放回即红实证 41s）'
+        ]
+      },
+      {
         ver: '14.42.9',
         date: '2026-11-22',
         items: [

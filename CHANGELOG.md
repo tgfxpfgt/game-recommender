@@ -2,6 +2,11 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.10（welcome 更新日志 TDZ 根治（铁律 4 漏报面收口）——日志恒空根因闭环 + 变异登记，2026-11-22）
+
+- welcome.js ensureWlPreact 定义块前移（原位在渲染块之后，常显后顶层执行流先过渲染块→同步读 let 绑定触发 TDZ ReferenceError→日志恒空）：真机复验 v14.42.9 条目正确渲染、pageerror 归零
+- test-integrity 新增 TDZ 行序守卫用例（此前扫描器对异步回调内引用后置 let 不可见的漏报面收口）+ mutations 登记 tdz-welcome-changelog（verify 放回即红实证 41s）
+
 ### v14.42.9（welcome 更新日志常显 + 内容脚本注入记录诊断（用户报告：重载后更新日志为空），2026-11-22）
 
 - welcome 页 changelog 区块移出 updateSection 常显——此前 install 分支（手动打开/引导页）整区 hidden，「空日志」实为区块未渲染而非数据缺失
