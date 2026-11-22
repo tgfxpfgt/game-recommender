@@ -139,11 +139,18 @@ async function loadRunSelfCheck() {
   }
   rows.push(row(true, '扩展版本: ' + (version || '未知') + '（应与 dist/manifest.json 一致）'));
   let settings = null;
+  let rules = null;
   try {
     const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
     settings = resp && resp.settings;
   } catch {
     /* SW 不可达 */
+  }
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' });
+    rules = resp && resp.rules;
+  } catch {
+    /* 规则读取失败单独标注 */
   }
   if (!settings) {
     rows.push(
@@ -178,13 +185,43 @@ async function loadRunSelfCheck() {
           })
     );
     const ts = settings.trackedSites || [];
-    // v14.42.6：名单非空 = 白名单语义（名单内站点才有徽章）——默认名单本就
-    // 含主站（非异常），仅提示用户核对"正在浏览的站点是否在名单内"
-    rows.push(
-      ts.length === 0
-        ? row(true, '跟踪站点: 未配置（= 全部下载站生效）')
-        : row(true, '跟踪站点白名单: [' + ts.join(', ') + ']——正在浏览的站点须在名单内才出徽章')
-    );
+    // v14.42.8（用户反馈：一键修复后三站仍无徽章）：白名单×内置站点域名
+    // 覆盖度检查——存量名单若是老域名时代存的（站点换过域），名单外站点的
+    // 内容脚本在 page-init 直接早退（零徽章且 SW 侧无任何报错）。缺域名 = ⚠
+    // + 一键补全（并入内置站点全部域名）。匹配语义与 page-init 一致
+    //（domain.includes(entry) 子串判定）。
+    let missingDomains = [];
+    if (ts.length > 0 && rules && rules.merged) {
+      for (const site of rules.merged.sites || []) {
+        const domains = (site && site.domains) || [];
+        const covered = domains.some((/** @type {string} */ d) =>
+          ts.some((/** @type {string} */ entry) => entry && d.includes(entry))
+        );
+        if (!covered) missingDomains.push(...domains);
+      }
+      missingDomains = [...new Set(missingDomains)];
+    }
+    if (ts.length === 0) {
+      rows.push(row(true, '跟踪站点: 未配置（= 全部下载站生效）'));
+    } else if (missingDomains.length > 0) {
+      rows.push(
+        row(
+          false,
+          '跟踪站点白名单缺少内置站点域名: [' +
+            missingDomains.join(', ') +
+            ']——名单外站点的列表/详情功能直接关闭（老名单时代的存量数据常见）',
+          '一键补全名单',
+          async () => {
+            await window.__GR_MSG__.sendMessage({
+              action: 'SAVE_SETTINGS',
+              settings: { trackedSites: [...new Set([...ts, ...missingDomains])] }
+            });
+          }
+        )
+      );
+    } else {
+      rows.push(row(true, '跟踪站点白名单: [' + ts.join(', ') + ']（内置站点域名全覆盖）'));
+    }
     const ds = settings.dataSources || {};
     const dsOff = Object.keys(ds).filter((k) => ds[k] === false);
     rows.push(
@@ -194,8 +231,6 @@ async function loadRunSelfCheck() {
     );
   }
   try {
-    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' });
-    const rules = resp && resp.rules;
     const builtinCount = rules && rules.builtin ? rules.builtin.sites.length : 0;
     const imported = rules && rules.imported;
     if (imported && Array.isArray(imported.sites) && imported.sites.length > 0) {
@@ -224,6 +259,64 @@ async function loadRunSelfCheck() {
   } catch (e) {
     rows.push(row(false, '规则读取失败: ' + window.__GR_MSG__.toUserMessage(e)));
   }
+  rows.push(
+    P.h(
+      'div',
+      { style: 'margin-top:6px' },
+      P.h(
+        'button',
+        {
+          class: 'gr-btn',
+          style: 'padding:2px 10px;font-size:11px',
+          onClick: async () => {
+            let logs = [];
+            try {
+              const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_RUNTIME_LOGS', limit: 60 });
+              const all = (resp && resp.logs) || [];
+              logs = all.filter((/** @type {any} */ l) => (l.level || '').toUpperCase().match(/WARN|ERROR/)).slice(-20);
+            } catch {
+              /* SW 不可达 */
+            }
+            const bundle = {
+              version,
+              enabled: settings ? settings.enabled : null,
+              badgeVisibility: settings ? settings.badgeVisibility : null,
+              trackedSites: settings ? settings.trackedSites : null,
+              dataSources: settings ? settings.dataSources : null,
+              importedRules:
+                rules && rules.imported
+                  ? { version: rules.imported.version, keys: rules.imported.sites.map((/** @type {any} */ s) => s.key) }
+                  : null,
+              recentErrors: logs
+            };
+            try {
+              await navigator.clipboard.writeText(JSON.stringify(bundle, null, 2));
+              P.render(
+                P.h('div', null, [
+                  ...rows,
+                  P.h('div', { class: 'no-data', style: 'color:#6fa8dc' }, '✓ 诊断包已复制到剪贴板——粘贴给助手即可')
+                ]),
+                box
+              );
+            } catch (e) {
+              P.render(
+                P.h('div', null, [
+                  ...rows,
+                  P.h(
+                    'pre',
+                    { style: 'font-size:10px;white-space:pre-wrap;color:#c7d5e0' },
+                    JSON.stringify(bundle, null, 2)
+                  )
+                ]),
+                box
+              );
+            }
+          }
+        },
+        '复制诊断包（设置/规则/最近错误日志）'
+      )
+    )
+  );
   P.render(P.h('div', null, rows), box);
 }
 
