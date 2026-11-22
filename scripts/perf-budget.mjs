@@ -209,7 +209,7 @@ export const BUDGETS = {
   // （fetchMetacriticDetails 全量解析 + notFoundMeta 详情字段 + 全新渲染卡 +
   // 双失败 attempted 文案）——新增能力，无冗余代码。按实测重锁。
   // v14.42.5 re-lock: MC dual-score + steamMissing detail card (+7.8KB SW).
-  swGraphBytes: 1013338,
+  swGraphBytes: 1013360,
   swGraphFiles: 109,
   staticInjectionBytes: 42266,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
