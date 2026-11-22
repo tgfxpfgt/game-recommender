@@ -2,6 +2,10 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.14（Metacritic 数据源开关（用户指令：MC 数据模块对齐 Steam 细粒度开关面），2026-11-23）
+
+- dataSources 加 metacritic 键（constants/types/面板「游戏平台与辅助站」区第四处同步）+ api-metacritic 消费守卫——关闭 = 全 MC 请求停（fetchMetacriticDetails 首行闸，各消费点经既有「MC 无分」语义优雅降级，无新失败形态）；MC 请求闸回归用例（零出站断言）
+
 ### v14.42.13（源码树装载防呆——自检卡首行 ⚠ 直示（用户实证：仓库根装载自检全绿但内容管线死），2026-11-23）
 
 - tracker 源模式守卫（__GR_BUNDLE__ 未定义时 console.error + storage 落 sourceTreeLoad 标记）+ dashboard 自检卡首行 ⚠「扩展装载自源码树——列表/详情/徽章管线不可用，请加载 dist/」；sim-harness 置标记免噪声。收口『仓库根装载自检全绿而内容管线死』的迷惑面（e2e-dist 教训的根目录版）

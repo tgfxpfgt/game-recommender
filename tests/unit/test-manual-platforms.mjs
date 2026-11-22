@@ -395,6 +395,31 @@ describe('manifest MC 域权限 + 词表「移植」标记（v14.29.2 门禁）'
   // 拼接语义——专列页/详情页标注在标题外，hint 与标题拼接后分段匹配。
   // v14.42.0: new platform segments from live site evidence + hint
   // concatenation semantics (same as orchestrator phasePlatform).
+  // v14.42.8（用户指令：MC 数据模块对齐 Steam 细粒度开关面）：
+  // dataSources.metacritic=false → fetchMetacriticDetails 直接 null（零出站），
+  // 全部消费点（主机/模拟器 phasePlatform、steamMissing 兜底）经既有
+  // "MC 无分"语义优雅降级——开关只做请求闸，不引入新失败形态。
+  test('dataSources.metacritic=false：MC 请求闸（零出站，v14.42.8）', async () => {
+    const { installChromeStorageMock, createStorageMock } = await import('../helpers/storage-mock.mjs');
+    installChromeStorageMock(createStorageMock());
+    const { createFetchMock, installFetchMock } = await import('../helpers/fetch-mock.mjs');
+    const fm = createFetchMock({ '/game/test-game/': '<html>{"ratingValue": 74}</html>' });
+    const restore = installFetchMock(fm);
+    try {
+      const { dataStore } = await import('../../data/data-store.js');
+      const { DB_KEYS } = await import('../../background/core/constants.js');
+      const { resetSettingsCache } = await import('../../background/core/settings.js');
+      await dataStore.writeModule(DB_KEYS.SETTINGS, { dataSources: { metacritic: false } });
+      resetSettingsCache(); // getSettings 带 TTL 缓存——写后失效再读
+      const api = await import('../../background/steam/api-metacritic.js');
+      const details = await api.fetchMetacriticDetails('Test Game');
+      expect(details).toEqual(null);
+      expect(fm._calls.length).toEqual(0); // 关闭 = 零出站
+    } finally {
+      restore();
+    }
+  });
+
   test('v14.42.0 词表扩充：裸 ps/移植p/任天堂段 + 提示词拼接（护栏不回归）', async () => {
     const { detectPlatform } = await import('../../shared/platform-detect.js');
     // 裸 'ps' 段（"PS移植" hint 剥后缀落点；粒度同既有 ss/md/gb/dc）

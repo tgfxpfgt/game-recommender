@@ -168,6 +168,7 @@
  * @property {boolean} [dataSources.gog]
  * @property {boolean} [dataSources.gamerpower]
  * @property {boolean} [dataSources.steam250] - Steam250 排名行（v14.42.3）
+ * @property {boolean} [dataSources.metacritic] - Metacritic 评分（v14.42.8）
  * @property {boolean} [dataSources.itad] - ITAD 最低价/收藏价（v14.42.3）
  * @property {boolean} [dataSources.bing]
  * @property {Object} [steamApiModules] - Steam 数据模块开关（v6.4.19）

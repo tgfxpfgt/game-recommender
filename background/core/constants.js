@@ -349,6 +349,7 @@ export const DEFAULT_SETTINGS = {
     gog: true, // 游戏平台：GOG（限免）
     gamerpower: true, // 聚合源：GamerPower（限免聚合）
     steam250: true, // 评分站：Steam250（详情浮窗游戏排名行，v14.42.3 用户裁决入组）
+    metacritic: true, // 评分站：Metacritic（主机/模拟器/非 Steam PC 游戏评分，v14.42.8 对齐 Steam 细粒度开关面）
     itad: true, // 比价站：ITAD（详情浮窗最低价 + 收藏价监控，v14.42.3 用户裁决入组）
     bing: false // 辅助站：Bing 搜索（appid 匹配兜底）——v10.5.0 改为默认关闭，
     // 开启后会把抓取到的游戏名作为查询发往 cn.bing.com（隐私默认最小化，用户显式开启）
