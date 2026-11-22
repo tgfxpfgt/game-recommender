@@ -17,7 +17,16 @@ export function createFetchMock(handlers) {
     for (const [needle, handler] of Object.entries(handlers)) {
       if (u.includes(needle)) {
         const payload = typeof handler === 'function' ? handler(u) : handler;
-        return { ok: true, json: async () => payload, text: async () => JSON.stringify(payload), status: 200 };
+        // v14.43.0：字符串 payload（HTML 抓取类端点如 Metacritic）按原文返回——
+        // 此前一律 JSON.stringify，HTML fixture 被包成带引号 JSON 串导致解析正则
+        // 永不命中（桩语义：字符串 = 原文响应体，对象 = JSON 响应体）。
+        // v14.43.0: string payloads are raw bodies (HTML endpoints); objects are JSON.
+        return {
+          ok: true,
+          json: async () => payload,
+          text: async () => (typeof payload === 'string' ? payload : JSON.stringify(payload)),
+          status: 200
+        };
       }
     }
     return { ok: false, status: 404, json: async () => ({}), text: async () => '' };

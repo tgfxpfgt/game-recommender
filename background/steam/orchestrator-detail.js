@@ -39,7 +39,9 @@ import {
   lookupAppIdByName,
   recordNameIndex,
   isRecentlySearchedNotFound,
-  deleteNameIndexEntry
+  deleteNameIndexEntry,
+  recordNotFoundMeta, // v14.43.0：notfound→MC 兜底元数据（双管线复用）
+  getNotFoundMeta
 } from '../storage/name-index.js';
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
@@ -48,7 +50,12 @@ import { Logger } from '../storage/logger.js';
 import { detailSteamCacheTtlMs } from '../core/constants.js';
 import { llmMatchGame, webSearchFallback } from './ai-fallback.js'; // v6.4.16/17：规则匹配失败后的匹配兜底
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v9.7.0：网络故障期跳过负缓存
-import { appendRatingHistory, isDemoCacheWithoutRating, resolveDlcToBase } from './orchestrator-shared.js'; // v14.15.0 N1：走势历史
+import {
+  appendRatingHistory,
+  isDemoCacheWithoutRating,
+  resolveDlcToBase,
+  steamMissingResult // v14.43.0：steamMissing 统一构造（铁律 18 双管线单源）
+} from './orchestrator-shared.js'; // v14.15.0 N1：走势历史
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getCompiledRetrievalRules } from '../../shared/retrieval-vocab.js'; // v14.6.3 R1：词表单源
 import { captureMismatchSample } from './mismatch-samples.js'; // v14.8 批次 15：未命中自动采集
@@ -120,6 +127,29 @@ function platformOnlyResult(gameName, tag, mcScore, mcName) {
     description: '',
     reviews: []
   };
+}
+
+// v14.43.0（用户需求：游戏三分类——非 Steam 发售的 PC 游戏标 MC + Steam
+// 未发售）：Steam 管线确认无值（负缓存已写）后的 Metacritic 兜底。EN 段剥
+// 平台词推 slug，单次 MC 请求（详情页单条目预算纪律）；命中即写负缓存
+// meta——列表管线后续经 getNotFoundMeta 直返同形状结果（零新增请求，铁律
+// 18 双管线同源）。MC 无分返回 null（维持 notfound 语义，不空标）。
+// v14.43.0: Metacritic fallback after a confirmed Steam miss; the score is
+// persisted on the negative-cache entry and reused by the list pipeline.
+/**
+ * @param {string} gameName
+ * @param {{[k: string]: any}} [options]
+ * @returns {Promise<Record<string, any>|null>} MC 命中返回 steamMissing 结果；否则 null（维持 notfound）
+ */
+async function trySteamMissingMc(gameName, options = {}) {
+  const enSeg = trimPlatformTokens(extractEnNameSegment(String(options.rawTitle || gameName)));
+  if (!enSeg) return null;
+  const mcScore = await fetchMetacriticScore(enSeg).catch(() => null);
+  if (typeof mcScore !== 'number') return null;
+  const meta = { mcScore, mcName: enSeg };
+  await recordNotFoundMeta(gameName, meta);
+  Logger.info('Steam', 'Steam 未找到 → Metacritic 兜底命中: "' + gameName + '" → MC ' + mcScore);
+  return steamMissingResult(gameName, meta);
 }
 
 /**
@@ -244,6 +274,11 @@ export async function searchSteamGame(gameName, options = {}) {
   } else if (!options.ignoreNegativeCache && (await isRecentlySearchedNotFound(gameName))) {
     // 3. 无 appId 时，检查负缓存（v10.9.2：ignoreNegativeCache 可穿透——详情页
     // 对未命中自动重试一次，历史失败遗留的负缓存不再永久阻断自动匹配）
+    // v14.43.0：负缓存带 MC 兜底元数据 → 直返 steamMissing 结果（评分后续
+    // 访问零请求；穿透负缓存的重试语义不变）
+    // v14.43.0: serve the cached Metacritic supplement without any request.
+    const missMeta = await getNotFoundMeta(gameName);
+    if (missMeta) return steamMissingResult(gameName, missMeta);
     return null;
   }
 
@@ -262,7 +297,7 @@ export async function searchSteamGame(gameName, options = {}) {
     let appIdTrusted = false;
     if (!appId) {
       const flow = await searchAppIdFlow(gameName, options, excludeAppId);
-      if (!flow) return null;
+      if (!flow) return await trySteamMissingMc(gameName, options); // v14.43.0
       appId = flow.appId;
       appIdSource = flow.source;
       appIdTrusted = true;
@@ -285,7 +320,7 @@ export async function searchSteamGame(gameName, options = {}) {
           `相关性护栏: 直取/索引 appId ${appId} ("${view.name}") 与标题 "${gameName}" 不相关，转标题重搜`
         );
         const again = await searchAppIdFlow(gameName, options, excludeAppId);
-        if (!again) return null;
+        if (!again) return await trySteamMissingMc(gameName, options); // v14.43.0
         appId = again.appId;
         appIdSource = again.source;
         // （v14.31.3）原此处重复赋值 appIdTrusted = true——重搜路径后续无读取

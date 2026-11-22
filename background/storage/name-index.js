@@ -12,7 +12,7 @@ import { cleanGameName } from '../core/title-parser.js';
 import { createDebouncedStore } from './debounced-store.js';
 import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败计数
 
-/** @type {Map<string, {appId: string|number|null, lastSearched: number, missCount?: number}>} */
+/** @type {Map<string, {appId: string|number|null, lastSearched: number, missCount?: number, notFoundMeta?: {mcScore: number, mcName: string}}>} */
 let nameIndexMemory = new Map();
 let nameIndexMemoryLoaded = false;
 let nameIndexDirty = false; // 有未落盘的修改（v3.4.1：flush 无变更直接跳过）
@@ -109,6 +109,38 @@ export async function getNegativeCacheCount() {
     if (entry && entry.appId === null && Date.now() - (entry.lastSearched || 0) < 24 * 3600e3) count++;
   }
   return count;
+}
+
+// v14.43.0（用户需求：游戏三分类——非 Steam 发售的 PC 游戏标 MC + Steam 未
+// 发售）：负缓存条目的 MC 补充元数据。详情管线确认 Steam 无此游戏后查
+// Metacritic 命中即写入；列表/详情两管线后续访问经 getNotFoundMeta 直返
+// steamMissing 结果（MC 请求单次有界，元数据复用零新增请求）。
+// v14.43.0: Metacritic supplement on negative-cache entries — fetched once on
+// the detail miss, consumed by BOTH pipelines on later visits (zero extra MC
+// requests; bounded by the detail-page single-call budget).
+/** @param {string} gameName @param {{mcScore: number, mcName: string}} meta */
+export async function recordNotFoundMeta(gameName, meta) {
+  const name = (gameName || '').toLowerCase().trim();
+  if (!name || !meta || typeof meta.mcScore !== 'number' || !Number.isFinite(meta.mcScore)) return;
+  await loadNameIndexToMemory();
+  const prev = nameIndexMemory.get(name);
+  // 只补负缓存条目（appId 非空 = 正缓存，无 notFound 语义可言）
+  if (!prev || (prev.appId !== null && prev.appId !== undefined)) return;
+  nameIndexMemory.set(name, { ...prev, notFoundMeta: { mcScore: meta.mcScore, mcName: String(meta.mcName || '') } });
+  scheduleWrite();
+}
+
+/** @param {string} gameName @returns {Promise<{mcScore: number, mcName: string}|null>} 负缓存期内有效 */
+export async function getNotFoundMeta(gameName) {
+  const name = (gameName || '').toLowerCase().trim();
+  if (!name) return null;
+  await loadNameIndexToMemory();
+  const entry = nameIndexMemory.get(name);
+  if (!entry || (entry.appId !== null && entry.appId !== undefined) || !entry.lastSearched) return null;
+  // 过期负缓存不返回（meta 随条目生命周期走，重查后重写）
+  if (Date.now() - entry.lastSearched >= negativeTtlFor(entry.missCount)) return null;
+  const meta = entry.notFoundMeta;
+  return meta && typeof meta.mcScore === 'number' ? { mcScore: meta.mcScore, mcName: String(meta.mcName || '') } : null;
 }
 
 // v14.16.0 N10：内存条目全量快照（steam 层 series.js 聚合消费；storage 层

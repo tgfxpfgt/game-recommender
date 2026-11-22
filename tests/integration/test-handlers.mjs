@@ -168,6 +168,53 @@ describe('SEARCH_STEAM platformHint 平台预检（v14.42.0）', () => {
   });
 });
 
+// ============ 2c. steamMissing MC 兜底（v14.43.0，用户需求：游戏三分类） ============
+// 非 Steam 发售的 PC 游戏：详情管线确认无值（负缓存写入）→ 单次 Metacritic
+// 兜底 → steamMissing 结果（MC 分 + "Steam 未发售"标签）；元数据落负缓存，
+// 二次访问（含列表管线）零请求直返——铁律 18 双管线同源。
+// v14.43.0: steamMissing regression — detail-side MC fallback after a
+// confirmed miss, then zero-request serving for both pipelines.
+describe('SEARCH_STEAM steamMissing MC 兜底（v14.43.0）', () => {
+  let fetchMock, restoreFetch;
+  beforeAll(() => {
+    fetchMock = createFetchMock({
+      '/api/storesearch': { items: [] },
+      '/api/appdetails': {},
+      '/appreviews': {},
+      '/api/ISteamNews': {},
+      '/game/the-legend-of-dragoon/':
+        '<html><body><script type="application/ld+json">{"ratingValue": 74}</script></body></html>'
+    });
+    restoreFetch = installFetchMock(fetchMock);
+  });
+  afterAll(() => {
+    if (restoreFetch) restoreFetch();
+  });
+
+  test('确认无值 + MC 命中 → steamMissing 结果（appId null + MC 分 + 标签）', async () => {
+    storage._reset();
+    const resp = await handleMessage({
+      action: 'SEARCH_STEAM',
+      gameName: '龙骑士传说/The Legend of Dragoon',
+      rawTitle: '龙骑士传说/The Legend of Dragoon - 某下载站'
+    });
+    expect(resp.data && resp.data.steamMissing).toEqual(true);
+    expect(resp.data && resp.data.appId).toEqual(null);
+    expect(resp.data && resp.data.mcScore).toEqual(74);
+    expect(resp.data && resp.data.platformTag).toEqual('Steam 未发售');
+    expect(fetchMock._calls.some((u) => u.includes('storesearch'))).toEqual(true);
+    expect(fetchMock._calls.some((u) => u.includes('/game/the-legend-of-dragoon/'))).toEqual(true);
+  });
+
+  test('负缓存 meta 直返（二次访问零 storesearch/零 MC 请求）', async () => {
+    const before = fetchMock._calls.length;
+    const resp = await handleMessage({ action: 'SEARCH_STEAM', gameName: '龙骑士传说/The Legend of Dragoon' });
+    expect(resp.data && resp.data.steamMissing).toEqual(true);
+    expect(resp.data && resp.data.mcScore).toEqual(74);
+    expect(fetchMock._calls.length).toEqual(before); // 零新增出站
+  });
+});
+
 // ============ 3. REPORT_WRONG_APPID（纠错接线） ============
 test('报错清除缓存/索引/下载站映射并记录样本', async () => {
   storage._reset();

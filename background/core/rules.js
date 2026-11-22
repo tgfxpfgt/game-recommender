@@ -351,8 +351,47 @@ export async function deleteAdapterRules() {
   return { ok: true };
 }
 
+// v14.43.0（生效规则合并语义升级——用户报告：导入过规则包后新站点适配失效）：
+// 旧语义 `merged = imported || builtin` 是**整包覆盖**——用户只要导入过一次，
+// 内置规则的全部后续演进（选择器/提示词/换域/新字段）永久失效，且无任何
+// 提示（"机制存在 ≠ 功能生效"）。新语义 = 逐站合并：
+// - 导入包与内置同 key 的站点：字段级合并 `{...内置, ...导入}`——导入覆盖
+//   保留用户意图，内置新增字段（listPlatformHints/detailPlatformSelectors/
+//   listItem 演进）自动流入；
+// - 仅导入包有的站点（自定义站点）：原样保留；
+// - 仅内置有的站点：内置生效（导入包缺失的站点不再被冻结）。
+// 合并结果不回写存储（存储里永远是用户的原始导入——编辑器"已导入"页仍所见
+// 即所得；生效视图每次即时合成）。
+// v14.43.0 merge semantics: per-site field-level merge instead of wholesale
+// imported-pack override — built-in rule evolution (selectors/hints/domain
+// moves) now flows through imported packs; user overrides win field-by-field.
+/** @param {{version: number, sites: any[]}|null} imported @param {{version: number, sites: any[]}} builtin @returns {{version: number, sites: any[]}} */
+function mergeRules(builtin, imported) {
+  if (!imported || !Array.isArray(imported.sites) || imported.sites.length === 0) return builtin;
+  if (!Array.isArray(builtin.sites) || builtin.sites.length === 0) return imported;
+  const importedByKey = new Map(
+    imported.sites.filter((/** @type {any} */ s) => s && s.key).map((/** @type {any} */ s) => [s.key, s])
+  );
+  const mergedSites = builtin.sites.map((/** @type {any} */ s) => {
+    // 同 key：字段级合并（导入覆盖内置；内置新增字段自动流入）
+    // Same key: field-level merge — imported wins per field, built-in
+    // additions flow through.
+    const imp = s && importedByKey.get(s.key);
+    return imp ? { ...s, ...imp } : s;
+  });
+  const builtinKeys = new Set(builtin.sites.map((/** @type {any} */ s) => s && s.key));
+  for (const imp of imported.sites) {
+    // 仅导入包有的站点（自定义站）：追加 / imported-only (custom) sites append
+    if (imp && imp.key && !builtinKeys.has(imp.key)) mergedSites.push(imp);
+  }
+  return { version: Math.max(Number(builtin.version) || 1, Number(imported.version) || 1), sites: mergedSites };
+}
+
 // 读取全部规则（编辑器渲染用）：内置 / 已导入 / 生效合并
 // Read all rules for the editor: built-in / imported / effective merged
+// merged 类型放宽为 any：消费方（GET_ADAPTER_RULES handler）会在其上附加
+// retrievalVocab 透传字段——{@type {...}} 精确形状反而挡住该运行时扩展。
+/** @returns {Promise<{builtin: any, imported: any, merged: any}>} */
 export async function getAllRules() {
   const builtin = globalThis.__GAME_RECOMMENDER_SITES__ || { version: 1, sites: [] };
   let imported = null;
@@ -362,7 +401,7 @@ export async function getAllRules() {
   } catch {
     /* 读取失败按无导入处理 */
   }
-  const merged = imported || builtin;
+  const merged = mergeRules(builtin, imported);
   return { builtin, imported, merged };
 }
 

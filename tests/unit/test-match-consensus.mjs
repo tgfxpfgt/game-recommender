@@ -1039,4 +1039,31 @@ describe('双管线一致性门禁（v14.31.0 列表/详情防脱节）', () => 
     expect(sidebarSrc.includes("missErrorType === 'network'")).toBe(true);
     expect(sidebarSrc.includes('/steam-api-unreachable|circuit/i')).toBe(true);
   });
+
+  // ④steamMissing 统一构造单源（v14.43.0，用户需求：非 Steam 发售的 PC 游戏）：
+  // 详情管线 notfound→MC 兜底与列表管线负缓存 meta 直返共用 steamMissingResult
+  // （铁律 18：共享语义先入单源再接两侧）——任一侧绕过单源即红。
+  // MC 兜底只在详情 miss 单次发生（预算纪律）；列表零 MC 请求（消费 meta）。
+  // 有意差异登记（第三项）：MC 兜底抓取仅详情管线接线（列表消费持久化 meta）。
+  test('④steamMissingResult：两管线同构造器（appId null/标签/steamMissing 三字段单源）+ 双侧接线源码守卫', async () => {
+    const { steamMissingResult, STEAM_MISSING_TAG } = await import('../../background/steam/orchestrator-shared.js');
+    const r = steamMissingResult('某游戏', { mcScore: 74, mcName: 'Some Game' });
+    expect(r.steamMissing).toEqual(true);
+    expect(r.appId).toEqual(null);
+    expect(r.platformTag).toEqual(STEAM_MISSING_TAG);
+    expect(r.platformTag).toEqual('Steam 未发售'); // 徽章文案冻结（列表/详情同显）
+    expect(r.mcScore).toEqual(74);
+    // 双侧接线源码守卫：detail 负缓存兜底 + 负缓存直返；list wave-2 miss 直返
+    const fs = await import('node:fs');
+    const detailSrc = fs.readFileSync(
+      new URL('../../background/steam/orchestrator-detail.js', import.meta.url),
+      'utf8'
+    );
+    const listSrc = fs.readFileSync(new URL('../../background/steam/orchestrator-list.js', import.meta.url), 'utf8');
+    expect(detailSrc.includes('steamMissingResult')).toBe(true);
+    expect(listSrc.includes('steamMissingResult')).toBe(true);
+    expect(detailSrc.includes('trySteamMissingMc')).toBe(true); // 详情侧 MC 兜底唯一写入点（recordNotFoundMeta）
+    expect(detailSrc.includes('recordNotFoundMeta')).toBe(true);
+    expect(listSrc.includes('getNotFoundMeta')).toBe(true); // 列表侧消费 meta（零 MC 新请求——steamMissing 路径）
+  });
 });

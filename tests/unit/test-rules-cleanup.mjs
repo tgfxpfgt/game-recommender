@@ -346,3 +346,77 @@ test('缺 features 仍合法（前向兼容）', () => {
   const r = rulesMod.validateAdapterRules({ version: 1, sites: [{ key: 'x', name: 'X', domains: ['x.com'] }] });
   expect(r.ok).toEqual(true);
 });
+
+// ============ v14.43.0：生效规则逐站合并（内置演进穿透导入包） ============
+// 旧语义 `merged = imported || builtin` 整包覆盖——用户导入过一次规则包后，
+// 内置规则全部后续演进（选择器/提示词/换域/新字段）永久失效且无提示
+//（"机制存在 ≠ 功能生效"）。新语义 = 同 key 字段级合并 + 自定义站追加 +
+// 内置独有站保留。回归：test-sites 的规则特征门禁只锁内置文件，此处锁
+// 合并语义本身（放回整包覆盖必须红）。
+// v14.43.0: per-site merge regression — wholesale imported-pack override
+// must stay dead (built-in evolution flows through imported packs).
+test('getAllRules 合并：同 key 字段级合并 + 自定义站追加 + 内置独有站保留', async () => {
+  const { installChromeStorageMock, createStorageMock } = await import('../helpers/storage-mock.mjs');
+  const storage = createStorageMock();
+  installChromeStorageMock(storage);
+  storage._reset();
+  // 内置：两站（xdgame 新字段 + gamer520）；导入包：旧 xdgame（无新字段/覆盖
+  // maxLen）+ 自定义站 custom
+  globalThis.__GAME_RECOMMENDER_SITES__ = {
+    version: 7,
+    sites: [
+      {
+        key: 'xdgame',
+        name: 'XDGame',
+        domains: ['xdgame.com'],
+        listItem: { containers: ['.pl-grid li'], titleLink: 'a.tit, a.pl-title', minLen: 2, maxLen: 200 },
+        listPlatformHints: [{ urlPattern: '/list/2/', hint: '移植' }]
+      },
+      { key: 'gamer520', name: 'Gamer520', domains: ['gamer520.com'] }
+    ]
+  };
+  const { dataStore } = await import('../../data/data-store.js');
+  const { DB_KEYS } = await import('../../background/core/constants.js');
+  await dataStore.writeModule(DB_KEYS.ADAPTER_RULES, {
+    version: 3,
+    sites: [
+      {
+        key: 'xdgame',
+        name: 'XDGame-Old',
+        domains: ['xdgame.com'],
+        listItem: { containers: ['.game-list li'], titleLink: 'a.tit', minLen: 2, maxLen: 100 }
+      },
+      { key: 'custom-site', name: 'Custom', domains: ['example.com'] }
+    ]
+  });
+  const { merged } = await rulesMod.getAllRules();
+  const xd = merged.sites.find((s) => s.key === 'xdgame');
+  // 导入覆盖生效（用户意图字段）
+  expect(xd.name).toEqual('XDGame-Old');
+  expect(xd.listItem.titleLink).toEqual('a.tit');
+  expect(xd.listItem.maxLen).toEqual(100);
+  // 内置新增字段穿透导入包（本批修复的核心语义）
+  expect(JSON.stringify(xd.listPlatformHints)).toEqual(JSON.stringify([{ urlPattern: '/list/2/', hint: '移植' }]));
+  // 内置字段未被导入包部分对象整体替换（listItem 是字段级替换——导入包
+  // 提供了 listItem 则整体用它，containers 恢复内置的职责在重导入/删除导入）
+  expect(xd.listItem.containers).toEqual(['.game-list li']);
+  // 自定义站追加 + 内置独有站保留
+  expect(merged.sites.some((s) => s.key === 'custom-site')).toEqual(true);
+  expect(merged.sites.some((s) => s.key === 'gamer520')).toEqual(true);
+  // 版本取双包最大值
+  expect(merged.version).toEqual(7);
+  // 存储里仍是用户原始导入（合并不回写）
+  const stored = await dataStore.readModule(DB_KEYS.ADAPTER_RULES);
+  expect(stored.sites.length).toEqual(2);
+  globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: [] };
+});
+test('getAllRules 无导入 → merged 即内置', async () => {
+  const { installChromeStorageMock, createStorageMock } = await import('../helpers/storage-mock.mjs');
+  installChromeStorageMock(createStorageMock());
+  const builtin = { version: 5, sites: [{ key: 'x', name: 'X', domains: ['x.com'] }] };
+  globalThis.__GAME_RECOMMENDER_SITES__ = builtin;
+  const { merged, imported } = await rulesMod.getAllRules();
+  expect(imported).toEqual(null);
+  expect(merged).toEqual(builtin);
+  globalThis.__GAME_RECOMMENDER_SITES__ = { version: 1, sites: [] };
+});

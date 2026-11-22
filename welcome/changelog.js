@@ -16,6 +16,17 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.2',
+        date: '2026-11-22',
+        items: [
+          "规则合并（议题治理）：getAllRules 整包覆盖退役——同 key 站点字段级合并（导入覆盖保留意图，内置新字段穿透），自定义站追加/内置独有站保留；修复'导入过规则包后新站点适配永久失效'（用户环境徽章消失的头号嫌疑）",
+          'steamMissing 双管线（用户需求三分类②）：详情确认 Steam 无值→单次 Metacritic 兜底（EN 段推 slug）→MC 分+「Steam 未发售」标签；元数据落负缓存 notFoundMeta，列表管线直返零新增请求；构造单源 orchestrator-shared（铁律 18）',
+          'steamMissing 详情 MC 视图文案分支（区别手动声明语气）；列表徽章零改动复用 gr-mc-badge',
+          '回归：test-rules-cleanup 合并语义 2 例 + test-handlers steamMissing 组 2 例 + test-match-consensus ④单源/接线守卫 + fetch-mock 字符串 payload 语义修正',
+          'playbooks §6c 规则与机制三级分类表（L1 通用/L2 共用机制·站点规则/L3 站点专属）+ 游戏三分类管线语义登记'
+        ]
+      },
+      {
         ver: '14.42.1',
         date: '2026-11-22',
         items: [

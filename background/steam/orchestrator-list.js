@@ -29,7 +29,12 @@ import {
 } from './api.js';
 import { isModuleValid, getMergedData, getSteamCacheEntry, setSteamCacheEntry } from '../storage/steam-cache.js';
 import { recordGameInRegistry } from '../storage/registry.js';
-import { lookupAppIdByName, recordNameIndex, isRecentlySearchedNotFound } from '../storage/name-index.js';
+import {
+  lookupAppIdByName,
+  recordNameIndex,
+  isRecentlySearchedNotFound,
+  getNotFoundMeta
+} from '../storage/name-index.js'; // v14.43.0：notfound MC 元数据（详情兜底写入，列表直返）
 import { lookupWrongReportCorrection } from '../storage/wrong-reports.js';
 import { matchAppListExact } from './app-list-index.js'; // v14.6：全量目录离线索引
 import { getSteamApiStatus } from '../core/api-monitor.js'; // v14.6.2 审查 A2：负缓存网络守卫
@@ -46,7 +51,7 @@ import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0�
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
 import { parseGameTitle, pickRegistryEnName } from '../core/title-parser.js';
 import { Logger } from '../storage/logger.js';
-import { applyCacheHit, isDemoCacheWithoutRating } from './orchestrator-shared.js';
+import { applyCacheHit, isDemoCacheWithoutRating, steamMissingResult } from './orchestrator-shared.js'; // v14.43.0：steamMissing 构造单源（铁律 18）
 // v14.28.7 R4-B2：置信度规则（平台最优先/年份 >1 年才降级/标题相似度主门槛）
 import { attachMatchConfidence, extractTitleYear, yearOfDateString } from './match-confidence.js'; // v14.31.0：字段装配单源（rateMatchConfidence 直调退场）
 import { recordTrace, gameKeyOf } from '../storage/diag-trace.js'; // v14.28.9：运行期诊断轨迹
@@ -578,7 +583,17 @@ export async function getSteamPositiveRate(gameName, options = {}) {
     if (!foundAppId) {
       phase('search');
       const hit = await phaseSearch(gameName, options, corr, usableAppId);
-      if (!hit) return null;
+      if (!hit) {
+        // v14.43.0（用户需求：非 Steam 发售的 PC 游戏）：确认无值后查负缓存
+        // MC 元数据（详情管线兜底时单次写入）——命中直返 steamMissing 徽章
+        //（MC 分 + Steam 未发售标签），与详情页同形状（铁律 18 双管线一致）。
+        // 列表侧零新增 MC 请求（预算纪律：MC 兜底仅发生在详情 miss 单次）。
+        // v14.43.0: serve the cached Metacritic supplement (written once by
+        // the detail pipeline); the list never fetches MC itself.
+        const missMeta = await getNotFoundMeta(gameName);
+        if (missMeta) return steamMissingResult(gameName, missMeta);
+        return null;
+      }
       // v14.28.8：网络/限流故障 ≠ 未找到——显式标记 errorType，内容侧据此渲染
       // 「网络异常·点击重查」而不是「未找到」；noRetry 避免全站不可达时批内
       // 每个条目再陪跑一轮重试（总量有界，用户可点击重查）。

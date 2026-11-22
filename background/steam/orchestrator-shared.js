@@ -16,6 +16,35 @@ import {
 } from './api.js';
 import { Logger } from '../storage/logger.js';
 
+// v14.43.0（用户需求：游戏三分类——非 Steam 发售的 PC 游戏）：steamMissing
+// 统一结果构造（铁律 18 双管线一致——detail 管线 notfound→MC 兜底与 list
+// 管线负缓存 meta 直返共用本单源；platformTag 徽章文案单点）。appId 恒 null
+//（Steam 无条目），mcScore 走列表 gr-mc-badge / 详情 MC 视图既有渲染分支
+//（零渲染面新增，文案经 sidebar-html steamMissing 分支区分"手动声明"）。
+// v14.43.0: shared steamMissing result builder (ironrule-18 single source for
+// both pipelines; reuses the existing MC badge/view render branches).
+export const STEAM_MISSING_TAG = 'Steam 未发售';
+
+/**
+ * @param {string} gameName
+ * @param {{mcScore: number, mcName: string}} meta
+ */
+export function steamMissingResult(gameName, meta) {
+  return {
+    appId: null,
+    name: gameName,
+    steamMissing: true,
+    platformTag: STEAM_MISSING_TAG,
+    mcScore: typeof meta.mcScore === 'number' ? meta.mcScore : null,
+    mcName: meta.mcName || '',
+    genres: [],
+    userTags: [],
+    developers: [],
+    description: '',
+    reviews: []
+  };
+}
+
 // 判断缓存条目是否为"Demo 版且无评测"——需清除并重新搜索完整版（自愈）
 // Whether a cached entry is a "Demo edition without reviews" (needs re-search)
 /** @param {any} cachedData */

@@ -121,6 +121,18 @@ stage + 最近失败类别 + 波次进度 + 缓存命中层）。断网场景判
 
 **坑**：新站点规则**勿写 host/siteKey 判断**（全部走规则字段声明）；xdgame 新旧列表结构共存（首页 `a.tit`、专列页 `a.pl-title`）——titleLink 用逗号组合选择器，容器序短路；导入规则包可能畸形，消费侧逐一防御（坏正则/超长/空值跳过不抛错）。
 
+### 6c. 规则与机制三级分类（v14.42.2 用户指令：分类分级治理）
+
+| 级 | 定义 | 代码归属 | 例 |
+|---|---|---|---|
+| L1 通用 | 所有站点/场景共用的机制与规则 | `shared/*`（platform-detect 词表 / retrieval-vocab / escape / patterns）+ `core/mechanisms` + 故障三态/置信度单源 | 平台识别词表、MC 分级色 mcColorFor、徽章组标记契约 |
+| L2 共用机制·站点规则 | 机制实现单源，站点差异走**声明式规则字段** | 机制 = `content/adapters/builder.js`（提取三策略/提示词合并/标注提取器）；规则 = `adapters/sites/*.js` 字段（listItem/containers/titleLink/listPlatformHints/detailPlatformSelectors/features） | 列表提取（机制一处，六站各自 selectors）、非PC专列页提示（hint 消费机制一处，URL→词各站声明） |
+| L3 站点专属 | 仅单站存在的规则/机制 | 站点规则文件整段字段 + features 开关（inlineSteamCard/gridLayoutDefault/detailMetaVersion） | XDGAME 版本介绍解析、gamer520 内嵌 Steam 卡 |
+
+**铁律**：L2 机制改动必查全部六站规则字段（影响面 = 所有声明该字段的站）；L1 词表改动跑 golden/错题库双门禁；**业务代码禁写 siteKey/host 分支**（差异一律下沉规则字段）。规则包导入语义（v14.42.2）：导入包与内置同 key 站点**字段级合并**（内置演进穿透导入包，导入覆盖保留用户意图），自定义站追加、内置独有站保留——整包覆盖已退役（getAllRules 单源）。
+
+**游戏三分类管线语义（v14.42.2 用户指令）**：①Steam 发售 PC 游戏 → Steam 检索（既有）；②非 Steam 发售 PC 游戏 → 详情页确认无值（负缓存）→ 单次 Metacritic 兜底（EN 段推 slug）→ `steamMissingResult`（MC 分 + 「Steam 未发售」标签），元数据落负缓存 `notFoundMeta`，列表管线直返（零新增 MC 请求，铁律 18 双管线同源单源 = orchestrator-shared.steamMissingResult）；③非 PC（主机/模拟器）→ platform-detect 识别 → 主机 MC 优先 / 模拟器零网络平台标签（既有）。测试：test-handlers steamMissing 组 + test-match-consensus ④组。
+
 ## 7. 发版批次
 
 顺序：`npm run gate`（全量）→ `npm run bump …` → `npm run package` → `npm run release:smoke` → 分步 commit → tag/push → gh release（附 zip+seal）→ 深度扫描。

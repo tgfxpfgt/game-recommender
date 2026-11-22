@@ -200,7 +200,12 @@ export const BUDGETS = {
   // usage-metering batch (clean-stash verified); this batch adds +5,416B SW
   // (vocab + hint contract) and +1.2KB static injection (rule fields, comments
   // minimized). No dead code.
-  swGraphBytes: 995633,
+  // v14.42.2（+8.8KB SW / +0.5KB detail）：steamMissing 三分类管线（负缓存
+  // MC 兜底元数据 + 双管线 steamMissingResult 单源 + 详情/列表接线与双语
+  // 注释）+ 规则逐站合并 mergeRules——均为新增能力，无冗余代码。按实测重锁。
+  // v14.42.2 re-lock: steamMissing pipeline + per-site rules merge (+8.8KB
+  // SW, mostly bilingual docs); no dead code.
+  swGraphBytes: 1004488,
   swGraphFiles: 109,
   staticInjectionBytes: 42266,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
@@ -226,7 +231,7 @@ export const BUDGETS = {
   // 基线漂移（逻辑零变更）——按「预算 = 实测值」口径重锁。
   // v14.42.1 (+16B): bump-text constant drift, zero logic change; re-locked
   // to the measured value.
-  closureBytes: 345237
+  closureBytes: 345751
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

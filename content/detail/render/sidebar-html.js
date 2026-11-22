@@ -72,7 +72,17 @@ export function steamSidebar(data, cachedAt) {
           <span style="padding:3px 10px;font-size:12px;background:rgba(143,152,160,0.15);color:#c7d5e0;border:1px dashed #555;border-radius:3px;">🎮 ${esc(data.platformTag || '主机')}</span>
         </div>
         <div style="font-size:12px;color:#8f98a0;line-height:1.7;margin-bottom:12px;">
-          ${mcScore != null ? `Metacritic 媒体评分（${esc(String(data.mcName || ''))}）——已按你的声明记录为主机游戏，评分长期生效。` : '已按你的声明记录为' + esc(data.platformTag || '主机') + '游戏（Metacritic 暂无该条评分，后续访问自动补查）。'}
+          ${
+            data.steamMissing
+              ? // v14.43.0（用户需求：非 Steam 发售的 PC 游戏）：自动判定文案——
+                // 区别于手动声明的"已按你的声明记录"语气
+                `Steam 未收录该游戏，评分取自 Metacritic 媒体评分${mcScore != null ? `（${esc(String(data.mcName || ''))}）` : ''}。后续该游戏上架 Steam 后重查可自动切换。`
+              : mcScore != null
+                ? `Metacritic 媒体评分（${esc(String(data.mcName || ''))}）——已按你的声明记录为主机游戏，评分长期生效。`
+                : '已按你的声明记录为' +
+                  esc(data.platformTag || '主机') +
+                  '游戏（Metacritic 暂无该条评分，后续访问自动补查）。'
+          }
         </div>
         ${mcSlug ? `<a href="${mcSlug}" target="_blank" rel="noopener" style="font-size:12px;color:#67c1f5;text-decoration:none;">在 Metacritic 查看评价 ↗</a>` : ''}
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
