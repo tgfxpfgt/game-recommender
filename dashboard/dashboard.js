@@ -1,4 +1,4 @@
-/* global loadStats loadRuntimeLogs loadBackups loadOutboundAudit renderOutboundAudit loadTrends loadSteamRecommendations exportLogs clearLogs clearAudit createBackup exportTrendsCsv exportGamesCsv exportInsightsJson exportLogsCsv exportAuditCsv */
+/* global loadStats loadRuntimeLogs loadBackups loadOutboundAudit loadRunSelfCheck renderOutboundAudit loadTrends loadSteamRecommendations exportLogs clearLogs clearAudit createBackup exportTrendsCsv exportGamesCsv exportInsightsJson exportLogsCsv exportAuditCsv */
 /**
  * 游戏雷达 Game Radar - Dashboard 壳 / Dashboard Shell
  *
@@ -56,6 +56,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 出站请求审计 / Outbound audit
   loadOutboundAudit();
+  // v14.42.5：运行自检卡（徽章不显示排查）
+  loadRunSelfCheck();
   document.getElementById('refreshAuditBtn').addEventListener('click', loadOutboundAudit);
   document.getElementById('clearAuditBtn').addEventListener('click', clearAudit);
 

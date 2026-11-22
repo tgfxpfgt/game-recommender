@@ -2,6 +2,10 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.42.6（dashboard 运行自检卡——徽章不显示一键定位（开关态/规则源/后台存活），2026-11-22）
+
+- 诊断页新增🩺运行自检卡：扩展版本 / 总开关 enabled / 徽章可见性 / 跟踪站点名单 / 数据源态 / 导入规则包覆盖提示（含生效 xdgame titleLink 快照）/ SW 存活——任一 ⚠ 即三站无徽章的直接原因（现成消息组装零新契约）
+
 ### v14.42.5（MC 双分显示 + steamMissing 全新 MC 详情卡 + 双失败如实反馈（用户指令三条），2026-11-22）
 
 - MC 双分：api-metacritic 升级 fetchMetacriticDetails 单次抓取（媒体分 ld+json + 用户分 aria-label 锚——global-score-value testid 被媒体分块复用不可用作锚，双页现网取证）；列表徽章双块（MC 媒体分级色 + 用户分蓝紫 mcUserBadge 入 ui-tokens 单源）；主机/模拟器/steamMissing 三路径全透出用户分

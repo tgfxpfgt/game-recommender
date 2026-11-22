@@ -94,6 +94,100 @@ function exportAuditCsv() {
   );
 }
 
+// ============ v14.42.5：运行自检卡（用户反馈：三站徽章不显示排查） ============
+// 任一项 ⚠ 即为列表页无徽章的直接原因：总开关 / 徽章可见性 / 跟踪站点 /
+// 规则导入包覆盖 / 后台存活。全部经现成消息组装（GET_SETTINGS /
+// GET_ADAPTER_RULES；SW 存活由消息成败本身体现），零新契约。
+// Run-self-check card: any ⚠ row is a direct cause of "no badges".
+async function loadRunSelfCheck() {
+  const box = document.getElementById('runSelfCheck');
+  if (!box) return;
+  const P = globalThis.__GR_PREACT__;
+  /** @param {boolean} ok @param {string} text */
+  const row = (ok, text) =>
+    P.h(
+      'div',
+      { class: 'no-data', style: ok ? 'color:#6fa8dc' : 'color:#e6a23c;font-weight:bold' },
+      (ok ? '✓ ' : '⚠ ') + text
+    );
+  /** @type {Array<any>} */
+  const rows = [];
+  let version = '';
+  try {
+    version = chrome.runtime.getManifest().version;
+  } catch {
+    /* 非扩展上下文（测试）忽略 */
+  }
+  rows.push(row(true, '扩展版本: ' + (version || '未知') + '（应与 dist/manifest.json 一致）'));
+  let settings = null;
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_SETTINGS' });
+    settings = resp && resp.settings;
+  } catch {
+    /* SW 不可达 */
+  }
+  if (!settings) {
+    rows.push(
+      row(
+        false,
+        '后台 Service Worker 不可达（GET_SETTINGS 失败）——徽章必然全灭：请在 chrome://extensions 检查 SW 是否报错'
+      )
+    );
+  } else {
+    rows.push(
+      row(settings.enabled !== false, '总开关 enabled = ' + String(settings.enabled) + '（false = 全站功能关闭）')
+    );
+    const bv = settings.badgeVisibility || {};
+    const bvOff = ['all', 'recent', 'update', 'rec', 'appstat', 'score'].filter((k) => bv[k] === false);
+    rows.push(
+      bvOff.length === 0
+        ? row(true, '徽章可见性: 全部开启')
+        : row(false, '徽章可见性关闭: ' + bvOff.join(', ') + '（popup/设置里可重新开启）')
+    );
+    const ts = settings.trackedSites || [];
+    rows.push(
+      ts.length === 0
+        ? row(true, '跟踪站点: 未配置（= 全部下载站生效）')
+        : row(false, '跟踪站点: 仅 [' + ts.join(', ') + '] 生效——名单外站点不出徽章')
+    );
+    const ds = settings.dataSources || {};
+    const dsOff = Object.keys(ds).filter((k) => ds[k] === false);
+    rows.push(
+      dsOff.length === 0
+        ? row(true, '数据源: 全部开启')
+        : row(true, '数据源关闭: ' + dsOff.join(', ') + '（限免/排名/比价行随之停用，不影响好评率徽章）')
+    );
+  }
+  try {
+    const resp = await window.__GR_MSG__.sendMessage({ action: 'GET_ADAPTER_RULES' });
+    const rules = resp && resp.rules;
+    const builtinCount = rules && rules.builtin ? rules.builtin.sites.length : 0;
+    const imported = rules && rules.imported;
+    if (imported && Array.isArray(imported.sites) && imported.sites.length > 0) {
+      const keys = imported.sites.map((/** @type {any} */ s) => s.key).join(', ');
+      rows.push(
+        row(
+          false,
+          '存在导入规则包 v' +
+            imported.version +
+            '（' +
+            keys +
+            '）——v14.42.2 起内置演进已穿透合并；但导入包 listItem 仍按字段覆盖，若为旧包建议在规则管理里删除导入后重试'
+        )
+      );
+      const xd = (rules.merged.sites || []).find((/** @type {any} */ s2) => s2.key === 'xdgame');
+      if (xd && xd.listItem) {
+        rows.push(row(true, '生效 xdgame listItem.titleLink = ' + String(xd.listItem.titleLink)));
+      }
+    } else {
+      rows.push(row(true, '规则: 无导入包（内置规则生效，' + builtinCount + ' 站）'));
+    }
+  } catch (e) {
+    rows.push(row(false, '规则读取失败: ' + window.__GR_MSG__.toUserMessage(e)));
+  }
+  P.render(P.h('div', null, rows), box);
+}
+
 // 清空出站请求审计 / Clear outbound request audit
 async function clearAudit() {
   if (!confirm('确定要清空出站请求审计吗？')) return;

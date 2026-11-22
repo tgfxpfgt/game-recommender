@@ -142,6 +142,17 @@
         <div id="siteHealthList" class="backup-status" style="margin-top: 8px; display: none"></div>
       </div>
 
+      <!-- v14.42.5（用户反馈：三站徽章不显示排查）：运行自检卡——开关态/规则源/徽章可见性一眼定位 -->
+      <div class="backup-status" style="margin-top: 12px">
+        <section class="section">
+          <h2>🩺 运行自检（徽章不显示先看这里）</h2>
+          <p class="section-desc">
+            总开关 / 徽章可见性 / 跟踪站点 / 规则来源 / 后台存活——任一项 ⚠ 即为列表页无徽章的直接原因
+          </p>
+          <div id="runSelfCheck" class="backup-status" style="display: block"><div class="no-data">加载中…</div></div>
+        </section>
+      </div>
+
       <!-- 行为趋势 / Behavior trends (v4.0.0) -->
       <section class="section">
         <h2>📈 行为趋势</h2>
@@ -346,7 +357,7 @@
     <script src="dash-radar.js"></script>
     <script src="dash-backups.js"></script>
     <script src="../shared/preact-globals.js"></script>
-  <script src="dashboard.js"></script>
+    <script src="dashboard.js"></script>
     <script type="module" src="dash-stats.preact.mjs"></script>
   </body>
 </html>
