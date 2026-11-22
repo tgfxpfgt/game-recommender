@@ -16,6 +16,13 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.14',
+        date: '2026-11-23',
+        items: [
+          'dataSources 加 metacritic 键（constants/types/面板「游戏平台与辅助站」区第四处同步）+ api-metacritic 消费守卫——关闭 = 全 MC 请求停（fetchMetacriticDetails 首行闸，各消费点经既有「MC 无分」语义优雅降级，无新失败形态）；MC 请求闸回归用例（零出站断言）'
+        ]
+      },
+      {
         ver: '14.42.13',
         date: '2026-11-23',
         items: [

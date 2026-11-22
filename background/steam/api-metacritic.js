@@ -24,6 +24,7 @@ import { fetchWithTimeout } from '../core/utils.js';
 import { ENDPOINTS, PERF_CONFIG } from '../core/constants.js';
 import { createTtlCache } from '../core/mechanisms.js';
 import { Logger } from '../storage/logger.js';
+import { getSettings } from '../core/settings.js'; // v14.42.8：dataSources.metacritic 开关（与 steam/epic/gog 同语义）
 
 const MC_HIT_TTL_MS = 24 * 3600e3;
 const MC_MISS_TTL_MS = 6 * 3600e3;
@@ -76,6 +77,18 @@ function parseUserScore(html) {
  * @param {string} enName @returns {Promise<McDetails|null>}
  */
 export async function fetchMetacriticDetails(enName) {
+  // v14.42.8（用户指令：MC 数据模块对齐 Steam 细粒度开关面）：dataSources
+  // .metacritic 关闭 = 全 MC 请求停（fetchMetacriticScore 薄封装同源生效），
+  // 各消费点（主机/模拟器 phasePlatform、steamMissing 兜底）按"MC 无分"既有
+  // 语义优雅降级——无新失败形态。
+  // v14.42.8: dataSources.metacritic gate — off stops every MC request; all
+  // consumers degrade via the existing "no score" path.
+  try {
+    const settings = await getSettings();
+    if ((settings.dataSources || {}).metacritic === false) return null;
+  } catch {
+    /* 设置读取失败不阻断（默认开启语义） */
+  }
   const slug = deriveMetacriticSlug(enName);
   if (!slug || slug.length < 3) return null;
   const hit = /** @type {McDetails|undefined} */ (mcCache.peek(slug));
