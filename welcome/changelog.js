@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.7',
+        date: '2026-11-22',
+        items: [
+          'scripts/audit-settings.mjs：DEFAULT_SETTINGS 键 × 代码消费 × 面板 UI 三面交叉审计（--strict 可门禁）——实测 122 键 0 死键 0 假开关，报告落 docs/reports/settings-audit.md（4 个 NO_UI 复核均有合理解释：steamApiKey 历史遗留登记键；关键词过滤三键为 filterRules 回退默认值，语义已被规则列表 UI 覆盖）',
+          '🩺运行自检卡一键修复：总开关一键开启 / 徽章可见性一键全开 / 导入规则包一键删除恢复内置（现成 action，修复后自刷新）'
+        ]
+      },
+      {
         ver: '14.42.6',
         date: '2026-11-22',
         items: [

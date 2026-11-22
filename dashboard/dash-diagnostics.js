@@ -104,12 +104,31 @@ async function loadRunSelfCheck() {
   if (!box) return;
   const P = globalThis.__GR_PREACT__;
   /** @param {boolean} ok @param {string} text */
-  const row = (ok, text) =>
-    P.h(
-      'div',
-      { class: 'no-data', style: ok ? 'color:#6fa8dc' : 'color:#e6a23c;font-weight:bold' },
-      (ok ? '✓ ' : '⚠ ') + text
-    );
+  /** @param {boolean} ok @param {string} text @param {string} [fixLabel] @param {() => Promise<void>} [fixFn] */
+  const row = (ok, text, fixLabel, fixFn) => {
+    const kids = [(ok ? '✓ ' : '⚠ ') + text];
+    if (!ok && fixLabel && fixFn) {
+      kids.push(
+        P.h(
+          'button',
+          {
+            class: 'gr-btn',
+            style: 'padding:1px 8px;font-size:10px;margin-left:8px',
+            onClick: async () => {
+              try {
+                await fixFn();
+              } catch (e) {
+                console.error('自检修复失败:', e);
+              }
+              loadRunSelfCheck();
+            }
+          },
+          fixLabel
+        )
+      );
+    }
+    return P.h('div', { class: 'no-data', style: ok ? 'color:#6fa8dc' : 'color:#e6a23c;font-weight:bold' }, kids);
+  };
   /** @type {Array<any>} */
   const rows = [];
   let version = '';
@@ -135,14 +154,28 @@ async function loadRunSelfCheck() {
     );
   } else {
     rows.push(
-      row(settings.enabled !== false, '总开关 enabled = ' + String(settings.enabled) + '（false = 全站功能关闭）')
+      row(
+        settings.enabled !== false,
+        '总开关 enabled = ' + String(settings.enabled) + '（false = 全站功能关闭）',
+        '一键开启',
+        async () => {
+          await window.__GR_MSG__.sendMessage({ action: 'SAVE_SETTINGS', settings: { enabled: true } });
+        }
+      )
     );
     const bv = settings.badgeVisibility || {};
     const bvOff = ['all', 'recent', 'update', 'rec', 'appstat', 'score'].filter((k) => bv[k] === false);
     rows.push(
       bvOff.length === 0
         ? row(true, '徽章可见性: 全部开启')
-        : row(false, '徽章可见性关闭: ' + bvOff.join(', ') + '（popup/设置里可重新开启）')
+        : row(false, '徽章可见性关闭: ' + bvOff.join(', ') + '（popup/设置里可重新开启）', '一键全开', async () => {
+            await window.__GR_MSG__.sendMessage({
+              action: 'SAVE_SETTINGS',
+              settings: {
+                badgeVisibility: { recent: true, all: true, update: true, rec: true, appstat: true, score: true }
+              }
+            });
+          })
     );
     const ts = settings.trackedSites || [];
     // v14.42.6：名单非空 = 白名单语义（名单内站点才有徽章）——默认名单本就
@@ -174,7 +207,11 @@ async function loadRunSelfCheck() {
             imported.version +
             '（' +
             keys +
-            '）——v14.42.2 起内置演进已穿透合并；但导入包 listItem 仍按字段覆盖，若为旧包建议在规则管理里删除导入后重试'
+            '）——v14.42.2 起内置演进已穿透合并；但导入包 listItem 仍按字段覆盖，旧包会让站点适配停在过去',
+          '删除导入恢复内置',
+          async () => {
+            await window.__GR_MSG__.sendMessage({ action: 'DELETE_ADAPTER_RULES' });
+          }
         )
       );
       const xd = (rules.merged.sites || []).find((/** @type {any} */ s2) => s2.key === 'xdgame');
