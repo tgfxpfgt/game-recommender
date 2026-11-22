@@ -435,10 +435,13 @@ export function createSteamFloat(gameName, settings) {
     // steamData 可能被重检索改写，读旧值保持与静态导入时代一致的语义）
     const appIdStr = String(data.appId);
     const releaseDate = (steamData && steamData.releaseDate) || '';
+    // v14.42.3（用户裁决）：steam250/itad 入 dataSources 数据源组——关闭即
+    // 不填充对应行（抓取与显示一并关停，与 epic/gog 开关同语义）
+    const ds = (settings && settings.dataSources) || {};
     loadSidebarRows()
       .then((rows) => {
-        rows.fillSteam250Info(appIdStr);
-        rows.fillItadAndFavorites(appIdStr, name, releaseDate);
+        if (ds.steam250 !== false) rows.fillSteam250Info(appIdStr);
+        if (ds.itad !== false) rows.fillItadAndFavorites(appIdStr, name, releaseDate);
         rows.fillSeriesInfo(appIdStr, name); // v14.16.0 N10：系列作品行
       })
       .catch((e) => dbg('浮窗行填充模块加载失败: ' + String(e)));

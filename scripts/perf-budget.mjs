@@ -205,7 +205,7 @@ export const BUDGETS = {
   // 注释）+ 规则逐站合并 mergeRules——均为新增能力，无冗余代码。按实测重锁。
   // v14.42.2 re-lock: steamMissing pipeline + per-site rules merge (+8.8KB
   // SW, mostly bilingual docs); no dead code.
-  swGraphBytes: 1004488,
+  swGraphBytes: 1005518,
   swGraphFiles: 109,
   staticInjectionBytes: 42266,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
@@ -231,7 +231,7 @@ export const BUDGETS = {
   // 基线漂移（逻辑零变更）——按「预算 = 实测值」口径重锁。
   // v14.42.1 (+16B): bump-text constant drift, zero logic change; re-locked
   // to the measured value.
-  closureBytes: 345751
+  closureBytes: 346042
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

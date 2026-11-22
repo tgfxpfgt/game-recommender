@@ -115,6 +115,8 @@
       ['epic', 'Epic Games 官方', '限免（官方接口）'],
       ['gog', 'GOG', '限免'],
       ['gamerpower', 'GamerPower 聚合', '限免聚合（Steam/GOG 主源）'],
+      ['steam250', 'Steam250', '评分站：详情浮窗游戏排名行'],
+      ['itad', 'ITAD 比价', '详情浮窗最低价 + 收藏价监控'],
       ['bing', 'Bing 搜索', '辅助：appid 匹配兜底']
     ];
     const PP = P();

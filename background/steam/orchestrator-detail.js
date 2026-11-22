@@ -186,7 +186,10 @@ async function phaseDetailPlatform(gameName, options = {}) {
   const hint = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
   const plat = detectPlatform(hint ? `${gameName}|${hint}` : gameName);
   if (plat.kind === 'pc') return null;
-  if (plat.kind === 'emulator') return platformOnlyResult(gameName, plat.tag, null, null);
+  // v14.42.3（用户裁决）：模拟器条目与主机共用 MC 路径——精确 slug、单次
+  // 尝试、miss 如实（MC — 平台标签），不做模糊凑数。零网络早退退役。
+  // v14.42.3 (user-ruled): emulator shares the console MC path — exact slug,
+  // single attempt, honest miss. Zero-network shortcut retired.
   // 主机条目：Metacritic 优先（EN 段剥平台词后推 slug；预算 = 单次，与列表
   // phasePlatform 一致——详情页访问语义是单条目，无需批量预算对象）
   const enSeg = trimPlatformTokens(extractEnNameSegment(gameName));

@@ -614,6 +614,20 @@ describe('v14.17.0 任务治理：硬截止 + 死 tab 中止', () => {
   });
 
   test('v14.18.0：分类页平台提示——无标记标题经 platformHint 命中模拟器分支', async () => {
+    // v14.42.3：模拟器条目接 MC 兜底后本用例不再零网络——本 describe 无
+    // fetch mock 作用域（用例级装卸惯例），MC 404 = 确认无值 + 无分 → 如实
+    // 落「模拟器」平台标签（platformOnly 形状，不凑数）。此前裸奔时曾真网
+    // 穿透（PLA 真实 MC 83 改写返回形状致红——假绿风险的活案例）。
+    const prevFetchE2E = globalThis.fetch;
+    globalThis.fetch = createFetchMock({ '/api/storesearch': { items: [] }, 'metacritic.com': { ok: false } });
+    try {
+      await runEmuHintCase();
+    } finally {
+      globalThis.fetch = prevFetchE2E;
+    }
+  });
+
+  async function runEmuHintCase() {
     await waitForIdle();
     storage._reset();
     pushed.length = 0;
@@ -642,5 +656,5 @@ describe('v14.17.0 任务治理：硬截止 + 死 tab 中止', () => {
     expect(r && r.platformOnly).toBe(true);
     expect(r && r.platformTag).toEqual('模拟器');
     expect(!!pushed.find((p) => p.msg.done)).toEqual(true);
-  });
+  }
 });

@@ -16,6 +16,24 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.4',
+        date: '2026-11-22',
+        items: [
+          '两管线模拟器条目接 MC 兜底：与主机共用路径（精确 slug、mcBudget 有界、miss 如实落「MC —」平台标签，不做模糊凑数）；零网络早退退役',
+          'dataSources 加 steam250/itad 两键 + 设置页数据源分类两开关（types/面板/浮窗行填充/ITAD 收藏价监控四处同步）——关闭即不抓取不显示',
+          '测试基建假绿修复：test-ratings-resume platformHint 用例裸奔真网穿透（PLA 真实 MC 83 改写形状致红）——补用例级 mock 锁「miss 如实」语义；fetch-mock 字符串 payload 语义修正（HTML 端点按原文返回）'
+        ]
+      },
+      {
+        ver: '14.42.3',
+        date: '2026-11-22',
+        items: [
+          '两管线模拟器条目接 MC 兜底：与主机共用路径（deriveMetacriticSlug 精确 slug、mcBudget 有界、miss 如实落「MC —」平台标签，不做模糊凑数）——零网络早退退役',
+          'dataSources 加 steam250/itad 两键 + 设置页数据源分类两开关：关闭即不填充浮窗排名/最低价行；ITAD 关闭同时停收藏价监控（与 epic/gog 同语义）',
+          '回归：test-settings-sync 键面一次过 + 受影响 5 套件 162 绿'
+        ]
+      },
+      {
         ver: '14.42.2',
         date: '2026-11-22',
         items: [

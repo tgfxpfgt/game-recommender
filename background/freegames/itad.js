@@ -172,6 +172,9 @@ async function fetchFavoriteCurrentPrice(appId, apiKey) {
 export async function watchFavoritePrices() {
   const settings = await getSettings();
   if (settings.favoritePriceWatch === false) return { skipped: true, notified: 0 };
+  // v14.42.3（用户裁决）：itad 入 dataSources 数据源组——关闭即停收藏价
+  // 监控（抓取与提醒一并关停，与 epic/gog 开关同语义）
+  if ((settings.dataSources || {}).itad === false) return { skipped: true, notified: 0 };
   const apiKey = activeItadKey(settings);
   if (!apiKey) return { skipped: true, notified: 0 }; // 无 Key 零请求
   /** @type {Record<string, any>} */

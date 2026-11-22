@@ -305,9 +305,11 @@ async function phasePlatform(gameName, /** @type {RatingOptions} */ options) {
   const hint = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
   const plat = detectPlatform(hint ? `${gameName}|${hint}` : gameName);
   if (plat.kind === 'pc') return null;
-  if (plat.kind === 'emulator') {
-    return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
-  }
+  // v14.42.3（用户裁决）：模拟器条目同样接 MC 兜底——与主机共用下方路径
+  //（deriveMetacriticSlug 精确 slug 匹配、mcBudget 有界、miss 如实落平台
+  // 标签「MC —」不做模糊凑数）。旧版模拟器零网络早退退役。
+  // v14.42.3 (user-ruled): emulator entries share the MC path below — exact
+  // slug, budgeted, honest miss (platform tag, no fuzzy filler).
   const enSeg = trimPlatformTokens(extractEnNameSegment(gameName));
   // v14.17.0：EN 段先剥尾部平台/模拟器/格式词再推导 slug——"The Legend of
   // Zelda TotK NSP/Ryujinx"类"英文名+平台标记"标题不剥离则 slug 必 404。
