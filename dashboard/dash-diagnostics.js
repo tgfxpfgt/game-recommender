@@ -145,10 +145,12 @@ async function loadRunSelfCheck() {
         : row(false, '徽章可见性关闭: ' + bvOff.join(', ') + '（popup/设置里可重新开启）')
     );
     const ts = settings.trackedSites || [];
+    // v14.42.6：名单非空 = 白名单语义（名单内站点才有徽章）——默认名单本就
+    // 含主站（非异常），仅提示用户核对"正在浏览的站点是否在名单内"
     rows.push(
       ts.length === 0
         ? row(true, '跟踪站点: 未配置（= 全部下载站生效）')
-        : row(false, '跟踪站点: 仅 [' + ts.join(', ') + '] 生效——名单外站点不出徽章')
+        : row(true, '跟踪站点白名单: [' + ts.join(', ') + ']——正在浏览的站点须在名单内才出徽章')
     );
     const ds = settings.dataSources || {};
     const dsOff = Object.keys(ds).filter((k) => ds[k] === false);
