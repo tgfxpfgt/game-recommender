@@ -230,6 +230,22 @@ async function loadRunSelfCheck() {
         : row(true, '数据源关闭: ' + dsOff.join(', ') + '（限免/排名/比价行随之停用，不影响好评率徽章）')
     );
   }
+  // v14.42.8（用户报告线索：welcome 更新日志为空 = 走 install 分支 =
+  // extLastInjectedVersion 缺失 = 内容脚本从未成功注入——与零徽章同根因）
+  try {
+    const inj = await chrome.storage.local.get('extLastInjectedVersion');
+    const injVer = inj && inj.extLastInjectedVersion;
+    rows.push(
+      injVer
+        ? row(true, '内容脚本注入记录: v' + injVer + '（内容管线曾成功运行）')
+        : row(
+            false,
+            '内容脚本从未成功注入（无注入版本记录）——若你曾在名单内站点浏览过，说明注入被阻断（站点策略/其他扩展冲突），或白名单从未覆盖你浏览的站点'
+          )
+    );
+  } catch {
+    /* storage 不可用时跳过（不影响其余行） */
+  }
   try {
     const builtinCount = rules && rules.builtin ? rules.builtin.sites.length : 0;
     const imported = rules && rules.imported;

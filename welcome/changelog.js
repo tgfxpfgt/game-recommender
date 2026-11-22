@@ -16,6 +16,14 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.9',
+        date: '2026-11-22',
+        items: [
+          'welcome 页 changelog 区块移出 updateSection 常显——此前 install 分支（手动打开/引导页）整区 hidden，「空日志」实为区块未渲染而非数据缺失',
+          'dashboard 自检卡新增注入记录行：extLastInjectedVersion = 内容脚本注入成功的持久证明，缺失 = 内容管线从未运行（与零徽章同根因的强信号）——直击用户环境与探针环境的分叉面'
+        ]
+      },
+      {
         ver: '14.42.8',
         date: '2026-11-22',
         items: [

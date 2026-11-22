@@ -21,7 +21,7 @@
   const source = new URLSearchParams(location.search).get('source') || 'install';
   const isUpdate = source === 'update';
   document.getElementById('installSection').classList.toggle('hidden', isUpdate);
-  document.getElementById('updateSection').classList.toggle('hidden', !isUpdate);
+  // v14.42.8：updateSection 常显（changelog 移出该区），此行退役
   document.getElementById('welcomeSubtitle').textContent = isUpdate
     ? '已更新到新版本，看看有什么新变化'
     : '下载站好游戏，一眼看穿';
@@ -29,7 +29,10 @@
   // ============ v14.6.1：更新记录动态渲染（welcome/changelog.js 单源） ============
   // 当前版本条目置顶高亮 + 最近 3 版列表 + 完整记录外链；数据文件缺失时
   // 退化为外链提示（不阻塞页面）
-  if (isUpdate) {
+  // v14.42.8（用户报告：重新加载后版本更新日志为空）：install 分支此前
+  // 不渲染更新记录——用户手动打开/引导页看到的是"空日志"，误判为数据缺失。
+  // 改为有数据即渲染（install 时标题文案为"版本记录"），update 语义不变。
+  {
     /** @type {{versions?: Array<{ver: string, date?: string, items: string[]}>, releasesUrl?: string}} */
     const cl = /** @type {any} */ (globalThis).__GR_CHANGELOG__ || {};
     const box = document.getElementById('changelogList');

@@ -96,7 +96,9 @@
       </section>
 
       <!-- v14.6.1：更新记录由 changelog.js 数据动态渲染（原 v7.4.0 硬编码已删） -->
-      <section id="updateSection" class="welcome-section hidden">
+      <!-- v14.42.8：changelog 区块移出 updateSection 常显——此前 install 分支
+           （手动打开/首次引导）整区 hidden，用户看到空日志实为区块未渲染 -->
+      <section id="updateSection" class="welcome-section">
         <h2>版本更新记录</h2>
         <div id="changelogList"></div>
         <p style="margin-top: 10px">
@@ -113,7 +115,7 @@
     <script src="../shared/settings-utils.js"></script>
     <script src="changelog.js"></script>
     <script src="../shared/preact-globals.js"></script>
-  <script src="welcome.js"></script>
+    <script src="welcome.js"></script>
     <script type="module" src="welcome-status.preact.mjs"></script>
   </body>
 </html>
