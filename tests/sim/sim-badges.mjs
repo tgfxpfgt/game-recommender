@@ -310,3 +310,38 @@ simTest('8e. 未找到徽章点击重试（RETRY_GAME_LOOKUP → 就地重渲染
   const allBadge = badgeKids(itemH.a).find(isAllBadge);
   expect(allBadge.textContent).toEqual('✓ 88%'); // v7.4.0：色盲友好 ✓ 前缀（≥80）
 });
+
+// ============ v14.43.0：徽章独立行 + 格子缩放（用户指令 2026-11-23） ============
+// 徽章占标题上方独立一行（.gr-badge-row），标题文本节点保持原版不被拆混；
+// 格子 zoom=150%，文字块反向补偿使有效缩放=100%。
+simTest('8f. 徽章独立行 + 标题行原样 + 格子缩放/文字补偿', async () => {
+  const GR = getGR();
+  presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
+  const itemS = makeItem('缩放游戏', 77);
+  documentMock.body.appendChild(itemS.li);
+  setQueryStubs((sel) => (sel === 'li.game-item' ? [itemS.li] : []));
+  presets['GET_STEAM_RATINGS'] = () => ({
+    ratings: { 缩放游戏: { appId: '444', positiveRate: 90, ratingDesc: '特别好评' } },
+    pending: 0
+  });
+  presets['GET_RECOMMENDATIONS'] = () => ({ results: [] });
+  const adapterS = GR.builder.getAdapter();
+  const itemsS = GR.list.getListItemsSmart(adapterS);
+  GR.list.trackListView(adapterS, itemsS, DEFAULT_SETTINGS);
+  await waitForSignal(() => badgeKids(itemS.a).some(isAllBadge), '8f: 评分徽章');
+  // 徽章全部在独立行内，标题 link 的直接子元素里没有任何徽章
+  const row = itemS.a.querySelector('.gr-badge-row');
+  expect(!!row).toEqual(true);
+  expect(badgeKids(itemS.a).length).toBeGreaterThan(0);
+  expect(Array.from(itemS.a.children)).toEqual([row]); // 标题 link 直接子元素 = 仅徽章行
+  // 标题文本节点原样保留（未被拆散/改写），行在其前方
+  const texts = Array.from(itemS.a.childNodes)
+    .filter((n) => n.nodeType === 3)
+    .map((n) => n.textContent);
+  expect(texts).toEqual(['缩放游戏']);
+  expect(itemS.a.firstChild).toBe(row); // 行在标题文本之前（标题仍在原位）
+  // 格子 150%、文字块补偿 1/1.5（有效 = 100%）
+  expect(parseFloat(itemS.li.style.zoom)).toBeCloseTo(1.5, 3);
+  expect(parseFloat(itemS.a.style.zoom)).toBeCloseTo(1 / 1.5, 3);
+  expect(parseFloat(itemS.li.style.zoom) * parseFloat(itemS.a.style.zoom)).toBeCloseTo(1, 3);
+});
