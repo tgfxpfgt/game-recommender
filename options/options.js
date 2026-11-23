@@ -200,6 +200,8 @@
       'detailFloatExpanded',
       'detailFloatSide',
       'redTitleRating',
+      'listCellScale',
+      'listTextScale',
       'enabled',
       'maxLog'
     ];
@@ -331,6 +333,13 @@
     OPTS.currentSettings.appStatDetailViewCap = intVal('appStatDetailViewCap') || 100;
     // 列表页链接扫描上限（v3.3.9）
     OPTS.currentSettings.maxScanLinks = intVal('maxScanLinks') || 500;
+    // v14.43.0：列表页格子/文字缩放（50-300 越界回默认；漏映射 = 全量保存抹掉用户值）
+    const cellScaleRaw = intVal('listCellScale');
+    OPTS.currentSettings.listCellScale =
+      Number.isInteger(cellScaleRaw) && cellScaleRaw >= 50 && cellScaleRaw <= 300 ? cellScaleRaw : 150;
+    const textScaleRaw = intVal('listTextScale');
+    OPTS.currentSettings.listTextScale =
+      Number.isInteger(textScaleRaw) && textScaleRaw >= 50 && textScaleRaw <= 300 ? textScaleRaw : 100;
     // v10.7.0 批次5：评分批次大小（10-200 越界回默认）/ 二维码图片上限 KB
     const batchRaw = intVal('ratingsBatchSize');
     OPTS.currentSettings.ratingsBatchSize =

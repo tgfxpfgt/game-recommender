@@ -142,6 +142,8 @@
  * @property {number} [appStatDetailViewCap] - b 对数封顶（v10.3.0）
  * @property {boolean} showStatusBar
  * @property {number} maxScanLinks
+ * @property {number} [listCellScale] - 列表页游戏格子缩放 %（50-300，默认 150；v14.43.0）
+ * @property {number} [listTextScale] - 列表页文字块缩放 %（50-300，默认 100，独立于格子；v14.43.0）
  * @property {Array<string>} trackedSites - 追踪下载站域名
  * @property {Array<string>} steamSiteSearch - Steam 详情页检索的下载站
  * @property {boolean} [useLLM] - 是否启用 LLM 评分

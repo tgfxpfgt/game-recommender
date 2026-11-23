@@ -32,6 +32,19 @@ import {
   MODULE_KEYS
 } from './sim-harness.mjs';
 
+// v14.43.0：徽章行迁移——徽章挂在标题上方 .gr-badge-row 内（badge-base
+// ensureBadgeRow），不再直接挂在标题/link 直子。条目徽章断言统一经本助手
+// 取行内子元素（旧直子断言在行迁移后恒空 → 信号超时假红）。
+// Badge-row migration: item badge assertions go through the row's children.
+function badgeKids(/** @type {any} */ anchor) {
+  if (!anchor) return [];
+  const row = anchor.querySelector ? anchor.querySelector('.gr-badge-row') : null;
+  if (row) return Array.from(row.children || []);
+  const sib = anchor.previousElementSibling; // 档①：行是标题前一兄弟
+  if (sib && sib.classList && sib.classList.contains('gr-badge-row')) return Array.from(sib.children || []);
+  return Array.from(anchor.children || []);
+}
+
 // v6.2.0：跨节共享 DOM 变量（节 2 赋值，节 3/6/7 读取——仅本文件内状态机）
 let itemA = null,
   itemB = null,
@@ -118,41 +131,41 @@ simTest(
 
     // 触发 DOMContentLoaded → init（warmup 已 resolve）
     fireDomReady();
-    await waitForSignal(() => itemA.a.children.length > 0, '节2: 游戏A 好评率徽章（缓存命中首波）');
+    await waitForSignal(() => badgeKids(itemA.a).length > 0, '节2: 游戏A 好评率徽章（缓存命中首波）');
     // v14 B6：此处**不可**等批次空闲——本节设计就是 pending:2 等推送（job 保持
     // 开放），waitForBatchIdle 只会空烧 30s 超时并在负载下与 45s 强制收尾竞态
     //（推送被 finishRatings 后的守卫丢弃 = 节 2/2b 偶发失败的根源）
 
-    expect(itemA.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
+    expect(badgeKids(itemA.a).some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
     expect(
-      itemB.a.children.some((c) => c.className.includes('gr-rating-badge')) ||
-        itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))
+      badgeKids(itemB.a).some((c) => c.className.includes('gr-rating-badge')) ||
+        badgeKids(itemC.a).some((c) => c.className.includes('gr-rating-badge'))
     ).toEqual(false);
 
     // 推荐值徽章（GET_RECOMMENDATIONS 响应后插入，好评率徽章之后）——轮询等待
-    await waitForSignal(() => itemA.a.children.length >= 4, '节2: 游戏A 徽章组齐（推送更新后）');
+    await waitForSignal(() => badgeKids(itemA.a).length >= 4, '节2: 游戏A 徽章组齐（推送更新后）');
     // v3.3.6 三段式徽章：近30天 → 全部 → 最近更新（游戏A 无 recent/lastUpdate 数据）
     // v10.4.3：a-b 徽章（0-0 灰）对所有已解析 appId 的游戏渲染 → 4+1
-    expect(itemA.a.children.length).toEqual(5);
+    expect(badgeKids(itemA.a).length).toEqual(5);
     expect(
-      itemA.a.children[0].className.includes('gr-badge-recent') && itemA.a.children[0].textContent === '—'
+      badgeKids(itemA.a)[0].className.includes('gr-badge-recent') && badgeKids(itemA.a)[0].textContent === '—'
     ).toEqual(true);
     expect(
-      itemA.a.children[1].className.includes('gr-rating-badge') && itemA.a.children[1].textContent === '✓ 95%'
+      badgeKids(itemA.a)[1].className.includes('gr-rating-badge') && badgeKids(itemA.a)[1].textContent === '✓ 95%'
     ).toEqual(true);
     expect(
-      itemA.a.children[2].className.includes('gr-badge-update') && itemA.a.children[2].textContent === '—'
+      badgeKids(itemA.a)[2].className.includes('gr-badge-update') && badgeKids(itemA.a)[2].textContent === '—'
     ).toEqual(true);
     // v10.4.3：a-b 徽章（0-0 灰）插在更新徽章与推荐徽章之间
-    expect(itemA.a.children[3].className.includes('gr-badge-appstat')).toEqual(true);
-    expect(itemA.a.children[3].textContent).toEqual('0-0');
-    expect(itemA.a.children[4].className.includes('gr-rec-badge')).toEqual(true);
+    expect(badgeKids(itemA.a)[3].className.includes('gr-badge-appstat')).toEqual(true);
+    expect(badgeKids(itemA.a)[3].textContent).toEqual('0-0');
+    expect(badgeKids(itemA.a)[4].className.includes('gr-rec-badge')).toEqual(true);
     // 真实 DOM textContent 聚合子元素（✕ 不感兴趣按钮在徽章内）——startsWith 保推荐值语义
-    expect(itemA.a.children[4].textContent.startsWith('🎯 85%')).toEqual(true);
+    expect(badgeKids(itemA.a)[4].textContent.startsWith('🎯 85%')).toEqual(true);
     expect(
-      itemA.a.children[4].title.includes('点击率') &&
-        itemA.a.children[4].title.includes('下载率') &&
-        itemA.a.children[4].title.includes('Steam')
+      badgeKids(itemA.a)[4].title.includes('点击率') &&
+        badgeKids(itemA.a)[4].title.includes('下载率') &&
+        badgeKids(itemA.a)[4].title.includes('Steam')
     ).toEqual(true);
 
     // 后台推送第 1 波增量：游戏B 拉取完成（含近30天/最近更新数据） / background push wave 1
@@ -185,14 +198,14 @@ simTest(
     // 文件连跑无关）。游戏B 工作徽章（⏳ 等待检索）= job 开放的可见信号——
     // 推送前置等待，与节 1 等 bootPromise 同纪律（v14.5.0 B8 同源修正）。
     await waitForSignal(
-      () => itemB.a.children.some((c) => c.className.includes('gr-working-badge')),
+      () => badgeKids(itemB.a).some((c) => c.className.includes('gr-working-badge')),
       '节2: 游戏B 工作徽章（job 开放，推送可路由）'
     );
     for (let attempt = 0; attempt < 2 && !wave1Done; attempt++) {
       try {
         await pushWave1();
         await waitForSignal(
-          () => itemB.a.children.some((c) => c.className.includes('gr-rating-badge')),
+          () => badgeKids(itemB.a).some((c) => c.className.includes('gr-rating-badge')),
           '节2: 游戏B 好评率徽章（STEAM_RATINGS_UPDATE 推送后）'
         );
         wave1Done = true;
@@ -201,29 +214,29 @@ simTest(
       }
     }
 
-    expect(itemB.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
-    expect(itemC.a.children.some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);
+    expect(badgeKids(itemB.a).some((c) => c.className.includes('gr-rating-badge'))).toEqual(true);
+    expect(badgeKids(itemC.a).some((c) => c.className.includes('gr-rating-badge'))).toEqual(false);
     // v3.3.6：游戏B 三段徽章（近30天 55% / 全部 60% / 更新 08-01）+
     // v10.5.3 段0 综合评分（⭐ 5.8 = 修正口碑 58.5 ÷ 10；旧缓存无
     // positiveReviews 字段 → 按整数好评率回退 positive = 60% × 500 = 300）
     expect(
-      itemB.a.children[0].className.includes('gr-score-badge') && itemB.a.children[0].textContent === '⭐ 5.8'
+      badgeKids(itemB.a)[0].className.includes('gr-score-badge') && badgeKids(itemB.a)[0].textContent === '⭐ 5.8'
     ).toEqual(true);
     expect(
-      itemB.a.children[0].title.includes('综合评分 5.8/10') && itemB.a.children[0].title.includes('修正口碑 58.5%')
+      badgeKids(itemB.a)[0].title.includes('综合评分 5.8/10') && badgeKids(itemB.a)[0].title.includes('修正口碑 58.5%')
     ).toEqual(true);
     expect(
-      itemB.a.children[1].className.includes('gr-badge-recent') && itemB.a.children[1].textContent === '55%'
+      badgeKids(itemB.a)[1].className.includes('gr-badge-recent') && badgeKids(itemB.a)[1].textContent === '55%'
     ).toEqual(true);
-    expect(itemB.a.children[1].title.includes('55%') && itemB.a.children[1].title.includes('120')).toEqual(true);
+    expect(badgeKids(itemB.a)[1].title.includes('55%') && badgeKids(itemB.a)[1].title.includes('120')).toEqual(true);
     expect(
-      itemB.a.children[2].className.includes('gr-rating-badge') && itemB.a.children[2].textContent === '▲ 60%'
-    ).toEqual(true);
-    expect(
-      itemB.a.children[3].className.includes('gr-badge-update') && itemB.a.children[3].textContent === '🛠 08-01'
+      badgeKids(itemB.a)[2].className.includes('gr-rating-badge') && badgeKids(itemB.a)[2].textContent === '▲ 60%'
     ).toEqual(true);
     expect(
-      itemB.a.children[3].title.includes('2026-08-01') && itemB.a.children[3].title.includes('2025-03-30')
+      badgeKids(itemB.a)[3].className.includes('gr-badge-update') && badgeKids(itemB.a)[3].textContent === '🛠 08-01'
+    ).toEqual(true);
+    expect(
+      badgeKids(itemB.a)[3].title.includes('2026-08-01') && badgeKids(itemB.a)[3].title.includes('2025-03-30')
     ).toEqual(true);
 
     // 后台推送第 2 波增量：游戏C 为合集（bundle，无法解析本体）→ type 徽章 + done 收尾
@@ -237,11 +250,11 @@ simTest(
       () => {}
     );
 
-    expect(itemC.a.children.some((c) => c.className.includes('gr-badge-type'))).toEqual(true);
-    expect(itemC.a.children[0].className ? itemC.a.children[0].className.includes('gr-badge-type') : false).toEqual(
+    expect(badgeKids(itemC.a).some((c) => c.className.includes('gr-badge-type'))).toEqual(true);
+    expect(badgeKids(itemC.a)[0].className ? badgeKids(itemC.a)[0].className.includes('gr-badge-type') : false).toEqual(
       true
     );
-    expect(itemC.a.children.find((c) => c.className.includes('gr-badge-type')).textContent).toEqual('bundle');
+    expect(badgeKids(itemC.a).find((c) => c.className.includes('gr-badge-type')).textContent).toEqual('bundle');
     // v14.5.0 B9：状态渲染合并（100ms 窗口）——收尾文案改轮询等待
     await waitForSignal(() => {
       const barEl = documentMock.body.children.find((c) => c.id === 'gr-status-bar');
@@ -316,12 +329,12 @@ simTest(
     }, '节2b: 状态浮窗收尾渲染（合并窗口）');
 
     // v10.1.0：a-b 徽章渲染（下载 a-详情页打开 b）+ 只看不下绿标题
-    const statBadge0 = manyItems[0].link.children.find((c) => (c.className || '').includes('gr-badge-appstat'));
+    const statBadge0 = badgeKids(manyItems[0].link).find((c) => (c.className || '').includes('gr-badge-appstat'));
     expect(statBadge0 && statBadge0._html).toEqual('3-5');
-    const statBadge1 = manyItems[1].link.children.find((c) => (c.className || '').includes('gr-badge-appstat'));
+    const statBadge1 = badgeKids(manyItems[1].link).find((c) => (c.className || '').includes('gr-badge-appstat'));
     expect(statBadge1 && statBadge1._html).toEqual('0-7');
     // v10.4.1：位置断言——a-b 徽章在好评率徽章组之后（不在最左）
-    const kidIdx = (el, cls) => el.children.findIndex((c) => (c.className || '').includes(cls));
+    const kidIdx = (el, cls) => badgeKids(el).findIndex((c) => (c.className || '').includes(cls));
     expect(kidIdx(manyItems[0].link, 'gr-badge-appstat')).toBeGreaterThan(kidIdx(manyItems[0].link, 'gr-badge-recent'));
     expect(kidIdx(manyItems[1].link, 'gr-badge-appstat')).toBeGreaterThan(kidIdx(manyItems[1].link, 'gr-badge-recent'));
     // a=0 且 b>0 → 标题绿色；a>0 → 标题不变绿
@@ -346,7 +359,7 @@ simTest(
     // storage.local 真实化后首批响应→job 开放超过一个宏任务，done 推送早到被
     // 丢弃（同节 2 根因）。首批 10 项已出评分、pending 项出工作徽章 = job 开放。
     await waitForSignal(
-      () => (manyItems[10].link.children || []).some((c) => (c.className || '').includes('gr-working-badge')),
+      () => badgeKids(manyItems[10].link).some((c) => (c.className || '').includes('gr-working-badge')),
       '节2b: pending 项工作徽章（job 开放，done 可路由）'
     );
     // v14.5.0 B8：done 推送与节 2 同源竞态——两段重试（重发同一 done 语义不变；
@@ -591,12 +604,12 @@ simTest(
     presets['GET_STEAM_RATINGS'] = () => ({ ratings: {}, pending: 1 });
     GR.listBatch.requestSteamRatings(items, DEFAULT_SETTINGS);
     await waitForSignal(
-      () => a.children.some((c) => (c.className || '').includes('gr-working-badge')),
+      () => badgeKids(a).some((c) => (c.className || '').includes('gr-working-badge')),
       '节12: 未返回项工作徽章（job 开放）'
     );
     GR.list._internal.finishRatings(); // 模拟批次超时硬截止
     await waitForSignal(
-      () => a.children.some((c) => (c.className || '').includes('gr-error-badge')),
+      () => badgeKids(a).some((c) => (c.className || '').includes('gr-error-badge')),
       '节12: 收尾转"未返回·点击重查"错误徽章'
     );
     await msgListener(
@@ -605,11 +618,11 @@ simTest(
       () => {}
     );
     await waitForSignal(
-      () => a.children.some((c) => (c.className || '').includes('gr-rating-badge')),
+      () => badgeKids(a).some((c) => (c.className || '').includes('gr-rating-badge')),
       '节12: 迟到推送补好评率徽章'
     );
-    expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
-    expect(a.children.some((c) => (c.className || '').includes('gr-working-badge'))).toEqual(false);
+    expect(badgeKids(a).some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
+    expect(badgeKids(a).some((c) => (c.className || '').includes('gr-working-badge'))).toEqual(false);
   },
   { retry: 2 } // v14.29.1 绷带（同节 2/2b——根因未明不撤）
 );
@@ -641,12 +654,14 @@ simTest('13. 断网故障渲染为「网络异常」而非「未找到」', asyn
   );
   // applyRatingsResponse 内的徽章渲染是同步的——直接断言，不用 waitForSignal：
   // 断网徽章缺失时同步失败（毫秒级），否则会空等信号超时（变异验证 240s 的成因）。
-  const text = a.children.map((c) => c.textContent || '').join(' ');
-  const hasNetworkBadge = a.children.some((c) => (c.className || '').includes('gr-badge-network-error'));
+  const text = badgeKids(a)
+    .map((c) => c.textContent || '')
+    .join(' ');
+  const hasNetworkBadge = badgeKids(a).some((c) => (c.className || '').includes('gr-badge-network-error'));
   expect(hasNetworkBadge, `节13: 断网条目应渲染网络异常徽章，实际徽章=${JSON.stringify(text)}`).toBe(true);
   expect(text).toContain('网络异常');
   expect(text).not.toContain('未找到');
-  expect(a.children.some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
+  expect(badgeKids(a).some((c) => (c.className || '').includes('gr-error-badge'))).toEqual(false);
 });
 
 // ============ v14.42.0：XDGAME pl-card 新列表结构 + 详情页平台标注提取 ============

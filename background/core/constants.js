@@ -340,6 +340,10 @@ export const DEFAULT_SETTINGS = {
   // 标题变红（0 = 关闭；默认 95）
   redTitleRating: 95,
   maxScanLinks: 500, // 列表页链接扫描上限（大列表页性能保护，v3.3.9 可配置）
+  // v14.43.0（用户指令 2026-11-23）：列表页游戏格子缩放——格子整体缩放 %
+  //（封面图随格子一致），文字块独立缩放 %（有效缩放 = 本键；消费方 list-batch）
+  listCellScale: 150,
+  listTextScale: 100,
   steamSiteSearch: ['xdgame', 'xianyudanji', 'gamer520'], // Steam详情页检索的下载站
   // v6.4.19：外部数据源开关（站点按用途分类管理）——平台数据源（限免/评分）、
   // 辅助站（搜索兜底）。关闭的源不再调用其接口。

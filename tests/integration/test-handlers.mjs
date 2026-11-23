@@ -182,6 +182,8 @@ describe('SEARCH_STEAM steamMissing MC 兜底（v14.43.0）', () => {
       '/api/appdetails': {},
       '/appreviews': {},
       '/api/ISteamNews': {},
+      '/game/the-legend-of-dragoon/critic-reviews/':
+        '<html><body><div class="review-card-content"><div title="Metascore 100 out of 100">100</div><a class="c-siteReviewSource">Daily Radar</a><div data-testid="review-quote-text">This one has it all -- an innovative combat interface.</div></div><div class="review-card-content"><div title="Metascore 97 out of 100">97</div><a class="c-siteReviewSource">GameSpot</a><div data-testid="review-quote-text">Truly legendary RPG.</div></div></body></html>',
       '/game/the-legend-of-dragoon/':
         '<html><body><script type="application/ld+json">{"@type":"VideoGame","name":"The Legend of Dragoon","datePublished":"2000-06-13","genre":"JRPG","gamePlatform":["PlayStation","PlayStation 5"],"publisher":[{"@type":"Organization","name":"SCEA"}],"description":"A peaceful beginning.","aggregateRating":{"ratingValue":74,"reviewCount":12}}</script><div aria-label="User score 8.7 out of 10"><span>8.7</span></div></body></html>'
     });
@@ -204,6 +206,8 @@ describe('SEARCH_STEAM steamMissing MC 兜底（v14.43.0）', () => {
     expect(resp.data && resp.data.mcUserScore).toEqual(8.7); // 用户分（议题①双分）
     expect(resp.data && resp.data.mcCriticCount).toEqual(12);
     expect(resp.data && resp.data.mcReleaseDate).toEqual('2000-06-13');
+    expect(resp.data && resp.data.mcReviews.length).toEqual(2); // 评论原文（详情一次请求）
+    expect(resp.data && resp.data.mcReviews[0].score).toEqual(100);
     expect(resp.data && resp.data.platformTag).toEqual('Steam 未发售');
     expect(fetchMock._calls.some((u) => u.includes('storesearch'))).toEqual(true);
     expect(fetchMock._calls.some((u) => u.includes('/game/the-legend-of-dragoon/'))).toEqual(true);

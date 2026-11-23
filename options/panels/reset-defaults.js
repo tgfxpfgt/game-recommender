@@ -43,6 +43,9 @@
     ['maxScanLinks', 'maxScanLinks'],
     ['ratingsBatchSize', 'ratingsBatchSize'],
     ['qrImageMaxKb', 'qrImageMaxKb'],
+    // 列表页缩放（v14.43.0）/ list-page scaling
+    ['listCellScale', 'listCellScale'],
+    ['listTextScale', 'listTextScale'],
     // 外观 / appearance
     ['enableVmFilter', 'vmFilterEnabled'],
     ['uiTheme', 'uiTheme'],

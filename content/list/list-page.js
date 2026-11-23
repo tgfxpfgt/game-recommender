@@ -574,8 +574,7 @@ function applySteamRatingsUpdate(ratings, done, progress) {
   if (prog && prog.total > 0 && progJob) {
     for (const item of /** @type {any} */ (progJob.processItems)) {
       if (progJob.processed.has(item.name)) continue;
-      const target = item.titleEl || item.link;
-      const badge = target && target.querySelector('.gr-working-badge');
+      const badge = badges.itemQuerySelector(item, '.gr-working-badge'); // v14.43.0：徽章行迁移后单源查询
       if (badge) badge.title = t('queue.searching', { done: Math.min(prog.done, prog.total), total: prog.total });
     }
   }

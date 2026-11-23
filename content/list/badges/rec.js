@@ -9,15 +9,15 @@
  * Recommendation badge domain (B6): score + breakdown tooltip + graded color,
  * inserted after the LAST rating badge.
  */
-import { createBadge } from './badge-base.js';
+import { createBadge, ensureBadgeRow, itemQuerySelector } from './badge-base.js';
 import { t } from '../../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 /** @param {any} item @param {Record<string, any>} recommendation @param {Record<string, any>} settings */
 export function prependRecBadge(item, recommendation, settings) {
   const link = item.link;
   if (!link || !recommendation) return;
-  // v4.1.0：防重复（REFRESH 强制刷新/多批回填场景）
-  if (link.querySelector('.gr-rec-badge')) return;
+  // v4.1.0：防重复（REFRESH 强制刷新/多批回填场景）；v14.43.0 守卫单源
+  if (itemQuerySelector(item, '.gr-rec-badge')) return;
   const bv = (settings && settings.badgeVisibility) || {};
   if (bv.rec === false) return;
   const score = recommendation.score;
@@ -80,21 +80,10 @@ export function prependRecBadge(item, recommendation, settings) {
   });
   badge.appendChild(dislikeBtn);
 
-  // 与 prependBadge 相同的定位逻辑；插到最后一个徽章之后
-  let targetEl = item.titleEl || null;
-  if (!targetEl && item.element) {
-    targetEl = item.element.querySelector('h2, h3, h4, h5, .title, .entry-title, .name, .game-name, .game-title');
-  }
-  if (targetEl) {
-    const lastBadge = [...targetEl.querySelectorAll('.gr-rating-badge, .gr-recent-badge, .gr-update-badge')].pop();
-    if (lastBadge && lastBadge.nextSibling) {
-      targetEl.insertBefore(badge, lastBadge.nextSibling);
-    } else if (lastBadge) {
-      targetEl.appendChild(badge);
-    } else {
-      targetEl.insertBefore(badge, targetEl.firstChild);
-    }
-  } else {
-    link.insertBefore(badge, link.firstChild);
-  }
+  // v14.43.0：插到徽章行内最后一个评分徽章之后（行由 ensureBadgeRow 单源创建）
+  // v14.43.0: insert after the last rating badge inside the badge row
+  const row = ensureBadgeRow(item);
+  if (!row) return;
+  const lastBadge = [...row.querySelectorAll('.gr-rating-badge, .gr-recent-badge, .gr-update-badge')].pop();
+  row.insertBefore(badge, lastBadge && lastBadge.nextSibling ? lastBadge.nextSibling : null);
 }

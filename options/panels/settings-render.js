@@ -51,6 +51,9 @@
     document.getElementById('badgeRec').checked = bv.rec !== false;
     // 列表页链接扫描上限（v3.3.9）
     document.getElementById('maxScanLinks').value = settings.maxScanLinks || 500;
+    // v14.43.0：列表页格子/文字缩放回显（50-300，默认 150/100）
+    document.getElementById('listCellScale').value = settings.listCellScale ?? 150;
+    document.getElementById('listTextScale').value = settings.listTextScale ?? 100;
     // v10.7.0 批次5：评分批次大小 / 二维码图片上限回显
     document.getElementById('ratingsBatchSize').value = settings.ratingsBatchSize ?? 60;
     document.getElementById('qrImageMaxKb').value = settings.qrImageMaxKb ?? 3072;

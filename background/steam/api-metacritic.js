@@ -174,3 +174,66 @@ export async function fetchMetacriticScore(enName) {
   const details = await fetchMetacriticDetails(enName);
   return details ? details.metascore : null;
 }
+
+/**
+ * 抓取 Metacritic 媒体评论原文（critic-reviews 子页，单次请求）。
+ * v14.42.8（用户指令：详情页浮窗增加一次评论原文请求并展示；列表页保持
+ * 现状——调用入口仅详情浮窗 steamMissing 兜底路径）。解析锚点（2026-11
+ * 现网取证）：卡片 review-card-content 分块 → 原文 review-quote-text /
+ * 分数 title="Metascore N out of 100" / 来源=块头去标签末段（如 Daily Radar）。
+ * 上限 5 条（引文 200 字截断，负缓存体积有界）；子页 404/无卡 → []。
+ * Fetch critic review excerpts (the critic-reviews subpage, one request;
+ * called only from the detail float per user ruling).
+ * @param {string} enName @returns {Promise<Array<{quote: string, score: number|null, source: string}>>}
+ */
+export async function fetchMetacriticReviews(enName) {
+  const slug = deriveMetacriticSlug(enName);
+  if (!slug || slug.length < 3) return [];
+  try {
+    const resp = await fetchWithTimeout(
+      `${ENDPOINTS.metacritic}/game/${slug}/critic-reviews/`,
+      {},
+      PERF_CONFIG.fetchTimeoutMetacriticMs
+    );
+    if (!resp.ok) {
+      Logger.warn('Steam', `MC 评论子页请求失败: ${slug} → HTTP ${resp.status}`);
+      return [];
+    }
+    const html = await resp.text();
+    const cards = html.split('review-card-content');
+    /** @type {Array<{quote: string, score: number|null, source: string}>} */
+    const out = [];
+    for (const card of cards.slice(1)) {
+      const quoteM = card.match(/review-quote-text[^>]*>([^<]+)</);
+      if (!quoteM) continue;
+      const scoreM = card.match(/title="Metascore (\d+) out of 100"/);
+      // 来源 = 卡片头部去标签后的最后一段非空文本（如 "100|Daily Radar"）
+      const head = card.slice(0, quoteM.index);
+      const texts = head
+        .split(/<[^>]+>/)
+        .map((/** @type {string} */ t) => t.trim())
+        .filter(Boolean);
+      const source = texts.length > 0 ? texts[texts.length - 1] : '';
+      /** @param {string} s */
+      const unescaped = (s) =>
+        s
+          .replace(/&#39;/g, "'")
+          .replace(/&quot;/g, '"')
+          .replace(/&amp;/g, '&')
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>');
+      out.push({
+        quote: unescaped(quoteM[1]).slice(0, 200),
+        score: scoreM ? Math.min(100, Number(scoreM[1])) : null,
+        source: unescaped(source).slice(0, 40)
+      });
+      if (out.length >= 5) break;
+    }
+    Logger.info('Steam', `MC 评论原文抓取: ${slug} → ${out.length} 条`);
+    return out;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    Logger.warn('Steam', `MC 评论原文异常: ${slug} → ${msg.slice(0, 120)}`);
+    return [];
+  }
+}

@@ -66,7 +66,7 @@ import {
   trimPlatformTokens,
   extractEnNameSegment
 } from '../../shared/platform-detect.js'; // v14.28.7 R4-B3；v14.29.2 平台预检
-import { fetchMetacriticScore, fetchMetacriticDetails } from './api-metacritic.js'; // v14.42.5：MC 全量详情
+import { fetchMetacriticScore, fetchMetacriticDetails, fetchMetacriticReviews } from './api-metacritic.js'; // v14.42.8：+ 评论原文（详情浮窗一次请求，用户指令） // v14.42.5：MC 全量详情
 
 // ============ 匹配置信度打标（v14.28.7 R4-B3）/ Match confidence ============
 // 用户裁决：详情面板与浮窗必须与列表徽章同尺子标推测——"只在列表标推测等于
@@ -168,8 +168,15 @@ async function trySteamMissingMc(gameName, options = {}) {
     screenshot: mc.screenshot
   };
   await recordNotFoundMeta(gameName, meta);
-  Logger.info('Steam', 'Steam 未找到 → Metacritic 兜底命中: "' + gameName + '" → MC ' + mc.metascore);
-  return steamMissingResult(gameName, meta);
+  // v14.42.8（用户指令：详情页浮窗增加一次评论原文请求并展示；列表页保持
+  // 现状——本抓取仅发生在详情兜底路径，评论随 meta 两管线持久化复用）
+  const reviews = await fetchMetacriticReviews(enSeg).catch(() => []);
+  if (reviews.length > 0) await recordNotFoundMeta(gameName, { ...meta, reviews });
+  Logger.info(
+    'Steam',
+    'Steam 未找到 → Metacritic 兜底命中: "' + gameName + '" → MC ' + mc.metascore + ' · 评论 ' + reviews.length + ' 条'
+  );
+  return steamMissingResult(gameName, { ...meta, reviews });
 }
 
 /**

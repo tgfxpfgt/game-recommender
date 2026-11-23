@@ -17,7 +17,9 @@ import { recordFlushFailure } from './flush-health.js'; // v10.0.0：写失败�
  *   userScore?: number|null, criticCount?: number|null, genres?: string[],
  *   platforms?: string[], releaseDate?: string, publishers?: string[],
  *   description?: string, contentRating?: string, image?: string,
- *   screenshot?: string}} NotFoundMeta 负缓存 MC 元数据（attempted=true 且
+ *   screenshot?: string,
+ *   reviews?: Array<{quote: string, score: number|null, source: string}>
+ * }} NotFoundMeta 负缓存 MC 元数据（attempted=true 且
  *   无 mcScore = Steam/MC 双失败如实标记；有 mcScore = steamMissing 数据）
  */
 
@@ -156,6 +158,14 @@ export async function recordNotFoundMeta(gameName, meta) {
     if (meta.contentRating) stored.contentRating = String(meta.contentRating).slice(0, 10);
     if (meta.image) stored.image = String(meta.image).slice(0, 300);
     if (meta.screenshot) stored.screenshot = String(meta.screenshot).slice(0, 300);
+    // v14.42.8：评论原文摘录（≤5 条 × 200 字，负缓存体积有界）
+    if (Array.isArray(meta.reviews) && meta.reviews.length > 0) {
+      stored.reviews = meta.reviews.slice(0, 5).map((/** @type {any} */ r) => ({
+        quote: String(r.quote || '').slice(0, 200),
+        score: typeof r.score === 'number' ? r.score : null,
+        source: String(r.source || '').slice(0, 40)
+      }));
+    }
   }
   nameIndexMemory.set(name, { ...prev, notFoundMeta: stored });
   scheduleWrite();

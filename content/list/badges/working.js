@@ -8,7 +8,7 @@
  * Working-status domain (B6): enqueue placeholder / removal / error badges.
  */
 
-import { getBadgeRetryHandler } from './badge-base.js'; // v14.7 批次 3：点击重试
+import { getBadgeRetryHandler, ensureBadgeRow, itemQuerySelector } from './badge-base.js'; // v14.7 批次 3：点击重试；v14.43.0：徽章行单源
 import { t } from '../../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 // 从 DOM 移除低好评率游戏项（含栅格容器，避免留空）
@@ -27,7 +27,7 @@ export function removeItemFromDom(item) {
 /** @param {any} item @param {string} text */
 export function showWorkingBadge(item, text) {
   const link = item.link;
-  if (!link || link.querySelector('.gr-working-badge')) return;
+  if (!link || itemQuerySelector(item, '.gr-working-badge')) return; // v14.43.0：守卫单源
   const badge = document.createElement('span');
   badge.className = 'gr-working-badge';
   badge.textContent = text || t('badge.workingWait');
@@ -43,17 +43,17 @@ export function showWorkingBadge(item, text) {
       retry(item);
     });
   }
-  const target = item.titleEl || link;
-  target.insertBefore(badge, target.firstChild);
+  // v14.43.0：插入徽章行（标题上方独立一行）/ insert into the badge row
+  const row = ensureBadgeRow(item);
+  if (row) row.insertBefore(badge, row.firstChild);
 }
 
 // v14.3.2 修复：搜索目标与 showWorkingBadge 插入目标对齐（titleEl || link）——
 // 原实现只搜 link 后代，titleEl 是 <h3> 包裹 <a> 时徽章在 h3 里永远删不掉
+// v14.43.0：徽章迁入徽章行——搜索范围 = link / 徽章行 / 标题元素（itemQuerySelector 单源）
 /** @param {any} item */
 export function removeWorkingBadge(item) {
-  const target = (item && (item.titleEl || item.link)) || null;
-  if (!target) return;
-  const badge = target.querySelector('.gr-working-badge');
+  const badge = itemQuerySelector(item, '.gr-working-badge');
   if (badge) badge.remove();
 }
 
@@ -73,14 +73,15 @@ export function updateWorkingBadgesInfo(text) {
 export function showErrorBadge(item, text) {
   removeWorkingBadge(item);
   const link = item.link;
-  if (!link || link.querySelector('.gr-rating-badge')) return;
+  if (!link || itemQuerySelector(item, '.gr-rating-badge')) return; // v14.43.0：守卫单源
   const badge = document.createElement('span');
   badge.className = 'gr-working-badge gr-error-badge';
   badge.textContent = text || t('badge.errorDefault');
   badge.style.cssText =
     'padding:2px 6px;font-size:10px;background:rgba(231,76,60,0.1);color:#e74c3c;border:1px dashed #e74c3c;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;';
-  const target = item.titleEl || link;
-  target.insertBefore(badge, target.firstChild);
+  // v14.43.0：插入徽章行 / insert into the badge row
+  const row = ensureBadgeRow(item);
+  if (row) row.insertBefore(badge, row.firstChild);
 }
 
 // 高亮条目（推荐值达标）/ Highlight an item (recommendation passed)
@@ -98,8 +99,9 @@ export function highlightItem(item) {
 /** @param {any} item @param {any} rating */
 export function prependPlatformBadge(item, rating) {
   const link = item.link;
-  if (!link || link.querySelector('.gr-rating-badge')) return;
-  const target = item.titleEl || link;
+  if (!link || itemQuerySelector(item, '.gr-rating-badge')) return; // v14.43.0：守卫单源
+  const target = ensureBadgeRow(item);
+  if (!target) return;
   if (rating.mcScore != null) {
     const score = rating.mcScore;
     // v14.31.0：MC 分级色单源化 __GR_PATTERNS__.mcColorFor（与详情浮窗 MC 视图

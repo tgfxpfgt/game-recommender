@@ -211,12 +211,12 @@ export const BUDGETS = {
   // v14.42.5 re-lock: MC dual-score + steamMissing detail card (+7.8KB SW).
   // v14.42.8 心跳批（+2.3KB 静态注入/闭包）：tracker 注入心跳 + 自检卡心跳
   // 行与诊断包字段——新增诊断能力，无冗余代码。按实测重锁。
-  swGraphBytes: 1015488,
+  swGraphBytes: 1019808,
   swGraphFiles: 109,
   // v14.42.8 防呆批（+1KB 静态注入）：tracker 源模式守卫（console.error +
   // storage 标记）+ 自检卡源码树装载 ⚠ 首行——用户实证仓库根装载自检全绿
   // 而内容管线死的迷惑面收口。按实测重锁。
-  staticInjectionBytes: 44472,
+  staticInjectionBytes: 44739,
   // +312B = forceTimer 身份校验（旧任务残留定时器不得收尾新任务，stray finish
   // 防线）+ 队列三态感知收尾（仅确认运行中才收尾；排队/不可知顺延到帽——
   // 根治 45s 硬杀掐死慢载推送的 sim 节 2/2b 偶发失败根源）。按实测重锁。
@@ -240,7 +240,7 @@ export const BUDGETS = {
   // 基线漂移（逻辑零变更）——按「预算 = 实测值」口径重锁。
   // v14.42.1 (+16B): bump-text constant drift, zero logic change; re-locked
   // to the measured value.
-  closureBytes: 353798
+  closureBytes: 354840
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;

@@ -27,6 +27,19 @@ import {
   DEFAULT_SETTINGS
 } from './sim-harness.mjs';
 
+// v14.43.0：徽章行迁移——徽章挂在标题上方 .gr-badge-row 内（badge-base
+// ensureBadgeRow），不再直接挂在标题/link 直子。条目徽章断言统一经本助手
+// 取行内子元素（旧直子断言在行迁移后恒空 → 信号超时假红）。
+// Badge-row migration: item badge assertions go through the row's children.
+function badgeKids(/** @type {any} */ anchor) {
+  if (!anchor) return [];
+  const row = anchor.querySelector ? anchor.querySelector('.gr-badge-row') : null;
+  if (row) return Array.from(row.children || []);
+  const sib = anchor.previousElementSibling; // 档①：行是标题前一兄弟
+  if (sib && sib.classList && sib.classList.contains('gr-badge-row')) return Array.from(sib.children || []);
+  return Array.from(anchor.children || []);
+}
+
 // 全部好评率徽章识别（v10.4.3/v10.5.3：a-b/综合评分同基类，需排除）
 // "all-time rating" badge classifier (excludes same-base-family badges)
 function isAllBadge(c) {
@@ -80,14 +93,14 @@ simTest('8. 徽章开关与过滤/高亮联动', async () => {
   const adapterE = GR.builder.getAdapter();
   const itemsE = GR.list.getListItemsSmart(adapterE);
   GR.list.trackListView(adapterE, itemsE, badgeSettings);
-  await waitForSignal(() => itemE.a.children.length > 0, '节8: 游戏E 评分徽章');
+  await waitForSignal(() => badgeKids(itemE.a).length > 0, '节8: 游戏E 评分徽章');
   if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle(); // v14 B6：信号替代固定 300ms
-  expect(itemE.a.children.some((c) => c.className.includes('gr-badge-recent'))).toEqual(false);
-  expect(itemE.a.children.some(isAllBadge)).toEqual(true);
-  expect(itemE.a.children.some((c) => c.className.includes('gr-badge-update'))).toEqual(true);
-  expect(itemE.a.children.some((c) => c.className.includes('gr-rec-badge'))).toEqual(false);
+  expect(badgeKids(itemE.a).some((c) => c.className.includes('gr-badge-recent'))).toEqual(false);
+  expect(badgeKids(itemE.a).some(isAllBadge)).toEqual(true);
+  expect(badgeKids(itemE.a).some((c) => c.className.includes('gr-badge-update'))).toEqual(true);
+  expect(badgeKids(itemE.a).some((c) => c.className.includes('gr-rec-badge'))).toEqual(false);
   expect(itemE.li.classList.contains('gr-highlighted')).toEqual(false);
-  expect(itemE.a.children.some(isAllBadge)).toEqual(true);
+  expect(badgeKids(itemE.a).some(isAllBadge)).toEqual(true);
 
   // 8b：关闭"全部好评率"→ 好评率过滤停用（低好评率游戏不再被移除）
 });
@@ -134,17 +147,17 @@ simTest('8b. 关全部好评率徽章 → 过滤停用', async () => {
   const adapterF = GR.builder.getAdapter();
   const itemsF = GR.list.getListItemsSmart(adapterF);
   GR.list.trackListView(adapterF, itemsF, badgeSettings2);
-  await waitForSignal(() => itemF.a.children.length > 0, '节8b: 游戏F 评分徽章');
+  await waitForSignal(() => badgeKids(itemF.a).length > 0, '节8b: 游戏F 评分徽章');
   if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle(); // v14 B6：信号替代固定 300ms
-  await waitForSignal(() => itemF.a.children.some((c) => c.className.includes('gr-rec-badge')), '节8b: 推荐徽章渲染');
+  await waitForSignal(() => badgeKids(itemF.a).some((c) => c.className.includes('gr-rec-badge')), '节8b: 推荐徽章渲染');
 
-  expect(itemF.a.children.some(isAllBadge)).toEqual(false);
-  expect(itemF.a.children.some((c) => c.className.includes('gr-badge-recent'))).toEqual(true);
+  expect(badgeKids(itemF.a).some(isAllBadge)).toEqual(false);
+  expect(badgeKids(itemF.a).some((c) => c.className.includes('gr-badge-recent'))).toEqual(true);
   expect(documentMock.body.children.includes(itemF.li)).toEqual(true);
-  expect(itemF.a.children.some((c) => c.className.includes('gr-rec-badge'))).toEqual(true);
+  expect(badgeKids(itemF.a).some((c) => c.className.includes('gr-rec-badge'))).toEqual(true);
   expect(
     (() => {
-      const kids = itemF.a.children;
+      const kids = badgeKids(itemF.a);
       const recIdx = kids.findIndex((c) => c.className.includes('gr-rec-badge'));
       const badgeIdx = kids.findIndex(
         (c) =>
@@ -192,10 +205,10 @@ simTest('8c. 关推荐度徽章 → 推荐徽章不渲染', async () => {
   // 评分徽章正常渲染；推荐徽章被 badgeVisibility.rec 门控拦截不渲染
   //（v10.4.2 回归：batchState 未存 settings，门控拿空对象恒放行）
   await waitForSignal(
-    () => recItems[0].a.children.some((c) => (c.className || '').includes('gr-rating-badge')),
+    () => badgeKids(recItems[0].a).some((c) => (c.className || '').includes('gr-rating-badge')),
     '节8c: 推荐列表评分徽章'
   );
-  expect(recItems[0].a.children.some((c) => (c.className || '').includes('gr-rec-badge'))).toEqual(false);
+  expect(badgeKids(recItems[0].a).some((c) => (c.className || '').includes('gr-rec-badge'))).toEqual(false);
   presets['GET_SETTINGS'] = () => ({ settings: DEFAULT_SETTINGS });
 });
 
@@ -229,13 +242,13 @@ simTest('8d. 综合评分徽章渲染（XDGame 同口径，v10.5.3）', async ()
   const items = GR.list.getListItemsSmart(adapter);
   GR.list.trackListView(adapter, items, scoreSettings);
   await waitForSignal(
-    () => scoreItem.a.children.some((c) => c.className.includes('gr-score-badge')),
+    () => badgeKids(scoreItem.a).some((c) => c.className.includes('gr-score-badge')),
     '节8d: 综合评分徽章'
   );
   // 段0 渲染在最前：⭐ 8.3 = 修正口碑 83.3 ÷ 10（好评 880 / 总评 1000，
   // 走缓存显式 positiveReviews/negativeReviews 字段路径）
-  const scoreBadge = scoreItem.a.children.find((c) => c.className.includes('gr-score-badge'));
-  expect(scoreItem.a.children[0]).toEqual(scoreBadge);
+  const scoreBadge = badgeKids(scoreItem.a).find((c) => c.className.includes('gr-score-badge'));
+  expect(badgeKids(scoreItem.a)[0]).toEqual(scoreBadge);
   expect(scoreBadge.textContent).toEqual('⭐ 8.3');
   expect(scoreBadge.title.includes('Steam 玩家评价：特别好评')).toEqual(true);
   expect(scoreBadge.title.includes('综合评分 8.3/10')).toEqual(true);
@@ -273,23 +286,27 @@ simTest('8e. 未找到徽章点击重试（RETRY_GAME_LOOKUP → 就地重渲染
   const adapterH = GR.builder.getAdapter();
   const itemsH = GR.list.getListItemsSmart(adapterH);
   GR.list.trackListView(adapterH, itemsH, retrySettings);
-  await waitForSignal(() => itemH.a.children.length > 0, '8e: 占位徽章');
+  await waitForSignal(() => badgeKids(itemH.a).length > 0, '8e: 占位徽章');
   if (GR.listBatch.waitForBatchIdle) await GR.listBatch.waitForBatchIdle();
   // 批次收尾（pending 0 → 立即 finishRatings）后再推 notfound 波——
   // 推送早于 createRatingsJob 会被 applySteamRatingsUpdate 的空守卫丢弃
   await waitForSignal(() => !!(GR.list._state.ratingsJob && GR.list._state.ratingsJob.finished), '8e: 批次收尾');
   // 后台推送：游戏H 未找到 → notfound 徽章
   GR.list.applySteamRatingsUpdate({ 游戏H: null }, false, null);
-  await waitForSignal(() => itemH.a.children.some((c) => c.className.includes('gr-badge-notfound')), '8e: 未找到徽章');
+  await waitForSignal(
+    () => badgeKids(itemH.a).some((c) => c.className.includes('gr-badge-notfound')),
+    '8e: 未找到徽章'
+  );
   // 点击 → RETRY_GAME_LOOKUP → 就地重渲染为评分徽章（批次 5 的进度推送
   // 波次不会重渲染它——processed 守卫，重查路径必须自渲染）
-  const nf = itemH.a.children.find((c) => c.className.includes('gr-badge-notfound'));
+  const nf = badgeKids(itemH.a).find((c) => c.className.includes('gr-badge-notfound'));
   nf.click();
   await waitForSignal(
-    () => !itemH.a.children.some((c) => c.className.includes('gr-badge-notfound')) && itemH.a.children.some(isAllBadge),
+    () =>
+      !badgeKids(itemH.a).some((c) => c.className.includes('gr-badge-notfound')) && badgeKids(itemH.a).some(isAllBadge),
     '8e: 重查后评分徽章'
   );
   expect(sentMessages.some((m) => m.action === 'RETRY_GAME_LOOKUP' && m.gameName === '游戏H')).toEqual(true);
-  const allBadge = itemH.a.children.find(isAllBadge);
+  const allBadge = badgeKids(itemH.a).find(isAllBadge);
   expect(allBadge.textContent).toEqual('✓ 88%'); // v7.4.0：色盲友好 ✓ 前缀（≥80）
 });

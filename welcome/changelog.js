@@ -16,6 +16,15 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.42.16',
+        date: '2026-11-23',
+        items: [
+          'MC 评论原文（用户指令：详情页浮窗增加一次评论原文请求并展示；列表页保持现状）：fetchMetacriticReviews 抓 critic-reviews 子页解析 ≤5 条摘录（原文/分数/来源，锚点 review-quote-text + Metascore title），详情兜底路径一次请求，随负缓存 meta 两管线持久化复用；MC 卡新增「媒体评论摘录」区',
+          '列表页格子缩放（并行会话批次）：listCellScale/listTextScale 设置键 + 面板/绑定/reset-defaults 同步 + badge 行缩放实现（zoom 格子 + 文字补偿）——ironrule 10 四处齐',
+          '并行批次协调：stash 拆分-恢复 + lint 中间态修复 + 双批统一 bump'
+        ]
+      },
+      {
         ver: '14.42.15',
         date: '2026-11-23',
         items: [

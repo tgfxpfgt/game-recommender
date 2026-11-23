@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-22T18:54:56.669Z",
-  "version": "14.42.14",
+  "generatedAt": "2026-11-23T14:07:32.903Z",
+  "version": "14.42.16",
   "nodes": [
     {
       "dir": "background",
@@ -24,7 +24,7 @@
       "color": "#e74c3c",
       "desc": "设置中心 — 全量配置/缓存管理/规则编辑",
       "files": 3,
-      "lines": 4048
+      "lines": 4087
     },
     {
       "dir": "dashboard",

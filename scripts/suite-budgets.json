@@ -22,9 +22,10 @@
     },
     {
       "id": "visual",
-      "label": "npm run visual（视觉回归 11 张基线）",
-      "measuredMs": 11726,
-      "capMs": 20000
+      "label": "npm run visual（视觉回归 5 张基线）",
+      "measuredMs": 15600,
+      "capMs": 23400,
+      "note": "v14.42.8：基线 11→5 张后实测重校（三连 21-23s 贴线超时，负载下基线过紧）"
     },
     {
       "id": "coverageGate",

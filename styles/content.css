@@ -230,6 +230,13 @@
 }
 
 /* ============ 列表页徽章（统一基类 + 变体） ============ */
+/* v14.43.0：徽章行容器——徽章占标题上方独立一行，标题行 DOM 保持原版
+   （布局两档见 badge-base ensureBadgeRow；zoom 文字补偿由 list-batch 挂载）*/
+.gr-badge-row {
+  display: block;
+  margin: 0 0 3px;
+  line-height: 1.5;
+}
 .gr-badge {
   display: inline-block;
   margin-right: 6px;

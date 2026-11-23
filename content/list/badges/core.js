@@ -10,7 +10,7 @@
  * file. working/rec/badge-base are sibling domains.
  */
 import { adjustedReputation, verdictFor, ratingTextInfo } from '../../core/steam-rating-logic.js'; // v10.7.0：评分口径单源
-import { createBadge, insertBadges, getBadgeRetryHandler } from './badge-base.js';
+import { createBadge, insertBadges, getBadgeRetryHandler, itemQuerySelector, ensureBadgeRow } from './badge-base.js';
 import { t } from '../../../shared/ui-text.js'; // v14.39.0：用户可见文案单源
 
 export {
@@ -23,7 +23,7 @@ export {
   prependPlatformBadge // v14.10.0：非 PC 平台徽章（主机/模拟器标签 + Metacritic 分）
 } from './working.js';
 export { prependRecBadge } from './rec.js';
-export { setBadgeRetryHandler, removeRatingBadges } from './badge-base.js'; // v14.7 批次 3
+export { setBadgeRetryHandler, removeRatingBadges, itemQuerySelector } from './badge-base.js'; // v14.7 批次 3；v14.43.0 守卫单源透出
 
 // v14.28.6 R4-B：推测匹配的视觉与依据串——用户裁决：不用符号表达推测，
 // 徽章文字直接写「推测」+ 琥珀配色 + 双线边框；悬停给出匹配标题与数据来源。
@@ -52,7 +52,8 @@ function suspectTitleLine(rating) {
 export function prependBadge(item, rating, settings) {
   const link = item.link;
   if (!link) return;
-  if (link.querySelector('.gr-rating-badge')) return; // 防重复 / no duplicates
+  // v14.43.0：守卫走 itemQuerySelector 单源——徽章行可能在 link 外（档①布局）
+  if (itemQuerySelector(item, '.gr-rating-badge')) return; // 防重复 / no duplicates
   const bv = (settings && settings.badgeVisibility) || {};
   const showRecent = bv.recent !== false;
   const showAll = bv.all !== false;
@@ -304,9 +305,9 @@ export function prependBadge(item, rating, settings) {
         `下载 ${a} 次 · 详情页打开 ${b} 次（跨站点累计，永不过期）` +
         (hasDownload ? '' : hasViews ? '\n⚠ 只看不下：看的人越多越不推荐' : '\n暂无行为记录：打开详情页/下载后开始计数')
     });
-    const statParent = anchorBadge
-      ? anchorBadge.parentNode
-      : item.titleEl || (item.element && item.element.querySelector('h2, h3, h4, .title, .entry-title')) || link;
+    // v14.43.0：锚点徽章在徽章行内 → 跟随插入行；无锚点（全开关关闭）→
+    // 徽章行兜底（ensureBadgeRow），不再混入标题行
+    const statParent = (anchorBadge && anchorBadge.parentNode) || ensureBadgeRow(item) || link;
     if (anchorBadge && anchorBadge.nextSibling) {
       statParent.insertBefore(statBadge, anchorBadge.nextSibling);
     } else if (anchorBadge) {

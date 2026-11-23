@@ -92,6 +92,52 @@ function ensureNameToImage(name) {
 const OBSERVER_DEBOUNCE_ACTIVE_MS = 200;
 const OBSERVER_DEBOUNCE_IDLE_MS = 500;
 
+// ============ v14.43.0：列表页游戏格子缩放（用户指令 2026-11-23） ============
+// 格子（item.element）整体 zoom = listCellScale%（封面图随格子一致缩放）；
+// 文字块（标题在格子内的顶层块）独立补偿 zoom = textScale / cellScale——
+// 文字有效缩放 = listTextScale%（默认 100% 保持原大）。zoom 影响布局（格子
+// 占位随缩放增长、站点栅格自然重排），不用 transform（不参与布局会互相叠压）。
+// Cell scaling (user directive): zoom the cell; counter-zoom the text block so
+// its effective scale equals listTextScale. Coefficients cached on the item —
+// ensureBadgeRow reuses them for late-created badge rows.
+// 内容侧不可 import background（分层）——缩放界限在本文件单点声明。
+const CELL_SCALE_MIN_PCT = 50;
+const CELL_SCALE_MAX_PCT = 300;
+
+/** @param {any} v @param {number} dflt */
+function clampScalePct(v, dflt) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return dflt;
+  return Math.min(CELL_SCALE_MAX_PCT, Math.max(CELL_SCALE_MIN_PCT, Math.round(n)));
+}
+
+// 文字块 = 标题元素（回退 link）在格子内的顶层祖先块；该块若包含封面图
+//（图文同容器无法分离）则返回 null——文字随格子缩放（如实降级，不硬造包装）。
+/** @param {any} item @param {any} cellEl @returns {any} */
+function resolveTextBlock(item, cellEl) {
+  const node = (item && (item.titleEl || item.link)) || null;
+  if (!node || node === cellEl) return null;
+  let top = node;
+  while (top.parentNode && top.parentNode !== cellEl) top = top.parentNode;
+  if (top.parentNode !== cellEl) return null; // 不在格子内 / not inside the cell
+  if (typeof top.querySelector === 'function' && top.querySelector('img')) return null; // 图文同块
+  return top;
+}
+
+/** @param {any} item @param {Record<string, any>} settings */
+function applyCellScale(item, settings) {
+  const el = item && item.element;
+  if (!el || !el.style) return;
+  const cell = clampScalePct(settings && settings.listCellScale, 150) / 100;
+  const text = clampScalePct(settings && settings.listTextScale, 100) / 100;
+  el.style.zoom = cell === 1 ? '' : String(cell);
+  const textBlock = resolveTextBlock(item, el);
+  const comp = cell === 1 ? text : text / cell; // 有效文字缩放 = cell × comp = text
+  if (textBlock && textBlock.style) textBlock.style.zoom = comp === 1 ? '' : String(comp);
+  // 系数缓存：徽章行创建晚于缩放应用（ensureBadgeRow 读 _grScale 补挂行补偿）
+  item._grScale = { cell, text, comp, textBlock: textBlock || null };
+}
+
 /** @param {any[]} items */
 function enqueueItems(items) {
   const batchState = _state.batchState;
@@ -104,6 +150,8 @@ function enqueueItems(items) {
     batchState.processItems.push(item);
     if (!batchState.itemsByName.has(item.name)) batchState.itemsByName.set(item.name, item);
     if (!batchState.requested.has(item.name)) batchState.queue.push(item.name);
+    // v14.43.0：格子缩放（须先于占位徽章——徽章行创建时要读 item._grScale）
+    applyCellScale(item, batchState.settings || {});
     // v14 F1：入队即显示"等待检索"占位徽章（数据到达后移除并替换为真实徽章）
     badges.showWorkingBadge(item, '⏳ 等待检索');
   }

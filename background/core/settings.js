@@ -84,6 +84,9 @@ const NUMERIC_RANGES = {
   uiThemeNightEnd: [0, 23, 7],
   redTitleRating: [0, 100, 95],
   maxScanLinks: [50, 5000, 500],
+  // v14.43.0：列表页格子/文字缩放 %（50-300；消费方 list-batch applyCellScale）
+  listCellScale: [50, 300, 150],
+  listTextScale: [50, 300, 100],
   maxRuntimeLog: [50, 5000, 300],
   maxBehaviorLog: [50, 5000, 500],
   logRetentionDays: [0, 365, 7],

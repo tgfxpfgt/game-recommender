@@ -107,7 +107,23 @@ export function steamSidebar(data, cachedAt) {
         </div>
         ${factRows ? `<div style="margin:8px 0;padding:8px;background:rgba(42,71,94,0.35);border-radius:4px;">${factRows}</div>` : ''}
         ${desc ? `<div style="font-size:11px;color:#c7d5e0;line-height:1.7;margin-bottom:10px;">${esc(desc.slice(0, 200))}${desc.length > 200 ? '…' : ''}</div>` : ''}
-        ${shot ? `<img src="${common.escapeAttr(shot)}" alt="" style="width:100%;border-radius:4px;margin-bottom:10px;" referrerpolicy="no-referrer">` : ''}
+        ${
+          data.mcReviews && data.mcReviews.length
+            ? // v14.42.8（用户指令：详情浮窗展示评论原文）——摘录 ≤5 条（分数/来源/原文）
+              `<div style="margin:8px 0;"><div style="font-size:11px;color:#8f98a0;margin-bottom:4px;">📰 媒体评论摘录</div>` +
+              data.mcReviews
+                .map(
+                  (/** @type {any} */ r) =>
+                    `<div style="padding:6px 8px;background:rgba(42,71,94,0.35);border-radius:4px;margin-bottom:4px;">` +
+                    `<div style="font-size:10px;color:#8f98a0;margin-bottom:2px;">${r.score != null ? `<b style="color:#c7d5e0">${esc(String(r.score))}</b> · ` : ''}${esc(r.source || '')}</div>` +
+                    `<div style="font-size:11px;color:#c7d5e0;line-height:1.6;">${esc(String(r.quote || '').slice(0, 160))}${String(r.quote || '').length > 160 ? '…' : ''}</div>` +
+                    `</div>`
+                )
+                .join('') +
+              `</div>`
+            : ''
+        }
+      ${shot ? `<img src="${common.escapeAttr(shot)}" alt="" style="width:100%;border-radius:4px;margin-bottom:10px;" referrerpolicy="no-referrer">` : ''}
         <div style="font-size:11px;color:#8f98a0;margin-bottom:8px;">后续该游戏上架 Steam 后重查将自动切换为 Steam 评分。</div>
         ${mcSlug ? `<a href="${mcSlug}" target="_blank" rel="noopener" style="font-size:12px;color:#67c1f5;text-decoration:none;">在 Metacritic 查看详情 ↗</a>` : ''}
         <div style="margin-top:12px;padding-top:10px;border-top:1px solid #2a475e;font-size:11px;color:#8f98a0;">
