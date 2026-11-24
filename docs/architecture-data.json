@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-11-23T14:07:32.903Z",
-  "version": "14.42.16",
+  "generatedAt": "2026-11-24T13:22:34.389Z",
+  "version": "14.43.0",
   "nodes": [
     {
       "dir": "background",
@@ -24,7 +24,7 @@
       "color": "#e74c3c",
       "desc": "设置中心 — 全量配置/缓存管理/规则编辑",
       "files": 3,
-      "lines": 4087
+      "lines": 4132
     },
     {
       "dir": "dashboard",
@@ -40,7 +40,7 @@
       "color": "#b48ce0",
       "desc": "弹出面板 — 快捷设置/快速搜索/状态",
       "files": 6,
-      "lines": 1672
+      "lines": 1693
     },
     {
       "dir": "sidepanel",
@@ -64,7 +64,7 @@
       "color": "#95a5a6",
       "desc": "跨侧共享 — msg/escape/settings-utils/fm-keys/spy-scales",
       "files": 16,
-      "lines": 2565
+      "lines": 2666
     },
     {
       "dir": "adapters",
