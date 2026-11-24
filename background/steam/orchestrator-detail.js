@@ -64,8 +64,9 @@ import {
   detectOffSteamPlatform,
   detectPlatform,
   trimPlatformTokens,
-  extractEnNameSegment
-} from '../../shared/platform-detect.js'; // v14.28.7 R4-B3；v14.29.2 平台预检
+  extractEnNameSegment,
+  specificPlatformTag
+} from '../../shared/platform-detect.js'; // v14.28.7 R4-B3；v14.29.2 平台预检；v14.43.0：具体机型文案
 import { fetchMetacriticScore, fetchMetacriticDetails, fetchMetacriticReviews } from './api-metacritic.js'; // v14.42.8：+ 评论原文（详情浮窗一次请求，用户指令） // v14.42.5：MC 全量详情
 
 // ============ 匹配置信度打标（v14.28.7 R4-B3）/ Match confidence ============
@@ -223,8 +224,11 @@ async function phaseDetailPlatform(gameName, options = {}) {
   // v14.42.5（用户指令：MC 双分显示）：详情级抓取透出用户分（MC 视图双徽章）
   const mc = enSeg ? await fetchMetacriticDetails(enSeg).catch(() => null) : null;
   const mcScore = mc && mc.metascore != null ? mc.metascore : null;
-  const result = platformOnlyResult(gameName, plat.tag, mcScore, mcScore != null ? enSeg : null);
+  // v14.43.0：具体平台（标题标记 → MC 平台列表兜底，与列表 phasePlatform 同语义）
+  const tag = specificPlatformTag(hint ? `${gameName}|${hint}` : gameName, mc && mc.platforms) || plat.tag;
+  const result = platformOnlyResult(gameName, tag, mcScore, mcScore != null ? enSeg : null);
   if (mc && mc.userScore != null) result.mcUserScore = mc.userScore;
+  if (mc && mc.releaseDate) result.mcReleaseDate = mc.releaseDate; // v14.43.0：4 徽章组
   return result;
 }
 

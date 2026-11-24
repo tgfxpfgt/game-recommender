@@ -345,3 +345,69 @@ simTest('8f. 徽章独立行 + 标题行原样 + 格子缩放/文字补偿', asy
   expect(parseFloat(itemS.a.style.zoom)).toBeCloseTo(1 / 1.5, 3);
   expect(parseFloat(itemS.li.style.zoom) * parseFloat(itemS.a.style.zoom)).toBeCloseTo(1, 3);
 });
+
+// ============ v14.43.0：MC 徽章组 4 块 + 独立开关（用户指令 2026-11-24） ============
+// 平台（具体机型 NS2）→ MC 媒体分 → MC 用户分 → 发售日期；缺值「—」占位；
+// badgeVisibility.mc* 四键独立门控。
+simTest('8g. MC 徽章组 4 块（具体平台/媒体分/用户分/发售日）+ 开关门控', async () => {
+  const GR = getGR();
+  const itemM = makeItem('MC徽章游戏', 91);
+  documentMock.body.appendChild(itemM.li);
+  const rating = {
+    platformOnly: true,
+    platformTag: 'NS2',
+    mcScore: 82,
+    mcName: 'zelda',
+    mcUserScore: 8.5,
+    mcReleaseDate: '2025-06-05',
+    appId: null
+  };
+  GR.badges.prependPlatformBadge(
+    {
+      element: itemM.li,
+      link: itemM.a,
+      name: 'MC徽章游戏',
+      url: 'https://www.xianyudanji.gg/91.html',
+      titleEl: itemM.a
+    },
+    rating,
+    DEFAULT_SETTINGS
+  );
+  const kids = badgeKids(itemM.a);
+  expect(kids.length).toEqual(4);
+  expect(kids[0].className.includes('gr-platform-badge') && kids[0].textContent).toEqual('NS2');
+  expect(kids[1].className.includes('gr-mc-badge') && kids[1].textContent).toEqual('MC 82');
+  expect(kids[2].className.includes('gr-mc-user-badge') && kids[2].textContent).toEqual('用户 8.5');
+  expect(kids[3].className.includes('gr-mc-release-badge') && kids[3].textContent).toEqual('📅 06-05');
+  // 防重复守卫：二次调用不叠加
+  GR.badges.prependPlatformBadge(
+    {
+      element: itemM.li,
+      link: itemM.a,
+      name: 'MC徽章游戏',
+      url: 'https://www.xianyudanji.gg/91.html',
+      titleEl: itemM.a
+    },
+    rating,
+    DEFAULT_SETTINGS
+  );
+  expect(badgeKids(itemM.a).length).toEqual(4);
+  // 开关门控：关用户分 + 发售日 → 仅平台/媒体分两块
+  const itemM2 = makeItem('MC徽章游戏2', 92);
+  documentMock.body.appendChild(itemM2.li);
+  GR.badges.prependPlatformBadge(
+    {
+      element: itemM2.li,
+      link: itemM2.a,
+      name: 'MC徽章游戏2',
+      url: 'https://www.xianyudanji.gg/92.html',
+      titleEl: itemM2.a
+    },
+    rating,
+    { badgeVisibility: { mcPlatform: true, mcMedia: true, mcUser: false, mcRelease: false } }
+  );
+  const kids2 = badgeKids(itemM2.a);
+  expect(kids2.length).toEqual(2);
+  expect(kids2[0].textContent).toEqual('NS2');
+  expect(kids2[1].textContent).toEqual('MC 82');
+});

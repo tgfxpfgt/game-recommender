@@ -16,6 +16,16 @@
     // 最近版本（新版本在前；页面默认渲染最近 3 版）
     versions: [
       {
+        ver: '14.43.0',
+        date: '2026-11-24',
+        items: [
+          '具体平台单源 specificPlatformTag（shared/platform-detect.js）：标题机型/ROM 格式标记（NS2/PS5/XSX/NSP→NS 等）→ Metacritic 平台列表兜底（跳过 PC/移动端）→ 回退大类「主机」；两管线 platformTag 统一装配（铁律 18），旧笼统「主机/模拟器」标签在标题含机型时升级为具体机型',
+          '列表非 Steam MC 徽章组默认 4 块：具体平台 → MC 媒体分 → MC 用户分 → 发售日期（缺值「—」占位如实，不虚挂）；mcReleaseDate 两管线透出',
+          'badgeVisibility 新增 mcPlatform/mcMedia/mcUser/mcRelease 4 键（默认全开）——options/popup 双层开关 + 保存映射/reset-defaults 同步（铁律 10 四处齐）',
+          '详情浮窗标题按数据身份显示具体平台：「🎮 NS2 游戏信息」替代笼统「平台游戏信息」'
+        ]
+      },
+      {
         ver: '14.42.17',
         date: '2026-11-24',
         items: [

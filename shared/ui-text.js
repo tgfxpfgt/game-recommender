@@ -40,6 +40,11 @@
       mcNameSuffix: '（{name}）',
       mcTagSuffix: ' · {tag}平台',
       mcUserTitle: 'Metacritic 用户评分 {score}（0-10 制）',
+      // v14.43.0：MC 4 徽章组缺值占位/发售日期悬停（用户指令 2026-11-24）
+      mcNoScoreTitle: 'Metacritic 暂无媒体评分（未收录或未查得）',
+      mcNoUserTitle: 'Metacritic 暂无用户评分',
+      mcReleaseTitle: 'Metacritic 发售日期: {date}',
+      mcNoReleaseTitle: '暂无发售日期数据',
       platformEmulatorTitle: '模拟器/ROM 整合条目——非 Steam 游戏，未检索评分',
       platformConsoleTitle: '主机平台游戏——评分优先 Metacritic（本条暂无可得评分）',
       recDislikeTitle: '不感兴趣'

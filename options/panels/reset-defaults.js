@@ -39,6 +39,11 @@
     ['badgeVisibility.update', 'badgeUpdate'],
     ['badgeVisibility.rec', 'badgeRec'],
     ['badgeVisibility.appstat', 'badgeAppstat'],
+    // v14.43.0：MC 徽章组 4 键
+    ['badgeVisibility.mcPlatform', 'badgeMcPlatform'],
+    ['badgeVisibility.mcMedia', 'badgeMcMedia'],
+    ['badgeVisibility.mcUser', 'badgeMcUser'],
+    ['badgeVisibility.mcRelease', 'badgeMcRelease'],
     // 批处理与上限 / limits
     ['maxScanLinks', 'maxScanLinks'],
     ['ratingsBatchSize', 'ratingsBatchSize'],

@@ -407,11 +407,13 @@ export function createSteamFloat(gameName, settings) {
     try {
       const titleEl = panel.parentElement && panel.parentElement.querySelector('.gr-float-chrome-title');
       if (titleEl) {
+        // v14.43.0（用户指令：浮窗标题显示具体平台如 NS2）——platformTag 由
+        // 管线装配（标题标记 → MC 平台列表兜底），回退「平台」保底
         titleEl.textContent =
           data && data.steamMissing
             ? '🎮 游戏信息 · Metacritic'
             : isPlatformEntry
-              ? '🎮 平台游戏信息'
+              ? '🎮 ' + ((data && data.platformTag) || '平台') + '游戏信息'
               : '🎮 Steam 信息';
       }
     } catch {

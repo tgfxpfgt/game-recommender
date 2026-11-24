@@ -49,6 +49,11 @@
     document.getElementById('badgeAll').checked = bv.all !== false;
     document.getElementById('badgeUpdate').checked = bv.update !== false;
     document.getElementById('badgeRec').checked = bv.rec !== false;
+    // v14.43.0：MC 徽章组开关回显（默认全开）
+    document.getElementById('badgeMcPlatform').checked = bv.mcPlatform !== false;
+    document.getElementById('badgeMcMedia').checked = bv.mcMedia !== false;
+    document.getElementById('badgeMcUser').checked = bv.mcUser !== false;
+    document.getElementById('badgeMcRelease').checked = bv.mcRelease !== false;
     // 列表页链接扫描上限（v3.3.9）
     document.getElementById('maxScanLinks').value = settings.maxScanLinks || 500;
     // v14.43.0：列表页格子/文字缩放回显（50-300，默认 150/100）

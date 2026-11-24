@@ -2,6 +2,13 @@
 
 > v14.28.0 起从 README 拆出（README ≤ 400 行纪律，方案 P2-2）。最新条目在最上方。
 
+### v14.43.0（主机游戏具体平台（NS2/PS5）+ 列表 MC 徽章组 4 块 + MC 徽章独立开关，2026-11-24）
+
+- 具体平台单源 specificPlatformTag（shared/platform-detect.js）：标题机型/ROM 格式标记（NS2/PS5/XSX/NSP→NS 等）→ Metacritic 平台列表兜底（跳过 PC/移动端）→ 回退大类「主机」；两管线 platformTag 统一装配（铁律 18），旧笼统「主机/模拟器」标签在标题含机型时升级为具体机型
+- 列表非 Steam MC 徽章组默认 4 块：具体平台 → MC 媒体分 → MC 用户分 → 发售日期（缺值「—」占位如实，不虚挂）；mcReleaseDate 两管线透出
+- badgeVisibility 新增 mcPlatform/mcMedia/mcUser/mcRelease 4 键（默认全开）——options/popup 双层开关 + 保存映射/reset-defaults 同步（铁律 10 四处齐）
+- 详情浮窗标题按数据身份显示具体平台：「🎮 NS2 游戏信息」替代笼统「平台游戏信息」
+
 ### v14.42.17（徽章独立行回归用例 + 更新日志补全（徽章迁出标题行，v14.42.16 并行批次漏记），2026-11-24）
 
 - 列表页徽章改占标题上方独立一行（.gr-badge-row，badge-base ensureBadgeRow 单源；两档布局：标题元素独立于链接→标题前一兄弟，否则链接内封面之后）——标题行 DOM 保持原版；防重复守卫/等待徽章/推荐徽章/平台徽章/a-b 徽章/重查清除全部迁入行内，守卫统一走 itemQuerySelector
@@ -26,7 +33,7 @@
 
 ### v14.42.13（源码树装载防呆——自检卡首行 ⚠ 直示（用户实证：仓库根装载自检全绿但内容管线死），2026-11-23）
 
-- tracker 源模式守卫（__GR_BUNDLE__ 未定义时 console.error + storage 落 sourceTreeLoad 标记）+ dashboard 自检卡首行 ⚠「扩展装载自源码树——列表/详情/徽章管线不可用，请加载 dist/」；sim-harness 置标记免噪声。收口『仓库根装载自检全绿而内容管线死』的迷惑面（e2e-dist 教训的根目录版）
+- tracker 源模式守卫（**GR_BUNDLE** 未定义时 console.error + storage 落 sourceTreeLoad 标记）+ dashboard 自检卡首行 ⚠「扩展装载自源码树——列表/详情/徽章管线不可用，请加载 dist/」；sim-harness 置标记免噪声。收口『仓库根装载自检全绿而内容管线死』的迷惑面（e2e-dist 教训的根目录版）
 
 ### v14.42.12（列表页处理快照——徽章排查最后一层取证（提取数/适配器/URL 直显自检卡），2026-11-22）
 
@@ -136,7 +143,6 @@
 - 删 tests/e2e/run.mjs + tests/e2e-smoke.mjs + scripts/e2e-dist.mjs（编排层退役——@playwright/test runner v14.36.0 全面接管且双跑验证绿，回退面过稳定期）；节函数 section-*.mjs 与 helpers.mjs 保留（runner 复用单源），e2e-probe 真机诊断不受影响
 - 引用面同步：calibrate-budgets e2eMock 校准命令 e2e:dist → e2e:pw（否则下次校准跑已删脚本）、coverage-gate 注释、gate.mjs/AGENTS 回退面表述、npm 脚本 e2e:dist 删除
 
-
 **完整发版（2026-11-21，tag+release，zip 上线）**：触发线（v14.31.0 后累计 +12,000 行）→ gate 全量绿（E2E:pw runner 首次完整跑；worktree 干净检出隔离验收）→ **安全深度扫描 seal `sha256:c0c3303486e7788bd009d5db2ffd0968c56c76b6907a37484b753dc7f3079a94`**（Semgrep OSS 含自定义规则：98 findings 0 新增逃逸——74 JS 类全在基线锁管理面 + 24 Actions pin-to-SHA 挂账；报告 docs/reports/security-scan-v14.37.3/）
 
 ### v14.37.2（文档对齐——E2E 验收入口 e2e:dist → e2e:pw（活规则保鲜），2026-11-20）
@@ -175,7 +181,7 @@
 ### v14.34.5（TS strict 三域收口——noImplicitAny 与 strictNullChecks 全开零豁免，2026-11-19）
 
 - 三域 tsconfig 删除 noImplicitAny:false / ui 域 strictNullChecks:false 显式豁免——strict 开关组全开，JSDoc 形态下完整 strict 覆盖达成
--  fallout 32 处一次修净：ui 域隐式 any 家族 12 处（dash-stats 参数注解/rules.js/__GR_TOKENS__ globals.d.ts 单源声明）+ strictNullChecks 20 处（files 可选链/preact 装载器返回类型收口/tabId·at(-1)·customThemeCss 断言与守卫）——行为等价由既有测试背书
+- fallout 32 处一次修净：ui 域隐式 any 家族 12 处（dash-stats 参数注解/rules.js/**GR_TOKENS** globals.d.ts 单源声明）+ strictNullChecks 20 处（files 可选链/preact 装载器返回类型收口/tabId·at(-1)·customThemeCss 断言与守卫）——行为等价由既有测试背书
 - 类型债棘轮基线三域降至 0（只降不升，隐式 any 回流直接红）
 
 ### v14.34.4（hyperfine 基线校准落地——多轮统计口径 + 校准脚本入库，2026-11-19）

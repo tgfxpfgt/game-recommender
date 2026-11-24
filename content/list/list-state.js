@@ -198,7 +198,7 @@ export function applyRatingsResponse(ratings, mode) {
       job.processed.add(item.name);
       changed = true;
       badges.removeWorkingBadge(item);
-      badges.prependPlatformBadge(item, rating);
+      badges.prependPlatformBadge(item, rating, job.settings); // v14.43.0：MC 徽章组开关
       job.shown++;
       return;
     }

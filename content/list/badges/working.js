@@ -94,50 +94,79 @@ export function highlightItem(item) {
 // v14.10.0：非 PC 平台徽章——主机/模拟器标签（虚线灰）与 Metacritic 分
 //（色带同 MC 惯例：≥75 绿 / 50-74 黄 / <50 红）。组标记 gr-rating-badge
 //（防重复守卫/测试选择器三重身份——经 createBadge 传入）。
-// Non-PC platform badges: console/emulator tag (dashed gray) and the
-// Metacritic score badge (green/yellow/red bands).
-/** @param {any} item @param {any} rating */
-export function prependPlatformBadge(item, rating) {
+// v14.43.0（用户指令 2026-11-24）：MC 徽章组统一 4 块——具体平台（如 NS2，
+// 管线装配，标题标记 → MC 平台列表兜底）→ MC 媒体分 → MC 用户分 → 发售日期，
+// 缺值显示「—」占位（故障三态：占位 ≠ 有值）；badgeVisibility.mc* 四键独立
+// 开关（默认全开）。非 MC 收录条目如实显示占位，不虚挂数据。
+// Non-PC platform badge group (v14.43.0): specific platform tag → MC media →
+// MC user score → release date, "—" placeholders when missing, four toggles.
+/** @param {any} item @param {any} rating @param {Record<string, any>} [settings] */
+export function prependPlatformBadge(item, rating, settings) {
   const link = item.link;
   if (!link || itemQuerySelector(item, '.gr-rating-badge')) return; // v14.43.0：守卫单源
-  const target = ensureBadgeRow(item);
-  if (!target) return;
-  if (rating.mcScore != null) {
-    const score = rating.mcScore;
-    // v14.31.0：MC 分级色单源化 __GR_PATTERNS__.mcColorFor（与详情浮窗 MC 视图
-    // 同一把尺——阈值调整单点改动，防两处脱节）
-    const color = globalThis.__GR_PATTERNS__.mcColorFor(score);
+  const row = ensureBadgeRow(item);
+  if (!row) return;
+  const bv = (settings && settings.badgeVisibility) || {};
+  const mcColor = typeof rating.mcScore === 'number' ? globalThis.__GR_PATTERNS__.mcColorFor(rating.mcScore) : null;
+  const userColor = globalThis.__GR_TOKENS__ ? globalThis.__GR_TOKENS__.PALETTE.mcUserBadge : '#5a7bb8';
+  /** @param {string} cls @param {string} text @param {string} style @param {string} title */
+  const addBadge = (cls, text, style, title) => {
     const badge = document.createElement('span');
-    badge.className = 'gr-rating-badge gr-mc-badge';
-    badge.textContent = `MC ${score}`;
-    badge.style.cssText = `padding:2px 6px;font-size:10px;color:#fff;background:${color};border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;`;
-    badge.title =
-      t('badge.mcTitlePrefix', { score }) +
-      (rating.mcName ? t('badge.mcNameSuffix', { name: rating.mcName }) : '') +
-      (rating.platformTag ? t('badge.mcTagSuffix', { tag: rating.platformTag }) : '');
-    target.insertBefore(badge, target.firstChild);
-    // v14.42.5（用户指令：MC 双分列表区分显示）：用户分独立徽章（0-10 制一位
-    // 小数，蓝紫底与媒体分分级色区分）——插入在媒体分徽章之后（firstChild
-    // 再插一次即排第二）
-    if (typeof rating.mcUserScore === 'number') {
-      const userBadge = document.createElement('span');
-      userBadge.className = 'gr-rating-badge gr-mc-user-badge';
-      userBadge.textContent = `用户 ${rating.mcUserScore}`;
-      userBadge.style.cssText =
-        'padding:2px 6px;font-size:10px;color:#fff;background:' +
-        (globalThis.__GR_TOKENS__ ? globalThis.__GR_TOKENS__.PALETTE.mcUserBadge : '#5a7bb8') +
-        ';border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;';
-      userBadge.title = t('badge.mcUserTitle', { score: rating.mcUserScore });
-      target.insertBefore(userBadge, target.firstChild);
-    }
-    return;
+    badge.className = 'gr-rating-badge ' + cls;
+    badge.textContent = text;
+    badge.style.cssText =
+      'padding:2px 6px;font-size:10px;' +
+      style +
+      'border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;';
+    badge.title = title || '';
+    row.appendChild(badge);
+  };
+
+  // ① 具体平台（NS2/PS5/模拟器/Steam 未发售——管线 platformTag 单源装配）
+  if (bv.mcPlatform !== false) {
+    addBadge(
+      'gr-platform-badge',
+      rating.platformTag || '主机',
+      'background:rgba(143,152,160,0.12);color:#8f98a0;border:1px dashed #555;',
+      rating.platformTag === '模拟器' ? t('badge.platformEmulatorTitle') : t('badge.platformConsoleTitle')
+    );
   }
-  const tag = rating.platformTag || '主机';
-  const badge = document.createElement('span');
-  badge.className = 'gr-rating-badge gr-platform-badge';
-  badge.textContent = tag;
-  badge.style.cssText =
-    'padding:2px 6px;font-size:10px;background:rgba(143,152,160,0.12);color:#8f98a0;border:1px dashed #555;border-radius:2px;display:inline-block;margin-right:4px;vertical-align:middle;cursor:default;';
-  badge.title = rating.platformTag === '模拟器' ? t('badge.platformEmulatorTitle') : t('badge.platformConsoleTitle');
-  target.insertBefore(badge, target.firstChild);
+  // ② MC 媒体分（有分 = 分级色；无分 = 灰占位——不与「未找到」混同）
+  if (bv.mcMedia !== false) {
+    addBadge(
+      'gr-mc-badge',
+      typeof rating.mcScore === 'number' ? `MC ${rating.mcScore}` : 'MC —',
+      typeof rating.mcScore === 'number'
+        ? `color:#fff;background:${mcColor};`
+        : 'background:rgba(143,152,160,0.1);color:#8f98a0;',
+      typeof rating.mcScore === 'number'
+        ? t('badge.mcTitlePrefix', { score: rating.mcScore }) +
+            (rating.mcName ? t('badge.mcNameSuffix', { name: rating.mcName }) : '') +
+            (rating.platformTag ? t('badge.mcTagSuffix', { tag: rating.platformTag }) : '')
+        : t('badge.mcNoScoreTitle')
+    );
+  }
+  // ③ MC 用户分（0-10 制一位小数，蓝紫底与媒体分区分）
+  if (bv.mcUser !== false) {
+    addBadge(
+      'gr-mc-user-badge',
+      typeof rating.mcUserScore === 'number' ? `用户 ${rating.mcUserScore}` : '用户 —',
+      typeof rating.mcUserScore === 'number'
+        ? `color:#fff;background:${userColor};`
+        : 'background:rgba(143,152,160,0.1);color:#8f98a0;',
+      typeof rating.mcUserScore === 'number'
+        ? t('badge.mcUserTitle', { score: rating.mcUserScore })
+        : t('badge.mcNoUserTitle')
+    );
+  }
+  // ④ 发售日期（列表 4 徽章组新增；与 Steam 段3「—」占位同语义）
+  if (bv.mcRelease !== false) {
+    const rel = typeof rating.mcReleaseDate === 'string' ? rating.mcReleaseDate : '';
+    addBadge(
+      'gr-mc-release-badge',
+      rel ? `📅 ${rel.length >= 10 ? rel.slice(5, 10) : rel}` : '—',
+      'background:rgba(143,152,160,0.1);color:#8f98a0;',
+      rel ? t('badge.mcReleaseTitle', { date: rel }) : t('badge.mcNoReleaseTitle')
+    );
+  }
 }

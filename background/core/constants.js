@@ -295,7 +295,19 @@ export const DEFAULT_SETTINGS = {
   // List-page badge toggles (all on by default). Data fetching keeps running;
   // turning off "all" also disables the rating filter, "rec" the highlighting.
   // v10.3.0：appstat（a-b 徽章）纳入徽章独立开关
-  badgeVisibility: { recent: true, all: true, update: true, rec: true, appstat: true, score: true }, // v10.5.3 score=综合评分徽章
+  badgeVisibility: {
+    recent: true,
+    all: true,
+    update: true,
+    rec: true,
+    appstat: true,
+    score: true, // v10.5.3 score=综合评分徽章
+    // v14.43.0（用户指令：MC 徽章组 4 块独立开关，默认全开）
+    mcPlatform: true, // 具体平台（NS2/PS5/模拟器/Steam 未发售）
+    mcMedia: true, // MC 媒体分
+    mcUser: true, // MC 用户分
+    mcRelease: true // MC 发售日期
+  },
   // v10.3.0：内容功能独立开关（关闭只停用该功能，不影响其他功能与显示）
   enableRecommendations: true, // 推荐值计算与推荐徽章（关闭后列表页不再请求推荐）
   downloadTrackingEnabled: true, // 下载追踪（网盘点击委托/复制捕获 → click_download）

@@ -287,6 +287,102 @@ export function detectPlatform(rawName) {
   return { kind: 'pc', tag: '' };
 }
 
+// v14.43.0（用户指令 2026-11-24：主机游戏显示具体平台如 NS2）：具体机型文案。
+// detectPlatform 只判「主机/模拟器」大类（管线路由用）；具体机型由本函数给出
+// ——标题平台段机型标记优先（整段小写匹配，具体机型先于品牌泛词），标题无
+// 机型时回落 Metacritic 平台列表（跳过 PC/移动端，取首个主机平台）。
+// Specific console label ("NS2"/"PS5"): title markers first, then the
+// Metacritic platform list. Returns '' when nothing specific is known.
+/** @type {Array<[string, string]>} 标题标记 → 机型文案（序 = 优先级） */
+const CONSOLE_LABEL_BY_MARKER = [
+  ['ns2', 'NS2'],
+  ['switch2', 'NS2'],
+  ['nswitch2', 'NS2'],
+  ['ns', 'NS'],
+  ['switch', 'NS'],
+  ['nswitch', 'NS'],
+  ['playstation5', 'PS5'],
+  ['ps5', 'PS5'],
+  ['playstation4', 'PS4'],
+  ['ps4', 'PS4'],
+  ['playstation3', 'PS3'],
+  ['ps3', 'PS3'],
+  ['playstation2', 'PS2'],
+  ['ps2', 'PS2'],
+  ['playstation1', 'PS1'],
+  ['ps1', 'PS1'],
+  ['psvita', 'PSV'],
+  ['psv', 'PSV'],
+  ['vita', 'PSV'],
+  ['psp', 'PSP'],
+  ['seriesx', 'XSX'],
+  ['xsx', 'XSX'],
+  ['series s', 'XSS'],
+  ['xss', 'XSS'],
+  ['xboxone', 'X1'],
+  ['xbox360', 'X360'],
+  ['xbox', 'Xbox'],
+  ['wiiu', 'WiiU'],
+  ['wii', 'Wii'],
+  ['3ds', '3DS'],
+  ['ndsl', 'NDSL'],
+  ['nds', 'NDS'],
+  ['dsi', 'DSi'],
+  // ROM 格式标记（与 detectPlatform 的 ROM_FORMAT_MARKERS 同源语义——
+  // 具体机型推导：nsp/xci/nro=NS、wbfs/rvz=Wii、vpk=PSV；chd 为通用容器不出机型）
+  ['nsp', 'NS'],
+  ['nsz', 'NS'],
+  ['xci', 'NS'],
+  ['nro', 'NS'],
+  ['wbfs', 'Wii'],
+  ['rvz', 'Wii'],
+  ['vpk', 'PSV']
+];
+/** @type {Array<[RegExp, string]>} Metacritic 平台名 → 机型文案（序 = 优先级） */
+const MC_PLATFORM_LABEL_RULES = [
+  [/nintendo\s*switch\s*2/i, 'NS2'],
+  [/nintendo\s*switch/i, 'NS'],
+  [/playstation\s*5|ps5/i, 'PS5'],
+  [/playstation\s*4|ps4/i, 'PS4'],
+  [/playstation\s*3|ps3/i, 'PS3'],
+  [/playstation\s*2|ps2/i, 'PS2'],
+  [/playstation\s*vita|ps\s*vita|\bvita\b/i, 'PSV'],
+  [/playstation\s*portable|\bpsp\b/i, 'PSP'],
+  [/xbox\s*series\s*x/i, 'XSX'],
+  [/xbox\s*series\s*s/i, 'XSS'],
+  [/xbox\s*series/i, 'Xbox Series'],
+  [/xbox\s*one/i, 'X1'],
+  [/xbox\s*360/i, 'X360'],
+  [/xbox/i, 'Xbox'],
+  [/wii\s*u/i, 'WiiU'],
+  [/\bwii\b/i, 'Wii'],
+  [/nintendo\s*3ds|\b3ds\b/i, '3DS'],
+  [/nintendo\s*ds\b|\bnds\b/i, 'NDS'],
+  [/nintendo/i, 'Nintendo']
+];
+
+/**
+ * 具体机型文案（纯函数）。标题机型标记优先，回落 MC 平台列表；无法具体化返回 ''。
+ * @param {string} rawName - 列表项标题（可与站点平台提示词以 `|` 拼接，同 detectPlatform 入参）
+ * @param {Array<string>|null} [mcPlatforms] - Metacritic 平台列表（如 "Nintendo Switch 2"）
+ * @returns {string} 如 'NS2'；无具体机型返回 ''
+ */
+export function specificPlatformTag(rawName, mcPlatforms) {
+  const segs = segmentsOf(rawName);
+  for (const [marker, label] of CONSOLE_LABEL_BY_MARKER) {
+    if (segs.some((seg) => segVariants(seg).includes(marker))) return label;
+  }
+  const platforms = Array.isArray(mcPlatforms) ? mcPlatforms : [];
+  // 跳过 PC/移动端——下载站条目是主机版，多平台 MC 条目里 PC 不代表本条目
+  for (const p of platforms) {
+    const s = String(p || '');
+    if (!s || /^(pc|windows|mac|linux|ios|android|iphone|ipad|mobile)/i.test(s)) continue;
+    const hit = MC_PLATFORM_LABEL_RULES.find(([re]) => re.test(s));
+    if (hit) return hit[1];
+  }
+  return '';
+}
+
 // v14.28.7 R4-B2（用户裁决：平台不一致最优先判推测）：移动/云游戏标记——
 // **仅供置信度判定**，不参与 detectPlatform 的管线路由（移动条目仍按 PC 走
 // 检索，只是命中同名 Steam 条目时标推测）。移动/云游戏标记同样整段匹配。

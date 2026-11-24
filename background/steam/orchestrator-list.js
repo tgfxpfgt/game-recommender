@@ -44,8 +44,9 @@ import {
   detectPlatform,
   detectOffSteamPlatform,
   trimPlatformTokens,
-  extractEnNameSegment
-} from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段剥离；v14.19.0：EN 段提取单源；v14.28.7：置信度平台判定
+  extractEnNameSegment,
+  specificPlatformTag
+} from '../../shared/platform-detect.js'; // v14.10.0：非 PC 平台识别；v14.17.0：EN 段剥离；v14.19.0：EN 段提取单源；v14.28.7：置信度平台判定；v14.43.0：具体机型文案
 import { fetchMetacriticDetails } from './api-metacritic.js'; // v14.10.0：主机/模拟器条目评分源；v14.42.5：详情级抓取（媒体分+用户分）
 import { getManualPlatform } from '../storage/manual-platforms.js'; // v14.19.0：手动主机机型映射
 import { cjkBigramDice, nameMatchesSearch } from './api-search.js'; // v14.8.2：探针候选校验
@@ -179,7 +180,13 @@ export async function getSteamRatingsFromCacheOnly(gameName, options = {}) {
   const hint0 = typeof options.platformHint === 'string' ? options.platformHint.trim() : '';
   const plat0 = detectPlatform(hint0 ? `${gameName}|${hint0}` : gameName);
   if (plat0.kind === 'emulator') {
-    return { platformOnly: true, platformTag: plat0.tag, appId: null, name: gameName };
+    return {
+      platformOnly: true,
+      // v14.43.0：标题机型标记优先（"switch模拟器"→NS），无则原大类标签
+      platformTag: specificPlatformTag(hint0 ? `${gameName}|${hint0}` : gameName) || plat0.tag,
+      appId: null,
+      name: gameName
+    };
   }
   if (plat0.kind === 'console') return null;
   /** @type {string} */
@@ -324,16 +331,24 @@ async function phasePlatform(gameName, /** @type {RatingOptions} */ options) {
     mcDetails = await fetchMetacriticDetails(enSeg).catch(() => null);
   }
   if (mcDetails && mcDetails.metascore != null) {
+    // v14.43.0：具体平台（标题标记 → MC 平台列表兜底）+ 发售日期透出（4 徽章组）
+    const tag = specificPlatformTag(hint ? `${gameName}|${hint}` : gameName, mcDetails.platforms) || plat.tag;
     return {
       mcScore: mcDetails.metascore,
       mcUserScore: mcDetails.userScore,
       mcName: enSeg,
-      platformTag: plat.tag,
+      mcReleaseDate: mcDetails.releaseDate || '',
+      platformTag: tag,
       appId: null,
       name: gameName
     };
   }
-  return { platformOnly: true, platformTag: plat.tag, appId: null, name: gameName };
+  return {
+    platformOnly: true,
+    platformTag: specificPlatformTag(hint ? `${gameName}|${hint}` : gameName) || plat.tag,
+    appId: null,
+    name: gameName
+  };
 }
 
 // Phase 2——appId 解析：目录索引 → 标题检索 → EN 段兜底 → 社区搜索 →

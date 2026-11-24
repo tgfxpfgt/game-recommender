@@ -261,6 +261,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     ['toggle', 'ppBadgeUpdate', 'badgeVisibility.update'],
     ['toggle', 'ppBadgeRec', 'badgeVisibility.rec'],
     ['toggle', 'ppBadgeAppstat', 'badgeVisibility.appstat'],
+    // v14.43.0：MC 徽章组 4 键
+    ['toggle', 'ppBadgeMcPlatform', 'badgeVisibility.mcPlatform'],
+    ['toggle', 'ppBadgeMcMedia', 'badgeVisibility.mcMedia'],
+    ['toggle', 'ppBadgeMcUser', 'badgeVisibility.mcUser'],
+    ['toggle', 'ppBadgeMcRelease', 'badgeVisibility.mcRelease'],
     ['toggle', 'ppRecommendations', 'enableRecommendations'],
     ['toggle', 'ppDownloadTracking', 'downloadTrackingEnabled'],
     ['toggle', 'ppAppStats', 'appStatsEnabled'],

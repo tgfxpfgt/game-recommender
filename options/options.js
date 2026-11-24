@@ -284,7 +284,12 @@
       all: 'badgeAll',
       update: 'badgeUpdate',
       rec: 'badgeRec',
-      appstat: 'badgeAppstat' // v10.3.0
+      appstat: 'badgeAppstat', // v10.3.0
+      // v14.43.0：MC 徽章组 4 键（漏映射 = 全量保存抹掉用户值）
+      mcPlatform: 'badgeMcPlatform',
+      mcMedia: 'badgeMcMedia',
+      mcUser: 'badgeMcUser',
+      mcRelease: 'badgeMcRelease'
     };
     OPTS.currentSettings.badgeVisibility = Object.fromEntries(Object.entries(badgeIds).map(([k, id]) => [k, chk(id)]));
 

@@ -58,7 +58,7 @@ async function retryItem(item) {
     if (resp && (resp.platformOnly || resp.mcScore != null)) {
       badges.removeRatingBadges(item);
       badges.removeWorkingBadge(item);
-      badges.prependPlatformBadge(item, resp);
+      badges.prependPlatformBadge(item, resp, (job && job.settings) || {}); // v14.43.0：MC 徽章组开关
       if (job) {
         job.processed.add(item.name);
         job.ratingsByName[item.name] = resp;

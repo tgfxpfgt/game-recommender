@@ -322,7 +322,7 @@ describe('详情页平台预检（v14.29.2）', () => {
         ignoreNegativeCache: true
       });
       expect(r && r.platformOnly).toBe(true);
-      expect(r && r.platformTag).toEqual('模拟器');
+      expect(r && r.platformTag).toEqual('NS'); // v14.43.0：NSP 标题标记 → 具体机型（原'模拟器'）
       expect(r && r.appId).toEqual(null);
     } finally {
       restore();
@@ -343,7 +343,7 @@ describe('详情页平台预检（v14.29.2）', () => {
         ignoreNegativeCache: true
       });
       expect(r && r.platformOnly).toBe(true);
-      expect(r && r.platformTag).toEqual('主机');
+      expect(r && r.platformTag).toEqual('NS'); // v14.43.0：标题机型标记 → 具体平台（原'主机'）
       expect(r && r.mcScore).toEqual(91);
       expect(r && r.mcName).toBe('The Legend of Zelda');
       expect(seenUrls.some((u) => u.includes('steampowered.com'))).toBe(false); // 零 Steam 请求
@@ -441,5 +441,37 @@ describe('manifest MC 域权限 + 词表「移植」标记（v14.29.2 门禁）'
     expect(detectPlatform('艾尔登法环|PC移植版').kind).toEqual('pc');
     expect(detectPlatform('GTA5|PC版').kind).toEqual('pc');
     expect(detectPlatform('PC装机模拟器').kind).toEqual('pc');
+  });
+});
+
+describe('specificPlatformTag 具体机型文案（v14.43.0 用户指令）', () => {
+  const load = async () => {
+    const { specificPlatformTag } = await import('../../shared/platform-detect.js');
+    return specificPlatformTag;
+  };
+  test('标题机型标记优先（整段小写匹配）', async () => {
+    const fn = await load();
+    expect(fn('塞尔达传说 王国之泪|NS2')).toEqual('NS2');
+    expect(fn('马力欧赛车 世界|switch2|Mario Kart World')).toEqual('NS2');
+    expect(fn('战神|PS5|God of War')).toEqual('PS5');
+    expect(fn('光环|Xbox Series X|Halo')).toEqual('Xbox'); // 空白切段 → 品牌级
+    expect(fn('光环 无限|XSX|Halo Infinite')).toEqual('XSX');
+    expect(fn('宝可梦 朱|模拟器|NSP')).toEqual('NS');
+  });
+  test('无标题标记 → MC 平台列表兜底（跳过 PC/移动端）', async () => {
+    const fn = await load();
+    expect(fn('未知主机游戏', ['PC', 'Nintendo Switch 2'])).toEqual('NS2');
+    expect(fn('未知主机游戏', ['Xbox Series X', 'PC'])).toEqual('XSX');
+    expect(fn('未知主机游戏', ['PC', 'iOS'])).toEqual(''); // 全 PC/移动端 = 无主机信息
+  });
+  test('无任何信息返回空串（调用方回退大类标签）', async () => {
+    const fn = await load();
+    expect(fn('主机游戏')).toEqual('');
+    expect(fn('任意', null)).toEqual('');
+  });
+  test('pc 判定不受影响（detectPlatform 管线路由护栏不回归）', async () => {
+    const { detectPlatform } = await import('../../shared/platform-detect.js');
+    expect(detectPlatform('艾尔登法环|PC移植版').kind).toEqual('pc');
+    expect(detectPlatform('宝可梦 朱|模拟器整合').kind).toEqual('emulator');
   });
 });
