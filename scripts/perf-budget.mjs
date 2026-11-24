@@ -211,7 +211,13 @@ export const BUDGETS = {
   // v14.42.5 re-lock: MC dual-score + steamMissing detail card (+7.8KB SW).
   // v14.42.8 心跳批（+2.3KB 静态注入/闭包）：tracker 注入心跳 + 自检卡心跳
   // 行与诊断包字段——新增诊断能力，无冗余代码。按实测重锁。
-  swGraphBytes: 1019808,
+  // v14.43.0（具体平台批）：platform-detect 新增 specificPlatformTag 单源
+  //（机型/ROM 标记表 + MC 平台名规则，~2.6KB 主体为双语数据与注释）+ 两管线
+  // 装配接线 + mcReleaseDate 透出——SW 图 1,024,589B（+4,781B）。按实测重锁
+  //（新增能力，无冗余代码）。
+  // v14.43.0 re-lock: specificPlatformTag single source + pipeline wiring
+  // (+4.8KB SW); no dead code.
+  swGraphBytes: 1024589,
   swGraphFiles: 109,
   // v14.42.8 防呆批（+1KB 静态注入）：tracker 源模式守卫（console.error +
   // storage 标记）+ 自检卡源码树装载 ⚠ 首行——用户实证仓库根装载自检全绿
@@ -240,7 +246,12 @@ export const BUDGETS = {
   // 基线漂移（逻辑零变更）——按「预算 = 实测值」口径重锁。
   // v14.42.1 (+16B): bump-text constant drift, zero logic change; re-locked
   // to the measured value.
-  closureBytes: 354840
+  // v14.43.0（具体平台批）：detail 闭包 358,607B（+3,767B = sidebar-html
+  // 标题动态化 + MC 视图平台段；working.js 4 徽章组落 list 闭包 335,473B
+  // 仍在预算内）。按实测重锁（新增能力，无冗余代码）。
+  // v14.43.0 re-lock: detail closure +3.8KB (dynamic title + platform in MC
+  // view); list closure within budget.
+  closureBytes: 358607
 };
 
 const STATIC_IMPORT_RE = /(?:import|export)[^'"`;]*?from\s*['"]([^'"]+)['"]|import\s*['"]([^'"]+)['"]/g;
