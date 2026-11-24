@@ -436,7 +436,7 @@
 
 | 模块 | 职责 | 依赖 | 导出 | 不变式 |
 | --- | --- | --- | --- | --- |
-| `shared/platform-detect.js` | 非 PC 平台识别（v14.10.0，用户需求：主机/模拟器条目） | — | detectPlatform<br>detectOffSteamPlatform<br>trimPlatformTokens<br>MANUAL_PLATFORM_OPTIONS<br>MANUAL_PLATFORM_BRANDS<br>resolveManualPlatformOption<br>…+1 | — |
+| `shared/platform-detect.js` | 非 PC 平台识别（v14.10.0，用户需求：主机/模拟器条目） | — | detectPlatform<br>specificPlatformTag<br>detectOffSteamPlatform<br>trimPlatformTokens<br>MANUAL_PLATFORM_OPTIONS<br>MANUAL_PLATFORM_BRANDS<br>…+2 | — |
 
 ## shared/preact-globals.js
 
